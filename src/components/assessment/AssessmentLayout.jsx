@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -9,6 +10,10 @@ const AssessmentLayout = ({ children, totalSteps }) => {
     const { currentStep, prevStep } = useAssessment();
 
     const progress = ((currentStep) / (totalSteps - 1)) * 100;
+
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [currentStep]);
 
     return (
         <div className={styles.layout}>
