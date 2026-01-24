@@ -1,0 +1,108 @@
+/* Container Global */
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 4rem 1.5rem 8rem;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: #334155;
+    line-height: 1.8;
+}
+
+/* Header Section */
+.header {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #0F172A;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #0F172A 0%, #334155 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.meta {
+    font-size: 0.95rem;
+    color: #64748B;
+    font-weight: 500;
+}
+
+/* Content Typography */
+.content h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1E293B;
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    letter-spacing: -0.01em;
+}
+
+.content p {
+    margin-bottom: 1.5rem;
+    color: #475569;
+}
+
+.content ul {
+    margin-bottom: 1.5rem;
+    padding-left: 1.5rem;
+    list-style-type: none;
+}
+
+.content li {
+    margin-bottom: 0.75rem;
+    position: relative;
+    padding-left: 1rem;
+}
+
+.content li::before {
+    content: "•";
+    color: #3B82F6;
+    font-weight: bold;
+    font-size: 1.25rem;
+    position: absolute;
+    left: -1rem;
+    top: -0.2rem;
+}
+
+/* Alert Box for Medical Disclaimer */
+.alertBox {
+    background: #FFFBEB;
+    border-left: 4px solid #F59E0B;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.alertTitle {
+    color: #92400E;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.alertText {
+    color: #B45309;
+    font-size: 0.95rem;
+    margin-bottom: 0;
+}
+
+/* Links */
+.link {
+    color: #3B82F6;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s;
+}
+
+.link:hover {
+    color: #2563EB;
+    text-decoration: underline;
+}

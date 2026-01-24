@@ -1,0 +1,435 @@
+.hero {
+    position: relative;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    padding: 6rem 0 4rem;
+    /* More top padding for nav */
+}
+
+/* Background Effects */
+.bgGlow {
+    position: absolute;
+    top: -20%;
+    right: -10%;
+    width: 80%;
+    height: 100%;
+    background: radial-gradient(circle at center, rgba(37, 99, 235, 0.08) 0%, rgba(16, 185, 129, 0.03) 40%, transparent 70%);
+    filter: blur(100px);
+    z-index: -1;
+    pointer-events: none;
+}
+
+.bgOrb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: -1;
+    opacity: 0.4;
+    animation: pulse 10s infinite alternate;
+}
+
+.orb1 {
+    top: 10%;
+    left: 10%;
+    width: 300px;
+    height: 300px;
+    background: var(--primary-light);
+    opacity: 0.1;
+}
+
+.orb2 {
+    bottom: 10%;
+    right: 5%;
+    width: 400px;
+    height: 400px;
+    background: var(--secondary);
+    opacity: 0.05;
+    animation-delay: -5s;
+}
+
+
+.container {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    align-items: center;
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    z-index: 1;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--primary-dark);
+    border-radius: 99px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 4px 20px -5px rgba(37, 99, 235, 0.1);
+    transition: all 0.3s ease;
+}
+
+.badge:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 8px 25px -5px rgba(37, 99, 235, 0.15);
+}
+
+.title {
+    font-size: 3.5rem;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    color: var(--text-main);
+}
+
+.gradientText {
+    background: linear-gradient(135deg, var(--primary) 0%, #3B82F6 50%, var(--secondary) 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradientMove 5s linear infinite;
+}
+
+.subtitle {
+    font-size: 1.25rem;
+    color: var(--text-muted);
+    max-width: 580px;
+    margin-bottom: 3rem;
+    line-height: 1.6;
+    font-weight: 400;
+}
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    /* Space between buttons */
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 3rem;
+}
+
+.primaryBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: 1.125rem 2.5rem;
+    border-radius: 99px;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 1.125rem;
+    box-shadow: 0 10px 30px -5px rgba(37, 99, 235, 0.4);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.primaryBtn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 20px 30px -10px rgba(37, 99, 235, 0.6);
+    filter: brightness(1.1);
+}
+
+.secondaryBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1.125rem 2.5rem;
+    border-radius: 99px;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    transition: all 0.2s;
+    width: 100%;
+    box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.secondaryBtn:hover {
+    background: #F8FAFC;
+    border-color: #CBD5E1;
+    transform: translateY(-1px);
+}
+
+.trust {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.trustItem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 0.5rem 1rem;
+    border-radius: 99px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.trustIcon {
+    color: var(--secondary);
+    fill: rgba(16, 185, 129, 0.1);
+}
+
+/* Visual Section */
+.visual {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    perspective: 1000px;
+    margin-top: 2rem;
+}
+
+.cardVisual {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    aspect-ratio: 1/1.1;
+    /* Taller on mobile might be better, but square-ish is good */
+    border-radius: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    isolation: isolate;
+}
+
+/* Abstract Background Shapes inside Visual */
+.visualCircle {
+    position: absolute;
+    border-radius: 50%;
+    z-index: -1;
+}
+
+.circle1 {
+    width: 80%;
+    height: 80%;
+    background: linear-gradient(135deg, #DBEAFE 0%, #F0F9FF 100%);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0.8;
+    animation: blob 15s infinite linear;
+}
+
+.circle2 {
+    width: 60%;
+    height: 60%;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+    top: 45%;
+    left: 55%;
+    transform: translate(-50%, -50%);
+    filter: blur(20px);
+    animation: blob 20s infinite linear reverse;
+}
+
+/* Floating Cards */
+.floatCard {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 1rem 1.25rem;
+    border-radius: 1.25rem;
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.05),
+        0 10px 15px -3px rgba(0, 0, 0, 0.05),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    animation: float 6s ease-in-out infinite;
+    min-width: 200px;
+}
+
+.iconBox {
+    width: 48px;
+    height: 48px;
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.cardText strong {
+    display: block;
+    font-size: 0.95rem;
+    color: var(--text-main);
+    margin-bottom: 2px;
+}
+
+.cardText small {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Card Specifics */
+.floatCard1 {
+    top: 15%;
+    left: 0;
+    animation-delay: 0s;
+    z-index: 2;
+}
+
+.floatCard2 {
+    bottom: 20%;
+    right: -5%;
+    animation-delay: 2.5s;
+    z-index: 2;
+}
+
+.floatCard3 {
+    top: 45%;
+    right: -5%;
+    animation-delay: 1.5s;
+    scale: 0.9;
+    opacity: 0.9;
+    z-index: 1;
+}
+
+/* Animations */
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-15px);
+    }
+}
+
+@keyframes gradientMove {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.3;
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 0.5;
+        transform: scale(1.1);
+    }
+}
+
+@keyframes blob {
+    0% {
+        transform: translate(-50%, -50%) rotate(0deg) scale(1);
+        border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    }
+
+    50% {
+        transform: translate(-50%, -50%) rotate(180deg) scale(1.1);
+        border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+    }
+
+    100% {
+        transform: translate(-50%, -50%) rotate(360deg) scale(1);
+        border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    }
+}
+
+/* Desktop Responsive */
+@media (min-width: 1024px) {
+    .container {
+        grid-template-columns: 1.1fr 0.9fr;
+        text-align: left;
+        padding: 0 2rem;
+        gap: 6rem;
+    }
+
+    .content {
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .title {
+        font-size: 4.5rem;
+        /* Big confident typo */
+        line-height: 1.05;
+        margin-bottom: 2rem;
+    }
+
+    .subtitle {
+        font-size: 1.25rem;
+        margin-bottom: 3.5rem;
+        max-width: 600px;
+    }
+
+    .actions {
+        flex-direction: row;
+        width: auto;
+        max-width: none;
+    }
+
+    .primaryBtn,
+    .secondaryBtn {
+        width: auto;
+        padding: 1.25rem 2.5rem;
+    }
+
+    .visual {
+        margin-top: 0;
+        justify-content: flex-end;
+    }
+
+    .cardVisual {
+        max-width: 550px;
+        aspect-ratio: 1/1;
+    }
+
+    .floatCard1 {
+        left: -5%;
+    }
+
+    .floatCard2 {
+        right: 0;
+    }
+}
