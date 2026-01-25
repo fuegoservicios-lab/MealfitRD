@@ -6,6 +6,7 @@ import Plan from './pages/Plan';
 import Dashboard from './pages/Dashboard'; // Importamos el Dashboard
 import ShoppingList from './pages/ShoppingList';
 import Recipes from './pages/Recipes';
+import Settings from './pages/Settings';
 import { Privacy, Terms, Cookies, MedicalDisclaimer } from './pages/legal/LegalPages';
 import { AssessmentProvider } from './context/AssessmentContext';
 
@@ -27,6 +28,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/shopping" element={<ShoppingList />} />
           <Route path="/dashboard/recipes" element={<Recipes />} />
+          <Route path="/dashboard/settings" element={<Settings />} />
 
           {/* Rutas Legales */}
           <Route path="/privacy" element={<Layout><Privacy /></Layout>} />

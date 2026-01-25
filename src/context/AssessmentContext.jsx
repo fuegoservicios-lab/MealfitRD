@@ -76,7 +76,9 @@ export const AssessmentProvider = ({ children }) => {
         if (!isCurrentlyLiked) {
             try {
                 const userId = localStorage.getItem('mealfit_user_id');
-                await fetch('http://localhost:8000/like', {
+                
+                // ACTUALIZADO: URL DE PRODUCCIÓN DE N8N
+                await fetch('https://agente-de-citas-dental-space-n8n.ofcrls.easypanel.host/webhook/like', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

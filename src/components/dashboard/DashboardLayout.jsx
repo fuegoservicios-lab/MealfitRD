@@ -68,19 +68,51 @@ const DashboardLayout = ({ children }) => {
                     })}
                 </nav>
 
-                <div className={styles.userFooter}>
-                    <div className={styles.userProfile}>
-                        <div className={styles.avatar}>
-                            <User size={20} />
+                <div className={styles.userFooter} style={{ padding: '1.5rem', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                    <div className={styles.userProfile} style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+                        <div className={styles.avatar} style={{
+                            width: '3.25rem', height: '3.25rem', borderRadius: '1rem',
+                            background: '#EFF6FF', color: '#3B82F6',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.1)'
+                        }}>
+                            <User size={24} strokeWidth={2.5} />
                         </div>
-                        <div style={{ fontSize: '0.875rem' }}>
-                            <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Mi Cuenta</div>
-                            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Plan Personalizado</div>
+                        <div>
+                            <div style={{ fontWeight: 800, color: '#1E293B', fontSize: '1rem', letterSpacing: '-0.025em' }}>Mi Cuenta</div>
+                            <div style={{ color: '#64748B', fontSize: '0.8rem', fontWeight: 500 }}>Plan Personalizado</div>
                         </div>
                     </div>
 
-                    <button onClick={handleLogout} className={styles.logoutBtn}>
-                        <LogOut size={16} /> Cerrar Sesión
+                    <button
+                        onClick={handleLogout}
+                        className={styles.logoutBtn}
+                        style={{
+                            width: '100%',
+                            padding: '0.875rem',
+                            borderRadius: '0.875rem',
+                            border: '1px solid #FECACA',
+                            background: '#FEF2F2',
+                            color: '#EF4444',
+                            fontWeight: 700,
+                            fontSize: '0.9rem',
+                            cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.625rem',
+                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#FEE2E2';
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(239, 68, 68, 0.1), 0 2px 4px -1px rgba(239, 68, 68, 0.06)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = '#FEF2F2';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                        }}
+                    >
+                        <LogOut size={18} strokeWidth={2.5} />
+                        <span>Cerrar Sesión</span>
                     </button>
                 </div>
             </aside>

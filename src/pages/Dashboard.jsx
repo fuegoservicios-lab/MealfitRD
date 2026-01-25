@@ -45,14 +45,36 @@ const Dashboard = () => {
                 <button
                     onClick={handleNewPlan}
                     style={{
-                        background: 'var(--primary)', color: 'white',
-                        padding: '0.75rem 1.5rem', borderRadius: '0.75rem',
-                        border: 'none', fontWeight: 600, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', gap: '0.5rem',
-                        boxShadow: 'var(--shadow-glow)', transition: 'transform 0.2s'
+                        background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                        color: 'white',
+                        padding: '0.85rem 2rem',
+                        borderRadius: '1rem',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.35), 0 4px 6px -2px rgba(37, 99, 235, 0.1)',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        fontSize: '1rem',
+                        letterSpacing: '0.025em',
+                        position: 'relative',
+                        overflow: 'hidden'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                        e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(37, 99, 235, 0.5), 0 10px 10px -5px rgba(37, 99, 235, 0.2)';
+                        e.currentTarget.style.filter = 'brightness(1.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(37, 99, 235, 0.35), 0 4px 6px -2px rgba(37, 99, 235, 0.1)';
+                        e.currentTarget.style.filter = 'brightness(1)';
                     }}
                 >
-                    <RefreshCw size={18} /> Generar Nuevo
+                    <RefreshCw size={22} strokeWidth={2.5} />
+                    <span>Generar Nuevo</span>
                 </button>
             </header>
 
@@ -90,15 +112,16 @@ const Dashboard = () => {
 
                             return (
                                 <div key={index} style={{
-                                    background: 'white',
+                                    background: 'rgba(255, 255, 255, 0.8)',
+                                    backdropFilter: 'blur(12px)',
                                     padding: '1.5rem',
                                     borderRadius: '1rem',
-                                    border: '1px solid var(--border)',
+                                    border: '1px solid rgba(255, 255, 255, 0.6)',
                                     display: 'grid',
                                     gridTemplateColumns: '1fr auto',
                                     gap: '1.5rem',
                                     alignItems: 'center',
-                                    boxShadow: 'var(--shadow-sm)',
+                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
                                     transition: 'transform 0.2s, box-shadow 0.2s',
                                     position: 'relative'
                                 }}>
@@ -164,12 +187,13 @@ const Dashboard = () => {
 
                     {/* --- NUEVO DISEÑO: Tarjeta de Estrategia IA Mejorada --- */}
                     <div style={{
-                        background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)',
+                        background: 'rgba(240, 253, 244, 0.8)',
+                        backdropFilter: 'blur(12px)',
                         padding: '1.5rem',
                         borderRadius: '1.5rem',
-                        border: '1px solid #BBF7D0',
+                        border: '1px solid rgba(187, 247, 208, 0.6)',
                         marginBottom: '2rem',
-                        boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.1)'
+                        boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.1)'
                     }}>
                         <h3 style={{
                             fontSize: '1.1rem', fontWeight: 800, color: '#14532D',
@@ -220,11 +244,12 @@ const Dashboard = () => {
 
                     {/* Shopping List Preview */}
                     <div style={{
-                        background: 'white',
+                        background: 'rgba(255, 255, 255, 0.8)',
+                        backdropFilter: 'blur(12px)',
                         padding: '1.5rem',
                         borderRadius: '1rem',
-                        border: '1px solid var(--border)',
-                        boxShadow: 'var(--shadow-sm)'
+                        border: '1px solid rgba(255, 255, 255, 0.6)',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
                     }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>Compras</h3>
@@ -241,7 +266,7 @@ const Dashboard = () => {
                                 {/* CORRECCIÓN: Usamos .daily en lugar de .weekly */}
                                 {(Array.isArray(planData.shoppingList)
                                     ? planData.shoppingList
-                                    : planData.shoppingList?.daily || [] 
+                                    : planData.shoppingList?.daily || []
                                 ).slice(0, 5).map((item, i) => (
                                     <li key={i} style={{
                                         padding: '0.5rem 0',
@@ -285,29 +310,53 @@ const StatCard = ({ label, value, unit, icon, color, bgColor }) => {
 
     return (
         <div style={{
-            background: 'white',
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
             padding: '1.5rem',
-            borderRadius: '1rem',
-            border: '1px solid var(--border)',
+            borderRadius: '1.25rem',
+            border: '1px solid rgba(255, 255, 255, 0.5)',
             display: 'flex',
             alignItems: 'center',
-            gap: '1rem',
-            boxShadow: 'var(--shadow-sm)'
-        }}>
+            gap: '1.25rem',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+            transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            cursor: 'default',
+            position: 'relative',
+            overflow: 'hidden'
+        }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)';
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)';
+            }}
+        >
+            {/* Background decoration */}
             <div style={{
-                width: 50, height: 50,
+                position: 'absolute', top: 0, right: 0, width: '6rem', height: '6rem',
+                background: bgColor, filter: 'blur(40px)', opacity: 0.5, borderRadius: '50%',
+                transform: 'translate(30%, -30%)'
+            }} />
+
+            <div style={{
+                width: 56, height: 56,
                 borderRadius: '1rem',
                 background: bgColor,
                 color: color,
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                position: 'relative',
+                boxShadow: `0 2px 8px ${color}33` // Subtle colored shadow matching icon
             }}>
-                <Icon size={24} />
+                <Icon size={26} strokeWidth={2.5} />
             </div>
-            <div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1 }}>
-                    {value} <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 600 }}>{unit}</span>
+
+            <div style={{ position: 'relative' }}>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1, letterSpacing: '-0.02em' }}>
+                    {value} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600, marginLeft: '2px' }}>{unit}</span>
                 </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500, marginTop: '0.25rem' }}>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '0.25rem' }}>
                     {label}
                 </div>
             </div>
