@@ -66,15 +66,39 @@ const Dashboard = () => {
                         e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
                         e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(37, 99, 235, 0.5), 0 10px 10px -5px rgba(37, 99, 235, 0.2)';
                         e.currentTarget.style.filter = 'brightness(1.1)';
+                        // Icon rotation
+                        const icon = e.currentTarget.querySelector('svg');
+                        if (icon) icon.style.transform = 'rotate(180deg)';
                     }}
                     onMouseLeave={(e) => {
                         e.currentTarget.style.transform = 'translateY(0) scale(1)';
                         e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(37, 99, 235, 0.35), 0 4px 6px -2px rgba(37, 99, 235, 0.1)';
                         e.currentTarget.style.filter = 'brightness(1)';
+                        // Reset icon rotation
+                        const icon = e.currentTarget.querySelector('svg');
+                        if (icon) icon.style.transform = 'rotate(0deg)';
                     }}
                 >
-                    <RefreshCw size={22} strokeWidth={2.5} />
+                    <RefreshCw size={22} strokeWidth={2.5} style={{ transition: 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)' }} />
                     <span>Generar Nuevo</span>
+                    {/* Shine Effect Element */}
+                    <div style={{
+                        position: 'absolute',
+                        top: 0, left: '-100%',
+                        width: '50%', height: '100%',
+                        background: 'linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%)',
+                        transform: 'skewX(-25deg)',
+                        transition: 'left 0.5s',
+                        pointerEvents: 'none'
+                    }}
+                        className="shine-effect"
+                    />
+                    <style>{`
+                        button:hover .shine-effect {
+                            left: 200%;
+                            transition: left 0.7s;
+                        }
+                    `}</style>
                 </button>
             </header>
 
