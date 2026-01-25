@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { CheckCircle, ArrowRight } from 'lucide-react';
@@ -14,10 +14,22 @@ const Plan = () => {
     const [planData, setPlanData] = useState(null);
     const navigate = useNavigate();
 
+    // --- CANDADO DE SEGURIDAD ---
+    // Usamos useRef para rastrear si ya llamamos a la API.
+    // A diferencia de useState, cambiar esto no provoca re-renderizados.
+    const hasCalledAPI = useRef(false);
+
     // 2. USEEFFECT
     useEffect(() => {
         // Validación de seguridad: Si no hay datos, no hacemos nada (el return de abajo redirige)
         if (!formData.age || !formData.mainGoal) return;
+
+        // --- BLOQUEO DE DOBLE EJECUCIÓN ---
+        // Si ya se llamó a la API en esta montura, detenemos aquí.
+        if (hasCalledAPI.current) return;
+        
+        // Marcamos inmediatamente como "Llamado"
+        hasCalledAPI.current = true;
 
         window.scrollTo(0, 0);
 
