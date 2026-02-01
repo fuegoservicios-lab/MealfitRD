@@ -1,0 +1,213 @@
+.pricing {
+    padding: 6rem 0;
+    position: relative;
+    background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.5));
+}
+
+.container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+.header {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto 4rem;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: rgba(79, 70, 229, 0.1);
+    color: var(--primary);
+    border-radius: 99px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+.title {
+    font-size: 2.5rem;
+    color: var(--text-main);
+    margin-bottom: 1rem;
+    letter-spacing: -0.02em;
+}
+
+.subtitle {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    align-items: center;
+}
+
+.card {
+    background: var(--bg-card);
+    border-radius: 1.5rem;
+    position: relative;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid var(--border);
+    /* Basic state */
+}
+
+/* Glass effect for non-hover state to blend nicely */
+.card {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-md);
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-xl);
+    z-index: 2;
+    background: #fff;
+}
+
+.popular {
+    background: #fff;
+    /* Popular card pops more */
+    border: 2px solid var(--primary);
+    box-shadow: var(--shadow-lg), 0 0 20px rgba(79, 70, 229, 0.15);
+    transform: scale(1.05);
+    z-index: 10;
+}
+
+.popular:hover {
+    transform: scale(1.05) translateY(-5px);
+}
+
+.popularBadge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--primary);
+    color: white;
+    padding: 0.25rem 1rem;
+    border-radius: 99px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3);
+}
+
+.cardContent {
+    padding: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.planName {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+.price {
+    display: flex;
+    align-items: baseline;
+    margin-bottom: 1rem;
+    color: var(--text-main);
+}
+
+.currency {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-right: 2px;
+}
+
+.amount {
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+}
+
+.period {
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-left: 0.5rem;
+}
+
+.description {
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+    font-size: 0.95rem;
+    min-height: 44px;
+    /* Align buttons */
+}
+
+.features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2.5rem;
+    flex-grow: 1;
+}
+
+.features li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    color: var(--text-main);
+    font-size: 0.95rem;
+}
+
+.check {
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+.btnPrimary {
+    width: 100%;
+    padding: 1rem;
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+    border-radius: 99px;
+    border: none;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    transition: all 0.2s;
+    font-size: 1rem;
+}
+
+.btnPrimary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
+}
+
+.btnOutline {
+    width: 100%;
+    padding: 1rem;
+    background: transparent;
+    color: var(--text-main);
+    font-weight: 600;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    transition: all 0.2s;
+    font-size: 1rem;
+}
+
+.btnOutline:hover {
+    background: var(--bg-page);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+@media (max-width: 1024px) {
+    .popular {
+        transform: scale(1);
+    }
+
+    .popular:hover {
+        transform: translateY(-5px);
+    }
+}

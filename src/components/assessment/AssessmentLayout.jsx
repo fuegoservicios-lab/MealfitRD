@@ -26,7 +26,7 @@ const AssessmentLayout = ({ children, totalSteps }) => {
                         </button>
                     )}
                     <div className={styles.logo}>
-                        Mealfit<span style={{ color: 'var(--primary)' }}>RD</span>.IA
+                        Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
                     </div>
                     <Link to="/" className={styles.closeBtn}>Cancelar</Link>
                 </div>

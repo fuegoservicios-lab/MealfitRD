@@ -18,7 +18,7 @@ const LegalLayout = ({ title, lastUpdated, children }) => {
 
 export const Privacy = () => (
     <LegalLayout title="Política de Privacidad" lastUpdated="23 de Enero, 2026">
-        <p>En MealfitRD.IA, valoramos y respetamos su privacidad. Esta Política de Privacidad describe cómo recopilamos, usamos y protegemos su información personal.</p>
+        <p>En MealfitRD, valoramos y respetamos su privacidad. Esta Política de Privacidad describe cómo recopilamos, usamos y protegemos su información personal.</p>
 
         <h3>1. Información que Recopilamos</h3>
         <p>Podemos recopilar información personal que usted nos proporciona voluntariamente, como su nombre, dirección de correo electrónico, datos de salud (peso, altura, objetivos) y preferencias alimenticias para generar su plan personalizado.</p>
@@ -38,22 +38,22 @@ export const Privacy = () => (
 
 export const Terms = () => (
     <LegalLayout title="Términos de Servicio" lastUpdated="23 de Enero, 2026">
-        <p>Bienvenido a MealfitRD.IA. Al acceder a nuestro sitio web y utilizar nuestros servicios, usted acepta cumplir con estos Términos de Servicio.</p>
+        <p>Bienvenido a MealfitRD. Al acceder a nuestro sitio web y utilizar nuestros servicios, usted acepta cumplir con estos Términos de Servicio.</p>
 
         <h3>1. Uso del Servicio</h3>
         <p>Usted se compromete a utilizar nuestros servicios solo para fines legales y de acuerdo con estos términos. No debe utilizar el servicio para ninguna actividad fraudulenta o dañina.</p>
 
         <h3>2. Propiedad Intelectual</h3>
-        <p>Todo el contenido, marcas y tecnología en este sitio son propiedad de MealfitRD.IA y están protegidos por las leyes de propiedad intelectual.</p>
+        <p>Todo el contenido, marcas y tecnología en este sitio son propiedad de MealfitRD y están protegidos por las leyes de propiedad intelectual.</p>
 
         <h3>3. Limitación de Responsabilidad</h3>
-        <p>MealfitRD.IA no se hace responsable de daños directos, indirectos o consecuentes que surjan del uso o la imposibilidad de uso de nuestros servicios.</p>
+        <p>MealfitRD no se hace responsable de daños directos, indirectos o consecuentes que surjan del uso o la imposibilidad de uso de nuestros servicios.</p>
     </LegalLayout>
 );
 
 export const Cookies = () => (
     <LegalLayout title="Política de Cookies" lastUpdated="23 de Enero, 2026">
-        <p>MealfitRD.IA utiliza cookies para mejorar su experiencia en nuestro sitio web.</p>
+        <p>MealfitRD utiliza cookies para mejorar su experiencia en nuestro sitio web.</p>
 
         <h3>¿Qué son las cookies?</h3>
         <p>Las cookies son pequeños archivos de texto que se almacenan en su dispositivo cuando visita un sitio web. Nos ayudan a recordar sus preferencias y a analizar el tráfico del sitio.</p>
@@ -74,11 +74,11 @@ export const MedicalDisclaimer = () => (
                 <AlertTriangle size={20} /> IMPORTANTE
             </p>
             <p className={styles.alertText}>
-                MealfitRD.IA es una herramienta de información y bienestar, no un servicio médico.
+                MealfitRD es una herramienta de información y bienestar, no un servicio médico.
             </p>
         </div>
 
-        <p>La información y los planes de alimentación proporcionados por MealfitRD.IA son solo para fines informativos y educativos. No pretenden sustituir el consejo, diagnóstico o tratamiento médico profesional.</p>
+        <p>La información y los planes de alimentación proporcionados por MealfitRD son solo para fines informativos y educativos. No pretenden sustituir el consejo, diagnóstico o tratamiento médico profesional.</p>
 
         <h3>Consulta a tu Médico</h3>
         <p>Siempre busque el consejo de su médico u otro proveedor de salud calificado con cualquier pregunta que pueda tener sobre una condición médica. Nunca ignore el consejo médico profesional ni se demore en buscarlo debido a algo que haya leído en este sitio web.</p>

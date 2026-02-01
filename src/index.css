@@ -1,33 +1,55 @@
 :root {
-  /* Brand Colors */
-  --primary: #2563EB; /* Royal Blue */
-  --primary-dark: #1E40AF;
-  --primary-light: #60A5FA;
-  --secondary: #10B981; /* Emerald */
-  --secondary-dark: #059669;
-  --accent: #F59E0B; /* Amber */
-  
-  /* Neutral Colors */
-  --bg-page: #F8FAFC; /* Slate 50 */
+  /* Brand Identity - Deep & Trustworthy */
+  --primary: #4F46E5;
+  /* Indigo 600 - More premium than standard blue */
+  --primary-dark: #3730A3;
+  /* Indigo 800 */
+  --primary-light: #818CF8;
+  /* Indigo 400 */
+
+  --secondary: #10B981;
+  /* Emerald 500 - Kept for "Wellness/Health" vibes */
+  --secondary-dark: #047857;
+  --secondary-light: #34D399;
+
+  --accent: #F43F5E;
+  /* Rose 500 - Energetic accent */
+
+  /* Neutral Colors - "Slate" (Blue-Grey) for professionalism */
+  --bg-page: #F8FAFC;
+  /* Slate 50 */
   --bg-card: #FFFFFF;
-  --text-main: #0F172A; /* Slate 900 */
-  --text-muted: #64748B; /* Slate 500 */
-  --border: #E2E8F0; /* Slate 200 */
-  
+  --bg-glass: rgba(255, 255, 255, 0.7);
+
+  --text-main: #0F172A;
+  /* Slate 900 - Deepest charcoal */
+  --text-muted: #64748B;
+  /* Slate 500 */
+  --text-light: #94A3B8;
+  /* Slate 400 */
+
+  --border: #E2E8F0;
+  /* Slate 200 */
+  --border-light: rgba(255, 255, 255, 0.2);
+
   /* Typography */
   --font-heading: 'Outfit', sans-serif;
   --font-body: 'Plus Jakarta Sans', sans-serif;
-  
-  /* Effects */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.15);
-  
+
+  /* Modern Shadows & Glows */
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(15 23 42 / 0.1), 0 2px 4px -2px rgb(15 23 42 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(15 23 42 / 0.1), 0 4px 6px -4px rgb(15 23 42 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(15 23 42 / 0.1), 0 8px 10px -6px rgb(15 23 42 / 0.1);
+
+  --shadow-glow-primary: 0 0 20px rgba(79, 70, 229, 0.3);
+  --shadow-glow-secondary: 0 0 20px rgba(16, 185, 129, 0.3);
+
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
   --radius-xl: 1.5rem;
+  --radius-full: 9999px;
 }
 
 * {
@@ -40,14 +62,41 @@ body {
   font-family: var(--font-body);
   background-color: var(--bg-page);
   color: var(--text-main);
-  line-height: 1.5;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  position: relative;
 }
 
-h1, h2, h3, h4, h5, h6 {
+/* Noise Texture Overlay for "Premium/Paper" feel */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: overlay;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-heading);
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  /* Tighter headings = Modern */
+  color: var(--text-main);
+}
+
+p {
+  margin-bottom: 1rem;
 }
 
 button {
@@ -55,23 +104,36 @@ button {
   cursor: pointer;
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: var(--shadow-md);
+/* Utilities */
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .container {
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 1.5rem;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

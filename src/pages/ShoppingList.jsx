@@ -5,10 +5,10 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { ShoppingCart, ArrowLeft, Printer, Calendar } from 'lucide-react';
 
 const ShoppingList = () => {
-    const { planData } = useAssessment();
+    const { planData } = useAssessment(); // Ya no necesitamos formData para filtrar
     const navigate = useNavigate();
 
-    // CAMBIO: Estado por defecto ahora es 'daily' (1 Día) ya que es la única opción
+    // Estado por defecto 'daily'
     const [duration, setDuration] = useState('daily');
     const [checkedItems, setCheckedItems] = useState({});
 
@@ -28,15 +28,25 @@ const ShoppingList = () => {
         }));
     };
 
-    // Helper para obtener la lista actual basada en la selección
+    // Helper para obtener la lista actual
     const currentList = () => {
-        if (!planData.shoppingList) return [];
+        let list = [];
 
-        // Soporte para planes antiguos (si eran array directo)
-        if (Array.isArray(planData.shoppingList)) return planData.shoppingList;
+        // Soporte robusto para diferentes estructuras de respuesta de la IA
+        if (planData.shoppingList) {
+            if (Array.isArray(planData.shoppingList)) {
+                // Si la IA devolvió un array directo
+                list = planData.shoppingList;
+            } else if (planData.shoppingList.daily && Array.isArray(planData.shoppingList.daily)) {
+                // Si la IA devolvió el objeto { daily: [...] } estándar
+                list = planData.shoppingList.daily;
+            }
+        }
 
-        // Retornar la lista específica
-        return planData.shoppingList[duration] || [];
+        // NOTA: Aquí eliminamos el filtro manual de "skipLunch".
+        // Ahora confiamos en que n8n/Gemini nos envía la lista limpia.
+
+        return list;
     };
 
     // Configuración de los botones (Tabs) - SOLO 1 DÍA
@@ -75,7 +85,7 @@ const ShoppingList = () => {
                 </div>
 
                 {/* Título Principal */}
-                <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
+                <div className="no-print" style={{ marginBottom: '2rem', textAlign: 'center' }}>
                     <div style={{
                         width: 60, height: 60, background: '#DCFCE7', borderRadius: '50%',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -91,38 +101,36 @@ const ShoppingList = () => {
                     </p>
                 </div>
 
-                {/* Selector de Duración (Tabs) */}
-                {!Array.isArray(planData.shoppingList) && (
-                    <div className="no-print" style={{
-                        display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap'
-                    }}>
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setDuration(tab.id)}
-                                style={{
-                                    padding: '0.75rem 1.5rem',
-                                    borderRadius: '2rem',
-                                    border: duration === tab.id ? '2px solid var(--primary)' : '1px solid var(--border)',
-                                    background: duration === tab.id ? '#EFF6FF' : 'white',
-                                    color: duration === tab.id ? 'var(--primary)' : 'var(--text-muted)',
-                                    fontWeight: duration === tab.id ? 700 : 500,
-                                    cursor: 'pointer',
-                                    display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                    transition: 'all 0.2s',
-                                    minWidth: '100px',
-                                    justifyContent: 'center'
-                                }}
-                            >
-                                <Calendar size={16} /> {tab.label}
-                            </button>
-                        ))}
-                    </div>
-                )}
+                {/* Selector de Duración (Tabs) - Solo visual por ahora */}
+                <div className="no-print" style={{
+                    display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap'
+                }}>
+                    {tabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setDuration(tab.id)}
+                            style={{
+                                padding: '0.75rem 1.5rem',
+                                borderRadius: '2rem',
+                                border: duration === tab.id ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                background: duration === tab.id ? '#EFF6FF' : 'white',
+                                color: duration === tab.id ? 'var(--primary)' : 'var(--text-muted)',
+                                fontWeight: duration === tab.id ? 700 : 500,
+                                cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                transition: 'all 0.2s',
+                                minWidth: '100px',
+                                justifyContent: 'center'
+                            }}
+                        >
+                            <Calendar size={16} /> {tab.label}
+                        </button>
+                    ))}
+                </div>
 
                 {/* --- ESTADO DE PRECIO ESTIMADO (Automático) --- */}
                 {currentList().length > 0 && (
-                    <div style={{
+                    <div className="no-print" style={{
                         maxWidth: '400px', margin: '0 auto 2rem',
                         background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)',
                         border: '1px solid #FED7AA', borderRadius: '1rem', padding: '1rem',
@@ -131,7 +139,6 @@ const ShoppingList = () => {
                     }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             <div style={{ background: 'white', padding: '0.5rem', borderRadius: '50%', color: '#F97316' }}>
-                                {/* Icono de Wallet (importar si no existe, o usar lo que hay) */}
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" /><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" /><path d="M18 12a2 2 0 0 0 0 4h4v-4Z" /></svg>
                             </div>
                             <div style={{ lineHeight: 1.2 }}>
@@ -145,27 +152,26 @@ const ShoppingList = () => {
                                     const lowerItem = item.toLowerCase();
                                     let price = 0;
 
-                                    // Precios Base Aproximados en RD$ (Dominicana)
-                                    if (lowerItem.includes('pollo') || lowerItem.includes('pechuga')) price = 145; // Libra
-                                    else if (lowerItem.includes('arroz')) price = 45; // Libra
-                                    else if (lowerItem.includes('huevo')) price = 8 * (parseInt(item.match(/\d+/)?.[0] || 1)); // Unidad
-                                    else if (lowerItem.includes('guineo') || lowerItem.includes('banana')) price = 12 * (parseInt(item.match(/\d+/)?.[0] || 1)); // Unidad
-                                    else if (lowerItem.includes('plátano') || lowerItem.includes('platano')) price = 25 * (parseInt(item.match(/\d+/)?.[0] || 1)); // Unidad
-                                    else if (lowerItem.includes('leche')) price = 85; // Litro/Carton
-                                    else if (lowerItem.includes('avena')) price = 60; // Paquete pq
-                                    else if (lowerItem.includes('pan')) price = 100; // Paquete
-                                    else if (lowerItem.includes('queso')) price = 180; // Libra/Paquete
-                                    else if (lowerItem.includes('jamón') || lowerItem.includes('jamon') || lowerItem.includes('salami')) price = 150;
-                                    else if (lowerItem.includes('aceite')) price = 350; // Botella
-                                    else if (lowerItem.includes('frijol') || lowerItem.includes('habichuela')) price = 70; // Libra/Lata
-                                    else if (lowerItem.includes('aguacate')) price = 60; // Unidad
-                                    else if (lowerItem.includes('cebolla') || lowerItem.includes('ajo') || lowerItem.includes('verdura') || lowerItem.includes('tomate') || lowerItem.includes('ají') || lowerItem.includes('aji')) price = 40; // Porción
+                                    // Lógica simple de precios base aproximados en RD$
+                                    if (lowerItem.includes('pollo') || lowerItem.includes('pechuga')) price = 145;
+                                    else if (lowerItem.includes('arroz')) price = 45;
+                                    else if (lowerItem.includes('huevo')) price = 8 * (parseInt(item.match(/\d+/)?.[0] || 1));
+                                    else if (lowerItem.includes('guineo') || lowerItem.includes('banana')) price = 12 * (parseInt(item.match(/\d+/)?.[0] || 1));
+                                    else if (lowerItem.includes('plátano') || lowerItem.includes('platano')) price = 30 * (parseInt(item.match(/\d+/)?.[0] || 1));
+                                    else if (lowerItem.includes('leche')) price = 85;
+                                    else if (lowerItem.includes('avena')) price = 60;
+                                    else if (lowerItem.includes('pan')) price = 100;
+                                    else if (lowerItem.includes('queso')) price = 180;
+                                    else if (lowerItem.includes('jamón') || lowerItem.includes('salami')) price = 150;
+                                    else if (lowerItem.includes('aceite')) price = 350;
+                                    else if (lowerItem.includes('habichuela') || lowerItem.includes('frijol')) price = 70;
+                                    else if (lowerItem.includes('aguacate')) price = 60;
+                                    else if (lowerItem.includes('cebolla') || lowerItem.includes('ajo') || lowerItem.includes('verdura') || lowerItem.includes('tomate')) price = 40;
                                     else if (lowerItem.includes('tuna') || lowerItem.includes('atún')) price = 85;
-                                    else if (lowerItem.includes('yogurt') || lowerItem.includes('yogur')) price = 65;
+                                    else if (lowerItem.includes('sardina')) price = 55;
+                                    else if (lowerItem.includes('yuca') || lowerItem.includes('yautia') || lowerItem.includes('ñame')) price = 50;
+                                    else if (lowerItem.includes('yogurt')) price = 65;
                                     else price = 100; // Default promedio
-
-                                    // Ajuste por cantidad detectada si no es unidad específica (simple multiplicador si detecta número grande y no entra en reglas específicas)
-                                    // Por seguridad, si el precio base es muy bajo y la cantidad alta, ajustamos, pero las reglas de huevos/guineos ya cubren unidades.
 
                                     return acc + price;
                                 }, 0).toLocaleString()}
@@ -223,6 +229,7 @@ const ShoppingList = () => {
                                             textDecoration: isChecked ? 'line-through' : 'none',
                                             transition: 'all 0.2s'
                                         }}>
+                                            {/* Renderizado limpio directo desde la IA */}
                                             {item}
                                         </span>
                                     </li>
@@ -237,6 +244,14 @@ const ShoppingList = () => {
                     )}
                 </div>
 
+                {/* PRINT HEADER (Visible only on print) */}
+                <div className="print-only" style={{ display: 'none', marginBottom: '2rem', borderBottom: '2px solid #000', paddingBottom: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h1 style={{ fontSize: '24pt', color: '#000', margin: 0 }}>MealfitRD<span style={{ color: '#4F46E5' }}>.</span></h1>
+                        <span style={{ fontSize: '10pt', color: '#666' }}>{new Date().toLocaleDateString()}</span>
+                    </div>
+                </div>
+
                 {/* Nota al pie */}
                 <div className="no-print" style={{ marginTop: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                     <p>💡 Tip: Compra frutas y verduras de temporada para ahorrar más.</p>
@@ -245,14 +260,51 @@ const ShoppingList = () => {
 
             <style>{`
                 @media print {
-                    .no-print { display: none !important; }
-                    button { display: none !important; }
-                    /* Asegurar que la tarjeta de precio se vea bien */
-                    .price-card {
+                    @page { margin: 1.5cm; }
+                    body {
+                        background: white !important;
+                        color: black !important;
+                        font-size: 12pt;
+                    }
+
+                    /* Ocualtar UI del Dashboard */
+                    aside, nav, header, .no-print, button { display: none !important; }
+                    
+                    /* Resetear Layout */
+                    .container, .main-content {
+                        width: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        max-width: none !important;
+                    }
+                    
+                    /* Mostrar Header de Impresión */
+                    .print-only {
+                        display: block !important;
+                    }
+
+                    /* Estilos de Lista para Impresión */
+                    .shopping-item { 
+                        border-bottom: 1px solid #eee !important;
+                        padding: 0.5rem 0 !important;
+                        break-inside: avoid;
+                        background: transparent !important;
+                        border-radius: 0 !important;
+                    }
+                    
+                    .shopping-item span {
+                        color: black !important;
+                        font-size: 11pt !important;
+                        font-weight: 500 !important;
+                    }
+
+                    /* Checkbox visual para imprimir */
+                    .shopping-item div:first-child {
                         border: 1px solid #000 !important;
-                        background: none !important;
-                        box-shadow: none !important;
-                        color: #000 !important;
+                        background: transparent !important;
+                        color: transparent !important;
+                        width: 16px !important;
+                        height: 16px !important;
                     }
                 }
             `}</style>

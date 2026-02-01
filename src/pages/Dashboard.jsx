@@ -1,17 +1,23 @@
+import { useState } from 'react';
 import { useAssessment } from '../context/AssessmentContext';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
     RefreshCw, ShoppingCart, ChefHat, Heart,
-    Sparkles, Brain, Wallet // Iconos nuevos importados
+    Sparkles, Brain, Wallet
 } from 'lucide-react';
 import PropTypes from 'prop-types';
+import { toast } from 'sonner';
 
 const Dashboard = () => {
     // 1. Obtenemos estado y funciones del Contexto Global
-    const { planData, likedMeals, toggleMealLike } = useAssessment();
+    // Incluimos regenerateSingleMeal
+    const { planData, likedMeals, toggleMealLike, regenerateSingleMeal, formData } = useAssessment();
     const navigate = useNavigate();
+    
+    // Estado local para saber qué tarjeta se está regenerando (loading spinner)
+    const [regeneratingId, setRegeneratingId] = useState(null);
 
     // 2. Protección de Ruta: Si no hay plan, mandar al inicio
     if (!planData) {
@@ -66,7 +72,6 @@ const Dashboard = () => {
                         e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
                         e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(37, 99, 235, 0.5), 0 10px 10px -5px rgba(37, 99, 235, 0.2)';
                         e.currentTarget.style.filter = 'brightness(1.1)';
-                        // Icon rotation
                         const icon = e.currentTarget.querySelector('svg');
                         if (icon) icon.style.transform = 'rotate(180deg)';
                     }}
@@ -74,31 +79,21 @@ const Dashboard = () => {
                         e.currentTarget.style.transform = 'translateY(0) scale(1)';
                         e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(37, 99, 235, 0.35), 0 4px 6px -2px rgba(37, 99, 235, 0.1)';
                         e.currentTarget.style.filter = 'brightness(1)';
-                        // Reset icon rotation
                         const icon = e.currentTarget.querySelector('svg');
                         if (icon) icon.style.transform = 'rotate(0deg)';
                     }}
                 >
                     <RefreshCw size={22} strokeWidth={2.5} style={{ transition: 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)' }} />
                     <span>Generar Nuevo</span>
-                    {/* Shine Effect Element */}
                     <div style={{
-                        position: 'absolute',
-                        top: 0, left: '-100%',
+                        position: 'absolute', top: 0, left: '-100%',
                         width: '50%', height: '100%',
                         background: 'linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%)',
                         transform: 'skewX(-25deg)',
                         transition: 'left 0.5s',
                         pointerEvents: 'none'
-                    }}
-                        className="shine-effect"
-                    />
-                    <style>{`
-                        button:hover .shine-effect {
-                            left: 200%;
-                            transition: left 0.7s;
-                        }
-                    `}</style>
+                    }} className="shine-effect" />
+                    <style>{`button:hover .shine-effect { left: 200%; transition: left 0.7s; }`}</style>
                 </button>
             </header>
 
@@ -125,13 +120,18 @@ const Dashboard = () => {
                             Menú de Hoy
                         </h2>
                         <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                            4 Comidas
+                            {formData?.skipLunch ? '3 Comidas' : '4 Comidas'}
                         </span>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        {planData.perfectDay?.map((meal, index) => {
-                            // Verificamos si este plato tiene like en el estado global
+                        {planData.perfectDay?.filter(meal => {
+                            if (formData?.skipLunch) {
+                                const isLunch = meal.meal.toLowerCase().includes('almuerzo') || meal.name.toLowerCase().includes('lunch');
+                                return !isLunch;
+                            }
+                            return true;
+                        }).map((meal, index) => {
                             const isLiked = !!likedMeals[meal.name];
 
                             return (
@@ -166,7 +166,7 @@ const Dashboard = () => {
                                         </p>
                                     </div>
 
-                                    {/* Right Side: Calories + Like Button */}
+                                    {/* Right Side: Calories + Buttons */}
                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem' }}>
 
                                         {/* Calories */}
@@ -177,29 +177,88 @@ const Dashboard = () => {
                                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>kcal</div>
                                         </div>
 
-                                        {/* LIKE BUTTON */}
-                                        <button
-                                            onClick={() => toggleMealLike(meal.name, meal.meal)}
-                                            style={{
-                                                background: isLiked ? '#FEE2E2' : '#F8FAFC',
-                                                border: 'none',
-                                                borderRadius: '50%',
-                                                width: 40, height: 40,
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.2s',
-                                                boxShadow: isLiked ? '0 2px 5px rgba(239, 68, 68, 0.2)' : 'none'
-                                            }}
-                                            title={isLiked ? "Quitar me gusta" : "¡Me gusta! (La IA aprenderá de esto)"}
-                                        >
-                                            <Heart
-                                                size={20}
-                                                color={isLiked ? '#EF4444' : '#94A3B8'}
-                                                fill={isLiked ? '#EF4444' : 'none'}
-                                            />
-                                        </button>
+                                        {/* BUTTONS GROUP */}
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            
+                                            {/* REGENERATE BUTTON */}
+                                            <button
+                                                onClick={() => {
+                                                    setRegeneratingId(index); // Activa spinner
+                                                    // Pequeño delay para UX
+                                                    setTimeout(() => {
+                                                        const newName = regenerateSingleMeal(index, meal.meal, meal.name);
+                                                        setRegeneratingId(null);
+                                                        toast.success('Menú actualizado', {
+                                                            description: `Cambiado a: ${newName}`,
+                                                            icon: '🔄'
+                                                        });
+                                                    }, 500);
+                                                }}
+                                                disabled={regeneratingId === index}
+                                                style={{
+                                                    background: '#F1F5F9',
+                                                    border: 'none',
+                                                    borderRadius: '50%',
+                                                    width: 40, height: 40,
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    cursor: regeneratingId === index ? 'wait' : 'pointer',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                                title="Cambiar este plato por otro"
+                                            >
+                                                <RefreshCw 
+                                                    size={18} 
+                                                    color="#64748B" 
+                                                    className={regeneratingId === index ? "spin-fast" : ""}
+                                                />
+                                            </button>
+
+                                            {/* LIKE BUTTON */}
+                                            <button
+                                                onClick={() => {
+                                                    const currentlyLiked = !!likedMeals[meal.name];
+                                                    toggleMealLike(meal.name, meal.meal); 
+
+                                                    if (!currentlyLiked) {
+                                                        toast.success('¡Anotado!', {
+                                                            description: `Aprenderemos que te gusta: ${meal.name}`,
+                                                            duration: 2000,
+                                                            icon: '❤️'
+                                                        });
+                                                    } else {
+                                                        toast('Like removido', {
+                                                            description: 'No priorizaremos este plato.',
+                                                            duration: 1500
+                                                        });
+                                                    }
+                                                }}
+                                                style={{
+                                                    background: isLiked ? '#FEE2E2' : '#F8FAFC',
+                                                    border: 'none',
+                                                    borderRadius: '50%',
+                                                    width: 40, height: 40,
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s',
+                                                    boxShadow: isLiked ? '0 2px 5px rgba(239, 68, 68, 0.2)' : 'none'
+                                                }}
+                                                title={isLiked ? "Quitar me gusta" : "¡Me gusta! (La IA aprenderá de esto)"}
+                                            >
+                                                <Heart
+                                                    size={20}
+                                                    color={isLiked ? '#EF4444' : '#94A3B8'}
+                                                    fill={isLiked ? '#EF4444' : 'none'}
+                                                />
+                                            </button>
+                                        </div>
 
                                     </div>
+                                    
+                                    {/* Estilo para la animación de rotación */}
+                                    <style>{`
+                                        .spin-fast { animation: spin 1s linear infinite; }
+                                        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                                    `}</style>
                                 </div>
                             );
                         })}
@@ -209,7 +268,7 @@ const Dashboard = () => {
                 {/* Right Column: INSIGHTS & SHOPPING */}
                 <div style={{ flex: 1, minWidth: '300px' }}>
 
-                    {/* --- NUEVO DISEÑO: Tarjeta de Estrategia IA Mejorada --- */}
+                    {/* Insights Card */}
                     <div style={{
                         background: 'rgba(240, 253, 244, 0.8)',
                         backdropFilter: 'blur(12px)',
@@ -228,7 +287,6 @@ const Dashboard = () => {
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             {planData.insights?.map((insight, i) => {
-                                // Asignamos iconos y títulos según el índice
                                 let icon = <CheckCircle size={20} />;
                                 let title = "Análisis";
                                 let color = "#15803D";
@@ -237,7 +295,6 @@ const Dashboard = () => {
                                 if (i === 1) { icon = <Wallet size={20} />; title = "Tu Bolsillo:"; }
                                 if (i === 2) { icon = <Flame size={20} />; title = "Tip Mealfit:"; }
 
-                                // Limpiamos el texto si viene con prefijos como "Análisis:"
                                 const cleanText = insight.includes(':') ? insight.split(':')[1].trim() : insight;
 
                                 return (
@@ -287,7 +344,6 @@ const Dashboard = () => {
                             marginBottom: '1.5rem'
                         }}>
                             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                {/* CORRECCIÓN: Usamos .daily en lugar de .weekly */}
                                 {(Array.isArray(planData.shoppingList)
                                     ? planData.shoppingList
                                     : planData.shoppingList?.daily || []
@@ -303,7 +359,6 @@ const Dashboard = () => {
                                         {item}
                                     </li>
                                 ))}
-                                {/* Mensaje si está vacío (por seguridad) */}
                                 {(!planData.shoppingList?.daily || planData.shoppingList.daily.length === 0) && (
                                     <li style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center' }}>
                                         Lista disponible en detalle.
@@ -357,7 +412,6 @@ const StatCard = ({ label, value, unit, icon, color, bgColor }) => {
                 e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)';
             }}
         >
-            {/* Background decoration */}
             <div style={{
                 position: 'absolute', top: 0, right: 0, width: '6rem', height: '6rem',
                 background: bgColor, filter: 'blur(40px)', opacity: 0.5, borderRadius: '50%',
@@ -371,7 +425,7 @@ const StatCard = ({ label, value, unit, icon, color, bgColor }) => {
                 color: color,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 position: 'relative',
-                boxShadow: `0 2px 8px ${color}33` // Subtle colored shadow matching icon
+                boxShadow: `0 2px 8px ${color}33`
             }}>
                 <Icon size={26} strokeWidth={2.5} />
             </div>

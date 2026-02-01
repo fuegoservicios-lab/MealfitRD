@@ -8,7 +8,7 @@ const Footer = () => {
             <div className={styles.container}>
                 <div className={styles.col}>
                     <h3 className={styles.logo}>
-                        Mealfit<span className={styles.highlight}>RD</span>.IA
+                        Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
                     </h3>
                     <p className={styles.desc}>
                         Nutrición de precisión potenciada por Inteligencia Artificial.
@@ -42,7 +42,7 @@ const Footer = () => {
                 </div>
 
                 <div className={styles.bottom}>
-                    &copy; {new Date().getFullYear()} MealfitRD.IA. Todos los derechos reservados.
+                    &copy; {new Date().getFullYear()} MealfitRD. Todos los derechos reservados.
                 </div>
             </div>
         </footer>

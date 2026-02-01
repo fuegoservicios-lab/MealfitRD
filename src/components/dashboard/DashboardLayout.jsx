@@ -8,7 +8,7 @@ import styles from './DashboardLayout.module.css';
 const DashboardLayout = ({ children }) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { resetApp } = useAssessment();
+    const { resetApp, planData, userProfile } = useAssessment();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const handleLogout = () => {
@@ -39,7 +39,7 @@ const DashboardLayout = ({ children }) => {
             <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Link to="/" className={styles.logo} onClick={closeMenu}>
-                        Mealfit<span style={{ color: 'var(--primary)' }}>RD</span>.IA
+                        Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
                     </Link>
                     {/* Close button for mobile inside sidebar */}
                     <button className={styles.menuBtn} onClick={closeMenu} style={{ marginBottom: '3rem', display: 'none' }}>
@@ -79,7 +79,9 @@ const DashboardLayout = ({ children }) => {
                             <User size={24} strokeWidth={2.5} />
                         </div>
                         <div>
-                            <div style={{ fontWeight: 800, color: '#1E293B', fontSize: '1rem', letterSpacing: '-0.025em' }}>Mi Cuenta</div>
+                            <div style={{ fontWeight: 800, color: '#1E293B', fontSize: '1rem', letterSpacing: '-0.025em' }}>
+                                {userProfile?.full_name || planData?.userParams?.name || 'Mi Cuenta'}
+                            </div>
                             <div style={{ color: '#64748B', fontSize: '0.8rem', fontWeight: 500 }}>Plan Personalizado</div>
                         </div>
                     </div>

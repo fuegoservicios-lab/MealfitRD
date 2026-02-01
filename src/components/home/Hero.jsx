@@ -3,15 +3,17 @@ import { motion } from 'framer-motion';
 import { ArrowRight, CheckCircle, Sparkles, Utensils, Activity, TrendingUp, ChevronRight, PlayCircle } from 'lucide-react';
 import styles from './Hero.module.css';
 import { useAssessment } from '../../context/AssessmentContext';
+import heroBg from '../../assets/hero-bg.png';
 
 const Hero = () => {
     const { planData } = useAssessment();
 
     return (
-        <section className={styles.hero}>
-            <div className={styles.bgGlow} />
-            <div className={`${styles.bgOrb} ${styles.orb1}`} />
-            <div className={`${styles.bgOrb} ${styles.orb2}`} />
+        <section
+            className={styles.hero}
+            style={{ backgroundImage: `url(${heroBg})` }}
+        >
+            <div className={styles.bgOverlay} />
 
             <div className={styles.container}>
                 <div className={styles.content}>

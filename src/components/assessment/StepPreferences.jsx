@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useAssessment } from '../../context/AssessmentContext';
-import { Label, Input } from '../common/FormUI';
+import { Label } from '../common/FormUI';
 import {
     ArrowLeft, ArrowRight,
     Utensils, Leaf, Beef, Wheat, Fish, Salad,
@@ -160,6 +160,45 @@ const StepPreferences = () => {
                     </div>
                 </section>
 
+                {/* Meal Structure Section - ACTUALIZADA */}
+                <section>
+                    <Label>Estructura de Comidas</Label>
+                    <div
+                        onClick={() => updateData('skipLunch', !formData.skipLunch)}
+                        style={{
+                            cursor: 'pointer',
+                            marginTop: '0.5rem',
+                            padding: '1rem',
+                            borderRadius: 'var(--radius-lg)',
+                            border: formData.skipLunch ? '1px solid var(--primary)' : '1px solid var(--border)',
+                            backgroundColor: formData.skipLunch ? 'var(--bg-light)' : 'white',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '1rem',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <div style={{
+                            width: 24, height: 24,
+                            borderRadius: '50%',
+                            border: formData.skipLunch ? '6px solid var(--primary)' : '2px solid var(--text-muted)',
+                            flexShrink: 0,
+                            marginTop: 2
+                        }} />
+                        <div>
+                            {/* Título cambiado para mayor claridad */}
+                            <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
+                                Almuerzo Familiar / Ya resuelto
+                            </div>
+                            {/* Descripción explicativa sobre la reserva de calorías */}
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                                Marca esto si comes lo que cocinen en tu casa (La Bandera, etc).
+                                La IA planificará desayunos y cenas más ligeros para dejar espacio a esas calorías.
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 {/* Navigation Buttons */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem' }}>
                     <button
@@ -203,7 +242,7 @@ const StepPreferences = () => {
     );
 };
 
-// Quick helper to safely handle icon types if needed (though lucide components are functions)
+// Helper for Lucide icons (handles component passing)
 const IsNativeFn = (fn) => fn;
 
 export default StepPreferences;

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import styles from './Header.module.css';
-import { Menu, X, LayoutDashboard } from 'lucide-react';
+import { Menu, X, LayoutDashboard, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { useAssessment } from '../../context/AssessmentContext';
 
@@ -8,13 +8,14 @@ const Header = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     // Obtenemos planData para saber si el usuario ya tiene un plan activo
-    const { planData } = useAssessment();
+    // Obtener session y resetApp para el logout
+    const { planData, session, resetApp } = useAssessment();
 
     return (
         <header className={styles.header}>
             <div className={`container ${styles.container}`}>
                 <Link to="/" className={styles.logo}>
-                    Mealfit<span className={styles.highlight}>RD</span>.IA
+                    Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
                 </Link>
 
                 {/* Navegación de Escritorio */}
@@ -28,12 +29,34 @@ const Header = () => {
                             to="/dashboard"
                             className={styles.ctaButton}
                         >
-                            <LayoutDashboard size={18} /> Mi Panel
+                            <LayoutDashboard size={18} /> Ver mi Plan
                         </Link>
                     ) : (
                         <Link to="/assessment" className={styles.ctaButton}>
                             Empezar Ahora
                         </Link>
+                    )}
+
+                    {/* Botón Logout solo si hay sesión */}
+                    {session && (
+                        <button
+                            onClick={() => {
+                                resetApp();
+                            }}
+                            className={styles.navLink}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                padding: 0,
+                                fontSize: 'inherit'
+                            }}
+                        >
+                            <LogOut size={18} /> Cerrar Sesión
+                        </button>
                     )}
                 </nav>
 
@@ -63,7 +86,7 @@ const Header = () => {
                                 className={styles.ctaButtonMobile}
                                 onClick={() => setIsMenuOpen(false)}
                             >
-                                <LayoutDashboard size={18} /> Ir a mi Panel
+                                <LayoutDashboard size={18} /> Ver mi Plan
                             </Link>
                         ) : (
                             <Link
@@ -73,6 +96,28 @@ const Header = () => {
                             >
                                 Empezar Ahora
                             </Link>
+                        )}
+
+                        {/* Botón Logout Móvil */}
+                        {session && (
+                            <button
+                                onClick={() => {
+                                    resetApp();
+                                    setIsMenuOpen(false);
+                                }}
+                                className={styles.navLinkMobile}
+                                style={{
+                                    background: 'var(--bg-page)',
+                                    width: '100%',
+                                    textAlign: 'left',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <LogOut size={18} /> Cerrar Sesión
+                            </button>
                         )}
                     </nav>
                 )}

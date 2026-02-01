@@ -1,27 +1,34 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { supabase } from '../supabase';
+// CORRECCIÓN: Eliminamos generateAIPlan porque no se usa aquí
+import { getAlternativeMeal } from '../services/PlanGenerator';
 
 const AssessmentContext = createContext();
 
 export const AssessmentProvider = ({ children }) => {
     // 1. CARGAR DATOS PERSISTENTES (LocalStorage)
-    // Recuperamos datos previos para que no se pierdan al recargar (F5)
     const savedPlan = localStorage.getItem('mealfit_plan');
     const savedForm = localStorage.getItem('mealfit_form');
-    // Recuperamos los likes guardados (si existen)
-    const savedLikes = localStorage.getItem('mealfit_likes'); 
-    
+    const savedLikes = localStorage.getItem('mealfit_likes');
+
     // --- ESTADOS DE LA APLICACIÓN ---
-    
-    // Navegación del Wizard (Pasos)
+
+    // Auth State (Supabase)
+    const [session, setSession] = useState(null);
+    const [loadingAuth, setLoadingAuth] = useState(true);
+
+    // Estado del Perfil Real (Base de Datos Supabase)
+    const [userProfile, setUserProfile] = useState(null);
+
+    // Navegación del Wizard (Pasos de la evaluación)
     const [currentStep, setCurrentStep] = useState(0);
     const [direction, setDirection] = useState(0);
 
-    // Datos del Plan Generado (JSON de la IA)
+    // Datos del Plan Generado (JSON devuelto por la IA)
     const [planData, setPlanData] = useState(savedPlan ? JSON.parse(savedPlan) : null);
-    
+
     // Estado de Likes Persistente { "NombrePlato": true }
-    // Esto asegura que los corazones rojos se mantengan al recargar
     const [likedMeals, setLikedMeals] = useState(savedLikes ? JSON.parse(savedLikes) : {});
 
     // Datos del Formulario de Evaluación
@@ -29,55 +36,115 @@ export const AssessmentProvider = ({ children }) => {
         age: '', gender: '', height: '', weight: '', bodyFat: '', activityLevel: '',
         sleepHours: '', stressLevel: '', cookingTime: '', budget: '', workSchedule: '',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
-        mainGoal: '', motivation: '', struggles: [],
+        mainGoal: '', motivation: '', struggles: [], skipLunch: false,
     });
 
-    // --- IDENTIDAD DE USUARIO (MEMORIA) ---
+    // --- MANEJO DE SESIÓN Y PERFIL (SUPABASE) ---
     useEffect(() => {
-        const existingId = localStorage.getItem('mealfit_user_id');
-        if (!existingId) {
-            // Generamos un ID único para este dispositivo
-            const newId = 'user_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('mealfit_user_id', newId);
-            console.log("🆔 Nuevo ID de usuario generado:", newId);
-        }
+        // Función interna para cargar perfil desde la tabla 'user_profiles'
+        const fetchProfile = async (userId) => {
+            try {
+                const { data, error } = await supabase
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('id', userId)
+                    .single();
+
+                if (error) {
+                    // Ignoramos error PGRST116 (JSON nulo/fila no encontrada) si es el primer login
+                    if (error.code !== 'PGRST116') {
+                        console.error('Error cargando perfil:', error);
+                    }
+                }
+
+                if (data) {
+                    setUserProfile(data);
+                }
+            } catch (error) {
+                console.error('Excepción al cargar perfil:', error);
+            }
+        };
+
+        // 1. Obtener sesión inicial al cargar la app
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            if (session) {
+                localStorage.setItem('mealfit_user_id', session.user.id);
+                // Cargar perfil real de la DB
+                fetchProfile(session.user.id);
+            }
+            setLoadingAuth(false);
+        });
+
+        // 2. Escuchar cambios en tiempo real (Login, Logout, Auto-refresh)
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+            if (session) {
+                localStorage.setItem('mealfit_user_id', session.user.id);
+                fetchProfile(session.user.id);
+            } else {
+                setUserProfile(null); // Limpiar perfil al cerrar sesión
+            }
+            setLoadingAuth(false);
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
-    // --- EFECTOS DE PERSISTENCIA ---
-    
-    // Guardar formulario al cambiar
+    // --- FUNCIÓN PARA ACTUALIZAR PERFIL EN DB ---
+    const updateUserProfile = async (updates) => {
+        try {
+            if (!session?.user) throw new Error('No hay sesión activa');
+
+            const { error } = await supabase
+                .from('user_profiles')
+                .update(updates)
+                .eq('id', session.user.id);
+
+            if (error) throw error;
+
+            // Actualizamos el estado local para reflejar el cambio inmediatamente en la UI
+            setUserProfile((prev) => ({ ...prev, ...updates }));
+            return { success: true };
+        } catch (error) {
+            console.error('Error actualizando perfil:', error);
+            return { success: false, error };
+        }
+    };
+
+    // --- EFECTOS DE PERSISTENCIA LOCAL (Respaldo) ---
+
     useEffect(() => {
         localStorage.setItem('mealfit_form', JSON.stringify(formData));
     }, [formData]);
 
-    // Guardar plan al cambiar
     useEffect(() => {
         if (planData) localStorage.setItem('mealfit_plan', JSON.stringify(planData));
     }, [planData]);
 
-    // Guardar likes al cambiar
     useEffect(() => {
         localStorage.setItem('mealfit_likes', JSON.stringify(likedMeals));
     }, [likedMeals]);
 
-    // --- FUNCIONES Y LÓGICA ---
+    // --- LÓGICA DE NEGOCIO ---
 
-    // Función para manejar el Like (Visual + API)
     const toggleMealLike = async (mealName, mealType) => {
         const isCurrentlyLiked = !!likedMeals[mealName];
-        
-        // 1. Actualizar estado visual inmediatamente (Optimistic UI)
+
+        // Optimistic UI Update (Actualizamos visualmente antes de la red)
         setLikedMeals(prev => ({
             ...prev,
             [mealName]: !isCurrentlyLiked
         }));
 
-        // 2. Si el usuario dio Like (TRUE), enviarlo al backend para que aprenda
+        // Si damos Like, enviamos al webhook de IA para entrenamiento
         if (!isCurrentlyLiked) {
             try {
-                const userId = localStorage.getItem('mealfit_user_id');
-                
-                // ACTUALIZADO: URL DE PRODUCCIÓN DE N8N
+                const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
+
+                // Enviamos el like al webhook de n8n
                 await fetch('https://agente-de-citas-dental-space-n8n.ofcrls.easypanel.host/webhook/like', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -94,33 +161,59 @@ export const AssessmentProvider = ({ children }) => {
         }
     };
 
-    // Actualizar campos del formulario
+    // --- NUEVA FUNCIÓN: Regenerar un solo plato ---
+    const regenerateSingleMeal = (mealIndex, mealType, currentName) => {
+        // 1. Obtenemos las calorías objetivo de ese slot específico del plan actual
+        const targetCalories = planData.perfectDay[mealIndex].cals;
+        
+        // 2. Obtenemos el tipo de dieta del formulario del usuario para filtrar
+        const userDietType = formData.dietType;
+
+        // 3. Llamamos a la función inteligente del servicio
+        const newMealData = getAlternativeMeal(mealType, currentName, targetCalories, userDietType);
+
+        // 4. Actualizamos el estado de planData
+        const updatedPlan = { ...planData };
+        const updatedDay = [...updatedPlan.perfectDay];
+
+        updatedDay[mealIndex] = {
+            ...updatedDay[mealIndex], // Mantenemos hora y tipo
+            name: newMealData.name,
+            desc: newMealData.desc,
+            cals: newMealData.cals, 
+            recipe: newMealData.recipe || [] // Asignamos la receta
+        };
+
+        updatedPlan.perfectDay = updatedDay;
+        setPlanData(updatedPlan);
+        
+        return newMealData.name; // Retornamos el nombre para mostrarlo en el Toast
+    };
+
     const updateData = (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
     };
 
-    // Guardar un nuevo plan generado por la IA
     const saveGeneratedPlan = (data) => {
         setPlanData(data);
-        // IMPORTANTE: Al generar un plan nuevo, reseteamos los likes visuales
-        // porque son platos nuevos y no queremos corazones "fantasmas".
-        setLikedMeals({}); 
+        // Al generar nuevo plan, reseteamos likes visuales del día anterior
+        setLikedMeals({});
     };
 
-    // Navegación
     const nextStep = () => { setDirection(1); setCurrentStep((prev) => prev + 1); };
     const prevStep = () => { setDirection(-1); setCurrentStep((prev) => Math.max(0, prev - 1)); };
 
-    // Resetear toda la app (Cerrar Sesión)
-    const resetApp = () => {
+    const resetApp = async () => {
+        // Limpieza total (Logout)
         localStorage.removeItem('mealfit_form');
         localStorage.removeItem('mealfit_plan');
-        localStorage.removeItem('mealfit_likes'); // Borramos likes locales
-        
-        // No borramos el user_id para mantener la "memoria" histórica en Supabase
-        
+        localStorage.removeItem('mealfit_likes');
+
+        await supabase.auth.signOut();
+
         setPlanData(null);
         setLikedMeals({});
+        setUserProfile(null);
         setFormData({
             age: '', gender: '', height: '', weight: '', bodyFat: '', activityLevel: '',
             sleepHours: '', stressLevel: '', cookingTime: '', budget: '', workSchedule: '',
@@ -132,10 +225,29 @@ export const AssessmentProvider = ({ children }) => {
 
     return (
         <AssessmentContext.Provider value={{
-            currentStep, setCurrentStep, direction,
-            formData, updateData, nextStep, prevStep,
-            planData, saveGeneratedPlan, 
-            likedMeals, toggleMealLike, // Exportamos estado y función de likes para usar en Dashboard
+            // Auth & Perfil
+            session,
+            loadingAuth,
+            userProfile,
+            updateUserProfile,
+
+            // Wizard Navigation
+            currentStep,
+            setCurrentStep,
+            direction,
+            nextStep,
+            prevStep,
+
+            // Datos
+            formData,
+            updateData,
+            planData,
+            saveGeneratedPlan,
+            
+            // Interacciones
+            likedMeals,
+            toggleMealLike,
+            regenerateSingleMeal,
             resetApp
         }}>
             {children}

@@ -1,77 +1,93 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import {
-    User, Bell, Shield, Wallet, ChevronRight,
-    Moon, Sun, LogOut, Save, Trash2, Database
+    User, Bell, Shield, ChevronRight,
+    LogOut, Save, Trash2, Database, Mail
 } from 'lucide-react';
 import { useAssessment } from '../context/AssessmentContext';
 import { useNavigate } from 'react-router-dom';
 
 const Settings = () => {
-    const { planData, formData, resetApp } = useAssessment();
+    // Obtenemos userProfile y updateUserProfile del contexto global
+    const { planData, formData, resetApp, userProfile, updateUserProfile } = useAssessment();
     const navigate = useNavigate();
 
-    // --- LOCAL STATE ---
+    // --- ESTADOS LOCALES ---
+    
+    // Estado para las notificaciones
     const [notifications, setNotifications] = useState(() => {
         return localStorage.getItem('mealfit_notifications') === 'true';
     });
 
-    const [darkMode, setDarkMode] = useState(() => {
-        return localStorage.getItem('mealfit_theme') === 'dark';
-    });
+    // CORRECCIÓN: Inicialización Lazy para evitar conflictos de renderizado
+    // Si ya tenemos el dato en el contexto, lo usamos inmediatamente al crear el componente.
+    const [userName, setUserName] = useState(
+        userProfile?.full_name || planData?.userParams?.name || ''
+    );
 
-    // Estado local para el nombre (inicializado con datos reales o default)
-    // Intentamos obtener el nombre de los parámetros del plan o del formulario
-    const [userName, setUserName] = useState(planData?.userParams?.name || 'Usuario');
-    const [saved, setSaved] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveStatus, setSaveStatus] = useState(''); // '', 'success', 'error'
     const [confirmReset, setConfirmReset] = useState(false);
 
     // --- EFECTOS ---
 
-    // 1. Manejo del Tema Oscuro (Dark Mode)
+    // CORRECCIÓN: Validación estricta dentro del useEffect
     useEffect(() => {
-        if (darkMode) {
-            document.body.classList.add('dark-mode'); // Asumiendo que existe o se creará esta clase global
-            // O podemos inyectar estilos directamente si no hay CSS global para esto
-            document.documentElement.style.setProperty('--bg-page', '#0f172a');
-            document.documentElement.style.setProperty('--text-main', '#f8fafc');
-            document.documentElement.style.setProperty('--bg-card', '#1e293b');
-            // Nota: Esto es un MVP de dark mode. Lo ideal es tener variables CSS bien definidas.
-        } else {
-            document.body.classList.remove('dark-mode');
-            document.documentElement.style.removeProperty('--bg-page');
-            document.documentElement.style.removeProperty('--text-main');
-            document.documentElement.style.removeProperty('--bg-card');
-        }
-        localStorage.setItem('mealfit_theme', darkMode ? 'dark' : 'light');
-    }, [darkMode]);
+        // Determinamos cuál es el nombre que viene de la base de datos o del plan antiguo
+        const incomingName = userProfile?.full_name || planData?.userParams?.name;
 
-    // 2. Persistencia de Notificaciones
+        // SOLUCIÓN AL ERROR:
+        // Solo actualizamos el estado si hay un dato nuevo Y es diferente al que ya tenemos.
+        // Esto evita que React entre en un bucle infinito de actualizaciones.
+        if (incomingName && incomingName !== userName) {
+            setUserName(incomingName);
+        }
+        
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userProfile, planData]); // Quitamos 'userName' de las dependencias intencionalmente
+
+    // Persistir preferencia de notificaciones
     useEffect(() => {
         localStorage.setItem('mealfit_notifications', notifications);
     }, [notifications]);
 
-    // --- MANEJADORES ---
+    // --- MANEJADORES (HANDLERS) ---
 
     const handleResetApp = () => {
         if (confirmReset) {
-            resetApp();
+            resetApp(); // Limpia localStorage y hace SignOut en Supabase
             navigate('/');
         } else {
             setConfirmReset(true);
-            // Auto-cancel confirmation after 3 seconds if not clicked
             setTimeout(() => setConfirmReset(false), 3000);
         }
     };
 
-    const handleSaveProfile = () => {
-        // En una app real, esto actualizaría el contexto o backend.
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+    const handleSaveProfile = async () => {
+        if (isSaving) return;
+
+        setIsSaving(true);
+        setSaveStatus('');
+
+        // Actualizamos en Supabase
+        const result = await updateUserProfile({
+            full_name: userName
+        });
+
+        setIsSaving(false);
+
+        if (result.success) {
+            setSaveStatus('success');
+            setTimeout(() => setSaveStatus(''), 3000);
+        } else {
+            setSaveStatus('error');
+            alert("Hubo un error al guardar. Por favor verifica tu conexión.");
+        }
     };
 
-    // Obtenemos el objetivo real del usuario
+    // Datos derivados para la UI
     const userGoal = formData?.mainGoal || "Mejorar Salud";
+    const displayEmail = userProfile?.email || "Cargando correo...";
 
     return (
         <DashboardLayout>
@@ -82,13 +98,13 @@ const Settings = () => {
                         Ajustes
                     </h1>
                     <p style={{ color: 'var(--text-muted)' }}>
-                        Gestiona tus preferencias y datos de la aplicación.
+                        Gestiona tu perfil, preferencias y datos de la aplicación.
                     </p>
                 </header>
 
                 <div style={{ display: 'grid', gap: '2rem' }}>
 
-                    {/* SECCIÓN: PERFIL (REAL) */}
+                    {/* SECCIÓN 1: PERFIL (CONECTADO A SUPABASE) */}
                     <section style={{
                         background: 'white',
                         borderRadius: '1.5rem',
@@ -100,60 +116,86 @@ const Settings = () => {
                             <div style={{ background: '#EFF6FF', padding: '0.5rem', borderRadius: '0.5rem', color: '#3B82F6' }}>
                                 <User size={20} />
                             </div>
-                            Perfil
+                            Perfil de Usuario
                         </h2>
 
                         <div style={{ display: 'flex', gap: '2rem', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                            
+                            {/* Avatar y Nombre */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
                                 <div style={{
                                     width: '80px', height: '80px',
                                     background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
                                     borderRadius: '50%',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    color: 'white', fontSize: '2rem', fontWeight: 700
+                                    color: 'white', fontSize: '2rem', fontWeight: 700,
+                                    boxShadow: '0 4px 6px rgba(59, 130, 246, 0.3)'
                                 }}>
-                                    {userName.charAt(0).toUpperCase()}
+                                    {userName ? userName.charAt(0).toUpperCase() : 'U'}
                                 </div>
-                                <div style={{ flex: 1 }}>
+                                <div style={{ flex: 1, minWidth: '200px' }}>
                                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                                        Tu Nombre
+                                        Nombre Completo
                                     </label>
                                     <input
                                         type="text"
                                         value={userName}
                                         onChange={(e) => setUserName(e.target.value)}
+                                        placeholder="Tu nombre aquí"
                                         style={{
                                             width: '100%',
-                                            maxWidth: '300px',
                                             padding: '0.75rem 1rem',
                                             borderRadius: '0.75rem',
                                             border: '1px solid var(--border)',
                                             outline: 'none',
-                                            fontSize: '0.95rem'
+                                            fontSize: '0.95rem',
+                                            transition: 'border-color 0.2s',
+                                            background: '#F8FAFC'
                                         }}
+                                        onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                                        onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
                                     />
                                 </div>
                             </div>
-                            {/* Nota: Eliminamos el email porque no hay sistema de login real con correo todavía */}
+                            
+                            {/* Campo de Email (Solo Lectura) */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem 1rem', background: '#F1F5F9', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
+                                <Mail size={18} color="#64748B" />
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600 }}>Correo Electrónico (ID)</span>
+                                    <span style={{ color: '#334155', fontSize: '0.9rem' }}>{displayEmail}</span>
+                                </div>
+                                <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#64748B', background: '#E2E8F0', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                                    NO EDITABLE
+                                </span>
+                            </div>
 
+                            {/* Botón Guardar */}
                             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                 <button
                                     onClick={handleSaveProfile}
+                                    disabled={isSaving}
                                     style={{
-                                        background: 'var(--primary)',
+                                        background: saveStatus === 'success' ? '#10B981' : 'var(--primary)',
                                         color: 'white',
                                         border: 'none',
                                         padding: '0.75rem 1.5rem',
                                         borderRadius: '0.75rem',
                                         fontWeight: 600,
-                                        cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', gap: '0.5rem'
+                                        cursor: isSaving ? 'wait' : 'pointer',
+                                        display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        opacity: isSaving ? 0.8 : 1,
+                                        transform: isSaving ? 'scale(0.98)' : 'scale(1)',
+                                        boxShadow: saveStatus === 'success' ? '0 4px 12px rgba(16, 185, 129, 0.3)' : '0 4px 12px rgba(59, 130, 246, 0.3)'
                                     }}
                                 >
-                                    {saved ? '¡Guardado!' : (
-                                        <>
-                                            <Save size={18} /> Actualizar Nombre
-                                        </>
+                                    {isSaving ? (
+                                        <>Guardando...</>
+                                    ) : saveStatus === 'success' ? (
+                                        <>¡Cambios Guardados!</>
+                                    ) : (
+                                        <><Save size={18} /> Guardar Cambios</>
                                     )}
                                 </button>
                             </div>
@@ -161,7 +203,7 @@ const Settings = () => {
                     </section>
 
 
-                    {/* SECCIÓN: PREFERENCIAS & DATOS (Grid) */}
+                    {/* SECCIÓN 2: PREFERENCIAS & DATOS (Grid) */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
 
                         {/* Preferencias */}
@@ -205,26 +247,10 @@ const Settings = () => {
                                         </span>
                                     </label>
                                 </div>
-
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 0' }}>
-                                    <div>
-                                        <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Tema Oscuro</div>
-                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Modo noche (Experimental)</div>
-                                    </div>
-                                    <button
-                                        onClick={() => setDarkMode(!darkMode)}
-                                        style={{
-                                            background: '#F1F5F9', border: 'none', padding: '0.5rem', borderRadius: '0.5rem',
-                                            cursor: 'pointer', color: 'var(--text-main)'
-                                        }}
-                                    >
-                                        {darkMode ? <Moon size={20} /> : <Sun size={20} />}
-                                    </button>
-                                </div>
                             </div>
                         </section>
 
-                        {/* INFO DEL PLAN (Reemplaza la sección de Pagos Falsa) */}
+                        {/* INFO DEL PLAN */}
                         <section style={{
                             background: 'white',
                             borderRadius: '1.5rem',
@@ -266,26 +292,27 @@ const Settings = () => {
                                     color: 'var(--text-main)',
                                     fontWeight: 600,
                                     cursor: 'pointer',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                    transition: 'background 0.2s'
                                 }}>
                                 Cambiar Objetivo (Nuevo Plan) <ChevronRight size={16} />
                             </button>
                         </section>
                     </div>
 
-                    {/* SECCIÓN: GESTIÓN DE DATOS (Real) */}
+                    {/* SECCIÓN 3: GESTIÓN DE DATOS (ZONA DE PELIGRO) */}
                     <section style={{
                         background: 'white',
                         borderRadius: '1.5rem',
                         padding: '2rem',
                         boxShadow: 'var(--shadow-sm)',
-                        border: '1px solid var(--border)'
+                        border: '1px solid #FECACA' // Borde rojo suave
                     }}>
                         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             <div style={{ background: '#FECACA', padding: '0.5rem', borderRadius: '0.5rem', color: '#DC2626' }}>
                                 <Shield size={20} />
                             </div>
-                            Gestión de Datos
+                            Zona de Gestión
                         </h2>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -294,9 +321,9 @@ const Settings = () => {
                                     <Trash2 size={20} color="#EF4444" />
                                 </div>
                                 <div>
-                                    <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Reiniciar Aplicación</div>
+                                    <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Cerrar Sesión & Limpiar</div>
                                     <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                                        Borra todos tus datos locales y planes generados.
+                                        Cierra tu sesión de forma segura.
                                     </div>
                                 </div>
                             </div>
@@ -304,7 +331,7 @@ const Settings = () => {
                                 onClick={handleResetApp}
                                 style={{
                                     color: 'white',
-                                    background: confirmReset ? '#991B1B' : '#EF4444', // Darker red on confirm
+                                    background: confirmReset ? '#991B1B' : '#EF4444',
                                     padding: '0.75rem 1.5rem',
                                     borderRadius: '0.75rem',
                                     fontWeight: 600,
@@ -315,7 +342,7 @@ const Settings = () => {
                                     gap: '0.5rem',
                                     transition: 'all 0.2s'
                                 }}>
-                                <LogOut size={18} /> {confirmReset ? '¿Seguro? Clic para borrar' : 'Borrar Todo'}
+                                <LogOut size={18} /> {confirmReset ? '¿Seguro? Clic para confirmar' : 'Salir'}
                             </button>
                         </div>
                     </section>

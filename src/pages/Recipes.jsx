@@ -1,10 +1,10 @@
 import { useAssessment } from '../context/AssessmentContext';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Utensils, ArrowLeft, Clock, ChefHat } from 'lucide-react';
+import { Utensils, ArrowLeft, Clock, ChefHat, Share2 } from 'lucide-react';
 
 const Recipes = () => {
-    const { planData } = useAssessment();
+    const { planData, formData } = useAssessment();
     const navigate = useNavigate();
 
     // Protección de Ruta
@@ -12,14 +12,36 @@ const Recipes = () => {
         return <Navigate to="/" replace />;
     }
 
+    const handleShare = async (meal) => {
+        const shareText = `🍳 ${meal.name}\n🔥 ${meal.cals} kcal\n\n📝 ${meal.desc}\n\n👨‍🍳 Preparación:\n${meal.recipe.map((step, i) => `${i + 1}. ${step}`).join('\n')}\n\nGenerado por MealfitRD`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: `SimplaReceta: ${meal.name}`,
+                    text: shareText,
+                });
+            } catch (err) {
+                console.log('Error compartiendo:', err);
+            }
+        } else {
+            try {
+                await navigator.clipboard.writeText(shareText);
+                alert('¡Receta copiada al portapapeles!');
+            } catch (err) {
+                console.error('Error al copiar:', err);
+            }
+        }
+    };
+
     return (
         <DashboardLayout>
             <div style={{ maxWidth: '800px', margin: '0 auto' }}>
                 {/* Header de Navegación */}
                 <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center' }}>
-                    <button 
+                    <button
                         onClick={() => navigate('/dashboard')}
-                        style={{ 
+                        style={{
                             display: 'flex', alignItems: 'center', gap: '0.5rem',
                             background: 'transparent', border: 'none',
                             color: 'var(--text-muted)', fontWeight: 600,
@@ -32,8 +54,8 @@ const Recipes = () => {
 
                 {/* Título Principal */}
                 <div style={{ marginBottom: '3rem', textAlign: 'center' }}>
-                    <div style={{ 
-                        width: 60, height: 60, background: '#EFF6FF', borderRadius: '50%', 
+                    <div style={{
+                        width: 60, height: 60, background: '#EFF6FF', borderRadius: '50%',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         color: 'var(--primary)', margin: '0 auto 1rem'
                     }}>
@@ -47,28 +69,33 @@ const Recipes = () => {
                     </p>
                 </div>
 
-                {/* Lista de Recetas */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                    {planData.perfectDay?.map((meal, index) => (
-                        <div key={index} style={{ 
-                            background: 'white', 
-                            borderRadius: '1.5rem', 
+                    {planData.perfectDay?.filter(meal => {
+                        if (formData?.skipLunch) {
+                            const isLunch = meal.meal.toLowerCase().includes('almuerzo') || meal.name.toLowerCase().includes('lunch');
+                            return !isLunch;
+                        }
+                        return true;
+                    }).map((meal, index) => (
+                        <div key={index} style={{
+                            background: 'white',
+                            borderRadius: '1.5rem',
                             border: '1px solid var(--border)',
                             overflow: 'hidden',
                             boxShadow: 'var(--shadow-sm)'
                         }}>
                             {/* Header de la Receta */}
-                            <div style={{ 
-                                padding: '1.5rem', 
+                            <div style={{
+                                padding: '1.5rem',
                                 background: 'linear-gradient(to right, #F8FAFC, white)',
                                 borderBottom: '1px solid var(--border)',
                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                 flexWrap: 'wrap', gap: '1rem'
                             }}>
                                 <div>
-                                    <div style={{ 
-                                        textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, 
-                                        color: 'var(--primary)', marginBottom: '0.25rem' 
+                                    <div style={{
+                                        textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700,
+                                        color: 'var(--primary)', marginBottom: '0.25rem'
                                     }}>
                                         {meal.meal}
                                     </div>
@@ -76,23 +103,38 @@ const Recipes = () => {
                                         {meal.name}
                                     </h2>
                                 </div>
-                                <div style={{ 
-                                    display: 'flex', alignItems: 'center', gap: '0.5rem', 
-                                    padding: '0.5rem 1rem', background: 'white', 
-                                    borderRadius: '2rem', border: '1px solid var(--border)',
-                                    fontSize: '0.9rem', fontWeight: 600, color: '#64748B'
-                                }}>
-                                    <ChefHat size={16} /> 
-                                    {meal.cals} kcal
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button
+                                        onClick={() => handleShare(meal)}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            width: '36px', height: '36px',
+                                            borderRadius: '50%', border: '1px solid var(--border)',
+                                            background: 'white', color: 'var(--text-muted)',
+                                            cursor: 'pointer', transition: 'all 0.2s'
+                                        }}
+                                        title="Compartir receta"
+                                    >
+                                        <Share2 size={18} />
+                                    </button>
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                        padding: '0.5rem 1rem', background: 'white',
+                                        borderRadius: '2rem', border: '1px solid var(--border)',
+                                        fontSize: '0.9rem', fontWeight: 600, color: '#64748B'
+                                    }}>
+                                        <ChefHat size={16} />
+                                        {meal.cals} kcal
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Contenido (Pasos) */}
                             <div style={{ padding: '2rem' }}>
                                 {/* Descripción Corta */}
-                                <p style={{ 
-                                    color: 'var(--text-muted)', marginBottom: '2rem', 
-                                    fontStyle: 'italic', background: '#F1F5F9', padding: '1rem', borderRadius: '0.5rem' 
+                                <p style={{
+                                    color: 'var(--text-muted)', marginBottom: '2rem',
+                                    fontStyle: 'italic', background: '#F1F5F9', padding: '1rem', borderRadius: '0.5rem'
                                 }}>
                                     "{meal.desc}"
                                 </p>
@@ -105,9 +147,9 @@ const Recipes = () => {
                                     <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                         {meal.recipe.map((step, i) => (
                                             <li key={i} style={{ display: 'flex', gap: '1rem' }}>
-                                                <div style={{ 
-                                                    minWidth: '24px', height: '24px', 
-                                                    background: 'var(--primary)', color: 'white', 
+                                                <div style={{
+                                                    minWidth: '24px', height: '24px',
+                                                    background: 'var(--primary)', color: 'white',
                                                     borderRadius: '50%', fontWeight: 700, fontSize: '0.8rem',
                                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                     marginTop: '2px'
