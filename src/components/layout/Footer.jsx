@@ -15,7 +15,22 @@ const Footer = () => {
                         Tu camino hacia una vida más saludable empieza aquí.
                     </p>
                     <div className={styles.socialLinks}>
-                        <a href="#" className={styles.socialIcon} aria-label="Instagram">
+                        <a href="https://www.tiktok.com/@mealfitrd?_r=1&_t=ZS-93cjeaZR3NI" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="TikTok">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+                            </svg>
+                        </a>
+                        <a href="https://www.instagram.com/mealfit_rd?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Instagram">
                             <Instagram size={20} />
                         </a>
                         <a href="#" className={styles.socialIcon} aria-label="Facebook">
