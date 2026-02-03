@@ -47,7 +47,7 @@ export const AssessmentProvider = ({ children }) => {
     const checkPlanLimit = useCallback(async (specificUserId = null) => {
         try {
             const userId = specificUserId || session?.user?.id || localStorage.getItem('mealfit_user_id');
-            
+
             if (!userId) return;
 
             // Llamada a la función RPC en Supabase
@@ -56,13 +56,13 @@ export const AssessmentProvider = ({ children }) => {
             });
 
             if (error) throw error;
-            
-            console.log("📊 Planes usados este mes:", data);
+
+            console.log("📊 Planes usados:", data);
             setPlanCount(data);
             return data;
         } catch (error) {
             console.error("Error verificando límites:", error);
-            return 0; 
+            return 0;
         }
     }, [session]);
 
@@ -117,9 +117,9 @@ export const AssessmentProvider = ({ children }) => {
         });
 
         return () => subscription.unsubscribe();
-        
+
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); 
+    }, []);
 
     // --- FUNCIÓN PARA ACTUALIZAR PERFIL EN DB ---
     const updateUserProfile = async (updates) => {
@@ -158,7 +158,7 @@ export const AssessmentProvider = ({ children }) => {
 
     const toggleMealLike = async (mealName, mealType) => {
         const isCurrentlyLiked = !!likedMeals[mealName];
-        
+
         setLikedMeals(prev => ({
             ...prev,
             [mealName]: !isCurrentlyLiked
@@ -168,7 +168,7 @@ export const AssessmentProvider = ({ children }) => {
 
         try {
             const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
-            
+
             if (!userId) {
                 console.error("❌ Error: Usuario no autenticado.");
                 toast.error("Inicia sesión para guardar tus favoritos");
@@ -183,7 +183,7 @@ export const AssessmentProvider = ({ children }) => {
             const API_URL = import.meta.env.VITE_LIKE_WEBHOOK || 'https://agente-de-citas-dental-space-n8n.ofcrls.easypanel.host/webhook/like';
 
             console.log(`🚀 Enviando Like a n8n...`);
-            
+
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -225,13 +225,13 @@ export const AssessmentProvider = ({ children }) => {
             ...updatedDay[mealIndex],
             name: newMealData.name,
             desc: newMealData.desc,
-            cals: newMealData.cals, 
+            cals: newMealData.cals,
             recipe: newMealData.recipe || []
         };
 
         updatedPlan.perfectDay = updatedDay;
         setPlanData(updatedPlan);
-        
+
         return newMealData.name;
     };
 

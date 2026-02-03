@@ -5,27 +5,27 @@ import { useNavigate, Navigate, Link } from 'react-router-dom';
 import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
     RefreshCw, ShoppingCart, ChefHat, Heart,
-    Sparkles, Brain, Wallet, AlertCircle
+    Sparkles, Brain, Wallet, AlertCircle, Dumbbell, Wheat
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 
 const Dashboard = () => {
     // 1. Obtenemos estado y funciones del Contexto Global
-    const { 
-        planData, 
-        likedMeals, 
-        toggleMealLike, 
-        regenerateSingleMeal, 
+    const {
+        planData,
+        likedMeals,
+        toggleMealLike,
+        regenerateSingleMeal,
         formData,
         // Nuevos valores para el sistema de créditos
         planCount,
         PLAN_LIMIT,
         remainingCredits
     } = useAssessment();
-    
+
     const navigate = useNavigate();
-    
+
     // Estado local para saber qué tarjeta se está regenerando (loading spinner)
     const [regeneratingId, setRegeneratingId] = useState(null);
 
@@ -65,33 +65,50 @@ const Dashboard = () => {
                     </div>
 
                     {/* --- VISUALIZADOR DE CRÉDITOS --- */}
-                    <div style={{ 
+                    <div style={{
                         marginTop: '0.5rem',
-                        background: 'white', 
-                        padding: '0.75rem 1rem', 
-                        borderRadius: '0.75rem',
-                        border: '1px solid var(--border)',
+                        background: 'rgba(255, 255, 255, 0.9)',
+                        backdropFilter: 'blur(8px)',
+                        padding: '0.6rem 1rem',
+                        borderRadius: '1rem',
+                        border: '1px solid rgba(226, 232, 240, 0.8)',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '1rem',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                        gap: '0.875rem',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
                         width: 'fit-content'
                     }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                                Generaciones del mes
+                        {/* Icono */}
+                        <div style={{
+                            background: isLimitReached ? '#FEF2F2' : '#EFF6FF',
+                            color: isLimitReached ? '#EF4444' : '#3B82F6',
+                            padding: '0.5rem',
+                            borderRadius: '0.75rem',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                            <Zap size={18} fill={isLimitReached ? '#EF4444' : '#3B82F6'} />
+                        </div>
+
+                        {/* Texto */}
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                Créditos
                             </span>
-                            <div style={{ fontSize: '0.9rem', fontWeight: 600, color: isLimitReached ? '#EF4444' : 'var(--text-main)' }}>
-                                {remainingCredits} disponibles <span style={{color: '#94A3B8', fontWeight: 400}}>/ {PLAN_LIMIT}</span>
+                            <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.2 }}>
+                                {remainingCredits} <span style={{ color: '#94A3B8', fontSize: '0.8rem', fontWeight: 600 }}>/ {PLAN_LIMIT}</span>
                             </div>
                         </div>
-                        
-                        {/* Barra de progreso */}
-                        <div style={{ width: '120px', height: '6px', background: '#F1F5F9', borderRadius: '3px', overflow: 'hidden' }}>
-                            <div style={{ 
-                                height: '100%', 
-                                width: `${progressPercentage}%`, 
-                                background: isLimitReached ? '#EF4444' : 'linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%)',
+
+                        {/* Separator */}
+                        <div style={{ width: '1px', height: '24px', background: '#E2E8F0', margin: '0 0.25rem' }} />
+
+                        {/* Barra Mini */}
+                        <div style={{ width: '60px', height: '4px', background: '#F1F5F9', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{
+                                height: '100%',
+                                width: `${progressPercentage}%`,
+                                background: isLimitReached ? '#EF4444' : '#3B82F6',
+                                borderRadius: '4px',
                                 transition: 'width 0.5s ease'
                             }} />
                         </div>
@@ -104,7 +121,7 @@ const Dashboard = () => {
                         onClick={handleNewPlan}
                         disabled={isLimitReached}
                         style={{
-                            background: isLimitReached 
+                            background: isLimitReached
                                 ? '#E2E8F0' // Gris deshabilitado
                                 : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
                             color: isLimitReached ? '#94A3B8' : 'white',
@@ -125,8 +142,8 @@ const Dashboard = () => {
                         }}
                     >
                         {isLimitReached ? <AlertCircle size={22} /> : <RefreshCw size={22} strokeWidth={2.5} />}
-                        <span>{isLimitReached ? 'Límite Mensual Alcanzado' : 'Generar Nuevo'}</span>
-                        
+                        <span>{isLimitReached ? 'Límite Alcanzado' : 'Generar Nuevo'}</span>
+
                         {!isLimitReached && (
                             <div style={{
                                 position: 'absolute', top: 0, left: '-100%',
@@ -139,10 +156,10 @@ const Dashboard = () => {
                         )}
                         <style>{`button:hover .shine-effect { left: 200%; transition: left 0.7s; }`}</style>
                     </button>
-                    
+
                     {isLimitReached && (
                         <span style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 600 }}>
-                            Espera al próximo mes o actualiza tu plan.
+                            Has alcanzado el límite de tu plan.
                         </span>
                     )}
                 </div>
@@ -156,8 +173,8 @@ const Dashboard = () => {
                 marginBottom: '2.5rem'
             }}>
                 <StatCard label="Calorías Diarias" value={planData.calories} unit="kcal" icon={Flame} color="#F59E0B" bgColor="#FFFBEB" />
-                <StatCard label="Proteína" value={planData.macros?.protein || "0g"} unit="" icon={Zap} color="#3B82F6" bgColor="#EFF6FF" />
-                <StatCard label="Carbohidratos" value={planData.macros?.carbs || "0g"} unit="" icon={ChefHat} color="#10B981" bgColor="#ECFDF5" />
+                <StatCard label="Proteína" value={planData.macros?.protein || "0g"} unit="" icon={Dumbbell} color="#3B82F6" bgColor="#EFF6FF" />
+                <StatCard label="Carbohidratos" value={planData.macros?.carbs || "0g"} unit="" icon={Wheat} color="#10B981" bgColor="#ECFDF5" />
                 <StatCard label="Grasas" value={planData.macros?.fats || "0g"} unit="" icon={Droplet} color="#EC4899" bgColor="#FDF2F8" />
             </div>
 
@@ -230,7 +247,7 @@ const Dashboard = () => {
 
                                         {/* BUTTONS GROUP */}
                                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                            
+
                                             {/* REGENERATE BUTTON */}
                                             <button
                                                 onClick={() => {
@@ -257,9 +274,9 @@ const Dashboard = () => {
                                                 }}
                                                 title="Cambiar este plato por otro"
                                             >
-                                                <RefreshCw 
-                                                    size={18} 
-                                                    color="#64748B" 
+                                                <RefreshCw
+                                                    size={18}
+                                                    color="#64748B"
                                                     className={regeneratingId === index ? "spin-fast" : ""}
                                                 />
                                             </button>
@@ -268,7 +285,7 @@ const Dashboard = () => {
                                             <button
                                                 onClick={() => {
                                                     const currentlyLiked = !!likedMeals[meal.name];
-                                                    toggleMealLike(meal.name, meal.meal); 
+                                                    toggleMealLike(meal.name, meal.meal);
 
                                                     if (!currentlyLiked) {
                                                         toast.success('¡Anotado!', {
@@ -304,7 +321,7 @@ const Dashboard = () => {
                                         </div>
 
                                     </div>
-                                    
+
                                     {/* Estilo para la animación de rotación */}
                                     <style>{`
                                         .spin-fast { animation: spin 1s linear infinite; }

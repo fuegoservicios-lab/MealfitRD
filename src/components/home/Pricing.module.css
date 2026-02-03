@@ -1,147 +1,171 @@
 .pricing {
-    padding: 6rem 0;
+    padding: 6rem 1.5rem;
     position: relative;
-    background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.5));
+    overflow: hidden;
+    /* Optional: Subtle background mesh if not covered by global styles */
 }
 
 .container {
     max-width: 1280px;
     margin: 0 auto;
-    padding: 0 1.5rem;
+    position: relative;
+    z-index: 10;
 }
 
 .header {
     text-align: center;
     max-width: 600px;
-    margin: 0 auto 4rem;
+    margin: 0 auto 5rem;
 }
 
 .badge {
     display: inline-block;
     padding: 0.5rem 1rem;
     background: rgba(79, 70, 229, 0.1);
-    color: var(--primary);
+    color: #4F46E5;
+    border: 1px solid rgba(79, 70, 229, 0.2);
     border-radius: 99px;
-    font-weight: 600;
-    font-size: 0.875rem;
-    margin-bottom: 1rem;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1.5rem;
 }
 
 .title {
-    font-size: 2.5rem;
-    color: var(--text-main);
-    margin-bottom: 1rem;
-    letter-spacing: -0.02em;
+    font-family: 'Outfit', sans-serif;
+    font-size: 3rem;
+    font-weight: 800;
+    color: #0F172A;
+    /* Slate 900 */
+    margin-bottom: 1.25rem;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
 }
 
 .subtitle {
-    color: var(--text-muted);
-    font-size: 1.1rem;
+    font-size: 1.125rem;
+    color: #64748B;
+    /* Slate 500 */
+    line-height: 1.6;
 }
 
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 2.5rem;
     align-items: center;
 }
 
+/* --- Premium Card Styles --- */
 .card {
-    background: var(--bg-card);
-    border-radius: 1.5rem;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 24px;
+    padding: 2.5rem;
     position: relative;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    border: 1px solid var(--border);
-    /* Basic state */
-}
-
-/* Glass effect for non-hover state to blend nicely */
-.card {
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(12px);
-    box-shadow: var(--shadow-md);
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.05),
+        0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--shadow-xl);
-    z-index: 2;
-    background: #fff;
+    transform: translateY(-8px);
+    box-shadow:
+        0 20px 25px -5px rgba(0, 0, 0, 0.1),
+        0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    background: rgba(255, 255, 255, 0.9);
 }
 
+/* Popular Card Override */
 .popular {
-    background: #fff;
-    /* Popular card pops more */
-    border: 2px solid var(--primary);
-    box-shadow: var(--shadow-lg), 0 0 20px rgba(79, 70, 229, 0.15);
-    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.85);
+    border: 2px solid #4F46E5;
+    box-shadow:
+        0 20px 40px -10px rgba(79, 70, 229, 0.15),
+        0 0 0 1px rgba(79, 70, 229, 0.1) inset;
     z-index: 10;
+    transform: scale(1.02);
 }
 
 .popular:hover {
-    transform: scale(1.05) translateY(-5px);
+    transform: scale(1.02) translateY(-8px);
 }
 
 .popularBadge {
     position: absolute;
-    top: -12px;
+    top: -14px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--primary);
+    background: linear-gradient(135deg, #4F46E5, #4338CA);
     color: white;
-    padding: 0.25rem 1rem;
+    padding: 0.35rem 1.25rem;
     border-radius: 99px;
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     font-weight: 700;
-    box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3);
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
+    letter-spacing: 0.02em;
 }
 
 .cardContent {
-    padding: 2.5rem;
     display: flex;
     flex-direction: column;
     height: 100%;
 }
 
 .planName {
+    font-family: 'Outfit', sans-serif;
     font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-main);
-    margin-bottom: 0.5rem;
+    font-weight: 800;
+    color: #0F172A;
+    margin-bottom: 1rem;
 }
 
 .price {
     display: flex;
     align-items: baseline;
-    margin-bottom: 1rem;
-    color: var(--text-main);
+    margin-bottom: 1.5rem;
+    color: #0F172A;
 }
 
 .currency {
     font-size: 1.25rem;
     font-weight: 600;
-    margin-right: 2px;
+    margin-right: 4px;
+    color: #64748B;
 }
 
 .amount {
-    font-size: 3rem;
+    font-family: 'Outfit', sans-serif;
+    font-size: 3.5rem;
     font-weight: 800;
     line-height: 1;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.04em;
+    background: -webkit-linear-gradient(#0F172A, #334155);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .period {
-    color: var(--text-muted);
+    color: #64748B;
     font-weight: 500;
+    font-size: 1rem;
     margin-left: 0.5rem;
 }
 
 .description {
-    color: var(--text-muted);
+    color: #475569;
     margin-bottom: 2rem;
-    font-size: 0.95rem;
-    min-height: 44px;
-    /* Align buttons */
+    font-size: 1rem;
+    line-height: 1.5;
+    min-height: 3rem;
 }
 
 .features {
@@ -153,53 +177,61 @@
 
 .features li {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.75rem;
     margin-bottom: 1rem;
-    color: var(--text-main);
+    color: #334155;
     font-size: 0.95rem;
+    line-height: 1.5;
 }
 
 .check {
-    color: var(--primary);
+    color: #4F46E5;
+    background: rgba(79, 70, 229, 0.1);
+    border-radius: 50%;
+    padding: 2px;
     flex-shrink: 0;
+    margin-top: 2px;
 }
 
+/* --- Buttons --- */
 .btnPrimary {
     width: 100%;
     padding: 1rem;
-    background: var(--primary);
+    background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%);
     color: white;
     font-weight: 600;
-    border-radius: 99px;
+    border-radius: 14px;
     border: none;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-    transition: all 0.2s;
+    box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+    cursor: pointer;
+    transition: all 0.3s ease;
     font-size: 1rem;
 }
 
 .btnPrimary:hover {
-    background: var(--primary-dark);
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
+    box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.4);
+    filter: brightness(110%);
 }
 
 .btnOutline {
     width: 100%;
     padding: 1rem;
     background: transparent;
-    color: var(--text-main);
+    color: #0F172A;
     font-weight: 600;
-    border-radius: 99px;
-    border: 1px solid var(--border);
-    transition: all 0.2s;
+    border-radius: 14px;
+    border: 2px solid #E2E8F0;
+    cursor: pointer;
+    transition: all 0.3s ease;
     font-size: 1rem;
 }
 
 .btnOutline:hover {
-    background: var(--bg-page);
-    border-color: var(--primary);
-    color: var(--primary);
+    border-color: #4F46E5;
+    color: #4F46E5;
+    background: rgba(79, 70, 229, 0.05);
 }
 
 @media (max-width: 1024px) {
@@ -208,6 +240,10 @@
     }
 
     .popular:hover {
-        transform: translateY(-5px);
+        transform: translateY(-8px);
+    }
+
+    .title {
+        font-size: 2.25rem;
     }
 }

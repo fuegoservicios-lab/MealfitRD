@@ -68,21 +68,45 @@ const DashboardLayout = ({ children }) => {
                     })}
                 </nav>
 
-                <div className={styles.userFooter} style={{ padding: '1.5rem', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
-                    <div className={styles.userProfile} style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div className={styles.userFooter} style={{ padding: '1.25rem', borderTop: '1px solid #F1F5F9', background: 'rgba(255,255,255,0.5)' }}>
+                    <div className={styles.userProfile} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
                         <div className={styles.avatar} style={{
-                            width: '3.25rem', height: '3.25rem', borderRadius: '1rem',
-                            background: '#EFF6FF', color: '#3B82F6',
+                            width: '2.75rem', height: '2.75rem', borderRadius: '0.75rem',
+                            background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
+                            color: '#3B82F6',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.1)'
+                            boxShadow: '0 2px 4px -1px rgba(59, 130, 246, 0.1)',
+                            border: '1px solid #BFDBFE'
                         }}>
-                            <User size={24} strokeWidth={2.5} />
+                            <User size={20} strokeWidth={2.5} />
                         </div>
-                        <div>
-                            <div style={{ fontWeight: 800, color: '#1E293B', fontSize: '1rem', letterSpacing: '-0.025em' }}>
-                                {userProfile?.full_name || planData?.userParams?.name || 'Mi Cuenta'}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                <div style={{
+                                    fontWeight: 700, color: '#1E293B', fontSize: '0.9rem',
+                                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                    letterSpacing: '-0.01em'
+                                }}>
+                                    {userProfile?.full_name || planData?.userParams?.name || 'Mi Cuenta'}
+                                </div>
+                                <span style={{
+                                    display: 'inline-flex', alignItems: 'center',
+                                    padding: '0.1rem 0.4rem',
+                                    borderRadius: '6px',
+                                    fontSize: '0.6rem',
+                                    fontWeight: '800',
+                                    letterSpacing: '0.05em',
+                                    textTransform: 'uppercase',
+                                    background: userProfile?.plan_tier === 'plus' ? 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)' : '#F1F5F9',
+                                    color: userProfile?.plan_tier === 'plus' ? '#B45309' : '#64748B',
+                                    border: `1px solid ${userProfile?.plan_tier === 'plus' ? '#FCD34D' : '#E2E8F0'}`
+                                }}>
+                                    {userProfile?.plan_tier === 'plus' ? 'PLUS' : 'FREE'}
+                                </span>
                             </div>
-                            <div style={{ color: '#64748B', fontSize: '0.8rem', fontWeight: 500 }}>Plan Personalizado</div>
+                            <div style={{ color: '#64748B', fontSize: '0.75rem', fontWeight: 500 }}>
+                                {planData?.planName || 'Plan Personalizado'}
+                            </div>
                         </div>
                     </div>
 
@@ -91,29 +115,29 @@ const DashboardLayout = ({ children }) => {
                         className={styles.logoutBtn}
                         style={{
                             width: '100%',
-                            padding: '0.875rem',
-                            borderRadius: '0.875rem',
-                            border: '1px solid #FECACA',
-                            background: '#FEF2F2',
-                            color: '#EF4444',
-                            fontWeight: 700,
-                            fontSize: '0.9rem',
+                            padding: '0.75rem',
+                            borderRadius: '0.75rem',
+                            border: '1px solid transparent',
+                            background: 'transparent',
+                            color: '#64748B',
+                            fontWeight: 600,
+                            fontSize: '0.85rem',
                             cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.625rem',
-                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                            transition: 'all 0.2s ease',
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#FEE2E2';
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(239, 68, 68, 0.1), 0 2px 4px -1px rgba(239, 68, 68, 0.06)';
+                            e.currentTarget.style.background = '#FEF2F2';
+                            e.currentTarget.style.color = '#EF4444';
+                            e.currentTarget.style.borderColor = '#FECACA';
                         }}
                         onMouseLeave={(e) => {
-                            e.currentTarget.style.background = '#FEF2F2';
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = 'none';
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.color = '#64748B';
+                            e.currentTarget.style.borderColor = 'transparent';
                         }}
                     >
-                        <LogOut size={18} strokeWidth={2.5} />
+                        <LogOut size={16} strokeWidth={2.5} />
                         <span>Cerrar Sesión</span>
                     </button>
                 </div>
