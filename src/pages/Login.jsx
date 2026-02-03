@@ -45,9 +45,7 @@ const Login = () => {
 
     return (
         <div className={styles.authContainer}>
-            {/* Background Orbs */}
-            <div className={`${styles.orb} ${styles.orb1}`}></div>
-            <div className={`${styles.orb} ${styles.orb2}`}></div>
+            {/* Background handled by CSS ::before */}
 
             <div className={styles.authCard}>
                 <div className={styles.logoWrapper}>
@@ -70,7 +68,7 @@ const Login = () => {
                     </div>
                 )}
 
-                <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <div className={styles.formGroup}>
                         <label className={styles.label}>Correo Electrónico</label>
                         <div className={styles.inputWrapper}>
@@ -136,10 +134,8 @@ const Login = () => {
                         )}
                     </button>
 
-                    <div style={{ display: 'flex', alignItems: 'center', margin: '1.5rem 0', gap: '0.5rem', color: '#94a3b8', fontSize: '0.875rem' }}>
-                        <div style={{ flex: 1, height: '1px', background: '#e2e8f0' }}></div>
+                    <div className={styles.divider}>
                         o continúa con
-                        <div style={{ flex: 1, height: '1px', background: '#e2e8f0' }}></div>
                     </div>
 
                     <button
@@ -149,7 +145,7 @@ const Login = () => {
                                 const { error } = await supabase.auth.signInWithOAuth({
                                     provider: 'google',
                                     options: {
-                                        redirectTo: `${window.location.origin}/dashboard` // Redirigir al dashboard/home
+                                        redirectTo: `${window.location.origin}/dashboard`
                                     }
                                 });
                                 if (error) throw error;
@@ -157,24 +153,7 @@ const Login = () => {
                                 setError(error.message);
                             }
                         }}
-                        style={{
-                            width: '100%',
-                            padding: '0.875rem',
-                            background: 'white',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '1rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '0.75rem',
-                            color: '#1e293b',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                        className={styles.googleBtn}
                     >
                         <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />

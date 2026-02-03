@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import PropTypes from 'prop-types';
 import { supabase } from '../supabase';
 import { getAlternativeMeal } from '../services/PlanGenerator';
-import { toast } from 'sonner'; // Asumiendo que usas sonner como en el App.jsx
+import { toast } from 'sonner';
 
 const AssessmentContext = createContext();
 
@@ -50,7 +50,7 @@ export const AssessmentProvider = ({ children }) => {
             
             if (!userId) return;
 
-            // Llamada a la función RPC que creaste en Supabase
+            // Llamada a la función RPC en Supabase
             const { data, error } = await supabase.rpc('get_monthly_plan_count', {
                 user_uuid: userId
             });
@@ -62,7 +62,7 @@ export const AssessmentProvider = ({ children }) => {
             return data;
         } catch (error) {
             console.error("Error verificando límites:", error);
-            return 0; // En caso de error, asumimos 0 para no bloquear
+            return 0; 
         }
     }, [session]);
 
@@ -94,13 +94,12 @@ export const AssessmentProvider = ({ children }) => {
             if (session) {
                 localStorage.setItem('mealfit_user_id', session.user.id);
                 fetchProfile(session.user.id);
-                // Consultar límite al iniciar
                 checkPlanLimit(session.user.id);
             }
             setLoadingAuth(false);
         });
 
-        // Escuchar cambios en tiempo real
+        // Escuchar cambios en tiempo real (Login/Logout/Register)
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -118,7 +117,9 @@ export const AssessmentProvider = ({ children }) => {
         });
 
         return () => subscription.unsubscribe();
-    }, [checkPlanLimit]);
+        
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); 
 
     // --- FUNCIÓN PARA ACTUALIZAR PERFIL EN DB ---
     const updateUserProfile = async (updates) => {
@@ -155,11 +156,7 @@ export const AssessmentProvider = ({ children }) => {
 
     // --- LÓGICA DE NEGOCIO Y WEBHOOKS ---
 
-    // =========================================================
-    // CORRECCIÓN CRÍTICA: Función Toggle Like Robusta
-    // =========================================================
     const toggleMealLike = async (mealName, mealType) => {
-        // 1. Optimismo en UI (Cambia el corazón inmediatamente)
         const isCurrentlyLiked = !!likedMeals[mealName];
         
         setLikedMeals(prev => ({
@@ -167,18 +164,14 @@ export const AssessmentProvider = ({ children }) => {
             [mealName]: !isCurrentlyLiked
         }));
 
-        // Si estamos QUITANDO el like, por ahora no llamamos a la API (o podrías crear un endpoint para borrar)
         if (isCurrentlyLiked) return;
 
-        // Si estamos AGREGANDO like, intentamos enviar a n8n
         try {
             const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
             
-            // Validación de seguridad
             if (!userId) {
-                console.error("❌ Error: Usuario no autenticado. No se puede guardar el like.");
+                console.error("❌ Error: Usuario no autenticado.");
                 toast.error("Inicia sesión para guardar tus favoritos");
-                // Revertimos el cambio visual
                 setLikedMeals(prev => {
                     const newState = { ...prev };
                     delete newState[mealName];
@@ -187,7 +180,6 @@ export const AssessmentProvider = ({ children }) => {
                 return;
             }
 
-            // URL del Webhook (Usamos la de producción hardcoded si falla la ENV)
             const API_URL = import.meta.env.VITE_LIKE_WEBHOOK || 'https://agente-de-citas-dental-space-n8n.ofcrls.easypanel.host/webhook/like';
 
             console.log(`🚀 Enviando Like a n8n...`);
@@ -203,24 +195,16 @@ export const AssessmentProvider = ({ children }) => {
             });
 
             if (!response.ok) {
-                // Intentamos leer el error del servidor
                 const errorText = await response.text();
                 throw new Error(`n8n respondió: ${response.status} - ${errorText}`);
             }
 
-            // Éxito confirmado
             const data = await response.json();
             console.log("✅ Like guardado en DB:", data);
 
         } catch (error) {
-            console.error("❌ ERROR CRÍTICO AL ENVIAR LIKE:", error);
-            
-            // Feedback al usuario
-            toast.error("Error de conexión", {
-                description: "No se pudo guardar tu preferencia."
-            });
-
-            // Revertir estado visual (Rollback)
+            console.error("❌ ERROR AL ENVIAR LIKE:", error);
+            toast.error("Error de conexión", { description: "No se pudo guardar tu preferencia." });
             setLikedMeals(prev => {
                 const newState = { ...prev };
                 delete newState[mealName];
@@ -229,7 +213,6 @@ export const AssessmentProvider = ({ children }) => {
         }
     };
 
-    // Función de regeneración local (para cambios rápidos)
     const regenerateSingleMeal = (mealIndex, mealType, currentName) => {
         const targetCalories = planData.perfectDay[mealIndex].cals;
         const userDietType = formData.dietType;
@@ -258,12 +241,10 @@ export const AssessmentProvider = ({ children }) => {
 
     const saveGeneratedPlan = async (data) => {
         setPlanData(data);
-        setLikedMeals({}); // Resetear likes del día anterior para empezar fresco
-        
-        // Actualizar contador inmediatamente después de generar
+        setLikedMeals({});
         setTimeout(async () => {
             await checkPlanLimit();
-        }, 1500); // Pequeño delay para asegurar que n8n ya insertó en Supabase
+        }, 2000);
     };
 
     const nextStep = () => { setDirection(1); setCurrentStep((prev) => prev + 1); };
@@ -292,32 +273,23 @@ export const AssessmentProvider = ({ children }) => {
 
     return (
         <AssessmentContext.Provider value={{
-            // Auth & Perfil
             session,
             loadingAuth,
             userProfile,
             updateUserProfile,
-
-            // Wizard Navigation
             currentStep,
             setCurrentStep,
             direction,
             nextStep,
             prevStep,
-
-            // Datos
             formData,
             updateData,
             planData,
             saveGeneratedPlan,
-            
-            // Interacciones
             likedMeals,
             toggleMealLike,
             regenerateSingleMeal,
             resetApp,
-
-            // --- VALORES DE CRÉDITOS ---
             planCount,
             PLAN_LIMIT,
             checkPlanLimit,
@@ -330,5 +302,6 @@ export const AssessmentProvider = ({ children }) => {
 
 AssessmentProvider.propTypes = { children: PropTypes.node.isRequired };
 
+// Corrección para el error de React Refresh
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAssessment = () => useContext(AssessmentContext);
