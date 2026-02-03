@@ -1,5 +1,7 @@
-// --- BASE DE DATOS LOCAL INTELIGENTE ---
-// Tags: 'balanced', 'low_carb', 'keto', 'vegetarian', 'vegan', 'gluten_free'
+// src/services/PlanGenerator.js
+
+// --- BASE DE DATOS LOCAL INTELIGENTE (DOMINICAN MEALS) ---
+// Se usa como respaldo si la IA falla tras varios intentos y para el botón de "refrescar plato".
 
 export const DOMINICAN_MEALS = {
     breakfast: [
@@ -66,16 +68,6 @@ export const DOMINICAN_MEALS = {
                 "Licuar hasta obtener consistencia cremosa.",
                 "Opcional: Agregar canela por encima."
             ]
-        },
-        { 
-            name: "Tostadas de Pan Integral", 
-            tags: ['balanced', 'vegan'], 
-            desc: "Pan integral tostado con aguacate o tomate.",
-            recipe: [
-                "Tostar 2 rebanadas de pan integral.",
-                "Majar 1/4 de aguacate con limón y sal.",
-                "Untar sobre el pan y agregar semillas de chía o rodajas de tomate."
-            ]
         }
     ],
     lunch: [
@@ -129,17 +121,6 @@ export const DOMINICAN_MEALS = {
                 "Preparar moro de guandules con poco aceite.",
                 "En sartén aparte, cocinar filete de pescado con pimientos y un chorrito de leche de coco light.",
                 "Servir porción moderada de moro y abundante pescado."
-            ]
-        },
-        { 
-            name: "Ensalada César con Pollo", 
-            tags: ['low_carb', 'keto'], 
-            desc: "Lechuga romana, pechuga grillada, queso parmesano y aderezo ligero.",
-            recipe: [
-                "Lavar y cortar lechuga romana.",
-                "Agregar pechuga de pollo cocida en tiras.",
-                "Espolvorear queso parmesano.",
-                "Usar aderezo de yogur o vinagreta (evitar aderezo comercial cremoso)."
             ]
         },
         { 
@@ -264,6 +245,7 @@ export const DOMINICAN_MEALS = {
 };
 
 // --- LOGICA DE RESPALDO (FALLBACK) ---
+// Se activa si la IA (n8n) falla tras todos los intentos
 const generateFallbackPlan = (formData = {}) => {
     const getRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
     const skipLunch = formData.skipLunch;
@@ -286,48 +268,97 @@ const generateFallbackPlan = (formData = {}) => {
             fats: skipLunch ? "45g" : "60g"
         },
         insights: [
-            "⚠️ MODO OFFLINE: No se pudo conectar con el servidor de IA.",
-            "Este es un plan generado localmente basado en tus preferencias.",
-            skipLunch ? "ℹ️ Has seleccionado omitir el almuerzo." : "Verifica tu conexión para un plan más preciso.",
+            "⚠️ MODO OFFLINE: El servidor de IA está saturado.",
+            "Este es un plan generado localmente para que no pierdas el ritmo.",
+            skipLunch ? "ℹ️ Has seleccionado omitir el almuerzo." : "Intenta más tarde para usar la IA completa.",
             "Visualiza tus metas y mantén la constancia."
         ],
         perfectDay: baseMeals,
         shoppingList: {
-            daily: ["Plátanos", "Huevos", "Pollo", "Vegetales Variados"].concat(skipLunch ? [] : ["Arroz"])
+            daily: ["Plátanos", "Huevos", "Pollo", "Vegetales Variados", "Frutas de temporada", "Avena"].concat(skipLunch ? [] : ["Arroz", "Habichuelas"])
         }
     };
 };
 
+// --- FUNCIÓN HELPER: RETRY LOGIC (Inteligencia de Reintentos) ---
+// Intenta hacer el fetch X veces si recibe errores de servidor o timeout
+async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
+    try {
+        const response = await fetch(url, options);
+        
+        // Si el servidor da error 502, 503, 504 (Gateway Timeout), lanzamos error para forzar el reintento
+        if (response.status >= 500) {
+            throw new Error(`Server Error ${response.status}`);
+        }
+        
+        // Si no es un error de servidor pero tampoco es OK (ej: 404, 400), lo manejamos aquí
+        if (!response.ok) {
+            const txt = await response.text();
+            throw new Error(`Error ${response.status}: ${txt}`);
+        }
+        
+        return response; // Éxito
+    } catch (err) {
+        if (retries > 1) {
+            console.warn(`⚠️ Intento fallido. Reintentando en ${backoff/1000}s... (${retries-1} intentos restantes)`);
+            // Esperar (Backoff)
+            await new Promise(r => setTimeout(r, backoff));
+            // Llamada recursiva con menos intentos y más tiempo de espera
+            return fetchWithRetry(url, options, retries - 1, backoff * 1.5); 
+        } else {
+            throw err; // Se acabaron los intentos, lanzamos el error final
+        }
+    }
+}
+
 // --- FUNCIÓN PRINCIPAL (CONEXIÓN CON IA) ---
 export const generateAIPlan = async (formData) => {
-    try {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/analyze';
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 25000);
+    // CORRECCIÓN: Apuntamos directamente a tu webhook de n8n de producción
+    const API_URL = import.meta.env.VITE_API_URL || 'https://agente-de-citas-dental-space-n8n.ofcrls.easypanel.host/webhook/analyze';
+    
+    console.log("🚀 Iniciando generación con Reintentos Automáticos...");
+    console.log("📡 Conectando con:", API_URL);
 
-        const response = await fetch(API_URL, {
+    // Timeout general de seguridad extendido (2.5 minutos) para permitir que ocurran los 3 reintentos
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 150000); 
+
+    try {
+        // Usamos nuestra función de reintento en lugar de fetch directo
+        const response = await fetchWithRetry(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData),
             signal: controller.signal
-        });
+        }, 3); // 3 Intentos máximos
         
         clearTimeout(timeoutId);
 
-        if (!response.ok) throw new Error(`Error servidor: ${response.status}`);
-
         const data = await response.json();
+        
+        console.log("✅ Respuesta IA recibida tras intentos.");
+        
+        // n8n a veces devuelve un array [{...}], extraemos el primer objeto si es necesario
         if (Array.isArray(data) && data.length > 0) return data[0];
+        
         return data;
 
     } catch (error) {
-        console.warn("❌ Usando Fallback Local:", error);
+        // Manejo final de errores
+        if (error.name === 'AbortError') {
+            console.error("⏳ Error Fatal: Timeout total excedido.");
+        } else {
+            console.error("❌ Fallaron todos los intentos de conexión:", error);
+        }
+        
+        console.warn("⚠️ Activando Plan de Respaldo (Modo Offline)...");
+        // Retornamos el plan local para que el usuario siempre vea algo
         return generateFallbackPlan(formData);
     }
 };
 
-// --- LOGICA MAESTRA DE REEMPLAZO ---
+// --- LOGICA DE REEMPLAZO (DASHBOARD) ---
+// Se usa cuando el usuario hace clic en el botón de "refrescar" un plato específico
 export const getAlternativeMeal = (mealType, currentMealName, targetCalories, userDietType) => {
     // 1. Identificar categoría
     let category = 'snack';
@@ -348,7 +379,7 @@ export const getAlternativeMeal = (mealType, currentMealName, targetCalories, us
     }
 
     // 3. Obtener opciones base
-    const options = DOMINICAN_MEALS[category];
+    const options = DOMINICAN_MEALS[category] || DOMINICAN_MEALS.breakfast;
 
     // 4. Filtrar opciones compatibles
     let compatibleOptions = options.filter(meal => {
@@ -373,7 +404,7 @@ export const getAlternativeMeal = (mealType, currentMealName, targetCalories, us
         name: selectedTemplate.name,
         desc: selectedTemplate.desc,
         cals: targetCalories || selectedTemplate.cals || 400,
-        recipe: selectedTemplate.recipe, // <--- IMPORTANTE: Ahora incluimos los pasos
+        recipe: selectedTemplate.recipe, 
         isSwapped: true
     };
 };

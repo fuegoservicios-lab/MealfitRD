@@ -1,19 +1,29 @@
 import { useState } from 'react';
 import { useAssessment } from '../context/AssessmentContext';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
-import { Navigate, useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Navigate, Link } from 'react-router-dom';
 import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
     RefreshCw, ShoppingCart, ChefHat, Heart,
-    Sparkles, Brain, Wallet
+    Sparkles, Brain, Wallet, AlertCircle
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 
 const Dashboard = () => {
     // 1. Obtenemos estado y funciones del Contexto Global
-    // Incluimos regenerateSingleMeal
-    const { planData, likedMeals, toggleMealLike, regenerateSingleMeal, formData } = useAssessment();
+    const { 
+        planData, 
+        likedMeals, 
+        toggleMealLike, 
+        regenerateSingleMeal, 
+        formData,
+        // Nuevos valores para el sistema de créditos
+        planCount,
+        PLAN_LIMIT,
+        remainingCredits
+    } = useAssessment();
+    
     const navigate = useNavigate();
     
     // Estado local para saber qué tarjeta se está regenerando (loading spinner)
@@ -28,73 +38,114 @@ const Dashboard = () => {
         navigate('/assessment');
     };
 
+    // Cálculos para la UI de límites
+    const isLimitReached = planCount >= PLAN_LIMIT;
+    const progressPercentage = Math.min(100, (planCount / PLAN_LIMIT) * 100);
+
     return (
         <DashboardLayout>
 
             {/* --- HEADER --- */}
             <header style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                    <span style={{
-                        display: 'inline-block', padding: '0.25rem 0.75rem',
-                        background: '#DCFCE7', color: '#166534', borderRadius: '2rem',
-                        fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.5rem'
-                    }}>
-                        PLAN ACTIVO
-                    </span>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1 }}>
-                        Tu Panel Nutricional
-                    </h1>
-                    <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                        Diseñado por IA específicamente para tu metabolismo y objetivos.
-                    </p>
-                </div>
-                <button
-                    onClick={handleNewPlan}
-                    style={{
-                        background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-                        color: 'white',
-                        padding: '0.85rem 2rem',
-                        borderRadius: '1rem',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div>
+                        <span style={{
+                            display: 'inline-block', padding: '0.25rem 0.75rem',
+                            background: '#DCFCE7', color: '#166534', borderRadius: '2rem',
+                            fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.5rem'
+                        }}>
+                            PLAN ACTIVO
+                        </span>
+                        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1 }}>
+                            Tu Panel Nutricional
+                        </h1>
+                        <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                            Diseñado por IA específicamente para tu metabolismo y objetivos.
+                        </p>
+                    </div>
+
+                    {/* --- VISUALIZADOR DE CRÉDITOS --- */}
+                    <div style={{ 
+                        marginTop: '0.5rem',
+                        background: 'white', 
+                        padding: '0.75rem 1rem', 
+                        borderRadius: '0.75rem',
+                        border: '1px solid var(--border)',
+                        display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '0.75rem',
-                        boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.35), 0 4px 6px -2px rgba(37, 99, 235, 0.1)',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        fontSize: '1rem',
-                        letterSpacing: '0.025em',
-                        position: 'relative',
-                        overflow: 'hidden'
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-                        e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(37, 99, 235, 0.5), 0 10px 10px -5px rgba(37, 99, 235, 0.2)';
-                        e.currentTarget.style.filter = 'brightness(1.1)';
-                        const icon = e.currentTarget.querySelector('svg');
-                        if (icon) icon.style.transform = 'rotate(180deg)';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(37, 99, 235, 0.35), 0 4px 6px -2px rgba(37, 99, 235, 0.1)';
-                        e.currentTarget.style.filter = 'brightness(1)';
-                        const icon = e.currentTarget.querySelector('svg');
-                        if (icon) icon.style.transform = 'rotate(0deg)';
-                    }}
-                >
-                    <RefreshCw size={22} strokeWidth={2.5} style={{ transition: 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)' }} />
-                    <span>Generar Nuevo</span>
-                    <div style={{
-                        position: 'absolute', top: 0, left: '-100%',
-                        width: '50%', height: '100%',
-                        background: 'linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%)',
-                        transform: 'skewX(-25deg)',
-                        transition: 'left 0.5s',
-                        pointerEvents: 'none'
-                    }} className="shine-effect" />
-                    <style>{`button:hover .shine-effect { left: 200%; transition: left 0.7s; }`}</style>
-                </button>
+                        gap: '1rem',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                        width: 'fit-content'
+                    }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                                Generaciones del mes
+                            </span>
+                            <div style={{ fontSize: '0.9rem', fontWeight: 600, color: isLimitReached ? '#EF4444' : 'var(--text-main)' }}>
+                                {remainingCredits} disponibles <span style={{color: '#94A3B8', fontWeight: 400}}>/ {PLAN_LIMIT}</span>
+                            </div>
+                        </div>
+                        
+                        {/* Barra de progreso */}
+                        <div style={{ width: '120px', height: '6px', background: '#F1F5F9', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ 
+                                height: '100%', 
+                                width: `${progressPercentage}%`, 
+                                background: isLimitReached ? '#EF4444' : 'linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%)',
+                                transition: 'width 0.5s ease'
+                            }} />
+                        </div>
+                    </div>
+                </div>
+
+                {/* BOTÓN GENERAR NUEVO (Con lógica de bloqueo) */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                    <button
+                        onClick={handleNewPlan}
+                        disabled={isLimitReached}
+                        style={{
+                            background: isLimitReached 
+                                ? '#E2E8F0' // Gris deshabilitado
+                                : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                            color: isLimitReached ? '#94A3B8' : 'white',
+                            padding: '0.85rem 2rem',
+                            borderRadius: '1rem',
+                            border: isLimitReached ? '1px solid #CBD5E1' : '1px solid rgba(255,255,255,0.1)',
+                            fontWeight: 700,
+                            cursor: isLimitReached ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            boxShadow: isLimitReached ? 'none' : '0 10px 15px -3px rgba(37, 99, 235, 0.35), 0 4px 6px -2px rgba(37, 99, 235, 0.1)',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            fontSize: '1rem',
+                            letterSpacing: '0.025em',
+                            position: 'relative',
+                            overflow: 'hidden'
+                        }}
+                    >
+                        {isLimitReached ? <AlertCircle size={22} /> : <RefreshCw size={22} strokeWidth={2.5} />}
+                        <span>{isLimitReached ? 'Límite Mensual Alcanzado' : 'Generar Nuevo'}</span>
+                        
+                        {!isLimitReached && (
+                            <div style={{
+                                position: 'absolute', top: 0, left: '-100%',
+                                width: '50%', height: '100%',
+                                background: 'linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%)',
+                                transform: 'skewX(-25deg)',
+                                transition: 'left 0.5s',
+                                pointerEvents: 'none'
+                            }} className="shine-effect" />
+                        )}
+                        <style>{`button:hover .shine-effect { left: 200%; transition: left 0.7s; }`}</style>
+                    </button>
+                    
+                    {isLimitReached && (
+                        <span style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 600 }}>
+                            Espera al próximo mes o actualiza tu plan.
+                        </span>
+                    )}
+                </div>
             </header>
 
             {/* --- MACROS & CALORIES GRID --- */}
