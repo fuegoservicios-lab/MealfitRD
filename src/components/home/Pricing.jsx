@@ -5,8 +5,8 @@ import styles from './Pricing.module.css';
 
 const Pricing = () => {
     const navigate = useNavigate();
-    const { planCount, PLAN_LIMIT, remainingCredits } = useAssessment();
-    const hasStarted = planCount > 0;
+    const { planCount, PLAN_LIMIT, remainingCredits, planData } = useAssessment();
+    const hasStarted = !!planData;
 
     const handleFreePlanClick = () => {
         if (hasStarted) {
