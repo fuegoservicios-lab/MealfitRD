@@ -260,14 +260,20 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    /* Slightly more gap */
     cursor: pointer;
     font-size: 0.95rem;
-    /* Slightly larger text */
-    color: #64748b;
-    /* Slate 500 */
+    color: #334155;
+    /* Darker Slate 700 for better visibility */
     user-select: none;
     transition: color 0.2s ease;
+}
+
+.footerText {
+    margin-top: 2rem;
+    text-align: center;
+    color: #475569;
+    /* Darker Slate 600 */
+    font-size: 0.9rem;
 }
 
 .checkboxLabel:hover {
