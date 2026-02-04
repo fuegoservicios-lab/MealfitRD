@@ -105,16 +105,7 @@ const Header = () => {
                                     resetApp();
                                     setIsMenuOpen(false);
                                 }}
-                                className={styles.navLinkMobile}
-                                style={{
-                                    background: 'var(--bg-page)',
-                                    width: '100%',
-                                    textAlign: 'left',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    cursor: 'pointer'
-                                }}
+                                className={styles.logoutBtnMobile}
                             >
                                 <LogOut size={18} /> Cerrar Sesión
                             </button>
