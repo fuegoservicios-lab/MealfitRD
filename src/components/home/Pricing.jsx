@@ -1,7 +1,21 @@
+import { useNavigate } from 'react-router-dom';
+import { useAssessment } from '../../context/AssessmentContext';
 import { Check } from 'lucide-react';
 import styles from './Pricing.module.css';
 
 const Pricing = () => {
+    const navigate = useNavigate();
+    const { planCount, PLAN_LIMIT, remainingCredits } = useAssessment();
+    const hasStarted = planCount > 0;
+
+    const handleFreePlanClick = () => {
+        if (hasStarted) {
+            navigate('/dashboard');
+        } else {
+            navigate('/assessment');
+        }
+    };
+
     return (
         <section className={styles.pricing}>
             <div className={styles.container}>
@@ -36,7 +50,14 @@ const Pricing = () => {
                                 <li><Check size={18} className={styles.check} /> Acceso a todas las herramientas</li>
                             </ul>
 
-                            <button className={styles.btnPrimary}>Empezar Gratis Ahora</button>
+                            <button
+                                className={styles.btnPrimary}
+                                onClick={handleFreePlanClick}
+                            >
+                                {hasStarted
+                                    ? `Créditos: ${remainingCredits}/${PLAN_LIMIT}`
+                                    : 'Empezar Gratis Ahora'}
+                            </button>
                         </div>
                     </div>
 

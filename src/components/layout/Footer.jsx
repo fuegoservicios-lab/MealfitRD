@@ -33,20 +33,16 @@ const Footer = () => {
                         <a href="https://www.instagram.com/mealfit_rd?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Instagram">
                             <Instagram size={20} />
                         </a>
-                        <a href="#" className={styles.socialIcon} aria-label="Facebook">
+                        <a href="https://www.facebook.com/share/1HkwoX8zHF/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Facebook">
                             <Facebook size={20} />
                         </a>
-                        <a href="#" className={styles.socialIcon} aria-label="YouTube">
+                        <a href="https://www.youtube.com/@MealfitRD" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="YouTube">
                             <Youtube size={20} />
                         </a>
                     </div>
                 </div>
 
-                <div className={styles.col}>
-                    <h4>Explorar</h4>
-                    <Link to="/">Inicio</Link>
 
-                </div>
 
                 <div className={styles.col}>
                     <h4>Legal</h4>

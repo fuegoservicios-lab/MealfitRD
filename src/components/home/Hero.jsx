@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, CheckCircle, Sparkles, Utensils, Activity, TrendingUp, ChevronRight, PlayCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle, Apple, Utensils, Activity, TrendingUp, ChevronRight, PlayCircle } from 'lucide-react';
 import styles from './Hero.module.css';
 import { useAssessment } from '../../context/AssessmentContext';
 import heroBg from '../../assets/hero-bg.png';
@@ -23,7 +23,7 @@ const Hero = () => {
                         transition={{ duration: 0.8, ease: "easeOut" }}
                     >
                         <div className={styles.badge}>
-                            <Sparkles size={14} /> Nueva Generación en Nutrición
+                            <Apple size={14} /> Nueva Generación en Nutrición
                         </div>
 
                         <h1 className={styles.title}>

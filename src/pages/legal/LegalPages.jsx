@@ -5,12 +5,14 @@ import { AlertTriangle } from 'lucide-react';
 const LegalLayout = ({ title, lastUpdated, children }) => {
     return (
         <div className={styles.container}>
-            <header className={styles.header}>
-                <h1 className={styles.title}>{title}</h1>
-                <p className={styles.meta}>Última actualización: {lastUpdated}</p>
-            </header>
-            <div className={styles.content}>
-                {children}
+            <div className={styles.contentWrapper}>
+                <header className={styles.header}>
+                    <h1 className={styles.title}>{title}</h1>
+                    <p className={styles.meta}>Última actualización: {lastUpdated}</p>
+                </header>
+                <div className={styles.content}>
+                    {children}
+                </div>
             </div>
         </div>
     );

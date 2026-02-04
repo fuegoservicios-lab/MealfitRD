@@ -1,21 +1,23 @@
 .footer {
     background: #0f172a;
-    /* Slate 900 or similar dark color */
     color: #cbd5e1;
-    /* Slate 300 */
-    padding: 5rem 0 2rem;
+    padding: 4rem 0 2rem;
     margin-top: auto;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: 1.5fr 1fr;
     gap: 4rem;
     padding: 0 1.5rem;
     max-width: 1280px;
     margin: 0 auto;
 }
+
+/* ... existing styles ... */
+
+
 
 .logo {
     font-family: var(--font-heading);
@@ -83,11 +85,19 @@
 }
 
 .bottom {
+    grid-column: 1 / -1;
     width: 100%;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     margin-top: 3rem;
     padding-top: 2rem;
     text-align: center;
-    color: var(--text-muted);
+    color: #94a3b8;
     font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+    .container {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+    }
 }
