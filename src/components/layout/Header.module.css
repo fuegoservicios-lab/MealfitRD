@@ -114,17 +114,18 @@
 
 .mobileToggle {
     display: block;
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    background: transparent;
+    border: none;
     color: var(--text-main);
     padding: 0.5rem;
+    cursor: pointer;
     transition: all 0.2s;
+    border-radius: 50%;
 }
 
 .mobileToggle:hover {
-    background: white;
-    box-shadow: var(--shadow-sm);
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--primary);
 }
 
 .navMobile {
@@ -132,26 +133,26 @@
     top: 70px;
     left: 1rem;
     right: 1rem;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    padding: 1.5rem;
+    background: white;
+    box-shadow:
+        0 10px 15px -3px rgba(0, 0, 0, 0.1),
+        0 4px 6px -2px rgba(0, 0, 0, 0.05),
+        0 0 0 1px rgba(0, 0, 0, 0.05);
+    /* Subtle border ring */
+    padding: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.8rem;
-    box-shadow:
-        0 20px 25px -5px rgba(0, 0, 0, 0.1),
-        0 8px 10px -6px rgba(0, 0, 0, 0.1),
-        0 0 0 1px rgba(255, 255, 255, 0.5) inset;
-    border-radius: 1.5rem;
-    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    gap: 0.5rem;
+    border-radius: 1rem;
+    animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     transform-origin: top center;
+    z-index: 1002;
 }
 
 @keyframes slideDown {
     from {
         opacity: 0;
-        transform: translateY(-20px) scale(0.95);
+        transform: translateY(-10px) scale(0.98);
     }
 
     to {
@@ -161,47 +162,71 @@
 }
 
 .navLinkMobile {
-    padding: 1rem 1.25rem;
+    padding: 0.75rem 1rem;
     color: var(--text-main);
     text-decoration: none;
-    font-weight: 600;
-    border-radius: 1rem;
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight: 500;
+    font-size: 1rem;
+    border-radius: 0.75rem;
+    background: transparent;
+    border: none;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
-.navLinkMobile:hover,
-.navLinkMobile:active {
-    background: white;
-    border-color: var(--primary-light);
+.navLinkMobile:hover {
+    background: #f1f5f9;
+    /* Slate 100 */
     color: var(--primary);
     transform: translateX(4px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.logoutBtnMobile {
+    width: 100%;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    padding: 0.75rem 1rem;
+    color: #ef4444;
+    /* Red 500 */
+    font-weight: 500;
+    font-size: 1rem;
+    border-radius: 0.75rem;
+    background: transparent;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.logoutBtnMobile:hover {
+    background: #fef2f2;
+    /* Red 50 */
+    transform: translateX(4px);
 }
 
 .ctaButtonMobile {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
-    background: linear-gradient(135deg, var(--primary) 0%, #059669 100%);
+    gap: 0.5rem;
+    background: var(--primary);
     color: white;
-    padding: 1.125rem;
-    border-radius: 1rem;
+    padding: 0.875rem;
+    border-radius: 0.75rem;
     text-decoration: none;
-    font-weight: 700;
-    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    font-weight: 600;
     margin-top: 0.5rem;
     transition: all 0.2s;
+    box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
 }
 
 .ctaButtonMobile:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
 }
 
 @media (min-width: 768px) {
