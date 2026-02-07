@@ -271,6 +271,51 @@ export const AssessmentProvider = ({ children }) => {
         setCurrentStep(0);
     };
 
+    // --- NUEVA FUNCIÓN: ACTUALIZAR A PLUS (PAGO) ---
+    const upgradeUserToPlus = async () => {
+        try {
+            const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
+            if (!userId) throw new Error("No user ID");
+
+            console.log("💳 Procesando actualización a Plus...");
+
+            // 1. Actualizar en Supabase
+            const { error } = await supabase
+                .from('user_profiles')
+                .update({
+                    plan_tier: 'plus',
+                    updated_at: new Date()
+                })
+                .eq('id', userId);
+
+            if (error) throw error;
+
+            // 2. Actualizar estado local
+            setUserProfile(prev => ({ ...prev, plan_tier: 'plus' }));
+
+            // 3. Resetear límites visualmente
+            await checkPlanLimit(userId);
+
+            toast.success('¡Bienvenido a Mealfit Plus!', {
+                description: 'Has desbloqueado acceso ilimitado.',
+                duration: 5000,
+                icon: '🌟'
+            });
+
+            return true;
+
+        } catch (error) {
+            console.error("Error upgrading user:", error);
+            toast.error('Error al actualizar perfil', {
+                description: 'Si te cobraron, contáctanos inmediatamente.'
+            });
+            return false;
+        }
+    };
+
+    // --- LÓGICA DE SUSCRIPCIÓN ---
+    const isPlus = userProfile?.plan_tier === 'plus' || userProfile?.plan_tier === 'admin';
+
     return (
         <AssessmentContext.Provider value={{
             session,
@@ -293,7 +338,9 @@ export const AssessmentProvider = ({ children }) => {
             planCount,
             PLAN_LIMIT,
             checkPlanLimit,
-            remainingCredits: Math.max(0, PLAN_LIMIT - planCount)
+            isPlus, // Exportamos estado de suscripción
+            remainingCredits: isPlus ? 9999 : Math.max(0, PLAN_LIMIT - planCount), // Para Plus es "infinito"
+            upgradeUserToPlus
         }}>
             {children}
         </AssessmentContext.Provider>

@@ -5,7 +5,7 @@ import { useNavigate, Navigate, Link } from 'react-router-dom';
 import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
     RefreshCw, ShoppingCart, ChefHat, Heart,
-    Sparkles, Brain, Wallet, AlertCircle, Dumbbell, Wheat
+    Sparkles, Brain, Wallet, AlertCircle, Dumbbell, Wheat, Crown, Lightbulb
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
@@ -21,7 +21,8 @@ const Dashboard = () => {
         // Nuevos valores para el sistema de créditos
         planCount,
         PLAN_LIMIT,
-        remainingCredits
+        remainingCredits,
+        isPlus // Obtenemos el estado de suscripción
     } = useAssessment();
 
     const navigate = useNavigate();
@@ -39,8 +40,9 @@ const Dashboard = () => {
     };
 
     // Cálculos para la UI de límites
-    const isLimitReached = planCount >= PLAN_LIMIT;
-    const progressPercentage = Math.min(100, (planCount / PLAN_LIMIT) * 100);
+    // Si es Plus, nunca alcanza el límite
+    const isLimitReached = !isPlus && planCount >= PLAN_LIMIT;
+    const progressPercentage = isPlus ? 100 : Math.min(100, (planCount / PLAN_LIMIT) * 100);
 
     return (
         <DashboardLayout>
@@ -67,51 +69,57 @@ const Dashboard = () => {
                     {/* --- VISUALIZADOR DE CRÉDITOS --- */}
                     <div style={{
                         marginTop: '0.5rem',
-                        background: 'rgba(255, 255, 255, 0.9)',
+                        background: isPlus ? 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' : 'rgba(255, 255, 255, 0.9)',
                         backdropFilter: 'blur(8px)',
                         padding: '0.6rem 1rem',
                         borderRadius: '1rem',
-                        border: '1px solid rgba(226, 232, 240, 0.8)',
+                        border: isPlus ? '1px solid #FCD34D' : '1px solid rgba(226, 232, 240, 0.8)',
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '0.875rem',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                        boxShadow: isPlus ? '0 4px 6px -1px rgba(245, 158, 11, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
                         width: 'fit-content'
                     }}>
                         {/* Icono */}
                         <div style={{
-                            background: isLimitReached ? '#FEF2F2' : '#EFF6FF',
-                            color: isLimitReached ? '#EF4444' : '#3B82F6',
+                            background: isLimitReached ? '#FEF2F2' : (isPlus ? '#FDE68A' : '#EFF6FF'),
+                            color: isLimitReached ? '#EF4444' : (isPlus ? '#B45309' : '#3B82F6'),
                             padding: '0.5rem',
                             borderRadius: '0.75rem',
                             display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}>
-                            <Zap size={18} fill={isLimitReached ? '#EF4444' : '#3B82F6'} />
+                            {isPlus ? <Crown size={18} fill="#B45309" /> : <Zap size={18} fill={isLimitReached ? '#EF4444' : '#3B82F6'} />}
                         </div>
 
                         {/* Texto */}
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                Créditos
+                            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: isPlus ? '#92400E' : '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                {isPlus ? 'Membresía' : 'Créditos'}
                             </span>
-                            <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.2 }}>
-                                {remainingCredits} <span style={{ color: '#94A3B8', fontSize: '0.8rem', fontWeight: 600 }}>/ {PLAN_LIMIT}</span>
+                            <div style={{ fontSize: '1rem', fontWeight: 800, color: isPlus ? '#B45309' : 'var(--text-main)', lineHeight: 1.2 }}>
+                                {isPlus ? "Plus Activo" : (
+                                    <>
+                                        {remainingCredits} <span style={{ color: '#94A3B8', fontSize: '0.8rem', fontWeight: 600 }}>/ {PLAN_LIMIT}</span>
+                                    </>
+                                )}
                             </div>
                         </div>
 
-                        {/* Separator */}
-                        <div style={{ width: '1px', height: '24px', background: '#E2E8F0', margin: '0 0.25rem' }} />
-
-                        {/* Barra Mini */}
-                        <div style={{ width: '60px', height: '4px', background: '#F1F5F9', borderRadius: '4px', overflow: 'hidden' }}>
-                            <div style={{
-                                height: '100%',
-                                width: `${progressPercentage}%`,
-                                background: isLimitReached ? '#EF4444' : '#3B82F6',
-                                borderRadius: '4px',
-                                transition: 'width 0.5s ease'
-                            }} />
-                        </div>
+                        {/* Separator & Progress Bar (ONLY FOR FREE PLAN) */}
+                        {!isPlus && (
+                            <>
+                                <div style={{ width: '1px', height: '24px', background: '#E2E8F0', margin: '0 0.25rem' }} />
+                                <div style={{ width: '60px', height: '4px', background: '#F1F5F9', borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div style={{
+                                        height: '100%',
+                                        width: `${progressPercentage}%`,
+                                        background: isLimitReached ? '#EF4444' : '#3B82F6',
+                                        borderRadius: '4px',
+                                        transition: 'width 0.5s ease'
+                                    }} />
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -350,7 +358,7 @@ const Dashboard = () => {
                             fontSize: '1.1rem', fontWeight: 800, color: '#14532D',
                             marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem'
                         }}>
-                            <Sparkles size={20} fill="#14532D" /> Estrategia Inteligente
+                            <Lightbulb size={20} fill="#14532D" /> Estrategia Inteligente
                         </h3>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

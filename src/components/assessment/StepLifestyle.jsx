@@ -114,13 +114,15 @@ const StepLifestyle = () => {
                     <button
                         onClick={prevStep}
                         style={{
-                            padding: '1rem 2rem',
+                            padding: '0.875rem 2rem',
                             backgroundColor: 'transparent',
                             color: 'var(--text-muted)',
                             border: '1px solid var(--border)',
                             borderRadius: 'var(--radius-lg)',
                             fontWeight: 600,
-                            display: 'flex', alignItems: 'center', gap: '0.5rem'
+                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
                         }}
                     >
                         <ArrowLeft size={20} /> Anterior
@@ -130,7 +132,7 @@ const StepLifestyle = () => {
                         onClick={nextStep}
                         disabled={!isFormValid}
                         style={{
-                            padding: '1rem 2rem',
+                            padding: '0.875rem 2.5rem',
                             backgroundColor: isFormValid ? 'var(--primary)' : 'var(--border)',
                             color: isFormValid ? 'white' : 'var(--text-muted)',
                             border: 'none',
@@ -138,10 +140,11 @@ const StepLifestyle = () => {
                             fontWeight: 600,
                             cursor: isFormValid ? 'pointer' : 'not-allowed',
                             display: 'flex', alignItems: 'center', gap: '0.5rem',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            boxShadow: isFormValid ? '0 4px 12px rgba(37, 99, 235, 0.3)' : 'none'
                         }}
                     >
-                        Siguiente: Preferencias <ArrowRight size={20} />
+                        Siguiente <ArrowRight size={20} />
                     </button>
                 </div>
 

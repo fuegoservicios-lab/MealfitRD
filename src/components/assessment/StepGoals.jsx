@@ -201,10 +201,14 @@ const StepGoals = () => {
 
                 {/* Motivation Section */}
                 <section>
-                    <Label>Tu "Por Qué" (Motivación) <span style={{ color: 'var(--primary)' }}>*</span></Label>
-                    <div style={{ position: 'relative', marginTop: '0.5rem' }}>
+                    <Label>¿Qué te motiva realmente? <span style={{ color: 'var(--primary)' }}>*</span></Label>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: '1.5' }}>
+                        Esta información es clave para que nuestra IA entienda tus metas profundas y personalice el plan a tu estilo de vida.
+                        Sé específico, ¡esto nos ayuda a ayudarte!
+                    </p>
+                    <div style={{ position: 'relative' }}>
                         <textarea
-                            placeholder="Ej. Quiero tener más energía para jugar con mis hijos, mejorar mi salud a largo plazo..."
+                            placeholder="Ej. Quiero tener energía para jugar con mis hijos sin cansarme, prepararme para mi primera carrera de 5K, o simplemente mejorar mi salud a largo plazo para evitar enfermedades..."
                             value={formData.motivation || ''}
                             onChange={(e) => updateData('motivation', e.target.value)}
                             rows={3}
@@ -235,14 +239,15 @@ const StepGoals = () => {
                     <button
                         onClick={prevStep}
                         style={{
-                            padding: '1rem 2rem',
+                            padding: '0.875rem 2rem',
                             backgroundColor: 'white',
                             color: 'var(--text-main)',
                             border: '1px solid var(--border)',
                             borderRadius: 'var(--radius-lg)',
                             fontWeight: 600,
                             display: 'flex', alignItems: 'center', gap: '0.5rem',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
                         }}
                     >
                         <ArrowLeft size={20} /> Anterior
@@ -252,7 +257,7 @@ const StepGoals = () => {
                         onClick={handleFinish}
                         disabled={!isFormValid || isSubmitting}
                         style={{
-                            padding: '1rem 2.5rem',
+                            padding: '0.875rem 2.5rem',
                             backgroundColor: isFormValid ? 'var(--secondary)' : 'var(--bg-light)',
                             color: isFormValid ? 'white' : 'var(--text-muted)',
                             border: 'none',

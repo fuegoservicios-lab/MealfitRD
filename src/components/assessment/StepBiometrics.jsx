@@ -286,7 +286,7 @@ const StepBiometrics = () => {
                         onClick={nextStep}
                         disabled={!isFormValid}
                         style={{
-                            padding: '1rem 2rem',
+                            padding: '0.875rem 2.5rem',
                             backgroundColor: isFormValid ? 'var(--primary)' : 'var(--border)',
                             color: isFormValid ? 'white' : 'var(--text-muted)',
                             border: 'none',
@@ -296,10 +296,11 @@ const StepBiometrics = () => {
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.5rem',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            boxShadow: isFormValid ? '0 4px 12px rgba(37, 99, 235, 0.3)' : 'none'
                         }}
                     >
-                        Siguiente: Estilo de Vida <ArrowRight size={20} />
+                        Siguiente <ArrowRight size={20} />
                     </button>
                 </div>
 

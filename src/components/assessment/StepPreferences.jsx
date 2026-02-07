@@ -142,14 +142,6 @@ const StepPreferences = () => {
                             onSelect={(val) => updateData('dietType', val)}
                         />
                         <DietOption
-                            val="keto"
-                            label="Keto"
-                            icon={Activity}
-                            desc="Alta en grasas saludables"
-                            isSelected={formData.dietType === "keto"}
-                            onSelect={(val) => updateData('dietType', val)}
-                        />
-                        <DietOption
                             val="vegetarian"
                             label="Vegetariana"
                             icon={Leaf}
@@ -163,14 +155,6 @@ const StepPreferences = () => {
                             icon={Salad}
                             desc="100% vegetal"
                             isSelected={formData.dietType === "vegan"}
-                            onSelect={(val) => updateData('dietType', val)}
-                        />
-                        <DietOption
-                            val="paleo"
-                            label="Paleo"
-                            icon={IsNativeFn(Fish)}
-                            desc="Comida real"
-                            isSelected={formData.dietType === "paleo"}
                             onSelect={(val) => updateData('dietType', val)}
                         />
                     </div>
@@ -292,6 +276,26 @@ const StepPreferences = () => {
                             onToggle={(val) => handleCheckboxChange('medicalConditions', val)}
                         />
                     </div>
+
+                    <div style={{ marginTop: '1rem' }}>
+                        <input
+                            type="text"
+                            placeholder="¿Tienes alguna otra condición médica? Escribe aquí..."
+                            value={formData.otherConditions || ''}
+                            onChange={(e) => updateData('otherConditions', e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '0.75rem 1rem',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid var(--border)',
+                                fontSize: '0.9rem',
+                                outline: 'none',
+                                transition: 'border-color 0.2s'
+                            }}
+                            onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                        />
+                    </div>
                 </section>
 
                 {/* Meal Structure Section - ACTUALIZADA */}
@@ -338,14 +342,15 @@ const StepPreferences = () => {
                     <button
                         onClick={prevStep}
                         style={{
-                            padding: '1rem 2rem',
+                            padding: '0.875rem 2rem',
                             backgroundColor: 'white',
                             color: 'var(--text-main)',
                             border: '1px solid var(--border)',
                             borderRadius: 'var(--radius-lg)',
                             fontWeight: 600,
                             display: 'flex', alignItems: 'center', gap: '0.5rem',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
                         }}
                     >
                         <ArrowLeft size={20} /> Anterior
@@ -355,7 +360,7 @@ const StepPreferences = () => {
                         onClick={nextStep}
                         disabled={!isFormValid}
                         style={{
-                            padding: '1rem 2.5rem',
+                            padding: '0.875rem 2.5rem',
                             backgroundColor: isFormValid ? 'var(--primary)' : 'var(--bg-light)',
                             color: isFormValid ? 'white' : 'var(--text-muted)',
                             border: 'none',

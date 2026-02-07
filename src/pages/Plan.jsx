@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { CheckCircle, ArrowRight, Sparkles, Flame, Zap, Droplet, ChefHat, Loader2 } from 'lucide-react';
+import { CheckCircle, ArrowRight, Flame, Zap, Droplet, ChefHat, Loader2 } from 'lucide-react';
 import PropTypes from 'prop-types';
 
 import { generateAIPlan } from '../services/PlanGenerator';
@@ -58,7 +58,7 @@ const Plan = () => {
 
                 // FASE 3: Éxito y Redirección
                 // Damos un segundo para que la barra llegue al 100% visualmente
-                setStatus('ready'); 
+                setStatus('ready');
                 setTimeout(() => {
                     navigate('/dashboard');
                 }, 1000);
@@ -175,7 +175,7 @@ const LoadingScreen = ({ status }) => {
                     position: 'relative'
                 }}>
                     <Loader2 className="spin-slow" size={40} color="var(--primary)" />
-                    
+
                     {/* Estilo local para la animación */}
                     <style>{`
                         .spin-slow { animation: spin 3s linear infinite; }
@@ -190,14 +190,14 @@ const LoadingScreen = ({ status }) => {
                         padding: '0.2rem 0.5rem', borderRadius: '1rem',
                         display: 'flex', alignItems: 'center', gap: '0.25rem'
                     }}>
-                        <Sparkles size={10} /> AI
+                        🍎 AI
                     </div>
                 </div>
 
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
                     Diseñando tu Estrategia
                 </h2>
-                
+
                 {/* Área de texto dinámico con altura fija para evitar saltos */}
                 <div style={{ height: '24px', marginBottom: '2rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                     <AnimatePresence mode='wait'>
