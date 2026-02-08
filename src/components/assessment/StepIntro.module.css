@@ -16,15 +16,16 @@
 }
 
 .title {
-    font-size: 2.5rem;
+    font-size: 3rem;
     margin-bottom: 1.5rem;
     line-height: 1.1;
     font-weight: 800;
     color: var(--text-heading);
+    letter-spacing: -0.02em;
 }
 
 .gradientText {
-    background: linear-gradient(135deg, var(--primary) 0%, #3B82F6 100%);
+    background: linear-gradient(to right, #2563EB, #7C3AED, #DB2777);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -54,13 +55,14 @@
 
 /* Pillar Card */
 .card {
-    background: white;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
     padding: 1.5rem;
-    border-radius: 1.25rem;
+    border-radius: 1.5rem;
     box-shadow:
         0 4px 6px -1px rgba(0, 0, 0, 0.05),
         0 2px 4px -1px rgba(0, 0, 0, 0.03);
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.6);
     transition: all 0.3s ease;
     display: flex;
     flex-direction: column;
@@ -69,15 +71,17 @@
 
 .card:hover {
     transform: translateY(-4px);
+    background: rgba(255, 255, 255, 0.9);
     box-shadow:
-        0 10px 15px -3px rgba(0, 0, 0, 0.05),
-        0 4px 6px -2px rgba(0, 0, 0, 0.025);
+        0 20px 25px -5px rgba(0, 0, 0, 0.05),
+        0 8px 10px -6px rgba(0, 0, 0, 0.03);
+    border-color: rgba(37, 99, 235, 0.2);
 }
 
 .iconWrapper {
-    width: 48px;
-    height: 48px;
-    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%);
     color: var(--primary);
     border-radius: 1rem;
     display: flex;
@@ -112,7 +116,7 @@
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
-    box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);
+    box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3), 0 4px 6px -2px rgba(37, 99, 235, 0.1);
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }

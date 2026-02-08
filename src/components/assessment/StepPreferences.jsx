@@ -133,14 +133,7 @@ const StepPreferences = () => {
                             isSelected={formData.dietType === "balanced"}
                             onSelect={(val) => updateData('dietType', val)}
                         />
-                        <DietOption
-                            val="low_carb"
-                            label="Low Carb"
-                            icon={Beef}
-                            desc="Baja en carbohidratos"
-                            isSelected={formData.dietType === "low_carb"}
-                            onSelect={(val) => updateData('dietType', val)}
-                        />
+                        {/* Low Carb removed as per user request for strictly medically recommended diets */}
                         <DietOption
                             val="vegetarian"
                             label="Vegetariana"

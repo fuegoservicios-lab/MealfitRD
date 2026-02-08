@@ -100,7 +100,7 @@ const StepLifestyle = () => {
 
                 {/* Budget */}
                 <div>
-                    <Label>Presupuesto para alimentación (Semanal)</Label>
+                    <Label>Presupuesto para alimentación</Label>
                     <Select name="budget" value={formData.budget} onChange={handleChange}>
                         <option value="">Selecciona un rango...</option>
                         <option value="low">Económico (Lo básico y esencial)</option>

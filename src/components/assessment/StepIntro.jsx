@@ -40,10 +40,38 @@ const StepIntro = () => {
             </motion.p>
 
             <div className={styles.grid}>
-                <PillarCard icon={Activity} title="1. Biometría" desc="Tu cuerpo y metabolismo" delay={0.2} />
-                <PillarCard icon={Moon} title="2. Estilo de Vida" desc="Sueño, estrés y tiempo" delay={0.3} />
-                <PillarCard icon={Heart} title="3. Preferencias" desc="Gustos y salud" delay={0.4} />
-                <PillarCard icon={Brain} title="4. Objetivos" desc="Tu meta real" delay={0.5} />
+                <PillarCard
+                    icon={Activity}
+                    title="1. Biometría"
+                    desc="Tu cuerpo y metabolismo"
+                    delay={0.2}
+                    color="#3B82F6"
+                    bgColor="#EFF6FF"
+                />
+                <PillarCard
+                    icon={Moon}
+                    title="2. Estilo de Vida"
+                    desc="Sueño, estrés y tiempo"
+                    delay={0.3}
+                    color="#6366F1"
+                    bgColor="#EEF2FF"
+                />
+                <PillarCard
+                    icon={Heart}
+                    title="3. Preferencias"
+                    desc="Gustos y salud"
+                    delay={0.4}
+                    color="#EC4899"
+                    bgColor="#FDF2F8"
+                />
+                <PillarCard
+                    icon={Brain}
+                    title="4. Objetivos"
+                    desc="Tu meta real"
+                    delay={0.5}
+                    color="#8B5CF6"
+                    bgColor="#F5F3FF"
+                />
             </div>
 
             <motion.button
@@ -58,15 +86,18 @@ const StepIntro = () => {
     );
 };
 
-const PillarCard = ({ icon: Icon, title, desc, delay }) => (
+const PillarCard = ({ icon: Icon, title, desc, delay, color, bgColor }) => (
     <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay }}
         className={styles.card}
     >
-        <div className={styles.iconWrapper}>
-            <Icon size={24} strokeWidth={2.5} />
+        <div
+            className={styles.iconWrapper}
+            style={{ background: bgColor, color: color, boxShadow: `0 4px 10px ${color}20` }}
+        >
+            <Icon size={28} strokeWidth={2} fill={color} fillOpacity={0.2} />
         </div>
         <h3 className={styles.cardTitle}>{title}</h3>
         <p className={styles.cardDesc}>{desc}</p>
