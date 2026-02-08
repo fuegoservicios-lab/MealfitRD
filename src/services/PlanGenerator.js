@@ -5,9 +5,9 @@
 
 export const DOMINICAN_MEALS = {
     breakfast: [
-        { 
-            name: "Mangú con Huevo (Porción Ajustada)", 
-            tags: ['balanced', 'vegetarian'], 
+        {
+            name: "Mangú con Huevo (Porción Ajustada)",
+            tags: ['balanced', 'vegetarian'],
             desc: "Puré de plátano verde (medido) con huevo hervido o poché y cebollita.",
             recipe: [
                 "Hervir 1-2 plátanos verdes en agua con sal.",
@@ -16,9 +16,9 @@ export const DOMINICAN_MEALS = {
                 "Saltear cebolla roja en vinagre y colocar por encima."
             ]
         },
-        { 
-            name: "Avena Integral con Canela", 
-            tags: ['balanced', 'vegetarian'], 
+        {
+            name: "Avena Integral con Canela",
+            tags: ['balanced', 'vegetarian'],
             desc: "Avena cocida con agua o leche descremada, toque de canela y vainilla.",
             recipe: [
                 "Hervir 1/2 taza de avena integral en agua con astillas de canela.",
@@ -27,9 +27,9 @@ export const DOMINICAN_MEALS = {
                 "Servir caliente."
             ]
         },
-        { 
-            name: "Yuca Hervida con Cebollita", 
-            tags: ['balanced', 'vegan', 'vegetarian', 'gluten_free'], 
+        {
+            name: "Yuca Hervida con Cebollita",
+            tags: ['balanced', 'vegan', 'vegetarian', 'gluten_free'],
             desc: "Yuca suavecita con aderezo de cebolla roja y vinagre.",
             recipe: [
                 "Pelar y hervir la yuca hasta que esté blanda.",
@@ -37,9 +37,9 @@ export const DOMINICAN_MEALS = {
                 "Servir la yuca y agregar la cebolla por encima con un hilo de aceite de oliva."
             ]
         },
-        { 
-            name: "Revuelto de Huevos y Vegetales", 
-            tags: ['balanced', 'low_carb', 'keto', 'vegetarian'], 
+        {
+            name: "Revuelto de Huevos y Vegetales",
+            tags: ['balanced', 'low_carb', 'keto', 'vegetarian'],
             desc: "Huevos revueltos con ajíes, cebolla, tomate y espinaca.",
             recipe: [
                 "Picar tomate, cebolla, ajíes y espinaca en trozos pequeños.",
@@ -48,9 +48,9 @@ export const DOMINICAN_MEALS = {
                 "Revolver hasta que estén cocidos al gusto."
             ]
         },
-        { 
-            name: "Omelette de Queso y Jamón", 
-            tags: ['low_carb', 'keto'], 
+        {
+            name: "Omelette de Queso y Jamón",
+            tags: ['low_carb', 'keto'],
             desc: "Tortilla de huevo rellena de queso bajo en grasa y jamón de pavo.",
             recipe: [
                 "Batir 2 huevos con pimienta y sal.",
@@ -59,9 +59,9 @@ export const DOMINICAN_MEALS = {
                 "Doblar a la mitad y cocinar 1 minuto más."
             ]
         },
-        { 
-            name: "Batida Proteica de Guineo", 
-            tags: ['balanced', 'vegetarian'], 
+        {
+            name: "Batida Proteica de Guineo",
+            tags: ['balanced', 'vegetarian'],
             desc: "Batido de proteína (whey o vegetal) con medio guineo.",
             recipe: [
                 "En licuadora: 1 scoop de proteína, medio guineo congelado, hielo y agua.",
@@ -71,9 +71,9 @@ export const DOMINICAN_MEALS = {
         }
     ],
     lunch: [
-        { 
-            name: "La Bandera (Versión Fit)", 
-            tags: ['balanced'], 
+        {
+            name: "La Bandera (Versión Fit)",
+            tags: ['balanced'],
             desc: "Porción controlada de arroz, habichuelas y pollo guisado sin piel.",
             recipe: [
                 "Servir 1 taza medida de arroz blanco o integral.",
@@ -82,9 +82,9 @@ export const DOMINICAN_MEALS = {
                 "Incluir una porción de ensalada verde."
             ]
         },
-        { 
-            name: "Locrio de Pollo (Pechuga)", 
-            tags: ['balanced'], 
+        {
+            name: "Locrio de Pollo (Pechuga)",
+            tags: ['balanced'],
             desc: "Arroz cocinado con pechuga de pollo desmenuzada y vegetales.",
             recipe: [
                 "Sofreír pechuga en cubos con sazón natural.",
@@ -93,9 +93,9 @@ export const DOMINICAN_MEALS = {
                 "Servir acompañado de aguacate."
             ]
         },
-        { 
-            name: "Berenjenas a la Parmesana", 
-            tags: ['low_carb', 'vegetarian'], 
+        {
+            name: "Berenjenas a la Parmesana",
+            tags: ['low_carb', 'vegetarian'],
             desc: "Torre de berenjenas con salsa natural y queso gratinado.",
             recipe: [
                 "Cortar berenjenas en rodajas y pasarlas por la plancha.",
@@ -103,9 +103,9 @@ export const DOMINICAN_MEALS = {
                 "Hornear 15 min hasta gratinar."
             ]
         },
-        { 
-            name: "Pechuga a la Plancha + Vegetales", 
-            tags: ['low_carb', 'keto'], 
+        {
+            name: "Pechuga a la Plancha + Vegetales",
+            tags: ['low_carb', 'keto'],
             desc: "Pechuga sazonada al orégano con brócoli y zanahoria al vapor.",
             recipe: [
                 "Adobar pechuga con limón, orégano, ajo y sal.",
@@ -113,9 +113,9 @@ export const DOMINICAN_MEALS = {
                 "Hervir brócoli y zanahoria por 4-5 minutos (que queden crujientes)."
             ]
         },
-        { 
-            name: "Moro de Guandules con Pescado", 
-            tags: ['balanced'], 
+        {
+            name: "Moro de Guandules con Pescado",
+            tags: ['balanced'],
             desc: "Moro clásico (porción medida) con filete de pescado en salsa de coco ligera.",
             recipe: [
                 "Preparar moro de guandules con poco aceite.",
@@ -123,9 +123,9 @@ export const DOMINICAN_MEALS = {
                 "Servir porción moderada de moro y abundante pescado."
             ]
         },
-        { 
-            name: "Sancocho Light", 
-            tags: ['balanced'], 
+        {
+            name: "Sancocho Light",
+            tags: ['balanced'],
             desc: "Sancocho con más auyama y carnes magras, reduciendo los víveres pesados.",
             recipe: [
                 "Usar pechuga de pollo y carne de res magra.",
@@ -136,9 +136,9 @@ export const DOMINICAN_MEALS = {
         }
     ],
     dinner: [
-        { 
-            name: "Picadera: Queso y Casabe", 
-            tags: ['balanced', 'vegetarian'], 
+        {
+            name: "Picadera: Queso y Casabe",
+            tags: ['balanced', 'vegetarian'],
             desc: "Laminas de queso blanco a la plancha con trozos de casabe tostado.",
             recipe: [
                 "Cortar queso de hoja o blanco de freír.",
@@ -147,9 +147,9 @@ export const DOMINICAN_MEALS = {
                 "Servir caliente."
             ]
         },
-        { 
-            name: "Pescado al Papillote", 
-            tags: ['low_carb', 'keto', 'balanced'], 
+        {
+            name: "Pescado al Papillote",
+            tags: ['low_carb', 'keto', 'balanced'],
             desc: "Filete de pescado cocido en su jugo con vegetales variados.",
             recipe: [
                 "Colocar filete de pescado sobre papel aluminio.",
@@ -158,9 +158,9 @@ export const DOMINICAN_MEALS = {
                 "Cocinar en sartén tapado o airfryer por 12-15 min."
             ]
         },
-        { 
-            name: "Tortilla de Espinacas", 
-            tags: ['low_carb', 'keto', 'vegetarian'], 
+        {
+            name: "Tortilla de Espinacas",
+            tags: ['low_carb', 'keto', 'vegetarian'],
             desc: "Cena ligera de huevo y espinacas.",
             recipe: [
                 "Saltear un puñado grande de espinacas hasta reducir.",
@@ -169,9 +169,9 @@ export const DOMINICAN_MEALS = {
                 "Doblar y servir."
             ]
         },
-        { 
-            name: "Guineítos con Queso", 
-            tags: ['balanced', 'vegetarian'], 
+        {
+            name: "Guineítos con Queso",
+            tags: ['balanced', 'vegetarian'],
             desc: "Guineos verdes hervidos con una lonja de queso blanco.",
             recipe: [
                 "Hervir 2-3 guineos verdes en agua con sal.",
@@ -179,9 +179,9 @@ export const DOMINICAN_MEALS = {
                 "Agregar un hilo de aceite de oliva (opcional)."
             ]
         },
-        { 
-            name: "Crema de Auyama", 
-            tags: ['balanced', 'vegan', 'vegetarian'], 
+        {
+            name: "Crema de Auyama",
+            tags: ['balanced', 'vegan', 'vegetarian'],
             desc: "Crema espesa de auyama sin lácteos (o leche descremada).",
             recipe: [
                 "Hervir auyama con ajo, cebolla y cilantro.",
@@ -189,9 +189,9 @@ export const DOMINICAN_MEALS = {
                 "Servir con semillas de auyama tostadas."
             ]
         },
-        { 
-            name: "Ensalada de Atún", 
-            tags: ['low_carb', 'keto'], 
+        {
+            name: "Ensalada de Atún",
+            tags: ['low_carb', 'keto'],
             desc: "Atún en agua con vegetales mixtos y limón.",
             recipe: [
                 "Escurrir una lata de atún en agua.",
@@ -201,15 +201,15 @@ export const DOMINICAN_MEALS = {
         }
     ],
     snack: [
-        { 
-            name: "Guineo Maduro", 
-            tags: ['balanced', 'vegan', 'vegetarian'], 
+        {
+            name: "Guineo Maduro",
+            tags: ['balanced', 'vegan', 'vegetarian'],
             desc: "Una unidad mediana.",
-            recipe: ["Pelar y comer. La naturaleza lo hizo listo."] 
+            recipe: ["Pelar y comer. La naturaleza lo hizo listo."]
         },
-        { 
-            name: "Yogur Griego con Chinola", 
-            tags: ['low_carb', 'vegetarian'], 
+        {
+            name: "Yogur Griego con Chinola",
+            tags: ['low_carb', 'vegetarian'],
             desc: "Alto en proteína, con un toque de fruta natural.",
             recipe: [
                 "Servir 1 taza de yogur griego natural (sin azúcar).",
@@ -217,29 +217,29 @@ export const DOMINICAN_MEALS = {
                 "Mezclar y disfrutar."
             ]
         },
-        { 
-            name: "Puñado de Nueces Mixtas", 
-            tags: ['low_carb', 'keto', 'vegan'], 
+        {
+            name: "Puñado de Nueces Mixtas",
+            tags: ['low_carb', 'keto', 'vegan'],
             desc: "Grasas saludables para saciedad.",
-            recipe: ["Servir un puñado (lo que quepa en tu mano cerrada) de almendras o nueces."] 
+            recipe: ["Servir un puñado (lo que quepa en tu mano cerrada) de almendras o nueces."]
         },
-        { 
-            name: "Huevo Hervido", 
-            tags: ['low_carb', 'keto', 'vegetarian'], 
+        {
+            name: "Huevo Hervido",
+            tags: ['low_carb', 'keto', 'vegetarian'],
             desc: "Protein snack rápido.",
-            recipe: ["Hervir huevo por 10 minutos. Pelar y agregar pizca de sal."] 
+            recipe: ["Hervir huevo por 10 minutos. Pelar y agregar pizca de sal."]
         },
-        { 
-            name: "Casabe Tostado", 
-            tags: ['balanced', 'vegan'], 
+        {
+            name: "Casabe Tostado",
+            tags: ['balanced', 'vegan'],
             desc: "Fuente de carbohidrato crujiente y ligera.",
-            recipe: ["Tostar torta de casabe en horno o airfryer hasta que esté bien crujiente."] 
+            recipe: ["Tostar torta de casabe en horno o airfryer hasta que esté bien crujiente."]
         },
-        { 
-            name: "Manzana Verde", 
-            tags: ['balanced', 'vegan'], 
+        {
+            name: "Manzana Verde",
+            tags: ['balanced', 'vegan'],
             desc: "Fibra y pocas calorías.",
-            recipe: ["Lavar bien y comer con cáscara para aprovechar la fibra."] 
+            recipe: ["Lavar bien y comer con cáscara para aprovechar la fibra."]
         }
     ]
 };
@@ -285,43 +285,48 @@ const generateFallbackPlan = (formData = {}) => {
 async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
     try {
         const response = await fetch(url, options);
-        
+
         // Si el servidor da error 502, 503, 504 (Gateway Timeout), lanzamos error para forzar el reintento
         if (response.status >= 500) {
             throw new Error(`Server Error ${response.status}`);
         }
-        
+
         // Si no es un error de servidor pero tampoco es OK (ej: 404, 400), lo manejamos aquí
         if (!response.ok) {
             const txt = await response.text();
             throw new Error(`Error ${response.status}: ${txt}`);
         }
-        
+
         return response; // Éxito
     } catch (err) {
         if (retries > 1) {
-            console.warn(`⚠️ Intento fallido. Reintentando en ${backoff/1000}s... (${retries-1} intentos restantes)`);
+            console.warn(`⚠️ Intento fallido. Reintentando en ${backoff / 1000}s... (${retries - 1} intentos restantes)`);
             // Esperar (Backoff)
             await new Promise(r => setTimeout(r, backoff));
             // Llamada recursiva con menos intentos y más tiempo de espera
-            return fetchWithRetry(url, options, retries - 1, backoff * 1.5); 
+            return fetchWithRetry(url, options, retries - 1, backoff * 1.5);
         } else {
             throw err; // Se acabaron los intentos, lanzamos el error final
         }
     }
 }
 
+// ...existing imports
+import { supabase } from '../supabase';
+
+// ... existing code ...
+
 // --- FUNCIÓN PRINCIPAL (CONEXIÓN CON IA) ---
 export const generateAIPlan = async (formData) => {
     // CORRECCIÓN: Apuntamos directamente a tu webhook de n8n de producción
     const API_URL = import.meta.env.VITE_API_URL || 'https://agente-de-citas-dental-space-n8n.ofcrls.easypanel.host/webhook/analyze';
-    
+
     console.log("🚀 Iniciando generación con Reintentos Automáticos...");
     console.log("📡 Conectando con:", API_URL);
 
     // Timeout general de seguridad extendido (2.5 minutos) para permitir que ocurran los 3 reintentos
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 150000); 
+    const timeoutId = setTimeout(() => controller.abort(), 150000);
 
     try {
         // Usamos nuestra función de reintento en lugar de fetch directo
@@ -331,17 +336,40 @@ export const generateAIPlan = async (formData) => {
             body: JSON.stringify(formData),
             signal: controller.signal
         }, 3); // 3 Intentos máximos
-        
+
         clearTimeout(timeoutId);
 
         const data = await response.json();
-        
+
         console.log("✅ Respuesta IA recibida tras intentos.");
-        
+
         // n8n a veces devuelve un array [{...}], extraemos el primer objeto si es necesario
-        if (Array.isArray(data) && data.length > 0) return data[0];
-        
-        return data;
+        const finalPlan = (Array.isArray(data) && data.length > 0) ? data[0] : data;
+
+        // --- GUARDAR EN HISTORIAL ---
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                const { error: saveError } = await supabase.from('meal_plans').insert({
+                    user_id: session.user.id,
+                    plan_data: finalPlan,
+                    name: `Plan del ${new Date().toLocaleDateString('es-DO')}`,
+                    calories: finalPlan.calories || 0,
+                    macros: finalPlan.macros || {}
+                });
+
+                if (saveError) {
+                    console.error("❌ Error guardando historial:", saveError);
+                } else {
+                    console.log("💾 Plan guardado exitosamente en el historial.");
+                }
+            }
+        } catch (dbError) {
+            console.error("⚠️ Error interno intentando guardar historial:", dbError);
+        }
+        // ---------------------------
+
+        return finalPlan;
 
     } catch (error) {
         // Manejo final de errores
@@ -350,7 +378,7 @@ export const generateAIPlan = async (formData) => {
         } else {
             console.error("❌ Fallaron todos los intentos de conexión:", error);
         }
-        
+
         console.warn("⚠️ Activando Plan de Respaldo (Modo Offline)...");
         // Retornamos el plan local para que el usuario siempre vea algo
         return generateFallbackPlan(formData);
@@ -363,7 +391,7 @@ export const getAlternativeMeal = (mealType, currentMealName, targetCalories, us
     // 1. Identificar categoría
     let category = 'snack';
     const lowerType = mealType.toLowerCase();
-    
+
     if (lowerType.includes('desayuno')) category = 'breakfast';
     else if (lowerType.includes('almuerzo')) category = 'lunch';
     else if (lowerType.includes('cena')) category = 'dinner';
@@ -384,7 +412,7 @@ export const getAlternativeMeal = (mealType, currentMealName, targetCalories, us
     // 4. Filtrar opciones compatibles
     let compatibleOptions = options.filter(meal => {
         if (dietFilter === 'balanced') return true;
-        return meal.tags.includes(dietFilter); 
+        return meal.tags.includes(dietFilter);
     });
 
     if (compatibleOptions.length === 0) {
@@ -394,8 +422,8 @@ export const getAlternativeMeal = (mealType, currentMealName, targetCalories, us
 
     // 5. Filtrar para no repetir el actual
     const availableOptions = compatibleOptions.filter(m => m.name !== currentMealName);
-    
-    const selectedTemplate = availableOptions.length > 0 
+
+    const selectedTemplate = availableOptions.length > 0
         ? availableOptions[Math.floor(Math.random() * availableOptions.length)]
         : options[0];
 
@@ -404,7 +432,7 @@ export const getAlternativeMeal = (mealType, currentMealName, targetCalories, us
         name: selectedTemplate.name,
         desc: selectedTemplate.desc,
         cals: targetCalories || selectedTemplate.cals || 400,
-        recipe: selectedTemplate.recipe, 
+        recipe: selectedTemplate.recipe,
         isSwapped: true
     };
 };

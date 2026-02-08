@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ShoppingBag, Utensils, Settings, LogOut, User, Menu, X } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Utensils, Settings, LogOut, User, Menu, X, Clock } from 'lucide-react';
 import { useAssessment } from '../../context/AssessmentContext';
 import styles from './DashboardLayout.module.css';
 
@@ -21,8 +21,9 @@ const DashboardLayout = ({ children }) => {
 
     const menuItems = [
         { icon: LayoutDashboard, label: 'Mi Plan', path: '/dashboard' },
-        { icon: ShoppingBag, label: 'Lista de Compras', path: '/dashboard/shopping' },
         { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' }, // Placeholder
+        { icon: ShoppingBag, label: 'Lista de Compras', path: '/dashboard/shopping' },
+        { icon: Clock, label: 'Historial', path: '/history' },
         { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' }, // Placeholder
     ];
 
@@ -69,46 +70,7 @@ const DashboardLayout = ({ children }) => {
                 </nav>
 
                 <div className={styles.userFooter} style={{ padding: '1.25rem', borderTop: '1px solid #F1F5F9', background: 'rgba(255,255,255,0.5)' }}>
-                    <div className={styles.userProfile} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                        <div className={styles.avatar} style={{
-                            width: '2.75rem', height: '2.75rem', borderRadius: '0.75rem',
-                            background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
-                            color: '#3B82F6',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: '0 2px 4px -1px rgba(59, 130, 246, 0.1)',
-                            border: '1px solid #BFDBFE'
-                        }}>
-                            <User size={20} strokeWidth={2.5} />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                                <div style={{
-                                    fontWeight: 700, color: '#1E293B', fontSize: '0.9rem',
-                                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                    letterSpacing: '-0.01em'
-                                }}>
-                                    {userProfile?.full_name || planData?.userParams?.name || 'Mi Cuenta'}
-                                </div>
-                                <span style={{
-                                    display: 'inline-flex', alignItems: 'center',
-                                    padding: '0.1rem 0.4rem',
-                                    borderRadius: '6px',
-                                    fontSize: '0.6rem',
-                                    fontWeight: '800',
-                                    letterSpacing: '0.05em',
-                                    textTransform: 'uppercase',
-                                    background: userProfile?.plan_tier === 'plus' ? 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)' : '#F1F5F9',
-                                    color: userProfile?.plan_tier === 'plus' ? '#B45309' : '#64748B',
-                                    border: `1px solid ${userProfile?.plan_tier === 'plus' ? '#FCD34D' : '#E2E8F0'}`
-                                }}>
-                                    {userProfile?.plan_tier === 'plus' ? 'PLUS' : 'FREE'}
-                                </span>
-                            </div>
-                            <div style={{ color: '#64748B', fontSize: '0.75rem', fontWeight: 500 }}>
-                                {planData?.planName || 'Plan Personalizado'}
-                            </div>
-                        </div>
-                    </div>
+
 
                     <button
                         onClick={handleLogout}
@@ -149,7 +111,7 @@ const DashboardLayout = ({ children }) => {
                 {/* Mobile Header */}
                 <header className={styles.mobileHeader}>
                     <Link to="/" style={{ textDecoration: 'none', fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-main)', fontFamily: 'var(--font-heading)' }}>
-                        Mealfit<span style={{ color: 'var(--primary)' }}>RD</span>
+                        Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
                     </Link>
                     <button onClick={toggleMenu} className={styles.menuBtn}>
                         {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}

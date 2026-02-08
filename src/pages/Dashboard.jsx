@@ -5,7 +5,7 @@ import { useNavigate, Navigate, Link } from 'react-router-dom';
 import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
     RefreshCw, ShoppingCart, ChefHat, Heart,
-    Sparkles, Brain, Wallet, AlertCircle, Dumbbell, Wheat, Crown, Lightbulb
+    Sparkles, Brain, Wallet, AlertCircle, Dumbbell, Wheat, Crown, Lightbulb, Wand2
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
@@ -22,7 +22,8 @@ const Dashboard = () => {
         planCount,
         PLAN_LIMIT,
         remainingCredits,
-        isPlus // Obtenemos el estado de suscripción
+        isPlus, // Obtenemos el estado de suscripción
+        userProfile
     } = useAssessment();
 
     const navigate = useNavigate();
@@ -48,132 +49,130 @@ const Dashboard = () => {
         <DashboardLayout>
 
             {/* --- HEADER --- */}
-            <header style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
+            {/* --- HEADER PREMIUM --- */}
+            <header style={{
+                marginBottom: '3rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-end',
+                flexWrap: 'wrap',
+                gap: '1.5rem',
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.3) 100%)',
+                backdropFilter: 'blur(10px)',
+                padding: '2rem',
+                borderRadius: '2rem',
+                border: '1px solid rgba(255,255,255,0.5)',
+                boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05)'
+            }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div>
+
+                    {/* PLAN TIER BADGE */}
+                    <div style={{ marginBottom: '0.25rem' }}>
                         <span style={{
-                            display: 'inline-block', padding: '0.25rem 0.75rem',
-                            background: '#DCFCE7', color: '#166534', borderRadius: '2rem',
-                            fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.5rem'
+                            display: 'inline-flex', alignItems: 'center',
+                            padding: '0.25rem 0.75rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.65rem',
+                            fontWeight: '800',
+                            letterSpacing: '0.05em',
+                            textTransform: 'uppercase',
+                            background: isPlus ? 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' : '#F8FAFC',
+                            color: isPlus ? '#B45309' : '#64748B',
+                            border: `1px solid ${isPlus ? '#FCD34D' : '#E2E8F0'}`,
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                         }}>
-                            PLAN ACTIVO
+                            {isPlus ? 'PLUS MEMBER' : 'FREE PLAN'}
                         </span>
-                        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1 }}>
-                            Tu Panel Nutricional
-                        </h1>
-                        <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                            Diseñado por IA específicamente para tu metabolismo y objetivos.
-                        </p>
                     </div>
 
-                    {/* --- VISUALIZADOR DE CRÉDITOS --- */}
-                    <div style={{
-                        marginTop: '0.5rem',
-                        background: isPlus ? 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' : 'rgba(255, 255, 255, 0.9)',
-                        backdropFilter: 'blur(8px)',
-                        padding: '0.6rem 1rem',
-                        borderRadius: '1rem',
-                        border: isPlus ? '1px solid #FCD34D' : '1px solid rgba(226, 232, 240, 0.8)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.875rem',
-                        boxShadow: isPlus ? '0 4px 6px -1px rgba(245, 158, 11, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-                        width: 'fit-content'
+                    <h1 style={{
+                        fontSize: '3rem',
+                        fontWeight: 800,
+                        lineHeight: 1.1,
+                        letterSpacing: '-0.04em',
+                        marginBottom: '0.25rem'
                     }}>
-                        {/* Icono */}
-                        <div style={{
-                            background: isLimitReached ? '#FEF2F2' : (isPlus ? '#FDE68A' : '#EFF6FF'),
-                            color: isLimitReached ? '#EF4444' : (isPlus ? '#B45309' : '#3B82F6'),
-                            padding: '0.5rem',
-                            borderRadius: '0.75rem',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        <span style={{ color: '#1E293B' }}>Hola, </span>
+                        <span style={{
+                            background: 'linear-gradient(to right, #3B82F6, #8B5CF6, #EC4899)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent'
                         }}>
-                            {isPlus ? <Crown size={18} fill="#B45309" /> : <Zap size={18} fill={isLimitReached ? '#EF4444' : '#3B82F6'} />}
-                        </div>
-
-                        {/* Texto */}
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: isPlus ? '#92400E' : '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                {isPlus ? 'Membresía' : 'Créditos'}
-                            </span>
-                            <div style={{ fontSize: '1rem', fontWeight: 800, color: isPlus ? '#B45309' : 'var(--text-main)', lineHeight: 1.2 }}>
-                                {isPlus ? "Plus Activo" : (
-                                    <>
-                                        {remainingCredits} <span style={{ color: '#94A3B8', fontSize: '0.8rem', fontWeight: 600 }}>/ {PLAN_LIMIT}</span>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Separator & Progress Bar (ONLY FOR FREE PLAN) */}
-                        {!isPlus && (
-                            <>
-                                <div style={{ width: '1px', height: '24px', background: '#E2E8F0', margin: '0 0.25rem' }} />
-                                <div style={{ width: '60px', height: '4px', background: '#F1F5F9', borderRadius: '4px', overflow: 'hidden' }}>
-                                    <div style={{
-                                        height: '100%',
-                                        width: `${progressPercentage}%`,
-                                        background: isLimitReached ? '#EF4444' : '#3B82F6',
-                                        borderRadius: '4px',
-                                        transition: 'width 0.5s ease'
-                                    }} />
-                                </div>
-                            </>
-                        )}
-                    </div>
+                            {userProfile?.full_name?.split(' ')[0] || formData?.name || 'Nutrifit'}
+                        </span>
+                    </h1>
+                    <p style={{ color: '#64748B', fontSize: '1.1rem', fontWeight: 500 }}>
+                        ¿Qué vamos a comer hoy?
+                    </p>
                 </div>
 
-                {/* BOTÓN GENERAR NUEVO (Con lógica de bloqueo) */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                {/* --- ACTIONS GROUP --- */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+
+                    {/* VISUALIZADOR DE CRÉDITOS */}
+                    {!isPlus && (
+                        <div style={{
+                            background: 'white',
+                            padding: '0.6rem 1rem',
+                            borderRadius: '1rem',
+                            border: '1px solid #F1F5F9',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.875rem',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)',
+                        }}>
+                            <div style={{
+                                width: 36, height: 36,
+                                background: isLimitReached ? '#FEF2F2' : '#EFF6FF',
+                                color: isLimitReached ? '#EF4444' : '#3B82F6',
+                                borderRadius: '0.75rem',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}>
+                                <Zap size={18} fill={isLimitReached ? '#EF4444' : '#3B82F6'} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>
+                                    Créditos
+                                </span>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                                    {remainingCredits} <span style={{ color: '#CBD5E1' }}>/ {PLAN_LIMIT}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* BOTÓN GENERAR */}
                     <button
                         onClick={handleNewPlan}
                         disabled={isLimitReached}
                         style={{
                             background: isLimitReached
-                                ? '#E2E8F0' // Gris deshabilitado
-                                : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                                ? '#E2E8F0'
+                                : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)', // Dark premium button
                             color: isLimitReached ? '#94A3B8' : 'white',
-                            padding: '0.85rem 2rem',
+                            padding: '0.85rem 1.75rem',
                             borderRadius: '1rem',
-                            border: isLimitReached ? '1px solid #CBD5E1' : '1px solid rgba(255,255,255,0.1)',
+                            border: 'none',
                             fontWeight: 700,
                             cursor: isLimitReached ? 'not-allowed' : 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.75rem',
-                            boxShadow: isLimitReached ? 'none' : '0 10px 15px -3px rgba(37, 99, 235, 0.35), 0 4px 6px -2px rgba(37, 99, 235, 0.1)',
-                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            fontSize: '1rem',
-                            letterSpacing: '0.025em',
-                            position: 'relative',
-                            overflow: 'hidden'
+                            boxShadow: isLimitReached ? 'none' : '0 10px 20px -5px rgba(15, 23, 42, 0.3)',
+                            transition: 'all 0.3s ease',
+                            fontSize: '0.95rem',
                         }}
                     >
-                        {isLimitReached ? <AlertCircle size={22} /> : <RefreshCw size={22} strokeWidth={2.5} />}
-                        <span>{isLimitReached ? 'Límite Alcanzado' : 'Generar Nuevo'}</span>
-
-                        {!isLimitReached && (
-                            <div style={{
-                                position: 'absolute', top: 0, left: '-100%',
-                                width: '50%', height: '100%',
-                                background: 'linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%)',
-                                transform: 'skewX(-25deg)',
-                                transition: 'left 0.5s',
-                                pointerEvents: 'none'
-                            }} className="shine-effect" />
-                        )}
-                        <style>{`button:hover .shine-effect { left: 200%; transition: left 0.7s; }`}</style>
+                        {isLimitReached ? <AlertCircle size={20} /> : <Wand2 size={20} fill="white" />}
+                        <span>{isLimitReached ? 'Límite' : 'Generar Nuevo'}</span>
                     </button>
-
-                    {isLimitReached && (
-                        <span style={{ fontSize: '0.75rem', color: '#EF4444', fontWeight: 600 }}>
-                            Has alcanzado el límite de tu plan.
-                        </span>
-                    )}
                 </div>
             </header>
 
             {/* --- MACROS & CALORIES GRID --- */}
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1.5rem' }}>
+                Tus Objetivos Diarios
+            </h2>
             <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -196,148 +195,192 @@ const Dashboard = () => {
                             Menú de Hoy
                         </h2>
                         <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                            {formData?.skipLunch ? '3 Comidas' : '4 Comidas'}
+                            {formData?.skipLunch ? '3 Comidas + 1 Libre' : '4 Comidas'}
                         </span>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        {planData.perfectDay?.filter(meal => {
+                        {(() => {
+                            // Crear copia de los platos para no mutar el original
+                            let displayMeals = [...(planData.perfectDay || [])];
+
+                            // Si se saltó el almuerzo, lo inyectamos visualmente en la posición 1 (después del desayuno)
                             if (formData?.skipLunch) {
-                                const isLunch = meal.meal.toLowerCase().includes('almuerzo') || meal.name.toLowerCase().includes('lunch');
-                                return !isLunch;
+                                // Aseguramos no duplicarlo si ya existe por alguna razón
+                                const hasLunch = displayMeals.some(m => m.meal.toLowerCase().includes('almuerzo'));
+                                if (!hasLunch) {
+                                    displayMeals.splice(1, 0, {
+                                        meal: 'Almuerzo',
+                                        name: 'Almuerzo Familiar',
+                                        isSkipped: true
+                                    });
+                                }
                             }
-                            return true;
-                        }).map((meal, index) => {
-                            const isLiked = !!likedMeals[meal.name];
 
-                            return (
-                                <div key={index} style={{
-                                    background: 'rgba(255, 255, 255, 0.8)',
-                                    backdropFilter: 'blur(12px)',
-                                    padding: '1.5rem',
-                                    borderRadius: '1rem',
-                                    border: '1px solid rgba(255, 255, 255, 0.6)',
-                                    display: 'grid',
-                                    gridTemplateColumns: '1fr auto',
-                                    gap: '1.5rem',
-                                    alignItems: 'center',
-                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-                                    transition: 'transform 0.2s, box-shadow 0.2s',
-                                    position: 'relative'
-                                }}>
+                            return displayMeals.map((meal, index) => {
+                                const isSkippedLunch = meal.isSkipped;
+                                const isLiked = meal.name ? !!likedMeals[meal.name] : false;
 
-                                    {/* Meal Info */}
-                                    <div>
-                                        <div style={{
-                                            textTransform: 'uppercase', fontSize: '0.7rem', fontWeight: 700,
-                                            color: 'var(--primary)', letterSpacing: '0.05em', marginBottom: '0.25rem'
+                                if (isSkippedLunch) {
+                                    return (
+                                        <div key={index} style={{
+                                            background: 'rgba(239, 246, 255, 0.6)', // Light blue tint
+                                            padding: '1.5rem',
+                                            borderRadius: '1rem',
+                                            border: '1px dashed #3B82F6',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '1rem',
+                                            color: '#1E40AF'
                                         }}>
-                                            {meal.meal}
-                                        </div>
-                                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
-                                            {meal.name}
-                                        </h3>
-                                        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                                            {meal.desc || "Plato balanceado seleccionado para tu objetivo."}
-                                        </p>
-                                    </div>
-
-                                    {/* Right Side: Calories + Buttons */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem' }}>
-
-                                        {/* Calories */}
-                                        <div style={{ textAlign: 'right', minWidth: '60px' }}>
-                                            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                                                {meal.cals}
+                                            <div style={{
+                                                background: '#3B82F6', color: 'white',
+                                                borderRadius: '50%', width: 40, height: 40,
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                            }}>
+                                                <ChefHat size={20} />
                                             </div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>kcal</div>
+                                            <div>
+                                                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                                                    Almuerzo Familiar / Ya resuelto
+                                                </h3>
+                                                <p style={{ fontSize: '0.85rem', margin: 0, opacity: 0.8 }}>
+                                                    Has marcado esta comida como libre o familiar.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div key={index} style={{
+                                        background: 'rgba(255, 255, 255, 0.8)',
+                                        backdropFilter: 'blur(12px)',
+                                        padding: '1.5rem',
+                                        borderRadius: '1rem',
+                                        border: '1px solid rgba(255, 255, 255, 0.6)',
+                                        display: 'grid',
+                                        gridTemplateColumns: '1fr auto',
+                                        gap: '1.5rem',
+                                        alignItems: 'center',
+                                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                                        transition: 'transform 0.2s, box-shadow 0.2s',
+                                        position: 'relative'
+                                    }}>
+
+                                        {/* Meal Info */}
+                                        <div>
+                                            <div style={{
+                                                textTransform: 'uppercase', fontSize: '0.7rem', fontWeight: 700,
+                                                color: 'var(--primary)', letterSpacing: '0.05em', marginBottom: '0.25rem'
+                                            }}>
+                                                {meal.meal}
+                                            </div>
+                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+                                                {meal.name}
+                                            </h3>
+                                            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                                                {meal.desc || "Plato balanceado seleccionado para tu objetivo."}
+                                            </p>
                                         </div>
 
-                                        {/* BUTTONS GROUP */}
-                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        {/* Right Side: Calories + Buttons */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem' }}>
 
-                                            {/* REGENERATE BUTTON */}
-                                            <button
-                                                onClick={() => {
-                                                    setRegeneratingId(index); // Activa spinner
-                                                    // Pequeño delay para UX
-                                                    setTimeout(() => {
-                                                        const newName = regenerateSingleMeal(index, meal.meal, meal.name);
-                                                        setRegeneratingId(null);
-                                                        toast.success('Menú actualizado', {
-                                                            description: `Cambiado a: ${newName}`,
-                                                            icon: '🔄'
-                                                        });
-                                                    }, 500);
-                                                }}
-                                                disabled={regeneratingId === index}
-                                                style={{
-                                                    background: '#F1F5F9',
-                                                    border: 'none',
-                                                    borderRadius: '50%',
-                                                    width: 40, height: 40,
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    cursor: regeneratingId === index ? 'wait' : 'pointer',
-                                                    transition: 'all 0.2s'
-                                                }}
-                                                title="Cambiar este plato por otro"
-                                            >
-                                                <RefreshCw
-                                                    size={18}
-                                                    color="#64748B"
-                                                    className={regeneratingId === index ? "spin-fast" : ""}
-                                                />
-                                            </button>
+                                            {/* Calories */}
+                                            <div style={{ textAlign: 'right', minWidth: '60px' }}>
+                                                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                                                    {meal.cals}
+                                                </div>
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>kcal</div>
+                                            </div>
 
-                                            {/* LIKE BUTTON */}
-                                            <button
-                                                onClick={() => {
-                                                    const currentlyLiked = !!likedMeals[meal.name];
-                                                    toggleMealLike(meal.name, meal.meal);
+                                            {/* BUTTONS GROUP */}
+                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
 
-                                                    if (!currentlyLiked) {
-                                                        toast.success('¡Anotado!', {
-                                                            description: `Aprenderemos que te gusta: ${meal.name}`,
-                                                            duration: 2000,
-                                                            icon: '❤️'
-                                                        });
-                                                    } else {
-                                                        toast('Like removido', {
-                                                            description: 'No priorizaremos este plato.',
-                                                            duration: 1500
-                                                        });
-                                                    }
-                                                }}
-                                                style={{
-                                                    background: isLiked ? '#FEE2E2' : '#F8FAFC',
-                                                    border: 'none',
-                                                    borderRadius: '50%',
-                                                    width: 40, height: 40,
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.2s',
-                                                    boxShadow: isLiked ? '0 2px 5px rgba(239, 68, 68, 0.2)' : 'none'
-                                                }}
-                                                title={isLiked ? "Quitar me gusta" : "¡Me gusta! (La IA aprenderá de esto)"}
-                                            >
-                                                <Heart
-                                                    size={20}
-                                                    color={isLiked ? '#EF4444' : '#94A3B8'}
-                                                    fill={isLiked ? '#EF4444' : 'none'}
-                                                />
-                                            </button>
+                                                {/* REGENERATE BUTTON */}
+                                                <button
+                                                    onClick={() => {
+                                                        setRegeneratingId(index); // Activa spinner
+                                                        // Pequeño delay para UX
+                                                        setTimeout(() => {
+                                                            const newName = regenerateSingleMeal(index, meal.meal, meal.name);
+                                                            setRegeneratingId(null);
+                                                            toast.success('Menú actualizado', {
+                                                                description: `Cambiado a: ${newName}`,
+                                                                icon: '🔄'
+                                                            });
+                                                        }, 500);
+                                                    }}
+                                                    disabled={regeneratingId === index}
+                                                    style={{
+                                                        background: '#F1F5F9',
+                                                        border: 'none',
+                                                        borderRadius: '50%',
+                                                        width: 40, height: 40,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        cursor: regeneratingId === index ? 'wait' : 'pointer',
+                                                        transition: 'all 0.2s'
+                                                    }}
+                                                    title="Cambiar este plato por otro"
+                                                >
+                                                    <RefreshCw
+                                                        size={18}
+                                                        color="#64748B"
+                                                        className={regeneratingId === index ? "spin-fast" : ""}
+                                                    />
+                                                </button>
+
+                                                {/* LIKE BUTTON */}
+                                                <button
+                                                    onClick={() => {
+                                                        const currentlyLiked = !!likedMeals[meal.name];
+                                                        toggleMealLike(meal.name, meal.meal);
+
+                                                        if (!currentlyLiked) {
+                                                            toast.success('¡Anotado!', {
+                                                                description: `Aprenderemos que te gusta: ${meal.name}`,
+                                                                duration: 2000,
+                                                                icon: '❤️'
+                                                            });
+                                                        } else {
+                                                            toast('Like removido', {
+                                                                description: 'No priorizaremos este plato.',
+                                                                duration: 1500
+                                                            });
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        background: isLiked ? '#FEE2E2' : '#F8FAFC',
+                                                        border: 'none',
+                                                        borderRadius: '50%',
+                                                        width: 40, height: 40,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s',
+                                                        boxShadow: isLiked ? '0 2px 5px rgba(239, 68, 68, 0.2)' : 'none'
+                                                    }}
+                                                    title={isLiked ? "Quitar me gusta" : "¡Me gusta! (La IA aprenderá de esto)"}
+                                                >
+                                                    <Heart
+                                                        size={20}
+                                                        color={isLiked ? '#EF4444' : '#94A3B8'}
+                                                        fill={isLiked ? '#EF4444' : 'none'}
+                                                    />
+                                                </button>
+                                            </div>
+
                                         </div>
 
-                                    </div>
-
-                                    {/* Estilo para la animación de rotación */}
-                                    <style>{`
+                                        {/* Estilo para la animación de rotación */}
+                                        <style>{`
                                         .spin-fast { animation: spin 1s linear infinite; }
                                         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
                                     `}</style>
-                                </div>
-                            );
-                        })}
+                                    </div>
+                                );
+                            })
+                        })()}
                     </div>
                 </div>
 
@@ -503,7 +546,8 @@ const StatCard = ({ label, value, unit, icon, color, bgColor }) => {
                 position: 'relative',
                 boxShadow: `0 2px 8px ${color}33`
             }}>
-                <Icon size={26} strokeWidth={2.5} />
+                {/* Agregamos fill para que el ícono se vea sólido (más "emoji" like) */}
+                <Icon size={26} strokeWidth={2} fill={color} fillOpacity={0.2} />
             </div>
 
             <div style={{ position: 'relative' }}>

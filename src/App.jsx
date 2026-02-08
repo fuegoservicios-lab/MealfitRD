@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import ShoppingList from './pages/ShoppingList';
 import Recipes from './pages/Recipes';
 import Settings from './pages/Settings';
+import History from './pages/History';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { Privacy, Terms, Cookies, MedicalDisclaimer } from './pages/legal/LegalPages';
@@ -60,6 +61,11 @@ function App() {
           <Route path="/dashboard/settings" element={
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          } />
+          <Route path="/history" element={
+            <ProtectedRoute>
+              <History />
             </ProtectedRoute>
           } />
 

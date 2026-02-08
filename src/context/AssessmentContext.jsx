@@ -247,6 +247,20 @@ export const AssessmentProvider = ({ children }) => {
         }, 2000);
     };
 
+    // --- NUEVA FUNCIÓN: RESTAURAR PLAN HISTÓRICO ---
+    const restorePlan = (pastPlanData) => {
+        if (!pastPlanData) return;
+
+        // 1. Actualizar estado
+        setPlanData(pastPlanData);
+        // 2. Persistir
+        localStorage.setItem('mealfit_plan', JSON.stringify(pastPlanData));
+
+        toast.success('Plan Restaurado', {
+            description: 'Ahora verás este plan en tu Dashboard principal.'
+        });
+    };
+
     const nextStep = () => { setDirection(1); setCurrentStep((prev) => prev + 1); };
     const prevStep = () => { setDirection(-1); setCurrentStep((prev) => Math.max(0, prev - 1)); };
 
@@ -340,7 +354,8 @@ export const AssessmentProvider = ({ children }) => {
             checkPlanLimit,
             isPlus, // Exportamos estado de suscripción
             remainingCredits: isPlus ? 9999 : Math.max(0, PLAN_LIMIT - planCount), // Para Plus es "infinito"
-            upgradeUserToPlus
+            upgradeUserToPlus,
+            restorePlan
         }}>
             {children}
         </AssessmentContext.Provider>
