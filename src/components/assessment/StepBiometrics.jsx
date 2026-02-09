@@ -286,18 +286,33 @@ const StepBiometrics = () => {
                         onClick={nextStep}
                         disabled={!isFormValid}
                         style={{
-                            padding: '0.875rem 2.5rem',
-                            backgroundColor: isFormValid ? 'var(--primary)' : 'var(--border)',
-                            color: isFormValid ? 'white' : 'var(--text-muted)',
+                            padding: '1rem 3rem',
+                            background: isFormValid
+                                ? 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)'
+                                : '#F1F5F9',
+                            color: isFormValid ? 'white' : '#94A3B8',
                             border: 'none',
-                            borderRadius: 'var(--radius-lg)',
-                            fontWeight: 600,
+                            borderRadius: '1rem',
+                            fontWeight: 700,
+                            fontSize: '1rem',
+                            display: 'flex', alignItems: 'center', gap: '0.75rem',
                             cursor: isFormValid ? 'pointer' : 'not-allowed',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            transition: 'all 0.2s',
-                            boxShadow: isFormValid ? '0 4px 12px rgba(37, 99, 235, 0.3)' : 'none'
+                            boxShadow: isFormValid ? '0 10px 25px -5px rgba(37, 99, 235, 0.4)' : 'none',
+                            opacity: isFormValid ? 1 : 0.8,
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            letterSpacing: '0.02em'
+                        }}
+                        onMouseEnter={(e) => {
+                            if (isFormValid) {
+                                e.currentTarget.style.transform = 'translateY(-3px) scale(1.02)';
+                                e.currentTarget.style.boxShadow = '0 20px 30px -10px rgba(37, 99, 235, 0.5)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (isFormValid) {
+                                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(37, 99, 235, 0.4)';
+                            }
                         }}
                     >
                         Siguiente <ArrowRight size={20} />

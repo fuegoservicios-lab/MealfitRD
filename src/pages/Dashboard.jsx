@@ -5,7 +5,8 @@ import { useNavigate, Navigate, Link } from 'react-router-dom';
 import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
     RefreshCw, ShoppingCart, ChefHat, Heart,
-    Sparkles, Brain, Wallet, AlertCircle, Dumbbell, Wheat, Crown, Lightbulb, Wand2
+    Brain, Wallet, AlertCircle, Dumbbell, Wheat,
+    Lightbulb, Wand2, Clock, BookOpen
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
@@ -18,11 +19,11 @@ const Dashboard = () => {
         toggleMealLike,
         regenerateSingleMeal,
         formData,
-        // Nuevos valores para el sistema de créditos
+        // Valores para el sistema de créditos y suscripción
         planCount,
         PLAN_LIMIT,
         remainingCredits,
-        isPlus, // Obtenemos el estado de suscripción
+        isPlus,
         userProfile
     } = useAssessment();
 
@@ -41,14 +42,11 @@ const Dashboard = () => {
     };
 
     // Cálculos para la UI de límites
-    // Si es Plus, nunca alcanza el límite
     const isLimitReached = !isPlus && planCount >= PLAN_LIMIT;
-    const progressPercentage = isPlus ? 100 : Math.min(100, (planCount / PLAN_LIMIT) * 100);
 
     return (
         <DashboardLayout>
 
-            {/* --- HEADER --- */}
             {/* --- HEADER PREMIUM --- */}
             <header style={{
                 marginBottom: '3rem',
@@ -57,11 +55,11 @@ const Dashboard = () => {
                 alignItems: 'flex-end',
                 flexWrap: 'wrap',
                 gap: '1.5rem',
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.3) 100%)',
-                backdropFilter: 'blur(10px)',
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.5) 100%)',
+                backdropFilter: 'blur(12px)',
                 padding: '2rem',
                 borderRadius: '2rem',
-                border: '1px solid rgba(255,255,255,0.5)',
+                border: '1px solid rgba(255,255,255,0.6)',
                 boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05)'
             }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -81,20 +79,20 @@ const Dashboard = () => {
                             border: `1px solid ${isPlus ? '#FCD34D' : '#E2E8F0'}`,
                             boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                         }}>
-                            {isPlus ? 'PLUS MEMBER' : 'FREE PLAN'}
+                            {isPlus ? 'PLUS MEMBER 🌟' : 'PLAN GRATUITO'}
                         </span>
                     </div>
 
                     <h1 style={{
-                        fontSize: '3rem',
+                        fontSize: '2.5rem',
                         fontWeight: 800,
                         lineHeight: 1.1,
-                        letterSpacing: '-0.04em',
-                        marginBottom: '0.25rem'
+                        letterSpacing: '-0.03em',
+                        marginBottom: '0.25rem',
+                        color: '#1E293B'
                     }}>
-                        <span style={{ color: '#1E293B' }}>Hola, </span>
-                        <span style={{
-                            background: 'linear-gradient(to right, #3B82F6, #8B5CF6, #EC4899)',
+                        Hola, <span style={{
+                            background: 'linear-gradient(to right, #3B82F6, #8B5CF6)',
                             WebkitBackgroundClip: 'text',
                             WebkitTextFillColor: 'transparent'
                         }}>
@@ -102,14 +100,14 @@ const Dashboard = () => {
                         </span>
                     </h1>
                     <p style={{ color: '#64748B', fontSize: '1.1rem', fontWeight: 500 }}>
-                        ¿Qué vamos a comer hoy?
+                        Aquí tienes tu estrategia nutricional de hoy.
                     </p>
                 </div>
 
                 {/* --- ACTIONS GROUP --- */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
 
-                    {/* VISUALIZADOR DE CRÉDITOS */}
+                    {/* VISUALIZADOR DE CRÉDITOS (Solo Free) */}
                     {!isPlus && (
                         <div style={{
                             background: 'white',
@@ -148,7 +146,7 @@ const Dashboard = () => {
                         style={{
                             background: isLimitReached
                                 ? '#E2E8F0'
-                                : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)', // Dark premium button
+                                : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
                             color: isLimitReached ? '#94A3B8' : 'white',
                             padding: '0.85rem 1.75rem',
                             borderRadius: '1rem',
@@ -163,15 +161,15 @@ const Dashboard = () => {
                             fontSize: '0.95rem',
                         }}
                     >
-                        {isLimitReached ? <AlertCircle size={20} /> : <Wand2 size={20} fill="white" />}
-                        <span>{isLimitReached ? 'Límite' : 'Generar Nuevo'}</span>
+                        {isLimitReached ? <AlertCircle size={20} /> : <Wand2 size={20} />}
+                        <span>{isLimitReached ? 'Límite Alcanzado' : 'Generar Nuevo Día'}</span>
                     </button>
                 </div>
             </header>
 
             {/* --- MACROS & CALORIES GRID --- */}
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1.5rem' }}>
-                Tus Objetivos Diarios
+                Tus Objetivos Técnicos
             </h2>
             <div style={{
                 display: 'grid',
@@ -179,10 +177,10 @@ const Dashboard = () => {
                 gap: '1.5rem',
                 marginBottom: '2.5rem'
             }}>
-                <StatCard label="Calorías Diarias" value={planData.calories} unit="kcal" icon={Flame} color="#F59E0B" bgColor="#FFFBEB" />
-                <StatCard label="Proteína" value={planData.macros?.protein || "0g"} unit="" icon={Dumbbell} color="#3B82F6" bgColor="#EFF6FF" />
+                <StatCard label="Calorías Totales" value={planData.calories} unit="kcal" icon={Flame} color="#F59E0B" bgColor="#FFFBEB" />
+                <StatCard label="Proteína (Target)" value={planData.macros?.protein || "0g"} unit="" icon={Dumbbell} color="#3B82F6" bgColor="#EFF6FF" />
                 <StatCard label="Carbohidratos" value={planData.macros?.carbs || "0g"} unit="" icon={Wheat} color="#10B981" bgColor="#ECFDF5" />
-                <StatCard label="Grasas" value={planData.macros?.fats || "0g"} unit="" icon={Droplet} color="#EC4899" bgColor="#FDF2F8" />
+                <StatCard label="Grasas Saludables" value={planData.macros?.fats || "0g"} unit="" icon={Droplet} color="#EC4899" bgColor="#FDF2F8" />
             </div>
 
             {/* --- MAIN CONTENT COLUMNS --- */}
@@ -192,21 +190,20 @@ const Dashboard = () => {
                 <div style={{ flex: 2 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
                         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                            Menú de Hoy
+                            Menú Ejecutivo del Día
                         </h2>
                         <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                            {formData?.skipLunch ? '3 Comidas + 1 Libre' : '4 Comidas'}
+                            {formData?.skipLunch ? '3 Comidas Planificadas' : '4 Comidas Completas'}
                         </span>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                         {(() => {
-                            // Crear copia de los platos para no mutar el original
+                            // Copia segura de platos
                             let displayMeals = [...(planData.perfectDay || [])];
 
-                            // Si se saltó el almuerzo, lo inyectamos visualmente en la posición 1 (después del desayuno)
+                            // Inyectar almuerzo familiar visual si aplica
                             if (formData?.skipLunch) {
-                                // Aseguramos no duplicarlo si ya existe por alguna razón
                                 const hasLunch = displayMeals.some(m => m.meal.toLowerCase().includes('almuerzo'));
                                 if (!hasLunch) {
                                     displayMeals.splice(1, 0, {
@@ -224,7 +221,7 @@ const Dashboard = () => {
                                 if (isSkippedLunch) {
                                     return (
                                         <div key={index} style={{
-                                            background: 'rgba(239, 246, 255, 0.6)', // Light blue tint
+                                            background: 'rgba(239, 246, 255, 0.6)',
                                             padding: '1.5rem',
                                             borderRadius: '1rem',
                                             border: '1px dashed #3B82F6',
@@ -242,10 +239,10 @@ const Dashboard = () => {
                                             </div>
                                             <div>
                                                 <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-                                                    Almuerzo Familiar / Ya resuelto
+                                                    Almuerzo Familiar / Libre
                                                 </h3>
                                                 <p style={{ fontSize: '0.85rem', margin: 0, opacity: 0.8 }}>
-                                                    Has marcado esta comida como libre o familiar.
+                                                    Reserva calórica aplicada. Come con moderación lo que haya en casa.
                                                 </p>
                                             </div>
                                         </div>
@@ -254,55 +251,85 @@ const Dashboard = () => {
 
                                 return (
                                     <div key={index} style={{
-                                        background: 'rgba(255, 255, 255, 0.8)',
-                                        backdropFilter: 'blur(12px)',
-                                        padding: '1.5rem',
-                                        borderRadius: '1rem',
-                                        border: '1px solid rgba(255, 255, 255, 0.6)',
+                                        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.75) 100%)',
+                                        backdropFilter: 'blur(16px)',
+                                        padding: '1.75rem',
+                                        borderRadius: '2rem',
+                                        border: '1px solid white',
                                         display: 'grid',
                                         gridTemplateColumns: '1fr auto',
                                         gap: '1.5rem',
                                         alignItems: 'center',
-                                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-                                        transition: 'transform 0.2s, box-shadow 0.2s',
+                                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.01)',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                         position: 'relative'
                                     }}>
 
                                         {/* Meal Info */}
                                         <div>
                                             <div style={{
-                                                textTransform: 'uppercase', fontSize: '0.7rem', fontWeight: 700,
+                                                textTransform: 'uppercase', fontSize: '0.7rem', fontWeight: 800,
                                                 color: 'var(--primary)', letterSpacing: '0.05em', marginBottom: '0.25rem'
                                             }}>
                                                 {meal.meal}
                                             </div>
-                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+
+                                            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
                                                 {meal.name}
                                             </h3>
-                                            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                                                {meal.desc || "Plato balanceado seleccionado para tu objetivo."}
+
+                                            {/* NUEVO: TIEMPO DE PREPARACIÓN */}
+                                            {meal.prep_time && (
+                                                <div style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                                    fontSize: '0.75rem', color: '#64748B', background: '#F1F5F9',
+                                                    padding: '2px 8px', borderRadius: '4px', marginBottom: '0.75rem', fontWeight: 600,
+                                                    border: '1px solid #E2E8F0'
+                                                }}>
+                                                    <Clock size={12} /> {meal.prep_time}
+                                                </div>
+                                            )}
+
+                                            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
+                                                {meal.desc}
                                             </p>
                                         </div>
 
                                         {/* Right Side: Calories + Buttons */}
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem' }}>
 
-                                            {/* Calories */}
-                                            <div style={{ textAlign: 'right', minWidth: '60px' }}>
-                                                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                                            {/* Calories Badge */}
+                                            <div style={{ textAlign: 'right' }}>
+                                                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
                                                     {meal.cals}
                                                 </div>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>kcal</div>
+                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>kcal</div>
                                             </div>
 
                                             {/* BUTTONS GROUP */}
                                             <div style={{ display: 'flex', gap: '0.5rem' }}>
 
+                                                {/* VER RECETA (NUEVO) */}
+                                                <button
+                                                    onClick={() => navigate('/dashboard/recipes')}
+                                                    style={{
+                                                        background: '#F1F5F9',
+                                                        border: 'none',
+                                                        borderRadius: '50%',
+                                                        width: 40, height: 40,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s'
+                                                    }}
+                                                    title="Ver paso a paso"
+                                                >
+                                                    <BookOpen size={18} color="#64748B" />
+                                                </button>
+
                                                 {/* REGENERATE BUTTON */}
                                                 <button
                                                     onClick={() => {
-                                                        setRegeneratingId(index); // Activa spinner
-                                                        // Pequeño delay para UX
+                                                        setRegeneratingId(index);
                                                         setTimeout(() => {
                                                             const newName = regenerateSingleMeal(index, meal.meal, meal.name);
                                                             setRegeneratingId(null);
@@ -322,7 +349,7 @@ const Dashboard = () => {
                                                         cursor: regeneratingId === index ? 'wait' : 'pointer',
                                                         transition: 'all 0.2s'
                                                     }}
-                                                    title="Cambiar este plato por otro"
+                                                    title="Cambiar opción"
                                                 >
                                                     <RefreshCw
                                                         size={18}
@@ -336,18 +363,10 @@ const Dashboard = () => {
                                                     onClick={() => {
                                                         const currentlyLiked = !!likedMeals[meal.name];
                                                         toggleMealLike(meal.name, meal.meal);
-
                                                         if (!currentlyLiked) {
-                                                            toast.success('¡Anotado!', {
-                                                                description: `Aprenderemos que te gusta: ${meal.name}`,
-                                                                duration: 2000,
-                                                                icon: '❤️'
-                                                            });
+                                                            toast.success('¡Anotado!', { description: `Aprenderemos que te gusta: ${meal.name}`, icon: '❤️' });
                                                         } else {
-                                                            toast('Like removido', {
-                                                                description: 'No priorizaremos este plato.',
-                                                                duration: 1500
-                                                            });
+                                                            toast('Like removido');
                                                         }
                                                     }}
                                                     style={{
@@ -360,23 +379,17 @@ const Dashboard = () => {
                                                         transition: 'all 0.2s',
                                                         boxShadow: isLiked ? '0 2px 5px rgba(239, 68, 68, 0.2)' : 'none'
                                                     }}
-                                                    title={isLiked ? "Quitar me gusta" : "¡Me gusta! (La IA aprenderá de esto)"}
+                                                    title="Me gusta"
                                                 >
-                                                    <Heart
-                                                        size={20}
-                                                        color={isLiked ? '#EF4444' : '#94A3B8'}
-                                                        fill={isLiked ? '#EF4444' : 'none'}
-                                                    />
+                                                    <Heart size={18} color={isLiked ? '#EF4444' : '#94A3B8'} fill={isLiked ? '#EF4444' : 'none'} />
                                                 </button>
                                             </div>
-
                                         </div>
 
-                                        {/* Estilo para la animación de rotación */}
                                         <style>{`
-                                        .spin-fast { animation: spin 1s linear infinite; }
-                                        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-                                    `}</style>
+                                            .spin-fast { animation: spin 1s linear infinite; }
+                                            @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                                        `}</style>
                                     </div>
                                 );
                             })
@@ -389,50 +402,76 @@ const Dashboard = () => {
 
                     {/* Insights Card */}
                     <div style={{
-                        background: 'rgba(240, 253, 244, 0.8)',
+                        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.5) 100%)',
                         backdropFilter: 'blur(12px)',
-                        padding: '1.5rem',
-                        borderRadius: '1.5rem',
-                        border: '1px solid rgba(187, 247, 208, 0.6)',
+                        padding: '1.75rem',
+                        borderRadius: '2rem',
+                        border: '1px solid white',
                         marginBottom: '2rem',
-                        boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.1)'
+                        boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.02)'
                     }}>
                         <h3 style={{
-                            fontSize: '1.1rem', fontWeight: 800, color: '#14532D',
-                            marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem'
+                            fontSize: '1.2rem', fontWeight: 800, color: '#0F172A',
+                            marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem'
                         }}>
-                            <Lightbulb size={20} fill="#14532D" /> Estrategia Inteligente
+                            <div style={{ background: '#F0F9FF', padding: '0.4rem', borderRadius: '0.75rem', color: '#0284C7' }}>
+                                <Lightbulb size={22} strokeWidth={2.5} />
+                            </div>
+                            Estrategia Inteligente
                         </h3>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                             {planData.insights?.map((insight, i) => {
                                 let icon = <CheckCircle size={20} />;
-                                let title = "Análisis";
-                                let color = "#15803D";
+                                let title = "Nota:";
+                                let color = "#0F172A";
+                                let bgColor = "#F1F5F9";
 
-                                if (i === 0) { icon = <Brain size={20} />; title = "La Ciencia:"; }
-                                if (i === 1) { icon = <Wallet size={20} />; title = "Tu Bolsillo:"; }
-                                if (i === 2) { icon = <Flame size={20} />; title = "Tip Mealfit:"; }
+                                if (insight.toLowerCase().includes('diagnóstico') || i === 0) {
+                                    icon = <Brain size={20} />;
+                                    title = "Diagnóstico";
+                                    color = "#7C3AED"; // Violet
+                                    bgColor = "#F5F3FF";
+                                }
+                                if (insight.toLowerCase().includes('estrategia') || i === 1) {
+                                    icon = <Wallet size={20} />;
+                                    title = "Estrategia";
+                                    color = "#059669"; // Emerald
+                                    bgColor = "#ECFDF5";
+                                }
+                                if (insight.toLowerCase().includes('chef') || i === 2) {
+                                    icon = <Flame size={20} />;
+                                    title = "Tip del Chef";
+                                    color = "#EA580C"; // Orange
+                                    bgColor = "#NFF2F7";
+                                }
 
                                 const cleanText = insight.includes(':') ? insight.split(':')[1].trim() : insight;
 
                                 return (
                                     <div key={i} style={{
                                         display: 'flex', gap: '1rem',
-                                        background: 'rgba(255,255,255,0.6)',
-                                        padding: '1rem', borderRadius: '1rem'
+                                        paddingBottom: i < planData.insights.length - 1 ? '1.25rem' : '0',
+                                        borderBottom: i < planData.insights.length - 1 ? '1px solid #F1F5F9' : 'none'
                                     }}>
                                         <div style={{
-                                            color: color, background: '#DCFCE7',
-                                            padding: '0.5rem', borderRadius: '50%', height: 'fit-content'
+                                            color: color, background: bgColor,
+                                            minWidth: '42px', height: '42px',
+                                            borderRadius: '12px',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            flexShrink: 0
                                         }}>
                                             {icon}
                                         </div>
                                         <div>
-                                            <strong style={{ display: 'block', color: '#14532D', fontSize: '0.9rem', marginBottom: '0.2rem' }}>
+                                            <h4 style={{
+                                                margin: '0 0 0.35rem 0',
+                                                fontSize: '0.9rem', fontWeight: 700,
+                                                color: '#334155', textTransform: 'uppercase', letterSpacing: '0.05em'
+                                            }}>
                                                 {title}
-                                            </strong>
-                                            <p style={{ margin: 0, fontSize: '0.95rem', color: '#166534', lineHeight: 1.5 }}>
+                                            </h4>
+                                            <p style={{ margin: 0, fontSize: '0.95rem', color: '#64748B', lineHeight: 1.6 }}>
                                                 {cleanText}
                                             </p>
                                         </div>
@@ -442,57 +481,80 @@ const Dashboard = () => {
                         </div>
                     </div>
 
-                    {/* Shopping List Preview */}
+                    {/* Recipe Preview */}
                     <div style={{
-                        background: 'rgba(255, 255, 255, 0.8)',
+                        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.5) 100%)',
                         backdropFilter: 'blur(12px)',
-                        padding: '1.5rem',
-                        borderRadius: '1rem',
-                        border: '1px solid rgba(255, 255, 255, 0.6)',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                        padding: '1.75rem',
+                        borderRadius: '2rem',
+                        border: '1px solid white',
+                        boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.02)'
                     }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>Compras</h3>
-                            <ShoppingCart size={20} color="var(--primary)" />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h3 style={{
+                                fontSize: '1.2rem', fontWeight: 800, color: '#0F172A',
+                                display: 'flex', alignItems: 'center', gap: '0.75rem'
+                            }}>
+                                <div style={{ background: '#FFF7ED', padding: '0.4rem', borderRadius: '0.75rem', color: '#EA580C' }}>
+                                    <ChefHat size={22} strokeWidth={2.5} />
+                                </div>
+                                Recetas del Día
+                            </h3>
+                            <Link to="/dashboard/recipes" style={{ textDecoration: 'none' }}>
+                                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#EA580C', background: '#FFF7ED', padding: '0.25rem 0.75rem', borderRadius: '99px', cursor: 'pointer' }}>
+                                    Ver Todo
+                                </span>
+                            </Link>
                         </div>
 
-                        <div style={{
-                            background: 'var(--bg-page)',
-                            borderRadius: '0.75rem',
-                            padding: '1rem',
-                            marginBottom: '1.5rem'
-                        }}>
-                            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                {(Array.isArray(planData.shoppingList)
-                                    ? planData.shoppingList
-                                    : planData.shoppingList?.daily || []
-                                ).slice(0, 5).map((item, i) => (
-                                    <li key={i} style={{
-                                        padding: '0.5rem 0',
-                                        borderBottom: i < 4 ? '1px solid #E2E8F0' : 'none',
-                                        fontSize: '0.9rem',
-                                        color: 'var(--text-main)',
-                                        display: 'flex', alignItems: 'center', gap: '0.5rem'
-                                    }}>
-                                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--secondary)' }} />
-                                        {item}
-                                    </li>
-                                ))}
-                                {(!planData.shoppingList?.daily || planData.shoppingList.daily.length === 0) && (
-                                    <li style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                                        Lista disponible en detalle.
-                                    </li>
-                                )}
-                            </ul>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                            {planData?.perfectDay?.slice(0, 3).map((meal, i) => (
+                                <Link to="/dashboard/recipes" key={i} style={{ textDecoration: 'none' }}>
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', gap: '1rem',
+                                        padding: '0.75rem', borderRadius: '1rem',
+                                        background: 'white', border: '1px solid #F1F5F9',
+                                        transition: 'all 0.2s',
+                                        cursor: 'pointer'
+                                    }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+                                    >
+                                        <div style={{
+                                            width: 40, height: 40, borderRadius: '0.75rem',
+                                            background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            color: '#64748B', flexShrink: 0
+                                        }}>
+                                            <ChefHat size={20} />
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {meal.name}
+                                            </h4>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#64748B', marginTop: '0.2rem' }}>
+                                                <Flame size={14} /> {meal.cals} kcal
+                                            </div>
+                                        </div>
+                                        <div style={{ color: '#CBD5E1' }}>
+                                            <ArrowRight size={18} />
+                                        </div>
+                                    </div>
+                                </Link>
+                            ))}
                         </div>
 
-                        <Link to="/dashboard/shopping" style={{
+                        <Link to="/dashboard/recipes" style={{
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                            textDecoration: 'none', color: 'white', background: 'var(--text-main)',
-                            fontWeight: 600, padding: '0.75rem', borderRadius: '0.75rem',
-                            fontSize: '0.9rem', transition: 'opacity 0.2s'
-                        }}>
-                            Ver Lista Completa <ArrowRight size={16} />
+                            textDecoration: 'none', color: 'white',
+                            background: 'var(--text-main)',
+                            fontWeight: 600, padding: '1rem', borderRadius: '1rem',
+                            fontSize: '0.95rem', transition: 'all 0.2s',
+                            boxShadow: '0 4px 6px -1px rgba(15, 23, 42, 0.1)'
+                        }}
+                            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(15, 23, 42, 0.15)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(15, 23, 42, 0.1)'; }}
+                        >
+                            Ver Recetas Completas <ArrowRight size={18} />
                         </Link>
                     </div>
 
@@ -517,19 +579,13 @@ const StatCard = ({ label, value, unit, icon, color, bgColor }) => {
             alignItems: 'center',
             gap: '1.25rem',
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-            transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             cursor: 'default',
             position: 'relative',
             overflow: 'hidden'
         }}
-            onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)';
-            }}
-            onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)';
-            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
         >
             <div style={{
                 position: 'absolute', top: 0, right: 0, width: '6rem', height: '6rem',
@@ -546,7 +602,6 @@ const StatCard = ({ label, value, unit, icon, color, bgColor }) => {
                 position: 'relative',
                 boxShadow: `0 2px 8px ${color}33`
             }}>
-                {/* Agregamos fill para que el ícono se vea sólido (más "emoji" like) */}
                 <Icon size={26} strokeWidth={2} fill={color} fillOpacity={0.2} />
             </div>
 

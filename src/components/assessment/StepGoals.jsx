@@ -235,42 +235,72 @@ const StepGoals = () => {
                 </section>
 
                 {/* Navigation */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '2rem', borderTop: '1px solid var(--border)', marginTop: '2rem' }}>
                     <button
                         onClick={prevStep}
                         style={{
-                            padding: '0.875rem 2rem',
+                            padding: '1rem 2rem',
                             backgroundColor: 'white',
-                            color: 'var(--text-main)',
-                            border: '1px solid var(--border)',
-                            borderRadius: 'var(--radius-lg)',
+                            color: '#64748B',
+                            border: '1px solid #E2E8F0',
+                            borderRadius: '1rem',
                             fontWeight: 600,
-                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            fontSize: '0.95rem',
+                            display: 'flex', alignItems: 'center', gap: '0.75rem',
                             cursor: 'pointer',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.color = '#0F172A';
+                            e.currentTarget.style.borderColor = '#CBD5E1';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.color = '#64748B';
+                            e.currentTarget.style.borderColor = '#E2E8F0';
                         }}
                     >
-                        <ArrowLeft size={20} /> Anterior
+                        <ArrowLeft size={18} /> Anterior
                     </button>
 
                     <button
                         onClick={handleFinish}
                         disabled={!isFormValid || isSubmitting}
                         style={{
-                            padding: '0.875rem 2.5rem',
-                            backgroundColor: isFormValid ? 'var(--secondary)' : 'var(--bg-light)',
-                            color: isFormValid ? 'white' : 'var(--text-muted)',
+                            padding: '1rem 3rem',
+                            background: isFormValid
+                                ? 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)'
+                                : '#F1F5F9',
+                            color: isFormValid ? 'white' : '#94A3B8',
                             border: 'none',
-                            borderRadius: 'var(--radius-lg)',
-                            fontWeight: 600,
-                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            borderRadius: '1rem',
+                            fontWeight: 700,
+                            fontSize: '1rem',
+                            display: 'flex', alignItems: 'center', gap: '0.75rem',
                             cursor: (isFormValid && !isSubmitting) ? 'pointer' : 'not-allowed',
-                            boxShadow: isFormValid ? '0 4px 12px rgba(16, 185, 129, 0.3)' : 'none',
-                            opacity: (isFormValid && !isSubmitting) ? 1 : 0.7,
-                            transition: 'all 0.2s'
+                            boxShadow: isFormValid ? '0 10px 25px -5px rgba(37, 99, 235, 0.4)' : 'none',
+                            opacity: (isFormValid && !isSubmitting) ? 1 : 0.8,
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            pointerEvents: (isSubmitting) ? 'none' : 'auto',
+                            letterSpacing: '0.02em'
+                        }}
+                        onMouseEnter={(e) => {
+                            if (isFormValid && !isSubmitting) {
+                                e.currentTarget.style.transform = 'translateY(-3px) scale(1.02)';
+                                e.currentTarget.style.boxShadow = '0 20px 30px -10px rgba(37, 99, 235, 0.5)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (isFormValid && !isSubmitting) {
+                                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(37, 99, 235, 0.4)';
+                            }
                         }}
                     >
-                        <Zap size={20} /> {isSubmitting ? 'Generando...' : 'Generar Rutina'}
+                        <Zap size={20} fill={isFormValid ? "white" : "none"} />
+                        {isSubmitting ? 'Generando...' : 'Generar Rutina'}
                     </button>
                 </div>
 
