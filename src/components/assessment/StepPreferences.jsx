@@ -331,7 +331,7 @@ const StepPreferences = () => {
                 </section>
 
                 {/* Navigation Buttons */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '2rem', borderTop: '1px solid var(--border)', marginTop: '2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', paddingTop: '2rem', borderTop: '1px solid var(--border)', marginTop: '2rem' }}>
                     <button
                         onClick={prevStep}
                         style={{
