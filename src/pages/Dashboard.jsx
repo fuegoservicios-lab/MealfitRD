@@ -4,9 +4,9 @@ import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
-    RefreshCw, ShoppingCart, ChefHat, Heart,
+    RefreshCw, ChefHat, Heart,
     Brain, Wallet, AlertCircle, Dumbbell, Wheat,
-    Lightbulb, Wand2, Clock, BookOpen
+    Lightbulb, Wand2, Clock, BookOpen, Loader2
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
@@ -24,7 +24,8 @@ const Dashboard = () => {
         PLAN_LIMIT,
         remainingCredits,
         isPlus,
-        userProfile
+        userProfile,
+        loadingData // <--- NUEVO: Estado de carga desde DB
     } = useAssessment();
 
     const navigate = useNavigate();
@@ -32,7 +33,30 @@ const Dashboard = () => {
     // Estado local para saber qué tarjeta se está regenerando (loading spinner)
     const [regeneratingId, setRegeneratingId] = useState(null);
 
-    // 2. Protección de Ruta: Si no hay plan, mandar al inicio
+    // 2. ESTADO DE CARGA: Si estamos recuperando datos de la DB, mostramos loader
+    if (loadingData) {
+        return (
+            <div style={{ 
+                height: '100vh', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                flexDirection: 'column', 
+                gap: '1rem', 
+                color: '#64748B',
+                background: '#F8FAFC'
+            }}>
+                <Loader2 className="spin-fast" size={48} color="var(--primary)" />
+                <p style={{ fontWeight: 600 }}>Sincronizando tu plan...</p>
+                <style>{`
+                    .spin-fast { animation: spin 1s linear infinite; } 
+                    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                `}</style>
+            </div>
+        );
+    }
+
+    // 3. Protección de Ruta: Si terminó de cargar y NO hay plan, mandar al inicio
     if (!planData) {
         return <Navigate to="/" replace />;
     }
@@ -278,7 +302,7 @@ const Dashboard = () => {
                                                 {meal.name}
                                             </h3>
 
-                                            {/* NUEVO: TIEMPO DE PREPARACIÓN */}
+                                            {/* TIEMPO DE PREPARACIÓN */}
                                             {meal.prep_time && (
                                                 <div style={{
                                                     display: 'inline-flex', alignItems: 'center', gap: '4px',
@@ -309,7 +333,7 @@ const Dashboard = () => {
                                             {/* BUTTONS GROUP */}
                                             <div style={{ display: 'flex', gap: '0.5rem' }}>
 
-                                                {/* VER RECETA (NUEVO) */}
+                                                {/* VER RECETA */}
                                                 <button
                                                     onClick={() => navigate('/dashboard/recipes')}
                                                     style={{

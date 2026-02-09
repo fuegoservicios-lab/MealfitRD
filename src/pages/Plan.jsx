@@ -4,7 +4,7 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { CheckCircle, ArrowRight, Flame, Zap, Droplet, ChefHat, Loader2 } from 'lucide-react';
 import PropTypes from 'prop-types';
 
-import { generateAIPlan } from '../services/PlanGenerator';
+import { generateAIPlan, savePlanToHistory } from '../services/PlanGenerator';
 import { useAssessment } from '../context/AssessmentContext';
 
 const Plan = () => {
@@ -23,18 +23,26 @@ const Plan = () => {
         // Validación de seguridad: Si no hay datos, no hacemos nada (el return de abajo redirige)
         if (!formData.age || !formData.mainGoal) return;
 
-        // --- BLOQUEO DE DOBLE EJECUCIÓN ---
+        // --- BLOQUEO DE DOBLE EJECUCIÓN (INTENTO 1: Ref) ---
         if (hasCalledAPI.current) return;
         hasCalledAPI.current = true;
+
+        // --- BLOQUEO DE DOBLE EJECUCIÓN (INTENTO 2: Cleanup Flag) ---
+        // Esto protege contra el "StrictMode" en desarrollo que monta/desmonta/monta rápido
+        let ignore = false;
 
         window.scrollTo(0, 0);
 
         const processPlan = async () => {
             try {
+                if (ignore) return;
+
                 // FASE 1: UI de "Analizando"
                 setStatus('analyzing');
                 // Pequeña espera para que el usuario vea la animación de inicio
                 await new Promise(r => setTimeout(r, 1500));
+
+                if (ignore) return;
 
                 // FASE 2: Llamada a la IA
                 setStatus('generating');
@@ -49,8 +57,17 @@ const Plan = () => {
 
                 console.log("🧠 Enviando solicitud al cerebro IA para usuario:", userId);
 
-                // Enviamos al backend
+                // Enviamos al backend (Nota: generateAIPlan YA NO inserta en DB automáticamente)
                 const generatedPlan = await generateAIPlan(dataToSend);
+
+                // SI EL COMPONENTE SE DESMONTÓ, DETENEMOS AQUÍ (NO GUARDAMOS EN DB)
+                if (ignore) {
+                    console.log("🛑 Componente desmontado, cancelando guardado en DB.");
+                    return;
+                }
+
+                // Guardamos en Historial (DB) - SOLO UNA VEZ
+                await savePlanToHistory(generatedPlan);
 
                 // Guardamos el resultado en el contexto global
                 saveGeneratedPlan(generatedPlan);
@@ -67,11 +84,16 @@ const Plan = () => {
                 console.error("❌ Error generando el plan:", error);
                 // En caso de error, podríamos redirigir al dashboard con el plan offline (fallback)
                 // O mostrar un error. Por ahora asumimos que el fallback del servicio funciona.
-                setStatus('ready');
+                if (!ignore) setStatus('ready');
             }
         };
 
         processPlan();
+
+        // CLEANUP FUNCTION: Se ejecuta si el componente se desmonta
+        return () => {
+            ignore = true;
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

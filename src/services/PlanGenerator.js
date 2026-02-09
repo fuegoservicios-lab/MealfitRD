@@ -1,8 +1,8 @@
 // src/services/PlanGenerator.js
+import { supabase } from '../supabase';
 
-// --- BASE DE DATOS LOCAL INTELIGENTE (DOMINICAN MEALS) ---
-// Se usa como respaldo si la IA falla tras varios intentos y para el botón de "refrescar plato".
-
+// --- BASE DE DATOS LOCAL (RECETAS DOMINICANAS) ---
+// Se usa como respaldo si la IA falla o para el botón "refrescar plato".
 export const DOMINICAN_MEALS = {
     breakfast: [
         {
@@ -281,17 +281,14 @@ const generateFallbackPlan = (formData = {}) => {
 };
 
 // --- FUNCIÓN HELPER: RETRY LOGIC (Inteligencia de Reintentos) ---
-// Intenta hacer el fetch X veces si recibe errores de servidor o timeout
 async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
     try {
         const response = await fetch(url, options);
 
-        // Si el servidor da error 502, 503, 504 (Gateway Timeout), lanzamos error para forzar el reintento
         if (response.status >= 500) {
             throw new Error(`Server Error ${response.status}`);
         }
 
-        // Si no es un error de servidor pero tampoco es OK (ej: 404, 400), lo manejamos aquí
         if (!response.ok) {
             const txt = await response.text();
             throw new Error(`Error ${response.status}: ${txt}`);
@@ -301,78 +298,51 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
     } catch (err) {
         if (retries > 1) {
             console.warn(`⚠️ Intento fallido. Reintentando en ${backoff / 1000}s... (${retries - 1} intentos restantes)`);
-            // Esperar (Backoff)
             await new Promise(r => setTimeout(r, backoff));
-            // Llamada recursiva con menos intentos y más tiempo de espera
             return fetchWithRetry(url, options, retries - 1, backoff * 1.5);
         } else {
-            throw err; // Se acabaron los intentos, lanzamos el error final
+            throw err;
         }
     }
 }
 
-// ...existing imports
-import { supabase } from '../supabase';
-
-// ... existing code ...
-
 // --- FUNCIÓN PRINCIPAL (CONEXIÓN CON IA) ---
+let isGeneratingGlobal = false; // Candado global
+
 export const generateAIPlan = async (formData) => {
-    // CORRECCIÓN: Apuntamos directamente a tu webhook de n8n de producción
+    if (isGeneratingGlobal) {
+        console.warn("⚠️ Generación en curso. Ignorando solicitud duplicada.");
+        return null;
+    }
+
+    isGeneratingGlobal = true;
+
+    // URL del Webhook de n8n
     const API_URL = import.meta.env.VITE_API_URL || 'https://agente-de-citas-dental-space-n8n.ofcrls.easypanel.host/webhook/analyze';
 
     console.log("🚀 Iniciando generación con Reintentos Automáticos...");
-    console.log("📡 Conectando con:", API_URL);
-
-    // Timeout general de seguridad extendido (2.5 minutos) para permitir que ocurran los 3 reintentos
+    
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 150000);
+    const timeoutId = setTimeout(() => controller.abort(), 150000); // 2.5 min timeout
 
     try {
-        // Usamos nuestra función de reintento en lugar de fetch directo
         const response = await fetchWithRetry(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData),
             signal: controller.signal
-        }, 3); // 3 Intentos máximos
+        }, 3);
 
         clearTimeout(timeoutId);
 
         const data = await response.json();
+        console.log("✅ Respuesta IA recibida.");
 
-        console.log("✅ Respuesta IA recibida tras intentos.");
-
-        // n8n a veces devuelve un array [{...}], extraemos el primer objeto si es necesario
+        // n8n a veces devuelve un array, extraemos el primer objeto
         const finalPlan = (Array.isArray(data) && data.length > 0) ? data[0] : data;
-
-        // --- GUARDAR EN HISTORIAL ---
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                const { error: saveError } = await supabase.from('meal_plans').insert({
-                    user_id: session.user.id,
-                    plan_data: finalPlan,
-                    name: `Plan del ${new Date().toLocaleDateString('es-DO')}`,
-                    calories: finalPlan.calories || 0,
-                    macros: finalPlan.macros || {}
-                });
-
-                if (saveError) {
-                    console.error("❌ Error guardando historial:", saveError);
-                } else {
-                    console.log("💾 Plan guardado exitosamente en el historial.");
-                }
-            }
-        } catch (dbError) {
-            console.error("⚠️ Error interno intentando guardar historial:", dbError);
-        }
-        // ---------------------------
-
         return finalPlan;
 
     } catch (error) {
-        // Manejo final de errores
         if (error.name === 'AbortError') {
             console.error("⏳ Error Fatal: Timeout total excedido.");
         } else {
@@ -380,15 +350,81 @@ export const generateAIPlan = async (formData) => {
         }
 
         console.warn("⚠️ Activando Plan de Respaldo (Modo Offline)...");
-        // Retornamos el plan local para que el usuario siempre vea algo
         return generateFallbackPlan(formData);
+    } finally {
+        isGeneratingGlobal = false;
+    }
+};
+
+// --- FUNCIÓN PARA GUARDAR EN HISTORIAL (CORREGIDA - FASE 1) ---
+export const savePlanToHistory = async (finalPlan) => {
+    // 1. Validación de seguridad básica
+    if (!finalPlan || !finalPlan.perfectDay) {
+        console.warn("⚠️ Intento de guardar un plan vacío o inválido.");
+        return;
+    }
+
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        // Si no hay usuario logueado, no podemos guardar
+        if (!session?.user) {
+            console.log("ℹ️ Usuario invitado. El plan no se guardará en el historial permanente.");
+            return;
+        }
+
+        // 2. Comprobación de duplicados (Idempotencia)
+        // Evita guardar el mismo plan si se generó hace menos de 1 minuto
+        const { data: recentPlans } = await supabase
+            .from('meal_plans')
+            .select('created_at')
+            .eq('user_id', session.user.id)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (recentPlans && recentPlans.length > 0) {
+            const lastPlanTime = new Date(recentPlans[0].created_at).getTime();
+            const now = new Date().getTime();
+            const diffSeconds = (now - lastPlanTime) / 1000;
+
+            if (diffSeconds < 60) {
+                console.log(`✅ Plan duplicado detectado (hace ${Math.round(diffSeconds)}s). Guardado omitido.`);
+                return;
+            }
+        }
+
+        // 3. Preparación de datos (Sanitización)
+        // Extraemos explícitamente los valores para las columnas
+        const calories = parseInt(finalPlan.calories) || 0;
+        const macros = finalPlan.macros || {};
+        
+        // Formato de fecha para el nombre: "Plan del Lunes, 9 de Febrero"
+        const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const planName = `Plan del ${new Date().toLocaleDateString('es-DO', dateOptions)}`;
+
+        // 4. Inserción en Supabase con TODAS las columnas
+        const { error: saveError } = await supabase.from('meal_plans').insert({
+            user_id: session.user.id,
+            plan_data: finalPlan, // El JSON completo para renderizar
+            name: planName,       // Nombre legible
+            calories: calories,   // Entero para filtrar
+            macros: macros,       // JSONB para resumen
+            created_at: new Date().toISOString()
+        });
+
+        if (saveError) {
+            console.error("❌ Error guardando historial:", saveError.message);
+        } else {
+            console.log("💾 Plan guardado exitosamente en el historial con metadatos.");
+        }
+
+    } catch (dbError) {
+        console.error("⚠️ Error crítico al intentar guardar historial:", dbError);
     }
 };
 
 // --- LOGICA DE REEMPLAZO (DASHBOARD) ---
-// Se usa cuando el usuario hace clic en el botón de "refrescar" un plato específico
 export const getAlternativeMeal = (mealType, currentMealName, targetCalories, userDietType) => {
-    // 1. Identificar categoría
     let category = 'snack';
     const lowerType = mealType.toLowerCase();
 
@@ -396,7 +432,6 @@ export const getAlternativeMeal = (mealType, currentMealName, targetCalories, us
     else if (lowerType.includes('almuerzo')) category = 'lunch';
     else if (lowerType.includes('cena')) category = 'dinner';
 
-    // 2. Normalizar tipo de dieta
     let dietFilter = 'balanced';
     if (userDietType) {
         const type = userDietType.toLowerCase();
@@ -406,10 +441,8 @@ export const getAlternativeMeal = (mealType, currentMealName, targetCalories, us
         else if (type.includes('vegetariana')) dietFilter = 'vegetarian';
     }
 
-    // 3. Obtener opciones base
     const options = DOMINICAN_MEALS[category] || DOMINICAN_MEALS.breakfast;
 
-    // 4. Filtrar opciones compatibles
     let compatibleOptions = options.filter(meal => {
         if (dietFilter === 'balanced') return true;
         return meal.tags.includes(dietFilter);
@@ -420,14 +453,12 @@ export const getAlternativeMeal = (mealType, currentMealName, targetCalories, us
         if (compatibleOptions.length === 0) compatibleOptions = options;
     }
 
-    // 5. Filtrar para no repetir el actual
     const availableOptions = compatibleOptions.filter(m => m.name !== currentMealName);
 
     const selectedTemplate = availableOptions.length > 0
         ? availableOptions[Math.floor(Math.random() * availableOptions.length)]
         : options[0];
 
-    // 6. Retorno con RECETA INCLUIDA
     return {
         name: selectedTemplate.name,
         desc: selectedTemplate.desc,

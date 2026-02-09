@@ -84,7 +84,7 @@ const Pricing = () => {
                                 <span className={styles.amount}>0</span>
                             </div>
                             <p className={styles.description}>
-                                Acceso total a la plataforma (Límite de {PLAN_LIMIT} créditos mensuales).
+                                Acceso total a la plataforma (Límite de {PLAN_LIMIT} créditos totales).
                             </p>
 
                             <ul className={styles.features}>

@@ -17,6 +17,9 @@ export const AssessmentProvider = ({ children }) => {
     // Auth State (Supabase)
     const [session, setSession] = useState(null);
     const [loadingAuth, setLoadingAuth] = useState(true);
+    
+    // Estado para saber si estamos sincronizando datos de la DB
+    const [loadingData, setLoadingData] = useState(true);
 
     // Estado del Perfil Real (Base de Datos Supabase)
     const [userProfile, setUserProfile] = useState(null);
@@ -43,6 +46,48 @@ export const AssessmentProvider = ({ children }) => {
     const [planCount, setPlanCount] = useState(0);
     const PLAN_LIMIT = 30; // Límite del plan gratuito
 
+    // --- FUNCIÓN PARA RESTAURAR SESIÓN DESDE DB ---
+    // Esta función busca el último plan guardado si el usuario inicia sesión y no tiene plan en memoria
+    const restoreSessionData = async (userId) => {
+        if (!userId) {
+            setLoadingData(false);
+            return;
+        }
+
+        setLoadingData(true);
+        console.log("🔄 Sincronizando datos del usuario...");
+
+        try {
+            // 1. Buscar el último plan creado por este usuario en Supabase
+            const { data: plans, error } = await supabase
+                .from('meal_plans')
+                .select('plan_data') // Solo traemos el JSON
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (error) throw error;
+
+            if (plans && plans.length > 0) {
+                const latestPlan = plans[0].plan_data;
+                
+                // Si el plan en DB es diferente al actual o no hay plan actual, actualizamos
+                // Usamos JSON.stringify para comparar objetos simplemente
+                if (!planData || JSON.stringify(planData) !== JSON.stringify(latestPlan)) {
+                    console.log("📥 Plan restaurado desde la nube.");
+                    setPlanData(latestPlan);
+                    localStorage.setItem('mealfit_plan', JSON.stringify(latestPlan));
+                }
+            } else {
+                console.log("ℹ️ El usuario no tiene planes guardados en la nube.");
+            }
+        } catch (err) {
+            console.error("❌ Error restaurando sesión:", err);
+        } finally {
+            setLoadingData(false);
+        }
+    };
+
     // --- 1. FUNCIÓN PARA CONSULTAR LÍMITE (RPC Supabase) ---
     const checkPlanLimit = useCallback(async (specificUserId = null) => {
         try {
@@ -57,7 +102,6 @@ export const AssessmentProvider = ({ children }) => {
 
             if (error) throw error;
 
-            console.log("📊 Planes usados:", data);
             setPlanCount(data);
             return data;
         } catch (error) {
@@ -88,32 +132,41 @@ export const AssessmentProvider = ({ children }) => {
             }
         };
 
-        // Obtener sesión inicial
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            if (session) {
-                localStorage.setItem('mealfit_user_id', session.user.id);
-                fetchProfile(session.user.id);
-                checkPlanLimit(session.user.id);
+        const handleAuthChange = async (currentSession) => {
+            setSession(currentSession);
+            
+            if (currentSession?.user) {
+                const userId = currentSession.user.id;
+                localStorage.setItem('mealfit_user_id', userId);
+                
+                // Ejecutamos todo en paralelo para que sea rápido
+                await Promise.all([
+                    fetchProfile(userId),
+                    checkPlanLimit(userId),
+                    restoreSessionData(userId) // <--- Recuperamos plan
+                ]);
+            } else {
+                // Logout / No sesión
+                setUserProfile(null);
+                setPlanCount(0);
+                setPlanData(null); // Limpiamos el plan al salir
+                localStorage.removeItem('mealfit_user_id');
+                localStorage.removeItem('mealfit_plan'); 
+                setLoadingData(false);
             }
             setLoadingAuth(false);
+        };
+
+        // Obtener sesión inicial
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            handleAuthChange(session);
         });
 
         // Escuchar cambios en tiempo real (Login/Logout/Register)
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session);
-            if (session) {
-                localStorage.setItem('mealfit_user_id', session.user.id);
-                fetchProfile(session.user.id);
-                checkPlanLimit(session.user.id);
-            } else {
-                setUserProfile(null);
-                setPlanCount(0);
-                localStorage.removeItem('mealfit_user_id');
-            }
-            setLoadingAuth(false);
+            handleAuthChange(session);
         });
 
         return () => subscription.unsubscribe();
@@ -143,7 +196,7 @@ export const AssessmentProvider = ({ children }) => {
 
     // --- EFECTOS DE PERSISTENCIA LOCAL ---
     useEffect(() => {
-        localStorage.setItem('mealfit_form', JSON.stringify(formData));
+        if (formData) localStorage.setItem('mealfit_form', JSON.stringify(formData));
     }, [formData]);
 
     useEffect(() => {
@@ -151,7 +204,7 @@ export const AssessmentProvider = ({ children }) => {
     }, [planData]);
 
     useEffect(() => {
-        localStorage.setItem('mealfit_likes', JSON.stringify(likedMeals));
+        if (likedMeals) localStorage.setItem('mealfit_likes', JSON.stringify(likedMeals));
     }, [likedMeals]);
 
     // --- LÓGICA DE NEGOCIO Y WEBHOOKS ---
@@ -182,8 +235,6 @@ export const AssessmentProvider = ({ children }) => {
 
             const API_URL = import.meta.env.VITE_LIKE_WEBHOOK || 'https://agente-de-citas-dental-space-n8n.ofcrls.easypanel.host/webhook/like';
 
-            console.log(`🚀 Enviando Like a n8n...`);
-
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -198,9 +249,6 @@ export const AssessmentProvider = ({ children }) => {
                 const errorText = await response.text();
                 throw new Error(`n8n respondió: ${response.status} - ${errorText}`);
             }
-
-            const data = await response.json();
-            console.log("✅ Like guardado en DB:", data);
 
         } catch (error) {
             console.error("❌ ERROR AL ENVIAR LIKE:", error);
@@ -247,15 +295,10 @@ export const AssessmentProvider = ({ children }) => {
         }, 2000);
     };
 
-    // --- NUEVA FUNCIÓN: RESTAURAR PLAN HISTÓRICO ---
     const restorePlan = (pastPlanData) => {
         if (!pastPlanData) return;
-
-        // 1. Actualizar estado
         setPlanData(pastPlanData);
-        // 2. Persistir
         localStorage.setItem('mealfit_plan', JSON.stringify(pastPlanData));
-
         toast.success('Plan Restaurado', {
             description: 'Ahora verás este plan en tu Dashboard principal.'
         });
@@ -283,17 +326,14 @@ export const AssessmentProvider = ({ children }) => {
             mainGoal: '', motivation: '', struggles: [], skipLunch: false,
         });
         setCurrentStep(0);
+        setLoadingData(false);
     };
 
-    // --- NUEVA FUNCIÓN: ACTUALIZAR A PLUS (PAGO) ---
     const upgradeUserToPlus = async () => {
         try {
             const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
             if (!userId) throw new Error("No user ID");
-
             console.log("💳 Procesando actualización a Plus...");
-
-            // 1. Actualizar en Supabase
             const { error } = await supabase
                 .from('user_profiles')
                 .update({
@@ -301,39 +341,29 @@ export const AssessmentProvider = ({ children }) => {
                     updated_at: new Date()
                 })
                 .eq('id', userId);
-
             if (error) throw error;
-
-            // 2. Actualizar estado local
             setUserProfile(prev => ({ ...prev, plan_tier: 'plus' }));
-
-            // 3. Resetear límites visualmente
             await checkPlanLimit(userId);
-
             toast.success('¡Bienvenido a Mealfit Plus!', {
                 description: 'Has desbloqueado acceso ilimitado.',
                 duration: 5000,
                 icon: '🌟'
             });
-
             return true;
-
         } catch (error) {
             console.error("Error upgrading user:", error);
-            toast.error('Error al actualizar perfil', {
-                description: 'Si te cobraron, contáctanos inmediatamente.'
-            });
+            toast.error('Error al actualizar perfil');
             return false;
         }
     };
 
-    // --- LÓGICA DE SUSCRIPCIÓN ---
     const isPlus = userProfile?.plan_tier === 'plus' || userProfile?.plan_tier === 'admin';
 
     return (
         <AssessmentContext.Provider value={{
             session,
             loadingAuth,
+            loadingData,
             userProfile,
             updateUserProfile,
             currentStep,
@@ -352,8 +382,8 @@ export const AssessmentProvider = ({ children }) => {
             planCount,
             PLAN_LIMIT,
             checkPlanLimit,
-            isPlus, // Exportamos estado de suscripción
-            remainingCredits: isPlus ? 9999 : Math.max(0, PLAN_LIMIT - planCount), // Para Plus es "infinito"
+            isPlus, 
+            remainingCredits: isPlus ? 9999 : Math.max(0, PLAN_LIMIT - planCount), 
             upgradeUserToPlus,
             restorePlan
         }}>
@@ -364,6 +394,5 @@ export const AssessmentProvider = ({ children }) => {
 
 AssessmentProvider.propTypes = { children: PropTypes.node.isRequired };
 
-// Corrección para el error de React Refresh
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAssessment = () => useContext(AssessmentContext);

@@ -223,7 +223,7 @@ export const generateShoppingListFromPlan = (planData, days = 7) => {
         const qtyStr = formatQuantity(weeklyQuantity);
 
         // Invariantes (abreviaciones que no cambian en plural)
-        const invariants = ['g', 'gr', 'kg', 'ml', 'cm', 'm', 'l', 'lt'];
+        const invariants = ['g', 'gr', 'kg', 'ml', 'cm', 'm', 'l', 'lt', 'oz'];
 
         if (weeklyQuantity > 1 && unitDisplay && !invariants.includes(unitDisplay.toLowerCase())) {
             // Excepción específica para 'lb' -> 'lbs'
