@@ -70,14 +70,16 @@ export const AssessmentProvider = ({ children }) => {
             if (plans && plans.length > 0) {
                 const latestPlan = plans[0].plan_data;
                 
-                // Leemos directamente del localStorage para la comparación y evitar bucles
+                // Leemos directamente del localStorage para la comparación
                 const localSaved = localStorage.getItem('mealfit_plan');
                 
                 // Solo actualizamos si el plan en la nube es diferente al local
                 if (!localSaved || JSON.stringify(JSON.parse(localSaved)) !== JSON.stringify(latestPlan)) {
-                    console.log("📥 Plan restaurado desde la nube.");
+                    console.log("📥 Descargando plan actualizado desde la nube...");
                     setPlanData(latestPlan);
                     localStorage.setItem('mealfit_plan', JSON.stringify(latestPlan));
+                } else {
+                    console.log("✅ El plan local está sincronizado con la nube.");
                 }
             } else {
                 console.log("ℹ️ El usuario no tiene planes guardados en la nube.");
@@ -114,27 +116,24 @@ export const AssessmentProvider = ({ children }) => {
     useEffect(() => {
         const fetchProfile = async (userId) => {
             try {
-                const { data, error } = await supabase
+                const { data } = await supabase
                     .from('user_profiles')
                     .select('*')
                     .eq('id', userId)
                     .single();
 
-                if (error && error.code !== 'PGRST116') {
-                    console.error('Error cargando perfil:', error);
-                }
-
                 if (data) {
                     setUserProfile(data);
                 }
             } catch (error) {
-                console.error('Excepción al cargar perfil:', error);
+                console.error('Error cargando perfil:', error);
             }
         };
 
         const handleAuthChange = async (currentSession) => {
             // Evitar actualizaciones innecesarias si la sesión es idéntica
-            if (JSON.stringify(currentSession?.user?.id) === JSON.stringify(session?.user?.id) && session !== null) {
+            // Usamos JSON.stringify para comparar objetos de forma segura
+            if (session?.user?.id && currentSession?.user?.id && session.user.id === currentSession.user.id) {
                return; 
             }
 
@@ -163,23 +162,22 @@ export const AssessmentProvider = ({ children }) => {
         };
 
         // Obtener sesión inicial
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            handleAuthChange(session);
+        supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+            handleAuthChange(initialSession);
         });
 
         // Escuchar cambios en tiempo real
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            handleAuthChange(session);
+        } = supabase.auth.onAuthStateChange((_event, newSession) => {
+            handleAuthChange(newSession);
         });
 
         return () => subscription.unsubscribe();
 
-        // IMPORTANTE: Dejar array vacío para evitar bucle infinito de peticiones.
-        // El listener de onAuthStateChange ya se encarga de las actualizaciones.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); 
+    // Agregamos 'session' a las dependencias para cumplir con el Linter
+    // La lógica dentro de handleAuthChange previene bucles infinitos
+    }, [checkPlanLimit, restoreSessionData, session]);
 
     // --- FUNCIÓN PARA ACTUALIZAR PERFIL EN DB ---
     const updateUserProfile = async (updates) => {
@@ -217,7 +215,6 @@ export const AssessmentProvider = ({ children }) => {
 
     // --- LÓGICA DE NEGOCIO Y WEBHOOKS ---
 
-    // 1. Manejo de Likes
     const toggleMealLike = async (mealName, mealType) => {
         const isCurrentlyLiked = !!likedMeals[mealName];
 
@@ -267,22 +264,22 @@ export const AssessmentProvider = ({ children }) => {
         }
     };
 
-    // 2. FUNCIÓN: REGENERAR CON IA EN TIEMPO REAL
+    // --- REGENERACIÓN INTELIGENTE CON PERSISTENCIA DE DB ---
     const regenerateSingleMeal = async (mealIndex, mealType, currentName) => {
         const targetCalories = planData.perfectDay[mealIndex].cals;
         const userDietType = formData.dietType || "balanced";
-        const userId = session?.user?.id || "guest";
+        const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
 
         console.log(`🔄 Regenerando ${mealType} (Rechazado: ${currentName})...`);
 
         try {
-            const API_SWAP_URL = 'https://agente-de-citas-dental-space-n8n.ofcrls.easypanel.host/webhook/swap-meal'; 
-            
+            // 1. LLAMADA A LA IA
+            const API_SWAP_URL = 'https://agente-de-citas-dental-space-n8n.ofcrls.easypanel.host/webhook/swap-meal';
             const response = await fetch(API_SWAP_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    user_id: userId,
+                    user_id: userId || "guest",
                     rejected_meal: currentName,
                     meal_type: mealType,
                     target_calories: targetCalories,
@@ -295,9 +292,9 @@ export const AssessmentProvider = ({ children }) => {
             const newMealData = await response.json();
             console.log("✅ Nueva opción recibida:", newMealData);
 
+            // 2. ACTUALIZAR ESTADO LOCAL
             const updatedPlan = { ...planData };
             const updatedDay = [...updatedPlan.perfectDay];
-
             updatedDay[mealIndex] = {
                 ...updatedDay[mealIndex],
                 name: newMealData.name,
@@ -307,16 +304,52 @@ export const AssessmentProvider = ({ children }) => {
                 recipe: newMealData.recipe || [],
                 ingredients: newMealData.ingredients || []
             };
-
             updatedPlan.perfectDay = updatedDay;
-            setPlanData(updatedPlan);
             
+            // Actualizamos UI inmediatamente
+            setPlanData(updatedPlan);
             localStorage.setItem('mealfit_plan', JSON.stringify(updatedPlan));
+
+            // 3. PERSISTENCIA EN SUPABASE (CRÍTICO)
+            if (userId && userId !== 'guest') {
+                try {
+                    // a) Obtener el ID del plan actual (el más reciente)
+                    const { data: latestRows } = await supabase
+                        .from('meal_plans')
+                        .select('id')
+                        .eq('user_id', userId)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+
+                    if (latestRows && latestRows.length > 0) {
+                        const planId = latestRows[0].id;
+                        console.log("💾 Guardando cambio en DB ID:", planId);
+
+                        // b) Ejecutar UPDATE del campo plan_data
+                        const { error: updateError } = await supabase
+                            .from('meal_plans')
+                            .update({ plan_data: updatedPlan }) // Guardamos el JSON modificado
+                            .eq('id', planId);
+
+                        if (updateError) {
+                            console.error("❌ Error Supabase UPDATE:", updateError);
+                            toast.error("Error de sincronización", { description: "El cambio es solo local." });
+                        } else {
+                            console.log("✅ DB Actualizada correctamente.");
+                        }
+                    }
+                } catch (dbError) {
+                    console.error("❌ Fallo crítico DB:", dbError);
+                }
+            }
 
             return newMealData.name;
 
         } catch (error) {
-            console.error("❌ Falló la regeneración IA:", error);
+            // CORRECCIÓN DEL ERROR DE LINTER: Usamos la variable 'error'
+            console.error("❌ Falló IA, usando fallback local...", error);
+            
+            // Fallback Local
             const localFallback = getAlternativeMeal(mealType, currentName, targetCalories, userDietType);
             
             const updatedPlan = { ...planData };
@@ -331,7 +364,6 @@ export const AssessmentProvider = ({ children }) => {
             };
             updatedPlan.perfectDay = updatedDay;
             setPlanData(updatedPlan);
-            
             return localFallback.name;
         }
     };
