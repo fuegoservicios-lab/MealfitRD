@@ -47,8 +47,7 @@ export const AssessmentProvider = ({ children }) => {
     const PLAN_LIMIT = 30; // Límite del plan gratuito
 
     // --- FUNCIÓN PARA RESTAURAR SESIÓN DESDE DB ---
-    // Esta función busca el último plan guardado si el usuario inicia sesión y no tiene plan en memoria
-    const restoreSessionData = async (userId) => {
+    const restoreSessionData = useCallback(async (userId) => {
         if (!userId) {
             setLoadingData(false);
             return;
@@ -61,7 +60,7 @@ export const AssessmentProvider = ({ children }) => {
             // 1. Buscar el último plan creado por este usuario en Supabase
             const { data: plans, error } = await supabase
                 .from('meal_plans')
-                .select('plan_data') // Solo traemos el JSON
+                .select('plan_data')
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false })
                 .limit(1);
@@ -71,9 +70,11 @@ export const AssessmentProvider = ({ children }) => {
             if (plans && plans.length > 0) {
                 const latestPlan = plans[0].plan_data;
                 
-                // Si el plan en DB es diferente al actual o no hay plan actual, actualizamos
-                // Usamos JSON.stringify para comparar objetos simplemente
-                if (!planData || JSON.stringify(planData) !== JSON.stringify(latestPlan)) {
+                // Leemos directamente del localStorage para la comparación y evitar bucles
+                const localSaved = localStorage.getItem('mealfit_plan');
+                
+                // Solo actualizamos si el plan en la nube es diferente al local
+                if (!localSaved || JSON.stringify(JSON.parse(localSaved)) !== JSON.stringify(latestPlan)) {
                     console.log("📥 Plan restaurado desde la nube.");
                     setPlanData(latestPlan);
                     localStorage.setItem('mealfit_plan', JSON.stringify(latestPlan));
@@ -86,7 +87,7 @@ export const AssessmentProvider = ({ children }) => {
         } finally {
             setLoadingData(false);
         }
-    };
+    }, []);
 
     // --- 1. FUNCIÓN PARA CONSULTAR LÍMITE (RPC Supabase) ---
     const checkPlanLimit = useCallback(async (specificUserId = null) => {
@@ -95,7 +96,6 @@ export const AssessmentProvider = ({ children }) => {
 
             if (!userId) return;
 
-            // Llamada a la función RPC en Supabase
             const { data, error } = await supabase.rpc('get_monthly_plan_count', {
                 user_uuid: userId
             });
@@ -133,23 +133,28 @@ export const AssessmentProvider = ({ children }) => {
         };
 
         const handleAuthChange = async (currentSession) => {
+            // Evitar actualizaciones innecesarias si la sesión es idéntica
+            if (JSON.stringify(currentSession?.user?.id) === JSON.stringify(session?.user?.id) && session !== null) {
+               return; 
+            }
+
             setSession(currentSession);
             
             if (currentSession?.user) {
                 const userId = currentSession.user.id;
                 localStorage.setItem('mealfit_user_id', userId);
                 
-                // Ejecutamos todo en paralelo para que sea rápido
+                // Ejecutamos todo en paralelo
                 await Promise.all([
                     fetchProfile(userId),
                     checkPlanLimit(userId),
-                    restoreSessionData(userId) // <--- Recuperamos plan
+                    restoreSessionData(userId)
                 ]);
             } else {
                 // Logout / No sesión
                 setUserProfile(null);
                 setPlanCount(0);
-                setPlanData(null); // Limpiamos el plan al salir
+                setPlanData(null); 
                 localStorage.removeItem('mealfit_user_id');
                 localStorage.removeItem('mealfit_plan'); 
                 setLoadingData(false);
@@ -162,7 +167,7 @@ export const AssessmentProvider = ({ children }) => {
             handleAuthChange(session);
         });
 
-        // Escuchar cambios en tiempo real (Login/Logout/Register)
+        // Escuchar cambios en tiempo real
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -171,8 +176,10 @@ export const AssessmentProvider = ({ children }) => {
 
         return () => subscription.unsubscribe();
 
+        // IMPORTANTE: Dejar array vacío para evitar bucle infinito de peticiones.
+        // El listener de onAuthStateChange ya se encarga de las actualizaciones.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, []); 
 
     // --- FUNCIÓN PARA ACTUALIZAR PERFIL EN DB ---
     const updateUserProfile = async (updates) => {
@@ -207,8 +214,10 @@ export const AssessmentProvider = ({ children }) => {
         if (likedMeals) localStorage.setItem('mealfit_likes', JSON.stringify(likedMeals));
     }, [likedMeals]);
 
+
     // --- LÓGICA DE NEGOCIO Y WEBHOOKS ---
 
+    // 1. Manejo de Likes
     const toggleMealLike = async (mealName, mealType) => {
         const isCurrentlyLiked = !!likedMeals[mealName];
 
@@ -217,13 +226,12 @@ export const AssessmentProvider = ({ children }) => {
             [mealName]: !isCurrentlyLiked
         }));
 
-        if (isCurrentlyLiked) return;
+        if (isCurrentlyLiked) return; 
 
         try {
             const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
 
             if (!userId) {
-                console.error("❌ Error: Usuario no autenticado.");
                 toast.error("Inicia sesión para guardar tus favoritos");
                 setLikedMeals(prev => {
                     const newState = { ...prev };
@@ -246,13 +254,11 @@ export const AssessmentProvider = ({ children }) => {
             });
 
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`n8n respondió: ${response.status} - ${errorText}`);
+                throw new Error(`n8n respondió: ${response.status}`);
             }
 
         } catch (error) {
             console.error("❌ ERROR AL ENVIAR LIKE:", error);
-            toast.error("Error de conexión", { description: "No se pudo guardar tu preferencia." });
             setLikedMeals(prev => {
                 const newState = { ...prev };
                 delete newState[mealName];
@@ -261,26 +267,73 @@ export const AssessmentProvider = ({ children }) => {
         }
     };
 
-    const regenerateSingleMeal = (mealIndex, mealType, currentName) => {
+    // 2. FUNCIÓN: REGENERAR CON IA EN TIEMPO REAL
+    const regenerateSingleMeal = async (mealIndex, mealType, currentName) => {
         const targetCalories = planData.perfectDay[mealIndex].cals;
-        const userDietType = formData.dietType;
-        const newMealData = getAlternativeMeal(mealType, currentName, targetCalories, userDietType);
+        const userDietType = formData.dietType || "balanced";
+        const userId = session?.user?.id || "guest";
 
-        const updatedPlan = { ...planData };
-        const updatedDay = [...updatedPlan.perfectDay];
+        console.log(`🔄 Regenerando ${mealType} (Rechazado: ${currentName})...`);
 
-        updatedDay[mealIndex] = {
-            ...updatedDay[mealIndex],
-            name: newMealData.name,
-            desc: newMealData.desc,
-            cals: newMealData.cals,
-            recipe: newMealData.recipe || []
-        };
+        try {
+            const API_SWAP_URL = 'https://agente-de-citas-dental-space-n8n.ofcrls.easypanel.host/webhook/swap-meal'; 
+            
+            const response = await fetch(API_SWAP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: userId,
+                    rejected_meal: currentName,
+                    meal_type: mealType,
+                    target_calories: targetCalories,
+                    diet_type: userDietType
+                })
+            });
 
-        updatedPlan.perfectDay = updatedDay;
-        setPlanData(updatedPlan);
+            if (!response.ok) throw new Error("Error conectando con la IA");
 
-        return newMealData.name;
+            const newMealData = await response.json();
+            console.log("✅ Nueva opción recibida:", newMealData);
+
+            const updatedPlan = { ...planData };
+            const updatedDay = [...updatedPlan.perfectDay];
+
+            updatedDay[mealIndex] = {
+                ...updatedDay[mealIndex],
+                name: newMealData.name,
+                desc: newMealData.desc,
+                cals: newMealData.cals,
+                prep_time: newMealData.prep_time,
+                recipe: newMealData.recipe || [],
+                ingredients: newMealData.ingredients || []
+            };
+
+            updatedPlan.perfectDay = updatedDay;
+            setPlanData(updatedPlan);
+            
+            localStorage.setItem('mealfit_plan', JSON.stringify(updatedPlan));
+
+            return newMealData.name;
+
+        } catch (error) {
+            console.error("❌ Falló la regeneración IA:", error);
+            const localFallback = getAlternativeMeal(mealType, currentName, targetCalories, userDietType);
+            
+            const updatedPlan = { ...planData };
+            const updatedDay = [...updatedPlan.perfectDay];
+
+            updatedDay[mealIndex] = {
+                ...updatedDay[mealIndex],
+                name: localFallback.name,
+                desc: localFallback.desc,
+                cals: localFallback.cals,
+                recipe: localFallback.recipe
+            };
+            updatedPlan.perfectDay = updatedDay;
+            setPlanData(updatedPlan);
+            
+            return localFallback.name;
+        }
     };
 
     const updateData = (field, value) => {

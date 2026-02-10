@@ -172,78 +172,129 @@ export const generateShoppingListFromPlan = (planData, days = 7) => {
             return `x${Math.ceil(weeklyQuantity)} ${item.originalName}`;
         }
 
-        // LÓGICA DE CONVERSIÓN INTELIGENTE
+        // LÓGICA DE CONVERSIÓN INTELIGENTE (Smart Unit Optimization)
+        let finalQty = weeklyQuantity;
+        let finalUnit = unitDisplay;
+        let finalName = item.originalName;
 
-        // 0. Mapeo de Cucharadas a Envases (Smart Containers)
-        // Si tienes > 4 cucharadas de algo que viene en bote, mejor compra el bote.
-        const CONTAINER_MAPPINGS = {
-            'mantequilla de maní': 'Frasco',
-            'mantequilla de cacahuete': 'Frasco',
-            'salsa de soya': 'Botella',
-            'salsa de soja': 'Botella',
-            'aceite': 'Botella',
-            'vinagre': 'Botella',
-            'vainilla': 'Frasco',
-            'mermelada': 'Frasco',
-            'mayonesa': 'Frasco',
-            'ketchup': 'Botella',
-            'mostaza': 'Botella',
-            'miel': 'Botella'
-        };
+        const lowerName = finalName.toLowerCase();
+        const lowerUnit = finalUnit ? finalUnit.toLowerCase() : '';
 
-        if (['cda', 'cdas', 'cdta', 'cdtas'].includes(unitDisplay.toLowerCase())) {
-            const lowerName = item.originalName.toLowerCase();
-            // Buscar si alguna key del mapping está contenida en el nombre
-            const foundKey = Object.keys(CONTAINER_MAPPINGS).find(k => lowerName.includes(k));
-
-            if (foundKey) {
-                // Si hay una cantidad considerable (ej: 4 cucharadas en toda la semana), sugerimos comprar el envase
-                if (weeklyQuantity >= 4) {
-                    weeklyQuantity = 1;
-                    unitDisplay = CONTAINER_MAPPINGS[foundKey];
-                }
+        // 1. PAN (Slices -> Paquetes)
+        // Asumiendo un paquete estándar de pan integral tiene ~20-22 tapas.
+        if ((lowerUnit.includes('rebanada') || lowerUnit.includes('tapa')) && lowerName.includes('pan')) {
+            if (finalQty >= 10) {
+                finalQty = finalQty / 20; // Aproximación
+                finalUnit = 'Paquete';
+                if (finalQty < 1) finalQty = 1; // Mínimo 1 paquete si hay mucho pan
             }
         }
 
-        // 1. Gramos a Libras (Si es >= 1 libra aprox 454g)
-        if (['g', 'gr', 'gramo', 'gramos'].includes(unitDisplay.toLowerCase())) {
-            if (weeklyQuantity >= 454) {
-                weeklyQuantity = weeklyQuantity / 453.592;
-                unitDisplay = 'lb';
-            }
-        }
-        // 2. Mililitros a Litros (Si es >= 1000ml)
-        if (['ml', 'mililitro', 'mililitros'].includes(unitDisplay.toLowerCase())) {
-            if (weeklyQuantity >= 1000) {
-                weeklyQuantity = weeklyQuantity / 1000;
-                unitDisplay = 'L'; // Litros
-            }
-        }
+        // 2. HUEVOS (Unidades -> Cartones)
+        // Cartón pequeño 12, Grande 30.
+        else if (lowerName.includes('huevo') && !lowerName.includes('clara')) {
+            if (finalQty >= 10) {
+                // Si son más de 18, sugerimos cartón de 30. Si no, cartón de 12.
+                if (finalQty > 18) {
+                    finalQty = finalQty / 30;
+                    finalUnit = 'Cartón (30 unidades)';
 
-        const qtyStr = formatQuantity(weeklyQuantity);
-
-        // Invariantes (abreviaciones que no cambian en plural)
-        const invariants = ['g', 'gr', 'kg', 'ml', 'cm', 'm', 'l', 'lt', 'oz'];
-
-        if (weeklyQuantity > 1 && unitDisplay && !invariants.includes(unitDisplay.toLowerCase())) {
-            // Excepción específica para 'lb' -> 'lbs'
-            if (unitDisplay === 'lb') {
-                unitDisplay = 'lbs';
-            }
-            // Si ya termina en 's', no hacemos nada (ej: "latas")
-            else if (unitDisplay.endsWith('s')) {
-                // no-op
-            } else {
-                // Reglas generales
-                if (/[aeiou]$/.test(unitDisplay)) {
-                    unitDisplay += 's';
+                    // Ajuste para no decir "0.8 Cartón"
+                    if (finalQty < 0.8) {
+                        finalQty = 1;
+                        finalUnit = 'Cartón (15-18 unidades)';
+                    }
                 } else {
-                    unitDisplay += 'es';
+                    finalQty = 1; // Asumimos 1 cartón normal
+                    finalUnit = 'Cartón (12 unidades)';
                 }
             }
         }
 
-        return `${qtyStr} ${unitDisplay} ${item.originalName}`.trim();
+        // 3. LECHE (Tazas -> Litros/Cartones)
+        // 1 Taza ≈ 240-250ml. 4 Tazas ≈ 1 Litro.
+        else if ((lowerUnit.includes('taza') || lowerUnit.includes('vaso')) && lowerName.includes('leche')) {
+            if (finalQty >= 3) {
+                finalQty = finalQty / 4;
+                finalUnit = 'Litro (Brick/Cartón)';
+                if (finalQty < 1) finalQty = 1;
+            }
+        }
+
+        // 4. QUESO/JAMON (Lonjas -> Paquetes/Libras)
+        // ~16-20 lonjas por libra/paquete grande.
+        else if (lowerUnit.includes('lonja') && (lowerName.includes('queso') || lowerName.includes('jamón') || lowerName.includes('pavo'))) {
+            if (finalQty >= 10) {
+                finalQty = finalQty / 16;
+                finalUnit = 'Paquete/Libra';
+                if (finalQty < 1) finalQty = 1;
+            }
+        }
+
+        // 5. AVENA/PASTA/GRANOS (Gramos -> Libras/Paquetes)
+        else if (['g', 'gr', 'gramos'].includes(lowerUnit)) {
+            // Si pasa de 400g, es mejor hablar en Libras o Paquetes estándar de 454g (1lb)
+            if (finalQty >= 350) {
+                finalQty = finalQty / 454;
+                finalUnit = 'Libra/Paquete';
+                // Redondear un poco hacia arriba para asegurar
+                if (finalQty > 0.8 && finalQty < 1) finalQty = 1;
+            }
+        }
+
+        // 6. GUINEOS (Unidades -> Manos/Racimos)
+        else if (lowerName.includes('guineo') && finalQty >= 5) {
+            finalQty = finalQty / 6; // Una "mano" suele tener 5-7 guineos
+            finalUnit = 'Mano/Racimo';
+            if (finalQty < 1) finalQty = 1;
+        }
+
+        // 7. SALSAS (Tazas -> Frascos)
+        else if (lowerUnit.includes('taza') && (lowerName.includes('salsa') || lowerName.includes('pure'))) {
+            if (finalQty >= 1.5) {
+                finalQty = 1;
+                finalUnit = 'Frasco/Lata grande';
+            } else if (finalQty > 0.5) {
+                finalQty = 1;
+                finalUnit = 'Frasco/Lata pequeña';
+            }
+        }
+
+        // --- FIN LOGICA INTELIGENTE ---
+
+        // Reconversion estándar de gramos/litros para lo que no cayó arriba (ej: Carnes)
+        if (['g', 'gr', 'gramo', 'gramos'].includes(finalUnit.toLowerCase())) {
+            if (finalQty >= 454) {
+                finalQty = finalQty / 453.592;
+                finalUnit = 'lb';
+            }
+        }
+        if (['ml', 'mililitro', 'mililitros'].includes(finalUnit.toLowerCase())) {
+            if (finalQty >= 1000) {
+                finalQty = finalQty / 1000;
+                finalUnit = 'L';
+            }
+        }
+
+        const qtyStr = formatQuantity(finalQty);
+
+        // Pluralización simple para unidades finales
+        let displayUnit = finalUnit;
+        const invariants = ['g', 'gr', 'kg', 'ml', 'cm', 'm', 'l', 'lt', 'oz', 'lb', 'lbs'];
+
+        if (finalQty > 1 && displayUnit && !invariants.includes(displayUnit.toLowerCase())) {
+            if (displayUnit.toLowerCase() === 'paquete') displayUnit = 'Paquetes';
+            else if (displayUnit.toLowerCase() === 'cartón') displayUnit = 'Cartones';
+            else if (displayUnit.toLowerCase() === 'litro') displayUnit = 'Litros';
+            else if (displayUnit.toLowerCase() === 'frasco') displayUnit = 'Frascos';
+            else if (displayUnit.toLowerCase() === 'mano/racimo') displayUnit = 'Manos/Racimos';
+            else if (!displayUnit.endsWith('s')) {
+                if (/[aeiou]$/.test(displayUnit)) displayUnit += 's';
+                else displayUnit += 'es';
+            }
+        }
+
+        return `${qtyStr} ${displayUnit} ${finalName}`.trim();
     });
 
     return shoppingList.sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));

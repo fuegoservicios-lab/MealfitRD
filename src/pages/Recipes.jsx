@@ -7,6 +7,83 @@ import { toast } from 'sonner';
 import { useRef } from 'react';
 import html2pdf from 'html2pdf.js';
 
+const FormattedRecipeStep = ({ step, index }) => {
+    // 1. Identificar si es una sección especial (Mise en place, Fuego, Montaje)
+    const lowerStep = step.toLowerCase();
+    let sectionTitle = "";
+    let content = step;
+    let sectionColor = "var(--primary)"; // Default blue
+    let icon = null;
+
+    if (lowerStep.startsWith("mise en place:")) {
+        sectionTitle = "Mise en place";
+        content = step.substring("Mise en place:".length).trim();
+        sectionColor = "#0D9488"; // Teal
+        icon = <ChefHat size={20} />;
+    } else if (lowerStep.startsWith("el toque de fuego:") || lowerStep.startsWith("toque de fuego:")) {
+        sectionTitle = "El Toque de Fuego";
+        content = step.replace(/^(El )?Toque de Fuego:\s*/i, "").trim();
+        sectionColor = "#EA580C"; // Orange
+        icon = <Flame size={20} />;
+    } else if (lowerStep.startsWith("montaje:")) {
+        sectionTitle = "Montaje";
+        content = step.substring("Montaje:".length).trim();
+        sectionColor = "#7C3AED"; // Violet
+        icon = <Utensils size={20} />;
+    }
+
+    // 2. Función para parsear negritas **texto**
+    const parseBold = (text) => {
+        const parts = text.split(/(\*\*.*?\*\*)/g);
+        return parts.map((part, i) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+                return <strong key={i} style={{ color: '#0F172A', fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+            }
+            return part;
+        });
+    };
+
+    return (
+        <div style={{ display: 'flex', gap: '1rem', position: 'relative', zIndex: 1 }}>
+            {/* Step Number Badge or Section Icon */}
+            <div style={{
+                width: '36px', height: '36px',
+                background: sectionTitle ? sectionColor : 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
+                borderRadius: '50%',
+                color: 'white', fontWeight: 700, fontSize: '0.9rem',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+                boxShadow: sectionTitle ? `0 4px 6px -1px ${sectionColor}40` : '0 4px 6px -1px rgba(37, 99, 235, 0.3)',
+                border: '2px solid white'
+            }}>
+                {sectionTitle ? icon : index + 1}
+            </div>
+
+            {/* Step Text */}
+            <div style={{ paddingTop: '0.25rem', flex: 1 }}>
+                {sectionTitle && (
+                    <h4 style={{
+                        margin: '0 0 0.5rem 0',
+                        color: sectionColor,
+                        fontWeight: 800,
+                        fontSize: '1rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em'
+                    }}>
+                        {sectionTitle}
+                    </h4>
+                )}
+                <p style={{
+                    margin: 0, color: '#334155',
+                    fontSize: '1rem', lineHeight: 1.7
+                }}>
+                    {parseBold(content.replace(/^\d+[\.\)]\s*/, ''))}
+                </p>
+            </div>
+        </div>
+    );
+};
+
 const Recipes = () => {
     const { planData, formData } = useAssessment();
     const navigate = useNavigate();
@@ -280,31 +357,7 @@ const Recipes = () => {
 
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                                                 {meal.recipe.map((step, i) => (
-                                                    <div key={i} style={{ display: 'flex', gap: '1.5rem', position: 'relative', zIndex: 1 }}>
-                                                        {/* Step Number Badge */}
-                                                        <div style={{
-                                                            width: '36px', height: '36px',
-                                                            background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
-                                                            borderRadius: '50%',
-                                                            color: 'white', fontWeight: 700, fontSize: '0.9rem',
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                            flexShrink: 0,
-                                                            boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.3)',
-                                                            border: '2px solid white'
-                                                        }}>
-                                                            {i + 1}
-                                                        </div>
-
-                                                        {/* Step Text */}
-                                                        <div style={{ paddingTop: '0.25rem' }}>
-                                                            <p style={{
-                                                                margin: 0, color: '#334155',
-                                                                fontSize: '1rem', lineHeight: 1.7
-                                                            }}>
-                                                                {step.replace(/^\d+[\.\)]\s*/, '')}
-                                                            </p>
-                                                        </div>
-                                                    </div>
+                                                    <FormattedRecipeStep key={i} step={step} index={i} />
                                                 ))}
                                             </div>
 

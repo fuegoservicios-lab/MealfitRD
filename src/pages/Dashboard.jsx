@@ -17,7 +17,7 @@ const Dashboard = () => {
         planData,
         likedMeals,
         toggleMealLike,
-        regenerateSingleMeal,
+        regenerateSingleMeal, // Ahora esta función es ASYNC (llama a la IA)
         formData,
         // Valores para el sistema de créditos y suscripción
         planCount,
@@ -25,24 +25,24 @@ const Dashboard = () => {
         remainingCredits,
         isPlus,
         userProfile,
-        loadingData // <--- NUEVO: Estado de carga desde DB
+        loadingData
     } = useAssessment();
 
     const navigate = useNavigate();
 
-    // Estado local para saber qué tarjeta se está regenerando (loading spinner)
+    // Estado local para saber qué tarjeta se está regenerando (loading spinner específico)
     const [regeneratingId, setRegeneratingId] = useState(null);
 
     // 2. ESTADO DE CARGA: Si estamos recuperando datos de la DB, mostramos loader
     if (loadingData) {
         return (
-            <div style={{ 
-                height: '100vh', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                flexDirection: 'column', 
-                gap: '1rem', 
+            <div style={{
+                height: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'column',
+                gap: '1rem',
                 color: '#64748B',
                 background: '#F8FAFC'
             }}>
@@ -163,7 +163,7 @@ const Dashboard = () => {
                         </div>
                     )}
 
-                    {/* BOTÓN GENERAR */}
+                    {/* BOTÓN GENERAR NUEVO PLAN */}
                     <button
                         onClick={handleNewPlan}
                         disabled={isLimitReached}
@@ -350,18 +350,41 @@ const Dashboard = () => {
                                                     <BookOpen size={18} color="#64748B" />
                                                 </button>
 
-                                                {/* REGENERATE BUTTON */}
+                                                {/* REGENERATE BUTTON (AI SWAP) */}
                                                 <button
-                                                    onClick={() => {
+                                                    onClick={async () => {
+                                                        // 1. Evitar doble clic
+                                                        if (regeneratingId === index) return;
+
+                                                        // 2. Estado Visual de Carga
                                                         setRegeneratingId(index);
-                                                        setTimeout(() => {
-                                                            const newName = regenerateSingleMeal(index, meal.meal, meal.name);
-                                                            setRegeneratingId(null);
-                                                            toast.success('Menú actualizado', {
-                                                                description: `Cambiado a: ${newName}`,
-                                                                icon: '🔄'
+                                                        
+                                                        // 3. Notificación Inicial (Toast de Carga)
+                                                        const toastId = toast.loading('Consultando al Chef IA...', {
+                                                            description: 'Buscando una alternativa deliciosa...',
+                                                        });
+
+                                                        try {
+                                                            // 4. Llamada ASYNC a n8n
+                                                            const newName = await regenerateSingleMeal(index, meal.meal, meal.name);
+                                                            
+                                                            // 5. Éxito
+                                                            toast.dismiss(toastId);
+                                                            toast.success('¡Menú Actualizado!', {
+                                                                description: `Cambiado por: ${newName}`,
+                                                                icon: '👨‍🍳'
                                                             });
-                                                        }, 500);
+                                                        } catch (error) {
+                                                            console.error("Error al regenerar:", error);
+                                                            // 6. Error (probablemente usa el fallback)
+                                                            toast.dismiss(toastId);
+                                                            toast.error('No se pudo conectar con la IA', {
+                                                                description: 'Se usó una receta alternativa local.'
+                                                            });
+                                                        } finally {
+                                                            // 7. Liberar botón
+                                                            setRegeneratingId(null);
+                                                        }
                                                     }}
                                                     disabled={regeneratingId === index}
                                                     style={{
@@ -373,7 +396,7 @@ const Dashboard = () => {
                                                         cursor: regeneratingId === index ? 'wait' : 'pointer',
                                                         transition: 'all 0.2s'
                                                     }}
-                                                    title="Cambiar opción"
+                                                    title="No me gusta (Cambiar con IA)"
                                                 >
                                                     <RefreshCw
                                                         size={18}
