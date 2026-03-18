@@ -231,13 +231,9 @@ const Plan = () => {
                 saveGeneratedPlan(generatedPlan);
                 setPlanData(generatedPlan);
 
-                // FASE 3: Éxito y Redirección
-                // Damos un segundo para que la barra llegue al 100% visualmente
-                setStatus('ready');
-                setTimeout(() => {
-                    setCurrentStep(0);
-                    navigate('/dashboard');
-                }, 1000);
+                // FASE 3: Éxito y Redirección directa al Dashboard
+                setCurrentStep(0);
+                navigate('/dashboard', { replace: true });
 
             } catch (error) {
                 console.error("❌ Error generando el plan:", error);
@@ -263,43 +259,8 @@ const Plan = () => {
         return <Navigate to="/assessment" />;
     }
 
-    // Pantalla de Carga (Analizando o Generando)
-    if (status !== 'ready' || !planData) {
-        return <LoadingScreen status={status} />;
-    }
-
-    // Vista de Éxito (Transición rápida antes de redirigir)
-    return (
-        <div style={{
-            minHeight: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '2rem',
-            backgroundColor: '#f3f4f6',
-        }}>
-            <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                style={{ textAlign: 'center' }}
-            >
-                <div style={{
-                    width: 90, height: 90,
-                    background: '#DCFCE7', color: '#166534',
-                    borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    margin: '0 auto 2rem',
-                    boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.2)'
-                }}>
-                    <CheckCircle size={48} strokeWidth={2.5} />
-                </div>
-                <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#111827' }}>
-                    ¡Plan Listo!
-                </h1>
-                <p style={{ color: '#4B5563', marginTop: '1rem' }}>Entrando a tu panel...</p>
-            </motion.div>
-        </div>
-    );
+    // Pantalla de Carga (única vista del componente mientras se genera)
+    return <LoadingScreen status={status} />;
 };
 
 // --- PANTALLA DE CARGA PREMIUM ---
@@ -326,13 +287,30 @@ const LoadingScreen = ({ status }) => {
     ];
 
     useEffect(() => {
+        // Reducimos el intervalo de 700ms a 500ms para una animación más constante
         const timer = setInterval(() => {
             setProgress((old) => {
-                if (old >= 95) return 95;
-                const diff = Math.random() * 6 + 1.5;
-                return Math.min(old + diff, 95);
+                // El límite máximo es 99% para que la barra nunca parezca completada si no lo está
+                if (old >= 99) return 99;
+                
+                let diff;
+                if (old < 40) {
+                    diff = Math.random() * 10 + 5;
+                } else if (old < 70) {
+                    diff = Math.random() * 8 + 4;
+                } else if (old < 85) {
+                    diff = Math.random() * 5 + 3;
+                } else if (old < 95) {
+                    diff = Math.random() * 3 + 1;
+                } else {
+                    // Del 95% al 99%: avanzamos a saltos de ~0.5% a 1.5%
+                    // De esta manera en 1-2 ticks cambiará visiblemente a 96%, 97%, etc.
+                    diff = Math.random() * 1 + 0.5;
+                }
+                
+                return Math.min(old + diff, 99);
             });
-        }, 700);
+        }, 500);
         return () => clearInterval(timer);
     }, [status]);
 
