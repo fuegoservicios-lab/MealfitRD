@@ -1,18 +1,20 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ShoppingBag, Utensils, Settings, LogOut, User, Menu, X, Clock } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Utensils, Settings, LogOut, User, Menu, X, Clock, Bot } from 'lucide-react';
 import { useAssessment } from '../../context/AssessmentContext';
+import LogoutConfirmModal from './LogoutConfirmModal';
 import styles from './DashboardLayout.module.css';
 
-const DashboardLayout = ({ children }) => {
+const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { resetApp, planData, userProfile } = useAssessment();
+    const { resetApp, planData, userProfile, session } = useAssessment();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-    const handleLogout = () => {
-        resetApp();
+    const handleLogoutConfirm = async () => {
+        await resetApp();
         navigate('/');
     };
 
@@ -21,6 +23,7 @@ const DashboardLayout = ({ children }) => {
 
     const menuItems = [
         { icon: LayoutDashboard, label: 'Mi Plan', path: '/dashboard' },
+        { icon: Bot, label: 'Mi Agente', path: '/dashboard/agent' },
         { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' }, // Placeholder
         { icon: ShoppingBag, label: 'Lista de Compras', path: '/dashboard/shopping' },
         { icon: Clock, label: 'Historial', path: '/history' },
@@ -73,33 +76,10 @@ const DashboardLayout = ({ children }) => {
 
 
                     <button
-                        onClick={handleLogout}
+                        onClick={() => setShowLogoutModal(true)}
                         className={styles.logoutBtn}
-                        style={{
-                            width: '100%',
-                            padding: '0.75rem',
-                            borderRadius: '0.75rem',
-                            border: '1px solid transparent',
-                            background: 'transparent',
-                            color: '#64748B',
-                            fontWeight: 600,
-                            fontSize: '0.85rem',
-                            cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                            transition: 'all 0.2s ease',
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#FEF2F2';
-                            e.currentTarget.style.color = '#EF4444';
-                            e.currentTarget.style.borderColor = '#FECACA';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = '#64748B';
-                            e.currentTarget.style.borderColor = 'transparent';
-                        }}
                     >
-                        <LogOut size={16} strokeWidth={2.5} />
+                        <LogOut size={18} strokeWidth={2.5} className={styles.logoutIcon} />
                         <span>Cerrar Sesión</span>
                     </button>
                 </div>
@@ -110,7 +90,7 @@ const DashboardLayout = ({ children }) => {
 
                 {/* Mobile Header */}
                 <header className={styles.mobileHeader}>
-                    <Link to="/" style={{ textDecoration: 'none', fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-main)', fontFamily: 'var(--font-heading)' }}>
+                    <Link to="/" className={styles.mobileLogo}>
                         Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
                     </Link>
                     <button onClick={toggleMenu} className={styles.menuBtn}>
@@ -118,16 +98,24 @@ const DashboardLayout = ({ children }) => {
                     </button>
                 </header>
 
-                <main className={styles.mainContent}>
+                <main className={`${styles.mainContent} ${noPaddingMobile ? styles.noPaddingMobile : ''}`}>
                     {children}
                 </main>
             </div>
+
+            <LogoutConfirmModal
+                isOpen={showLogoutModal}
+                onConfirm={handleLogoutConfirm}
+                onCancel={() => setShowLogoutModal(false)}
+                userEmail={session?.user?.email}
+            />
         </div>
     );
 };
 
 DashboardLayout.propTypes = {
     children: PropTypes.node.isRequired,
+    noPaddingMobile: PropTypes.bool
 };
 
 export default DashboardLayout;

@@ -1,13 +1,14 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useAssessment } from '../context/AssessmentContext';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
-    ShoppingCart, ArrowLeft, Download, Check,
-    Leaf, Drumstick, Wheat, Milk, Archive, Circle, CheckCircle
+    ShoppingCart, ArrowLeft, Download, Check, ChevronDown, Minus,
+    Leaf, Drumstick, Wheat, Milk, Archive, Circle, CheckCircle, Sparkles, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import html2pdf from 'html2pdf.js';
+import { fetchWithAuth } from '../config/api';
 
 // IMPORTAMOS EL GENERADOR
 import { generateShoppingListFromPlan } from '../services/shoppingGenerator';
@@ -77,13 +78,74 @@ const ShoppingList = () => {
     const contentRef = useRef(null);
 
     // Estado para los items marcados (usando el nombre del item como key para persistencia simple)
-    const [checkedItems, setCheckedItems] = useState({});
+    const [checkedItems, setCheckedItems] = useState(() => {
+        const saved = localStorage.getItem('mealfit_shopping_checks');
+        return saved ? JSON.parse(saved) : {};
+    });
+
+    // Persist checked items to localStorage
+    useEffect(() => {
+        localStorage.setItem('mealfit_shopping_checks', JSON.stringify(checkedItems));
+    }, [checkedItems]);
+
+    // Estado para días a comprar
+    const [daysToShop, setDaysToShop] = useState(7);
+
+    // Estado para ocultar completados
+    const [hideCompleted, setHideCompleted] = useState(false);
+
+    // Estado para categorías colapsadas
+    const [collapsedCategories, setCollapsedCategories] = useState({});
+    const toggleCategory = (catId) => {
+        setCollapsedCategories(prev => ({
+            ...prev,
+            [catId]: !prev[catId]
+        }));
+    };
+
+    // Estado para items custom añadidos por la IA
+    const [customItems, setCustomItems] = useState([]);
+    const [loadingCustom, setLoadingCustom] = useState(false);
+
+    // Obtener userId para el fetch
+    const userId = typeof window !== 'undefined' ? localStorage.getItem('mealfit_user_id') : null;
+
+    // Fetch custom shopping items al montar
+    useEffect(() => {
+        if (!userId || userId === 'guest') return;
+        setLoadingCustom(true);
+        fetchWithAuth(`/api/shopping/custom/${userId}`)
+            .then(res => res.json())
+            .then(data => {
+                setCustomItems(data.items || []);
+            })
+            .catch(err => console.error('Error fetching custom items:', err))
+            .finally(() => setLoadingCustom(false));
+    }, [userId]);
+
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const handleDeleteCustomItem = async (itemId) => {
+        try {
+            await fetchWithAuth(`/api/shopping/custom/${itemId}`, { method: 'DELETE' });
+            setCustomItems(prev => prev.filter(i => i.id !== itemId));
+            toast.success('Item eliminado de la lista');
+        } catch (err) {
+            console.error('Error deleting custom item:', err);
+            toast.error('Error al eliminar el item');
+        }
+    };
 
     // Generamos la lista plana y luego la categorizamos
     const categorizedList = useMemo(() => {
         if (!planData) return {};
 
-        const flatList = generateShoppingListFromPlan(planData);
+        const flatList = generateShoppingListFromPlan(planData, daysToShop);
         const grouped = {
             produce: [],
             protein: [],
@@ -100,12 +162,14 @@ const ShoppingList = () => {
         // Eliminar categorías vacías para el render
         return Object.fromEntries(Object.entries(grouped).filter(([_, items]) => items.length > 0));
 
-    }, [planData]);
+    }, [planData, daysToShop]);
 
-    // Calcular progreso
-    const totalItems = Object.values(categorizedList).flat().length;
-    const completedItems = Object.keys(checkedItems).filter(k => checkedItems[k]).length;
-    const progress = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+    // Calcular progreso (filtered by hideCompleted)
+    const allItems = Object.values(categorizedList).flat();
+    const filteredItems = hideCompleted ? allItems.filter(item => !checkedItems[item]) : allItems;
+    const totalItems = filteredItems.length;
+    const completedItems = allItems.filter(k => checkedItems[k]).length;
+    const progress = totalItems > 0 ? (completedItems / allItems.length) * 100 : 0;
 
     // Protección de Ruta
     if (!planData) {
@@ -118,6 +182,20 @@ const ShoppingList = () => {
             ...prev,
             [item]: !prev[item]
         }));
+    };
+
+    // Marcar / desmarcar todos los items de una categoría
+    const toggleAllInCategory = (items, e) => {
+        e.stopPropagation(); // No colapsar al hacer clic
+        const visibleItems = items.filter(item => !hideCompleted || !checkedItems[item]);
+        const allChecked = visibleItems.every(item => checkedItems[item]);
+        setCheckedItems(prev => {
+            const updated = { ...prev };
+            visibleItems.forEach(item => {
+                updated[item] = !allChecked;
+            });
+            return updated;
+        });
     };
 
     const handleDownloadPDF = async () => {
@@ -135,6 +213,15 @@ const ShoppingList = () => {
         const toastId = toast.loading('Generando PDF...');
 
         try {
+            // Add a global style to force .no-print elements to display: none
+            const printStyle = document.createElement('style');
+            printStyle.id = 'temp-pdf-style';
+            printStyle.innerHTML = '.no-print { display: none !important; }';
+            document.head.appendChild(printStyle);
+
+            // Brief delay so styles apply before html2canvas runs
+            await new Promise(r => setTimeout(r, 50));
+
             await html2pdf().set(opt).from(element).toPdf().get('pdf').then((pdf) => {
                 const totalPages = pdf.internal.getNumberOfPages();
                 const pageWidth = pdf.internal.pageSize.getWidth();
@@ -145,7 +232,6 @@ const ShoppingList = () => {
                     pdf.setFontSize(11);
                     pdf.setFont('helvetica', 'bold');
 
-                    // Watermark: MealfitRD
                     const textMealfit = 'Mealfit';
                     const textR = 'R';
                     const textD = 'D';
@@ -155,28 +241,32 @@ const ShoppingList = () => {
                     const widthD = pdf.getTextWidth(textD);
 
                     const totalWidth = widthMealfit + widthR + widthD;
-                    const endX = pageWidth - 10; // Alineado al margen derecho (10mm)
+                    const endX = pageWidth - 10;
                     const startX = endX - totalWidth;
-                    const postY = pageHeight - 12; // En el pie de página, dentro del margen de 25mm
+                    const postY = pageHeight - 12;
 
-                    // Mealfit -> #0F172A
                     pdf.setTextColor(15, 23, 42);
                     pdf.text(textMealfit, startX, postY);
 
-                    // R -> #4F46E5
                     pdf.setTextColor(79, 70, 229);
                     pdf.text(textR, startX + widthMealfit, postY);
 
-                    // D -> #F43F5E
                     pdf.setTextColor(244, 63, 94);
                     pdf.text(textD, startX + widthMealfit + widthR, postY);
                 }
             }).save();
 
+            // Restore elements
+            const tempStyle = document.getElementById('temp-pdf-style');
+            if (tempStyle) tempStyle.remove();
+
             toast.dismiss(toastId);
             toast.success('PDF descargado correctamente');
         } catch (error) {
             console.error(error);
+            // Restore everything on error
+            const tempStyle = document.getElementById('temp-pdf-style');
+            if (tempStyle) tempStyle.remove();
             toast.dismiss(toastId);
             toast.error('Error al generar PDF');
         }
@@ -186,41 +276,6 @@ const ShoppingList = () => {
         <DashboardLayout>
             <div style={{ maxWidth: '800px', margin: '0 auto' }}>
 
-                {/* --- HEADER NAVIGATION --- */}
-                <div className="no-print" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <button
-                        onClick={() => navigate('/dashboard')}
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: '0.5rem',
-                            background: 'transparent', border: 'none',
-                            color: 'var(--text-muted)', fontWeight: 600,
-                            cursor: 'pointer', fontSize: '0.9rem',
-                            padding: '0.5rem', borderRadius: '0.5rem'
-                        }}
-                        className="hover-bg-gray"
-                    >
-                        <ArrowLeft size={18} /> Volver
-                    </button>
-
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button
-                            onClick={handleDownloadPDF}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                background: 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
-                                border: 'none',
-                                padding: '0.6rem 1.2rem', borderRadius: '0.75rem',
-                                color: 'white', cursor: 'pointer', fontWeight: 600,
-                                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-                                transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 10px -2px rgba(0,0,0,0.15)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)'; }}
-                        >
-                            <Download size={18} /> <span className="hide-mobile">Descargar PDF</span>
-                        </button>
-                    </div>
-                </div>
 
                 {/* --- HEADER TITLE & PROGRESS --- */}
                 <div ref={contentRef}>
@@ -235,63 +290,237 @@ const ShoppingList = () => {
                         </div>
 
                         <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>
-                            Lista de Compras Semanal
+                            Lista de Compras
                         </h1>
                         <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto 2rem' }}>
-                            Cantidades calculadas para tu plan de 7 días.
+                            Cantidades calculadas para tu plan personalizado.
                         </p>
 
                         {/* PROGRESS BAR */}
                         {totalItems > 0 && (
                             <div style={{ maxWidth: '400px', margin: '0 auto' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-muted)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.6rem', color: 'var(--text-main)' }}>
                                     <span>Progreso</span>
                                     <span>{completedItems}/{totalItems} items</span>
                                 </div>
-                                <div style={{ width: '100%', height: '8px', background: '#E2E8F0', borderRadius: '99px', overflow: 'hidden' }}>
+                                <div style={{ 
+                                    width: '100%', height: '10px', 
+                                    background: '#CBD5E1', 
+                                    borderRadius: '99px', overflow: 'hidden',
+                                    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)'
+                                }}>
                                     <div style={{
                                         width: `${progress}%`, height: '100%',
                                         background: 'var(--primary)', borderRadius: '99px',
-                                        transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+                                        transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        boxShadow: '0 2px 4px rgba(79, 70, 229, 0.3)'
                                     }} />
                                 </div>
                             </div>
                         )}
                     </div>
 
+                    {/* --- CONTROL PANEL --- */}
+                    {totalItems > 0 && (
+                        <div className="no-print" style={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            gap: '1.5rem',
+                            flexWrap: 'wrap',
+                            marginBottom: '2rem',
+                            padding: '1rem',
+                            background: '#F8FAFC',
+                            borderRadius: '1rem',
+                            border: '1px solid #E2E8F0'
+                        }}>
+                            {/* Days selector */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Días:</span>
+                                <div style={{ display: 'flex', gap: '0.25rem', background: '#E2E8F0', padding: '0.25rem', borderRadius: '0.5rem' }}>
+                                    {[1, 3, 7].map(days => (
+                                        <button
+                                            key={days}
+                                            onClick={() => {
+                                                setDaysToShop(days);
+                                                setCheckedItems({});
+                                            }}
+                                            style={{
+                                                padding: '0.4rem 0.75rem',
+                                                border: 'none',
+                                                borderRadius: '0.375rem',
+                                                background: daysToShop === days ? 'white' : 'transparent',
+                                                color: daysToShop === days ? 'var(--text-main)' : 'var(--text-muted)',
+                                                fontWeight: daysToShop === days ? 600 : 500,
+                                                fontSize: '0.8rem',
+                                                cursor: 'pointer',
+                                                boxShadow: daysToShop === days ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            {days}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Hide completed toggle */}
+                            <label style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                cursor: 'pointer',
+                                fontSize: '0.85rem',
+                                fontWeight: 500,
+                                color: hideCompleted ? 'var(--text-main)' : 'var(--text-muted)'
+                            }}>
+                                <input 
+                                    type="checkbox" 
+                                    checked={hideCompleted}
+                                    onChange={(e) => setHideCompleted(e.target.checked)}
+                                    style={{ display: 'none' }}
+                                />
+                                <div style={{
+                                    width: '36px',
+                                    height: '20px',
+                                    background: hideCompleted ? 'var(--primary)' : '#CBD5E1',
+                                    borderRadius: '99px',
+                                    position: 'relative',
+                                    transition: 'all 0.2s'
+                                }}>
+                                    <div style={{
+                                        width: '16px',
+                                        height: '16px',
+                                        background: 'white',
+                                        borderRadius: '50%',
+                                        position: 'absolute',
+                                        top: '2px',
+                                        left: hideCompleted ? '18px' : '2px',
+                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                    }} />
+                                </div>
+                                Ocultar completados
+                            </label>
+
+                            {/* Separator */}
+                            <div style={{ width: '1px', height: '24px', background: '#E2E8F0' }} />
+
+                            {/* Download PDF */}
+                            <button
+                                onClick={handleDownloadPDF}
+                                className="no-print"
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.4rem',
+                                    background: 'transparent',
+                                    border: '1px solid #E2E8F0',
+                                    padding: '0.4rem 0.85rem', borderRadius: '0.5rem',
+                                    color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 500,
+                                    fontSize: '0.85rem',
+                                    transition: 'all 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-main)'; e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.background = 'white'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = 'transparent'; }}
+                            >
+                                <Download size={15} /> <span className="hide-mobile">PDF</span>
+                            </button>
+                        </div>
+                    )}
+
                     {/* --- CONTENT LIST --- */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                         {Object.keys(categorizedList).length > 0 ? (
-                            Object.entries(categorizedList).map(([catId, items]) => {
+                            Object.entries(categorizedList)
+                                .map(([catId, items]) => [catId, items.filter(item => !hideCompleted || !checkedItems[item])])
+                                .filter(([_, items]) => items.length > 0)
+                                .map(([catId, items]) => {
                                 const category = CATEGORIES.find(c => c.id === catId);
                                 return (
                                     <section key={catId} className="shopping-section" style={{ breakInside: 'avoid' }}>
 
-                                        {/* SECTION HEADER */}
-                                        <div style={{
-                                            display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem',
-                                            paddingBottom: '0.5rem', borderBottom: '2px solid #F1F5F9'
-                                        }}>
+                                        {/* SECTION HEADER - Clickable for collapse */}
+                                        <div
+                                            onClick={() => toggleCategory(catId)}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                                marginBottom: collapsedCategories[catId] ? '0' : '1rem',
+                                                padding: '0.5rem 0.75rem',
+                                                borderRadius: '0.75rem',
+                                                cursor: 'pointer', userSelect: 'none',
+                                                transition: 'margin-bottom 0.3s ease, background-color 0.2s ease'
+                                            }}
+                                            className="shopping-section-header"
+                                        >
                                             <div style={{
                                                 background: category.bgColor, color: category.color,
                                                 padding: '0.4rem', borderRadius: '0.5rem'
                                             }}>
                                                 <category.icon size={20} />
                                             </div>
-                                            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                                            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', margin: 0, flex: 1 }}>
                                                 {category.label}
                                             </h2>
                                             <span style={{
                                                 background: '#F1F5F9', color: 'var(--text-muted)',
                                                 fontSize: '0.75rem', fontWeight: 600, padding: '0.1rem 0.5rem', borderRadius: '99px'
                                             }}>
-                                                {items.length}
+                                                {items.filter(item => !hideCompleted || !checkedItems[item]).length}
                                             </span>
+                                            {/* Mark all checkbox */}
+                                            {(() => {
+                                                const visibleItems = items.filter(item => !hideCompleted || !checkedItems[item]);
+                                                const checkedCount = items.filter(item => checkedItems[item]).length;
+                                                const allChecked = checkedCount === items.length && items.length > 0;
+                                                const someChecked = checkedCount > 0 && !allChecked;
+                                                return (
+                                                    <div
+                                                        onClick={(e) => toggleAllInCategory(items, e)}
+                                                        title={allChecked ? 'Desmarcar toda la categoría' : 'Marcar toda la categoría'}
+                                                        className="mark-all-btn"
+                                                        style={{
+                                                            minWidth: '24px', height: '24px',
+                                                            borderRadius: '6px',
+                                                            border: allChecked || someChecked ? 'none' : '2px solid #CBD5E1',
+                                                            background: allChecked ? 'var(--primary)' : someChecked ? 'var(--primary)' : 'transparent',
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            color: 'white', transition: 'all 0.2s',
+                                                            flexShrink: 0, cursor: 'pointer',
+                                                            opacity: allChecked || someChecked ? 1 : 0.6
+                                                        }}
+                                                    >
+                                                        {allChecked && <Check size={14} strokeWidth={3} />}
+                                                        {someChecked && <Minus size={14} strokeWidth={3} />}
+                                                    </div>
+                                                );
+                                            })()}
+                                            <ChevronDown
+                                                size={20}
+                                                style={{
+                                                    color: 'var(--text-muted)',
+                                                    transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                    transform: collapsedCategories[catId] ? 'rotate(-90deg)' : 'rotate(0deg)',
+                                                    flexShrink: 0
+                                                }}
+                                            />
                                         </div>
 
-                                        {/* ITEMS GRID */}
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.75rem' }}>
-                                            {items.map((item, idx) => {
+                                        {/* ITEMS GRID - Collapsible */}
+                                        <div
+                                            className={`shopping-collapse ${collapsedCategories[catId] ? 'collapsed' : ''}`}
+                                            style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                                                gap: '0.75rem',
+                                                overflow: 'hidden',
+                                                maxHeight: collapsedCategories[catId] ? '0' : '2000px',
+                                                opacity: collapsedCategories[catId] ? 0 : 1,
+                                                transition: 'max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease',
+                                                paddingTop: collapsedCategories[catId] ? '0' : '0.25rem'
+                                            }}
+                                        >
+                                            {items
+                                                .filter(item => !hideCompleted || !checkedItems[item])
+                                                .map((item, idx) => {
                                                 const isChecked = !!checkedItems[item];
                                                 return (
                                                     <div
@@ -349,6 +578,99 @@ const ShoppingList = () => {
                         )}
                     </div>
 
+                    {/* --- CUSTOM ITEMS (Added by AI) --- */}
+                    {customItems.length > 0 && (
+                        <div style={{ marginTop: '2rem' }}>
+                            <div
+                                onClick={() => toggleCategory('custom_ai')}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                    marginBottom: collapsedCategories['custom_ai'] ? '0' : '1rem',
+                                    padding: '0.5rem 0.75rem',
+                                    borderRadius: '0.75rem',
+                                    cursor: 'pointer', userSelect: 'none',
+                                    transition: 'margin-bottom 0.3s ease, background-color 0.2s ease'
+                                }}
+                                className="shopping-section-header"
+                            >
+                                <div style={{
+                                    background: 'linear-gradient(135deg, #EDE9FE, #DDD6FE)', color: '#7C3AED',
+                                    padding: '0.4rem', borderRadius: '0.5rem'
+                                }}>
+                                    <Sparkles size={20} />
+                                </div>
+                                <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', margin: 0, flex: 1 }}>
+                                    Añadidos por la IA
+                                </h2>
+                                <span style={{
+                                    background: '#EDE9FE', color: '#7C3AED',
+                                    fontSize: '0.75rem', fontWeight: 600, padding: '0.1rem 0.5rem', borderRadius: '99px'
+                                }}>
+                                    {customItems.length}
+                                </span>
+                                <ChevronDown
+                                    size={20}
+                                    style={{
+                                        color: 'var(--text-muted)',
+                                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        transform: collapsedCategories['custom_ai'] ? 'rotate(-90deg)' : 'rotate(0deg)',
+                                        flexShrink: 0
+                                    }}
+                                />
+                            </div>
+                            <div
+                                className={`shopping-collapse ${collapsedCategories['custom_ai'] ? 'collapsed' : ''}`}
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                                    gap: '0.75rem',
+                                    overflow: 'hidden',
+                                    maxHeight: collapsedCategories['custom_ai'] ? '0' : '2000px',
+                                    opacity: collapsedCategories['custom_ai'] ? 0 : 1,
+                                    transition: 'max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease',
+                                    paddingTop: collapsedCategories['custom_ai'] ? '0' : '0.25rem'
+                                }}
+                            >
+                                {customItems.map(item => (
+                                    <div
+                                        key={item.id}
+                                        style={{
+                                            background: 'white',
+                                            border: '1px solid #DDD6FE',
+                                            borderRadius: '0.75rem',
+                                            padding: '0.75rem 1rem',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                            gap: '0.75rem',
+                                            boxShadow: '0 1px 2px rgba(124, 58, 237, 0.05)'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                            <Sparkles size={16} style={{ color: '#7C3AED', flexShrink: 0 }} />
+                                            <span style={{ fontSize: '0.95rem', fontWeight: 500, color: 'var(--text-main)' }}>
+                                                {item.item_name}
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteCustomItem(item.id); }}
+                                            style={{
+                                                background: 'transparent', border: 'none',
+                                                color: '#CBD5E1', cursor: 'pointer',
+                                                padding: '0.25rem', borderRadius: '0.25rem',
+                                                display: 'flex', alignItems: 'center',
+                                                transition: 'color 0.2s'
+                                            }}
+                                            onMouseEnter={(e) => { e.currentTarget.style.color = '#EF4444'; }}
+                                            onMouseLeave={(e) => { e.currentTarget.style.color = '#CBD5E1'; }}
+                                            title="Eliminar de la lista"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                 </div>
                 {/* --- PRINT HEADER (Invisible) --- */}
                 <div className="print-only" style={{ display: 'none', marginBottom: '2rem', borderBottom: '2px solid #000', paddingBottom: '1rem' }}>
@@ -366,6 +688,17 @@ const ShoppingList = () => {
                     .hide-mobile { display: none; }
                 }
                 .hover-bg-gray:hover { background: #F1F5F9 !important; }
+
+                .shopping-section-header {
+                    border-bottom: 2px solid #F1F5F9;
+                }
+                .shopping-section-header:hover {
+                    background-color: rgba(241, 245, 249, 0.6);
+                }
+
+                .shopping-collapse.collapsed {
+                    pointer-events: none;
+                }
 
                 @media print {
                     @page { margin: 1cm; size: auto; }

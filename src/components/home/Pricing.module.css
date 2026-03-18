@@ -69,7 +69,6 @@
     border-radius: 24px;
     padding: 2.5rem;
     position: relative;
-    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
     box-shadow:
         0 4px 6px -1px rgba(0, 0, 0, 0.05),
         0 0 0 1px rgba(255, 255, 255, 0.6) inset;
@@ -79,10 +78,7 @@
 }
 
 .card:hover {
-    transform: translateY(-8px);
-    box-shadow:
-        0 20px 25px -5px rgba(0, 0, 0, 0.1),
-        0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    /* Mantenemos solo el cambio ligero de fondo sin modificar sombras ni posición */
     background: rgba(255, 255, 255, 0.9);
 }
 
@@ -94,12 +90,8 @@
         0 20px 40px -10px rgba(79, 70, 229, 0.15),
         0 0 0 1px rgba(79, 70, 229, 0.1) inset;
     z-index: 10;
-    transform: scale(1.02);
 }
 
-.popular:hover {
-    transform: scale(1.02) translateY(-8px);
-}
 
 .popularBadge {
     position: absolute;
@@ -221,14 +213,14 @@
 .btnOutline {
     width: 100%;
     padding: 1rem;
-    background: transparent;
+    background: #F1F5F9; /* Gris azulado muy claro para contrastar con la tarjeta blanca */
     color: #0F172A;
-    font-weight: 600;
+    font-weight: 700; /* Letra un poco más gruesa */
     border-radius: 14px;
-    border: 2px solid #E2E8F0;
+    border: 2px solid #94A3B8; /* Borde claramente visible (Slate 400) */
     cursor: pointer;
     transition: all 0.3s ease;
-    font-size: 1rem;
+    font-size: 1.05rem; /* Un pelín más grande */
 }
 
 .btnOutline:hover {
@@ -243,7 +235,7 @@
     }
 
     .popular:hover {
-        transform: translateY(-8px);
+        transform: scale(1);
     }
 
     .title {
@@ -260,8 +252,13 @@
         font-size: 2rem;
     }
 
+    .subtitle {
+        font-size: 1rem;
+        padding: 0 0.5rem;
+    }
+
     .header {
-        margin-bottom: 3rem;
+        margin-bottom: 2.5rem;
     }
 
     .grid {
@@ -271,24 +268,68 @@
 
     .card {
         padding: 1.5rem;
+        border-radius: 20px;
+        /* Hacemos la tarjeta mucho más visible en móvil */
+        background: #FFFFFF; 
+        border: 2px solid #CBD5E1; /* Borde más grueso y oscuro (Slate 300) */
+        box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0,0,0,0.05); /* Sombra más fuerte */
+    }
+
+    /* Popular Override Mobile */
+    .popular {
+        padding: 1.75rem 1.5rem;
+        border: 2px solid #4F46E5; /* Restaurar borde azul */
     }
 
     .amount {
-        font-size: 3rem;
+        font-size: 2.75rem;
+    }
+
+    .cardContent {
+        align-items: center;
+        text-align: center;
+    }
+
+    .planName {
+        font-size: 1.35rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .price {
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+
+    .description {
+        font-size: 0.95rem;
+        margin-bottom: 1.5rem;
+        max-width: 280px;
+        min-height: auto;
+    }
+
+    .features {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        width: max-content;
+        max-width: 100%;
+        margin: 0 auto 2rem;
+    }
+
+    .features li {
+        font-size: 0.9rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .btnPrimary, .btnOutline {
+        width: 100%;
+        padding: 0.875rem;
     }
 
     .popularBadge {
-        position: relative;
-        top: 0;
-        left: 0;
-        transform: none;
-        display: inline-block;
-        margin-bottom: 1rem;
-        width: fit-content;
-        align-self: center;
-    }
-
-    .pricing .popular .cardContent {
-        padding-top: 0;
+        font-size: 0.75rem;
+        padding: 0.3rem 1.25rem;
+        top: -14px;
+        box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
     }
 }

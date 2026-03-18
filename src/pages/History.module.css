@@ -1,0 +1,476 @@
+.container {
+    margin-bottom: 2rem;
+}
+
+.title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    color: var(--text-muted);
+}
+
+.emptyState {
+    padding: 3rem;
+    text-align: center;
+    background: rgba(255,255,255,0.5);
+    border-radius: 1rem;
+    border: 1px dashed #cbd5e1;
+}
+
+.emptyText {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+}
+
+.cardGrid {
+    display: grid;
+    gap: 1rem;
+}
+
+.card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+@media (hover: hover) {
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+}
+
+.cardContent {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex: 1;
+}
+
+.iconWrapper {
+    background: #EFF6FF;
+    color: #3B82F6;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.planInfo {
+    flex: 1;
+    margin-right: 1rem;
+}
+
+.planNameRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+    flex-wrap: wrap; /* Allow wrapping so input doesn't get boxed out on small screens */
+}
+
+.planName {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+    line-height: 1.3;
+    display: inline;
+}
+
+.editInput {
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.5rem;
+    border: 1px solid #CBD5E1;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    outline: none;
+    flex: 1;
+    min-width: 150px;
+    max-width: 100%;
+}
+
+.editButton, .cancelButton {
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.editButton {
+    background: #22C55E;
+}
+
+.cancelButton {
+    background: #EF4444;
+}
+
+.renameButton {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #94A3B8;
+    display: inline-flex;
+    padding: 0.2rem;
+    margin-left: 0.25rem;
+    vertical-align: middle;
+    position: relative;
+    top: -3px;
+}
+
+.dateText {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    display: block;
+}
+
+.cardActions {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.tagsContainer {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.tag {
+    background: #334155;
+    color: #F8FAFC;
+    padding: 0.3rem 0.6rem;
+    border-radius: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.chevronWrapper {
+    background: #F8FAFC;
+    padding: 0.5rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Modal Styles */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.modalContent {
+    background: white;
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    border-radius: 1.5rem;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.modalHeader {
+    padding: 1.5rem;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #F8FAFC;
+}
+
+.modalTitle {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1;
+}
+
+.modalDate {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    display: block;
+}
+
+.closeButton {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.modalBody {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.macrosGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.macroCard {
+    padding: 1rem;
+    border-radius: 1rem;
+    text-align: center;
+}
+
+.macroCardOrange {
+    background: #FFF7ED;
+    border: 1px solid #FFEDD5;
+}
+
+.macroCardBlue {
+    background: #EFF6FF;
+    border: 1px solid #DBEAFE;
+}
+
+.macroCardGreen {
+    background: #ECFDF5;
+    border: 1px solid #D1FAE5;
+}
+
+.macroValueOrange {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #9A3412;
+}
+
+.macroLabelOrange {
+    font-size: 0.75rem;
+    color: #EA580C;
+    font-weight: 600;
+}
+
+.macroValueBlue {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #1E40AF;
+}
+
+.macroLabelBlue {
+    font-size: 0.75rem;
+    color: #2563EB;
+    font-weight: 600;
+}
+
+.macroValueGreen {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #065F46;
+}
+
+.macroLabelGreen {
+    font-size: 0.75rem;
+    color: #059669;
+    font-weight: 600;
+}
+
+.menuTitle {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #334155;
+}
+
+.menuList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.menuItem {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: #F8FAFC;
+    border-radius: 0.75rem;
+    border: 1px solid #F1F5F9;
+}
+
+.menuIcon {
+    background: #E2E8F0;
+    width: 40px;
+    height: 40px;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.menuMealType {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748B;
+    text-transform: uppercase;
+}
+
+.menuMealName {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #0F172A;
+}
+
+.modalFooter {
+    padding: 1.5rem;
+    border-top: 1px solid #E2E8F0;
+    background: white;
+    display: flex;
+    gap: 1rem;
+}
+
+.modalCloseBtn {
+    flex: 1;
+    padding: 0.85rem;
+    border-radius: 0.75rem;
+    border: 1px solid #E2E8F0;
+    background: white;
+    color: #64748B;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.modalActionBtn {
+    flex: 2;
+    padding: 0.85rem;
+    border-radius: 0.75rem;
+    border: none;
+    background: var(--primary);
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+/* Responsive Styles */
+@media (max-width: 640px) {
+    .hideOnMobile {
+        display: none !important;
+    }
+
+    .title {
+        font-size: 1.75rem;
+    }
+
+    .card {
+        padding: 1.25rem 1rem;
+    }
+
+    .iconWrapper {
+        padding: 0.6rem;
+    }
+
+    .iconWrapper svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .cardContent {
+        gap: 0.75rem;
+    }
+
+    .planInfo {
+        margin-right: 0.5rem;
+    }
+
+    .planName {
+        font-size: 1rem;
+        line-height: 1.2;
+    }
+
+    .dateText {
+        font-size: 0.8rem;
+    }
+
+    .chevronWrapper {
+        padding: 0.4rem;
+    }
+
+    .chevronWrapper svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .cardActions {
+        gap: 0.5rem;
+    }
+
+    .macrosGrid {
+        gap: 0.5rem;
+    }
+
+    .macroCard {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .macroValueOrange, .macroValueBlue, .macroValueGreen {
+        font-size: 1rem;
+    }
+
+    .macroLabelOrange, .macroLabelBlue, .macroLabelGreen {
+        font-size: 0.65rem;
+    }
+
+    .modalHeader {
+        padding: 1.25rem;
+    }
+    
+    .modalBody {
+        padding: 1.25rem;
+    }
+
+    .modalFooter {
+        padding: 1.25rem;
+        flex-direction: column;
+    }
+
+    .modalCloseBtn, .modalActionBtn {
+        width: 100%;
+        flex: none;
+    }
+}

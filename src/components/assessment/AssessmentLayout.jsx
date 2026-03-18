@@ -7,7 +7,7 @@ import styles from './AssessmentLayout.module.css';
 import { Link } from 'react-router-dom';
 
 const AssessmentLayout = ({ children, totalSteps }) => {
-    const { currentStep, prevStep } = useAssessment();
+    const { currentStep, prevStep, planData } = useAssessment();
 
     const progress = ((currentStep) / (totalSteps - 1)) * 100;
 
@@ -25,10 +25,10 @@ const AssessmentLayout = ({ children, totalSteps }) => {
                             <ChevronLeft size={24} />
                         </button>
                     )}
-                    <div className={styles.logo}>
+                    <Link to="/" className={styles.logo} style={{ textDecoration: 'none', color: 'inherit' }}>
                         Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
-                    </div>
-                    <Link to="/" className={styles.closeBtn}>Cancelar</Link>
+                    </Link>
+                    <Link to={planData ? '/dashboard' : '/'} className={styles.closeBtn}>Cancelar</Link>
                 </div>
             </header>
 

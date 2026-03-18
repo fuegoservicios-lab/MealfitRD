@@ -10,6 +10,8 @@ import Settings from './pages/Settings';
 import History from './pages/History';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ResetPassword from './pages/ResetPassword';
+import AgentPage from './pages/AgentPage';
 import { Privacy, Terms, Cookies, MedicalDisclaimer } from './pages/legal/LegalPages';
 import { AssessmentProvider } from './context/AssessmentContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -23,6 +25,7 @@ function App() {
           {/* Public Routes: Auth */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Rutas Protegidas */}
           <Route path="/" element={
@@ -56,6 +59,11 @@ function App() {
           <Route path="/dashboard/recipes" element={
             <ProtectedRoute>
               <Recipes />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/agent" element={
+            <ProtectedRoute>
+              <AgentPage />
             </ProtectedRoute>
           } />
           <Route path="/dashboard/settings" element={

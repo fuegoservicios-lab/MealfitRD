@@ -75,8 +75,7 @@ const Pricing = () => {
                 <div className={styles.grid}>
 
                     {/* --- TARJETA 1: GRATIS --- */}
-                    <div className={`${styles.card} ${styles.popular}`}>
-                        <div className={styles.popularBadge}>Plan Recomendado</div>
+                    <div className={styles.card}>
                         <div className={styles.cardContent}>
                             <h3 className={styles.planName}>Gratis</h3>
                             <div className={styles.price}>
@@ -84,18 +83,17 @@ const Pricing = () => {
                                 <span className={styles.amount}>0</span>
                             </div>
                             <p className={styles.description}>
-                                Acceso total a la plataforma (Límite de {PLAN_LIMIT} créditos totales).
+                                Descubre el poder de nuestra IA: crea planes nutricionales personalizados, genera listas de compras y ajusta tus comidas (Límite de {PLAN_LIMIT} créditos totales).
                             </p>
 
                             <ul className={styles.features}>
-                                <li><Check size={18} className={styles.check} /> <strong>{PLAN_LIMIT} Generaciones de menú AI</strong></li>
-                                <li><Check size={18} className={styles.check} /> Generador de Recetas Inteligentes</li>
-                                <li><Check size={18} className={styles.check} /> Lista de Compras Automática</li>
-                                <li><Check size={18} className={styles.check} /> Acceso a todas las herramientas</li>
+                                <li><Check size={18} className={styles.check} /> <strong>{PLAN_LIMIT} Créditos</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Lista de Compras Automática</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Recetas personalizadas</strong></li>
                             </ul>
 
                             <button
-                                className={styles.btnPrimary}
+                                className={styles.btnOutline}
                                 onClick={handleFreePlanClick}
                             >
                                 {isPlus
@@ -108,40 +106,68 @@ const Pricing = () => {
                         </div>
                     </div>
 
-                    {/* --- TARJETA 2: PLUS (ILIMITADO) --- */}
-                    <div
-                        className={styles.card}
-                        style={isPlus ? { borderColor: '#10B981', background: '#F0FDF4', boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.1)' } : {}}
-                    >
+                    {/* --- TARJETA 2: PLUS (MÁS POPULAR) --- */}
+                    <div className={`${styles.card} ${styles.popular}`}>
+                        <div className={styles.popularBadge}>Más Popular</div>
                         <div className={styles.cardContent}>
-                            <h3 className={styles.planName} style={isPlus ? { color: '#059669' } : {}}>
-                                Plus Ilimitado
-                            </h3>
+                            <h3 className={styles.planName}>Plus</h3>
                             <div className={styles.price}>
-                                <span className={styles.currency}>RD$</span>
-                                <span className={styles.amount}>999</span>
+                                <span className={styles.currency}>USD$</span>
+                                <span className={styles.amount}>25</span>
                                 <span className={styles.period}>/mes</span>
                             </div>
                             <p className={styles.description}>
-                                {isPlus
-                                    ? "¡Felicidades! Tienes acceso total sin límites."
-                                    : "Elimina los límites y maximiza tu progreso sin restricciones."
-                                }
+                                Sube al siguiente nivel. Obtén suficientes créditos para realizar cientos de ajustes o generaciones durante el mes.
                             </p>
 
                             <ul className={styles.features}>
-                                <li><Check size={18} className={styles.check} /> <strong>Generaciones AI Ilimitadas</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>200 Créditos</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Asistente Experto Nutricional</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Aprendizaje Continuo</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Memoria a Largo Plazo</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Analizador de Macros Exacto</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Progreso en Tiempo Real</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Gratis</strong></li>
                                 <li><Check size={18} className={styles.check} /> Soporte Prioritario</li>
-                                <li><Check size={18} className={styles.check} /> Todo lo incluido en Gratis</li>
-                                <li><Check size={18} className={styles.check} /> Sin límites de uso</li>
                             </ul>
 
                             <button
-                                className={isPlus ? styles.btnPrimary : styles.btnOutline}
+                                className={styles.btnPrimary}
                                 onClick={handleUpgradeClick}
-                                style={isPlus ? { background: '#10B981', border: 'none', color: 'white', pointerEvents: 'none' } : {}}
                             >
-                                {isPlus ? "Tu Plan está Activo ✅" : "Mejorar a Plus (PayPal / Tarjeta)"}
+                                {isPlus ? "Tu Plan Actual" : "Cambiar a Plus"}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* --- TARJETA 3: ULTRA (ILIMITADO) --- */}
+                    <div className={styles.card}>
+                        <div className={styles.cardContent}>
+                            <h3 className={styles.planName}>
+                                Ultra Ilimitado
+                            </h3>
+                            <div className={styles.price}>
+                                <span className={styles.currency}>USD$</span>
+                                <span className={styles.amount}>75</span>
+                                <span className={styles.period}>/mes</span>
+                            </div>
+                            <p className={styles.description}>
+                                Maximiza tu progreso sin restricciones. Genera tus dietas de la semana, listas de supermercado y modifica comidas sin límites.
+                            </p>
+
+                            <ul className={styles.features}>
+                                <li><Check size={18} className={styles.check} /> <strong>Dietas y planes ilimitados</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Asistencia Ilimitada</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Reportes de progreso detallados</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Plus</strong></li>
+                                <li><Check size={18} className={styles.check} /> Atención Exclusiva</li>
+                            </ul>
+
+                            <button
+                                className={styles.btnOutline}
+                                onClick={handleUpgradeClick}
+                            >
+                                Cambiar a Ultra
                             </button>
                         </div>
                     </div>

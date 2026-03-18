@@ -1,15 +1,16 @@
 
 import { useState } from 'react';
 import { supabase } from '../supabase';
-import { useNavigate, Link } from 'react-router-dom';
-import { User, Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { User, Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import styles from './Auth.module.css';
 
 const Register = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [loading, setLoading] = useState(false);
     const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
+    const [email, setEmail] = useState(location.state?.email || '');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -48,7 +49,17 @@ const Register = () => {
 
             navigate('/');
         } catch (err) {
-            setError(err.message);
+            let errorMessage = err.message;
+            if (errorMessage === 'User already registered' || errorMessage.includes('already registered')) {
+                errorMessage = 'Este correo electrónico ya está registrado. Por favor, inicia sesión.';
+            } else if (errorMessage.includes('Password should be at least')) {
+                errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
+            } else if (errorMessage.toLowerCase().includes('invalid email')) {
+                errorMessage = 'El correo electrónico ingresado no tiene un formato válido.';
+            } else if (errorMessage.toLowerCase().includes('rate limit') || errorMessage.toLowerCase().includes('too many')) {
+                errorMessage = 'Has intentado registrarte demasiadas veces. Por favor, espera un momento.';
+            }
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -75,7 +86,7 @@ const Register = () => {
 
                 <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <div className={styles.formGroup}>
-                        <label className={styles.label}>Nombre</label>
+                        <label className={styles.label}>Nombre Completo <span className={styles.requiredAsterisk}>*</span></label>
                         <div className={styles.inputWrapper}>
                             <div className={styles.inputIcon}>
                                 <User size={18} />
@@ -87,12 +98,14 @@ const Register = () => {
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Tu Nombre"
                                 className={styles.input}
+                                autoComplete="name"
+                                spellCheck="false"
                             />
                         </div>
                     </div>
 
                     <div className={styles.formGroup}>
-                        <label className={styles.label}>Correo</label>
+                        <label className={styles.label}>Correo Electrónico <span className={styles.requiredAsterisk}>*</span></label>
                         <div className={styles.inputWrapper}>
                             <div className={styles.inputIcon}>
                                 <Mail size={18} />
@@ -104,67 +117,80 @@ const Register = () => {
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="ejemplo@correo.com"
                                 className={styles.input}
+                                autoComplete="email"
+                                spellCheck="false"
                             />
                         </div>
                     </div>
 
-                    <div className={styles.formGroup}>
-                        <label className={styles.label}>Contraseña</label>
-                        <div className={styles.inputWrapper}>
-                            <div className={styles.inputIcon}>
-                                <Lock size={18} />
+                    {name.trim() !== '' && email.trim() !== '' && (
+                        <div className={`${styles.inputRow} ${styles.animateFadeIn}`}>
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Contraseña <span className={styles.requiredAsterisk}>*</span></label>
+                                <div className={styles.inputWrapper}>
+                                    <div className={styles.inputIcon}>
+                                        <Lock size={18} />
+                                    </div>
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        required
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        placeholder="••••••••"
+                                        className={styles.input}
+                                        autoComplete="new-password"
+                                    />
+                                    <button
+                                        type="button"
+                                        className={styles.passwordToggle}
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        tabIndex="-1"
+                                    >
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
                             </div>
-                            <input
-                                type={showPassword ? "text" : "password"}
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="••••••••"
-                                className={styles.input}
-                            />
-                            <button
-                                type="button"
-                                className={styles.passwordToggle}
-                                onClick={() => setShowPassword(!showPassword)}
-                                tabIndex="-1"
-                            >
-                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
-                        </div>
-                    </div>
 
-                    <div className={styles.formGroup}>
-                        <label className={styles.label}>Confirmar Contraseña</label>
-                        <div className={styles.inputWrapper}>
-                            <div className={styles.inputIcon}>
-                                <Lock size={18} />
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Confirmar Contraseña <span className={styles.requiredAsterisk}>*</span></label>
+                                <div className={styles.inputWrapper}>
+                                    <div className={styles.inputIcon}>
+                                        <Lock size={18} />
+                                    </div>
+                                    <input
+                                        type={showConfirmPassword ? "text" : "password"}
+                                        required
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        placeholder="••••••••"
+                                        className={styles.input}
+                                        autoComplete="new-password"
+                                    />
+                                    <button
+                                        type="button"
+                                        className={styles.passwordToggle}
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        tabIndex="-1"
+                                    >
+                                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
                             </div>
-                            <input
-                                type={showConfirmPassword ? "text" : "password"}
-                                required
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                placeholder="••••••••"
-                                className={styles.input}
-                            />
-                            <button
-                                type="button"
-                                className={styles.passwordToggle}
-                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                tabIndex="-1"
-                            >
-                                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
                         </div>
-                    </div>
+                    )}
 
                     <button
                         type="submit"
                         disabled={loading}
                         className={styles.submitBtn}
                     >
-                        {loading ? 'Registrando...' : (
-                            <>Comenzar Ahora <ArrowRight size={18} /></>
+                        {loading ? (
+                            <>
+                                <Loader2 className={styles.loader} size={18} />
+                                Registrando...
+                            </>
+                        ) : (
+                            <>Crear Cuenta <ArrowRight size={18} /></>
                         )}
                     </button>
 

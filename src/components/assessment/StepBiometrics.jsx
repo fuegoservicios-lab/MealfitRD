@@ -2,10 +2,13 @@ import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useAssessment } from '../../context/AssessmentContext';
 import { Label, Input, RadioCard } from '../common/FormUI';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, FastForward } from 'lucide-react';
 
 const StepBiometrics = () => {
-    const { formData, updateData, nextStep } = useAssessment();
+    const { formData, updateData, nextStep, setCurrentStep } = useAssessment();
+
+    // Si el formulario ya fue llenado previamente, mostrar botón para saltar al último paso
+    const isFormPreviouslyFilled = !!(formData.mainGoal && formData.age && formData.activityLevel && formData.dietType);
 
     const handleChange = (e) => {
         updateData(e.target.name, e.target.value);
@@ -19,31 +22,13 @@ const StepBiometrics = () => {
     // (Existing height logic remains here)
 
     // --- WEIGHT LOGIC ---
-    const [weightUnit, setWeightUnit] = useState('lb'); // 'lb' | 'kg'
-    const [kgInput, setKgInput] = useState('');
+    const [weightUnit, setWeightUnit] = useState(formData.weightUnit || 'lb'); // 'lb' | 'kg'
 
-    useEffect(() => {
-        if (formData.weight && weightUnit === 'kg') {
-            // Convert existing LB to KG for display
-            const kgs = (parseFloat(formData.weight) / 2.20462);
-            // Keep it simple with 1 decimal place, remove .0 if integer
-            const formatted = Number.isInteger(kgs) ? kgs.toString() : kgs.toFixed(1);
-            setKgInput(formatted);
-        }
-    }, [weightUnit]);
-
-    const handleKgChange = (e) => {
-        const val = e.target.value;
-        setKgInput(val);
-
-        const k = parseFloat(val);
-        if (!isNaN(k) && k > 0) {
-            // Convert KG input to LB for storage
-            const lbs = Math.round(k * 2.20462);
-            updateData('weight', lbs.toString());
-        } else {
-            updateData('weight', '');
-        }
+    const handleWeightUnitChange = (newUnit) => {
+        setWeightUnit(newUnit);
+        updateData('weightUnit', newUnit);
+        // Limpiar el peso al cambiar de unidad para evitar confusión
+        updateData('weight', '');
     };
 
     // --- HEIGHT LOGIC (Existing) ---
@@ -187,7 +172,7 @@ const StepBiometrics = () => {
                             <Label htmlFor="weight" style={{ marginBottom: 0 }}>Peso Actual</Label>
                             <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '0.5rem', padding: '2px' }}>
                                 <button
-                                    onClick={() => setWeightUnit('lb')}
+                                    onClick={() => handleWeightUnitChange('lb')}
                                     style={{
                                         border: 'none', background: weightUnit === 'lb' ? 'white' : 'transparent',
                                         padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem',
@@ -199,7 +184,7 @@ const StepBiometrics = () => {
                                     LB
                                 </button>
                                 <button
-                                    onClick={() => setWeightUnit('kg')}
+                                    onClick={() => handleWeightUnitChange('kg')}
                                     style={{
                                         border: 'none', background: weightUnit === 'kg' ? 'white' : 'transparent',
                                         padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem',
@@ -213,24 +198,14 @@ const StepBiometrics = () => {
                             </div>
                         </div>
 
-                        {weightUnit === 'lb' ? (
-                            <Input
-                                id="weight"
-                                name="weight"
-                                type="number"
-                                placeholder="Ej. 150"
-                                value={formData.weight}
-                                onChange={handleChange}
-                            />
-                        ) : (
-                            <Input
-                                id="weight_kg"
-                                type="number"
-                                placeholder="Ej. 70"
-                                value={kgInput}
-                                onChange={handleKgChange}
-                            />
-                        )}
+                        <Input
+                            id="weight"
+                            name="weight"
+                            type="number"
+                            placeholder={weightUnit === 'lb' ? 'Ej. 150' : 'Ej. 70'}
+                            value={formData.weight}
+                            onChange={handleChange}
+                        />
                     </div>
                     <div>
                         <Label htmlFor="bodyFat">% Grasa (Opcional)</Label>
@@ -281,7 +256,7 @@ const StepBiometrics = () => {
                     </div>
                 </div>
 
-                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
+                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                     <button
                         onClick={nextStep}
                         disabled={!isFormValid}
@@ -317,6 +292,40 @@ const StepBiometrics = () => {
                     >
                         Siguiente <ArrowRight size={20} />
                     </button>
+
+                    {isFormPreviouslyFilled && (
+                        <motion.button
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.2 }}
+                            onClick={() => setCurrentStep(4)}
+                            id="skip-to-generate"
+                            style={{
+                                padding: '1rem 1.5rem',
+                                background: 'transparent',
+                                color: 'var(--primary)',
+                                border: '1.5px solid var(--primary)',
+                                borderRadius: '1rem',
+                                fontWeight: 600,
+                                fontSize: '0.9rem',
+                                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.25s ease',
+                                fontFamily: 'inherit',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(37, 99, 235, 0.06)';
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.transform = 'translateY(0)';
+                            }}
+                        >
+                            <FastForward size={16} />
+                            Skip
+                        </motion.button>
+                    )}
                 </div>
 
             </div>

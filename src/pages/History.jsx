@@ -2,20 +2,26 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { useAssessment } from '../context/AssessmentContext';
-import { Calendar, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, X } from 'lucide-react';
+import { Calendar, ChevronRight, Flame, Dumbbell, Wheat, RotateCcw, X, Edit2, Check, Tag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import styles from './History.module.css';
 
 const History = () => {
     const [plans, setPlans] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedPlan, setSelectedPlan] = useState(null); // Para el Modal
+    const [selectedPlan, setSelectedPlan] = useState(null);
+    
+    // Estados para edición de nombre
+    const [isEditing, setIsEditing] = useState(null);
+    const [tempName, setTempName] = useState('');
+    
     const navigate = useNavigate();
     const { restorePlan } = useAssessment();
 
     useEffect(() => {
         fetchHistory();
-    }, []);
+    },[]);
 
     const fetchHistory = async () => {
         try {
@@ -30,7 +36,6 @@ const History = () => {
 
             if (error) throw error;
 
-            // Filter out incomplete plans (likely from n8n duplicates without metadata)
             const validPlans = (data || []).filter(plan => plan.name && plan.calories > 0);
             setPlans(validPlans);
         } catch (error) {
@@ -46,14 +51,85 @@ const History = () => {
         navigate('/dashboard');
     };
 
+    const handleEditStart = (e, plan) => {
+        e.stopPropagation();
+        setIsEditing(plan.id);
+        setTempName(plan.name || 'Plan Generado');
+    };
+
+    const handleEditCancel = (e) => {
+        e.stopPropagation();
+        setIsEditing(null);
+        setTempName('');
+    };
+
+    const handleEditSave = async (e, plan) => {
+        e.stopPropagation();
+        if (!tempName.trim()) {
+            setIsEditing(null);
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from('meal_plans')
+                .update({ name: tempName.trim() })
+                .eq('id', plan.id);
+
+            if (error) throw error;
+
+            setPlans(plans.map(p => p.id === plan.id ? { ...p, name: tempName.trim() } : p));
+            if (selectedPlan && selectedPlan.id === plan.id) {
+                setSelectedPlan({ ...selectedPlan, name: tempName.trim() });
+            }
+            toast.success('Nombre actualizado');
+        } catch (err) {
+            console.error('Error al actualizar nombre', err);
+            toast.error('Error al actualizar nombre');
+        } finally {
+            setIsEditing(null);
+        }
+    };
+
+    const getSmartTags = (plan) => {
+        const data = plan.plan_data || {};
+        const assessment = data.assessment || {};
+        const tags = [];
+        
+        const goal = data.goal || assessment.mainGoal;
+        if (goal === 'lose_weight') tags.push('Pérdida de Grasa');
+        else if (goal === 'build_muscle') tags.push('Masa Muscular');
+        else if (goal === 'maintain') tags.push('Mantener');
+        else if (goal === 'health') tags.push('Salud General');
+
+        const diet = data.diet_preference || assessment.diet_preference || assessment.dietPreference || assessment.dietType;
+        if (diet && diet !== 'none' && diet !== 'Omnívoro' && diet !== 'omnivorous') {
+            const dietMap = { 'vegetarian': 'Vegetariano', 'vegan': 'Vegano', 'pescatarian': 'Pescatariano', 'keto': 'Keto', 'paleo': 'Paleo' };
+            tags.push(dietMap[diet] || (diet.charAt(0).toUpperCase() + diet.slice(1)));
+        }
+
+        const allergies = data.allergies || assessment.allergies || assessment.intolerances || [];
+        if (Array.isArray(allergies)) {
+            if (allergies.includes('lactose') || allergies.includes('dairy')) tags.push('Sin Lácteos');
+            if (allergies.includes('gluten')) tags.push('Sin Gluten');
+            if (allergies.includes('nuts')) tags.push('Sin Nueces');
+            if (allergies.includes('shellfish')) tags.push('Sin Mariscos');
+            if (allergies.includes('soy')) tags.push('Sin Soya');
+        }
+
+        if (tags.length === 0 && plan.plan_data) tags.push('Personalizado');
+
+        return tags.slice(0, 3);
+    };
+
     return (
         <DashboardLayout>
-            <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
-                    Historial de Planes
+            <div className={styles.container}>
+                <h1 className={styles.title}>
+                    Librería de Planes Guardados
                 </h1>
-                <p style={{ color: 'var(--text-muted)' }}>
-                    Revisa en detalle o reactiva tus planes anteriores.
+                <p className={styles.subtitle}>
+                    Revisa en detalle, renombra o reactiva tus planes anteriores.
                 </p>
             </div>
 
@@ -62,62 +138,62 @@ const History = () => {
                     Cargando historial...
                 </div>
             ) : plans.length === 0 ? (
-                <div style={{
-                    padding: '3rem',
-                    textAlign: 'center',
-                    background: 'rgba(255,255,255,0.5)',
-                    borderRadius: '1rem',
-                    border: '1px dashed #cbd5e1'
-                }}>
-                    <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)' }}>
+                <div className={styles.emptyState}>
+                    <p className={styles.emptyText}>
                         Aún no tienes planes guardados en el historial.
                     </p>
                 </div>
             ) : (
-                <div style={{ display: 'grid', gap: '1rem' }}>
+                <div className={styles.cardGrid}>
                     {plans.map((plan) => (
                         <div
                             key={plan.id}
-                            style={{
-                                background: 'white',
-                                padding: '1.5rem',
-                                borderRadius: '1rem',
-                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-                                border: '1px solid #f1f5f9',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                transition: 'all 0.2s',
-                                cursor: 'pointer',
-                                position: 'relative',
-                                overflow: 'hidden'
-                            }}
-                            className="history-card"
-                            onClick={() => setSelectedPlan(plan)}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)';
+                            className={styles.card}
+                            onClick={() => {
+                                if (isEditing !== plan.id) setSelectedPlan(plan);
                             }}
                         >
-                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                <div style={{
-                                    background: '#EFF6FF',
-                                    color: '#3B82F6',
-                                    padding: '0.75rem',
-                                    borderRadius: '0.75rem',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                }}>
+                            <div className={styles.cardContent}>
+                                <div className={styles.iconWrapper}>
                                     <Calendar size={24} />
                                 </div>
-                                <div>
-                                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
-                                        {plan.name || 'Plan Generado'}
-                                    </h3>
-                                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                <div className={styles.planInfo}>
+                                    {isEditing === plan.id ? (
+                                        <div className={styles.planNameRow}>
+                                            <input
+                                                type="text"
+                                                autoFocus
+                                                value={tempName}
+                                                onChange={(e) => setTempName(e.target.value)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') handleEditSave(e, plan);
+                                                    if (e.key === 'Escape') handleEditCancel(e);
+                                                }}
+                                                className={styles.editInput}
+                                            />
+                                            <button onClick={(e) => handleEditSave(e, plan)} className={styles.editButton}>
+                                                <Check size={16} />
+                                            </button>
+                                            <button onClick={(e) => handleEditCancel(e)} className={styles.cancelButton}>
+                                                <X size={16} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className={styles.planNameRow}>
+                                            <h3 className={styles.planName}>
+                                                {plan.name || 'Plan Generado'}
+                                                <button 
+                                                    onClick={(e) => handleEditStart(e, plan)}
+                                                    className={styles.renameButton}
+                                                    title="Renombrar"
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                            </h3>
+                                        </div>
+                                    )}
+                                    <span className={styles.dateText}>
                                         {new Date(plan.created_at).toLocaleDateString('es-DO', {
                                             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
                                             hour: '2-digit', minute: '2-digit'
@@ -126,24 +202,18 @@ const History = () => {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-                                {/* Macros Mini Check (Solo Desktop/Tablet) */}
-                                <div style={{ display: 'flex', gap: '1.5rem', color: 'var(--text-muted)', fontSize: '0.9rem' }} className="hide-mobile">
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                        <Flame size={16} className="text-orange-500" fill="#f97316" color="#f97316" />
-                                        <strong>{plan.calories}</strong> kcal
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                        <Dumbbell size={16} className="text-blue-500" fill="#3b82f6" color="#3b82f6" />
-                                        <strong>{plan.macros?.protein || '-'}</strong> prot
-                                    </div>
+                            <div className={styles.cardActions}>
+                                {/* Etiquetas Inteligentes (Tags) */}
+                                <div className={`${styles.tagsContainer} ${styles.hideOnMobile}`}>
+                                    {getSmartTags(plan).map((tag, idx) => (
+                                        <span key={idx} className={styles.tag}>
+                                            {tag}
+                                        </span>
+                                    ))}
                                 </div>
-                                <div style={{
-                                    background: '#F8FAFC', padding: '0.5rem', borderRadius: '50%'
-                                }}>
+                                <div className={styles.chevronWrapper}>
                                     <ChevronRight size={20} color="#94A3B8" />
                                 </div>
-
                             </div>
                         </div>
                     ))}
@@ -152,72 +222,56 @@ const History = () => {
 
             {/* --- MODAL DE DETALLES --- */}
             {selectedPlan && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
-                    zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '1rem'
-                }} onClick={() => setSelectedPlan(null)}>
+                <div className={styles.modalOverlay} onClick={() => setSelectedPlan(null)}>
 
-                    <div style={{
-                        background: 'white', width: '100%', maxWidth: '600px', maxHeight: '90vh',
-                        borderRadius: '1.5rem', padding: '0', overflow: 'hidden',
-                        display: 'flex', flexDirection: 'column',
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
-                    }} onClick={e => e.stopPropagation()}>
+                    <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
 
                         {/* Header Modal */}
-                        <div style={{ padding: '1.5rem', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
+                        <div className={styles.modalHeader}>
                             <div>
-                                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1 }}>Detalles del Plan</h2>
-                                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                <h2 className={styles.modalTitle}>{selectedPlan.name || 'Detalles del Plan'}</h2>
+                                <span className={styles.modalDate}>
                                     {new Date(selectedPlan.created_at).toLocaleDateString()}
                                 </span>
                             </div>
-                            <button onClick={() => setSelectedPlan(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem' }}>
+                            <button onClick={() => setSelectedPlan(null)} className={styles.closeButton}>
                                 <X size={24} color="#64748B" />
                             </button>
                         </div>
 
                         {/* Content Scrollable */}
-                        <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
+                        <div className={styles.modalBody}>
 
                             {/* Macros Summary */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
-                                <div style={{ background: '#FFF7ED', padding: '1rem', borderRadius: '1rem', textAlign: 'center', border: '1px solid #FFEDD5' }}>
+                            <div className={styles.macrosGrid}>
+                                <div className={`${styles.macroCard} ${styles.macroCardOrange}`}>
                                     <Flame size={20} color="#EA580C" style={{ marginBottom: '0.5rem' }} />
-                                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#9A3412' }}>{selectedPlan.calories}</div>
-                                    <div style={{ fontSize: '0.75rem', color: '#EA580C', fontWeight: 600 }}>Calorías</div>
+                                    <div className={styles.macroValueOrange}>{selectedPlan.calories}</div>
+                                    <div className={styles.macroLabelOrange}>Calorías</div>
                                 </div>
-                                <div style={{ background: '#EFF6FF', padding: '1rem', borderRadius: '1rem', textAlign: 'center', border: '1px solid #DBEAFE' }}>
+                                <div className={`${styles.macroCard} ${styles.macroCardBlue}`}>
                                     <Dumbbell size={20} color="#2563EB" style={{ marginBottom: '0.5rem' }} />
-                                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1E40AF' }}>{selectedPlan.macros?.protein}</div>
-                                    <div style={{ fontSize: '0.75rem', color: '#2563EB', fontWeight: 600 }}>Proteína</div>
+                                    <div className={styles.macroValueBlue}>{selectedPlan.macros?.protein}</div>
+                                    <div className={styles.macroLabelBlue}>Proteína</div>
                                 </div>
-                                <div style={{ background: '#ECFDF5', padding: '1rem', borderRadius: '1rem', textAlign: 'center', border: '1px solid #D1FAE5' }}>
+                                <div className={`${styles.macroCard} ${styles.macroCardGreen}`}>
                                     <Wheat size={20} color="#059669" style={{ marginBottom: '0.5rem' }} />
-                                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#065F46' }}>{selectedPlan.macros?.carbs}</div>
-                                    <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600 }}>Carbos</div>
+                                    <div className={styles.macroValueGreen}>{selectedPlan.macros?.carbs}</div>
+                                    <div className={styles.macroLabelGreen}>Carbos</div>
                                 </div>
                             </div>
 
                             {/* Meals List */}
-                            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem', color: '#334155' }}>Menú del Día</h3>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                {selectedPlan.plan_data?.perfectDay?.map((meal, idx) => (
-                                    <div key={idx} style={{
-                                        display: 'flex', alignItems: 'center', gap: '1rem',
-                                        padding: '1rem', background: '#F8FAFC', borderRadius: '0.75rem', border: '1px solid #F1F5F9'
-                                    }}>
-                                        <div style={{
-                                            background: '#E2E8F0', width: '40px', height: '40px', borderRadius: '0.5rem',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem'
-                                        }}>
+                            <h3 className={styles.menuTitle}>Menú de la Opción</h3>
+                            <div className={styles.menuList}>
+                                {(selectedPlan.plan_data?.meals || selectedPlan.plan_data?.perfectDay)?.map((meal, idx) => (
+                                    <div key={idx} className={styles.menuItem}>
+                                        <div className={styles.menuIcon}>
                                             {idx === 0 ? '🍳' : idx === 1 ? '🍲' : idx === 2 ? '🥗' : '🍎'}
                                         </div>
                                         <div>
-                                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>{meal.meal}</div>
-                                            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0F172A' }}>{meal.name}</div>
+                                            <div className={styles.menuMealType}>{meal.meal}</div>
+                                            <div className={styles.menuMealName}>{meal.name}</div>
                                         </div>
                                     </div>
                                 ))}
@@ -226,26 +280,16 @@ const History = () => {
                         </div>
 
                         {/* Footer Actions */}
-                        <div style={{ padding: '1.5rem', borderTop: '1px solid #E2E8F0', background: 'white', display: 'flex', gap: '1rem' }}>
+                        <div className={styles.modalFooter}>
                             <button
                                 onClick={() => setSelectedPlan(null)}
-                                style={{
-                                    flex: 1, padding: '0.85rem', borderRadius: '0.75rem',
-                                    border: '1px solid #E2E8F0', background: 'white',
-                                    color: '#64748B', fontWeight: 600, cursor: 'pointer'
-                                }}
+                                className={styles.modalCloseBtn}
                             >
                                 Cerrar
                             </button>
                             <button
                                 onClick={() => handleRestore(selectedPlan.plan_data)}
-                                style={{
-                                    flex: 2, padding: '0.85rem', borderRadius: '0.75rem',
-                                    border: 'none', background: 'var(--primary)',
-                                    color: 'white', fontWeight: 700, cursor: 'pointer',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
-                                }}
+                                className={styles.modalActionBtn}
                             >
                                 <RotateCcw size={18} /> Reactivar este Plan
                             </button>
@@ -254,12 +298,6 @@ const History = () => {
                     </div>
                 </div>
             )}
-
-            <style>{`
-                @media (max-width: 640px) {
-                    .hide-mobile { display: none !important; }
-                }
-            `}</style>
         </DashboardLayout>
     );
 };

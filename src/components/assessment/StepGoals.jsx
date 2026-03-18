@@ -203,12 +203,11 @@ const StepGoals = () => {
                 <section>
                     <Label>¿Qué te motiva realmente? <span style={{ color: 'var(--primary)' }}>*</span></Label>
                     <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: '1.5' }}>
-                        Esta información es clave para que nuestra IA entienda tus metas profundas y personalice el plan a tu estilo de vida.
-                        Sé específico, ¡esto nos ayuda a ayudarte!
+                        Cuéntanos por qué quieres lograr esto. Mientras más detalles nos des, mejor adaptará la IA tu rutina.
                     </p>
                     <div style={{ position: 'relative' }}>
                         <textarea
-                            placeholder="Ej. Quiero tener energía para jugar con mis hijos sin cansarme, prepararme para mi primera carrera de 5K, o simplemente mejorar mi salud a largo plazo para evitar enfermedades..."
+                            placeholder="Ej: Quiero recuperar mi energía diaria, prepararme para mi primera carrera, o mejorar mis hábitos a largo plazo..."
                             value={formData.motivation || ''}
                             onChange={(e) => updateData('motivation', e.target.value)}
                             rows={3}

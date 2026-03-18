@@ -61,55 +61,42 @@
 }
 
 .navLink {
-    color: var(--text-muted);
+    color: #475569;
     text-decoration: none;
-    font-weight: 600;
+    font-weight: 500;
     font-size: 0.95rem;
-    transition: color 0.2s;
-    position: relative;
+    transition: all 0.2s ease;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
 }
 
 .navLink:hover {
-    color: var(--primary);
-}
-
-/* Underline effect */
-.navLink::after {
-    content: '';
-    position: absolute;
-    bottom: -4px;
-    left: 0;
-    width: 0%;
-    height: 2px;
-    background: var(--primary);
-    transition: width 0.3s ease;
-    border-radius: 2px;
-}
-
-.navLink:hover::after {
-    width: 100%;
+    color: #0f172a;
+    background: rgba(241, 245, 249, 0.8);
+    /* Slate 100 with opacity */
 }
 
 .ctaButton {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    background: var(--text-main);
-    /* Dark stylish button for nav */
+    background: #0f172a;
+    /* Stylish dark slate */
     color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 99px;
+    padding: 0.6rem 1.25rem;
+    border-radius: 9999px;
     text-decoration: none;
-    font-weight: 600;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
-    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    font-size: 0.95rem;
 }
 
 .ctaButton:hover {
-    transform: translateY(-2px);
-    background: var(--primary);
-    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
+    background: #1e293b;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
 }
 
 .mobileToggle {
@@ -133,17 +120,15 @@
     top: 70px;
     left: 1rem;
     right: 1rem;
-    background: white;
-    box-shadow:
-        0 10px 15px -3px rgba(0, 0, 0, 0.1),
-        0 4px 6px -2px rgba(0, 0, 0, 0.05),
-        0 0 0 1px rgba(0, 0, 0, 0.05);
-    /* Subtle border ring */
-    padding: 1rem;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0,0,0,0.02);
+    padding: 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    border-radius: 1rem;
+    gap: 0.25rem;
+    border-radius: 1.25rem;
     animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     transform-origin: top center;
     z-index: 1002;
@@ -154,7 +139,6 @@
         opacity: 0;
         transform: translateY(-10px) scale(0.98);
     }
-
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -162,11 +146,11 @@
 }
 
 .navLinkMobile {
-    padding: 0.75rem 1rem;
-    color: var(--text-main);
+    padding: 0.875rem 1rem;
+    color: #475569;
     text-decoration: none;
     font-weight: 500;
-    font-size: 1rem;
+    font-size: 0.95rem;
     border-radius: 0.75rem;
     background: transparent;
     border: none;
@@ -178,8 +162,7 @@
 
 .navLinkMobile:hover {
     background: #f1f5f9;
-    /* Slate 100 */
-    color: var(--primary);
+    color: #0f172a;
     transform: translateX(4px);
 }
 
@@ -190,11 +173,10 @@
     align-items: center;
     gap: 0.75rem;
     cursor: pointer;
-    padding: 0.75rem 1rem;
+    padding: 0.875rem 1rem;
     color: #ef4444;
-    /* Red 500 */
     font-weight: 500;
-    font-size: 1rem;
+    font-size: 0.95rem;
     border-radius: 0.75rem;
     background: transparent;
     border: none;
@@ -203,7 +185,6 @@
 
 .logoutBtnMobile:hover {
     background: #fef2f2;
-    /* Red 50 */
     transform: translateX(4px);
 }
 
@@ -212,21 +193,22 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    background: var(--primary);
+    background: #0f172a;
     color: white;
     padding: 0.875rem;
-    border-radius: 0.75rem;
+    border-radius: 0.875rem;
     text-decoration: none;
-    font-weight: 600;
-    margin-top: 0.5rem;
-    transition: all 0.2s;
-    box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+    font-weight: 500;
+    margin-top: 0.25rem;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .ctaButtonMobile:hover {
-    background: var(--primary-dark);
+    background: #1e293b;
     transform: translateY(-1px);
-    box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
 @media (min-width: 768px) {

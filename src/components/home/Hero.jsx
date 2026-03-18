@@ -40,13 +40,9 @@ const Hero = () => {
                             {planData ? (
                                 <Link
                                     to="/dashboard"
-                                    className={styles.primaryBtn}
-                                    style={{
-                                        background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                                        boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)',
-                                    }}
+                                    className={styles.activePlanBtn}
                                 >
-                                    Ver mi Plan Activo <ArrowRight size={20} />
+                                    Ver mi Plan <ArrowRight size={20} />
                                 </Link>
                             ) : (
                                 <Link to="/assessment" className={styles.primaryBtn}>

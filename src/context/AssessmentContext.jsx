@@ -1,8 +1,71 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../supabase';
-import { getAlternativeMeal } from '../services/PlanGenerator';
+// --- BASE DE DATOS LOCAL DE RECETAS (FALLBACK) ---
+const DOMINICAN_MEALS = {
+    breakfast: [
+        { name: "Mangú con Huevo", tags: ['balanced', 'vegetarian'], desc: "Puré de plátano verde con huevo hervido.", recipe: ["Hervir plátanos verdes.", "Majar con agua de cocción.", "Hervir 2 huevos.", "Saltear cebolla roja en vinagre."], cals: 450 },
+        { name: "Avena Integral con Canela", tags: ['balanced', 'vegetarian'], desc: "Avena cocida con canela y vainilla.", recipe: ["Hervir avena con canela.", "Agregar leche descremada.", "Endulzar con stevia."], cals: 350 },
+        { name: "Revuelto de Huevos y Vegetales", tags: ['balanced', 'low_carb', 'keto', 'vegetarian'], desc: "Huevos revueltos con ajíes y espinaca.", recipe: ["Picar vegetales.", "Sofreír en sartén.", "Batir 2 huevos y revolver."], cals: 300 },
+        { name: "Batida Proteica de Guineo", tags: ['balanced', 'vegetarian'], desc: "Batido de proteína con guineo.", recipe: ["Licuar proteína, guineo, hielo y agua."], cals: 350 }
+    ],
+    lunch: [
+        { name: "La Bandera (Versión Fit)", tags: ['balanced'], desc: "Arroz, habichuelas y pollo guisado.", recipe: ["1 taza de arroz.", "1/2 taza de habichuelas.", "Pollo guisado sin piel.", "Ensalada verde."], cals: 600 },
+        { name: "Pechuga a la Plancha + Vegetales", tags: ['low_carb', 'keto'], desc: "Pechuga al orégano con brócoli.", recipe: ["Adobar pechuga.", "Cocinar en plancha.", "Hervir brócoli y zanahoria."], cals: 450 },
+        { name: "Moro de Guandules con Pescado", tags: ['balanced'], desc: "Moro con filete de pescado.", recipe: ["Preparar moro.", "Cocinar filete con pimientos."], cals: 550 },
+        { name: "Sancocho Light", tags: ['balanced'], desc: "Sancocho con carnes magras y más auyama.", recipe: ["Usar pechuga y carne magra.", "Mucha auyama.", "Reducir víveres pesados."], cals: 500 }
+    ],
+    dinner: [
+        { name: "Pescado al Papillote", tags: ['low_carb', 'keto', 'balanced'], desc: "Filete de pescado cocido con vegetales.", recipe: ["Colocar filete en aluminio.", "Cubrir con vegetales.", "Cocinar 12-15 min."], cals: 400 },
+        { name: "Tortilla de Espinacas", tags: ['low_carb', 'keto', 'vegetarian'], desc: "Cena ligera de huevo y espinacas.", recipe: ["Saltear espinacas.", "Batir 2 huevos y verter.", "Cocinar a fuego lento."], cals: 300 },
+        { name: "Crema de Auyama", tags: ['balanced', 'vegan', 'vegetarian'], desc: "Crema espesa de auyama.", recipe: ["Hervir auyama con ajo.", "Licuar con agua de cocción."], cals: 350 },
+        { name: "Ensalada de Atún", tags: ['low_carb', 'keto'], desc: "Atún en agua con vegetales y limón.", recipe: ["Escurrir atún.", "Mezclar con vegetales.", "Aderezar con limón."], cals: 300 }
+    ],
+    merienda: [
+        { name: "Guineo Maduro", tags: ['balanced', 'vegan', 'vegetarian'], desc: "Una unidad mediana.", recipe: ["Pelar y comer."], cals: 120 },
+        { name: "Yogur Griego con Chinola", tags: ['low_carb', 'vegetarian'], desc: "Alto en proteína.", recipe: ["1 taza yogur griego.", "Pulpa de chinola."], cals: 180 },
+        { name: "Puñado de Nueces Mixtas", tags: ['low_carb', 'keto', 'vegan'], desc: "Grasas saludables.", recipe: ["Un puñado de almendras o nueces."], cals: 200 },
+        { name: "Huevo Hervido", tags: ['low_carb', 'keto', 'vegetarian'], desc: "Protein snack.", recipe: ["Hervir 10 min. Pelar y agregar sal."], cals: 80 }
+    ]
+};
+
+const getAlternativeMeal = (mealType, currentMealName, targetCalories, userDietType) => {
+    let category = 'merienda';
+    const lowerType = mealType.toLowerCase();
+    if (lowerType.includes('desayuno')) category = 'breakfast';
+    else if (lowerType.includes('almuerzo')) category = 'lunch';
+    else if (lowerType.includes('cena')) category = 'dinner';
+    else if (lowerType.includes('merienda')) category = 'merienda';
+
+    let dietFilter = 'balanced';
+    if (userDietType) {
+        const type = userDietType.toLowerCase();
+        if (type.includes('keto')) dietFilter = 'keto';
+        else if (type.includes('low')) dietFilter = 'low_carb';
+        else if (type.includes('veg') && !type.includes('vegetariana')) dietFilter = 'vegan';
+        else if (type.includes('vegetariana')) dietFilter = 'vegetarian';
+    }
+
+    const options = DOMINICAN_MEALS[category] || DOMINICAN_MEALS.breakfast;
+    let compatibleOptions = options.filter(meal => dietFilter === 'balanced' ? true : meal.tags.includes(dietFilter));
+    if (compatibleOptions.length === 0) {
+        compatibleOptions = options.filter(m => m.tags.includes('balanced') || m.tags.includes('vegetarian'));
+        if (compatibleOptions.length === 0) compatibleOptions = options;
+    }
+    const availableOptions = compatibleOptions.filter(m => m.name !== currentMealName);
+    const selectedTemplate = availableOptions.length > 0
+        ? availableOptions[Math.floor(Math.random() * availableOptions.length)]
+        : options[0];
+    return {
+        name: selectedTemplate.name,
+        desc: selectedTemplate.desc,
+        cals: targetCalories || selectedTemplate.cals || 400,
+        recipe: selectedTemplate.recipe,
+        isSwapped: true
+    };
+};
 import { toast } from 'sonner';
+import { fetchWithAuth } from '../config/api';
 
 const AssessmentContext = createContext();
 
@@ -17,7 +80,7 @@ export const AssessmentProvider = ({ children }) => {
     // Auth State (Supabase)
     const [session, setSession] = useState(null);
     const [loadingAuth, setLoadingAuth] = useState(true);
-    
+
     // Estado para saber si estamos sincronizando datos de la DB
     const [loadingData, setLoadingData] = useState(true);
 
@@ -36,7 +99,7 @@ export const AssessmentProvider = ({ children }) => {
 
     // Datos del Formulario de Evaluación
     const [formData, setFormData] = useState(savedForm ? JSON.parse(savedForm) : {
-        age: '', gender: '', height: '', weight: '', bodyFat: '', activityLevel: '',
+        age: '', gender: '', height: '', weight: '', weightUnit: 'lb', bodyFat: '', activityLevel: '',
         sleepHours: '', stressLevel: '', cookingTime: '', budget: '', workSchedule: '',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
         mainGoal: '', motivation: '', struggles: [], skipLunch: false,
@@ -69,10 +132,10 @@ export const AssessmentProvider = ({ children }) => {
 
             if (plans && plans.length > 0) {
                 const latestPlan = plans[0].plan_data;
-                
+
                 // Leemos directamente del localStorage para la comparación
                 const localSaved = localStorage.getItem('mealfit_plan');
-                
+
                 // Solo actualizamos si el plan en la nube es diferente al local
                 if (!localSaved || JSON.stringify(JSON.parse(localSaved)) !== JSON.stringify(latestPlan)) {
                     console.log("📥 Descargando plan actualizado desde la nube...");
@@ -91,30 +154,55 @@ export const AssessmentProvider = ({ children }) => {
         }
     }, []);
 
-    // --- 1. FUNCIÓN PARA CONSULTAR LÍMITE (RPC Supabase) ---
+    // --- 1. FUNCIÓN PARA CONSULTAR LÍMITE DE IA (API) ---
     const checkPlanLimit = useCallback(async (specificUserId = null) => {
         try {
             const userId = specificUserId || session?.user?.id || localStorage.getItem('mealfit_user_id');
 
-            if (!userId) return;
+            if (!userId || userId === 'guest') {
+                setPlanCount(0);
+                return 0;
+            }
 
-            const { data, error } = await supabase.rpc('get_monthly_plan_count', {
-                user_uuid: userId
-            });
+            const response = await fetchWithAuth(`/api/user/credits/${userId}`);
+            if (!response.ok) throw new Error("Error consultando créditos");
+            const data = await response.json();
 
-            if (error) throw error;
-
-            setPlanCount(data);
-            return data;
+            setPlanCount(data.credits || 0);
+            return data.credits || 0;
         } catch (error) {
-            console.error("Error verificando límites:", error);
+            console.error("Error verificando límites de API:", error);
             return 0;
         }
     }, [session]);
 
     // --- 2. MANEJO DE SESIÓN Y PERFIL (SUPABASE) ---
-    useEffect(() => {
-        const fetchProfile = async (userId) => {
+    const fetchProfile = useCallback(async (userId) => {
+        try {
+            const { data } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+
+            if (data) {
+                setUserProfile(data);
+                // Sincronizar UI form data con health_profile (si existe y tiene datos)
+                if (data.health_profile && Object.keys(data.health_profile).length > 0) {
+                    setFormData(prev => ({
+                        ...prev,
+                        ...data.health_profile
+                    }));
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando perfil:', error);
+        }
+    }, [setFormData, setUserProfile]);
+
+    const refreshProfileAndPlan = useCallback(async () => {
+        const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
+        if (userId) {
             try {
                 const { data } = await supabase
                     .from('user_profiles')
@@ -124,25 +212,46 @@ export const AssessmentProvider = ({ children }) => {
 
                 if (data) {
                     setUserProfile(data);
+                    
+                    let latestFormData = { ...formData };
+                    if (data.health_profile && Object.keys(data.health_profile).length > 0) {
+                        setFormData(prev => {
+                            latestFormData = { ...prev, ...data.health_profile };
+                            return latestFormData;
+                        });
+                        
+                        // toast.info("Actualizando tu plan basado en tus nuevos datos...", { duration: 4000 });
+                        // 
+                        // // Generar nuevo plan con los datos sincronizados
+                        // const newPlan = await generateAIPlan(latestFormData);
+                        // if (newPlan) {
+                        //     setPlanData(newPlan);
+                        //     localStorage.setItem('mealfit_plan', JSON.stringify(newPlan));
+                        //     await savePlanToHistory(newPlan);
+                        //     toast.success("¡Plan sincronizado exitosamente!");
+                        // }
+                    }
                 }
             } catch (error) {
-                console.error('Error cargando perfil:', error);
+                console.error("Error refreshing profile or plan:", error);
             }
-        };
+        }
+    }, [session, formData]);
 
+    useEffect(() => {
         const handleAuthChange = async (currentSession) => {
             // Evitar actualizaciones innecesarias si la sesión es idéntica
             // Usamos JSON.stringify para comparar objetos de forma segura
             if (session?.user?.id && currentSession?.user?.id && session.user.id === currentSession.user.id) {
-               return; 
+                return;
             }
 
             setSession(currentSession);
-            
+
             if (currentSession?.user) {
                 const userId = currentSession.user.id;
                 localStorage.setItem('mealfit_user_id', userId);
-                
+
                 // Ejecutamos todo en paralelo
                 await Promise.all([
                     fetchProfile(userId),
@@ -153,9 +262,10 @@ export const AssessmentProvider = ({ children }) => {
                 // Logout / No sesión
                 setUserProfile(null);
                 setPlanCount(0);
-                setPlanData(null); 
+                setPlanData(null);
                 localStorage.removeItem('mealfit_user_id');
-                localStorage.removeItem('mealfit_plan'); 
+                localStorage.removeItem('mealfit_plan');
+                localStorage.removeItem('mealfit_guest_session');
                 setLoadingData(false);
             }
             setLoadingAuth(false);
@@ -175,9 +285,40 @@ export const AssessmentProvider = ({ children }) => {
 
         return () => subscription.unsubscribe();
 
-    // Agregamos 'session' a las dependencias para cumplir con el Linter
-    // La lógica dentro de handleAuthChange previene bucles infinitos
+        // Agregamos 'session' a las dependencias para cumplir con el Linter
+        // La lógica dentro de handleAuthChange previene bucles infinitos
     }, [checkPlanLimit, restoreSessionData, session]);
+
+    // --- ESCUCHA DE SUPABASE REALTIME (Actualizaciones de la IA) ---
+    useEffect(() => {
+        const userId = session?.user?.id;
+        if (!userId) return;
+
+        console.log("📡 Suscribiendo a cambios en Realtime para user_profiles...");
+        
+        const profileSubscription = supabase
+            .channel('public:user_profiles')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'user_profiles',
+                    filter: `id=eq.${userId}`
+                },
+                (payload) => {
+                    console.log('⚡ ¡Cambio detectado en la Base de Datos (Realtime)!', payload);
+                    // Disparar sincronización mágica
+                    refreshProfileAndPlan();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            console.log("🔌 Desconectando suscripción Realtime...");
+            supabase.removeChannel(profileSubscription);
+        };
+    }, [session, refreshProfileAndPlan]);
 
     // --- FUNCIÓN PARA ACTUALIZAR PERFIL EN DB ---
     const updateUserProfile = async (updates) => {
@@ -223,7 +364,7 @@ export const AssessmentProvider = ({ children }) => {
             [mealName]: !isCurrentlyLiked
         }));
 
-        if (isCurrentlyLiked) return; 
+        if (isCurrentlyLiked) return;
 
         try {
             const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
@@ -238,9 +379,9 @@ export const AssessmentProvider = ({ children }) => {
                 return;
             }
 
-            const API_URL = import.meta.env.VITE_LIKE_WEBHOOK || 'https://agente-de-citas-dental-space-n8n.ofcrls.easypanel.host/webhook/like';
+            const API_URL = '/api/like';
 
-            const response = await fetch(API_URL, {
+            const response = await fetchWithAuth(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -251,7 +392,7 @@ export const AssessmentProvider = ({ children }) => {
             });
 
             if (!response.ok) {
-                throw new Error(`n8n respondió: ${response.status}`);
+                throw new Error(`El Agente IA respondió con error: ${response.status}`);
             }
 
         } catch (error) {
@@ -265,21 +406,25 @@ export const AssessmentProvider = ({ children }) => {
     };
 
     // --- REGENERACIÓN INTELIGENTE CON PERSISTENCIA DE DB ---
-    const regenerateSingleMeal = async (mealIndex, mealType, currentName) => {
-        const targetCalories = planData.perfectDay[mealIndex].cals;
+    const regenerateSingleMeal = async (dayIndex, mealIndex, mealType, currentName) => {
+        const planDays = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
+        const currentMeals = planDays[dayIndex]?.meals || [];
+        const targetCalories = currentMeals[mealIndex]?.cals || 400;
         const userDietType = formData.dietType || "balanced";
         const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
 
-        console.log(`🔄 Regenerando ${mealType} (Rechazado: ${currentName})...`);
+        console.log(`🔄 Regenerando Día ${dayIndex + 1} | ${mealType} (Rechazado: ${currentName})...`);
 
         try {
             // 1. LLAMADA A LA IA
-            const API_SWAP_URL = 'https://agente-de-citas-dental-space-n8n.ofcrls.easypanel.host/webhook/swap-meal';
-            const response = await fetch(API_SWAP_URL, {
+            const API_SWAP_URL = '/api/swap-meal';
+            const sessionId = localStorage.getItem('mealfit_user_id') || 'guest_session';
+            const response = await fetchWithAuth(API_SWAP_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     user_id: userId || "guest",
+                    session_id: sessionId,
                     rejected_meal: currentName,
                     meal_type: mealType,
                     target_calories: targetCalories,
@@ -294,9 +439,20 @@ export const AssessmentProvider = ({ children }) => {
 
             // 2. ACTUALIZAR ESTADO LOCAL
             const updatedPlan = { ...planData };
-            const updatedDay = [...updatedPlan.perfectDay];
-            updatedDay[mealIndex] = {
-                ...updatedDay[mealIndex],
+            
+            // Retrocompatibilidad rápida al regenerar
+            if (!updatedPlan.days) {
+                 updatedPlan.days = [{ day: 1, meals: updatedPlan.meals || updatedPlan.perfectDay || [] }];
+                 delete updatedPlan.meals;
+                 delete updatedPlan.perfectDay;
+            }
+
+            const updatedDays = [...updatedPlan.days];
+            const updatedDayObj = { ...updatedDays[dayIndex] };
+            const updatedMeals = [...updatedDayObj.meals];
+
+            updatedMeals[mealIndex] = {
+                ...updatedMeals[mealIndex],
                 name: newMealData.name,
                 desc: newMealData.desc,
                 cals: newMealData.cals,
@@ -304,8 +460,11 @@ export const AssessmentProvider = ({ children }) => {
                 recipe: newMealData.recipe || [],
                 ingredients: newMealData.ingredients || []
             };
-            updatedPlan.perfectDay = updatedDay;
-            
+
+            updatedDayObj.meals = updatedMeals;
+            updatedDays[dayIndex] = updatedDayObj;
+            updatedPlan.days = updatedDays;
+
             // Actualizamos UI inmediatamente
             setPlanData(updatedPlan);
             localStorage.setItem('mealfit_plan', JSON.stringify(updatedPlan));
@@ -343,26 +502,43 @@ export const AssessmentProvider = ({ children }) => {
                 }
             }
 
+            // Actualizar créditos en tiempo real después de regenerar exitosamente
+            setTimeout(async () => {
+                await checkPlanLimit();
+            }, 1000);
+
             return newMealData.name;
 
         } catch (error) {
             // CORRECCIÓN DEL ERROR DE LINTER: Usamos la variable 'error'
             console.error("❌ Falló IA, usando fallback local...", error);
-            
+
             // Fallback Local
             const localFallback = getAlternativeMeal(mealType, currentName, targetCalories, userDietType);
-            
-            const updatedPlan = { ...planData };
-            const updatedDay = [...updatedPlan.perfectDay];
 
-            updatedDay[mealIndex] = {
-                ...updatedDay[mealIndex],
+            const updatedPlan = { ...planData };
+            if (!updatedPlan.days) {
+                 updatedPlan.days = [{ day: 1, meals: updatedPlan.meals || updatedPlan.perfectDay || [] }];
+                 delete updatedPlan.meals;
+                 delete updatedPlan.perfectDay;
+            }
+
+            const updatedDays = [...updatedPlan.days];
+            const updatedDayObj = { ...updatedDays[dayIndex] };
+            const updatedMeals = [...updatedDayObj.meals];
+
+            updatedMeals[mealIndex] = {
+                ...updatedMeals[mealIndex],
                 name: localFallback.name,
                 desc: localFallback.desc,
                 cals: localFallback.cals,
                 recipe: localFallback.recipe
             };
-            updatedPlan.perfectDay = updatedDay;
+            
+            updatedDayObj.meals = updatedMeals;
+            updatedDays[dayIndex] = updatedDayObj;
+            updatedPlan.days = updatedDays;
+
             setPlanData(updatedPlan);
             return localFallback.name;
         }
@@ -375,6 +551,35 @@ export const AssessmentProvider = ({ children }) => {
     const saveGeneratedPlan = async (data) => {
         setPlanData(data);
         setLikedMeals({});
+        
+        // --- GUARDAR EN SUPABASE DESDE EL FRONTEND PARA EVITAR ERRORES RLS DEL BACKEND ---
+        const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
+        if (userId && userId !== 'guest') {
+            try {
+                const calories = parseInt(data.calories || data.estimated_calories) || 0;
+                const macros = data.macros || {};
+                const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                const planName = `Plan del ${new Date().toLocaleDateString('es-DO', dateOptions)}`;
+
+                const { error: saveError } = await supabase.from('meal_plans').insert({
+                    user_id: userId,
+                    plan_data: data,
+                    name: planName,
+                    calories: calories,
+                    macros: macros,
+                    created_at: new Date().toISOString()
+                });
+
+                if (saveError) {
+                    console.error("❌ Error guardando historial del plan generado por chat:", saveError.message);
+                } else {
+                    console.log("💾 Plan generado por chat guardado exitosamente en el historial por el Frontend.");
+                }
+            } catch (dbError) {
+                console.error("⚠️ Error crítico al intentar guardar historial del plan del chat:", dbError);
+            }
+        }
+
         setTimeout(async () => {
             await checkPlanLimit();
         }, 2000);
@@ -393,10 +598,15 @@ export const AssessmentProvider = ({ children }) => {
     const prevStep = () => { setDirection(-1); setCurrentStep((prev) => Math.max(0, prev - 1)); };
 
     const resetApp = async () => {
-        localStorage.removeItem('mealfit_form');
+        // NO limpiamos mealfit_form: los datos del formulario se preservan
+        // para que el usuario no tenga que rellenarlos cada vez.
+        // Se restauran desde health_profile de Supabase al volver a iniciar sesión.
         localStorage.removeItem('mealfit_plan');
         localStorage.removeItem('mealfit_likes');
         localStorage.removeItem('mealfit_user_id');
+        localStorage.removeItem('mealfit_guest_session');
+        localStorage.removeItem('mealfit_guest_sessions_list');
+        localStorage.removeItem('mealfit_current_session');
 
         await supabase.auth.signOut();
 
@@ -404,12 +614,7 @@ export const AssessmentProvider = ({ children }) => {
         setLikedMeals({});
         setUserProfile(null);
         setPlanCount(0);
-        setFormData({
-            age: '', gender: '', height: '', weight: '', bodyFat: '', activityLevel: '',
-            sleepHours: '', stressLevel: '', cookingTime: '', budget: '', workSchedule: '',
-            dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
-            mainGoal: '', motivation: '', struggles: [], skipLunch: false,
-        });
+        // formData NO se resetea — se mantiene para la próxima sesión
         setCurrentStep(0);
         setLoadingData(false);
     };
@@ -442,7 +647,11 @@ export const AssessmentProvider = ({ children }) => {
         }
     };
 
-    const isPlus = userProfile?.plan_tier === 'plus' || userProfile?.plan_tier === 'admin';
+    const isPlus = ['plus', 'admin', 'ultra'].includes(userProfile?.plan_tier);
+
+    let userPlanLimit = PLAN_LIMIT;
+    if (userProfile?.plan_tier === 'plus') userPlanLimit = 200;
+    else if (['ultra', 'admin'].includes(userProfile?.plan_tier)) userPlanLimit = 'Ilimitado';
 
     return (
         <AssessmentContext.Provider value={{
@@ -466,11 +675,13 @@ export const AssessmentProvider = ({ children }) => {
             resetApp,
             planCount,
             PLAN_LIMIT,
+            userPlanLimit,
             checkPlanLimit,
-            isPlus, 
-            remainingCredits: isPlus ? 9999 : Math.max(0, PLAN_LIMIT - planCount), 
+            isPlus,
+            remainingCredits: typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : '∞',
             upgradeUserToPlus,
-            restorePlan
+            restorePlan,
+            refreshProfileAndPlan
         }}>
             {children}
         </AssessmentContext.Provider>

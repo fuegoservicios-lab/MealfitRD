@@ -6,10 +6,11 @@ import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
     RefreshCw, ChefHat, Heart,
     Brain, Wallet, AlertCircle, Dumbbell, Wheat,
-    Lightbulb, Wand2, Clock, BookOpen, Loader2
+    Lightbulb, Wand2, Clock, BookOpen, Loader2, Target
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
+import TrackingProgress from '../components/dashboard/TrackingProgress';
 
 const Dashboard = () => {
     // 1. Obtenemos estado y funciones del Contexto Global
@@ -19,19 +20,23 @@ const Dashboard = () => {
         toggleMealLike,
         regenerateSingleMeal, // Ahora esta función es ASYNC (llama a la IA)
         formData,
-        // Valores para el sistema de créditos y suscripción
         planCount,
         PLAN_LIMIT,
+        userPlanLimit,
         remainingCredits,
         isPlus,
         userProfile,
-        loadingData
+        loadingData,
+        setCurrentStep
     } = useAssessment();
 
     const navigate = useNavigate();
 
     // Estado local para saber qué tarjeta se está regenerando (loading spinner específico)
     const [regeneratingId, setRegeneratingId] = useState(null);
+
+    // Estado local para la navegación por pestañas (Días)
+    const [activeDayIndex, setActiveDayIndex] = useState(0);
 
     // 2. ESTADO DE CARGA: Si estamos recuperando datos de la DB, mostramos loader
     if (loadingData) {
@@ -62,11 +67,16 @@ const Dashboard = () => {
     }
 
     const handleNewPlan = () => {
+        setCurrentStep(0);
         navigate('/assessment');
     };
 
     // Cálculos para la UI de límites
-    const isLimitReached = !isPlus && planCount >= PLAN_LIMIT;
+    const isLimitReached = typeof userPlanLimit === 'number' && planCount >= userPlanLimit;
+
+    // Retrocompatibilidad y extracción de días
+    const planDays = planData?.days || [{ day: 1, meals: planData?.meals || planData?.perfectDay || [] }];
+    const currentDayMeals = planDays[activeDayIndex]?.meals || [];
 
     return (
         <DashboardLayout>
@@ -103,7 +113,7 @@ const Dashboard = () => {
                             border: `1px solid ${isPlus ? '#FCD34D' : '#E2E8F0'}`,
                             boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                         }}>
-                            {isPlus ? 'PLUS MEMBER 🌟' : 'PLAN GRATUITO'}
+                            {isPlus ? 'MIEMBRO PLUS' : 'PLAN GRATUITO'}
                         </span>
                     </div>
 
@@ -131,37 +141,35 @@ const Dashboard = () => {
                 {/* --- ACTIONS GROUP --- */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
 
-                    {/* VISUALIZADOR DE CRÉDITOS (Solo Free) */}
-                    {!isPlus && (
+                    {/* VISUALIZADOR DE CRÉDITOS */}
+                    <div style={{
+                        background: '#FFFFFF',
+                        padding: '0.6rem 1rem',
+                        borderRadius: '1rem',
+                        border: '2px solid #E2E8F0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.875rem',
+                        boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.08)',
+                    }}>
                         <div style={{
-                            background: 'white',
-                            padding: '0.6rem 1rem',
-                            borderRadius: '1rem',
-                            border: '1px solid #F1F5F9',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.875rem',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)',
+                            width: 36, height: 36,
+                            background: isLimitReached ? '#FEF2F2' : '#EFF6FF',
+                            color: isLimitReached ? '#EF4444' : '#3B82F6',
+                            borderRadius: '0.75rem',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}>
-                            <div style={{
-                                width: 36, height: 36,
-                                background: isLimitReached ? '#FEF2F2' : '#EFF6FF',
-                                color: isLimitReached ? '#EF4444' : '#3B82F6',
-                                borderRadius: '0.75rem',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                            }}>
-                                <Zap size={18} fill={isLimitReached ? '#EF4444' : '#3B82F6'} />
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>
-                                    Créditos
-                                </span>
-                                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                                    {remainingCredits} <span style={{ color: '#CBD5E1' }}>/ {PLAN_LIMIT}</span>
-                                </div>
+                            <Zap size={18} fill={isLimitReached ? '#EF4444' : '#3B82F6'} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>
+                                Créditos
+                            </span>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                                {remainingCredits} {userPlanLimit !== 'Ilimitado' && <span style={{ color: '#94A3B8' }}>/ {userPlanLimit}</span>}
                             </div>
                         </div>
-                    )}
+                    </div>
 
                     {/* BOTÓN GENERAR NUEVO PLAN */}
                     <button
@@ -186,26 +194,41 @@ const Dashboard = () => {
                         }}
                     >
                         {isLimitReached ? <AlertCircle size={20} /> : <Wand2 size={20} />}
-                        <span>{isLimitReached ? 'Límite Alcanzado' : 'Generar Nuevo Día'}</span>
+                        <span>{isLimitReached ? 'Límite Alcanzado' : 'Generar Nueva Opción'}</span>
                     </button>
                 </div>
             </header>
 
-            {/* --- MACROS & CALORIES GRID --- */}
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1.5rem' }}>
-                Tus Objetivos Técnicos
-            </h2>
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '1.5rem',
-                marginBottom: '2.5rem'
-            }}>
-                <StatCard label="Calorías Totales" value={planData.calories} unit="kcal" icon={Flame} color="#F59E0B" bgColor="#FFFBEB" />
-                <StatCard label="Proteína (Target)" value={planData.macros?.protein || "0g"} unit="" icon={Dumbbell} color="#3B82F6" bgColor="#EFF6FF" />
-                <StatCard label="Carbohidratos" value={planData.macros?.carbs || "0g"} unit="" icon={Wheat} color="#10B981" bgColor="#ECFDF5" />
-                <StatCard label="Grasas Saludables" value={planData.macros?.fats || "0g"} unit="" icon={Droplet} color="#EC4899" bgColor="#FDF2F8" />
+            {/* --- MACROS & CALORIES SUMMARY ROW --- */}
+            <div style={{ marginBottom: '2.5rem' }}>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <div style={{ background: '#EFF6FF', color: '#3B82F6', padding: '0.4rem', borderRadius: '0.5rem', display: 'flex' }}>
+                        <Target size={20} strokeWidth={2.5} />
+                    </div>
+                    Objetivo del Día
+                </h2>
+                
+                <div style={{
+                    background: 'white',
+                    borderRadius: '1.25rem',
+                    border: '1px solid #E2E8F0',
+                    boxShadow: '0 4px 6px -1px rgba(15, 23, 42, 0.03)',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                    overflow: 'hidden'
+                }}>
+                    <StatItem label="Calorías Totales" value={planData.calories} unit="kcal" icon={Flame} color="#F59E0B" bgColor="#FFFBEB" isFirst={true} />
+                    <StatItem label="Proteína" value={planData.macros?.protein || "0g"} unit="" icon={Dumbbell} color="#3B82F6" bgColor="#EFF6FF" />
+                    <StatItem label="Carbohidratos" value={planData.macros?.carbs || "0g"} unit="" icon={Wheat} color="#10B981" bgColor="#ECFDF5" />
+                    <StatItem label="Grasas" value={planData.macros?.fats || "0g"} unit="" icon={Droplet} color="#EC4899" bgColor="#FDF2F8" />
+                </div>
             </div>
+
+            {/* --- DAILY TRACKER UI --- */}
+            <TrackingProgress 
+                planData={planData} 
+                userId={userProfile?.id || formData?.session_id || 'guest'} 
+            />
 
             {/* --- MAIN CONTENT COLUMNS --- */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2.5rem' }}>
@@ -214,17 +237,55 @@ const Dashboard = () => {
                 <div style={{ flex: 2 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
                         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                            Menú Ejecutivo del Día
+                            Tu Menú de Hoy
                         </h2>
                         <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                             {formData?.skipLunch ? '3 Comidas Planificadas' : '4 Comidas Completas'}
                         </span>
                     </div>
 
+                    {/* BOTONES NAVEGACIÓN DÍAS (OPCIONES) */}
+                    {planDays.length > 1 && (
+                        <div style={{
+                            display: 'flex',
+                            gap: '1rem',
+                            marginBottom: '2rem',
+                            justifyContent: 'center',
+                            background: '#F8FAFC',
+                            padding: '0.75rem',
+                            borderRadius: '1rem',
+                            border: '1px solid #E2E8F0',
+                            boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.02)'
+                        }}>
+                            {planDays.map((_, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => setActiveDayIndex(idx)}
+                                    style={{
+                                        flex: 1,
+                                        padding: '1rem',
+                                        borderRadius: '0.75rem',
+                                        border: activeDayIndex === idx ? 'none' : '1px solid #CBD5E1',
+                                        background: activeDayIndex === idx ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' : 'white',
+                                        color: activeDayIndex === idx ? 'white' : '#475569',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        fontSize: '1rem',
+                                        boxShadow: activeDayIndex === idx ? '0 10px 15px -3px rgba(59, 130, 246, 0.3)' : '0 1px 2px rgba(0,0,0,0.05)',
+                                        transform: activeDayIndex === idx ? 'translateY(-2px)' : 'translateY(0)'
+                                    }}
+                                >
+                                    Opción {String.fromCharCode(65 + idx)}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                         {(() => {
-                            // Copia segura de platos
-                            let displayMeals = [...(planData.perfectDay || [])];
+                            // Copia segura de platos usando el día activo
+                            let displayMeals = [...currentDayMeals];
 
                             // Inyectar almuerzo familiar visual si aplica
                             if (formData?.skipLunch) {
@@ -358,16 +419,16 @@ const Dashboard = () => {
 
                                                         // 2. Estado Visual de Carga
                                                         setRegeneratingId(index);
-                                                        
+
                                                         // 3. Notificación Inicial (Toast de Carga)
                                                         const toastId = toast.loading('Consultando al Chef IA...', {
                                                             description: 'Buscando una alternativa deliciosa...',
                                                         });
 
                                                         try {
-                                                            // 4. Llamada ASYNC a n8n
-                                                            const newName = await regenerateSingleMeal(index, meal.meal, meal.name);
-                                                            
+                                                            // 4. Llamada ASYNC al modelo local
+                                                            const newName = await regenerateSingleMeal(activeDayIndex, index, meal.meal, meal.name);
+
                                                             // 5. Éxito
                                                             toast.dismiss(toastId);
                                                             toast.success('¡Menú Actualizado!', {
@@ -464,7 +525,7 @@ const Dashboard = () => {
                             <div style={{ background: '#F0F9FF', padding: '0.4rem', borderRadius: '0.75rem', color: '#0284C7' }}>
                                 <Lightbulb size={22} strokeWidth={2.5} />
                             </div>
-                            Estrategia Inteligente
+                            Estrategia Nutricional
                         </h3>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -482,7 +543,7 @@ const Dashboard = () => {
                                 }
                                 if (insight.toLowerCase().includes('estrategia') || i === 1) {
                                     icon = <Wallet size={20} />;
-                                    title = "Estrategia";
+                                    title = "Plan de Acción";
                                     color = "#059669"; // Emerald
                                     bgColor = "#ECFDF5";
                                 }
@@ -545,7 +606,7 @@ const Dashboard = () => {
                                 <div style={{ background: '#FFF7ED', padding: '0.4rem', borderRadius: '0.75rem', color: '#EA580C' }}>
                                     <ChefHat size={22} strokeWidth={2.5} />
                                 </div>
-                                Recetas del Día
+                                Recetas
                             </h3>
                             <Link to="/dashboard/recipes" style={{ textDecoration: 'none' }}>
                                 <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#EA580C', background: '#FFF7ED', padding: '0.25rem 0.75rem', borderRadius: '99px', cursor: 'pointer' }}>
@@ -555,38 +616,31 @@ const Dashboard = () => {
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-                            {planData?.perfectDay?.slice(0, 3).map((meal, i) => (
-                                <Link to="/dashboard/recipes" key={i} style={{ textDecoration: 'none' }}>
+                            {currentDayMeals.slice(0, 3).map((meal, i) => (
+                                <div key={i} style={{
+                                    display: 'flex', alignItems: 'center', gap: '1rem',
+                                    padding: '0.75rem', borderRadius: '1rem',
+                                    background: 'white', border: '1px solid #F1F5F9'
+                                }}>
                                     <div style={{
-                                        display: 'flex', alignItems: 'center', gap: '1rem',
-                                        padding: '0.75rem', borderRadius: '1rem',
-                                        background: 'white', border: '1px solid #F1F5F9',
-                                        transition: 'all 0.2s',
-                                        cursor: 'pointer'
-                                    }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)'; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
-                                    >
-                                        <div style={{
-                                            width: 40, height: 40, borderRadius: '0.75rem',
-                                            background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            color: '#64748B', flexShrink: 0
-                                        }}>
-                                            <ChefHat size={20} />
-                                        </div>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                {meal.name}
-                                            </h4>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#64748B', marginTop: '0.2rem' }}>
-                                                <Flame size={14} /> {meal.cals} kcal
-                                            </div>
-                                        </div>
-                                        <div style={{ color: '#CBD5E1' }}>
-                                            <ArrowRight size={18} />
+                                        width: 40, height: 40, borderRadius: '0.75rem',
+                                        background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        color: '#64748B', flexShrink: 0
+                                    }}>
+                                        <ChefHat size={20} />
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {meal.name}
+                                        </h4>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#64748B', marginTop: '0.2rem' }}>
+                                            <Flame size={14} /> {meal.cals} kcal
                                         </div>
                                     </div>
-                                </Link>
+                                    <div style={{ color: '#CBD5E1' }}>
+                                        <ArrowRight size={18} />
+                                    </div>
+                                </div>
                             ))}
                         </div>
 
@@ -611,52 +665,41 @@ const Dashboard = () => {
     );
 };
 
-// --- Componente interno para las tarjetas de estadísticas ---
-const StatCard = ({ label, value, unit, icon, color, bgColor }) => {
+// --- Componente interno para las métricas (Items del KPI Board) ---
+const StatItem = ({ label, value, unit, icon, color, bgColor, isFirst }) => {
     const Icon = icon;
 
     return (
         <div style={{
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
             padding: '1.5rem',
-            borderRadius: '1.25rem',
-            border: '1px solid rgba(255, 255, 255, 0.5)',
             display: 'flex',
             alignItems: 'center',
-            gap: '1.25rem',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-            transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            cursor: 'default',
-            position: 'relative',
-            overflow: 'hidden'
-        }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-        >
+            gap: '1rem',
+            borderLeft: isFirst ? 'none' : '1px solid #F1F5F9',
+            background: 'white'
+        }}>
             <div style={{
-                position: 'absolute', top: 0, right: 0, width: '6rem', height: '6rem',
-                background: bgColor, filter: 'blur(40px)', opacity: 0.5, borderRadius: '50%',
-                transform: 'translate(30%, -30%)'
-            }} />
-
-            <div style={{
-                width: 56, height: 56,
-                borderRadius: '1rem',
+                width: 48, height: 48,
+                borderRadius: '12px',
                 background: bgColor,
                 color: color,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                position: 'relative',
-                boxShadow: `0 2px 8px ${color}33`
+                flexShrink: 0
             }}>
-                <Icon size={26} strokeWidth={2} fill={color} fillOpacity={0.2} />
+                <Icon size={24} strokeWidth={2.5} />
             </div>
-
-            <div style={{ position: 'relative' }}>
-                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1, letterSpacing: '-0.02em' }}>
-                    {value} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600, marginLeft: '2px' }}>{unit}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em' }}>
+                        {value}
+                    </div>
+                    {unit && (
+                        <div style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 600 }}>
+                            {unit}
+                        </div>
+                    )}
                 </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '0.25rem' }}>
+                <div style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                     {label}
                 </div>
             </div>
@@ -664,13 +707,14 @@ const StatCard = ({ label, value, unit, icon, color, bgColor }) => {
     );
 };
 
-StatCard.propTypes = {
+StatItem.propTypes = {
     label: PropTypes.string,
     value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     unit: PropTypes.string,
     icon: PropTypes.elementType,
     color: PropTypes.string,
-    bgColor: PropTypes.string
+    bgColor: PropTypes.string,
+    isFirst: PropTypes.bool
 };
 
 export default Dashboard;

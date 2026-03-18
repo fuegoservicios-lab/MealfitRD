@@ -3,15 +3,18 @@ import styles from './Header.module.css';
 import { Menu, X, LayoutDashboard, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { useAssessment } from '../../context/AssessmentContext';
+import LogoutConfirmModal from '../dashboard/LogoutConfirmModal';
 
 const Header = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
 
     // Obtenemos planData para saber si el usuario ya tiene un plan activo
     // Obtener session y resetApp para el logout
     const { planData, session, resetApp } = useAssessment();
 
     return (
+        <>
         <header className={styles.header}>
             <div className={`container ${styles.container}`}>
                 <Link to="/" className={styles.logo}>
@@ -40,22 +43,21 @@ const Header = () => {
                     {/* Botón Logout solo si hay sesión */}
                     {session && (
                         <button
-                            onClick={() => {
-                                resetApp();
-                            }}
+                            onClick={() => setShowLogoutModal(true)}
                             className={styles.navLink}
                             style={{
-                                background: 'none',
+                                background: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '0.5rem',
-                                padding: 0,
-                                fontSize: 'inherit'
+                                gap: '0.4rem',
+                                padding: '0.5rem 1rem',
+                                fontSize: '0.95rem',
+                                fontFamily: 'inherit'
                             }}
                         >
-                            <LogOut size={18} /> Cerrar Sesión
+                            <LogOut size={16} strokeWidth={2.5} /> Cerrar Sesión
                         </button>
                     )}
                 </nav>
@@ -102,7 +104,7 @@ const Header = () => {
                         {session && (
                             <button
                                 onClick={() => {
-                                    resetApp();
+                                    setShowLogoutModal(true);
                                     setIsMenuOpen(false);
                                 }}
                                 className={styles.logoutBtnMobile}
@@ -114,6 +116,17 @@ const Header = () => {
                 )}
             </div>
         </header>
+
+        <LogoutConfirmModal
+            isOpen={showLogoutModal}
+            onConfirm={async () => {
+                await resetApp();
+                setShowLogoutModal(false);
+            }}
+            onCancel={() => setShowLogoutModal(false)}
+            userEmail={session?.user?.email}
+        />
+        </>
     );
 };
 

@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import {
     User, Bell, Shield, ChevronRight,
-    LogOut, Save, Trash2, Database, Mail
+    LogOut, Save, Trash2, Database, Mail, Brain
 } from 'lucide-react';
 import { useAssessment } from '../context/AssessmentContext';
 import { useNavigate } from 'react-router-dom';
+import styles from './Settings.module.css';
+import { fetchWithAuth } from '../config/api';
 
 const Settings = () => {
     // Obtenemos userProfile y updateUserProfile del contexto global
-    const { planData, formData, resetApp, userProfile, updateUserProfile } = useAssessment();
+    const { planData, formData, resetApp, userProfile, updateUserProfile, setCurrentStep } = useAssessment();
     const navigate = useNavigate();
 
     // --- ESTADOS LOCALES ---
@@ -27,7 +29,13 @@ const Settings = () => {
 
     const [isSaving, setIsSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState(''); // '', 'success', 'error'
+    const [nameError, setNameError] = useState('');
     const [confirmReset, setConfirmReset] = useState(false);
+
+    // --- ESTADOS PARA CEREBRO IA ---
+    const [userFacts, setUserFacts] = useState([]);
+    const [isLoadingFacts, setIsLoadingFacts] = useState(false);
+    const [isDeletingFact, setIsDeletingFact] = useState(null); // ID del fact que se está borrando
 
     // --- EFECTOS ---
 
@@ -51,6 +59,30 @@ const Settings = () => {
         localStorage.setItem('mealfit_notifications', notifications);
     }, [notifications]);
 
+    // Cargar los "hechos" del Cerebro de la IA
+    useEffect(() => {
+        const fetchUserFacts = async () => {
+            const userId = userProfile?.id;
+            if (!userId) return;
+
+            setIsLoadingFacts(true);
+            try {
+                // Asumimos que la API corre en http://localhost:3001
+                const response = await fetchWithAuth(`/api/user-facts/${userId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setUserFacts(data.facts || []);
+                }
+            } catch (error) {
+                console.error("Error cargando Cerebro IA:", error);
+            } finally {
+                setIsLoadingFacts(false);
+            }
+        };
+
+        fetchUserFacts();
+    }, [userProfile?.id]);
+
     // --- MANEJADORES (HANDLERS) ---
 
     const handleResetApp = () => {
@@ -65,13 +97,20 @@ const Settings = () => {
 
     const handleSaveProfile = async () => {
         if (isSaving) return;
+        
+        const trimmedName = userName.trim();
+        if (!trimmedName) {
+            setNameError("Por favor, ingresa tu nombre.");
+            return;
+        }
+        setNameError('');
 
         setIsSaving(true);
         setSaveStatus('');
 
         // Actualizamos en Supabase
         const result = await updateUserProfile({
-            full_name: userName
+            full_name: trimmedName
         });
 
         setIsSaving(false);
@@ -85,89 +124,118 @@ const Settings = () => {
         }
     };
 
+    const handleDeleteFact = async (factId) => {
+        if (!confirm("¿Seguro que deseas olvidar esta información?")) return;
+        
+        setIsDeletingFact(factId);
+        try {
+            const response = await fetchWithAuth(`/api/user-facts/${factId}`, {
+                method: 'DELETE'
+            });
+            if (response.ok) {
+                // Actualizamos el estado local quitando el hecho borrado
+                setUserFacts(prev => prev.filter(f => f.id !== factId));
+            } else {
+                alert("Hubo un problema al olvidar la información.");
+            }
+        } catch (error) {
+            console.error("Error borrando fact:", error);
+            alert("No se pudo conectar con el servidor para borrar.");
+        } finally {
+            setIsDeletingFact(null);
+        }
+    };
+
     // Datos derivados para la UI
     const userGoal = formData?.mainGoal || "Mejorar Salud";
     const displayEmail = userProfile?.email || "Cargando correo...";
 
     return (
         <DashboardLayout>
-            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <div className={styles.wrapper}>
                 {/* --- HEADER --- */}
-                <header style={{ marginBottom: '2.5rem' }}>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1, marginBottom: '0.5rem' }}>
+                <header className={styles.header}>
+                    <h1 className={styles.headerTitle}>
                         Ajustes
                     </h1>
-                    <p style={{ color: 'var(--text-muted)' }}>
+                    <p className={styles.headerSubtitle}>
                         Gestiona tu perfil, preferencias y datos de la aplicación.
                     </p>
                 </header>
 
-                <div style={{ display: 'grid', gap: '2rem' }}>
+                <div className={styles.grid}>
 
                     {/* SECCIÓN 1: PERFIL (CONECTADO A SUPABASE) */}
-                    <section style={{
-                        background: 'white',
-                        borderRadius: '1.5rem',
-                        padding: '2rem',
-                        boxShadow: 'var(--shadow-sm)',
-                        border: '1px solid var(--border)'
-                    }}>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <section className={styles.section}>
+                        <h2 className={styles.sectionTitle}>
                             <div style={{ background: '#EFF6FF', padding: '0.5rem', borderRadius: '0.5rem', color: '#3B82F6' }}>
                                 <User size={20} />
                             </div>
                             Perfil de Usuario
                         </h2>
 
-                        <div style={{ display: 'flex', gap: '2rem', flexDirection: 'column' }}>
+                        <div className={styles.profileFlex}>
                             
                             {/* Avatar y Nombre */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
-                                <div style={{
-                                    width: '80px', height: '80px',
-                                    background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-                                    borderRadius: '50%',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    color: 'white', fontSize: '2rem', fontWeight: 700,
-                                    boxShadow: '0 4px 6px rgba(59, 130, 246, 0.3)'
-                                }}>
+                            <div className={styles.avatarContainer}>
+                                <div className={styles.avatar}>
                                     {userName ? userName.charAt(0).toUpperCase() : 'U'}
                                 </div>
                                 <div style={{ flex: 1, minWidth: '200px' }}>
                                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                                        Nombre Completo
+                                        Nombre Completo <span style={{ color: '#EF4444' }}>*</span>
                                     </label>
                                     <input
                                         type="text"
                                         value={userName}
-                                        onChange={(e) => setUserName(e.target.value)}
+                                        onChange={(e) => {
+                                            setUserName(e.target.value);
+                                            if (nameError) setNameError('');
+                                        }}
                                         placeholder="Tu nombre aquí"
                                         style={{
                                             width: '100%',
-                                            padding: '0.75rem 1rem',
+                                            padding: '0.875rem 1.25rem',
                                             borderRadius: '0.75rem',
-                                            border: '1px solid var(--border)',
+                                            border: nameError ? '2px solid #FCA5A5' : '2px solid transparent',
                                             outline: 'none',
-                                            fontSize: '0.95rem',
-                                            transition: 'border-color 0.2s',
-                                            background: '#F8FAFC'
+                                            fontSize: '1rem',
+                                            transition: 'all 0.3s ease',
+                                            background: nameError ? '#FEF2F2' : '#F1F5F9',
+                                            color: nameError ? '#7F1D1D' : 'var(--text-main)',
+                                            fontWeight: 500
                                         }}
-                                        onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-                                        onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                                        onFocus={(e) => {
+                                            e.target.style.background = 'white';
+                                            e.target.style.borderColor = nameError ? '#EF4444' : '#3B82F6';
+                                            e.target.style.boxShadow = nameError ? '0 0 0 4px rgba(239, 68, 68, 0.1)' : '0 0 0 4px rgba(59, 130, 246, 0.1)';
+                                        }}
+                                        onBlur={(e) => {
+                                            e.target.style.background = nameError ? '#FEF2F2' : '#F1F5F9';
+                                            e.target.style.borderColor = nameError ? '#FCA5A5' : 'transparent';
+                                            e.target.style.boxShadow = 'none';
+                                        }}
                                     />
+                                    {nameError && (
+                                        <div style={{ color: '#EF4444', fontSize: '0.8rem', marginTop: '0.5rem', fontWeight: 500 }}>
+                                            {nameError}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             
                             {/* Campo de Email (Solo Lectura) */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem 1rem', background: '#F1F5F9', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
-                                <Mail size={18} color="#64748B" />
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600 }}>Correo Electrónico (ID)</span>
-                                    <span style={{ color: '#334155', fontSize: '0.9rem' }}>{displayEmail}</span>
+                            <div className={styles.emailContainer}>
+                                <div style={{ background: 'white', padding: '0.5rem', borderRadius: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                                    <Mail size={18} color="#64748B" />
                                 </div>
-                                <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#64748B', background: '#E2E8F0', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
-                                    NO EDITABLE
-                                </span>
+                                <div className={styles.emailInfo}>
+                                    <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Correo Electrónico (ID)</span>
+                                    <span style={{ color: '#334155', fontSize: '0.95rem', fontWeight: 500 }}>{displayEmail}</span>
+                                </div>
+                                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#94A3B8', fontSize: '0.8rem', fontWeight: 600 }}>
+                                    <Shield size={14} /> Protegido
+                                </div>
                             </div>
 
                             {/* Botón Guardar */}
@@ -204,17 +272,11 @@ const Settings = () => {
 
 
                     {/* SECCIÓN 2: PREFERENCIAS & DATOS (Grid) */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+                    <div className={styles.preferencesGrid}>
 
                         {/* Preferencias */}
-                        <section style={{
-                            background: 'white',
-                            borderRadius: '1.5rem',
-                            padding: '2rem',
-                            boxShadow: 'var(--shadow-sm)',
-                            border: '1px solid var(--border)'
-                        }}>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <section className={styles.section}>
+                            <h2 className={styles.sectionTitle}>
                                 <div style={{ background: '#F3E8FF', padding: '0.5rem', borderRadius: '0.5rem', color: '#9333EA' }}>
                                     <Bell size={20} />
                                 </div>
@@ -223,42 +285,30 @@ const Settings = () => {
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 0', borderBottom: '1px solid #F1F5F9' }}>
-                                    <div>
-                                        <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Notificaciones</div>
-                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Recordatorios de comidas</div>
+                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                        <div style={{ background: '#F8FAFC', padding: '0.6rem', borderRadius: '0.5rem' }}>
+                                            <Bell size={18} color="#64748B" />
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Alertas de Comidas</div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Te avisa a la hora de comer</div>
+                                        </div>
                                     </div>
-                                    <label style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px' }}>
+                                    <label className={styles.toggleSwitch}>
                                         <input
                                             type="checkbox"
                                             checked={notifications}
                                             onChange={() => setNotifications(!notifications)}
-                                            style={{ opacity: 0, width: 0, height: 0 }}
                                         />
-                                        <span style={{
-                                            position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
-                                            backgroundColor: notifications ? 'var(--primary)' : '#cbd5e1',
-                                            transition: '.4s', borderRadius: '34px'
-                                        }}>
-                                            <span style={{
-                                                position: 'absolute', content: '""', height: '20px', width: '20px',
-                                                left: notifications ? '22px' : '2px', bottom: '2px',
-                                                backgroundColor: 'white', transition: '.4s', borderRadius: '50%'
-                                            }}></span>
-                                        </span>
+                                        <span className={styles.toggleSlider}></span>
                                     </label>
                                 </div>
                             </div>
                         </section>
 
                         {/* INFO DEL PLAN */}
-                        <section style={{
-                            background: 'white',
-                            borderRadius: '1.5rem',
-                            padding: '2rem',
-                            boxShadow: 'var(--shadow-sm)',
-                            border: '1px solid var(--border)'
-                        }}>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <section className={styles.section}>
+                            <h2 className={styles.sectionTitle}>
                                 <div style={{ background: '#DCFCE7', padding: '0.5rem', borderRadius: '0.5rem', color: '#166534' }}>
                                     <Database size={20} />
                                 </div>
@@ -270,83 +320,117 @@ const Settings = () => {
                                 color: 'white',
                                 padding: '1.5rem',
                                 borderRadius: '1rem',
-                                marginBottom: '1.5rem'
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '1rem',
+                                boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.4)'
                             }}>
-                                <div style={{ fontSize: '0.9rem', opacity: 0.9, marginBottom: '0.25rem' }}>Meta Principal</div>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 800, textTransform: 'capitalize' }}>
-                                    {userGoal.replace(/_/g, ' ')}
+                                <div>
+                                    <div style={{ fontSize: '0.9rem', opacity: 0.9, marginBottom: '0.25rem' }}>Meta Principal</div>
+                                    <div style={{ fontSize: '1.75rem', fontWeight: 800, textTransform: 'capitalize', letterSpacing: '-0.02em' }}>
+                                        {userGoal.replace(/_/g, ' ')}
+                                    </div>
+                                    <div style={{ fontSize: '0.9rem', marginTop: '0.5rem', opacity: 0.9 }}>
+                                        <span style={{ fontWeight: 700 }}>{Math.round(planData?.calories || 2000)}</span> kcal diarios
+                                    </div>
                                 </div>
-                                <div style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.9 }}>
-                                    Calorías: {planData?.calories || 2000} kcal
-                                </div>
-                            </div>
 
-                            <button
-                                onClick={() => navigate('/assessment')}
-                                style={{
-                                    width: '100%',
-                                    padding: '0.75rem',
-                                    border: '1px solid var(--border)',
-                                    borderRadius: '0.75rem',
-                                    background: 'white',
-                                    color: 'var(--text-main)',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                    transition: 'background 0.2s'
-                                }}>
-                                Cambiar Objetivo (Nuevo Plan) <ChevronRight size={16} />
-                            </button>
+                                <button
+                                    onClick={() => {
+                                        setCurrentStep(0);
+                                        navigate('/assessment');
+                                    }}
+                                    className={styles.actionBtn}
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.75rem',
+                                        border: '1px solid rgba(255, 255, 255, 0.4)',
+                                        borderRadius: '0.75rem',
+                                        background: 'rgba(255, 255, 255, 0.15)',
+                                        color: 'white',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                        backdropFilter: 'blur(10px)',
+                                        marginTop: '0.5rem'
+                                    }}
+                                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)'}
+                                    onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+                                >
+                                    Evaluar de Nuevo <ChevronRight size={18} />
+                                </button>
+                            </div>
                         </section>
                     </div>
 
-                    {/* SECCIÓN 3: GESTIÓN DE DATOS (ZONA DE PELIGRO) */}
-                    <section style={{
-                        background: 'white',
-                        borderRadius: '1.5rem',
-                        padding: '2rem',
-                        boxShadow: 'var(--shadow-sm)',
-                        border: '1px solid #FECACA' // Borde rojo suave
-                    }}>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <div style={{ background: '#FECACA', padding: '0.5rem', borderRadius: '0.5rem', color: '#DC2626' }}>
-                                <Shield size={20} />
+                    {/* SECCIÓN NUEVA: CEREBRO IA */}
+                    <section className={styles.section}>
+                        <h2 className={styles.sectionTitle} style={{ marginBottom: '0.5rem' }}>
+                            <div style={{ background: '#FEF08A', padding: '0.5rem', borderRadius: '0.5rem', color: '#CA8A04' }}>
+                                <Brain size={20} />
                             </div>
-                            Zona de Gestión
+                            Lo que el Agente sabe de ti
                         </h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                            Tu Agente aprende de tus conversaciones para ser más preciso. Borra lo que ya no necesite saber.
+                        </p>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                <div style={{ background: '#FEF2F2', padding: '0.75rem', borderRadius: '0.75rem' }}>
-                                    <Trash2 size={20} color="#EF4444" />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {isLoadingFacts ? (
+                                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', background: '#F8FAFC', borderRadius: '1rem' }}>
+                                    Conectando con el Cerebro Neural...
                                 </div>
-                                <div>
-                                    <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Cerrar Sesión & Limpiar</div>
-                                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                                        Cierra tu sesión de forma segura.
+                            ) : userFacts.length === 0 ? (
+                                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', background: '#F8FAFC', borderRadius: '1rem' }}>
+                                    Aún no he aprendido datos extra sobre ti. ¡Sigue conversando!
+                                </div>
+                            ) : (
+                                userFacts.map(fact => (
+                                    <div key={fact.id} className={styles.factItem} style={{ 
+                                        opacity: isDeletingFact === fact.id ? 0.5 : 1
+                                    }}>
+                                        <div className={styles.factContent}>
+                                            <div className={styles.factText}>
+                                                "{fact.fact}"
+                                            </div>
+                                            <div className={styles.factMeta}>
+                                                <span style={{ background: '#E2E8F0', padding: '2px 8px', borderRadius: '4px', textTransform: 'capitalize' }}>
+                                                    {fact.metadata?.categoria || 'Dato'}
+                                                </span>
+                                                {fact.metadata?.ingrediente && (
+                                                    <span style={{ border: '1px solid #CBD5E1', padding: '2px 8px', borderRadius: '4px' }}>
+                                                        {fact.metadata.ingrediente}
+                                                    </span>
+                                                )}
+                                                <span>Añadido: {new Date(fact.created_at).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            onClick={() => handleDeleteFact(fact.id)}
+                                            disabled={isDeletingFact === fact.id}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: '#EF4444',
+                                                cursor: 'pointer',
+                                                padding: '0.5rem',
+                                                borderRadius: '0.5rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                transition: 'background 0.2s',
+                                            }}
+                                            onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'}
+                                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                                            title="Olvidar Dator"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
                                     </div>
-                                </div>
-                            </div>
-                            <button
-                                onClick={handleResetApp}
-                                style={{
-                                    color: 'white',
-                                    background: confirmReset ? '#991B1B' : '#EF4444',
-                                    padding: '0.75rem 1.5rem',
-                                    borderRadius: '0.75rem',
-                                    fontWeight: 600,
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    transition: 'all 0.2s'
-                                }}>
-                                <LogOut size={18} /> {confirmReset ? '¿Seguro? Clic para confirmar' : 'Salir'}
-                            </button>
+                                ))
+                            )}
                         </div>
                     </section>
-
                 </div>
             </div>
         </DashboardLayout>

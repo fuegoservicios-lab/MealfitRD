@@ -11,27 +11,27 @@
     position: relative;
     overflow: hidden;
     background-color: #0f172a;
+    background-image: url("/auth_bg.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     /* Fallback for Slate 900 */
     font-family: 'Plus Jakarta Sans', sans-serif;
     perspective: 1000px;
 }
 
-/* --- Dynamic Background --- */
+/* --- Background Overlay --- */
 .authContainer::before {
     content: '';
     position: absolute;
-    width: 140%;
-    height: 140%;
-    top: -20%;
-    left: -20%;
+    inset: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     z-index: 0;
-    background:
-        radial-gradient(circle at 15% 50%, rgba(79, 70, 229, 0.4), transparent 50%),
-        radial-gradient(circle at 85% 30%, rgba(244, 63, 94, 0.25), transparent 50%),
-        radial-gradient(circle at 50% 80%, rgba(16, 185, 129, 0.15), transparent 50%);
-    filter: blur(80px);
-    /* Massive blur for smooth mesh */
-    animation: gradientMove 20s ease-in-out infinite alternate;
+    background: radial-gradient(circle at center, transparent 10%, rgba(15, 23, 42, 0.8) 100%);
+    pointer-events: none;
 }
 
 .authContainer::after {
@@ -75,17 +75,17 @@
     /* Slightly wider */
     padding: 3rem 2.5rem;
 
-    background: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.85);
     /* Higher opacity for premium feel */
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
 
-    border: 1px solid rgba(255, 255, 255, 0.8);
-    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    border-radius: 28px;
 
     box-shadow:
-        0 20px 40px -10px rgba(0, 0, 0, 0.15),
-        0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+        0 24px 48px -12px rgba(0, 0, 0, 0.18),
+        0 0 0 1px rgba(255, 255, 255, 0.6) inset;
 
     position: relative;
     z-index: 10;
@@ -160,6 +160,21 @@
     margin-bottom: 1.5rem;
 }
 
+.inputRow {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0;
+}
+.inputRow > .formGroup {
+    flex: 1;
+}
+@media (max-width: 640px) {
+    .inputRow {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+
 .label {
     display: block;
     margin-bottom: 0.5rem;
@@ -169,6 +184,11 @@
     color: #1e293b;
     /* Slate 800 */
     margin-left: 0.25rem;
+}
+
+.requiredAsterisk {
+    color: #ef4444;
+    margin-left: 0.125rem;
 }
 
 .inputWrapper {
@@ -192,35 +212,29 @@
 .input {
     width: 100%;
     padding: 1rem 1rem 1rem 3rem;
-    /* More padding */
-    background: #ffffff;
-    /* Pure white */
-    border: 2px solid #cbd5e1;
-    /* Darker border */
-    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid #cbd5e1;
+    border-radius: 16px;
     font-size: 1rem;
     font-weight: 500;
     color: #0f172a;
-    /* Slate 900 */
     outline: none;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .input::placeholder {
     color: #64748b;
-    /* Slate 500 */
     font-weight: 400;
 }
 
 .input:hover {
+    background: #ffffff;
     border-color: #94a3b8;
-    /* Darker hover */
 }
 
 .input:focus {
+    background: #ffffff;
     border-color: #4F46E5;
-    background: #fff;
-    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
 }
 
 .inputWrapper:focus-within .inputIcon {
@@ -246,14 +260,39 @@
 }
 
 
+.forgotPasswordLink {
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 600;
+    text-decoration: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.forgotPasswordLink:hover {
+    color: #4F46E5;
+    text-decoration: underline;
+}
+
 /* --- Checkbox --- */
+.checkboxContainer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.25rem;
+    margin-bottom: 1.5rem;
+}
+
 .checkboxWrapper {
     display: flex;
     align-items: center;
-    margin-top: 0.5rem;
-    /* Increased spacing from -0.5rem */
-    margin-bottom: 2rem;
-    /* Increased bottom spacing */
+    margin-left: 0.5rem;
 }
 
 .checkboxLabel {
@@ -263,9 +302,8 @@
     cursor: pointer;
     font-size: 0.95rem;
     color: #334155;
-    /* Darker Slate 700 for better visibility */
     user-select: none;
-    transition: color 0.2s ease;
+    line-height: 1;
 }
 
 .footerText {
@@ -276,10 +314,7 @@
     font-size: 0.9rem;
 }
 
-.checkboxLabel:hover {
-    color: #4F46E5;
-    /* Color change on hover */
-}
+
 
 .checkboxInput {
     display: none;
@@ -292,21 +327,13 @@
     border-radius: 6px;
     background-color: white;
     position: relative;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.checkboxLabel:hover .customCheckbox {
-    border-color: #cbd5e1;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .checkboxInput:checked+.customCheckbox {
     background-color: #4F46E5;
     border-color: #4F46E5;
     box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
-    transform: translateY(-1px);
 }
 
 .customCheckbox::after {
@@ -346,26 +373,49 @@
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
-    box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
 }
 
 .submitBtn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.4);
     filter: brightness(110%);
 }
 
 .submitBtn:active {
-    transform: translateY(0);
+    filter: brightness(95%);
 }
 
 .submitBtn:disabled {
     opacity: 0.7;
     cursor: not-allowed;
     transform: none;
+    filter: grayscale(20%);
+}
+
+.loader {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.successBox {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+    padding: 0.875rem 1rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
 
 /* --- Social / Divider --- */
@@ -442,11 +492,11 @@
 }
 
 .errorBox {
-    background: #FEF2F2;
-    border-left: 4px solid #EF4444;
-    color: #991B1B;
-    padding: 1rem;
-    border-radius: 8px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    padding: 0.875rem 1rem;
+    border-radius: 12px;
     margin-bottom: 1.5rem;
     font-size: 0.9rem;
     display: flex;
@@ -474,18 +524,55 @@
 /* Mobile Responsiveness */
 @media (max-width: 640px) {
     .authContainer {
-        padding: 1rem;
-        align-items: flex-end;
-        /* Bottom sheet feel? Or center? Center is safer */
+        padding: 0;
         align-items: center;
+        background-image: none !important;
+        background-color: var(--bg-page) !important;
+        background: var(--bg-page) !important;
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        overflow-y: auto !important;
+    }
+
+    .authContainer::before,
+    .authContainer::after {
+        display: none !important;
+        background: none !important;
+        opacity: 0 !important;
     }
 
     .authCard {
-        padding: 2rem 1.5rem;
-        border-radius: 20px;
+        padding: 2.5rem 1.5rem;
+        border-radius: 0;
+        min-height: 100vh;
+        width: 100%;
+        max-width: 100%;
+        box-shadow: none;
+        border: none;
+        background: var(--bg-page);
     }
 
     .title {
         font-size: 1.5rem;
     }
+}
+
+@keyframes fadeInPassword {
+    0% {
+        opacity: 0;
+        transform: translateY(-10px);
+        max-height: 0;
+        overflow: hidden;
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+        max-height: 500px; /* arbitrary high value */
+    }
+}
+
+.animateFadeIn {
+    animation: fadeInPassword 0.4s ease-out forwards;
 }
