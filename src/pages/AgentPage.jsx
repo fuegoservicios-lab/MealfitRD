@@ -839,11 +839,11 @@ const AgentPage = () => {
                         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                     >
-                        <Menu size={24} strokeWidth={1.5} />
+                        <History size={24} strokeWidth={1.5} />
                     </button>
                     
                     {/* Center: Title */}
-                    <span className="chat-header-title" style={{ 
+                    <span className="agent-header-title" style={{ 
                         fontSize: '1.25rem', 
                         fontWeight: 400, 
                         color: '#0f172a', 
@@ -1093,7 +1093,10 @@ const AgentPage = () => {
                         width: 100% !important;
                     }
                     .input-wrapper {
-                        padding: 1.5rem 1.25rem 2rem 1.25rem !important;
+                        padding: 0.75rem 1rem 1.25rem 1rem !important; /* Más pegado al fondo en móviles */
+                    }
+                    .agent-header-title {
+                        display: none !important; /* Oculta la doble cabecera MealfitRD */
                     }
                     .agent-sidebar {
                         position: absolute;
