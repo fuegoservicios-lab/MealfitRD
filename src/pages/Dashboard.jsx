@@ -304,6 +304,75 @@ const Dashboard = () => {
                                 const isLiked = meal.name ? !!likedMeals[meal.name] : false;
 
                                 if (isSkippedLunch) {
+                                    if (isPlus) {
+                                        return (
+                                            <div key={index} style={{
+                                                background: 'linear-gradient(135deg, rgba(239, 246, 255, 0.8), rgba(219, 234, 254, 0.5))',
+                                                padding: '1.5rem',
+                                                borderRadius: '1.5rem',
+                                                border: '2px dashed #93C5FD',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                gap: '1.5rem',
+                                                color: '#1E40AF',
+                                                boxShadow: '0 4px 15px -5px rgba(59, 130, 246, 0.1)',
+                                                flexWrap: 'wrap'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                    <div style={{
+                                                        background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', 
+                                                        color: 'white',
+                                                        borderRadius: '12px', width: 48, height: 48,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        boxShadow: '0 4px 10px rgba(37, 99, 235, 0.3)'
+                                                    }}>
+                                                        <ChefHat size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <h3 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '0.25rem', color: '#1E3A8A' }}>
+                                                            Cupo Vacío para Almuerzo
+                                                        </h3>
+                                                        <p style={{ fontSize: '0.9rem', margin: 0, color: '#3B82F6', fontWeight: 500 }}>
+                                                            Dile a tu Agente IA qué vas a almorzar hoy.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        window.scrollTo(0, 0);
+                                                        navigate('/dashboard/agent');
+                                                    }}
+                                                    style={{
+                                                        background: 'white',
+                                                        color: '#2563EB',
+                                                        border: '2px solid #BFDBFE',
+                                                        borderRadius: '1rem',
+                                                        padding: '0.75rem 1.25rem',
+                                                        fontWeight: 700,
+                                                        fontSize: '0.9rem',
+                                                        cursor: 'pointer',
+                                                        display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                                        transition: 'all 0.2s',
+                                                        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                                        e.currentTarget.style.boxShadow = '0 6px 12px -2px rgba(59, 130, 246, 0.15)';
+                                                        e.currentTarget.style.borderColor = '#93C5FD';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                        e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)';
+                                                        e.currentTarget.style.borderColor = '#BFDBFE';
+                                                    }}
+                                                >
+                                                    <Wand2 size={18} /> Registrar con IA
+                                                </button>
+                                            </div>
+                                        );
+                                    }
+
                                     return (
                                         <div key={index} style={{
                                             background: 'rgba(239, 246, 255, 0.6)',
