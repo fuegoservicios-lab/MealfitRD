@@ -26,6 +26,7 @@ const Pricing = () => {
 
     // Manejador del botón Plan Gratis
     const handleFreePlanClick = () => {
+        window.scrollTo(0, 0);
         if (hasStarted) {
             navigate('/dashboard');
         } else {
@@ -36,6 +37,7 @@ const Pricing = () => {
     // Manejador del botón Plan Plus
     const handleUpgradeClick = () => {
         if (isPlus) {
+            window.scrollTo(0, 0);
             // Si ya es Plus, lo llevamos a Mi Plan
             navigate('/dashboard');
             return;
