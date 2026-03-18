@@ -254,6 +254,14 @@ export const AssessmentProvider = ({ children }) => {
                 const userId = currentSession.user.id;
                 localStorage.setItem('mealfit_user_id', userId);
 
+                const lastOwner = localStorage.getItem('mealfit_last_form_owner');
+                if (lastOwner && lastOwner !== 'guest' && lastOwner !== userId) {
+                    // Los datos pertenecen a un usuario diferente, por lo que limpiamos para el usuario nuevo/diferente
+                    localStorage.removeItem('mealfit_form');
+                    setFormData(initialFormData);
+                }
+                localStorage.setItem('mealfit_last_form_owner', userId);
+
                 // Ejecutamos todo en paralelo
                 await Promise.all([
                     fetchProfile(userId),
@@ -268,8 +276,7 @@ export const AssessmentProvider = ({ children }) => {
                 localStorage.removeItem('mealfit_user_id');
                 localStorage.removeItem('mealfit_plan');
                 localStorage.removeItem('mealfit_guest_session');
-                localStorage.removeItem('mealfit_form');
-                setFormData(initialFormData);
+                // Al cerrar sesión NO limpiamos mealfit_form para que un guest pueda seguir usándolo
                 setLoadingData(false);
             }
             setLoadingAuth(false);
@@ -550,6 +557,7 @@ export const AssessmentProvider = ({ children }) => {
 
     const updateData = (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
+        localStorage.setItem('mealfit_last_form_owner', session?.user?.id || 'guest');
     };
 
     const saveGeneratedPlan = async (data) => {
@@ -602,14 +610,14 @@ export const AssessmentProvider = ({ children }) => {
     const prevStep = () => { setDirection(-1); setCurrentStep((prev) => Math.max(0, prev - 1)); };
 
     const resetApp = async () => {
-        // Limpiamos mealfit_form para que una cuenta nueva no herede los datos de la anterior
+        // NO limpiamos mealfit_form para que tras cerrar sesión, 
+        // los datos sigan presentes para invitados, pero sí se limpiarán al entrar con otra cuenta.
         localStorage.removeItem('mealfit_plan');
         localStorage.removeItem('mealfit_likes');
         localStorage.removeItem('mealfit_user_id');
         localStorage.removeItem('mealfit_guest_session');
         localStorage.removeItem('mealfit_guest_sessions_list');
         localStorage.removeItem('mealfit_current_session');
-        localStorage.removeItem('mealfit_form');
 
         await supabase.auth.signOut();
 
@@ -617,7 +625,6 @@ export const AssessmentProvider = ({ children }) => {
         setLikedMeals({});
         setUserProfile(null);
         setPlanCount(0);
-        setFormData(initialFormData);
         setCurrentStep(0);
         setLoadingData(false);
     };
