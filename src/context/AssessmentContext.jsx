@@ -97,13 +97,15 @@ export const AssessmentProvider = ({ children }) => {
     // Estado de Likes Persistente { "NombrePlato": true }
     const [likedMeals, setLikedMeals] = useState(savedLikes ? JSON.parse(savedLikes) : {});
 
-    // Datos del Formulario de Evaluación
-    const [formData, setFormData] = useState(savedForm ? JSON.parse(savedForm) : {
+    const initialFormData = {
         age: '', gender: '', height: '', weight: '', weightUnit: 'lb', bodyFat: '', activityLevel: '',
         sleepHours: '', stressLevel: '', cookingTime: '', budget: '', workSchedule: '',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
         mainGoal: '', motivation: '', struggles: [], skipLunch: false,
-    });
+    };
+
+    // Datos del Formulario de Evaluación
+    const [formData, setFormData] = useState(savedForm ? JSON.parse(savedForm) : initialFormData);
 
     // --- ESTADO PARA LOS CRÉDITOS ---
     const [planCount, setPlanCount] = useState(0);
@@ -266,6 +268,8 @@ export const AssessmentProvider = ({ children }) => {
                 localStorage.removeItem('mealfit_user_id');
                 localStorage.removeItem('mealfit_plan');
                 localStorage.removeItem('mealfit_guest_session');
+                localStorage.removeItem('mealfit_form');
+                setFormData(initialFormData);
                 setLoadingData(false);
             }
             setLoadingAuth(false);
@@ -598,15 +602,14 @@ export const AssessmentProvider = ({ children }) => {
     const prevStep = () => { setDirection(-1); setCurrentStep((prev) => Math.max(0, prev - 1)); };
 
     const resetApp = async () => {
-        // NO limpiamos mealfit_form: los datos del formulario se preservan
-        // para que el usuario no tenga que rellenarlos cada vez.
-        // Se restauran desde health_profile de Supabase al volver a iniciar sesión.
+        // Limpiamos mealfit_form para que una cuenta nueva no herede los datos de la anterior
         localStorage.removeItem('mealfit_plan');
         localStorage.removeItem('mealfit_likes');
         localStorage.removeItem('mealfit_user_id');
         localStorage.removeItem('mealfit_guest_session');
         localStorage.removeItem('mealfit_guest_sessions_list');
         localStorage.removeItem('mealfit_current_session');
+        localStorage.removeItem('mealfit_form');
 
         await supabase.auth.signOut();
 
@@ -614,7 +617,7 @@ export const AssessmentProvider = ({ children }) => {
         setLikedMeals({});
         setUserProfile(null);
         setPlanCount(0);
-        // formData NO se resetea — se mantiene para la próxima sesión
+        setFormData(initialFormData);
         setCurrentStep(0);
         setLoadingData(false);
     };
