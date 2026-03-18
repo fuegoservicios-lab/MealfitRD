@@ -161,7 +161,6 @@
     margin-top: auto;
 }
 
-/* Ghost Logout Button Styling */
 .logoutBtn {
     width: 100%;
     display: flex;
@@ -169,12 +168,12 @@
     justify-content: center;
     gap: 0.6rem;
     color: #64748B;
-    background: transparent;
-    border: 1px solid transparent; /* Ghost base */
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
     padding: 0.85rem;
     border-radius: 1rem;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     font-weight: 600;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
