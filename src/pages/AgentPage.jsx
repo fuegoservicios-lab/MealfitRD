@@ -1091,9 +1091,10 @@ const AgentPage = () => {
                         margin: 0 !important;
                         max-width: none !important;
                         width: 100% !important;
+                        flex: 1 !important;
                     }
                     .input-wrapper {
-                        padding: 0.75rem 1rem 1.25rem 1rem !important; /* Más pegado al fondo en móviles */
+                        padding: 0.75rem 1rem calc(0.5rem + env(safe-area-inset-bottom)) 1rem !important;
                     }
                     .agent-header-title {
                         display: none !important; /* Oculta la doble cabecera MealfitRD */

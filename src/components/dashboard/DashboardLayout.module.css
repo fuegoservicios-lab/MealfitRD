@@ -1,7 +1,7 @@
 /* Layout Container */
 .container {
     display: flex;
-    min-height: 100vh;
+    min-height: 100dvh;
     background-color: #f8fafc; /* Lighter background for better contrast with cards */
     position: relative;
     overflow-x: hidden;
@@ -271,15 +271,20 @@
     .mainWrapper {
         margin-left: 0;
         width: 100%;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
     }
 
     .mainContent {
         padding: 1.5rem;
+        flex: 1;
     }
 
     .noPaddingMobile {
         padding: 0 !important;
-        height: calc(100dvh - 73px); /* Exact height subtracting mobile header approx height */
+        height: auto;
+        flex: 1;
         display: flex;
         flex-direction: column;
     }
