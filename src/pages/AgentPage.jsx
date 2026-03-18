@@ -877,7 +877,7 @@ const AgentPage = () => {
                                 flexDirection: 'column',
                                 gap: '0.2rem',
                                 marginBottom: '1.25rem',
-                                marginTop: '3.5rem',
+                                marginTop: '1.5rem',
                                 alignItems: 'flex-start'
                             }}>
                                 <h1 className="welcome-heading" style={{ 
