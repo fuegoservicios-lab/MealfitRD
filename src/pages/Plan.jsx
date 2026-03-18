@@ -231,9 +231,12 @@ const Plan = () => {
                 saveGeneratedPlan(generatedPlan);
                 setPlanData(generatedPlan);
 
-                // FASE 3: Éxito y Redirección directa al Dashboard
-                setCurrentStep(0);
-                navigate('/dashboard', { replace: true });
+                // FASE 3: Éxito, llenado de barra al 100% y Redirección al Dashboard
+                setStatus('ready');
+                setTimeout(() => {
+                    setCurrentStep(0);
+                    navigate('/dashboard', { replace: true });
+                }, 800);
 
             } catch (error) {
                 console.error("❌ Error generando el plan:", error);
@@ -287,6 +290,11 @@ const LoadingScreen = ({ status }) => {
     ];
 
     useEffect(() => {
+        if (status === 'ready') {
+            setProgress(100);
+            return;
+        }
+
         // Intervalo de 500ms (2 actualizaciones por segundo)
         const timer = setInterval(() => {
             setProgress((old) => {
