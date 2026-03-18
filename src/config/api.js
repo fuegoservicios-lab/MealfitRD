@@ -2,8 +2,8 @@ import { supabase } from '../supabase';
 
 // Central API configuration
 // En desarrollo, apuntamos directamente al servidor Python local.
-// En producción (Vercel), usamos relative paths ('')
-export const API_BASE = import.meta.env.DEV ? 'http://127.0.0.1:3001' : '';
+// En producción (Vercel), utilizamos la variable de entorno para saber dónde está alojado el backend.
+export const API_BASE = import.meta.env.DEV ? 'http://127.0.0.1:3001' : (import.meta.env.VITE_API_BASE_URL || '');
 
 // Helper to build API URLs
 export const api = (path) => `${API_BASE}${path}`;
