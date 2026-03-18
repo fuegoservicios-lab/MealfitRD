@@ -525,15 +525,16 @@
 @media (max-width: 640px) {
     .authContainer {
         padding: 0;
-        align-items: center;
+        align-items: flex-start;
         background-image: none !important;
         background-color: var(--bg-page) !important;
         background: var(--bg-page) !important;
-        position: fixed !important;
-        inset: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        overflow-y: auto !important;
+        position: relative !important;
+        inset: auto !important;
+        width: 100% !important;
+        min-height: 100dvh !important;
+        height: auto !important;
+        overflow-y: visible !important;
     }
 
     .authContainer::before,
@@ -544,18 +545,46 @@
     }
 
     .authCard {
-        padding: 2.5rem 1.5rem;
+        padding: 3rem 1.5rem 5rem;
         border-radius: 0;
-        min-height: 100vh;
+        min-height: 100dvh;
         width: 100%;
         max-width: 100%;
         box-shadow: none;
         border: none;
         background: var(--bg-page);
+        animation: none;
+        opacity: 1;
+    }
+
+    .logoWrapper {
+        margin-bottom: 2rem;
     }
 
     .title {
-        font-size: 1.5rem;
+        font-size: 1.7rem;
+    }
+
+    .subtitle {
+        margin-bottom: 1.5rem;
+        font-size: 0.95rem;
+    }
+
+    .formGroup {
+        margin-bottom: 1.25rem;
+    }
+
+    .input {
+        padding: 0.85rem 1rem 0.85rem 2.85rem;
+    }
+
+    .inputIcon {
+        left: 0.85rem;
+    }
+
+    .checkboxContainer {
+        margin-top: 0;
+        margin-bottom: 1.25rem;
     }
 }
 
