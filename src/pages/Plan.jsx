@@ -287,25 +287,29 @@ const LoadingScreen = ({ status }) => {
     ];
 
     useEffect(() => {
-        // Reducimos el intervalo de 700ms a 500ms para una animación más constante
+        // Intervalo de 500ms (2 actualizaciones por segundo)
         const timer = setInterval(() => {
             setProgress((old) => {
-                // El límite máximo es 99% para que la barra nunca parezca completada si no lo está
                 if (old >= 99) return 99;
                 
+                // La generación toma ~60 a 67 segundos.
+                // Escalamos los incrementos para que alcance el 95% en unos 60-65 segundos.
                 let diff;
-                if (old < 40) {
-                    diff = Math.random() * 10 + 5;
-                } else if (old < 70) {
-                    diff = Math.random() * 8 + 4;
-                } else if (old < 85) {
-                    diff = Math.random() * 5 + 3;
+                if (old < 20) {
+                    // 0 a 20%: Primeros ~5 segundos (avg 2% por tick)
+                    diff = Math.random() * 2 + 1; // 1 a 3
+                } else if (old < 50) {
+                    // 20 a 50%: Siguientes ~15 segundos (avg 1% por tick)
+                    diff = Math.random() * 1 + 0.5; // 0.5 a 1.5
+                } else if (old < 80) {
+                    // 50 a 80%: Siguientes ~25 segundos (avg 0.6% por tick)
+                    diff = Math.random() * 0.8 + 0.2; // 0.2 a 1.0
                 } else if (old < 95) {
-                    diff = Math.random() * 3 + 1;
+                    // 80 a 95%: Siguientes ~20 segundos (avg 0.35% por tick)
+                    diff = Math.random() * 0.5 + 0.1; // 0.1 a 0.6
                 } else {
-                    // Del 95% al 99%: avanzamos a saltos de ~0.5% a 1.5%
-                    // De esta manera en 1-2 ticks cambiará visiblemente a 96%, 97%, etc.
-                    diff = Math.random() * 1 + 0.5;
+                    // 95 a 99%: Súper lento si se demora más de 65s (avg 0.12% por tick)
+                    diff = Math.random() * 0.15 + 0.05; // 0.05 a 0.2
                 }
                 
                 return Math.min(old + diff, 99);
