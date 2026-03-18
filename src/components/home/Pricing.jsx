@@ -36,8 +36,8 @@ const Pricing = () => {
     // Manejador del botón Plan Plus
     const handleUpgradeClick = () => {
         if (isPlus) {
-            // Si ya es Plus, lo llevamos a ajustes por si quiere ver su estado
-            navigate('/dashboard/settings');
+            // Si ya es Plus, lo llevamos a Mi Plan
+            navigate('/dashboard');
             return;
         }
         // Si no es Plus, abrimos la pasarela de pago
