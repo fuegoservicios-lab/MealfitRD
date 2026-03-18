@@ -608,7 +608,7 @@ const Dashboard = () => {
                                 </div>
                                 Recetas
                             </h3>
-                            <Link to="/dashboard/recipes" style={{ textDecoration: 'none' }}>
+                            <Link to="/dashboard/recipes" onClick={() => window.scrollTo(0, 0)} style={{ textDecoration: 'none' }}>
                                 <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#EA580C', background: '#FFF7ED', padding: '0.25rem 0.75rem', borderRadius: '99px', cursor: 'pointer' }}>
                                     Ver Todo
                                 </span>
@@ -644,7 +644,9 @@ const Dashboard = () => {
                             ))}
                         </div>
 
-                        <Link to="/dashboard/recipes" style={{
+                        <Link to="/dashboard/recipes" 
+                            onClick={() => window.scrollTo(0, 0)}
+                            style={{
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
                             textDecoration: 'none', color: 'white',
                             background: 'var(--text-main)',
