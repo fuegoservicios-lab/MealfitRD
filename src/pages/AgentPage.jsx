@@ -322,7 +322,7 @@ const AgentPage = () => {
                 // Si hay una descripción de visión, enriquecer el prompt con contexto de tiempo
                 let enrichedPrompt = promptToSend;
                 if (!userMsg && currentFile) {
-                    enrichedPrompt = `[Sistema: El usuario acaba de subir una imagen de comida. Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nInstrucción: Actúa proactivamente. Menciona amigablemente lo que ves en la foto (y sus macros) y hazle una pregunta muy breve y natural considerando la hora actual (por ejemplo, si es de noche pregúntale si es su cena o cómo se siente de saciedad). No pongas el prefijo [Sistema]. Sólo responde directo y conversacional.`;
+                    enrichedPrompt = `[Sistema: El usuario acaba de subir una imagen de comida. Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nInstrucción: Actúa proactivamente. Menciona amigablemente lo que ves en la foto (y sus macros). Revisa detalladamente tu 'DIARIO DE HOY' en el system prompt: SI el usuario YA tiene registrada la comida principal de esta hora (ej: si ya cenó), NO le preguntes si esto es su cena, asume que es un snack extra o pregúntale por qué está comiendo algo adicional; si NO tiene nada registrado para esta hora, entonces SÍ pregúntale brevemente si esta foto corresponde a su comida del momento (ej: su cena). No pongas el prefijo [Sistema]. Sólo responde directo y conversacional.`;
                 } else if (visionDescription) {
                     enrichedPrompt = `[El usuario subió una imagen. Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nMensaje del usuario: ${promptToSend}`;
                 } else {
