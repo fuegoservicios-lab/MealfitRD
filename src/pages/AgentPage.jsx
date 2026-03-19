@@ -176,13 +176,17 @@ const AgentPage = () => {
                         }
                         
                         // Limpiar prefijo de visión enriquecido del historial
-                        if (m.role === 'user' && content.includes('[El usuario subió una imagen.')) {
-                            // Extraer solo el mensaje del usuario real
-                            const userMsgMatch = content.match(/Mensaje del usuario:\s*(.+)$/s);
-                            if (userMsgMatch) {
-                                content = userMsgMatch[1].trim();
-                            } else {
-                                content = content.replace(/\[El usuario subió una imagen\..+?\]\n\n?/s, '');
+                        if (m.role === 'user') {
+                            if (content.includes('[El usuario subió una imagen.')) {
+                                const userMsgMatch = content.match(/Mensaje del usuario:\s*(.+)$/s);
+                                if (userMsgMatch) {
+                                    content = userMsgMatch[1].trim();
+                                } else {
+                                    content = content.replace(/\[El usuario subió una imagen\..+?\]\n\n?/s, '');
+                                }
+                            } else if (content.includes('[Sistema: El usuario acaba de subir una imagen')) {
+                                // En este caso NO HAY mensaje del usuario original, todo era un prompt de sistema
+                                content = '';
                             }
                             if (!content && isImage) content = '';
                         }
@@ -190,7 +194,7 @@ const AgentPage = () => {
                         return {
                             role: m.role,
                             content: content || '',
-                            isImage: isImage || (m.role === 'user' && (content || '').includes('[El usuario subió una imagen.')),
+                            isImage: isImage || (m.role === 'user' && (m.content || '').includes('[El usuario subió una imagen.') || (m.content || '').includes('[Sistema: El usuario acaba de subir una imagen')),
                             imageUrl: imageUrl
                         };
                     }));
@@ -322,7 +326,7 @@ const AgentPage = () => {
                 // Si hay una descripción de visión, enriquecer el prompt con contexto de tiempo
                 let enrichedPrompt = promptToSend;
                 if (!userMsg && currentFile) {
-                    enrichedPrompt = `[Sistema: El usuario acaba de subir una imagen de comida. Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nInstrucción: Actúa proactivamente. Menciona amigablemente lo que ves en la foto (y sus macros). Revisa detalladamente tu 'DIARIO DE HOY' en el system prompt: SI el usuario YA tiene registrada la comida principal de esta hora (ej: si ya cenó), NO le preguntes si esto es su cena, asume que es un snack extra o pregúntale por qué está comiendo algo adicional; si NO tiene nada registrado para esta hora, entonces SÍ pregúntale brevemente si esta foto corresponde a su comida del momento (ej: su cena). No pongas el prefijo [Sistema]. Sólo responde directo y conversacional.`;
+                    enrichedPrompt = `${promptToSend}\n[Sistema: El usuario acaba de subir una imagen de comida. Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nInstrucción: Actúa proactivamente. Menciona amigablemente lo que ves en la foto (y sus macros). Revisa detalladamente tu 'DIARIO DE HOY' en el system prompt: SI el usuario YA tiene registrada la comida principal de esta hora (ej: si ya cenó), NO le preguntes si esto es su cena, asume que es un snack extra o pregúntale por qué está comiendo algo adicional; si NO tiene nada registrado para esta hora, entonces SÍ pregúntale brevemente si esta foto corresponde a su comida del momento (ej: su cena). No pongas el prefijo [Sistema]. Sólo responde directo y conversacional.`;
                 } else if (visionDescription) {
                     enrichedPrompt = `[El usuario subió una imagen. Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nMensaje del usuario: ${promptToSend}`;
                 } else {
