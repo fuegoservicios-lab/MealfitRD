@@ -658,16 +658,16 @@ const ShoppingList = () => {
                                 className="shopping-section-header"
                             >
                                 <div style={{
-                                    background: 'linear-gradient(135deg, #EDE9FE, #DDD6FE)', color: '#7C3AED',
+                                    background: 'linear-gradient(135deg, #DCFCE7, #BBF7D0)', color: '#16A34A',
                                     padding: '0.4rem', borderRadius: '0.5rem'
                                 }}>
-                                    <Sparkles size={20} />
+                                    <ShoppingCart size={20} />
                                 </div>
                                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', margin: 0, flex: 1 }}>
-                                    Añadidos por la IA
+                                    Lista Consolidada
                                 </h2>
                                 <span style={{
-                                    background: '#EDE9FE', color: '#7C3AED',
+                                    background: '#DCFCE7', color: '#16A34A',
                                     fontSize: '0.75rem', fontWeight: 600, padding: '0.1rem 0.5rem', borderRadius: '99px'
                                 }}>
                                     {customItems.length}
