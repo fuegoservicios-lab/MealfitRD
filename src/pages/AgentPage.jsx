@@ -331,6 +331,9 @@ const AgentPage = () => {
                 
                 setStreamingStatus('Conectando...');
                 
+                const now = new Date();
+                const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                
                 const response = await fetchWithAuth('/api/chat/stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -339,7 +342,9 @@ const AgentPage = () => {
                         user_id: session?.user?.id || userProfile?.id || localSessionId,
                         prompt: enrichedPrompt,
                         current_plan: planData,
-                        form_data: formData
+                        form_data: formData,
+                        local_date: localDateStr,
+                        tz_offset: now.getTimezoneOffset()
                     })
                 });
 
