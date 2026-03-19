@@ -455,19 +455,19 @@ const ShoppingList = () => {
                                 className="no-print"
                                 style={{
                                     display: 'flex', alignItems: 'center', gap: '0.4rem',
-                                    background: 'linear-gradient(135deg, #7C3AED, #4F46E5)',
+                                    background: 'linear-gradient(135deg, #4F46E5, #3B82F6)',
                                     border: 'none',
                                     padding: '0.5rem 1rem', borderRadius: '0.5rem',
                                     color: 'white', cursor: isGenerating ? 'not-allowed' : 'pointer', 
                                     fontWeight: 600,
                                     fontSize: '0.85rem',
-                                    boxShadow: '0 4px 6px -1px rgba(99, 102, 241, 0.4)',
+                                    boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.4)',
                                     opacity: isGenerating ? 0.7 : 1,
                                     transition: 'all 0.2s ease'
                                 }}
                             >
-                                <Sparkles size={16} className={isGenerating ? "spin-slow" : ""} /> 
-                                <span className="hide-mobile">{isGenerating ? 'Consolidando...' : 'Auto-Generar IA'}</span>
+                                <ShoppingCart size={16} className={isGenerating ? "spin-slow" : ""} /> 
+                                <span className="hide-mobile">{isGenerating ? 'Consolidando...' : 'Consolidar Ingredientes'}</span>
                             </button>
 
                             {/* Download PDF */}
