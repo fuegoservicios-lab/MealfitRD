@@ -106,6 +106,7 @@ const ShoppingList = () => {
     // Estado para items custom añadidos por la IA
     const [customItems, setCustomItems] = useState([]);
     const [loadingCustom, setLoadingCustom] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
 
     // Obtener userId para el fetch
     const userId = typeof window !== 'undefined' ? localStorage.getItem('mealfit_user_id') : null;
@@ -138,6 +139,47 @@ const ShoppingList = () => {
         } catch (err) {
             console.error('Error deleting custom item:', err);
             toast.error('Error al eliminar el item');
+        }
+    };
+
+    const handleAutoGenerate = async () => {
+        if (!userId || userId === 'guest') {
+            toast.error('Debes iniciar sesión para usar la IA.');
+            return;
+        }
+
+        const toastId = toast.loading('Calculando ingredientes combinados (puede tardar ~15s)...');
+        setIsGenerating(true);
+
+        try {
+            const res = await fetchWithAuth('/api/shopping/auto-generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.detail || 'Error al generar lista');
+            }
+
+            toast.dismiss(toastId);
+            toast.success('¡Ingredientes IA consolidados con éxito!');
+            
+            // Refrescar lista de items custom
+            setLoadingCustom(true);
+            const refreshRes = await fetchWithAuth(`/api/shopping/custom/${userId}`);
+            const data = await refreshRes.json();
+            setCustomItems(data.items || []);
+            setCollapsedCategories(prev => ({ ...prev, custom_ai: false })); // Auto-abrir pestaña
+            
+        } catch (error) {
+            console.error('Error auto-generating shopping list:', error);
+            toast.dismiss(toastId);
+            toast.error(error.message || 'Error de conexión con la IA');
+        } finally {
+            setIsGenerating(false);
+            setLoadingCustom(false);
         }
     };
 
@@ -405,6 +447,28 @@ const ShoppingList = () => {
 
                             {/* Separator */}
                             <div style={{ width: '1px', height: '24px', background: '#E2E8F0' }} />
+
+                            {/* Auto-Generate AI */}
+                            <button
+                                onClick={handleAutoGenerate}
+                                disabled={isGenerating}
+                                className="no-print"
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.4rem',
+                                    background: 'linear-gradient(135deg, #7C3AED, #4F46E5)',
+                                    border: 'none',
+                                    padding: '0.5rem 1rem', borderRadius: '0.5rem',
+                                    color: 'white', cursor: isGenerating ? 'not-allowed' : 'pointer', 
+                                    fontWeight: 600,
+                                    fontSize: '0.85rem',
+                                    boxShadow: '0 4px 6px -1px rgba(99, 102, 241, 0.4)',
+                                    opacity: isGenerating ? 0.7 : 1,
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                <Sparkles size={16} className={isGenerating ? "spin-slow" : ""} /> 
+                                <span className="hide-mobile">{isGenerating ? 'Consolidando...' : 'Auto-Generar IA'}</span>
+                            </button>
 
                             {/* Download PDF */}
                             <button
@@ -688,6 +752,9 @@ const ShoppingList = () => {
                     .hide-mobile { display: none; }
                 }
                 .hover-bg-gray:hover { background: #F1F5F9 !important; }
+                
+                @keyframes spin { 100% { transform: rotate(360deg); } }
+                .spin-slow { animation: spin 2s linear infinite; }
 
                 .shopping-section-header {
                     border-bottom: 2px solid #F1F5F9;
