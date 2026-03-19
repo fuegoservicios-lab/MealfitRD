@@ -97,6 +97,10 @@ export const AssessmentProvider = ({ children }) => {
     // Estado de Likes Persistente { "NombrePlato": true }
     const [likedMeals, setLikedMeals] = useState(savedLikes ? JSON.parse(savedLikes) : {});
 
+    // Estado de Dislikes Persistente { "NombrePlato": true } para descartarlos en el swap
+    const savedDislikes = localStorage.getItem('mealfit_dislikes');
+    const [dislikedMeals, setDislikedMeals] = useState(savedDislikes ? JSON.parse(savedDislikes) : {});
+
     const initialFormData = {
         age: '', gender: '', height: '', weight: '', weightUnit: 'lb', bodyFat: '', activityLevel: '',
         sleepHours: '', stressLevel: '', cookingTime: '', budget: '', workSchedule: '',
@@ -364,6 +368,10 @@ export const AssessmentProvider = ({ children }) => {
         if (likedMeals) localStorage.setItem('mealfit_likes', JSON.stringify(likedMeals));
     }, [likedMeals]);
 
+    useEffect(() => {
+        if (dislikedMeals) localStorage.setItem('mealfit_dislikes', JSON.stringify(dislikedMeals));
+    }, [dislikedMeals]);
+
 
     // --- LÓGICA DE NEGOCIO Y WEBHOOKS ---
 
@@ -439,7 +447,11 @@ export const AssessmentProvider = ({ children }) => {
                     rejected_meal: currentName,
                     meal_type: mealType,
                     target_calories: targetCalories,
-                    diet_type: userDietType
+                    diet_type: userDietType,
+                    allergies: formData.allergies || [],
+                    dislikes: formData.dislikes || [],
+                    liked_meals: Object.keys(likedMeals || {}),
+                    disliked_meals: Object.keys(dislikedMeals || {})
                 })
             });
 
@@ -475,6 +487,12 @@ export const AssessmentProvider = ({ children }) => {
             updatedDayObj.meals = updatedMeals;
             updatedDays[dayIndex] = updatedDayObj;
             updatedPlan.days = updatedDays;
+
+            // Add rejected meal to disliked list
+            setDislikedMeals(prev => ({
+                ...prev,
+                [currentName]: true
+            }));
 
             // Actualizamos UI inmediatamente
             setPlanData(updatedPlan);
@@ -618,11 +636,13 @@ export const AssessmentProvider = ({ children }) => {
         localStorage.removeItem('mealfit_guest_session');
         localStorage.removeItem('mealfit_guest_sessions_list');
         localStorage.removeItem('mealfit_current_session');
+        localStorage.removeItem('mealfit_dislikes');
 
         await supabase.auth.signOut();
 
         setPlanData(null);
         setLikedMeals({});
+        setDislikedMeals({});
         setUserProfile(null);
         setPlanCount(0);
         setCurrentStep(0);
@@ -681,6 +701,7 @@ export const AssessmentProvider = ({ children }) => {
             saveGeneratedPlan,
             likedMeals,
             toggleMealLike,
+            dislikedMeals,
             regenerateSingleMeal,
             resetApp,
             planCount,
