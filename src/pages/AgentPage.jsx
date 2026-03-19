@@ -296,62 +296,38 @@ const AgentPage = () => {
                 }
                 
                 if (!userMsg) {
-                    // Solo imagen, sin texto: mostrar lo que vio
-                    const responseText = uploadData.is_food 
-                        ? `📸 He analizado tu imagen:\n\n${uploadData.description}`
-                        : '📸 He recibido tu imagen, pero no parece contener alimentos.';
-                        
-                    // Make sure image exists in message DB for page refresh
-                    if (uploadedImageUrl) {
-                        await fetchWithAuth('/api/chat/message', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                session_id: currentSessionId,
-                                user_id: session?.user?.id || userProfile?.id || localSessionId,
-                                role: 'user',
-                                content: `[IMAGE: ${uploadedImageUrl}]`
-                            })
-                        });
-                        
-                        await fetchWithAuth('/api/chat/message', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                session_id: currentSessionId,
-                                user_id: session?.user?.id || userProfile?.id || localSessionId,
-                                role: 'model',
-                                content: responseText
-                            })
-                        });
-                    }
-                    
-                     setMessages(prev => {
-                         const updated = [...prev];
-                         // Update base64 to actual URL for the current session state
-                         if (updated.length > 0 && updated[updated.length - 1].isImage) {
-                             updated[updated.length - 1].imageUrl = uploadedImageUrl || updated[updated.length - 1].imageUrl;
-                         }
-                         return [...updated, { role: 'model', content: responseText }];
-                     });
-                     fetchChatSessions();
-                     setIsLoading(false);
-                     return;
+                    // Update base64 to actual URL for the current session state
+                    setMessages(prev => {
+                        const updated = [...prev];
+                        if (updated.length > 0 && updated[updated.length - 1].isImage) {
+                            updated[updated.length - 1].imageUrl = uploadedImageUrl || updated[updated.length - 1].imageUrl;
+                        }
+                        return updated;
+                    });
                 }
             }
 
-            // Si hay texto, interactuar por el chat normal
-            if (userMsg) {
+            // Interactuar por el chat normal SIEMPRE (incluso si solo hay imagen)
+            if (userMsg || currentFile) {
                 // Incorporate image URL into promptToSend so it's persisted in DB
-                let promptToSend = userMsg;
+                let promptToSend = userMsg || "";
                 if (currentFile && uploadedImageUrl) {
-                    promptToSend = `[IMAGE: ${uploadedImageUrl}]\n${userMsg}`;
+                    promptToSend = `[IMAGE: ${uploadedImageUrl}]\n${promptToSend}`;
                 }
                 
-                // Si hay una descripción de visión, enriquecer el prompt
-                const enrichedPrompt = visionDescription 
-                    ? `[El usuario subió una imagen. Análisis de la imagen: "${visionDescription}"]\n\nMensaje del usuario: ${promptToSend}`
-                    : promptToSend;
+                // Obtener hora actual local formateada
+                const currentTime = new Date().toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true });
+                const timeContext = `(Hora actual del usuario: ${currentTime})`;
+                
+                // Si hay una descripción de visión, enriquecer el prompt con contexto de tiempo
+                let enrichedPrompt = promptToSend;
+                if (!userMsg && currentFile) {
+                    enrichedPrompt = `[Sistema: El usuario acaba de subir una imagen de comida. Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nInstrucción: Actúa proactivamente. Menciona amigablemente lo que ves en la foto (y sus macros) y hazle una pregunta muy breve y natural considerando la hora actual (por ejemplo, si es de noche pregúntale si es su cena o cómo se siente de saciedad). No pongas el prefijo [Sistema]. Sólo responde directo y conversacional.`;
+                } else if (visionDescription) {
+                    enrichedPrompt = `[El usuario subió una imagen. Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nMensaje del usuario: ${promptToSend}`;
+                } else {
+                    enrichedPrompt = `[${timeContext}]\nMensaje del usuario: ${promptToSend}`;
+                }
                 
                 setStreamingStatus('Conectando...');
                 
