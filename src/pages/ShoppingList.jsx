@@ -695,42 +695,59 @@ const ShoppingList = () => {
                                     paddingTop: collapsedCategories['custom_ai'] ? '0' : '0.25rem'
                                 }}
                             >
-                                {customItems.map(item => (
-                                    <div
-                                        key={item.id}
-                                        style={{
-                                            background: 'white',
-                                            border: '1px solid #DDD6FE',
-                                            borderRadius: '0.75rem',
-                                            padding: '0.75rem 1rem',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                            gap: '0.75rem',
-                                            boxShadow: '0 1px 2px rgba(124, 58, 237, 0.05)'
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                            <Sparkles size={16} style={{ color: '#7C3AED', flexShrink: 0 }} />
-                                            <span style={{ fontSize: '0.95rem', fontWeight: 500, color: 'var(--text-main)' }}>
-                                                {item.item_name}
-                                            </span>
-                                        </div>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleDeleteCustomItem(item.id); }}
+                                {customItems.map(item => {
+                                    // Separar título y contenido si viene en formato "Categoría: item1, item2..."
+                                    const parts = item.item_name.split(':');
+                                    const titleStr = parts.length > 1 ? parts[0].trim() : '';
+                                    const contentStr = parts.length > 1 ? parts.slice(1).join(':').trim() : item.item_name.trim();
+                                    const itemsList = contentStr.split(',').map(s => s.trim()).filter(Boolean);
+
+                                    return (
+                                        <div
+                                            key={item.id}
                                             style={{
-                                                background: 'transparent', border: 'none',
-                                                color: '#CBD5E1', cursor: 'pointer',
-                                                padding: '0.25rem', borderRadius: '0.25rem',
-                                                display: 'flex', alignItems: 'center',
-                                                transition: 'color 0.2s'
+                                                background: 'white',
+                                                border: '1px solid #DDD6FE',
+                                                borderRadius: '0.75rem',
+                                                padding: '1rem',
+                                                display: 'flex', flexDirection: 'column', gap: '0.75rem',
+                                                boxShadow: '0 2px 4px rgba(124, 58, 237, 0.05)'
                                             }}
-                                            onMouseEnter={(e) => { e.currentTarget.style.color = '#EF4444'; }}
-                                            onMouseLeave={(e) => { e.currentTarget.style.color = '#CBD5E1'; }}
-                                            title="Eliminar de la lista"
                                         >
-                                            <X size={16} />
-                                        </button>
-                                    </div>
-                                ))}
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
+                                                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#4F46E5', paddingTop: '0.1rem' }}>
+                                                    {titleStr || "Ingredientes Extra"}
+                                                </div>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteCustomItem(item.id); }}
+                                                    style={{
+                                                        background: '#F1F5F9', border: 'none',
+                                                        color: '#94A3B8', cursor: 'pointer',
+                                                        padding: '0.3rem', borderRadius: '0.375rem',
+                                                        display: 'flex', alignItems: 'center',
+                                                        transition: 'all 0.2s', flexShrink: 0
+                                                    }}
+                                                    onMouseEnter={(e) => { e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.background = '#FEE2E2'; }}
+                                                    onMouseLeave={(e) => { e.currentTarget.style.color = '#94A3B8'; e.currentTarget.style.background = '#F1F5F9'; }}
+                                                    title="Eliminar de la lista"
+                                                >
+                                                    <X size={15} strokeWidth={2.5}/>
+                                                </button>
+                                            </div>
+                                            
+                                            <ul style={{ 
+                                                margin: 0, paddingLeft: '1.2rem', 
+                                                color: 'var(--text-main)', fontSize: '0.9rem', 
+                                                display: 'flex', flexDirection: 'column', gap: '0.4rem',
+                                                lineHeight: 1.4
+                                            }}>
+                                                {itemsList.map((ingItem, idx) => (
+                                                    <li key={idx}>{ingItem}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
