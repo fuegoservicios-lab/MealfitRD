@@ -16,16 +16,26 @@ const TrackingProgress = ({ planData, userId }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        let isMounted = true;
+        
         const fetchConsumed = async () => {
             if (!userId || userId === 'guest') {
-                setLoading(false);
+                if (isMounted) setLoading(false);
                 return;
             }
             try {
-                // Remove env API_URL to use the Vite Proxy directly
-                const res = await fetchWithAuth(`/api/diary/consumed/${userId}`);
+                // Calculate local date and timezone offset
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                const tzOffset = now.getTimezoneOffset();
+
+                const res = await fetchWithAuth(`/api/diary/consumed/${userId}?date=${dateStr}&tzOffset=${tzOffset}`);
                 const data = await res.json();
-                if (data.totals) {
+                
+                if (isMounted && data.totals) {
                     setConsumed({
                         calories: data.totals.calories || 0,
                         protein: data.totals.protein || 0,
@@ -37,11 +47,20 @@ const TrackingProgress = ({ planData, userId }) => {
             } catch (err) {
                 console.error("Error fetching consumed meals:", err);
             } finally {
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
         };
 
+        // Fetch immediately on mount
         fetchConsumed();
+        
+        // Polling para "Tiempo Real" cada 15 segundos
+        const intervalId = setInterval(fetchConsumed, 15000);
+
+        return () => {
+            isMounted = false;
+            clearInterval(intervalId);
+        };
     }, [userId]);
 
     // Funciones Helper para calcular Progreso
