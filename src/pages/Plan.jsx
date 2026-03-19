@@ -339,9 +339,9 @@ const LoadingScreen = ({ status }) => {
 
     return (
         <div style={{
-            minHeight: '100vh',
+            minHeight: '100dvh', // Use dvh to fix mobile Safari bottom bar overlap
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            padding: '2rem',
+            padding: '1.5rem',
             background: 'linear-gradient(135deg, #0f0c29 0%, #1a1a3e 40%, #24243e 100%)',
             position: 'relative', overflow: 'hidden',
         }}>
@@ -381,7 +381,7 @@ const LoadingScreen = ({ status }) => {
             >
                 {/* === ANIMATED SPINNER === */}
                 <div style={{
-                    width: 110, height: 110, margin: '0 auto 2.5rem',
+                    width: 90, height: 90, margin: '0 auto 1.5rem',
                     position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                     {/* Outer ring */}
@@ -398,11 +398,11 @@ const LoadingScreen = ({ status }) => {
                     }} />
                     {/* Center icon */}
                     <div className="pulse-ring" style={{
-                        width: 60, height: 60, borderRadius: '50%',
+                        width: 50, height: 50, borderRadius: '50%',
                         background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(16, 185, 129, 0.15))',
                         backdropFilter: 'blur(10px)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '1.75rem',
+                        fontSize: '1.5rem',
                     }}>
                         <AnimatePresence mode="wait">
                             <motion.span
@@ -420,21 +420,21 @@ const LoadingScreen = ({ status }) => {
 
                 {/* === TITLE === */}
                 <h2 style={{
-                    fontSize: '1.65rem', fontWeight: 800, marginBottom: '0.4rem',
+                    fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.25rem',
                     background: 'linear-gradient(135deg, #ffffff, #c7d2fe)',
                     WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
                 }}>
                     Diseñando tu Estrategia
                 </h2>
-                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.85rem', marginBottom: '2rem', fontWeight: 500 }}>
+                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.85rem', marginBottom: '1.5rem', fontWeight: 500 }}>
                     Nuestra IA está creando tu plan perfecto
                 </p>
 
                 {/* === STEP CHECKLIST === */}
                 <div style={{
                     background: 'rgba(255,255,255,0.04)', borderRadius: '1rem',
-                    padding: '1.25rem 1.5rem', marginBottom: '2rem',
+                    padding: '1rem 1.25rem', marginBottom: '1.5rem',
                     border: '1px solid rgba(255,255,255,0.06)',
                     textAlign: 'left',
                 }}>
@@ -522,7 +522,7 @@ const LoadingScreen = ({ status }) => {
 
                 <div style={{
                     display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem',
-                    color: 'rgba(255,255,255,0.35)', fontWeight: 600, marginBottom: '2rem',
+                    color: 'rgba(255,255,255,0.35)', fontWeight: 600, marginBottom: '1rem',
                 }}>
                     <span>{steps[currentStep]?.text || 'Procesando...'}</span>
                     <span style={{ color: '#818cf8', fontWeight: 700 }}>{Math.round(progress)}%</span>
