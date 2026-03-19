@@ -530,7 +530,7 @@ const LoadingScreen = ({ status }) => {
 
                 {/* === TIP CAROUSEL === */}
                 <div style={{
-                    height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                     <AnimatePresence mode="wait">
                         <motion.p
@@ -541,7 +541,8 @@ const LoadingScreen = ({ status }) => {
                             transition={{ duration: 0.4 }}
                             style={{
                                 color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem',
-                                fontWeight: 500, fontStyle: 'italic',
+                                fontWeight: 500, fontStyle: 'italic', lineHeight: '1.4',
+                                textAlign: 'center',
                             }}
                         >
                             {tips[tipIndex]}
