@@ -97,9 +97,30 @@ export const AssessmentProvider = ({ children }) => {
     // Estado de Likes Persistente { "NombrePlato": true }
     const [likedMeals, setLikedMeals] = useState(savedLikes ? JSON.parse(savedLikes) : {});
 
-    // Estado de Dislikes Persistente { "NombrePlato": true } para descartarlos en el swap
+    // Estado de Dislikes Persistente con expiración de 7 días
     const savedDislikes = localStorage.getItem('mealfit_dislikes');
-    const [dislikedMeals, setDislikedMeals] = useState(savedDislikes ? JSON.parse(savedDislikes) : {});
+    const [dislikedMeals, setDislikedMeals] = useState(() => {
+        if (!savedDislikes) return {};
+        try {
+            const parsed = JSON.parse(savedDislikes);
+            const now = Date.now();
+            const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+            const valid = {};
+            for (const meal in parsed) {
+                // Si es un número (timestamp) y no ha expirado
+                if (typeof parsed[meal] === 'number' && (now - parsed[meal] < sevenDaysMs)) {
+                    valid[meal] = parsed[meal];
+                } 
+                // Retrocompatibilidad: Si antes era 'true', asumimos que es de ahora
+                else if (parsed[meal] === true) {
+                    valid[meal] = now;
+                }
+            }
+            return valid;
+        } catch (e) {
+            return {};
+        }
+    });
 
     const initialFormData = {
         age: '', gender: '', height: '', weight: '', weightUnit: 'lb', bodyFat: '', activityLevel: '',
@@ -488,10 +509,10 @@ export const AssessmentProvider = ({ children }) => {
             updatedDays[dayIndex] = updatedDayObj;
             updatedPlan.days = updatedDays;
 
-            // Add rejected meal to disliked list
+            // Add rejected meal to disliked list with current timestamp
             setDislikedMeals(prev => ({
                 ...prev,
-                [currentName]: true
+                [currentName]: Date.now()
             }));
 
             // Actualizamos UI inmediatamente
