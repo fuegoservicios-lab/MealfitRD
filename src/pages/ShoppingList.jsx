@@ -119,6 +119,22 @@ const ShoppingList = () => {
             .then(res => res.json())
             .then(data => {
                 setCustomItems(data.items || []);
+                
+                // Inicializar checkboxes desde la Base de Datos para persistencia multi-dispositivo
+                if (data.items && data.items.length > 0) {
+                    setCheckedItems(prev => {
+                        const next = { ...prev };
+                        data.items.forEach(it => {
+                            try {
+                                const parsed = JSON.parse(it.item_name);
+                                if (parsed && typeof parsed === 'object' && parsed.is_checked !== undefined) {
+                                    next[`custom-${it.id}`] = parsed.is_checked;
+                                }
+                            } catch(e) {}
+                        });
+                        return next;
+                    });
+                }
             })
             .catch(err => console.error('Error fetching custom items:', err))
             .finally(() => setLoadingCustom(false));
@@ -206,6 +222,28 @@ const ShoppingList = () => {
 
     }, [planData, daysToShop]);
 
+    // Procesar items custom (IA JSON vs legacy)
+    const customStructured = useMemo(() => {
+        const categories = {};
+        const standalone = [];
+        
+        customItems.forEach(item => {
+            try {
+                const parsed = JSON.parse(item.item_name);
+                if (parsed && parsed.category) {
+                    const cat = parsed.category;
+                    if (!categories[cat]) categories[cat] = { emoji: parsed.emoji || '🛒', items: [] };
+                    categories[cat].items.push({ id: item.id, name: parsed.name, qty: parsed.qty, label: `${parsed.qty} ${parsed.name}`, raw: item });
+                } else {
+                    standalone.push(item);
+                }
+            } catch(e) {
+                standalone.push(item);
+            }
+        });
+        return { categories, standalone };
+    }, [customItems]);
+
     // Calcular progreso (filtered by hideCompleted)
     const allItems = Object.values(categorizedList).flat();
     const filteredItems = hideCompleted ? allItems.filter(item => !checkedItems[item]) : allItems;
@@ -220,10 +258,21 @@ const ShoppingList = () => {
 
     // --- ACCIONES ---
     const toggleItem = (item) => {
-        setCheckedItems(prev => ({
-            ...prev,
-            [item]: !prev[item]
-        }));
+        setCheckedItems(prev => {
+            const newState = !prev[item];
+            
+            // Persistencia en DB (Fase 3): Si es un item custom de la BD
+            if (typeof item === 'string' && item.startsWith('custom-')) {
+                const itemId = item.replace('custom-', '');
+                fetchWithAuth(`/api/shopping/custom/${itemId}/check`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_checked: newState })
+                }).catch(err => console.error("Error syncing check status:", err));
+            }
+            
+            return { ...prev, [item]: newState };
+        });
     };
 
     // Marcar / desmarcar todos los items de una categoría
@@ -695,38 +744,61 @@ const ShoppingList = () => {
                                     paddingTop: collapsedCategories['custom_ai'] ? '0' : '0.25rem'
                                 }}
                             >
-                                {customItems.map(item => {
-                                    // Separar título y contenido si viene en formato "Categoría: item1, item2..."
+                                {/* Estructura agrupada en categorías JSON */}
+                                {Object.entries(customStructured.categories).map(([catName, catData], catIdx) => (
+                                    <div key={catIdx} style={{ background: 'white', border: '1px solid #DDD6FE', borderRadius: '0.75rem', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 2px 4px rgba(124, 58, 237, 0.05)' }}>
+                                        <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#4F46E5', borderBottom: '1px solid #F3F4F6', paddingBottom: '0.5rem' }}>
+                                            {catData.emoji} {catName}
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            {catData.items.map(structItem => {
+                                                const checkKey = `custom-${structItem.id}`;
+                                                const isChecked = !!checkedItems[checkKey];
+                                                return (
+                                                    <div key={structItem.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.25rem 0', opacity: isChecked ? 0.6 : 1, transition: 'opacity 0.2s' }}>
+                                                        <div 
+                                                            onClick={() => toggleItem(checkKey)}
+                                                            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', flex: 1 }}
+                                                        >
+                                                            <div style={{ minWidth: '22px', height: '22px', borderRadius: '6px', border: isChecked ? 'none' : '2px solid #CBD5E1', background: isChecked ? 'var(--primary)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', transition: 'all 0.2s', flexShrink: 0 }}>
+                                                                {isChecked && <Check size={14} strokeWidth={3} />}
+                                                            </div>
+                                                            <span style={{ fontSize: '0.95rem', color: isChecked ? 'var(--text-muted)' : 'var(--text-main)', textDecoration: isChecked ? 'line-through' : 'none', fontWeight: isChecked ? 400 : 500 }}>
+                                                                {structItem.label}
+                                                            </span>
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDeleteCustomItem(structItem.id); }}
+                                                            style={{ background: '#F1F5F9', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '0.3rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', transition: 'all 0.2s', flexShrink: 0 }}
+                                                            onMouseEnter={(e) => { e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.background = '#FEE2E2'; }}
+                                                            onMouseLeave={(e) => { e.currentTarget.style.color = '#94A3B8'; e.currentTarget.style.background = '#F1F5F9'; }}
+                                                            title="Eliminar item"
+                                                        >
+                                                            <X size={15} strokeWidth={2.5}/>
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {/* Fallback Legacy/Standalone items */}
+                                {customStructured.standalone.map(item => {
                                     const parts = item.item_name.split(':');
                                     const titleStr = parts.length > 1 ? parts[0].trim() : '';
                                     const contentStr = parts.length > 1 ? parts.slice(1).join(':').trim() : item.item_name.trim();
                                     const itemsList = contentStr.split(',').map(s => s.trim()).filter(Boolean);
 
                                     return (
-                                        <div
-                                            key={item.id}
-                                            style={{
-                                                background: 'white',
-                                                border: '1px solid #DDD6FE',
-                                                borderRadius: '0.75rem',
-                                                padding: '1rem',
-                                                display: 'flex', flexDirection: 'column', gap: '0.75rem',
-                                                boxShadow: '0 2px 4px rgba(124, 58, 237, 0.05)'
-                                            }}
-                                        >
+                                        <div key={item.id} style={{ background: 'white', border: '1px solid #DDD6FE', borderRadius: '0.75rem', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 2px 4px rgba(124, 58, 237, 0.05)' }}>
                                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
                                                 <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#4F46E5', paddingTop: '0.1rem' }}>
                                                     {titleStr || "Ingredientes Extra"}
                                                 </div>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleDeleteCustomItem(item.id); }}
-                                                    style={{
-                                                        background: '#F1F5F9', border: 'none',
-                                                        color: '#94A3B8', cursor: 'pointer',
-                                                        padding: '0.3rem', borderRadius: '0.375rem',
-                                                        display: 'flex', alignItems: 'center',
-                                                        transition: 'all 0.2s', flexShrink: 0
-                                                    }}
+                                                    style={{ background: '#F1F5F9', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '0.3rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', transition: 'all 0.2s', flexShrink: 0 }}
                                                     onMouseEnter={(e) => { e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.background = '#FEE2E2'; }}
                                                     onMouseLeave={(e) => { e.currentTarget.style.color = '#94A3B8'; e.currentTarget.style.background = '#F1F5F9'; }}
                                                     title="Eliminar de la lista"
@@ -734,15 +806,11 @@ const ShoppingList = () => {
                                                     <X size={15} strokeWidth={2.5}/>
                                                 </button>
                                             </div>
-                                            
-                                            <ul style={{ 
-                                                margin: 0, paddingLeft: '1.2rem', 
-                                                color: 'var(--text-main)', fontSize: '0.9rem', 
-                                                display: 'flex', flexDirection: 'column', gap: '0.4rem',
-                                                lineHeight: 1.4
-                                            }}>
+                                            <ul style={{ margin: 0, paddingLeft: '1.2rem', color: 'var(--text-main)', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', lineHeight: 1.4 }}>
                                                 {itemsList.map((ingItem, idx) => (
-                                                    <li key={idx}>{ingItem}</li>
+                                                    <li key={idx}>
+                                                        {ingItem}
+                                                    </li>
                                                 ))}
                                             </ul>
                                         </div>
