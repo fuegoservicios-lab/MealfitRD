@@ -4,14 +4,18 @@ import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
     ShoppingCart, ArrowLeft, Download, Check, ChevronDown, Minus,
-    Leaf, Drumstick, Wheat, Milk, Archive, Circle, CheckCircle, Sparkles, X
+    Leaf, Drumstick, Wheat, Milk, Archive, Circle, CheckCircle, ShoppingBag, Layers, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import html2pdf from 'html2pdf.js';
+// IMPORTAMOS CONFIGURACIONES
 import { fetchWithAuth } from '../config/api';
 
 // IMPORTAMOS EL GENERADOR
 import { generateShoppingListFromPlan } from '../services/shoppingGenerator';
+
+// NUEVOS ESTILOS
+import './ShoppingList.css';
 
 // --- CONFIGURACIÓN DE CATEGORÍAS ---
 const CATEGORIES = [
@@ -72,6 +76,16 @@ const categorizeIngredient = (item) => {
     return 'other';
 };
 
+const getAILightColor = (catName) => {
+    const lower = catName.toLowerCase();
+    if (lower.includes('carne') || lower.includes('pescado') || lower.includes('pollo') || lower.includes('proteina') || lower.includes('proteína')) return { color: '#DC2626', bgColor: '#FEE2E2' };
+    if (lower.includes('fruta') || lower.includes('verdura') || lower.includes('vegetal')) return { color: '#16A34A', bgColor: '#DCFCE7' };
+    if (lower.includes('lácteo') || lower.includes('lacteo') || lower.includes('huevo') || lower.includes('queso') || lower.includes('refrigerado')) return { color: '#2563EB', bgColor: '#EFF6FF' };
+    if (lower.includes('despensa') || lower.includes('grano') || lower.includes('cereal') || lower.includes('pan')) return { color: '#D97706', bgColor: '#FEF3C7' };
+    return { color: '#475569', bgColor: '#F1F5F9' }; 
+};
+
+
 const ShoppingList = () => {
     const { planData } = useAssessment();
     const navigate = useNavigate();
@@ -95,7 +109,9 @@ const ShoppingList = () => {
     const [hideCompleted, setHideCompleted] = useState(false);
 
     // Estado para categorías colapsadas
-    const [collapsedCategories, setCollapsedCategories] = useState({});
+    const [collapsedCategories, setCollapsedCategories] = useState({
+        'standalone_extra': true // Mantenemos las notas cerradas por defecto
+    });
     const toggleCategory = (catId) => {
         setCollapsedCategories(prev => ({
             ...prev,
@@ -111,34 +127,69 @@ const ShoppingList = () => {
     // Obtener userId para el fetch
     const userId = typeof window !== 'undefined' ? localStorage.getItem('mealfit_user_id') : null;
 
-    // Fetch custom shopping items al montar
+    // Auto-consolida y hace fetch de custom shopping items al montar
     useEffect(() => {
         if (!userId || userId === 'guest') return;
-        setLoadingCustom(true);
-        fetchWithAuth(`/api/shopping/custom/${userId}`)
-            .then(res => res.json())
-            .then(data => {
-                setCustomItems(data.items || []);
+        
+        let isMounted = true;
+        
+        const fetchAndConsolidate = async () => {
+            setLoadingCustom(true);
+            setIsGenerating(true);
+            
+            try {
+                // 1. Trigger auto-generate (fast if cached by backend)
+                await fetchWithAuth('/api/shopping/auto-generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, days: daysToShop })
+                });
                 
-                // Inicializar checkboxes desde la Base de Datos para persistencia multi-dispositivo
-                if (data.items && data.items.length > 0) {
-                    setCheckedItems(prev => {
-                        const next = { ...prev };
-                        data.items.forEach(it => {
-                            try {
-                                const parsed = JSON.parse(it.item_name);
-                                if (parsed && typeof parsed === 'object' && parsed.is_checked !== undefined) {
-                                    next[`custom-${it.id}`] = parsed.is_checked;
-                                }
-                            } catch(e) {}
+                // 2. Fetch the normalized list from the database
+                const res = await fetchWithAuth(`/api/shopping/custom/${userId}`);
+                const data = await res.json();
+                
+                if (isMounted) {
+                    setCustomItems(data.items || []);
+                    
+                    if (data.items && data.items.length > 0) {
+                        setCheckedItems(prev => {
+                            const next = { ...prev };
+                            data.items.forEach(it => {
+                                try {
+                                    const parsed = typeof it.item_name === 'string' ? JSON.parse(it.item_name) : null;
+                                    if (parsed && typeof parsed === 'object' && parsed.is_checked !== undefined) {
+                                        next[`custom-${it.id}`] = parsed.is_checked;
+                                    }
+                                } catch(e) {}
+                            });
+                            return next;
                         });
-                        return next;
-                    });
+                    }
                 }
-            })
-            .catch(err => console.error('Error fetching custom items:', err))
-            .finally(() => setLoadingCustom(false));
-    }, [userId]);
+            } catch (err) {
+                console.error('Error in auto-generation flow:', err);
+                if (isMounted) {
+                    try {
+                        const fallbackRes = await fetchWithAuth(`/api/shopping/custom/${userId}`);
+                        const fallbackData = await fallbackRes.json();
+                        if (isMounted) setCustomItems(fallbackData.items || []);
+                    } catch(e) {
+                         console.error('Fallback fetch failed:', e);
+                    }
+                }
+            } finally {
+                if (isMounted) {
+                    setLoadingCustom(false);
+                    setIsGenerating(false);
+                }
+            }
+        };
+
+        fetchAndConsolidate();
+        
+        return () => { isMounted = false; };
+    }, [userId, daysToShop]);
 
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     useEffect(() => {
@@ -158,50 +209,9 @@ const ShoppingList = () => {
         }
     };
 
-    const handleAutoGenerate = async () => {
-        if (!userId || userId === 'guest') {
-            toast.error('Debes iniciar sesión para usar la IA.');
-            return;
-        }
-
-        const toastId = toast.loading('Calculando ingredientes combinados (puede tardar ~15s)...');
-        setIsGenerating(true);
-
-        try {
-            const res = await fetchWithAuth('/api/shopping/auto-generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId })
-            });
-
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.detail || 'Error al generar lista');
-            }
-
-            toast.dismiss(toastId);
-            toast.success('¡Ingredientes IA consolidados con éxito!');
-            
-            // Refrescar lista de items custom
-            setLoadingCustom(true);
-            const refreshRes = await fetchWithAuth(`/api/shopping/custom/${userId}`);
-            const data = await refreshRes.json();
-            setCustomItems(data.items || []);
-            setCollapsedCategories(prev => ({ ...prev, custom_ai: false })); // Auto-abrir pestaña
-            
-        } catch (error) {
-            console.error('Error auto-generating shopping list:', error);
-            toast.dismiss(toastId);
-            toast.error(error.message || 'Error de conexión con la IA');
-        } finally {
-            setIsGenerating(false);
-            setLoadingCustom(false);
-        }
-    };
-
-    // Generamos la lista plana y luego la categorizamos
+    // Generamos la lista plana y luego la categorizamos (Solo para fallback)
     const categorizedList = useMemo(() => {
-        if (!planData) return {};
+        if (!planData || customItems.length > 0) return {};
 
         const flatList = generateShoppingListFromPlan(planData, daysToShop);
         const grouped = {
@@ -220,7 +230,7 @@ const ShoppingList = () => {
         // Eliminar categorías vacías para el render
         return Object.fromEntries(Object.entries(grouped).filter(([_, items]) => items.length > 0));
 
-    }, [planData, daysToShop]);
+    }, [planData, daysToShop, customItems.length]);
 
     // Procesar items custom (IA JSON vs legacy)
     const customStructured = useMemo(() => {
@@ -244,12 +254,22 @@ const ShoppingList = () => {
         return { categories, standalone };
     }, [customItems]);
 
-    // Calcular progreso (filtered by hideCompleted)
-    const allItems = Object.values(categorizedList).flat();
-    const filteredItems = hideCompleted ? allItems.filter(item => !checkedItems[item]) : allItems;
+    const hasAIList = customItems.length > 0;
+
+    // Calcular progreso
+    const allItems = hasAIList 
+        ? customItems 
+        : Object.values(categorizedList).flat();
+
+    const filteredItems = hideCompleted 
+        ? allItems.filter(item => hasAIList ? !checkedItems[`custom-${item.id}`] : !checkedItems[item]) 
+        : allItems;
+
     const totalItems = filteredItems.length;
-    const completedItems = allItems.filter(k => checkedItems[k]).length;
-    const progress = totalItems > 0 ? (completedItems / allItems.length) * 100 : 0;
+
+    const completedItems = allItems.filter(item => hasAIList ? checkedItems[`custom-${item.id}`] : checkedItems[item]).length;
+
+    const progress = allItems.length > 0 ? (completedItems / allItems.length) * 100 : 0;
 
     // Protección de Ruta
     if (!planData) {
@@ -276,14 +296,21 @@ const ShoppingList = () => {
     };
 
     // Marcar / desmarcar todos los items de una categoría
-    const toggleAllInCategory = (items, e) => {
+    const toggleAllInCategory = (items, isCustomList, e) => {
         e.stopPropagation(); // No colapsar al hacer clic
-        const visibleItems = items.filter(item => !hideCompleted || !checkedItems[item]);
-        const allChecked = visibleItems.every(item => checkedItems[item]);
+        const visibleItems = items.filter(item => {
+            const key = isCustomList ? `custom-${item.id}` : item;
+            return !hideCompleted || !checkedItems[key];
+        });
+        const allChecked = visibleItems.every(item => {
+            const key = isCustomList ? `custom-${item.id}` : item;
+            return checkedItems[key];
+        });
         setCheckedItems(prev => {
             const updated = { ...prev };
             visibleItems.forEach(item => {
-                updated[item] = !allChecked;
+                const key = isCustomList ? `custom-${item.id}` : item;
+                updated[key] = !allChecked;
             });
             return updated;
         });
@@ -365,47 +392,35 @@ const ShoppingList = () => {
 
     return (
         <DashboardLayout>
-            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <div className="shopping-container">
 
 
                 {/* --- HEADER TITLE & PROGRESS --- */}
                 <div ref={contentRef}>
-                    <div className="no-print" style={{ marginBottom: '3rem', textAlign: 'center' }}>
-                        <div style={{
-                            width: 64, height: 64, background: 'linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%)', borderRadius: '1.5rem',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#166534', margin: '0 auto 1.5rem',
-                            boxShadow: '0 10px 15px -3px rgba(22, 163, 74, 0.2)'
-                        }}>
-                            <ShoppingCart size={32} />
+                    <div className="shopping-hero no-print">
+                        <div className="hero-icon-wrapper">
+                            <ShoppingBag size={40} />
                         </div>
 
-                        <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>
+                        <h1 className="hero-title">
                             Lista de Compras
                         </h1>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto 2rem' }}>
+                        <p className="hero-subtitle">
                             Cantidades calculadas para tu plan personalizado.
                         </p>
 
                         {/* PROGRESS BAR */}
                         {totalItems > 0 && (
-                            <div style={{ maxWidth: '400px', margin: '0 auto' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.6rem', color: 'var(--text-main)' }}>
+                            <div className="progress-container">
+                                <div className="progress-header">
                                     <span>Progreso</span>
-                                    <span>{completedItems}/{totalItems} items</span>
+                                    <span>{completedItems} / {allItems.length} items</span>
                                 </div>
-                                <div style={{ 
-                                    width: '100%', height: '10px', 
-                                    background: '#CBD5E1', 
-                                    borderRadius: '99px', overflow: 'hidden',
-                                    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)'
-                                }}>
-                                    <div style={{
-                                        width: `${progress}%`, height: '100%',
-                                        background: 'var(--primary)', borderRadius: '99px',
-                                        transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        boxShadow: '0 2px 4px rgba(79, 70, 229, 0.3)'
-                                    }} />
+                                <div className="progress-track">
+                                    <div 
+                                        className="progress-fill" 
+                                        style={{ width: `${progress}%` }} 
+                                    />
                                 </div>
                             </div>
                         )}
@@ -413,22 +428,11 @@ const ShoppingList = () => {
 
                     {/* --- CONTROL PANEL --- */}
                     {totalItems > 0 && (
-                        <div className="no-print" style={{
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            gap: '1.5rem',
-                            flexWrap: 'wrap',
-                            marginBottom: '2rem',
-                            padding: '1rem',
-                            background: '#F8FAFC',
-                            borderRadius: '1rem',
-                            border: '1px solid #E2E8F0'
-                        }}>
+                        <div className="controls-panel no-print">
                             {/* Days selector */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Días:</span>
-                                <div style={{ display: 'flex', gap: '0.25rem', background: '#E2E8F0', padding: '0.25rem', borderRadius: '0.5rem' }}>
+                            <div className="control-group">
+                                <span className="control-label">Días:</span>
+                                <div className="days-selector">
                                     {[1, 3, 7].map(days => (
                                         <button
                                             key={days}
@@ -436,18 +440,7 @@ const ShoppingList = () => {
                                                 setDaysToShop(days);
                                                 setCheckedItems({});
                                             }}
-                                            style={{
-                                                padding: '0.4rem 0.75rem',
-                                                border: 'none',
-                                                borderRadius: '0.375rem',
-                                                background: daysToShop === days ? 'white' : 'transparent',
-                                                color: daysToShop === days ? 'var(--text-main)' : 'var(--text-muted)',
-                                                fontWeight: daysToShop === days ? 600 : 500,
-                                                fontSize: '0.8rem',
-                                                cursor: 'pointer',
-                                                boxShadow: daysToShop === days ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                                                transition: 'all 0.2s'
-                                            }}
+                                            className={`day-btn ${daysToShop === days ? 'active' : ''}`}
                                         >
                                             {days}
                                         </button>
@@ -456,369 +449,242 @@ const ShoppingList = () => {
                             </div>
 
                             {/* Hide completed toggle */}
-                            <label style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                cursor: 'pointer',
-                                fontSize: '0.85rem',
-                                fontWeight: 500,
-                                color: hideCompleted ? 'var(--text-main)' : 'var(--text-muted)'
-                            }}>
+                            <label className="control-group" style={{ cursor: 'pointer' }}>
                                 <input 
                                     type="checkbox" 
                                     checked={hideCompleted}
                                     onChange={(e) => setHideCompleted(e.target.checked)}
                                     style={{ display: 'none' }}
                                 />
-                                <div style={{
-                                    width: '36px',
-                                    height: '20px',
-                                    background: hideCompleted ? 'var(--primary)' : '#CBD5E1',
-                                    borderRadius: '99px',
-                                    position: 'relative',
-                                    transition: 'all 0.2s'
-                                }}>
-                                    <div style={{
-                                        width: '16px',
-                                        height: '16px',
-                                        background: 'white',
-                                        borderRadius: '50%',
-                                        position: 'absolute',
-                                        top: '2px',
-                                        left: hideCompleted ? '18px' : '2px',
-                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
-                                    }} />
+                                <div className={`toggle-switch ${hideCompleted ? 'active' : ''}`}>
+                                    <div className="toggle-knob" />
                                 </div>
-                                Ocultar completados
+                                <span className="control-label" style={{ color: hideCompleted ? '#1E293B' : '#64748B' }}>
+                                    Ocultar completados
+                                </span>
                             </label>
 
                             {/* Separator */}
-                            <div style={{ width: '1px', height: '24px', background: '#E2E8F0' }} />
+                            <div className="hide-mobile" style={{ width: '1px', height: '24px', background: '#E2E8F0' }} />
 
-                            {/* Auto-Generate AI */}
-                            <button
-                                onClick={handleAutoGenerate}
-                                disabled={isGenerating}
-                                className="no-print"
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.4rem',
-                                    background: 'linear-gradient(135deg, #4F46E5, #3B82F6)',
-                                    border: 'none',
-                                    padding: '0.5rem 1rem', borderRadius: '0.5rem',
-                                    color: 'white', cursor: isGenerating ? 'not-allowed' : 'pointer', 
-                                    fontWeight: 600,
-                                    fontSize: '0.85rem',
-                                    boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.4)',
-                                    opacity: isGenerating ? 0.7 : 1,
-                                    transition: 'all 0.2s ease'
-                                }}
-                            >
-                                <ShoppingCart size={16} className={isGenerating ? "spin-slow" : ""} /> 
-                                <span className="hide-mobile">{isGenerating ? 'Consolidando...' : 'Consolidar Ingredientes'}</span>
-                            </button>
-
-                            {/* Download PDF */}
-                            <button
-                                onClick={handleDownloadPDF}
-                                className="no-print"
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.4rem',
-                                    background: 'transparent',
-                                    border: '1px solid #E2E8F0',
-                                    padding: '0.4rem 0.85rem', borderRadius: '0.5rem',
-                                    color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 500,
-                                    fontSize: '0.85rem',
-                                    transition: 'all 0.2s ease'
-                                }}
-                                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-main)'; e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.background = 'white'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = 'transparent'; }}
-                            >
-                                <Download size={15} /> <span className="hide-mobile">PDF</span>
-                            </button>
+                            {/* Acciones principales */}
+                            <div className="control-group">
+                                {isGenerating && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748B', fontSize: '0.9rem', marginRight: '0.5rem' }}>
+                                        <ShoppingCart size={16} className="spin-slow" />
+                                        <span className="hide-mobile">Consolidando...</span>
+                                    </div>
+                                )}
+                                <button
+                                    onClick={handleDownloadPDF}
+                                    className="btn-secondary"
+                                >
+                                    <Download size={18} /> <span className="hide-mobile">PDF</span>
+                                </button>
+                            </div>
                         </div>
                     )}
 
                     {/* --- CONTENT LIST --- */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                        {Object.keys(categorizedList).length > 0 ? (
-                            Object.entries(categorizedList)
-                                .map(([catId, items]) => [catId, items.filter(item => !hideCompleted || !checkedItems[item])])
-                                .filter(([_, items]) => items.length > 0)
-                                .map(([catId, items]) => {
-                                const category = CATEGORIES.find(c => c.id === catId);
-                                return (
-                                    <section key={catId} className="shopping-section" style={{ breakInside: 'avoid' }}>
-
-                                        {/* SECTION HEADER - Clickable for collapse */}
-                                        <div
-                                            onClick={() => toggleCategory(catId)}
-                                            style={{
-                                                display: 'flex', alignItems: 'center', gap: '0.75rem',
-                                                marginBottom: collapsedCategories[catId] ? '0' : '1rem',
-                                                padding: '0.5rem 0.75rem',
-                                                borderRadius: '0.75rem',
-                                                cursor: 'pointer', userSelect: 'none',
-                                                transition: 'margin-bottom 0.3s ease, background-color 0.2s ease'
-                                            }}
-                                            className="shopping-section-header"
-                                        >
-                                            <div style={{
-                                                background: category.bgColor, color: category.color,
-                                                padding: '0.4rem', borderRadius: '0.5rem'
-                                            }}>
-                                                <category.icon size={20} />
-                                            </div>
-                                            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', margin: 0, flex: 1 }}>
-                                                {category.label}
-                                            </h2>
-                                            <span style={{
-                                                background: '#F1F5F9', color: 'var(--text-muted)',
-                                                fontSize: '0.75rem', fontWeight: 600, padding: '0.1rem 0.5rem', borderRadius: '99px'
-                                            }}>
-                                                {items.filter(item => !hideCompleted || !checkedItems[item]).length}
-                                            </span>
-                                            {/* Mark all checkbox */}
-                                            {(() => {
-                                                const visibleItems = items.filter(item => !hideCompleted || !checkedItems[item]);
-                                                const checkedCount = items.filter(item => checkedItems[item]).length;
-                                                const allChecked = checkedCount === items.length && items.length > 0;
-                                                const someChecked = checkedCount > 0 && !allChecked;
-                                                return (
-                                                    <div
-                                                        onClick={(e) => toggleAllInCategory(items, e)}
-                                                        title={allChecked ? 'Desmarcar toda la categoría' : 'Marcar toda la categoría'}
-                                                        className="mark-all-btn"
-                                                        style={{
-                                                            minWidth: '24px', height: '24px',
-                                                            borderRadius: '6px',
-                                                            border: allChecked || someChecked ? 'none' : '2px solid #CBD5E1',
-                                                            background: allChecked ? 'var(--primary)' : someChecked ? 'var(--primary)' : 'transparent',
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                            color: 'white', transition: 'all 0.2s',
-                                                            flexShrink: 0, cursor: 'pointer',
-                                                            opacity: allChecked || someChecked ? 1 : 0.6
-                                                        }}
-                                                    >
-                                                        {allChecked && <Check size={14} strokeWidth={3} />}
-                                                        {someChecked && <Minus size={14} strokeWidth={3} />}
-                                                    </div>
-                                                );
-                                            })()}
-                                            <ChevronDown
-                                                size={20}
-                                                style={{
-                                                    color: 'var(--text-muted)',
-                                                    transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                    transform: collapsedCategories[catId] ? 'rotate(-90deg)' : 'rotate(0deg)',
-                                                    flexShrink: 0
-                                                }}
-                                            />
-                                        </div>
-
-                                        {/* ITEMS GRID - Collapsible */}
-                                        <div
-                                            className={`shopping-collapse ${collapsedCategories[catId] ? 'collapsed' : ''}`}
-                                            style={{
-                                                display: 'grid',
-                                                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                                                gap: '0.75rem',
-                                                overflow: 'hidden',
-                                                maxHeight: collapsedCategories[catId] ? '0' : '2000px',
-                                                opacity: collapsedCategories[catId] ? 0 : 1,
-                                                transition: 'max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease',
-                                                paddingTop: collapsedCategories[catId] ? '0' : '0.25rem'
-                                            }}
-                                        >
-                                            {items
-                                                .filter(item => !hideCompleted || !checkedItems[item])
-                                                .map((item, idx) => {
-                                                const isChecked = !!checkedItems[item];
-                                                return (
-                                                    <div
-                                                        key={`${catId}-${idx}`}
-                                                        onClick={() => toggleItem(item)}
-                                                        style={{
-                                                            background: isChecked ? '#F8FAFC' : 'white',
-                                                            border: isChecked ? '1px solid transparent' : '1px solid #E2E8F0',
-                                                            borderRadius: '0.75rem',
-                                                            padding: '0.75rem 1rem',
-                                                            display: 'flex', alignItems: 'center', gap: '0.75rem',
-                                                            cursor: 'pointer',
-                                                            transition: 'all 0.2s ease',
-                                                            opacity: isChecked ? 0.6 : 1,
-                                                            boxShadow: isChecked ? 'none' : '0 1px 2px rgba(0,0,0,0.02)'
-                                                        }}
-                                                        className="shopping-item"
-                                                    >
-                                                        <div style={{
-                                                            minWidth: '22px', height: '22px',
-                                                            borderRadius: '6px',
-                                                            border: isChecked ? 'none' : '2px solid #CBD5E1',
-                                                            background: isChecked ? 'var(--primary)' : 'transparent',
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                            color: 'white', transition: 'all 0.2s', flexShrink: 0
-                                                        }}>
-                                                            {isChecked && <Check size={14} strokeWidth={3} />}
-                                                        </div>
-                                                        <span style={{
-                                                            fontSize: '0.95rem', fontWeight: isChecked ? 400 : 500,
-                                                            color: isChecked ? 'var(--text-muted)' : 'var(--text-main)',
-                                                            textDecoration: isChecked ? 'line-through' : 'none'
-                                                        }}>
-                                                            {item}
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </section>
-                                );
-                            })
-                        ) : (
-                            <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-                                <div style={{ background: '#F1F5F9', width: 80, height: 80, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: '#94A3B8' }}>
-                                    <ShoppingCart size={32} />
+                    <div className="categories-grid">
+                        
+                        {/* 0. MODO CARGA: Si estamos consolidando o cargando, mostramos un spinner para evitar que la lista cruda parpadee */}
+                        {(isGenerating || loadingCustom) ? (
+                            <div style={{ columnSpan: 'all', WebkitColumnSpan: 'all', width: '100%', textAlign: 'center', padding: '6rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ background: '#EEF2FF', width: 80, height: 80, borderRadius: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: '#4F46E5', boxShadow: '0 4px 20px rgba(79, 70, 229, 0.15)' }}>
+                                    <ShoppingCart size={36} className="spin-slow" />
                                 </div>
-                                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
-                                    Tu lista está vacía
+                                <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1E293B', margin: '0 0 0.5rem 0', letterSpacing: '-0.02em' }}>
+                                    Consolidando tu lista...
                                 </h3>
-                                <p style={{ color: 'var(--text-muted)', maxWidth: '400px', margin: '0 auto' }}>
-                                    Genera un nuevo plan de comidas para ver los ingredientes necesarios aquí mágicamente.
+                                <p style={{ color: '#64748B', maxWidth: '400px', margin: '0 auto', fontSize: '1.05rem', lineHeight: 1.5 }}>
+                                    La Inteligencia Artificial está unificando y ordenando tus ingredientes para hacer tus compras más fáciles.
                                 </p>
                             </div>
-                        )}
-                    </div>
-
-                    {/* --- CUSTOM ITEMS (Added by AI) --- */}
-                    {customItems.length > 0 && (
-                        <div style={{ marginTop: '2rem' }}>
-                            <div
-                                onClick={() => toggleCategory('custom_ai')}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.75rem',
-                                    marginBottom: collapsedCategories['custom_ai'] ? '0' : '1rem',
-                                    padding: '0.5rem 0.75rem',
-                                    borderRadius: '0.75rem',
-                                    cursor: 'pointer', userSelect: 'none',
-                                    transition: 'margin-bottom 0.3s ease, background-color 0.2s ease'
-                                }}
-                                className="shopping-section-header"
-                            >
-                                <div style={{
-                                    background: 'linear-gradient(135deg, #DCFCE7, #BBF7D0)', color: '#16A34A',
-                                    padding: '0.4rem', borderRadius: '0.5rem'
-                                }}>
-                                    <ShoppingCart size={20} />
-                                </div>
-                                <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', margin: 0, flex: 1 }}>
-                                    Lista Consolidada
-                                </h2>
-                                <span style={{
-                                    background: '#DCFCE7', color: '#16A34A',
-                                    fontSize: '0.75rem', fontWeight: 600, padding: '0.1rem 0.5rem', borderRadius: '99px'
-                                }}>
-                                    {customItems.length}
-                                </span>
-                                <ChevronDown
-                                    size={20}
-                                    style={{
-                                        color: 'var(--text-muted)',
-                                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        transform: collapsedCategories['custom_ai'] ? 'rotate(-90deg)' : 'rotate(0deg)',
-                                        flexShrink: 0
-                                    }}
-                                />
-                            </div>
-                            <div
-                                className={`shopping-collapse ${collapsedCategories['custom_ai'] ? 'collapsed' : ''}`}
-                                style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                                    gap: '0.75rem',
-                                    overflow: 'hidden',
-                                    maxHeight: collapsedCategories['custom_ai'] ? '0' : '2000px',
-                                    opacity: collapsedCategories['custom_ai'] ? 0 : 1,
-                                    transition: 'max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease',
-                                    paddingTop: collapsedCategories['custom_ai'] ? '0' : '0.25rem'
-                                }}
-                            >
+                        ) : hasAIList ? (
+                            <>
                                 {/* Estructura agrupada en categorías JSON */}
-                                {Object.entries(customStructured.categories).map(([catName, catData], catIdx) => (
-                                    <div key={catIdx} style={{ background: 'white', border: '1px solid #DDD6FE', borderRadius: '0.75rem', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 2px 4px rgba(124, 58, 237, 0.05)' }}>
-                                        <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#4F46E5', borderBottom: '1px solid #F3F4F6', paddingBottom: '0.5rem' }}>
-                                            {catData.emoji} {catName}
-                                        </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                            {catData.items.map(structItem => {
-                                                const checkKey = `custom-${structItem.id}`;
-                                                const isChecked = !!checkedItems[checkKey];
-                                                return (
-                                                    <div key={structItem.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.25rem 0', opacity: isChecked ? 0.6 : 1, transition: 'opacity 0.2s' }}>
-                                                        <div 
-                                                            onClick={() => toggleItem(checkKey)}
-                                                            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', flex: 1 }}
-                                                        >
-                                                            <div style={{ minWidth: '22px', height: '22px', borderRadius: '6px', border: isChecked ? 'none' : '2px solid #CBD5E1', background: isChecked ? 'var(--primary)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', transition: 'all 0.2s', flexShrink: 0 }}>
-                                                                {isChecked && <Check size={14} strokeWidth={3} />}
-                                                            </div>
-                                                            <span style={{ fontSize: '0.95rem', color: isChecked ? 'var(--text-muted)' : 'var(--text-main)', textDecoration: isChecked ? 'line-through' : 'none', fontWeight: isChecked ? 400 : 500 }}>
-                                                                {structItem.label}
-                                                            </span>
-                                                        </div>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleDeleteCustomItem(structItem.id); }}
-                                                            style={{ background: '#F1F5F9', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '0.3rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', transition: 'all 0.2s', flexShrink: 0 }}
-                                                            onMouseEnter={(e) => { e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.background = '#FEE2E2'; }}
-                                                            onMouseLeave={(e) => { e.currentTarget.style.color = '#94A3B8'; e.currentTarget.style.background = '#F1F5F9'; }}
-                                                            title="Eliminar item"
-                                                        >
-                                                            <X size={15} strokeWidth={2.5}/>
-                                                        </button>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
+                                {Object.entries(customStructured.categories).map(([catName, catData], catIdx) => {
+                                    // Filtramos los items de esta categoría
+                                    const visibleItems = catData.items.filter(structItem => {
+                                        const isChecked = !!checkedItems[`custom-${structItem.id}`];
+                                        return !hideCompleted || !isChecked;
+                                    });
 
-                                {/* Fallback Legacy/Standalone items */}
-                                {customStructured.standalone.map(item => {
-                                    const parts = item.item_name.split(':');
-                                    const titleStr = parts.length > 1 ? parts[0].trim() : '';
-                                    const contentStr = parts.length > 1 ? parts.slice(1).join(':').trim() : item.item_name.trim();
-                                    const itemsList = contentStr.split(',').map(s => s.trim()).filter(Boolean);
+                                    if (visibleItems.length === 0 && hideCompleted) return null;
+
+                                    const checkedCount = catData.items.filter(structItem => checkedItems[`custom-${structItem.id}`]).length;
+                                    const allChecked = checkedCount === catData.items.length && catData.items.length > 0;
+                                    const someChecked = checkedCount > 0 && !allChecked;
+
+                                    let btnClass = "none-checked";
+                                    if (allChecked) btnClass = "all-checked";
+                                    else if (someChecked) btnClass = "some-checked";
+
+                                    // Dinamic Color
+                                    const dynamicColor = getAILightColor(catName);
 
                                     return (
-                                        <div key={item.id} style={{ background: 'white', border: '1px solid #DDD6FE', borderRadius: '0.75rem', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 2px 4px rgba(124, 58, 237, 0.05)' }}>
-                                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
-                                                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#4F46E5', paddingTop: '0.1rem' }}>
-                                                    {titleStr || "Ingredientes Extra"}
+                                        <section key={catIdx} className="category-card shopping-section" style={{ breakInside: 'avoid' }}>
+                                            <div 
+                                                className="category-header shopping-section-header"
+                                                onClick={() => toggleCategory(catName)}
+                                                style={{ cursor: 'pointer' }}
+                                            >
+                                                <div className="cat-icon" style={{ background: dynamicColor.bgColor, color: dynamicColor.color, fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    {catData.emoji}
                                                 </div>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleDeleteCustomItem(item.id); }}
-                                                    style={{ background: '#F1F5F9', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '0.3rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', transition: 'all 0.2s', flexShrink: 0 }}
-                                                    onMouseEnter={(e) => { e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.background = '#FEE2E2'; }}
-                                                    onMouseLeave={(e) => { e.currentTarget.style.color = '#94A3B8'; e.currentTarget.style.background = '#F1F5F9'; }}
-                                                    title="Eliminar de la lista"
+                                                <h2 className="cat-title">{catName}</h2>
+                                                <span className="cat-badge">{visibleItems.length}</span>
+                                                
+                                                <div
+                                                    onClick={(e) => toggleAllInCategory(catData.items, true, e)}
+                                                    title={allChecked ? 'Desmarcar toda la categoría' : 'Marcar toda la categoría'}
+                                                    className={`mark-all-btn ${btnClass}`}
                                                 >
-                                                    <X size={15} strokeWidth={2.5}/>
-                                                </button>
+                                                    {allChecked && <Check size={16} strokeWidth={3} />}
+                                                    {someChecked && <Minus size={16} strokeWidth={3} />}
+                                                </div>
+                                                
+                                                <ChevronDown
+                                                    size={20}
+                                                    className={`cat-collapse-icon ${collapsedCategories[catName] ? 'collapsed' : ''}`}
+                                                />
                                             </div>
-                                            <ul style={{ margin: 0, paddingLeft: '1.2rem', color: 'var(--text-main)', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', lineHeight: 1.4 }}>
-                                                {itemsList.map((ingItem, idx) => (
-                                                    <li key={idx}>
-                                                        {ingItem}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
+                                            
+                                            <div className={`items-list shopping-collapse ${collapsedCategories[catName] ? 'collapsed' : ''}`}>
+                                                {visibleItems.map(structItem => {
+                                                    const checkKey = `custom-${structItem.id}`;
+                                                    const isChecked = !!checkedItems[checkKey];
+                                                    return (
+                                                        <div key={structItem.id} className={`shopping-item ${isChecked ? 'checked' : ''}`}>
+                                                            <div 
+                                                                onClick={() => toggleItem(checkKey)}
+                                                                style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '0.75rem', cursor: 'pointer' }}
+                                                            >
+                                                                <div className="custom-checkbox">
+                                                                    {isChecked && <Check size={16} strokeWidth={3} />}
+                                                                </div>
+                                                                <div className="item-content">
+                                                                    <span className="item-name">{structItem.label}</span>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleDeleteCustomItem(structItem.id); }}
+                                                                className="btn-secondary no-print shopping-item-delete-btn"
+                                                                style={{ padding: '0.4rem', borderRadius: '0.5rem', border: 'none', background: 'transparent' }}
+                                                                onMouseEnter={(e) => { e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.background = '#FEE2E2'; }}
+                                                                onMouseLeave={(e) => { e.currentTarget.style.color = '#475569'; e.currentTarget.style.background = 'transparent'; }}
+                                                                title="Eliminar item"
+                                                            >
+                                                                <X size={16} strokeWidth={2.5}/>
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </section>
                                     );
                                 })}
-                            </div>
-                        </div>
-                    )}
+
+                                {/* Fallback Legacy/Standalone items eliminados a petición del usuario */}
+                            </>
+                        ) : (
+                            /* 2. MODO FALLBACK (Legacy): Si no hay lista IA y ya terminó de cargar, usamos la lista cruda basada en CategorizedList */
+                            Object.keys(categorizedList).length > 0 ? (
+                                Object.entries(categorizedList)
+                                    .map(([catId, items]) => [catId, items.filter(item => !hideCompleted || !checkedItems[item])])
+                                    .filter(([_, items]) => items.length > 0)
+                                    .map(([catId, items]) => {
+                                    const category = CATEGORIES.find(c => c.id === catId);
+                                    return (
+                                        <section key={catId} className="category-card shopping-section" style={{ breakInside: 'avoid' }}>
+
+                                            <div
+                                                onClick={() => toggleCategory(catId)}
+                                                className="category-header shopping-section-header"
+                                                style={{ cursor: 'pointer' }}
+                                            >
+                                                <div className="cat-icon" style={{ background: category.bgColor, color: category.color }}>
+                                                    <category.icon size={22} />
+                                                </div>
+                                                <h2 className="cat-title">
+                                                    {category.label}
+                                                </h2>
+                                                <span className="cat-badge">
+                                                    {items.length}
+                                                </span>
+                                                
+                                                {(() => {
+                                                    const visibleItems = items.filter(item => !hideCompleted || !checkedItems[item]);
+                                                    const checkedCount = items.filter(item => checkedItems[item]).length;
+                                                    const allChecked = checkedCount === items.length && items.length > 0;
+                                                    const someChecked = checkedCount > 0 && !allChecked;
+                                                    
+                                                    let btnClass = "none-checked";
+                                                    if(allChecked) btnClass = "all-checked";
+                                                    else if (someChecked) btnClass = "some-checked";
+
+                                                    return (
+                                                        <div
+                                                            onClick={(e) => toggleAllInCategory(items, false, e)}
+                                                            title={allChecked ? 'Desmarcar toda la categoría' : 'Marcar toda la categoría'}
+                                                            className={`mark-all-btn ${btnClass}`}
+                                                        >
+                                                            {allChecked && <Check size={16} strokeWidth={3} />}
+                                                            {someChecked && <Minus size={16} strokeWidth={3} />}
+                                                        </div>
+                                                    );
+                                                })()}
+                                                <ChevronDown
+                                                    size={20}
+                                                    className={`cat-collapse-icon ${collapsedCategories[catId] ? 'collapsed' : ''}`}
+                                                />
+                                            </div>
+
+                                            <div className={`items-list shopping-collapse ${collapsedCategories[catId] ? 'collapsed' : ''}`}>
+                                                {items
+                                                    .filter(item => !hideCompleted || !checkedItems[item])
+                                                    .map((item, idx) => {
+                                                    const isChecked = !!checkedItems[item];
+                                                    return (
+                                                        <div
+                                                            key={`${catId}-${idx}`}
+                                                            onClick={() => toggleItem(item)}
+                                                            className={`shopping-item ${isChecked ? 'checked' : ''}`}
+                                                        >
+                                                            <div className="custom-checkbox">
+                                                                {isChecked && <Check size={16} strokeWidth={3} />}
+                                                            </div>
+                                                            <div className="item-content">
+                                                                <span className="item-name">
+                                                                    {item}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </section>
+                                    );
+                                })
+                            ) : (
+                                !isGenerating && (
+                                    <div style={{ textAlign: 'center', padding: '4rem 1rem', gridColumn: '1 / -1' }}>
+                                        <div style={{ background: '#F8FAFC', width: 80, height: 80, borderRadius: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: '#94A3B8', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                                            <ShoppingCart size={36} />
+                                        </div>
+                                        <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0F172A', margin: '0 0 0.5rem 0', letterSpacing: '-0.02em' }}>
+                                            Tu lista está vacía
+                                        </h3>
+                                        <p style={{ color: '#64748B', maxWidth: '400px', margin: '0 auto', fontSize: '1.05rem', lineHeight: 1.5 }}>
+                                            Genera un nuevo plan de comidas para ver los ingredientes necesarios aquí mágicamente.
+                                        </p>
+                                    </div>
+                                )
+                            )
+                        )}
+                    </div>
 
                 </div>
                 {/* --- PRINT HEADER (Invisible) --- */}
@@ -833,45 +699,33 @@ const ShoppingList = () => {
 
             {/* --- PRINT STYLES --- */}
             <style>{`
-                @media (max-width: 640px) {
-                    .hide-mobile { display: none; }
-                }
-                .hover-bg-gray:hover { background: #F1F5F9 !important; }
-                
-                @keyframes spin { 100% { transform: rotate(360deg); } }
-                .spin-slow { animation: spin 2s linear infinite; }
-
-                .shopping-section-header {
-                    border-bottom: 2px solid #F1F5F9;
-                }
-                .shopping-section-header:hover {
-                    background-color: rgba(241, 245, 249, 0.6);
-                }
-
-                .shopping-collapse.collapsed {
-                    pointer-events: none;
-                }
-
                 @media print {
                     @page { margin: 1cm; size: auto; }
                     body { background: white !important; font-size: 11pt; -webkit-print-color-adjust: exact; }
                     .no-print, aside, nav, header { display: none !important; }
                     .container, .main-content { width: 100% !important; margin: 0 !important; padding: 0 !important; display: block !important; }
+                    .shopping-container { max-width: 100% !important; border: none !important; box-shadow: none !important; background: transparent !important; }
                     .print-only { display: block !important; }
                     
-                    .shopping-section { margin-bottom: 2rem; page-break-inside: avoid; }
-                    .shopping-section h2 { border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 10px; font-size: 14pt; }
+                    .categories-grid { display: block !important; }
+                    .category-card { border: none !important; box-shadow: none !important; margin-bottom: 2rem; break-inside: avoid; }
+                    .category-header { border-bottom: 2px solid #E2E8F0 !important; padding: 0.5rem 0 !important; background: transparent !important; }
+                    .category-header .cat-icon { display: none !important; }
+                    .category-header .cat-badge, .category-header .cat-collapse-icon, .mark-all-btn { display: none !important; }
                     
+                    .items-list { padding: 0.5rem 0 !important; }
                     .shopping-item { 
                         border: none !important; 
                         padding: 0.25rem 0 !important; 
                         background: transparent !important;
                         box-shadow: none !important;
+                        page-break-inside: avoid;
                     }
-                    .shopping-item div:first-child {
+                    .shopping-item .custom-checkbox {
                         border: 1px solid #000 !important;
-                        width: 14px !important; height: 14px !important;
+                        width: 16px !important; height: 16px !important;
                         background: transparent !important; color: transparent !important;
+                        border-radius: 4px !important;
                     }
                 }
             `}</style>
