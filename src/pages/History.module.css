@@ -28,8 +28,9 @@
 }
 
 .subtitle {
-    color: var(--text-muted);
-    font-size: 1rem;
+    color: #475569;
+    font-size: 1.08rem;
+    font-weight: 500;
 }
 
 .planCount {
@@ -213,13 +214,6 @@
     justify-content: center;
     flex-shrink: 0;
     box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25), inset 0 2px 4px rgba(255,255,255,0.3);
-    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@media (hover: hover) {
-    .card:hover .iconWrapper {
-        transform: scale(1.1) rotate(-5deg);
-    }
 }
 
 .planInfo {
@@ -471,23 +465,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .chevronWrapper svg {
     color: #64748B;
-    transition: color 0.3s;
-}
-
-@media (hover: hover) {
-    .card:hover .chevronWrapper {
-        background: #EFF6FF;
-        transform: translateX(4px);
-    }
-    
-    .card:hover .chevronWrapper svg {
-        color: #3B82F6;
-    }
 }
 
 /* ========================
@@ -908,6 +889,7 @@
         text-align: center;
         gap: 0.75rem;
         margin-bottom: 1.25rem;
+        margin-top: 1.5rem;
     }
 
     .card {
