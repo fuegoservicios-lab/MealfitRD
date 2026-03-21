@@ -5,6 +5,7 @@
     margin: 0 auto;
     padding: 1rem;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
 }
 
 /* --- HERO HEADER --- */
@@ -565,7 +566,9 @@
 
     /* --- CONTAINER --- */
     .shopping-container {
-        padding: 0.5rem 0.85rem;
+        padding: 0.5rem 0.75rem;
+        max-width: 100vw;
+        overflow-x: hidden;
     }
 
     /* --- HERO COMPACTO --- */

@@ -292,6 +292,8 @@
 @media (max-width: 768px) {
     .mainContent {
         padding: 0.5rem;
+        overflow-x: hidden;
+        max-width: 100vw;
     }
 }
 
