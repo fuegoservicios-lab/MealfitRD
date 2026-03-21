@@ -3,6 +3,7 @@ import { Flame, Dumbbell, Wheat, Droplet, Activity, Lock } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { useAssessment } from '../../context/AssessmentContext';
 import { fetchWithAuth } from '../../config/api';
+import styles from './TrackingProgress.module.css';
 
 const TrackingProgress = ({ planData, userId }) => {
     const { isPlus } = useAssessment();
@@ -77,45 +78,13 @@ const TrackingProgress = ({ planData, userId }) => {
     const percFat = calcPerc(consumed.fats, goalFat);
 
     return (
-        <div style={{
-            background: 'white',
-            padding: '2rem',
-            borderRadius: '1.25rem',
-            border: '1px solid #E2E8F0',
-            boxShadow: '0 4px 10px rgba(15, 23, 42, 0.03), 0 1px 3px rgba(15, 23, 42, 0.02)',
-            marginBottom: '2.5rem',
-            position: 'relative',
-            overflow: 'hidden'
-        }}>
-            {/* Ovelay para Plan Gratis */}
+        <div className={styles.card}>
+            {/* Overlay para Plan Gratis */}
             {!isPlus && (
-                <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'rgba(255, 255, 255, 0.65)', // Slightly more transparent too
-                    backdropFilter: 'blur(3px)',
-                    zIndex: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexDirection: 'column',
-                    padding: '1rem', // Reduced for mobile
-                    textAlign: 'center'
-                }}>
-                    <div style={{
-                        background: 'white',
-                        padding: '1.5rem', // Reduced for mobile
-                        borderRadius: '1.25rem',
-                        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-                        border: '1px solid #F1F5F9',
-                        width: '100%',
-                        maxWidth: '320px'
-                    }}>
+                <div className={styles.premiumOverlay}>
+                    <div className={styles.premiumBox}>
                         <div style={{
-                            background: '#FEF2F2', color: '#EF4444', height: 48, width: 48, // Slightly smaller icon wrapper
+                            background: '#FEF2F2', color: '#EF4444', height: 48, width: 48,
                             borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                             margin: '0 auto 1rem'
                         }}>
@@ -130,32 +99,27 @@ const TrackingProgress = ({ planData, userId }) => {
             )}
 
             {/* Header Sector */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid #F1F5F9', flexWrap: 'wrap', gap: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{
-                        width: 48, height: 48, borderRadius: '12px',
-                        background: '#F8FAFC',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F172A',
-                        border: '1px solid #E2E8F0'
-                    }}>
+            <div className={styles.header}>
+                <div className={styles.headerLeft}>
+                    <div className={styles.headerIcon}>
                         <Activity size={24} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.02em' }}>Progreso en Tiempo Real</h2>
-                        <p style={{ margin: 0, color: '#64748B', fontSize: '0.9rem', fontWeight: 500, marginTop: '0.15rem' }}>
+                        <h2 className={styles.title}>Progreso en Tiempo Real</h2>
+                        <p className={styles.subtitle}>
                             {loading ? 'Cargando registros...' : `${consumed.meals.length} ${consumed.meals.length === 1 ? 'comida registrada' : 'comidas registradas'} hoy`}
                         </p>
                     </div>
                 </div>
                 
                 {(!userId || userId === 'guest') && (
-                    <div style={{ fontSize: '0.8rem', color: '#B45309', background: '#FFFBEB', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: 600, border: '1px solid #FEF3C7' }}>
+                    <div className={styles.guestBadge}>
                         Inicia sesión para registrar comidas
                     </div>
                 )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+            <div className={styles.content}>
                 {/* Calorías (Main Bar) */}
                 <ProgressBar 
                     label="Calorías Consumidas"
@@ -164,7 +128,7 @@ const TrackingProgress = ({ planData, userId }) => {
                     large
                 />
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem', paddingTop: '0.5rem' }}>
+                <div className={styles.macroGrid}>
                     {/* Proteína */}
                     <ProgressBar 
                         label="Proteína"
@@ -224,7 +188,7 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
                 width: '100%', 
                 background: '#F1F5F9', 
                 borderRadius: '99px',
-                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)', // Inner shadow for structure
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)',
                 overflow: 'hidden'
             }}>
                 <div style={{
@@ -232,7 +196,7 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
                     width: `${perc}%`,
                     background: gradient,
                     borderRadius: '99px',
-                    boxShadow: 'inset 0 -2px 0 rgba(0,0,0,0.1)', // 3D bevel effect instead of animations
+                    boxShadow: 'inset 0 -2px 0 rgba(0,0,0,0.1)',
                     transition: 'width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
                 }} />
             </div>

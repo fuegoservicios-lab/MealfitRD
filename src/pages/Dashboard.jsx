@@ -81,21 +81,244 @@ const Dashboard = () => {
     return (
         <DashboardLayout>
 
+            {/* Mobile Responsive Styles */}
+            <style>{`
+                .dashboard-header {
+                    margin-bottom: 3rem;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-end;
+                    flex-wrap: wrap;
+                    gap: 1.5rem;
+                    background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.5) 100%);
+                    backdrop-filter: blur(12px);
+                    padding: 2rem;
+                    border-radius: 2rem;
+                    border: 1px solid rgba(255,255,255,0.6);
+                    box-shadow: 0 20px 40px -10px rgba(0,0,0,0.05);
+                }
+                .dashboard-title {
+                    font-size: 2.5rem;
+                    font-weight: 800;
+                    line-height: 1.1;
+                    letter-spacing: -0.03em;
+                    margin-bottom: 0.25rem;
+                    color: #1E293B;
+                }
+                .dashboard-subtitle {
+                    color: #64748B;
+                    font-size: 1.1rem;
+                    font-weight: 500;
+                }
+                .macros-grid {
+                    background: white;
+                    border-radius: 1.25rem;
+                    border: 1px solid #E2E8F0;
+                    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.03);
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    overflow: hidden;
+                }
+                .stat-item {
+                    padding: 1.5rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    background: white;
+                    border-right: 1px solid #F1F5F9;
+                }
+                .stat-item:last-child {
+                    border-right: none;
+                }
+                .menu-section-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 1.5rem;
+                }
+                .menu-section-title {
+                    font-size: 1.25rem;
+                    font-weight: 700;
+                    color: var(--text-main);
+                    margin: 0;
+                }
+                .menu-section-count {
+                    font-size: 0.875rem;
+                    color: var(--text-muted);
+                }
+                .option-buttons {
+                    display: flex;
+                    gap: 1rem;
+                    margin-bottom: 2rem;
+                    justify-content: center;
+                    background: #F8FAFC;
+                    padding: 0.75rem;
+                    border-radius: 1rem;
+                    border: 1px solid #E2E8F0;
+                    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+                }
+                .option-btn {
+                    flex: 1;
+                    padding: 1rem;
+                    border-radius: 0.75rem;
+                    font-weight: 800;
+                    cursor: pointer;
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    font-size: 1rem;
+                }
+                .meal-card {
+                    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.75) 100%);
+                    backdrop-filter: blur(16px);
+                    padding: 1.75rem;
+                    border-radius: 2rem;
+                    border: 1px solid white;
+                    display: grid;
+                    grid-template-columns: 1fr auto;
+                    gap: 1.5rem;
+                    align-items: center;
+                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    position: relative;
+                }
+                .main-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    gap: 2.5rem;
+                }
+                .actions-group {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                }
+                .new-plan-btn {
+                    padding: 0.85rem 1.75rem;
+                    border-radius: 1rem;
+                    border: none;
+                    font-weight: 700;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    transition: all 0.3s ease;
+                    font-size: 0.95rem;
+                    cursor: pointer;
+                }
+
+                @media (max-width: 768px) {
+                    .dashboard-header {
+                        padding: 1.25rem;
+                        margin-bottom: 1.5rem;
+                        border-radius: 1.25rem;
+                        gap: 1rem;
+                        flex-direction: column;
+                        align-items: stretch;
+                    }
+                    .dashboard-title {
+                        font-size: 1.65rem;
+                    }
+                    .dashboard-subtitle {
+                        font-size: 0.9rem;
+                    }
+                    .macros-grid {
+                        grid-template-columns: repeat(2, 1fr);
+                        border-radius: 1rem;
+                    }
+                    .stat-item {
+                        padding: 1rem 1.15rem;
+                        gap: 0.65rem;
+                        border-right: none;
+                        border-bottom: 1px solid #F1F5F9;
+                    }
+                    .stat-item:nth-child(odd) {
+                        border-right: 1px solid #F1F5F9;
+                    }
+                    .stat-item:nth-child(n+3) {
+                        border-bottom: none;
+                    }
+                    .stat-item .stat-icon {
+                        width: 38px;
+                        height: 38px;
+                        border-radius: 10px;
+                    }
+                    .stat-item .stat-value {
+                        font-size: 1.25rem;
+                    }
+                    .stat-item .stat-label {
+                        font-size: 0.7rem;
+                    }
+                    .menu-section-header {
+                        flex-direction: column;
+                        align-items: center;
+                        text-align: center;
+                        gap: 0.25rem;
+                        margin-bottom: 1rem;
+                    }
+                    .option-buttons {
+                        gap: 0.5rem;
+                        padding: 0.5rem;
+                        margin-bottom: 1.25rem;
+                    }
+                    .option-btn {
+                        padding: 0.7rem 0.5rem;
+                        font-size: 0.85rem;
+                        border-radius: 0.6rem;
+                    }
+                    .meal-card {
+                        padding: 1.25rem;
+                        border-radius: 1.25rem;
+                        grid-template-columns: 1fr;
+                        gap: 1rem;
+                    }
+                    .meal-right-side {
+                        flex-direction: row !important;
+                        align-items: center !important;
+                        justify-content: space-between;
+                        width: 100%;
+                        border-top: 1px solid #F1F5F9;
+                        padding-top: 0.75rem;
+                    }
+                    .meal-right-side > div:first-child {
+                        text-align: left !important;
+                    }
+                    .main-grid {
+                        grid-template-columns: 1fr;
+                        gap: 1.5rem;
+                    }
+                    .actions-group {
+                        width: 100%;
+                    }
+                    .new-plan-btn {
+                        width: 100%;
+                        justify-content: center;
+                        padding: 0.75rem 1.25rem;
+                        font-size: 0.88rem;
+                    }
+                    .credits-badge {
+                        flex: 1;
+                    }
+                }
+
+                @media (max-width: 480px) {
+                    .dashboard-header {
+                        padding: 1rem;
+                        margin-bottom: 1.25rem;
+                        border-radius: 1rem;
+                    }
+                    .dashboard-title {
+                        font-size: 1.45rem;
+                    }
+                    .stat-item {
+                        padding: 0.85rem 0.7rem;
+                    }
+                    .meal-card {
+                        padding: 1rem;
+                        border-radius: 1rem;
+                    }
+                }
+            `}</style>
+
             {/* --- HEADER PREMIUM --- */}
-            <header style={{
-                marginBottom: '3rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-end',
-                flexWrap: 'wrap',
-                gap: '1.5rem',
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.5) 100%)',
-                backdropFilter: 'blur(12px)',
-                padding: '2rem',
-                borderRadius: '2rem',
-                border: '1px solid rgba(255,255,255,0.6)',
-                boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05)'
-            }}>
+            <header className="dashboard-header">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
 
                     {/* PLAN TIER BADGE */}
@@ -117,14 +340,7 @@ const Dashboard = () => {
                         </span>
                     </div>
 
-                    <h1 style={{
-                        fontSize: '2.5rem',
-                        fontWeight: 800,
-                        lineHeight: 1.1,
-                        letterSpacing: '-0.03em',
-                        marginBottom: '0.25rem',
-                        color: '#1E293B'
-                    }}>
+                    <h1 className="dashboard-title">
                         Hola, <span style={{
                             background: 'linear-gradient(to right, #3B82F6, #8B5CF6)',
                             WebkitBackgroundClip: 'text',
@@ -133,16 +349,16 @@ const Dashboard = () => {
                             {userProfile?.full_name?.split(' ')[0] || formData?.name || 'Nutrifit'}
                         </span>
                     </h1>
-                    <p style={{ color: '#64748B', fontSize: '1.1rem', fontWeight: 500 }}>
+                    <p className="dashboard-subtitle">
                         Aquí tienes tu estrategia nutricional de hoy.
                     </p>
                 </div>
 
                 {/* --- ACTIONS GROUP --- */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <div className="actions-group">
 
                     {/* VISUALIZADOR DE CRÉDITOS */}
-                    <div style={{
+                    <div className="credits-badge" style={{
                         background: '#FFFFFF',
                         padding: '0.6rem 1rem',
                         borderRadius: '1rem',
@@ -175,22 +391,14 @@ const Dashboard = () => {
                     <button
                         onClick={handleNewPlan}
                         disabled={isLimitReached}
+                        className="new-plan-btn"
                         style={{
                             background: isLimitReached
                                 ? '#E2E8F0'
                                 : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
                             color: isLimitReached ? '#94A3B8' : 'white',
-                            padding: '0.85rem 1.75rem',
-                            borderRadius: '1rem',
-                            border: 'none',
-                            fontWeight: 700,
                             cursor: isLimitReached ? 'not-allowed' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
                             boxShadow: isLimitReached ? 'none' : '0 10px 20px -5px rgba(15, 23, 42, 0.3)',
-                            transition: 'all 0.3s ease',
-                            fontSize: '0.95rem',
                         }}
                     >
                         {isLimitReached ? <AlertCircle size={20} /> : <Wand2 size={20} />}
@@ -208,15 +416,7 @@ const Dashboard = () => {
                     Objetivo del Día
                 </h2>
                 
-                <div style={{
-                    background: 'white',
-                    borderRadius: '1.25rem',
-                    border: '1px solid #E2E8F0',
-                    boxShadow: '0 4px 6px -1px rgba(15, 23, 42, 0.03)',
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                    overflow: 'hidden'
-                }}>
+                <div className="macros-grid">
                     <StatItem label="Calorías Totales" value={planData.calories} unit="kcal" icon={Flame} color="#F59E0B" bgColor="#FFFBEB" isFirst={true} />
                     <StatItem label="Proteína" value={planData.macros?.protein || "0g"} unit="" icon={Dumbbell} color="#3B82F6" bgColor="#EFF6FF" />
                     <StatItem label="Carbohidratos" value={planData.macros?.carbs || "0g"} unit="" icon={Wheat} color="#10B981" bgColor="#ECFDF5" />
@@ -231,47 +431,31 @@ const Dashboard = () => {
             />
 
             {/* --- MAIN CONTENT COLUMNS --- */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2.5rem' }}>
+            <div className="main-grid">
 
                 {/* Left Column: MEALS TIMELINE */}
                 <div style={{ flex: 2 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                    <div className="menu-section-header">
+                        <h2 className="menu-section-title">
                             Tu Menú de Hoy
                         </h2>
-                        <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                        <span className="menu-section-count">
                             {formData?.skipLunch ? '3 Comidas Planificadas' : '4 Comidas Completas'}
                         </span>
                     </div>
 
                     {/* BOTONES NAVEGACIÓN DÍAS (OPCIONES) */}
                     {planDays.length > 1 && (
-                        <div style={{
-                            display: 'flex',
-                            gap: '1rem',
-                            marginBottom: '2rem',
-                            justifyContent: 'center',
-                            background: '#F8FAFC',
-                            padding: '0.75rem',
-                            borderRadius: '1rem',
-                            border: '1px solid #E2E8F0',
-                            boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.02)'
-                        }}>
+                        <div className="option-buttons">
                             {planDays.map((_, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => setActiveDayIndex(idx)}
+                                    className="option-btn"
                                     style={{
-                                        flex: 1,
-                                        padding: '1rem',
-                                        borderRadius: '0.75rem',
                                         border: activeDayIndex === idx ? 'none' : '1px solid #CBD5E1',
                                         background: activeDayIndex === idx ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' : 'white',
                                         color: activeDayIndex === idx ? 'white' : '#475569',
-                                        fontWeight: 800,
-                                        cursor: 'pointer',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        fontSize: '1rem',
                                         boxShadow: activeDayIndex === idx ? '0 10px 15px -3px rgba(59, 130, 246, 0.3)' : '0 1px 2px rgba(0,0,0,0.05)',
                                         transform: activeDayIndex === idx ? 'translateY(-2px)' : 'translateY(0)'
                                     }}
@@ -404,20 +588,7 @@ const Dashboard = () => {
                                 }
 
                                 return (
-                                    <div key={index} style={{
-                                        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.75) 100%)',
-                                        backdropFilter: 'blur(16px)',
-                                        padding: '1.75rem',
-                                        borderRadius: '2rem',
-                                        border: '1px solid white',
-                                        display: 'grid',
-                                        gridTemplateColumns: '1fr auto',
-                                        gap: '1.5rem',
-                                        alignItems: 'center',
-                                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.01)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative'
-                                    }}>
+                                    <div key={index} className="meal-card">
 
                                         {/* Meal Info */}
                                         <div>
@@ -450,14 +621,14 @@ const Dashboard = () => {
                                         </div>
 
                                         {/* Right Side: Calories + Buttons */}
-                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem' }}>
+                                        <div className="meal-right-side" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem' }}>
 
                                             {/* Calories Badge */}
                                             <div style={{ textAlign: 'right' }}>
                                                 <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
                                                     {meal.cals}
                                                 </div>
-                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>kcal</div>
+                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, paddingLeft: '4px' }}>kcal</div>
                                             </div>
 
                                             {/* BUTTONS GROUP */}
@@ -467,17 +638,17 @@ const Dashboard = () => {
                                                 <button
                                                     onClick={() => navigate('/dashboard/recipes')}
                                                     style={{
-                                                        background: '#F1F5F9',
-                                                        border: 'none',
+                                                        background: '#EFF6FF',
+                                                        border: '1.5px solid #BFDBFE',
                                                         borderRadius: '50%',
-                                                        width: 40, height: 40,
+                                                        width: 44, height: 44,
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                         cursor: 'pointer',
                                                         transition: 'all 0.2s'
                                                     }}
                                                     title="Ver paso a paso"
                                                 >
-                                                    <BookOpen size={18} color="#64748B" />
+                                                    <BookOpen size={20} color="#3B82F6" />
                                                 </button>
 
                                                 {/* REGENERATE BUTTON (AI SWAP) */}
@@ -518,10 +689,10 @@ const Dashboard = () => {
                                                     }}
                                                     disabled={regeneratingId === index}
                                                     style={{
-                                                        background: '#F1F5F9',
-                                                        border: 'none',
+                                                        background: '#FFF7ED',
+                                                        border: '1.5px solid #FED7AA',
                                                         borderRadius: '50%',
-                                                        width: 40, height: 40,
+                                                        width: 44, height: 44,
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                         cursor: regeneratingId === index ? 'wait' : 'pointer',
                                                         transition: 'all 0.2s'
@@ -529,8 +700,8 @@ const Dashboard = () => {
                                                     title="No me gusta (Cambiar con IA)"
                                                 >
                                                     <RefreshCw
-                                                        size={18}
-                                                        color="#64748B"
+                                                        size={20}
+                                                        color="#EA580C"
                                                         className={regeneratingId === index ? "spin-fast" : ""}
                                                     />
                                                 </button>
@@ -547,10 +718,10 @@ const Dashboard = () => {
                                                         }
                                                     }}
                                                     style={{
-                                                        background: isLiked ? '#FEE2E2' : '#F8FAFC',
-                                                        border: 'none',
+                                                        background: isLiked ? '#FEE2E2' : '#FDF2F8',
+                                                        border: isLiked ? '1.5px solid #FECACA' : '1.5px solid #FBCFE8',
                                                         borderRadius: '50%',
-                                                        width: 40, height: 40,
+                                                        width: 44, height: 44,
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                         cursor: 'pointer',
                                                         transition: 'all 0.2s',
@@ -558,7 +729,7 @@ const Dashboard = () => {
                                                     }}
                                                     title="Me gusta"
                                                 >
-                                                    <Heart size={18} color={isLiked ? '#EF4444' : '#94A3B8'} fill={isLiked ? '#EF4444' : 'none'} />
+                                                    <Heart size={20} color={isLiked ? '#EF4444' : '#EC4899'} fill={isLiked ? '#EF4444' : 'none'} />
                                                 </button>
                                             </div>
                                         </div>
@@ -741,15 +912,8 @@ const StatItem = ({ label, value, unit, icon, color, bgColor, isFirst }) => {
     const Icon = icon;
 
     return (
-        <div style={{
-            padding: '1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            borderLeft: isFirst ? 'none' : '1px solid #F1F5F9',
-            background: 'white'
-        }}>
-            <div style={{
+        <div className="stat-item">
+            <div className="stat-icon" style={{
                 width: 48, height: 48,
                 borderRadius: '12px',
                 background: bgColor,
@@ -761,16 +925,16 @@ const StatItem = ({ label, value, unit, icon, color, bgColor, isFirst }) => {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em' }}>
+                    <div className="stat-value" style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em' }}>
                         {value}
                     </div>
                     {unit && (
-                        <div style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 600 }}>
+                        <div style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 600, paddingLeft: '5px' }}>
                             {unit}
                         </div>
                     )}
                 </div>
-                <div style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                <div className="stat-label" style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                     {label}
                 </div>
             </div>
