@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAssessment } from '../context/AssessmentContext';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { Navigate, useNavigate } from 'react-router-dom';
@@ -89,7 +89,6 @@ const getAILightColor = (catName) => {
 const ShoppingList = () => {
     const { planData } = useAssessment();
     const navigate = useNavigate();
-    const contentRef = useRef(null);
 
     // Estado para los items marcados (usando el nombre del item como key para persistencia simple)
     const [checkedItems, setCheckedItems] = useState(() => {
@@ -329,74 +328,121 @@ const ShoppingList = () => {
     };
 
     const handleDownloadPDF = async () => {
-        const element = contentRef.current;
-        const opt = {
-            // Margin: [Top, Right, Bottom, Left]
-            // Aumentamos el margen inferior a 25mm para dejar espacio libre a la marca de agua
-            margin: [10, 10, 25, 10],
-            filename: 'MealfitRD-Lista-Compras.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0, backgroundColor: '#ffffff' },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
         const toastId = toast.loading('Generando PDF...');
 
         try {
-            // Add a global style to force .no-print elements to display: none
-            const printStyle = document.createElement('style');
-            printStyle.id = 'temp-pdf-style';
-            printStyle.innerHTML = '.no-print { display: none !important; }';
-            document.head.appendChild(printStyle);
+            // ====== BUILD DEDICATED PDF TEMPLATE ======
+            // Collect items to render (from AI list or fallback)
+            let pdfCategories = []; // [{name, emoji, items: [{label}]}]
 
-            // Brief delay so styles apply before html2canvas runs
-            await new Promise(r => setTimeout(r, 50));
+            if (hasAIList) {
+                Object.entries(customStructured.categories).forEach(([catName, catData]) => {
+                    const items = catData.items.map(si => ({ label: si.label || si.name }));
+                    if (items.length > 0) {
+                        pdfCategories.push({ name: catName, emoji: catData.emoji || '🛒', items });
+                    }
+                });
+            } else {
+                Object.entries(categorizedList).forEach(([catId, items]) => {
+                    const category = CATEGORIES.find(c => c.id === catId);
+                    if (items.length > 0) {
+                        pdfCategories.push({ name: category?.label || catId, emoji: '', items: items.map(i => ({ label: i })) });
+                    }
+                });
+            }
 
-            await html2pdf().set(opt).from(element).toPdf().get('pdf').then((pdf) => {
-                const totalPages = pdf.internal.getNumberOfPages();
-                const pageWidth = pdf.internal.pageSize.getWidth();
-                const pageHeight = pdf.internal.pageSize.getHeight();
+            if (pdfCategories.length === 0) {
+                toast.dismiss(toastId);
+                toast.error('No hay items para exportar');
+                return;
+            }
 
-                for (let i = 1; i <= totalPages; i++) {
-                    pdf.setPage(i);
-                    pdf.setFontSize(11);
-                    pdf.setFont('helvetica', 'bold');
+            // Count total items to dynamically choose font size
+            const totalPdfItems = pdfCategories.reduce((sum, c) => sum + c.items.length, 0);
+            const fontSize = totalPdfItems > 40 ? '11pt' : totalPdfItems > 30 ? '11.5pt' : '12.5pt';
+            const lineH = totalPdfItems > 40 ? '1.35' : '1.5';
+            const catGap = totalPdfItems > 40 ? '10px' : '14px';
 
-                    const textMealfit = 'Mealfit';
-                    const textR = 'R';
-                    const textD = 'D';
+            // Date formatting
+            const today = new Date();
+            const dateStr = today.toLocaleDateString('es-DO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-                    const widthMealfit = pdf.getTextWidth(textMealfit);
-                    const widthR = pdf.getTextWidth(textR);
-                    const widthD = pdf.getTextWidth(textD);
+            // Distribute categories across 3 columns (balanced)
+            const col1 = [], col2 = [], col3 = [];
+            const colHeights = [0, 0, 0];
+            const cols = [col1, col2, col3];
+            // Sort categories by size descending for better balance
+            const sortedCats = [...pdfCategories].sort((a, b) => b.items.length - a.items.length);
+            sortedCats.forEach(cat => {
+                const minIdx = colHeights.indexOf(Math.min(...colHeights));
+                cols[minIdx].push(cat);
+                colHeights[minIdx] += cat.items.length + 1.5; // +1.5 for category header
+            });
 
-                    const totalWidth = widthMealfit + widthR + widthD;
-                    const endX = pageWidth - 10;
-                    const startX = endX - totalWidth;
-                    const postY = pageHeight - 12;
+            const renderColumn = (catList) => catList.map(cat => `
+                <div style="margin-bottom: ${catGap};">
+                    <div style="font-weight: 700; font-size: 14pt; color: #1E293B; border-bottom: 2px solid #CBD5E1; padding-bottom: 4px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                        <span>${cat.emoji}</span> ${cat.name}
+                        <span style="font-weight: 400; color: #94A3B8; font-size: 9pt; margin-left: auto;">${cat.items.length}</span>
+                    </div>
+                    ${cat.items.map(item => `
+                        <div style="display: flex; align-items: flex-start; gap: 7px; padding: 2px 0; font-size: ${fontSize}; line-height: ${lineH}; color: #334155;">
+                            <div style="width: 15px; height: 15px; min-width: 15px; border: 1.5px solid #94A3B8; border-radius: 3px; margin-top: 2px;"></div>
+                            <span>${item.label}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('');
 
-                    pdf.setTextColor(15, 23, 42);
-                    pdf.text(textMealfit, startX, postY);
+            const pdfHTML = `
+                <div style="width: 190mm; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; padding: 0; box-sizing: border-box;">
+                    <!-- HEADER -->
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2.5px solid #4F46E5; padding-bottom: 8px; margin-bottom: 14px;">
+                        <div>
+                            <div style="font-size: 22pt; font-weight: 800; letter-spacing: -0.5px; color: #0F172A;">
+                                Mealfit<span style="color: #4F46E5;">R</span><span style="color: #F43F5E;">D</span>
+                            </div>
+                            <div style="font-size: 9pt; color: #64748B; margin-top: 2px;">Lista de Compras Inteligente</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 10pt; font-weight: 600; color: #1E293B;">
+                                📅 ${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}
+                            </div>
+                            <div style="font-size: 10pt; color: #4F46E5; font-weight: 700; margin-top: 2px;">
+                                🛒 Para ${daysToShop} día${daysToShop > 1 ? 's' : ''} · ${totalPdfItems} items
+                            </div>
+                        </div>
+                    </div>
 
-                    pdf.setTextColor(79, 70, 229);
-                    pdf.text(textR, startX + widthMealfit, postY);
+                    <!-- 3-COLUMN GRID -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; align-items: start;">
+                        <div>${renderColumn(col1)}</div>
+                        <div>${renderColumn(col2)}</div>
+                        <div>${renderColumn(col3)}</div>
+                    </div>
 
-                    pdf.setTextColor(244, 63, 94);
-                    pdf.text(textD, startX + widthMealfit + widthR, postY);
-                }
-            }).save();
+                    <!-- FOOTER -->
+                    <div style="margin-top: 12px; padding-top: 6px; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 8pt; color: #94A3B8;">Generado automáticamente por MealfitRD · mealfitrd.com</span>
+                        <span style="font-size: 8pt; color: #94A3B8;">✅ Marca los items a medida que compras</span>
+                    </div>
+                </div>
+            `;
 
-            // Restore elements
-            const tempStyle = document.getElementById('temp-pdf-style');
-            if (tempStyle) tempStyle.remove();
+            const opt = {
+                margin: [8, 10, 8, 10],
+                filename: `MealfitRD-Lista-Compras-${daysToShop}dias.pdf`,
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { scale: 2.5, useCORS: true, letterRendering: true, scrollY: 0, backgroundColor: '#ffffff' },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            await html2pdf().set(opt).from(pdfHTML, 'string').save();
 
             toast.dismiss(toastId);
             toast.success('PDF descargado correctamente');
         } catch (error) {
             console.error(error);
-            // Restore everything on error
-            const tempStyle = document.getElementById('temp-pdf-style');
-            if (tempStyle) tempStyle.remove();
             toast.dismiss(toastId);
             toast.error('Error al generar PDF');
         }
@@ -408,7 +454,7 @@ const ShoppingList = () => {
 
 
                 {/* --- HEADER TITLE & PROGRESS --- */}
-                <div ref={contentRef}>
+                <div>
                     <div className="shopping-hero no-print">
                         <div className="hero-icon-wrapper">
                             <ShoppingBag size={40} />
@@ -699,48 +745,8 @@ const ShoppingList = () => {
                     </div>
 
                 </div>
-                {/* --- PRINT HEADER (Invisible) --- */}
-                <div className="print-only" style={{ display: 'none', marginBottom: '2rem', borderBottom: '2px solid #000', paddingBottom: '1rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h1 style={{ fontSize: '24pt', color: '#000', margin: 0 }}>MealfitRD<span style={{ color: '#4F46E5' }}>.</span></h1>
-                        <span style={{ fontSize: '10pt', color: '#666' }}>Lista de Compras Semanal (7 Días)</span>
-                    </div>
-                </div>
-
             </div>
 
-            {/* --- PRINT STYLES --- */}
-            <style>{`
-                @media print {
-                    @page { margin: 1cm; size: auto; }
-                    body { background: white !important; font-size: 11pt; -webkit-print-color-adjust: exact; }
-                    .no-print, aside, nav, header { display: none !important; }
-                    .container, .main-content { width: 100% !important; margin: 0 !important; padding: 0 !important; display: block !important; }
-                    .shopping-container { max-width: 100% !important; border: none !important; box-shadow: none !important; background: transparent !important; }
-                    .print-only { display: block !important; }
-                    
-                    .categories-grid { display: block !important; }
-                    .category-card { border: none !important; box-shadow: none !important; margin-bottom: 2rem; break-inside: avoid; }
-                    .category-header { border-bottom: 2px solid #E2E8F0 !important; padding: 0.5rem 0 !important; background: transparent !important; }
-                    .category-header .cat-icon { display: none !important; }
-                    .category-header .cat-badge, .category-header .cat-collapse-icon, .mark-all-btn { display: none !important; }
-                    
-                    .items-list { padding: 0.5rem 0 !important; }
-                    .shopping-item { 
-                        border: none !important; 
-                        padding: 0.25rem 0 !important; 
-                        background: transparent !important;
-                        box-shadow: none !important;
-                        page-break-inside: avoid;
-                    }
-                    .shopping-item .custom-checkbox {
-                        border: 1px solid #000 !important;
-                        width: 16px !important; height: 16px !important;
-                        background: transparent !important; color: transparent !important;
-                        border-radius: 4px !important;
-                    }
-                }
-            `}</style>
         </DashboardLayout>
     );
 };
