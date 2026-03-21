@@ -189,7 +189,7 @@ const ShoppingList = () => {
         fetchAndConsolidate();
         
         return () => { isMounted = false; };
-    }, [userId, daysToShop]);
+    }, [userId]);
 
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     useEffect(() => {
@@ -243,7 +243,19 @@ const ShoppingList = () => {
                 if (parsed && parsed.category) {
                     const cat = parsed.category;
                     if (!categories[cat]) categories[cat] = { emoji: parsed.emoji || '🛒', items: [] };
-                    categories[cat].items.push({ id: item.id, name: parsed.name, qty: parsed.qty, label: `${parsed.qty} ${parsed.name}`, raw: item });
+                    
+                    let displayQty = parsed.qty || "";
+                    if (item.source === 'auto') {
+                        if (daysToShop === 1 && parsed.qty_1) displayQty = parsed.qty_1;
+                        if (daysToShop === 3 && parsed.qty_3) displayQty = parsed.qty_3;
+                        if (daysToShop === 7 && parsed.qty_7) displayQty = parsed.qty_7;
+                    }
+                    
+                    const label = (displayQty && displayQty.trim() !== "") 
+                        ? `${displayQty} ${parsed.name}` 
+                        : parsed.name;
+                    
+                    categories[cat].items.push({ id: item.id, name: parsed.name, qty: displayQty, label, raw: item });
                 } else {
                     standalone.push(item);
                 }
@@ -252,7 +264,7 @@ const ShoppingList = () => {
             }
         });
         return { categories, standalone };
-    }, [customItems]);
+    }, [customItems, daysToShop]);
 
     const hasAIList = customItems.length > 0;
 
