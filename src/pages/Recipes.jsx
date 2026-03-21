@@ -692,7 +692,7 @@ const Recipes = () => {
                                             {/* Recipe Title */}
                                             <h2 style={{
                                                 fontSize: isMobile ? '1.5rem' : '1.8rem', fontWeight: 900, color: '#0F172A',
-                                                margin: 0, lineHeight: 1.25, letterSpacing: '-0.02em', textAlign: 'left'
+                                                margin: 0, lineHeight: 1.25, letterSpacing: '-0.02em', textAlign: 'center'
                                             }}>
                                                 {meal.name}
                                             </h2>
@@ -776,7 +776,7 @@ const Recipes = () => {
                                                         }}>
                                                             <CheckCircle2 size={16} strokeWidth={2.5} />
                                                         </div>
-                                                        <div style={{ color: '#16A34A', fontWeight: 700, fontSize: '0.65rem' }}>
+                                                        <div style={{ color: '#16A34A', fontWeight: 700, fontSize: '0.95rem' }}>
                                                             ¡Listo para servir!
                                                         </div>
                                                     </div>
