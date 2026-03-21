@@ -555,10 +555,17 @@
     100% { transform: rotate(360deg); }
 }
 
-/* --- UTILITY: hide on mobile --- */
+/* --- UTILITY: hide/show on mobile --- */
+.show-mobile-only {
+    display: none;
+}
+
 @media (max-width: 768px) {
     .hide-mobile {
         display: none !important;
+    }
+    .show-mobile-only {
+        display: inline !important;
     }
 }
 
