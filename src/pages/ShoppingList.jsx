@@ -527,7 +527,7 @@ const ShoppingList = () => {
                                     <div className="toggle-knob" />
                                 </div>
                                 <span className="control-label" style={{ color: hideCompleted ? '#1E293B' : '#64748B' }}>
-                                    Ocultar <span className="hide-mobile">completados</span><span className="show-mobile-only">✓</span>
+                                    Ocultar<span className="hide-mobile"> completados</span>
                                 </span>
                             </label>
 

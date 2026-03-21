@@ -631,7 +631,7 @@
         justify-content: space-between;
         flex-wrap: nowrap;
         gap: 0.5rem;
-        padding: 0.55rem 0.75rem;
+        padding: 0.55rem 1rem 0.55rem 0.75rem;
         border-radius: 0.85rem;
         margin-bottom: 0.85rem;
         top: 0.35rem;
