@@ -456,6 +456,15 @@ const ShoppingList = () => {
                 {/* --- HEADER TITLE & PROGRESS --- */}
                 <div>
                     <div className="shopping-hero no-print">
+                        {/* PDF Download - floating in hero */}
+                        <button
+                            onClick={handleDownloadPDF}
+                            className="hero-pdf-btn no-print"
+                            title="Descargar PDF"
+                        >
+                            <Download size={18} />
+                        </button>
+                        
                         <div className="hero-icon-wrapper">
                             <ShoppingBag size={40} />
                         </div>
@@ -522,22 +531,22 @@ const ShoppingList = () => {
                                 </span>
                             </label>
 
-                            {/* Separator */}
-                            <div className="hide-mobile" style={{ width: '1px', height: '24px', background: '#E2E8F0' }} />
+                            {/* Consolidando indicator (desktop only) */}
+                            {isGenerating && (
+                                <div className="hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748B', fontSize: '0.9rem' }}>
+                                    <ShoppingCart size={16} className="spin-slow" />
+                                    <span>Consolidando...</span>
+                                </div>
+                            )}
 
-                            {/* Acciones principales */}
-                            <div className="control-group">
-                                {isGenerating && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748B', fontSize: '0.9rem', marginRight: '0.5rem' }}>
-                                        <ShoppingCart size={16} className="spin-slow" />
-                                        <span className="hide-mobile">Consolidando...</span>
-                                    </div>
-                                )}
+                            {/* PDF button - desktop only (on mobile it's in the hero) */}
+                            <div className="hide-mobile control-group">
+                                <div style={{ width: '1px', height: '24px', background: '#E2E8F0' }} />
                                 <button
                                     onClick={handleDownloadPDF}
                                     className="btn-secondary"
                                 >
-                                    <Download size={18} /> <span className="hide-mobile">PDF</span>
+                                    <Download size={18} /> PDF
                                 </button>
                             </div>
                         </div>
@@ -624,7 +633,14 @@ const ShoppingList = () => {
                                                                     {isChecked && <Check size={16} strokeWidth={3} />}
                                                                 </div>
                                                                 <div className="item-content">
-                                                                    <span className="item-name">{structItem.label}</span>
+                                                                    {structItem.qty ? (
+                                                                        <span className="item-name">
+                                                                            <span className="item-qty">{structItem.qty}</span>
+                                                                            {structItem.name}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="item-name">{structItem.name}</span>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                             <button

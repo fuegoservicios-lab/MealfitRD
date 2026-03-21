@@ -289,6 +289,12 @@
     }
 }
 
+@media (max-width: 768px) {
+    .mainContent {
+        padding: 0.5rem;
+    }
+}
+
 /* --- PRINT STYLES --- */
 @media print {
     .sidebar,
