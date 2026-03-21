@@ -2,17 +2,21 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { useAssessment } from '../context/AssessmentContext';
-import { Calendar, ChevronRight, Flame, Dumbbell, Wheat, RotateCcw, X, Edit2, Check, Tag } from 'lucide-react';
+import { Utensils, Calendar, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 import styles from './History.module.css';
 
 const History = () => {
     const [plans, setPlans] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedPlan, setSelectedPlan] = useState(null);
+    const [selectedDay, setSelectedDay] = useState(0);
+    const [confirmRestore, setConfirmRestore] = useState(null);
+    const [confirmDelete, setConfirmDelete] = useState(null);
     
-    // Estados para edición de nombre
+    // Edit name state
     const [isEditing, setIsEditing] = useState(null);
     const [tempName, setTempName] = useState('');
     
@@ -46,9 +50,54 @@ const History = () => {
         }
     };
 
-    const handleRestore = (planData) => {
-        restorePlan(planData);
-        navigate('/dashboard');
+    const handleRestoreRequest = () => {
+        setConfirmRestore(selectedPlan);
+    };
+
+    const handleRestoreConfirm = async () => {
+        const planData = confirmRestore?.plan_data;
+        setConfirmRestore(null);
+        setSelectedPlan(null);
+        const toastId = toast.loading('Restaurando plan...');
+        
+        try {
+            await restorePlan(planData);
+            toast.success('¡Plan reactivado!', { 
+                id: toastId,
+                description: 'Tu dashboard se ha actualizado.' 
+            });
+            navigate('/dashboard');
+        } catch (err) {
+            console.error('Error restoring plan:', err);
+            toast.error('Error al restaurar el plan', { id: toastId });
+        }
+    };
+
+    const handleDeleteRequest = (e, plan) => {
+        e.stopPropagation();
+        setConfirmDelete(plan);
+    };
+
+    const handleDeleteConfirm = async () => {
+        const plan = confirmDelete;
+        setConfirmDelete(null);
+        const toastId = toast.loading('Eliminando plan...');
+
+        try {
+            const { error } = await supabase
+                .from('meal_plans')
+                .delete()
+                .eq('id', plan.id);
+            if (error) throw error;
+            
+            setPlans(prev => prev.filter(p => p.id !== plan.id));
+            if (selectedPlan?.id === plan.id) setSelectedPlan(null);
+            
+            toast.success('Plan eliminado exitosamente', { id: toastId });
+        } catch (err) {
+            console.error('Error deleting plan:', err);
+            toast.error('No se pudo eliminar el plan', { id: toastId });
+        }
     };
 
     const handleEditStart = (e, plan) => {
@@ -117,187 +166,436 @@ const History = () => {
             if (allergies.includes('soy')) tags.push('Sin Soya');
         }
 
-        if (tags.length === 0 && plan.plan_data) tags.push('Personalizado');
-
         return tags.slice(0, 3);
     };
+
+    // Meal preview helper
+    const renderMealPreview = (plan) => {
+        const meals = plan.plan_data?.days?.[0]?.meals || plan.plan_data?.meals || plan.plan_data?.perfectDay || [];
+        const emojis = ['🍳', '🍲', '🥗', '🍎'];
+        const activeMeals = meals.filter(m => m.name && !m.isSkipped);
+        
+        return (
+            <div className={styles.mealPreviewContainer}>
+                {activeMeals.slice(0, 3).map((m, i) => {
+                    const shortName = m.name.length > 20 ? m.name.substring(0, 18) + '…' : m.name;
+                    return (
+                        <div key={i} className={styles.mealPreviewBadge}>
+                            <span>{emojis[i] || '🍽️'}</span>
+                            <span className={styles.mealPreviewText}>{shortName}</span>
+                        </div>
+                    );
+                })}
+                {activeMeals.length > 3 && (
+                    <div className={styles.mealPreviewBadgeMore}>
+                        +{activeMeals.length - 3}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // Animation Variants
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: { staggerChildren: 0.06 }
+        }
+    };
+
+    const itemVariants = {
+        hidden: { y: 20, opacity: 0 },
+        visible: {
+            y: 0,
+            opacity: 1,
+            transition: { type: 'spring', stiffness: 120, damping: 14 }
+        }
+    };
+
+    // Skeleton Loader
+    const SkeletonLoader = () => (
+        <div className={styles.skeletonGrid}>
+            {[1, 2, 3].map(i => (
+                <div key={i} className={styles.skeletonCard}>
+                    <div className={styles.skeletonIcon} />
+                    <div className={styles.skeletonLines}>
+                        <div className={`${styles.skeletonLine} ${styles.skeletonLineLong}`} />
+                        <div className={`${styles.skeletonLine} ${styles.skeletonLineShort}`} />
+                    </div>
+                    <div className={styles.skeletonBadge} />
+                </div>
+            ))}
+        </div>
+    );
+
+    // Empty State
+    const EmptyState = () => (
+        <div className={styles.emptyState}>
+            <div className={styles.emptyIcon}>
+                <BookOpen size={36} />
+            </div>
+            <h3 className={styles.emptyTitle}>Tu historial está vacío</h3>
+            <p className={styles.emptyText}>
+                Genera tu primer plan nutricional y lo encontrarás aquí.
+            </p>
+            <button className={styles.emptyCta} onClick={() => navigate('/assessment')}>
+                <Wand2 size={18} />
+                Crear mi primer plan
+            </button>
+        </div>
+    );
 
     return (
         <DashboardLayout>
             <div className={styles.container}>
-                <h1 className={styles.title}>
-                    Librería de Planes Guardados
-                </h1>
-                <p className={styles.subtitle}>
-                    Revisa en detalle, renombra o reactiva tus planes anteriores.
-                </p>
+                <div className={styles.headerRow}>
+                    <div>
+                        <h1 className={styles.title}>
+                            Librería de Planes
+                        </h1>
+                        <p className={styles.subtitle}>
+                            Revisa en detalle, renombra o reactiva tus planes anteriores.
+                        </p>
+                    </div>
+                    {!loading && plans.length > 0 && (
+                        <span className={styles.planCount}>
+                            {plans.length} {plans.length === 1 ? 'plan guardado' : 'planes guardados'}
+                        </span>
+                    )}
+                </div>
             </div>
 
             {loading ? (
-                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    Cargando historial...
-                </div>
+                <SkeletonLoader />
             ) : plans.length === 0 ? (
-                <div className={styles.emptyState}>
-                    <p className={styles.emptyText}>
-                        Aún no tienes planes guardados en el historial.
-                    </p>
-                </div>
+                <EmptyState />
             ) : (
-                <div className={styles.cardGrid}>
-                    {plans.map((plan) => (
-                        <div
-                            key={plan.id}
-                            className={styles.card}
-                            onClick={() => {
-                                if (isEditing !== plan.id) setSelectedPlan(plan);
-                            }}
-                        >
-                            <div className={styles.cardContent}>
-                                <div className={styles.iconWrapper}>
-                                    <Calendar size={24} />
-                                </div>
-                                <div className={styles.planInfo}>
-                                    {isEditing === plan.id ? (
-                                        <div className={styles.planNameRow}>
-                                            <input
-                                                type="text"
-                                                autoFocus
-                                                value={tempName}
-                                                onChange={(e) => setTempName(e.target.value)}
-                                                onClick={(e) => e.stopPropagation()}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') handleEditSave(e, plan);
-                                                    if (e.key === 'Escape') handleEditCancel(e);
-                                                }}
-                                                className={styles.editInput}
-                                            />
-                                            <button onClick={(e) => handleEditSave(e, plan)} className={styles.editButton}>
-                                                <Check size={16} />
-                                            </button>
-                                            <button onClick={(e) => handleEditCancel(e)} className={styles.cancelButton}>
-                                                <X size={16} />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className={styles.planNameRow}>
-                                            <h3 className={styles.planName}>
-                                                {plan.name || 'Plan Generado'}
+                <motion.div
+                    className={styles.cardGrid}
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                >
+                    <AnimatePresence>
+                        {plans.map((plan) => (
+                            <motion.div
+                                key={plan.id}
+                                variants={itemVariants}
+                                layout
+                                exit={{ opacity: 0, x: -100, transition: { duration: 0.25 } }}
+                                className={styles.card}
+                                onClick={() => {
+                                    if (isEditing !== plan.id) {
+                                        setSelectedDay(0);
+                                        setSelectedPlan(plan);
+                                    }
+                                }}
+                            >
+                                <div className={styles.cardContent}>
+                                    <div className={styles.iconWrapper}>
+                                        <Utensils size={24} />
+                                    </div>
+                                    <div className={styles.planInfo}>
+                                        {isEditing === plan.id ? (
+                                            <div className={styles.planNameRow}>
+                                                <input
+                                                    type="text"
+                                                    autoFocus
+                                                    value={tempName}
+                                                    onChange={(e) => setTempName(e.target.value)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') handleEditSave(e, plan);
+                                                        if (e.key === 'Escape') handleEditCancel(e);
+                                                    }}
+                                                    className={styles.editInput}
+                                                />
+                                                <button onClick={(e) => handleEditSave(e, plan)} className={styles.editButton}>
+                                                    <Check size={16} />
+                                                </button>
+                                                <button onClick={(e) => handleEditCancel(e)} className={styles.cancelButton}>
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className={styles.planNameRow}>
+                                                <h3 className={styles.planName} title={plan.name || 'Plan Generado'}>
+                                                    {plan.name || 'Plan Generado'}
+                                                </h3>
                                                 <button 
                                                     onClick={(e) => handleEditStart(e, plan)}
                                                     className={styles.renameButton}
                                                     title="Renombrar"
                                                 >
-                                                    <Edit2 size={16} />
+                                                    <Edit2 size={15} />
                                                 </button>
-                                            </h3>
-                                        </div>
-                                    )}
-                                    <span className={styles.dateText}>
-                                        {new Date(plan.created_at).toLocaleDateString('es-DO', {
-                                            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-                                            hour: '2-digit', minute: '2-digit'
-                                        })}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className={styles.cardActions}>
-                                {/* Etiquetas Inteligentes (Tags) */}
-                                <div className={`${styles.tagsContainer} ${styles.hideOnMobile}`}>
-                                    {getSmartTags(plan).map((tag, idx) => (
-                                        <span key={idx} className={styles.tag}>
-                                            {tag}
+                                            </div>
+                                        )}
+                                        <span className={styles.dateText}>
+                                            {new Date(plan.created_at).toLocaleDateString('es-DO', {
+                                                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                                                hour: '2-digit', minute: '2-digit'
+                                            })}
                                         </span>
-                                    ))}
+                                        {plan.plan_data && (
+                                            <div className={styles.mealPreviewWrapper}>
+                                                {renderMealPreview(plan)}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className={styles.chevronWrapper}>
-                                    <ChevronRight size={20} color="#94A3B8" />
+
+                                <div className={styles.cardActions}>
+                                    {/* Calories Badge */}
+                                    <div className={styles.caloriesBadge}>
+                                        <Flame size={13} fill="#F97316" strokeWidth={0} />
+                                        {plan.calories}
+                                    </div>
+
+                                    {/* Smart Tags */}
+                                    <div className={styles.tagsContainer}>
+                                        {getSmartTags(plan).map((tag, idx) => (
+                                            <span key={idx} className={styles.tag}>
+                                                {tag}
+                                            </span>
+                                        ))}
+                                    </div>
+
+                                    {/* Delete */}
+                                    <button
+                                        className={styles.deleteButton}
+                                        onClick={(e) => handleDeleteRequest(e, plan)}
+                                        title="Eliminar plan"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+
+                                    {/* Chevron */}
+                                    <div className={styles.chevronWrapper}>
+                                        <ChevronRight size={18} color="#94A3B8" />
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                </motion.div>
             )}
 
             {/* --- MODAL DE DETALLES --- */}
-            {selectedPlan && (
-                <div className={styles.modalOverlay} onClick={() => setSelectedPlan(null)}>
-
-                    <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
-
-                        {/* Header Modal */}
-                        <div className={styles.modalHeader}>
-                            <div>
-                                <h2 className={styles.modalTitle}>{selectedPlan.name || 'Detalles del Plan'}</h2>
-                                <span className={styles.modalDate}>
-                                    {new Date(selectedPlan.created_at).toLocaleDateString()}
-                                </span>
-                            </div>
-                            <button onClick={() => setSelectedPlan(null)} className={styles.closeButton}>
-                                <X size={24} color="#64748B" />
-                            </button>
-                        </div>
-
-                        {/* Content Scrollable */}
-                        <div className={styles.modalBody}>
-
-                            {/* Macros Summary */}
-                            <div className={styles.macrosGrid}>
-                                <div className={`${styles.macroCard} ${styles.macroCardOrange}`}>
-                                    <Flame size={20} color="#EA580C" style={{ marginBottom: '0.5rem' }} />
-                                    <div className={styles.macroValueOrange}>{selectedPlan.calories}</div>
-                                    <div className={styles.macroLabelOrange}>Calorías</div>
+            <AnimatePresence>
+                {selectedPlan && (
+                    <motion.div
+                        className={styles.modalOverlay}
+                        onClick={() => setSelectedPlan(null)}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                    >
+                        <motion.div
+                            className={styles.modalContent}
+                            onClick={e => e.stopPropagation()}
+                            initial={{ scale: 0.9, opacity: 0, y: 30 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 30 }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                        >
+                            {/* Header */}
+                            <div className={styles.modalHeader}>
+                                <div>
+                                    <h2 className={styles.modalTitle}>{selectedPlan.name || 'Detalles del Plan'}</h2>
+                                    <span className={styles.modalDate}>
+                                        {new Date(selectedPlan.created_at).toLocaleDateString('es-DO', {
+                                            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                                        })}
+                                    </span>
                                 </div>
-                                <div className={`${styles.macroCard} ${styles.macroCardBlue}`}>
-                                    <Dumbbell size={20} color="#2563EB" style={{ marginBottom: '0.5rem' }} />
-                                    <div className={styles.macroValueBlue}>{selectedPlan.macros?.protein}</div>
-                                    <div className={styles.macroLabelBlue}>Proteína</div>
-                                </div>
-                                <div className={`${styles.macroCard} ${styles.macroCardGreen}`}>
-                                    <Wheat size={20} color="#059669" style={{ marginBottom: '0.5rem' }} />
-                                    <div className={styles.macroValueGreen}>{selectedPlan.macros?.carbs}</div>
-                                    <div className={styles.macroLabelGreen}>Carbos</div>
-                                </div>
+                                <button onClick={() => setSelectedPlan(null)} className={styles.closeButton}>
+                                    <X size={24} color="#64748B" />
+                                </button>
                             </div>
 
-                            {/* Meals List */}
-                            <h3 className={styles.menuTitle}>Menú de la Opción</h3>
-                            <div className={styles.menuList}>
-                                {(selectedPlan.plan_data?.meals || selectedPlan.plan_data?.perfectDay)?.map((meal, idx) => (
-                                    <div key={idx} className={styles.menuItem}>
-                                        <div className={styles.menuIcon}>
-                                            {idx === 0 ? '🍳' : idx === 1 ? '🍲' : idx === 2 ? '🥗' : '🍎'}
-                                        </div>
-                                        <div>
-                                            <div className={styles.menuMealType}>{meal.meal}</div>
-                                            <div className={styles.menuMealName}>{meal.name}</div>
-                                        </div>
+                            {/* Body */}
+                            <div className={styles.modalBody}>
+
+                                {/* 4-column Macros */}
+                                <div className={styles.macrosGrid}>
+                                    <div className={`${styles.macroCard} ${styles.macroCardOrange}`}>
+                                        <Flame size={18} color="#EA580C" style={{ marginBottom: '0.4rem' }} />
+                                        <div className={styles.macroValueOrange}>{selectedPlan.calories}</div>
+                                        <div className={styles.macroLabelOrange}>kcal</div>
                                     </div>
-                                ))}
+                                    <div className={`${styles.macroCard} ${styles.macroCardBlue}`}>
+                                        <Dumbbell size={18} color="#2563EB" style={{ marginBottom: '0.4rem' }} />
+                                        <div className={styles.macroValueBlue}>{selectedPlan.macros?.protein || '—'}</div>
+                                        <div className={styles.macroLabelBlue}>Proteína</div>
+                                    </div>
+                                    <div className={`${styles.macroCard} ${styles.macroCardGreen}`}>
+                                        <Wheat size={18} color="#059669" style={{ marginBottom: '0.4rem' }} />
+                                        <div className={styles.macroValueGreen}>{selectedPlan.macros?.carbs || '—'}</div>
+                                        <div className={styles.macroLabelGreen}>Carbos</div>
+                                    </div>
+                                    <div className={`${styles.macroCard} ${styles.macroCardPink}`}>
+                                        <Droplet size={18} color="#EC4899" style={{ marginBottom: '0.4rem' }} />
+                                        <div className={styles.macroValuePink}>{selectedPlan.macros?.fats || '—'}</div>
+                                        <div className={styles.macroLabelPink}>Grasas</div>
+                                    </div>
+                                </div>
+
+                                {/* Day Tabs */}
+                                {selectedPlan.plan_data?.days?.length > 1 && (
+                                    <div className={styles.dayTabs}>
+                                        {selectedPlan.plan_data.days.map((_, idx) => (
+                                            <button
+                                                key={idx}
+                                                className={`${styles.dayTab} ${selectedDay === idx ? styles.dayTabActive : ''}`}
+                                                onClick={() => setSelectedDay(idx)}
+                                            >
+                                                Opción {String.fromCharCode(65 + idx)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Meals List */}
+                                <h3 className={styles.menuTitle}>
+                                    {selectedPlan.plan_data?.days?.length > 1
+                                        ? `Menú — Opción ${String.fromCharCode(65 + selectedDay)}`
+                                        : 'Menú del Plan'}
+                                </h3>
+                                <div className={styles.menuList}>
+                                    {(selectedPlan.plan_data?.days?.[selectedDay]?.meals || selectedPlan.plan_data?.meals || selectedPlan.plan_data?.perfectDay)?.map((meal, idx) => (
+                                        <div key={idx} className={styles.menuItem}>
+                                            <div className={styles.menuIcon}>
+                                                {idx === 0 ? '🍳' : idx === 1 ? '🍲' : idx === 2 ? '🥗' : '🍎'}
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <div className={styles.menuMealType}>{meal.meal}</div>
+                                                <div className={styles.menuMealName}>{meal.name}</div>
+                                            </div>
+                                            {meal.cals && (
+                                                <span style={{
+                                                    fontSize: '0.78rem', fontWeight: 700,
+                                                    color: '#EA580C', background: '#FFF7ED',
+                                                    padding: '0.2rem 0.5rem', borderRadius: '99px',
+                                                    border: '1px solid #FFEDD5', whiteSpace: 'nowrap'
+                                                }}>
+                                                    {meal.cals} kcal
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
 
-                        </div>
+                            {/* Footer */}
+                            <div className={styles.modalFooter}>
+                                <button
+                                    onClick={() => setSelectedPlan(null)}
+                                    className={styles.modalCloseBtn}
+                                >
+                                    Cerrar
+                                </button>
+                                <button
+                                    onClick={handleRestoreRequest}
+                                    className={styles.modalActionBtn}
+                                >
+                                    <RotateCcw size={18} /> Reactivar este Plan
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-                        {/* Footer Actions */}
-                        <div className={styles.modalFooter}>
-                            <button
-                                onClick={() => setSelectedPlan(null)}
-                                className={styles.modalCloseBtn}
-                            >
-                                Cerrar
-                            </button>
-                            <button
-                                onClick={() => handleRestore(selectedPlan.plan_data)}
-                                className={styles.modalActionBtn}
-                            >
-                                <RotateCcw size={18} /> Reactivar este Plan
-                            </button>
-                        </div>
+            {/* --- CONFIRM RESTORE MODAL --- */}
+            <AnimatePresence>
+                {confirmRestore && (
+                    <motion.div
+                        className={styles.confirmOverlay}
+                        onClick={() => setConfirmRestore(null)}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                    >
+                        <motion.div
+                            className={styles.confirmBox}
+                            onClick={e => e.stopPropagation()}
+                            initial={{ scale: 0.85, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.85, opacity: 0, y: 20 }}
+                            transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+                        >
+                            <div className={styles.confirmIconWrapper}>
+                                <AlertTriangle size={28} color="#D97706" />
+                            </div>
+                            <h3 className={styles.confirmTitle}>¿Reactivar este plan?</h3>
+                            <p className={styles.confirmText}>
+                                Tu plan actual será reemplazado por <strong>{confirmRestore.name || 'este plan'}</strong>. Esta acción no se puede deshacer.
+                            </p>
+                            <div className={styles.confirmActions}>
+                                <button
+                                    className={styles.confirmCancelBtn}
+                                    onClick={() => setConfirmRestore(null)}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    className={styles.confirmAcceptBtn}
+                                    onClick={handleRestoreConfirm}
+                                >
+                                    <RotateCcw size={16} /> Sí, reactivar
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-                    </div>
-                </div>
-            )}
+            {/* --- CONFIRM DELETE MODAL --- */}
+            <AnimatePresence>
+                {confirmDelete && (
+                    <motion.div
+                        className={styles.confirmOverlay}
+                        onClick={() => setConfirmDelete(null)}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                    >
+                        <motion.div
+                            className={styles.confirmBox}
+                            onClick={e => e.stopPropagation()}
+                            initial={{ scale: 0.85, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.85, opacity: 0, y: 20 }}
+                            transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+                        >
+                            <div className={styles.confirmIconWrapper} style={{ background: '#FEF2F2', borderColor: '#FECACA' }}>
+                                <Trash2 size={28} color="#DC2626" />
+                            </div>
+                            <h3 className={styles.confirmTitle}>¿Eliminar este plan?</h3>
+                            <p className={styles.confirmText}>
+                                El plan <strong>{confirmDelete.name || 'Seleccionado'}</strong> será borrado permanentemente de tu historial. Esta acción no se puede deshacer.
+                            </p>
+                            <div className={styles.confirmActions}>
+                                <button
+                                    className={styles.confirmCancelBtn}
+                                    onClick={() => setConfirmDelete(null)}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    className={styles.confirmAcceptBtn}
+                                    style={{ background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)', boxShadow: '0 4px 12px -2px rgba(220, 38, 38, 0.35)' }}
+                                    onClick={handleDeleteConfirm}
+                                >
+                                    <Trash2 size={16} /> Eliminar
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </DashboardLayout>
     );
 };

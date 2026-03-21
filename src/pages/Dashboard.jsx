@@ -4,7 +4,7 @@ import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
-    RefreshCw, ChefHat, Heart,
+    RefreshCw, ChefHat, Heart, Pill,
     Brain, Wallet, AlertCircle, Dumbbell, Wheat,
     Lightbulb, Wand2, Clock, BookOpen, Loader2, Target
 } from 'lucide-react';
@@ -77,6 +77,7 @@ const Dashboard = () => {
     // Retrocompatibilidad y extracción de días
     const planDays = planData?.days || [{ day: 1, meals: planData?.meals || planData?.perfectDay || [] }];
     const currentDayMeals = planDays[activeDayIndex]?.meals || [];
+    const currentDaySupplements = planDays[activeDayIndex]?.supplements || [];
 
     return (
         <DashboardLayout>
@@ -468,8 +469,8 @@ const Dashboard = () => {
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                         {(() => {
-                            // Copia segura de platos usando el día activo
-                            let displayMeals = [...currentDayMeals];
+                            // Copia segura de platos usando el día activo (filtrar suplementos que tienen su propia sección)
+                            let displayMeals = [...currentDayMeals].filter(m => !m.meal?.toLowerCase().includes('suplemento'));
 
                             // Inyectar almuerzo familiar visual si aplica
                             if (formData?.skipLunch) {
@@ -743,6 +744,70 @@ const Dashboard = () => {
                             })
                         })()}
                     </div>
+
+                    {/* SUPPLEMENTS SECTION */}
+                    {currentDaySupplements.length > 0 && (
+                        <div style={{
+                            marginTop: '1.5rem',
+                            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(168, 85, 247, 0.08) 100%)',
+                            borderRadius: '1.5rem',
+                            border: '1px solid rgba(139, 92, 246, 0.15)',
+                            padding: '1.5rem',
+                            boxShadow: '0 4px 15px -5px rgba(139, 92, 246, 0.1)'
+                        }}>
+                            <h3 style={{
+                                fontSize: '1rem', fontWeight: 800, color: '#6D28D9',
+                                marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem'
+                            }}>
+                                <div style={{
+                                    background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)',
+                                    color: 'white', borderRadius: '10px',
+                                    width: 32, height: 32,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}>
+                                    <Pill size={16} />
+                                </div>
+                                Suplementos del Día
+                                <span style={{
+                                    marginLeft: 'auto', fontSize: '0.75rem', fontWeight: 600,
+                                    background: '#EDE9FE', color: '#7C3AED',
+                                    padding: '0.2rem 0.6rem', borderRadius: '9999px'
+                                }}>
+                                    {currentDaySupplements.length}
+                                </span>
+                            </h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {currentDaySupplements.map((supp, i) => (
+                                    <div key={i} style={{
+                                        background: 'white',
+                                        borderRadius: '1rem',
+                                        padding: '1rem 1.25rem',
+                                        border: '1px solid rgba(139, 92, 246, 0.1)',
+                                        display: 'flex', flexDirection: 'column', gap: '0.35rem'
+                                    }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontWeight: 700, color: '#1E293B', fontSize: '0.95rem' }}>
+                                                💊 {supp.name}
+                                            </span>
+                                            <span style={{
+                                                fontSize: '0.7rem', fontWeight: 700,
+                                                background: '#F5F3FF', color: '#7C3AED',
+                                                padding: '0.15rem 0.5rem', borderRadius: '6px'
+                                            }}>
+                                                {supp.timing}
+                                            </span>
+                                        </div>
+                                        <div style={{ fontSize: '0.85rem', color: '#475569', fontWeight: 600 }}>
+                                            Dosis: {supp.dose}
+                                        </div>
+                                        <div style={{ fontSize: '0.8rem', color: '#64748B', lineHeight: 1.4 }}>
+                                            {supp.reason}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right Column: INSIGHTS & SHOPPING */}

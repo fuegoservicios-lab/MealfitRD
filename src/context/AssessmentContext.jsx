@@ -127,6 +127,8 @@ export const AssessmentProvider = ({ children }) => {
         sleepHours: '', stressLevel: '', cookingTime: '', budget: '', workSchedule: '',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
         mainGoal: '', motivation: '', struggles: [], skipLunch: false,
+        includeSupplements: false, selectedSupplements: [], groceryDuration: 'weekly',
+        otherConditions: '',
     };
 
     // Datos del Formulario de Evaluación
@@ -603,46 +605,59 @@ export const AssessmentProvider = ({ children }) => {
         setPlanData(data);
         setLikedMeals({});
         
-        // --- GUARDAR EN SUPABASE DESDE EL FRONTEND PARA EVITAR ERRORES RLS DEL BACKEND ---
-        const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
-        if (userId && userId !== 'guest') {
-            try {
-                const calories = parseInt(data.calories || data.estimated_calories) || 0;
-                const macros = data.macros || {};
-                const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-                const planName = `Plan del ${new Date().toLocaleDateString('es-DO', dateOptions)}`;
-
-                const { error: saveError } = await supabase.from('meal_plans').insert({
-                    user_id: userId,
-                    plan_data: data,
-                    name: planName,
-                    calories: calories,
-                    macros: macros,
-                    created_at: new Date().toISOString()
-                });
-
-                if (saveError) {
-                    console.error("❌ Error guardando historial del plan generado por chat:", saveError.message);
-                } else {
-                    console.log("💾 Plan generado por chat guardado exitosamente en el historial por el Frontend.");
-                }
-            } catch (dbError) {
-                console.error("⚠️ Error crítico al intentar guardar historial del plan del chat:", dbError);
-            }
-        }
+        // NOTA: NO guardamos en Supabase aquí.
+        // El backend ya lo hace en _save_plan_and_track_background() con datos más completos
+        // (meal_names, ingredients, techniques, frequency tracking).
+        // Guardarlo aquí también causaba duplicados en el historial.
 
         setTimeout(async () => {
             await checkPlanLimit();
         }, 2000);
     };
 
-    const restorePlan = (pastPlanData) => {
+    const restorePlan = async (pastPlanData) => {
         if (!pastPlanData) return;
+
+        // 1. Actualizar estado local inmediatamente
         setPlanData(pastPlanData);
+        setLikedMeals({});
         localStorage.setItem('mealfit_plan', JSON.stringify(pastPlanData));
-        toast.success('Plan Restaurado', {
-            description: 'Ahora verás este plan en tu Dashboard principal.'
-        });
+        localStorage.setItem('mealfit_likes', JSON.stringify({}));
+
+        // 2. Sincronizar con Supabase para que cloud sync no lo revierta
+        const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
+        if (userId && userId !== 'guest') {
+            try {
+                // Obtener el plan más reciente del usuario
+                const { data: latestRows } = await supabase
+                    .from('meal_plans')
+                    .select('id')
+                    .eq('user_id', userId)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (latestRows && latestRows.length > 0) {
+                    const planId = latestRows[0].id;
+
+                    // Actualizar el plan_data del registro más reciente
+                    const { error: updateError } = await supabase
+                        .from('meal_plans')
+                        .update({ plan_data: pastPlanData })
+                        .eq('id', planId);
+
+                    if (updateError) {
+                        console.error('❌ Error sincronizando plan restaurado:', updateError);
+                        toast.warning('Plan restaurado localmente', {
+                            description: 'No se pudo sincronizar con la nube.'
+                        });
+                    } else {
+                        console.log('✅ Plan restaurado sincronizado con Supabase.');
+                    }
+                }
+            } catch (dbError) {
+                console.error('❌ Error de DB al restaurar plan:', dbError);
+            }
+        }
     };
 
     const nextStep = () => { setDirection(1); setCurrentStep((prev) => prev + 1); };

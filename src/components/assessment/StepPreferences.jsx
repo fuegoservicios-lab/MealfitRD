@@ -5,12 +5,9 @@ import {
     ArrowLeft, ArrowRight,
     Utensils, Leaf, Beef, Wheat, Fish, Salad,
     Milk, Egg, Nut, AlertCircle, Activity, Heart,
-    Check
+    Check, CalendarDays, CalendarRange, CalendarClock
 } from 'lucide-react';
 import PropTypes from 'prop-types';
-
-// Helper for Lucide icons (handles component passing)
-const IsNativeFn = (fn) => fn;
 
 // Helper for Diet Cards - Extracted outside to prevent re-renders
 const DietOption = ({ val, label, icon: Icon, desc, isSelected, onSelect }) => {
@@ -327,6 +324,40 @@ const StepPreferences = () => {
                                 La IA planificará desayunos y cenas más ligeros para dejar espacio a esas calorías.
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                {/* Grocery Shopping Frequency Section */}
+                <section>
+                    <Label>Frecuencia de Compras del Supermercado</Label>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+                        ¿Cada cuánto compras tus alimentos? La IA optimizará los ingredientes según la duración de tu compra.
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
+                        <DietOption
+                            val="weekly"
+                            label="Semanal"
+                            icon={CalendarDays}
+                            desc="Cada 7 días"
+                            isSelected={formData.groceryDuration === 'weekly'}
+                            onSelect={(val) => updateData('groceryDuration', val)}
+                        />
+                        <DietOption
+                            val="biweekly"
+                            label="Quincenal"
+                            icon={CalendarRange}
+                            desc="Cada 15 días"
+                            isSelected={formData.groceryDuration === 'biweekly'}
+                            onSelect={(val) => updateData('groceryDuration', val)}
+                        />
+                        <DietOption
+                            val="monthly"
+                            label="Mensual"
+                            icon={CalendarClock}
+                            desc="Cada 30 días"
+                            isSelected={formData.groceryDuration === 'monthly'}
+                            onSelect={(val) => updateData('groceryDuration', val)}
+                        />
                     </div>
                 </section>
 

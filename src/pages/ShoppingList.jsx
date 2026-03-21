@@ -82,6 +82,7 @@ const getAILightColor = (catName) => {
     if (lower.includes('fruta') || lower.includes('verdura') || lower.includes('vegetal')) return { color: '#16A34A', bgColor: '#DCFCE7' };
     if (lower.includes('lácteo') || lower.includes('lacteo') || lower.includes('huevo') || lower.includes('queso') || lower.includes('refrigerado')) return { color: '#2563EB', bgColor: '#EFF6FF' };
     if (lower.includes('despensa') || lower.includes('grano') || lower.includes('cereal') || lower.includes('pan')) return { color: '#D97706', bgColor: '#FEF3C7' };
+    if (lower.includes('suplemento')) return { color: '#7C3AED', bgColor: '#EDE9FE' };
     return { color: '#475569', bgColor: '#F1F5F9' }; 
 };
 

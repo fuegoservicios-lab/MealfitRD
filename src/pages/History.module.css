@@ -1,46 +1,183 @@
+/* ============================
+   HISTORY PAGE — PREMIUM STYLES
+   ============================ */
+
 .container {
     margin-bottom: 2rem;
 }
 
+.headerRow {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+}
+
 .title {
-    font-size: 2rem;
+    font-size: 2.25rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #0F172A 0%, #3B82F6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+}
+
+.subtitle {
+    color: var(--text-muted);
+    font-size: 1rem;
+}
+
+.planCount {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #64748B;
+    background: #F1F5F9;
+    padding: 0.4rem 0.9rem;
+    border-radius: 99px;
+    border: 1px solid #E2E8F0;
+    white-space: nowrap;
+}
+
+/* Empty State */
+.emptyState {
+    padding: 4rem 2rem;
+    text-align: center;
+    background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(248,250,252,0.6));
+    backdrop-filter: blur(12px);
+    border-radius: 1.5rem;
+    border: 2px dashed #CBD5E1;
+}
+
+.emptyIcon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    background: #EFF6FF;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #3B82F6;
+}
+
+.emptyTitle {
+    font-size: 1.3rem;
     font-weight: 800;
     color: var(--text-main);
     margin-bottom: 0.5rem;
 }
 
-.subtitle {
-    color: var(--text-muted);
-}
-
-.emptyState {
-    padding: 3rem;
-    text-align: center;
-    background: rgba(255,255,255,0.5);
-    border-radius: 1rem;
-    border: 1px dashed #cbd5e1;
-}
-
 .emptyText {
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: var(--text-muted);
+    margin-bottom: 1.5rem;
 }
 
+.emptyCta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #0F172A 0%, #334155 100%);
+    color: white;
+    border: none;
+    border-radius: 1rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    box-shadow: 0 10px 20px -5px rgba(15, 23, 42, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.emptyCta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px -6px rgba(15, 23, 42, 0.35);
+}
+
+/* Skeleton Loader */
+.skeletonGrid {
+    display: grid;
+    gap: 1rem;
+}
+
+.skeletonCard {
+    background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6));
+    padding: 1.5rem;
+    border-radius: 1.25rem;
+    border: 1px solid #F1F5F9;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.skeletonIcon {
+    width: 48px;
+    height: 48px;
+    background: #E2E8F0;
+    border-radius: 0.75rem;
+    flex-shrink: 0;
+}
+
+.skeletonLines {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.skeletonLine {
+    height: 14px;
+    border-radius: 0.5rem;
+    background: #E2E8F0;
+}
+
+.skeletonLineLong {
+    width: 70%;
+}
+
+.skeletonLineShort {
+    width: 45%;
+}
+
+.skeletonBadge {
+    width: 80px;
+    height: 28px;
+    border-radius: 0.4rem;
+    background: #E2E8F0;
+    flex-shrink: 0;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* Card Grid */
 .cardGrid {
     display: grid;
     gap: 1rem;
 }
 
+/* Plan Card */
 .card {
-    background: white;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.8) 100%);
+    backdrop-filter: blur(20px);
     padding: 1.5rem;
-    border-radius: 1rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    border: 1px solid #f1f5f9;
+    border-radius: 1.5rem;
+    box-shadow: 
+        0 4px 15px rgba(0, 0, 0, 0.03),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+        inset 0 2px 4px rgba(255, 255, 255, 0.6);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    transition: all 0.2s;
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
     cursor: pointer;
     position: relative;
     overflow: hidden;
@@ -48,8 +185,13 @@
 
 @media (hover: hover) {
     .card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        transform: translateY(-5px) scale(1.01);
+        box-shadow: 
+            0 25px 40px -10px rgba(59, 130, 246, 0.12),
+            0 10px 15px -4px rgba(59, 130, 246, 0.08),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+            inset 0 2px 4px rgba(255, 255, 255, 0.6);
+        background: linear-gradient(145deg, rgba(255, 255, 255, 1) 0%, rgba(241, 245, 249, 0.9) 100%);
     }
 }
 
@@ -58,72 +200,124 @@
     gap: 1rem;
     align-items: center;
     flex: 1;
+    min-width: 0;
 }
 
 .iconWrapper {
-    background: #EFF6FF;
-    color: #3B82F6;
-    padding: 0.75rem;
-    border-radius: 0.75rem;
+    background: linear-gradient(135deg, #2563EB 0%, #60A5FA 100%);
+    color: white;
+    padding: 0.85rem;
+    border-radius: 1rem;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25), inset 0 2px 4px rgba(255,255,255,0.3);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (hover: hover) {
+    .card:hover .iconWrapper {
+        transform: scale(1.1) rotate(-5deg);
+    }
 }
 
 .planInfo {
     flex: 1;
-    margin-right: 1rem;
+    margin-right: 0.5rem;
+    min-width: 0;
 }
 
 .planNameRow {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    justify-content: flex-start;
     gap: 0.5rem;
     margin-bottom: 0.25rem;
-    flex-wrap: wrap; /* Allow wrapping so input doesn't get boxed out on small screens */
 }
 
 .planName {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text-main);
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0F172A;
     margin: 0;
-    line-height: 1.3;
-    display: inline;
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
 }
 
 .editInput {
-    padding: 0.4rem 0.6rem;
-    border-radius: 0.5rem;
-    border: 1px solid #CBD5E1;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text-main);
+    padding: 0.4rem 0.8rem;
+    border-radius: 0.6rem;
+    border: 1.5px solid #E2E8F0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #0F172A;
     outline: none;
     flex: 1;
     min-width: 150px;
     max-width: 100%;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(4px);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.editInput:focus {
+    border-color: #60A5FA;
+    background: #FFF;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15), inset 0 2px 4px rgba(0,0,0,0.01);
 }
 
 .editButton, .cancelButton {
     color: white;
     border: none;
-    border-radius: 0.5rem;
-    padding: 0.5rem;
+    border-radius: 0.6rem;
+    padding: 0.45rem 0.6rem;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (hover: hover) {
+    .editButton:hover, .cancelButton:hover {
+        transform: translateY(-2px);
+    }
+}
+
+.editButton:active, .cancelButton:active {
+    transform: scale(0.95);
 }
 
 .editButton {
-    background: #22C55E;
+    background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+    box-shadow: 0 4px 12px -2px rgba(34, 197, 94, 0.4);
+}
+
+@media (hover: hover) {
+    .editButton:hover {
+        box-shadow: 0 6px 16px -2px rgba(34, 197, 94, 0.5);
+    }
 }
 
 .cancelButton {
-    background: #EF4444;
+    background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+    box-shadow: 0 4px 12px -2px rgba(239, 68, 68, 0.4);
+    margin-right: 1.5rem;
+}
+
+@media (hover: hover) {
+    .cancelButton:hover {
+        box-shadow: 0 6px 16px -2px rgba(239, 68, 68, 0.5);
+    }
 }
 
 .renameButton {
@@ -131,26 +325,97 @@
     border: none;
     cursor: pointer;
     color: #94A3B8;
-    display: inline-flex;
-    padding: 0.2rem;
-    margin-left: 0.25rem;
-    vertical-align: middle;
-    position: relative;
-    top: -3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem;
+    border-radius: 0.5rem;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    margin-top: -0.1rem;
+}
+
+.renameButton:hover {
+    color: #3B82F6;
+    background: #EFF6FF;
 }
 
 .dateText {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: var(--text-muted);
     display: block;
 }
 
-.cardActions {
+.mealPreviewWrapper {
+    margin-top: 0.6rem;
+    width: 100%;
+}
+
+.mealPreviewContainer {
     display: flex;
-    gap: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.4rem;
     align-items: center;
 }
 
+.mealPreviewBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    padding: 0.25rem 0.6rem;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    color: #475569;
+    font-weight: 600;
+}
+
+.mealPreviewText {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+}
+
+.mealPreviewBadgeMore {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #EFF6FF;
+    color: #3B82F6;
+    font-weight: 800;
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 99px;
+    border: 1px solid #DBEAFE;
+}
+
+/* Card Actions (right side) */
+.cardActions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Calories Badge */
+.caloriesBadge {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.85rem;
+    background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
+    border: 1px solid rgba(253, 186, 116, 0.5);
+    border-radius: 99px;
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: #C2410C;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(234, 88, 12, 0.05);
+}
+
+/* Tags */
 .tagsContainer {
     display: flex;
     gap: 0.4rem;
@@ -159,23 +424,75 @@
 }
 
 .tag {
-    background: #334155;
-    color: #F8FAFC;
-    padding: 0.3rem 0.6rem;
-    border-radius: 0.4rem;
+    background: white;
+    color: #475569;
+    padding: 0.35rem 0.75rem;
+    border-radius: 99px;
     font-size: 0.75rem;
-    font-weight: 600;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    font-weight: 700;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    white-space: nowrap;
+    transition: all 0.2s;
 }
 
-.chevronWrapper {
-    background: #F8FAFC;
-    padding: 0.5rem;
-    border-radius: 50%;
+@media (hover: hover) {
+    .card:hover .tag {
+        border-color: #CBD5E1;
+        background: #F8FAFC;
+    }
+}
+
+/* Delete Button */
+.deleteButton {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #64748B;
+    padding: 0.4rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
     flex-shrink: 0;
 }
 
-/* Modal Styles */
+.deleteButton:hover {
+    color: #EF4444;
+    background: #FEF2F2;
+}
+
+.chevronWrapper {
+    background: #F1F5F9;
+    padding: 0.5rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chevronWrapper svg {
+    color: #64748B;
+    transition: color 0.3s;
+}
+
+@media (hover: hover) {
+    .card:hover .chevronWrapper {
+        background: #EFF6FF;
+        transform: translateX(4px);
+    }
+    
+    .card:hover .chevronWrapper svg {
+        color: #3B82F6;
+    }
+}
+
+/* ========================
+   MODAL STYLES
+   ======================== */
 .modalOverlay {
     position: fixed;
     top: 0;
@@ -183,7 +500,7 @@
     right: 0;
     bottom: 0;
     background: rgba(0,0,0,0.5);
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(6px);
     z-index: 9999;
     display: flex;
     align-items: center;
@@ -192,32 +509,33 @@
 }
 
 .modalContent {
-    background: white;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(24px);
     width: 100%;
-    max-width: 600px;
+    max-width: 650px;
     max-height: 90vh;
-    border-radius: 1.5rem;
+    border-radius: 1.75rem;
     padding: 0;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), inset 0 0 0 1px rgba(255, 255, 255, 0.8);
 }
 
 .modalHeader {
-    padding: 1.5rem;
-    border-bottom: 1px solid #E2E8F0;
+    padding: 1.75rem;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #F8FAFC;
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(239, 246, 255, 0.8) 100%);
 }
 
 .modalTitle {
     font-size: 1.25rem;
     font-weight: 800;
     color: var(--text-main);
-    line-height: 1;
+    line-height: 1.2;
 }
 
 .modalDate {
@@ -232,6 +550,12 @@
     border: none;
     cursor: pointer;
     padding: 0.5rem;
+    border-radius: 0.5rem;
+    transition: background 0.15s;
+}
+
+.closeButton:hover {
+    background: #F1F5F9;
 }
 
 .modalBody {
@@ -240,15 +564,16 @@
     flex: 1;
 }
 
+/* Macros Grid in Modal */
 .macrosGrid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 1rem;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 0.75rem;
     margin-bottom: 2rem;
 }
 
 .macroCard {
-    padding: 1rem;
+    padding: 1rem 0.5rem;
     border-radius: 1rem;
     text-align: center;
 }
@@ -268,42 +593,95 @@
     border: 1px solid #D1FAE5;
 }
 
+.macroCardPink {
+    background: #FDF2F8;
+    border: 1px solid #FCE7F3;
+}
+
 .macroValueOrange {
-    font-size: 1.2rem;
+    font-size: 1.15rem;
     font-weight: 800;
     color: #9A3412;
 }
 
 .macroLabelOrange {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: #EA580C;
     font-weight: 600;
 }
 
 .macroValueBlue {
-    font-size: 1.2rem;
+    font-size: 1.15rem;
     font-weight: 800;
     color: #1E40AF;
 }
 
 .macroLabelBlue {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: #2563EB;
     font-weight: 600;
 }
 
 .macroValueGreen {
-    font-size: 1.2rem;
+    font-size: 1.15rem;
     font-weight: 800;
     color: #065F46;
 }
 
 .macroLabelGreen {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: #059669;
     font-weight: 600;
 }
 
+.macroValuePink {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #9D174D;
+}
+
+.macroLabelPink {
+    font-size: 0.7rem;
+    color: #EC4899;
+    font-weight: 600;
+}
+
+/* Day Tabs */
+.dayTabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    background: #F1F5F9;
+    padding: 0.3rem;
+    border-radius: 0.75rem;
+}
+
+.dayTab {
+    flex: 1;
+    padding: 0.55rem 0.75rem;
+    border: none;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: #64748B;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dayTab:hover {
+    color: #334155;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.dayTabActive {
+    background: white;
+    color: var(--primary, #6366F1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    font-weight: 700;
+}
+
+/* Meals List in Modal */
 .menuTitle {
     font-size: 1rem;
     font-weight: 700;
@@ -322,28 +700,39 @@
     align-items: center;
     gap: 1rem;
     padding: 1rem;
-    background: #F8FAFC;
-    border-radius: 0.75rem;
+    background: white;
+    border-radius: 1rem;
     border: 1px solid #F1F5F9;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    transition: all 0.2s;
+}
+
+.menuItem:hover {
+    background: linear-gradient(135deg, white 0%, #F8FAFC 100%);
+    border-color: #E2E8F0;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px -2px rgba(0,0,0,0.05);
 }
 
 .menuIcon {
-    background: #E2E8F0;
-    width: 40px;
-    height: 40px;
-    border-radius: 0.5rem;
+    background: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
+    width: 44px;
+    height: 44px;
+    border-radius: 0.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2rem;
+    font-size: 1.25rem;
     flex-shrink: 0;
+    box-shadow: inset 0 2px 4px rgba(255,255,255,0.5);
 }
 
 .menuMealType {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
     color: #64748B;
     text-transform: uppercase;
+    letter-spacing: 0.03em;
 }
 
 .menuMealName {
@@ -352,6 +741,7 @@
     color: #0F172A;
 }
 
+/* Modal Footer */
 .modalFooter {
     padding: 1.5rem;
     border-top: 1px solid #E2E8F0;
@@ -369,6 +759,12 @@
     color: #64748B;
     font-weight: 600;
     cursor: pointer;
+    transition: all 0.15s;
+}
+
+.modalCloseBtn:hover {
+    background: #F8FAFC;
+    border-color: #CBD5E1;
 }
 
 .modalActionBtn {
@@ -384,47 +780,170 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+    box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.3);
+    transition: all 0.2s;
 }
 
-/* Responsive Styles */
-@media (max-width: 640px) {
-    .hideOnMobile {
-        display: none !important;
-    }
+.modalActionBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px -4px rgba(37, 99, 235, 0.35);
+}
 
+/* ========================
+   CONFIRM RESTORE MODAL
+   ======================== */
+.confirmOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.confirmBox {
+    background: white;
+    border-radius: 1.5rem;
+    padding: 2rem;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.confirmIconWrapper {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 1.25rem;
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.confirmTitle {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+.confirmText {
+    font-size: 0.9rem;
+    color: #64748B;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
+.confirmText strong {
+    color: var(--text-main);
+}
+
+.confirmActions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.confirmCancelBtn {
+    flex: 1;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid #E2E8F0;
+    background: white;
+    color: #64748B;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.confirmCancelBtn:hover {
+    background: #F8FAFC;
+    border-color: #CBD5E1;
+}
+
+.confirmAcceptBtn {
+    flex: 1.5;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    border: none;
+    background: linear-gradient(135deg, #D97706 0%, #EA580C 100%);
+    color: white;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    box-shadow: 0 4px 12px -2px rgba(217, 119, 6, 0.35);
+    transition: all 0.2s;
+}
+
+.confirmAcceptBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px -4px rgba(217, 119, 6, 0.4);
+}
+
+/* ========================
+   RESPONSIVE
+   ======================== */
+@media (max-width: 640px) {
     .title {
         font-size: 1.75rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .headerRow {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
     }
 
     .card {
         padding: 1.25rem 1rem;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
     }
 
     .iconWrapper {
-        padding: 0.6rem;
+        padding: 0.7rem;
+        border-radius: 50%;
     }
 
     .iconWrapper svg {
-        width: 20px;
-        height: 20px;
+        width: 22px;
+        height: 22px;
     }
 
     .cardContent {
-        gap: 0.75rem;
+        gap: 1rem;
+        align-items: flex-start;
     }
 
     .planInfo {
-        margin-right: 0.5rem;
+        margin-right: 0;
     }
 
     .planName {
-        font-size: 1rem;
-        line-height: 1.2;
+        font-size: 1.05rem;
+        line-height: 1.35;
     }
 
     .dateText {
-        font-size: 0.8rem;
+        font-size: 0.78rem;
+        margin-top: 0.15rem;
     }
 
     .chevronWrapper {
@@ -437,10 +956,51 @@
     }
 
     .cardActions {
+        width: 100%;
         gap: 0.5rem;
+        justify-content: flex-end;
+        align-items: center;
+        border-top: 1px dashed rgba(203, 213, 225, 0.6);
+        padding-top: 1rem;
+        margin-top: 0.25rem;
     }
 
+    .caloriesBadge {
+        margin-right: auto;
+        font-size: 0.75rem;
+        padding: 0.3rem 0.6rem;
+    }
+
+    .mealPreviewWrapper {
+        display: none;
+    }
+
+    /* Tags compact on mobile */
+    .tagsContainer {
+        display: flex;
+        gap: 0.25rem;
+    }
+
+    .tag {
+        font-size: 0.65rem;
+        padding: 0.2rem 0.45rem;
+    }
+
+    .deleteButton {
+        padding: 0.4rem;
+    }
+
+    .renameButton {
+        margin-top: 0;
+    }
+
+    .cancelButton {
+        margin-right: 0;
+    }
+
+    /* Modal responsive */
     .macrosGrid {
+        grid-template-columns: repeat(2, 1fr);
         gap: 0.5rem;
     }
 
@@ -448,18 +1008,18 @@
         padding: 0.75rem 0.5rem;
     }
 
-    .macroValueOrange, .macroValueBlue, .macroValueGreen {
+    .macroValueOrange, .macroValueBlue, .macroValueGreen, .macroValuePink {
         font-size: 1rem;
     }
 
-    .macroLabelOrange, .macroLabelBlue, .macroLabelGreen {
+    .macroLabelOrange, .macroLabelBlue, .macroLabelGreen, .macroLabelPink {
         font-size: 0.65rem;
     }
 
     .modalHeader {
         padding: 1.25rem;
     }
-    
+
     .modalBody {
         padding: 1.25rem;
     }

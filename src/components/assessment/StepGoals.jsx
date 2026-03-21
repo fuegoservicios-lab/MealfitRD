@@ -5,7 +5,7 @@ import { Label } from '../common/FormUI';
 import {
     ArrowLeft, Target, Zap, Frown, TrendingUp,
     Battery, Shield, AlertTriangle, Clock,
-    Users, XCircle, HelpCircle, Check
+    Users, XCircle, HelpCircle, Check, Pill
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -231,6 +231,125 @@ const StepGoals = () => {
                             <Battery size={20} />
                         </div>
                     </div>
+                </section>
+
+                {/* Supplements Toggle + Multi-Select Section */}
+                <section>
+                    <Label>Suplementos</Label>
+                    <div
+                        onClick={() => {
+                            const newVal = !formData.includeSupplements;
+                            updateData('includeSupplements', newVal);
+                            if (!newVal) updateData('selectedSupplements', []);
+                        }}
+                        style={{
+                            cursor: 'pointer',
+                            marginTop: '0.5rem',
+                            padding: '1rem',
+                            borderRadius: formData.includeSupplements ? 'var(--radius-lg) var(--radius-lg) 0 0' : 'var(--radius-lg)',
+                            border: formData.includeSupplements ? '1px solid #8b5cf6' : '1px solid var(--border)',
+                            borderBottom: formData.includeSupplements ? '1px dashed rgba(139, 92, 246, 0.3)' : undefined,
+                            backgroundColor: formData.includeSupplements ? 'rgba(139, 92, 246, 0.05)' : 'white',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '1rem',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <div style={{
+                            width: 24, height: 24,
+                            borderRadius: '50%',
+                            border: formData.includeSupplements ? '6px solid #8b5cf6' : '2px solid var(--text-muted)',
+                            flexShrink: 0,
+                            marginTop: 2
+                        }} />
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Pill size={18} color={formData.includeSupplements ? '#8b5cf6' : 'var(--text-muted)'} />
+                                Incluir Suplementos en mi Plan
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                                {formData.includeSupplements
+                                    ? 'Selecciona los suplementos que tomas o quieres incluir. La IA los integrará a tu plan.'
+                                    : 'La IA incluirá recomendaciones de suplementos personalizados según tu objetivo. Si no lo activas, el plan será 100% basado en alimentos.'
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Expandable Supplement Options */}
+                    {formData.includeSupplements && (
+                        <div style={{
+                            padding: '1rem',
+                            border: '1px solid #8b5cf6',
+                            borderTop: 'none',
+                            borderRadius: '0 0 var(--radius-lg) var(--radius-lg)',
+                            backgroundColor: 'rgba(139, 92, 246, 0.02)',
+                            animation: 'fadeSlideDown 0.25s ease-out'
+                        }}>
+                            <p style={{ fontSize: '0.8rem', color: '#8b5cf6', fontWeight: 600, marginBottom: '0.75rem', marginTop: 0 }}>
+                                ¿Cuáles tomas o te interesan?
+                            </p>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '0.5rem' }}>
+                                {[
+                                    { val: 'whey_protein', label: 'Proteína Whey', emoji: '🥛' },
+                                    { val: 'creatine', label: 'Creatina', emoji: '⚡' },
+                                    { val: 'bcaa', label: 'Aminoácidos BCAA', emoji: '💪' },
+                                    { val: 'glutamine', label: 'Glutamina', emoji: '🔄' },
+                                    { val: 'omega3', label: 'Omega-3', emoji: '🐟' },
+                                    { val: 'multivitamin', label: 'Multivitamínico', emoji: '💊' },
+                                    { val: 'vitamin_d', label: 'Vitamina D3', emoji: '☀️' },
+                                    { val: 'magnesium', label: 'Magnesio', emoji: '🧲' },
+                                    { val: 'pre_workout', label: 'Pre-Entreno', emoji: '🔥' },
+                                    { val: 'collagen', label: 'Colágeno', emoji: '✨' },
+                                ].map(supp => {
+                                    const isSelected = (formData.selectedSupplements || []).includes(supp.val);
+                                    return (
+                                        <div
+                                            key={supp.val}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const current = formData.selectedSupplements || [];
+                                                const updated = current.includes(supp.val)
+                                                    ? current.filter(s => s !== supp.val)
+                                                    : [...current, supp.val];
+                                                updateData('selectedSupplements', updated);
+                                            }}
+                                            style={{
+                                                cursor: 'pointer',
+                                                padding: '0.6rem 0.75rem',
+                                                borderRadius: '0.75rem',
+                                                border: isSelected ? '1.5px solid #8b5cf6' : '1px solid #e2e8f0',
+                                                backgroundColor: isSelected ? 'rgba(139, 92, 246, 0.08)' : 'white',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                transition: 'all 0.15s ease',
+                                                boxShadow: isSelected ? '0 2px 8px rgba(139, 92, 246, 0.15)' : 'none'
+                                            }}
+                                        >
+                                            <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>{supp.emoji}</span>
+                                            <span style={{
+                                                fontSize: '0.82rem',
+                                                fontWeight: isSelected ? 600 : 400,
+                                                color: isSelected ? '#7c3aed' : 'var(--text-main)'
+                                            }}>
+                                                {supp.label}
+                                            </span>
+                                            {isSelected && (
+                                                <Check size={14} color="#8b5cf6" style={{ marginLeft: 'auto', flexShrink: 0 }} />
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            {(formData.selectedSupplements || []).length === 0 && (
+                                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.75rem', marginBottom: 0, fontStyle: 'italic' }}>
+                                    Si no seleccionas ninguno, la IA recomendará suplementos según tu objetivo.
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </section>
 
                 {/* Navigation */}

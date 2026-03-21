@@ -224,8 +224,8 @@ const Plan = () => {
                     return;
                 }
 
-                // Guardamos en Historial (DB) - SOLO UNA VEZ
-                await savePlanToHistory(generatedPlan);
+                // El backend ya guarda el plan en _save_plan_and_track_background (con título IA, frecuencias, etc.)
+                // NO guardamos aquí para evitar duplicados en el historial.
 
                 // Guardamos el resultado en el contexto global
                 saveGeneratedPlan(generatedPlan);
