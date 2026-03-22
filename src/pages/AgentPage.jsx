@@ -1,12 +1,90 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAssessment } from '../context/AssessmentContext';
-import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Lock } from 'lucide-react';
+import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Lock, Trash2, Check, Mic, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical } from 'lucide-react';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { fetchWithAuth } from '../config/api';
 import ReactMarkdown from 'react-markdown';
+const MessageActions = ({ content, sessionId, onRegenerate }) => {
+    const [copied, setCopied] = useState(false);
+    const [feedback, setFeedback] = useState(null);
+
+    const handleFeedback = async (type) => {
+        const newFeedback = feedback === type ? null : type;
+        setFeedback(newFeedback); // Optimistic UI update
+        try {
+            await fetchWithAuth('/api/chat/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionId, content, feedback: newFeedback })
+            });
+        } catch (error) {
+            console.error('Error saving feedback:', error);
+        }
+    };
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(content);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const actionBtnStyle = (active = false) => ({
+        background: active ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        color: active ? '#4f46e5' : '#64748b', // Más oscuro y visible (slate-500)
+        padding: '0.4rem',
+        borderRadius: '0.4rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.15s ease'
+    });
+
+    const handleMouseEnter = (e) => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; };
+    const handleMouseLeave = (e) => { e.currentTarget.style.background = 'transparent'; };
+
+    return (
+        <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.85rem', marginLeft: '-0.4rem' }}>
+            <button 
+                onClick={() => handleFeedback('up')} 
+                style={actionBtnStyle(feedback === 'up')}
+                onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
+                title="Buena respuesta"
+            >
+                <ThumbsUp size={18} strokeWidth={2} fill={feedback === 'up' ? 'currentColor' : 'none'} />
+            </button>
+            <button 
+                onClick={() => handleFeedback('down')} 
+                style={actionBtnStyle(feedback === 'down')}
+                onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
+                title="Mala respuesta"
+            >
+                <ThumbsDown size={18} strokeWidth={2} fill={feedback === 'down' ? 'currentColor' : 'none'} />
+            </button>
+            <button 
+                onClick={onRegenerate} 
+                style={actionBtnStyle()}
+                onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
+                title="Regenerar respuesta"
+            >
+                <RefreshCw size={18} strokeWidth={2} />
+            </button>
+            <button 
+                onClick={handleCopy} 
+                style={actionBtnStyle(copied)}
+                onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
+                title="Copiar"
+            >
+                {copied ? <Check size={18} strokeWidth={2.5} /> : <Copy size={18} strokeWidth={2} />}
+            </button>
+        </div>
+    );
+};
 
 const AgentPage = () => {
     const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, isPlus, checkPlanLimit } = useAssessment();
+    const [confirmClear, setConfirmClear] = useState(false);
     
     const [localSessionId, setLocalSessionId] = useState(() => {
         const saved = localStorage.getItem('mealfit_guest_session');
@@ -74,6 +152,7 @@ const AgentPage = () => {
     }, [session?.user?.id, userProfile?.id]);
 
     const [chatSessions, setChatSessions] = useState([]);
+    const [isLoadingSessions, setIsLoadingSessions] = useState(true);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : true);
 
@@ -81,10 +160,84 @@ const AgentPage = () => {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [streamingStatus, setStreamingStatus] = useState(null);
+    const [abortController, setAbortController] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
+
+    const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef(null);
+    const originalInputRef = useRef('');
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                const recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'es-DO';
+
+                recognition.onstart = () => setIsListening(true);
+                
+                recognition.onresult = (event) => {
+                    let currentTranscript = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        currentTranscript += event.results[i][0].transcript;
+                    }
+                    setInput((originalInputRef.current + ' ' + currentTranscript).trim());
+                };
+
+                recognition.onerror = (event) => {
+                    console.error("Speech recognition error", event.error);
+                    setIsListening(false);
+                };
+
+                recognition.onend = () => {
+                    setIsListening(false);
+                };
+
+                recognitionRef.current = recognition;
+            }
+        }
+    }, []);
+
+    const toggleDictation = () => {
+        if (isListening) {
+            recognitionRef.current?.stop();
+        } else {
+            if (recognitionRef.current) {
+                originalInputRef.current = input;
+                try {
+                    recognitionRef.current.start();
+                } catch(e) { console.error(e); }
+            } else {
+                alert('Tu navegador no soporta el dictado por voz (Se recomienda Chrome o Safari).');
+            }
+        }
+    };
+
+    const [loadingPhraseIdx, setLoadingPhraseIdx] = useState(0);
+    const loadingPhrases = [
+        "Revisando tus preferencias y contexto...",
+        "Evaluando tu perfil y macros...",
+        "Analizando tu objetivo con Inteligencia Nutricional...",
+        "Alineando tu genética con el plan...",
+        "Calculando la mejor respuesta metabólica..."
+    ];
+
+    useEffect(() => {
+        let interval;
+        if (isLoading) {
+            interval = setInterval(() => {
+                setLoadingPhraseIdx(prev => (prev + 1) % loadingPhrases.length);
+            }, 2500); // Rotar cada 2.5s
+        } else {
+            setLoadingPhraseIdx(0);
+        }
+        return () => clearInterval(interval);
+    }, [isLoading]);
 
     const handleFileSelect = (e) => {
         const file = e.target.files?.[0];
@@ -146,10 +299,30 @@ const AgentPage = () => {
             const response = await fetchWithAuth(url);
             if (response.ok) {
                 const data = await response.json();
-                setChatSessions(data.sessions || []);
+                setChatSessions(prev => {
+                    const newSessions = data.sessions || [];
+                    const generating = prev.filter(s => s.title === 'Generando título...');
+                    const merged = [...newSessions];
+                    
+                    generating.forEach(gen => {
+                        const existingIdx = merged.findIndex(s => s.id === gen.id);
+                        if (existingIdx === -1) {
+                            merged.unshift(gen);
+                        } else {
+                            // Si el servidor solo tiene el fallback snippet del mensaje y no el title real,
+                            // o si viene vacío, preservamos el placeholder visual:
+                            if (merged[existingIdx].is_fallback !== false && gen.title === 'Generando título...') {
+                                merged[existingIdx].title = 'Generando título...';
+                            }
+                        }
+                    });
+                    return merged;
+                });
             }
         } catch (error) {
             console.error("Error fetching sessions:", error);
+        } finally {
+            setIsLoadingSessions(false);
         }
     }, [session?.user?.id, userProfile?.id, localSessionId, currentSessionId]);
 
@@ -175,8 +348,11 @@ const AgentPage = () => {
                             content = content.replace(/\[IMAGE:\s*.+?\]\n?/, '');
                         }
                         
-                        // Limpiar prefijo de visión enriquecido del historial
+                        // Limpiar prefijo de visión y contexto enriquecido del historial
                         if (m.role === 'user') {
+                            // Limpiar hora del usuario
+                            content = content.replace(/\[\(Hora actual del usuario:.*?\)\]\n?/gi, '');
+                            
                             if (content.includes('[El usuario subió una imagen.')) {
                                 const userMsgMatch = content.match(/Mensaje del usuario:\s*(.+)$/s);
                                 if (userMsgMatch) {
@@ -188,6 +364,11 @@ const AgentPage = () => {
                                 // En este caso NO HAY mensaje del usuario original, todo era un prompt de sistema
                                 content = '';
                             }
+                            
+                            // Limpiar "Mensaje del usuario:" que inyecta el backend para darle contexto al LLM
+                            content = content.replace(/Mensaje del usuario:\s*/gi, '');
+                            
+                            content = content.trim();
                             if (!content && isImage) content = '';
                         }
                         
@@ -221,6 +402,18 @@ const AgentPage = () => {
         fetchChatSessions();
     }, [fetchChatSessions]);
 
+    // Polling súper rápido (800ms) para actualizar el título dinámico apenas el backend termine
+    useEffect(() => {
+        const isGenerating = chatSessions.some(s => s.title === 'Generando título...');
+        if (!isGenerating) return;
+
+        const intervalId = setInterval(() => {
+            fetchChatSessions();
+        }, 800);
+
+        return () => clearInterval(intervalId);
+    }, [chatSessions, fetchChatSessions]);
+
     // Cargar historial de mensajes cuando cambia la sesión activa
     useEffect(() => {
         fetchSessionMessages(currentSessionId);
@@ -247,6 +440,10 @@ const AgentPage = () => {
         const textToSend = typeof overrideInput === 'string' ? overrideInput : input;
         
         if ((!textToSend.trim() && !selectedFile) || isLoading) return;
+
+        if (isListening) {
+            recognitionRef.current?.stop();
+        }
 
         // Asegurar que el currentSessionId esté en la lista de localStorage
         const savedListStr = localStorage.getItem('mealfit_guest_sessions_list');
@@ -335,12 +532,23 @@ const AgentPage = () => {
                 
                 setStreamingStatus('Conectando...');
                 
+                setChatSessions((prev) => {
+                    if (!prev.some(s => s.id === currentSessionId)) {
+                        return [{ id: currentSessionId, title: 'Generando título...', created_at: new Date().toISOString() }, ...prev];
+                    }
+                    return prev;
+                });
+                
                 const now = new Date();
                 const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                
+                const controller = new AbortController();
+                setAbortController(controller);
                 
                 const response = await fetchWithAuth('/api/chat/stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal,
                     body: JSON.stringify({
                         session_id: currentSessionId,
                         user_id: session?.user?.id || userProfile?.id || localSessionId,
@@ -450,11 +658,34 @@ const AgentPage = () => {
                 }
             }
         } catch (error) {
+            if (error.name === 'AbortError') {
+                console.log("Streaming cancelado por el usuario.");
+                return;
+            }
             console.error("Chat Error:", error);
             setMessages(prev => [...prev, { role: 'model', content: '❌ Error de conexión al servidor.' }]);
         } finally {
             setIsLoading(false);
             setStreamingStatus(null);
+            setAbortController(null);
+        }
+    };
+
+    const handleStopGeneration = () => {
+        if (abortController) {
+            console.log("Abortando generación manual...");
+            abortController.abort();
+            setAbortController(null);
+            setIsLoading(false);
+            setStreamingStatus(null);
+        }
+    };
+
+    const handleRegenerate = (modelMsgIndex) => {
+        // Find the last user message before this model message
+        const lastUserMsg = messages.slice(0, modelMsgIndex).reverse().find(m => m.role === 'user');
+        if (lastUserMsg && !isLoading) {
+            handleSend(lastUserMsg.content);
         }
     };
 
@@ -547,9 +778,9 @@ const AgentPage = () => {
                             style={{ display: 'none' }}
                             onChange={handleFileSelect}
                         />
+
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            disabled={isLoading}
                             style={{
                                 background: 'transparent',
                                 color: '#64748b',
@@ -566,6 +797,7 @@ const AgentPage = () => {
                             }}
                             onMouseEnter={(e) => { if(!isLoading) e.currentTarget.style.color = '#3b82f6'; }}
                             onMouseLeave={(e) => { if(!isLoading) e.currentTarget.style.color = '#64748b'; }}
+                            title="Adjuntar imagen"
                         >
                             <Plus size={20} />
                         </button>
@@ -577,7 +809,6 @@ const AgentPage = () => {
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
                             placeholder="Pregúntale a MealfitRD"
-                            disabled={isLoading}
                             style={{
                                 flex: 1,
                                 background: 'transparent',
@@ -591,28 +822,74 @@ const AgentPage = () => {
                                 minWidth: 0 // Prevents input from breaking flex layout
                             }}
                         />
-                        <button
-                            onClick={handleSend}
-                            disabled={(!input.trim() && !selectedFile) || isLoading}
-                            style={{
-                                background: (input.trim() || selectedFile) && !isLoading ? '#1e293b' : 'transparent',
-                                color: (input.trim() || selectedFile) && !isLoading ? 'white' : '#94a3b8',
-                                border: 'none',
-                                borderRadius: '50%',
-                                width: '40px',
-                                height: '40px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: (input.trim() || selectedFile) && !isLoading ? 'pointer' : 'default',
-                                transition: 'all 0.2s',
-                                flexShrink: 0,
-                                marginLeft: 'auto',
-                                marginRight: '2px'
-                            }}
-                        >
-                            {isLoading ? <Loader2 className="spin-fast" size={20} /> : <Send size={18} style={{ marginLeft: (input.trim() || selectedFile) ? '2px' : '0' }} />}
-                        </button>
+                        {isLoading ? (
+                            <button
+                                onClick={handleStopGeneration}
+                                title="Detener generación"
+                                style={{
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '40px',
+                                    height: '40px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    flexShrink: 0,
+                                    marginLeft: 'auto',
+                                    marginRight: '2px',
+                                    boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)'
+                                }}
+                            >
+                                <Square size={16} fill="white" />
+                            </button>
+                        ) : (input.trim() || selectedFile) ? (
+                            <button
+                                onClick={handleSend}
+                                disabled={isLoading}
+                                style={{
+                                    background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '40px',
+                                    height: '40px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: isLoading ? 'default' : 'pointer',
+                                    flexShrink: 0,
+                                    marginLeft: 'auto',
+                                    marginRight: '2px'
+                                }}
+                            >
+                                <ArrowUp size={22} strokeWidth={2.5} />
+                            </button>
+                        ) : (
+                            <button
+                                onClick={toggleDictation}
+                                style={{
+                                    background: isListening ? '#ef4444' : 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '40px',
+                                    height: '40px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: isLoading ? 'default' : 'pointer',
+                                    flexShrink: 0,
+                                    marginLeft: 'auto',
+                                    marginRight: '2px'
+                                }}
+                                title="Dictado por voz"
+                            >
+                                <Mic size={20} className={isListening ? "pulse-anim-mic" : ""} />
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -686,7 +963,8 @@ const AgentPage = () => {
 
                 {/* Sidebar Historial */}
                 <div className="agent-sidebar" style={{
-                    width: showSidebar ? '260px' : '0px',
+                    width: showSidebar ? '320px' : '0px',
+                    maxWidth: showSidebar ? '85vw' : '0px',
                     borderRight: showSidebar ? '1px solid rgba(226, 232, 240, 0.6)' : 'none',
                     background: '#f8f9fb',
                     transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -731,10 +1009,75 @@ const AgentPage = () => {
                     </div>
                     
                     <div style={{ flex: 1, overflowY: 'auto', padding: '0 0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#94a3b8', padding: '0.75rem 1rem', marginTop: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            Recientes
-                        </h3>
-                        {chatSessions.length === 0 ? (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', marginTop: '0.25rem' }}>
+                            <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                                Recientes
+                            </h3>
+                            {chatSessions.length > 0 && (
+                                <button
+                                    onClick={async () => {
+                                        if (!confirmClear) {
+                                            setConfirmClear(true);
+                                            setTimeout(() => setConfirmClear(false), 3000);
+                                            return;
+                                        }
+                                        const userId = session?.user?.id || userProfile?.id;
+                                        try {
+                                            if (userId) {
+                                                await fetchWithAuth(`/api/chat/sessions/${userId}`, { method: 'DELETE' });
+                                            }
+                                            localStorage.removeItem('mealfit_guest_sessions_list');
+                                            localStorage.removeItem('mealfit_current_session');
+                                            localStorage.removeItem('mealfit_guest_session');
+                                            setChatSessions([]);
+                                            setMessages([]);
+                                            const newId = crypto.randomUUID();
+                                            localStorage.setItem('mealfit_guest_session', newId);
+                                            setCurrentSessionId(newId);
+                                            setLocalSessionId(newId);
+                                            setConfirmClear(false);
+                                        } catch (e) {
+                                            console.error(e);
+                                            alert('Error al limpiar el historial');
+                                        }
+                                    }}
+                                    style={{ 
+                                        background: confirmClear ? '#ef4444' : 'transparent', 
+                                        border: 'none', 
+                                        color: confirmClear ? 'white' : '#94a3b8', 
+                                        cursor: 'pointer', 
+                                        padding: '0.2rem 0.4rem', 
+                                        borderRadius: '0.4rem',
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center',
+                                        gap: '0.25rem',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    title={confirmClear ? "Confirmar borrado" : "Limpiar historial"}
+                                    onMouseEnter={e => {
+                                        if (!confirmClear) e.currentTarget.style.color = '#ef4444';
+                                    }}
+                                    onMouseLeave={e => {
+                                        if (!confirmClear) {
+                                            e.currentTarget.style.color = '#94a3b8';
+                                            e.currentTarget.style.background = 'transparent';
+                                        }
+                                    }}
+                                >
+                                    {confirmClear ? (
+                                        <><Check size={14} /><span style={{fontSize: '0.75rem', fontWeight: 600}}>Confirmar</span></>
+                                    ) : (
+                                        <Trash2 size={16} />
+                                    )}
+                                </button>
+                            )}
+                        </div>
+                        {isLoadingSessions ? (
+                            <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 1rem', color: '#94a3b8' }}>
+                                <Loader2 className="spin-fast" size={18} />
+                            </div>
+                        ) : chatSessions.length === 0 ? (
                             <div style={{ textAlign: 'center', fontSize: '0.9rem', color: '#94a3b8', padding: '2rem 1rem', lineHeight: 1.5 }}>
                                 Tus conversaciones aparecerán aquí.
                             </div>
@@ -771,10 +1114,34 @@ const AgentPage = () => {
                                         whiteSpace: 'nowrap',
                                         overflow: 'hidden',
                                         textOverflow: 'ellipsis',
-
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.35rem',
                                         flex: 1
                                     }}>
-                                        {s.title}
+                                        {s.title === 'Generando título...' ? (
+                                            <div style={{ 
+                                                position: 'relative', 
+                                                width: '100%', 
+                                                height: '6px', 
+                                                background: currentSessionId === s.id ? 'rgba(79, 70, 229, 0.15)' : 'rgba(148, 163, 184, 0.15)', 
+                                                borderRadius: '3px', 
+                                                overflow: 'hidden',
+                                                marginTop: '2px'
+                                            }}>
+                                                <div style={{ 
+                                                    position: 'absolute', 
+                                                    top: 0, 
+                                                    left: 0, 
+                                                    width: '50%', 
+                                                    height: '100%', 
+                                                    background: currentSessionId === s.id ? 'linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.8), transparent)' : 'linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.8), transparent)', 
+                                                    animation: 'cyberSweep 1.5s ease-in-out infinite' 
+                                                }} />
+                                            </div>
+                                        ) : (
+                                            s.title
+                                        )}
                                     </span>
                                 </button>
                             ))
@@ -876,7 +1243,7 @@ const AgentPage = () => {
                                     gap: '0.6rem'
                                 }}>
                                     <span style={{ fontSize: '2.5rem', lineHeight: 1 }}>🤖</span>
-                                    Hola, {userProfile?.name?.split(' ')[0]?.toLowerCase() || 'amigo'}
+                                    Hola, {userProfile?.full_name?.split(' ')[0] || formData?.name || 'amigo'}
                                 </h1>
                                 <h2 style={{ 
                                     fontSize: '2.5rem', 
@@ -967,14 +1334,15 @@ const AgentPage = () => {
 
                                         {/* Mensaje */}
                                         <div style={{
-                                            flex: 1,
-                                            maxWidth: '95%',
+                                            flex: msg.role === 'user' ? '0 1 auto' : 1,
+                                            maxWidth: msg.role === 'user' ? '80%' : '100%',
+                                            width: msg.role === 'user' ? 'fit-content' : 'auto',
                                             color: msg.role === 'user' ? '#0f172a' : '#1e293b',
                                             fontSize: '0.95rem',
                                             lineHeight: 1.6,
                                             whiteSpace: 'pre-wrap',
-                                            background: msg.role === 'user' ? '#f4f7fc' : '#ffffff',
-                                            padding: msg.role === 'user' ? '0.75rem 1.25rem' : '1rem 0',
+                                            background: msg.role === 'user' ? '#f0f4f8' : '#ffffff',
+                                            padding: msg.role === 'user' ? '0.85rem 1.4rem' : '1rem 0',
                                             borderRadius: msg.role === 'user' ? '1.5rem 1.5rem 0.25rem 1.5rem' : '0',
                                             border: msg.role === 'user' ? '1px solid #e2e8f0' : 'none',
                                             boxShadow: 'none'
@@ -1000,6 +1368,15 @@ const AgentPage = () => {
                                                     <ReactMarkdown>{msg.content}</ReactMarkdown>
                                                 </div>
                                             )}
+                                            
+                                            {/* Action bar for model messages */}
+                                            {msg.role === 'model' && !msg.isStreaming && (
+                                                <MessageActions 
+                                                    content={msg.content} 
+                                                    sessionId={currentSessionId}
+                                                    onRegenerate={() => handleRegenerate(i)} 
+                                                />
+                                            )}
                                         </div>
                                     </div>
                                 ))
@@ -1022,8 +1399,9 @@ const AgentPage = () => {
                                         color: 'transparent',
                                         WebkitBackgroundClip: 'text',
                                         WebkitTextFillColor: 'transparent',
-                                        animation: 'shimmer 2s linear infinite'
-                                    }}>{streamingStatus || 'Pensando...'}</span>
+                                        animation: 'shimmer 2s linear infinite',
+                                        transition: 'opacity 0.3s ease-in-out'
+                                    }}>{streamingStatus ? loadingPhrases[loadingPhraseIdx] : 'Pensando...'}</span>
                                 </div>
                             )}
                             <div ref={messagesEndRef} />
@@ -1053,6 +1431,8 @@ const AgentPage = () => {
                 .spin-slow { animation: spin 4s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
                 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+                @keyframes pulse-mic { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.15); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+                .pulse-anim-mic { animation: pulse-mic 1.5s infinite ease-in-out; }
                 @keyframes shimmer { to { background-position: 200% center; } }
                 .wave-anim { animation: wave 2.5s infinite; transform-origin: 70% 70%; }
                 @keyframes wave {

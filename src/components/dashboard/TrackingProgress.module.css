@@ -32,12 +32,12 @@
     width: 48px;
     height: 48px;
     border-radius: 12px;
-    background: #F8FAFC;
+    background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #0F172A;
-    border: 1px solid #E2E8F0;
+    color: #FFFFFF;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
     flex-shrink: 0;
 }
 
