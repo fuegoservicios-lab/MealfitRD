@@ -86,7 +86,8 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
             {/* Main Content Wrapper */}
             <div className={styles.mainWrapper}>
 
-                {/* Mobile Header */}
+                {/* Mobile Header — hidden on AgentPage which has its own */}
+                {!noPaddingMobile && (
                 <header className={styles.mobileHeader}>
                     <Link to="/" className={styles.mobileLogo}>
                         Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
@@ -95,6 +96,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
                 </header>
+                )}
 
                 <main className={`${styles.mainContent} ${noPaddingMobile ? styles.noPaddingMobile : ''}`}>
                     {children}

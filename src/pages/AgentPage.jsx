@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
-import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Lock, Trash2, Check, Mic, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical } from 'lucide-react';
+import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Lock, Trash2, Check, Mic, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, ShoppingBag, Clock, Settings } from 'lucide-react';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { fetchWithAuth } from '../config/api';
 import ReactMarkdown from 'react-markdown';
@@ -84,7 +85,21 @@ const MessageActions = ({ content, sessionId, onRegenerate }) => {
 
 const AgentPage = () => {
     const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, isPlus, checkPlanLimit } = useAssessment();
+    const navigate = useNavigate();
     const [confirmClear, setConfirmClear] = useState(false);
+    const [showNavMenu, setShowNavMenu] = useState(false);
+    const navMenuRef = useRef(null);
+
+    // Close nav menu on outside click
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (navMenuRef.current && !navMenuRef.current.contains(e.target)) {
+                setShowNavMenu(false);
+            }
+        };
+        if (showNavMenu) document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showNavMenu]);
     
     const [localSessionId, setLocalSessionId] = useState(() => {
         const saved = localStorage.getItem('mealfit_guest_session');
@@ -1159,7 +1174,7 @@ const AgentPage = () => {
                     background: '#ffffff'
                 }}>
                 {/* Chat Header */}
-                <div style={{
+                <div className="mobile-chat-header" style={{
                     padding: '0.75rem 1.25rem',
                     background: messages.length === 0 ? '#f4f7fc' : 'rgba(255,255,255,0.85)',
                     backdropFilter: messages.length === 0 ? 'none' : 'blur(8px)',
@@ -1207,6 +1222,81 @@ const AgentPage = () => {
                         MealfitRD
                     </span>
 
+                    {/* Right: 3-dot nav menu (mobile) */}
+                    <div ref={navMenuRef} className="nav-menu-wrapper" style={{ position: 'relative', marginRight: '-0.4rem' }}>
+                        <button
+                            onClick={() => setShowNavMenu(!showNavMenu)}
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#1e293b',
+                                padding: '0.4rem',
+                                borderRadius: '50%',
+                                transition: 'all 0.15s'
+                            }}
+                        >
+                            <MoreVertical size={22} strokeWidth={2} />
+                        </button>
+                        {showNavMenu && (
+                            <div className="nav-dropdown" style={{
+                                position: 'absolute',
+                                top: '100%',
+                                right: 0,
+                                marginTop: '0.5rem',
+                                background: 'rgba(255,255,255,0.97)',
+                                backdropFilter: 'blur(20px)',
+                                WebkitBackdropFilter: 'blur(20px)',
+                                borderRadius: '1rem',
+                                boxShadow: '0 10px 40px -10px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.04)',
+                                padding: '0.5rem',
+                                minWidth: '200px',
+                                zIndex: 100,
+                                animation: 'fadeSlideDown 0.2s ease'
+                            }}>
+                                {[
+                                    { icon: LayoutDashboard, label: 'Mi Plan', path: '/dashboard' },
+                                    { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' },
+                                    { icon: ShoppingBag, label: 'Lista de Compras', path: '/dashboard/shopping' },
+                                    { icon: Clock, label: 'Historial', path: '/history' },
+                                    { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' }
+                                ].map((item) => (
+                                    <button
+                                        key={item.path}
+                                        onClick={() => { navigate(item.path); setShowNavMenu(false); }}
+                                        className="nav-dropdown-item"
+                                        style={{
+                                            width: '100%',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.75rem',
+                                            padding: '0.75rem 1rem',
+                                            background: 'transparent',
+                                            border: 'none',
+                                            borderRadius: '0.65rem',
+                                            color: '#334155',
+                                            fontSize: '0.95rem',
+                                            fontWeight: 500,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s ease',
+                                            textAlign: 'left'
+                                        }}
+                                        onTouchStart={e => e.currentTarget.style.background = '#f1f5f9'}
+                                        onTouchEnd={e => e.currentTarget.style.background = 'transparent'}
+                                        onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        <item.icon size={20} strokeWidth={1.8} style={{ color: '#64748b' }} />
+                                        {item.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                 </div>
 
                 {/* Mensajes o Pantalla Principal (Gemini Style) */}
@@ -1245,7 +1335,7 @@ const AgentPage = () => {
                                     <span style={{ fontSize: '2.5rem', lineHeight: 1 }}>🤖</span>
                                     Hola, {userProfile?.full_name?.split(' ')[0] || formData?.name || 'amigo'}
                                 </h1>
-                                <h2 style={{ 
+                                <h2 className="welcome-sub" style={{ 
                                     fontSize: '2.5rem', 
                                     fontWeight: 400, 
                                     color: '#64748b', 
@@ -1272,6 +1362,7 @@ const AgentPage = () => {
                                 ].map((suggestion, idx) => (
                                     <button
                                         key={idx}
+                                        className="suggestion-pill"
                                         onClick={() => setInput(suggestion.text)}
                                         style={{
                                             display: 'flex',
@@ -1292,7 +1383,7 @@ const AgentPage = () => {
                                         onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
                                         onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
                                     >
-                                        <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>{suggestion.icon}</span> 
+                                        <span className="suggestion-pill-icon" style={{ fontSize: '1.2rem', lineHeight: 1 }}>{suggestion.icon}</span> 
                                         {suggestion.text}
                                     </button>
                                 ))}
@@ -1320,7 +1411,7 @@ const AgentPage = () => {
                                         alignItems: 'flex-start'
                                     }}>
                                         {msg.role === 'model' && (
-                                            <div style={{
+                                            <div className="bot-avatar-mobile" style={{
                                                 width: 30, height: 30, borderRadius: '50%',
                                                 background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
                                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1333,7 +1424,7 @@ const AgentPage = () => {
                                         )}
 
                                         {/* Mensaje */}
-                                        <div style={{
+                                        <div className={msg.role === 'user' ? 'msg-bubble-user' : 'msg-bubble-bot'} style={{
                                             flex: msg.role === 'user' ? '0 1 auto' : 1,
                                             maxWidth: msg.role === 'user' ? '80%' : '100%',
                                             width: msg.role === 'user' ? 'fit-content' : 'auto',
@@ -1392,8 +1483,18 @@ const AgentPage = () => {
                                     fontWeight: 500,
                                     animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
                                 }}>
-                                    <div className="spin-slow" style={{ fontSize: '1.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🤖</div> 
-                                    <span style={{
+                                    <div className="bot-avatar-mobile" style={{ 
+                                        width: 30, height: 30, borderRadius: '50%',
+                                        background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        color: 'white', flexShrink: 0, fontSize: '1.1rem'
+                                    }}>🤖</div>
+                                    <div className="typing-dots-container" style={{ display: 'none' }}>
+                                        <div className="typing-dot" style={{ animation: 'typingBounce 1.4s ease-in-out infinite' }} />
+                                        <div className="typing-dot" style={{ animation: 'typingBounce 1.4s ease-in-out 0.2s infinite' }} />
+                                        <div className="typing-dot" style={{ animation: 'typingBounce 1.4s ease-in-out 0.4s infinite' }} />
+                                    </div>
+                                    <span className="loading-text-desktop" style={{
                                         background: 'linear-gradient(90deg, #475569 0%, #94a3b8 50%, #475569 100%)',
                                         backgroundSize: '200% auto',
                                         color: 'transparent',
@@ -1446,10 +1547,10 @@ const AgentPage = () => {
                     100% { transform: rotate(0deg); }
                 }
 
-                /* Mobile sidebar styles */
+                /* ====== MOBILE REDESIGN ====== */
                 @media (max-width: 768px) {
                     .agent-container {
-                        height: 100% !important;
+                        height: 100dvh !important;
                         border-radius: 0 !important;
                         border: none !important;
                         box-shadow: none !important;
@@ -1457,37 +1558,137 @@ const AgentPage = () => {
                         max-width: none !important;
                         width: 100% !important;
                         flex: 1 !important;
+                        background: #f8fafc !important;
                     }
-                    .input-wrapper {
-                        padding: 0.75rem 1rem calc(0.5rem + env(safe-area-inset-bottom)) 1rem !important;
+                    /* --- Header glassmorphism --- */
+                    .mobile-chat-header {
+                        background: rgba(255,255,255,0.82) !important;
+                        backdrop-filter: blur(20px) saturate(180%) !important;
+                        -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+                        border-bottom: 1px solid rgba(226,232,240,0.6) !important;
+                        padding: 0.7rem 1rem !important;
+                        position: sticky !important;
+                        top: 0 !important;
+                        z-index: 20 !important;
                     }
                     .agent-header-title {
-                        display: none !important; /* Oculta la doble cabecera MealfitRD */
+                        font-size: 1.1rem !important;
+                        font-weight: 700 !important;
+                        letter-spacing: -0.03em !important;
                     }
+                    /* --- Messages area --- */
+                    .messages-container {
+                        padding: 0.5rem 0.85rem 0.5rem 0.85rem !important;
+                        background: #f8fafc !important;
+                        -ms-overflow-style: none;
+                        scrollbar-width: none;
+                    }
+                    .messages-container::-webkit-scrollbar { display: none; }
+                    /* --- User bubble --- */
+                    .msg-bubble-user {
+                        background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%) !important;
+                        border: none !important;
+                        border-radius: 1.25rem 1.25rem 0.3rem 1.25rem !important;
+                        padding: 0.8rem 1.1rem !important;
+                        box-shadow: 0 2px 8px rgba(79,70,229,0.08) !important;
+                        max-width: 82% !important;
+                        font-size: 0.93rem !important;
+                    }
+                    /* --- Bot bubble --- */
+                    .msg-bubble-bot {
+                        background: transparent !important;
+                        border-left: 3px solid rgba(79,70,229,0.25) !important;
+                        border-radius: 0 !important;
+                        padding: 0.6rem 0 0.6rem 0.9rem !important;
+                        font-size: 0.93rem !important;
+                    }
+                    /* --- Bot avatar --- */
+                    .bot-avatar-mobile {
+                        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%) !important;
+                        box-shadow: 0 2px 12px rgba(79,70,229,0.3) !important;
+                        width: 28px !important; height: 28px !important;
+                        font-size: 0.95rem !important;
+                    }
+                    /* --- Input bar floating --- */
+                    .input-wrapper {
+                        padding: 0.6rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom)) 0.75rem !important;
+                        background: rgba(255,255,255,0.88) !important;
+                        backdrop-filter: blur(16px) !important;
+                        -webkit-backdrop-filter: blur(16px) !important;
+                        border-top: none !important;
+                        box-shadow: 0 -4px 30px rgba(0,0,0,0.06) !important;
+                    }
+                    /* --- Welcome screen --- */
+                    .welcome-heading {
+                        font-size: 1.6rem !important;
+                    }
+                    .welcome-sub {
+                        font-size: 1.8rem !important;
+                        background: linear-gradient(135deg, #64748b 0%, #94a3b8 50%, #4F46E5 100%) !important;
+                        -webkit-background-clip: text !important;
+                        -webkit-text-fill-color: transparent !important;
+                        background-clip: text !important;
+                    }
+                    .empty-state-pills {
+                        display: grid !important;
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 0.6rem !important;
+                        width: 100% !important;
+                    }
+                    .suggestion-pill {
+                        width: 100% !important;
+                        padding: 0.85rem 0.75rem !important;
+                        border-radius: 1rem !important;
+                        font-size: 0.85rem !important;
+                        flex-direction: column !important;
+                        gap: 0.35rem !important;
+                        text-align: center !important;
+                        background: #ffffff !important;
+                        border: 1px solid #e2e8f0 !important;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+                        transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+                    }
+                    .suggestion-pill:active {
+                        transform: scale(0.97) !important;
+                        box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
+                    }
+                    .suggestion-pill-icon {
+                        font-size: 1.5rem !important;
+                    }
+                    /* --- Loading typing dots --- */
+                    .typing-dots-container {
+                        display: flex !important;
+                        gap: 0.3rem;
+                        align-items: center;
+                        padding: 0.5rem 0;
+                    }
+                    .typing-dot {
+                        width: 8px; height: 8px;
+                        border-radius: 50%;
+                        background: #94a3b8;
+                    }
+                    .loading-text-desktop {
+                        display: none !important;
+                    }
+                    /* --- Sidebar --- */
                     .agent-sidebar {
                         position: absolute;
-                        top: 0;
-                        left: 0;
-                        height: 100%;
+                        top: 0; left: 0; height: 100%;
                         z-index: 30;
-                        box-shadow: 4px 0 24px rgba(0,0,0,0.1);
-                        border-top-left-radius: 1.5rem;
-                        border-bottom-left-radius: 1.5rem;
+                        box-shadow: 4px 0 24px rgba(0,0,0,0.12);
+                        border-radius: 0;
                     }
                     .sidebar-overlay {
                         position: absolute;
                         top: 0; left: 0; right: 0; bottom: 0;
-                        background: rgba(0,0,0,0.4);
+                        background: rgba(0,0,0,0.5);
                         z-index: 25;
-                        backdrop-filter: blur(2px);
-                        -webkit-backdrop-filter: blur(2px);
-                        border-radius: 1.5rem;
+                        backdrop-filter: blur(3px);
+                        -webkit-backdrop-filter: blur(3px);
                     }
                 }
                 @media (min-width: 769px) {
-                    .sidebar-overlay {
-                        display: none;
-                    }
+                    .sidebar-overlay { display: none; }
                     .messages-container {
                         justify-content: flex-start !important;
                         align-items: center !important;
@@ -1508,6 +1709,9 @@ const AgentPage = () => {
                         flex-wrap: wrap !important;
                         align-items: center !important;
                         justify-content: center !important;
+                    }
+                    .nav-menu-wrapper {
+                        display: none !important;
                     }
                 }
             `}</style>

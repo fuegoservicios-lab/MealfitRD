@@ -287,6 +287,12 @@
         display: flex;
         flex-direction: column;
     }
+
+    /* Hide DashboardLayout header when AgentPage manages its own */
+    .noPaddingMobile ~ .mobileHeader,
+    .mainWrapper:has(.noPaddingMobile) .mobileHeader {
+        display: none !important;
+    }
 }
 
 @media (max-width: 768px) {
