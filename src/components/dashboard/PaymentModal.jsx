@@ -6,10 +6,9 @@ import PropTypes from 'prop-types';
 const PaymentModal = ({ isOpen, onClose, onSuccess, price = "25.00", planName = "Suscripción Plus" }) => {
 
     // ⚠️ IMPORTANTE: 
-    // Cambia "sb" por tu CLIENT ID real de producción cuando estés listo.
-    // Puedes obtenerlo en: https://developer.paypal.com/dashboard/
+    // Usando el CLIENT ID real de producción (Live) de la cuenta de Angelo.
     const initialOptions = {
-        "client-id": "ASH9fFKh5vsUyXVFeLX3XFgueclSMNU6gb0xAX4a-iT7hJnTe6014ZP6MuVy-m67Ja6kBh6s90DvLu1h",
+        "client-id": "AX8mhl1HOizJC0A2RrmcEz61KYxDj9-j_mejBSv2D7-bemszv5zI8EMkYkIQAwicdCHjqAFlM2_p6Lgd",
         currency: "USD",
         intent: "capture",
         // "enable-funding": "card", // Fuerza la aparición de tarjeta si es necesario
