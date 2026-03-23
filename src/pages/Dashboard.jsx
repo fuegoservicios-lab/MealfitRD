@@ -67,8 +67,12 @@ const Dashboard = () => {
     }
 
     const handleNewPlan = () => {
-        setCurrentStep(0);
-        navigate('/assessment');
+        if (formData && formData.age && formData.mainGoal) {
+            navigate('/plan');
+        } else {
+            setCurrentStep(0);
+            navigate('/assessment');
+        }
     };
 
     // Cálculos para la UI de límites

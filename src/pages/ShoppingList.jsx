@@ -102,8 +102,22 @@ const ShoppingList = () => {
         localStorage.setItem('mealfit_shopping_checks', JSON.stringify(checkedItems));
     }, [checkedItems]);
 
-    // Estado para días a comprar
-    const [daysToShop, setDaysToShop] = useState(7);
+    // Estado para días a comprar, persistido
+    const [daysToShop, setDaysToShop] = useState(() => {
+        const saved = localStorage.getItem('mealfit_shopping_days');
+        if (saved) return parseInt(saved, 10);
+        
+        // Link to user's onboarding preference
+        if (planData?.form_data?.groceryDuration) {
+            if (planData.form_data.groceryDuration === 'biweekly') return 15;
+            if (planData.form_data.groceryDuration === 'monthly') return 30;
+        }
+        return 7;
+    });
+
+    useEffect(() => {
+        localStorage.setItem('mealfit_shopping_days', daysToShop.toString());
+    }, [daysToShop]);
 
     // Estado para ocultar completados
     const [hideCompleted, setHideCompleted] = useState(false);
@@ -244,12 +258,10 @@ const ShoppingList = () => {
                     const cat = parsed.category;
                     if (!categories[cat]) categories[cat] = { emoji: parsed.emoji || '🛒', items: [] };
                     
-                    let displayQty = parsed.qty || "";
-                    if (item.source === 'auto') {
-                        if (daysToShop === 1 && parsed.qty_1) displayQty = parsed.qty_1;
-                        if (daysToShop === 3 && parsed.qty_3) displayQty = parsed.qty_3;
-                        if (daysToShop === 7 && parsed.qty_7) displayQty = parsed.qty_7;
-                    }
+                    let displayQty = parsed.qty || item.qty || "";
+                    if (daysToShop === 7) displayQty = parsed.qty_7 || displayQty;
+                    if (daysToShop === 15) displayQty = parsed.qty_15 || parsed.qty_7 || displayQty;
+                    if (daysToShop === 30) displayQty = parsed.qty_30 || parsed.qty_15 || parsed.qty_7 || displayQty;
                     
                     const label = (displayQty && displayQty.trim() !== "") 
                         ? `${displayQty} ${parsed.name}` 
@@ -501,12 +513,11 @@ const ShoppingList = () => {
                             <div className="control-group">
                                 <span className="control-label">Días:</span>
                                 <div className="days-selector">
-                                    {[1, 3, 7].map(days => (
+                                    {[7, 15, 30].map(days => (
                                         <button
                                             key={days}
                                             onClick={() => {
                                                 setDaysToShop(days);
-                                                setCheckedItems({});
                                             }}
                                             className={`day-btn ${daysToShop === days ? 'active' : ''}`}
                                         >
