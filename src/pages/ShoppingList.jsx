@@ -473,6 +473,41 @@ const ShoppingList = () => {
         }
     };
 
+    const handleRegenerate = async () => {
+        if (!window.confirm('¿Estás seguro de regenerar? Esto borrará tu lista actual (y tus marcas de chequeo) para crear una nueva basada en tu plan.')) return;
+        
+        setIsGenerating(true);
+        // Desplazar arriba
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        try {
+            const autogenRes = await fetchWithAuth('/api/shopping/auto-generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, days: daysToShop, force: true })
+            });
+            const autogenData = await autogenRes.json();
+            
+            if (autogenData.success) {
+                setCustomItems(autogenData.items || []);
+                // Limpiar checkmarks viejos
+                const newChecked = {};
+                (autogenData.items || []).forEach(it => {
+                    newChecked[`custom-${it.id}`] = false;
+                });
+                setCheckedItems(newChecked);
+                toast.success('Lista re-generada exitosamente con tu nuevo plan. 🛒');
+            } else {
+                toast.error(autogenData.message || 'Error al regenerar lista');
+            }
+        } catch(e) {
+            console.error(e);
+            toast.error('Error al regenerar lista');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     return (
         <DashboardLayout>
             <div className="shopping-container">
@@ -481,14 +516,23 @@ const ShoppingList = () => {
                 {/* --- HEADER TITLE & PROGRESS --- */}
                 <div>
                     <div className="shopping-hero no-print">
-                        {/* PDF Download - floating in hero */}
-                        <button
-                            onClick={handleDownloadPDF}
-                            className="hero-pdf-btn no-print"
-                            title="Descargar PDF"
-                        >
-                            <Download size={18} />
-                        </button>
+                        {/* Regenerate & PDF Download - floating in hero for mobile */}
+                        <div className="hero-floating-actions no-print" style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', display: 'flex', gap: '0.5rem' }}>
+                            <button
+                                onClick={handleRegenerate}
+                                className="hero-pdf-btn"
+                                title="Regenerar Lista con el Plan Actual"
+                            >
+                                <RefreshCw size={18} />
+                            </button>
+                            <button
+                                onClick={handleDownloadPDF}
+                                className="hero-pdf-btn"
+                                title="Descargar PDF"
+                            >
+                                <Download size={18} />
+                            </button>
+                        </div>
                         
                         <div className="hero-icon-wrapper">
                             <ShoppingBag size={40} />
@@ -563,9 +607,17 @@ const ShoppingList = () => {
                                 </div>
                             )}
 
-                            {/* PDF button - desktop only (on mobile it's in the hero) */}
-                            <div className="hide-mobile control-group">
-                                <div style={{ width: '1px', height: '24px', background: '#E2E8F0' }} />
+                            {/* Regenerate and PDF buttons - desktop only (on mobile they're in the hero) */}
+                            <div className="hide-mobile control-group" style={{ display: 'flex', gap: '0.5rem' }}>
+                                <div style={{ width: '1px', height: '24px', background: '#E2E8F0', marginRight: '0.5rem' }} />
+                                <button
+                                    onClick={handleRegenerate}
+                                    className="hero-pdf-btn"
+                                    style={{ padding: '0.5rem 0.75rem', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '0.75rem', color: '#4F46E5', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+                                    title="Regenerar Lista"
+                                >
+                                    <RefreshCw size={16} /> Regenerar
+                                </button>
                                 <button
                                     onClick={handleDownloadPDF}
                                     className="btn-secondary"
