@@ -205,56 +205,60 @@ const Login = () => {
                                 </div>
                             </div>
 
-                            <div className={styles.formGroup}>
-                                <label className={styles.label}>Contraseña <span className={styles.requiredAsterisk}>*</span></label>
-                                <div className={styles.inputWrapper}>
-                                    <div className={styles.inputIcon}>
-                                        <Lock size={18} />
+                            {email.length > 0 && (
+                                <div className={styles.animateFadeIn}>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.label}>Contraseña <span className={styles.requiredAsterisk}>*</span></label>
+                                        <div className={styles.inputWrapper}>
+                                            <div className={styles.inputIcon}>
+                                                <Lock size={18} />
+                                            </div>
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                required
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                placeholder="••••••••"
+                                                className={styles.input}
+                                            />
+                                            <button
+                                                type="button"
+                                                className={styles.passwordToggle}
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                tabIndex="-1"
+                                            >
+                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                        </div>
                                     </div>
-                                    <input
-                                        type={showPassword ? "text" : "password"}
-                                        required
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="••••••••"
-                                        className={styles.input}
-                                    />
-                                    <button
-                                        type="button"
-                                        className={styles.passwordToggle}
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        tabIndex="-1"
-                                    >
-                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                    </button>
-                                </div>
-                            </div>
 
-                            <div className={styles.checkboxContainer}>
-                                <div className={styles.checkboxWrapper}>
-                                    <label className={styles.checkboxLabel}>
-                                        <input
-                                            type="checkbox"
-                                            checked={rememberMe}
-                                            onChange={(e) => setRememberMe(e.target.checked)}
-                                            className={styles.checkboxInput}
-                                        />
-                                        <div className={styles.customCheckbox}></div>
-                                        Recordarme
-                                    </label>
+                                    <div className={styles.checkboxContainer}>
+                                        <div className={styles.checkboxWrapper}>
+                                            <label className={styles.checkboxLabel}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={rememberMe}
+                                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                                    className={styles.checkboxInput}
+                                                />
+                                                <div className={styles.customCheckbox}></div>
+                                                Recordarme
+                                            </label>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setIsForgotPasswordMode(true);
+                                                setError(null);
+                                                setResetMessage(null);
+                                            }}
+                                            className={styles.forgotPasswordLink}
+                                        >
+                                            ¿Olvidaste tu contraseña?
+                                        </button>
+                                    </div>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setIsForgotPasswordMode(true);
-                                        setError(null);
-                                        setResetMessage(null);
-                                    }}
-                                    className={styles.forgotPasswordLink}
-                                >
-                                    ¿Olvidaste tu contraseña?
-                                </button>
-                            </div>
+                            )}
 
                             <button
                                 type="submit"

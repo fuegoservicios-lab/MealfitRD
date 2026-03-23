@@ -162,8 +162,8 @@ TrackingProgress.propTypes = {
 const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gradient, large }) => {
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1, minWidth: 'max-content' }}>
                     <div style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         width: large ? 32 : 28, height: large ? 32 : 28, borderRadius: '6px',
