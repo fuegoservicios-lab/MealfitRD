@@ -4,7 +4,7 @@ import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
     ShoppingCart, ArrowLeft, Download, Check, ChevronDown, Minus,
-    Leaf, Drumstick, Wheat, Milk, Archive, Circle, CheckCircle, ShoppingBag, Layers, X
+    Leaf, Drumstick, Wheat, Milk, Archive, Circle, CheckCircle, ShoppingBag, Layers, X, RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import html2pdf from 'html2pdf.js';
@@ -612,8 +612,8 @@ const ShoppingList = () => {
                                 <div style={{ width: '1px', height: '24px', background: '#E2E8F0', marginRight: '0.5rem' }} />
                                 <button
                                     onClick={handleRegenerate}
-                                    className="hero-pdf-btn"
-                                    style={{ padding: '0.5rem 0.75rem', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '0.75rem', color: '#4F46E5', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+                                    className="btn-secondary"
+                                    style={{ color: '#4F46E5', borderColor: '#C7D2FE', padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
                                     title="Regenerar Lista"
                                 >
                                     <RefreshCw size={16} /> Regenerar
