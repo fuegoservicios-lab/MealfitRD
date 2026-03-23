@@ -148,25 +148,17 @@ const ShoppingList = () => {
         let isMounted = true;
         
         const fetchAndConsolidate = async () => {
-            setLoadingCustom(true);
-            setIsGenerating(true);
-            
             try {
-                // 1. Trigger auto-generate (fast if cached by backend)
-                await fetchWithAuth('/api/shopping/auto-generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, days: daysToShop })
-                });
-                
-                // 2. Fetch the normalized list from the database
+                // 1. Fetch rápido de lo que ya existe en la DB (Optimistic UI)
                 const res = await fetchWithAuth(`/api/shopping/custom/${userId}`);
                 const data = await res.json();
                 
+                const hasExistingData = data.items && data.items.length > 0;
+                
                 if (isMounted) {
-                    setCustomItems(data.items || []);
-                    
-                    if (data.items && data.items.length > 0) {
+                    if (hasExistingData) {
+                        setCustomItems(data.items);
+                        // Cargar checkmarks inmediatamente
                         setCheckedItems(prev => {
                             const next = { ...prev };
                             data.items.forEach(it => {
@@ -179,19 +171,39 @@ const ShoppingList = () => {
                             });
                             return next;
                         });
+                        setLoadingCustom(false);
+                        setIsGenerating(false); // Ya tenemos data, no mostramos el loader gigante
+                    } else {
+                        // Si no hay data previa, sí mostramos el loader de IA
+                        setIsGenerating(true);
+                        setLoadingCustom(true);
                     }
                 }
+
+                // 2. Trigger auto-generate en el background (sincronizará el backend si el plan cambió)
+                // Esto devolverá cached: true súper rápido si no hay cambios.
+                const autogenRes = await fetchWithAuth('/api/shopping/auto-generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, days: daysToShop })
+                });
+                
+                const autogenData = await autogenRes.json();
+                
+                if (isMounted) {
+                    // Si el backend efectivamente regeneró una nueva lista por la IA (cached false)
+                    // o si nunca tuvimos data al inicio, actualizamos el UI con la lista final fresca.
+                    if (autogenData.success && (!hasExistingData || autogenData.cached === false)) {
+                        setCustomItems(autogenData.items || []);
+                        
+                        if (autogenData.cached === false && hasExistingData) {
+                            toast.success('Lista actualizada a tu nuevo plan automáticamante. 🛒');
+                        }
+                    }
+                }
+
             } catch (err) {
                 console.error('Error in auto-generation flow:', err);
-                if (isMounted) {
-                    try {
-                        const fallbackRes = await fetchWithAuth(`/api/shopping/custom/${userId}`);
-                        const fallbackData = await fallbackRes.json();
-                        if (isMounted) setCustomItems(fallbackData.items || []);
-                    } catch(e) {
-                         console.error('Fallback fetch failed:', e);
-                    }
-                }
             } finally {
                 if (isMounted) {
                     setLoadingCustom(false);
