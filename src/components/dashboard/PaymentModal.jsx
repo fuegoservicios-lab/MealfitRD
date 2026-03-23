@@ -3,7 +3,7 @@ import { X, ShieldCheck, CreditCard } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import PropTypes from 'prop-types';
 
-const PaymentModal = ({ isOpen, onClose, onSuccess, price = "18.00" }) => {
+const PaymentModal = ({ isOpen, onClose, onSuccess, price = "25.00", planName = "Suscripción Plus" }) => {
 
     // ⚠️ IMPORTANTE: 
     // Cambia "sb" por tu CLIENT ID real de producción cuando estés listo.
@@ -90,11 +90,11 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, price = "18.00" }) => {
                             <CreditCard size={32} />
                         </div>
                         <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1E293B', marginBottom: '0.5rem', lineHeight: 1.2 }}>
-                            Suscripción Plus
+                            {planName}
                         </h2>
                         <p style={{ color: '#64748B', fontSize: '0.95rem', lineHeight: 1.5 }}>
                             Desbloquea generaciones ilimitadas por solo <br />
-                            <strong style={{ color: '#0F172A', fontSize: '1.1rem' }}>RD$999 / mes</strong> <span style={{ fontSize: '0.8rem' }}>(aprox. ${price} USD)</span>
+                            <strong style={{ color: '#0F172A', fontSize: '1.1rem' }}>${price} USD / mes</strong>
                         </p>
                     </div>
 
@@ -111,7 +111,7 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, price = "18.00" }) => {
                                 createOrder={(data, actions) => {
                                     return actions.order.create({
                                         purchase_units: [{
-                                            description: "MealfitRD Plan Plus (Mensual)",
+                                            description: `MealfitRD ${planName} (Mensual)`,
                                             amount: { value: price }
                                         }]
                                     });
@@ -164,7 +164,9 @@ PaymentModal.propTypes = {
     isOpen: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired,
     onSuccess: PropTypes.func.isRequired,
-    price: PropTypes.string
+    price: PropTypes.string,
+    planName: PropTypes.string,
+    tier: PropTypes.string
 };
 
 export default PaymentModal;

@@ -13,16 +13,19 @@ const Pricing = () => {
         PLAN_LIMIT,
         remainingCredits,
         planData,
-        upgradeUserToPlus,
+        upgradeUserPlan,
         userProfile
     } = useAssessment();
 
     // Estado para controlar la visibilidad del Modal de Pago
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+    const [selectedPlan, setSelectedPlan] = useState(null);
 
     // Lógica para determinar el estado del usuario
     const hasStarted = !!planData; // Si ya generó al menos un plan
-    const isPlus = userProfile?.plan_tier === 'plus'; // Si ya pagó
+    const isPlus = userProfile?.plan_tier === 'plus'; // Si ya es plus
+    const isUltra = userProfile?.plan_tier === 'ultra'; // Si ya es ultra
+    const hasActivePlan = isPlus || isUltra; // Si tiene algún plan pago
 
     // Manejador del botón Plan Gratis
     const handleFreePlanClick = () => {
@@ -34,22 +37,23 @@ const Pricing = () => {
         }
     };
 
-    // Manejador del botón Plan Plus
-    const handleUpgradeClick = () => {
-        if (isPlus) {
+    // Manejador del botón Planes Pagos
+    const handleUpgradeClick = (tier, price, name) => {
+        if (userProfile?.plan_tier === tier || (userProfile?.plan_tier === 'ultra' && tier === 'plus')) {
             window.scrollTo(0, 0);
-            // Si ya es Plus, lo llevamos a Mi Plan
+            // Si ya tiene este plan o uno superior, lo llevamos a su panel
             navigate('/dashboard');
             return;
         }
-        // Si no es Plus, abrimos la pasarela de pago
+        // Si no, preparamos los datos y abrimos la pasarela
+        setSelectedPlan({ tier, price, name });
         setIsPaymentOpen(true);
     };
 
     // Callback que se ejecuta cuando PayPal confirma el pago exitoso
-    const handlePaymentSuccess = async () => {
+    const handlePaymentSuccess = async (tier) => {
         setIsPaymentOpen(false); // Cerramos modal
-        await upgradeUserToPlus(); // Actualizamos la base de datos y el estado local
+        await upgradeUserPlan(tier); // Actualizamos la base de datos y el estado local
         navigate('/dashboard'); // Redirigimos al panel principal
     };
 
@@ -60,8 +64,10 @@ const Pricing = () => {
             <PaymentModal
                 isOpen={isPaymentOpen}
                 onClose={() => setIsPaymentOpen(false)}
-                onSuccess={handlePaymentSuccess}
-                price="18.00" // Precio en USD para PayPal (aprox RD$999)
+                onSuccess={() => handlePaymentSuccess(selectedPlan?.tier)}
+                price={selectedPlan?.price || "25.00"}
+                planName={selectedPlan?.name || "Suscripción Plus"}
+                tier={selectedPlan?.tier || "plus"}
             />
 
             <div className={styles.container}>
@@ -98,7 +104,7 @@ const Pricing = () => {
                                 className={styles.btnOutline}
                                 onClick={handleFreePlanClick}
                             >
-                                {isPlus
+                                {hasActivePlan
                                     ? "Ir al Panel"
                                     : (hasStarted
                                         ? `Créditos: ${remainingCredits}/${PLAN_LIMIT}`
@@ -135,9 +141,9 @@ const Pricing = () => {
 
                             <button
                                 className={styles.btnPrimary}
-                                onClick={handleUpgradeClick}
+                                onClick={() => handleUpgradeClick('plus', '25.00', 'Suscripción Plus')}
                             >
-                                {isPlus ? "Tu Plan Actual" : "Cambiar a Plus"}
+                                {isPlus ? "Tu Plan Actual" : isUltra ? "Ir al Panel" : "Cambiar a Plus"}
                             </button>
                         </div>
                     </div>
@@ -167,9 +173,9 @@ const Pricing = () => {
 
                             <button
                                 className={styles.btnOutline}
-                                onClick={handleUpgradeClick}
+                                onClick={() => handleUpgradeClick('ultra', '75.00', 'Suscripción Ultra Ilimitado')}
                             >
-                                Cambiar a Ultra
+                                {isUltra ? "Tu Plan Actual" : "Cambiar a Ultra"}
                             </button>
                         </div>
                     </div>

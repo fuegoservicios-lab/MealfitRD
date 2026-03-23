@@ -685,23 +685,26 @@ export const AssessmentProvider = ({ children }) => {
         setLoadingData(false);
     };
 
-    const upgradeUserToPlus = async () => {
+    const upgradeUserPlan = async (tier = 'plus') => {
         try {
             const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
             if (!userId) throw new Error("No user ID");
-            console.log("💳 Procesando actualización a Plus...");
+            console.log(`💳 Procesando actualización a ${tier}...`);
             const { error } = await supabase
                 .from('user_profiles')
                 .update({
-                    plan_tier: 'plus',
+                    plan_tier: tier,
                     updated_at: new Date()
                 })
                 .eq('id', userId);
             if (error) throw error;
-            setUserProfile(prev => ({ ...prev, plan_tier: 'plus' }));
+            setUserProfile(prev => ({ ...prev, plan_tier: tier }));
             await checkPlanLimit(userId);
-            toast.success('¡Bienvenido a Mealfit Plus!', {
-                description: 'Has desbloqueado acceso ilimitado.',
+            
+            const planName = tier === 'ultra' ? 'Mealfit Ultra Ilimitado' : 'Mealfit Plus';
+            
+            toast.success(`¡Bienvenido a ${planName}!`, {
+                description: 'Has desbloqueado acceso premium.',
                 duration: 5000,
                 icon: '🌟'
             });
@@ -746,7 +749,7 @@ export const AssessmentProvider = ({ children }) => {
             checkPlanLimit,
             isPlus,
             remainingCredits: typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : '∞',
-            upgradeUserToPlus,
+            upgradeUserPlan,
             restorePlan,
             refreshProfileAndPlan
         }}>
