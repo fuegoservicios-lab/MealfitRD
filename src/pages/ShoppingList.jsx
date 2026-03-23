@@ -135,8 +135,8 @@ const ShoppingList = () => {
 
     // Estado para items custom añadidos por la IA
     const [customItems, setCustomItems] = useState([]);
-    const [loadingCustom, setLoadingCustom] = useState(false);
-    const [isGenerating, setIsGenerating] = useState(false);
+    const [loadingCustom, setLoadingCustom] = useState(true); // Inicialmente cargando la DB
+    const [isGenerating, setIsGenerating] = useState(false); // La IA arranca falsa, a menos que la DB esté vacía
 
     // Obtener userId para el fetch
     const userId = typeof window !== 'undefined' ? localStorage.getItem('mealfit_user_id') : null;
@@ -579,8 +579,8 @@ const ShoppingList = () => {
                     {/* --- CONTENT LIST --- */}
                     <div className="categories-grid">
                         
-                        {/* 0. MODO CARGA: Si estamos consolidando o cargando, mostramos un spinner para evitar que la lista cruda parpadee */}
-                        {(isGenerating || loadingCustom) ? (
+                        {/* 0. MODO CARGA IA */}
+                        {isGenerating ? (
                             <div style={{ columnSpan: 'all', WebkitColumnSpan: 'all', width: '100%', textAlign: 'center', padding: '6rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                                 <div style={{ background: '#EEF2FF', width: 80, height: 80, borderRadius: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: '#4F46E5', boxShadow: '0 4px 20px rgba(79, 70, 229, 0.15)' }}>
                                     <ShoppingCart size={36} className="spin-slow" />
@@ -591,6 +591,13 @@ const ShoppingList = () => {
                                 <p style={{ color: '#64748B', maxWidth: '400px', margin: '0 auto', fontSize: '1.05rem', lineHeight: 1.5 }}>
                                     La Inteligencia Artificial está unificando y ordenando tus ingredientes para hacer tus compras más fáciles.
                                 </p>
+                            </div>
+                        ) : loadingCustom ? (
+                            /* Loader silencioso inicial de base de datos (evita flashes de lista flat) */
+                            <div style={{ columnSpan: 'all', width: '100%', textAlign: 'center', padding: '6rem 1rem' }}>
+                                <div className="spin-slow" style={{ color: '#CBD5E1', display: 'inline-block' }}>
+                                    <ShoppingCart size={32} />
+                                </div>
                             </div>
                         ) : hasAIList ? (
                             <>
