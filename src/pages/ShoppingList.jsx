@@ -519,13 +519,6 @@ const ShoppingList = () => {
                         {/* Regenerate & PDF Download - floating in hero for mobile */}
                         <div className="hero-floating-actions no-print" style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', display: 'flex', gap: '0.5rem' }}>
                             <button
-                                onClick={handleRegenerate}
-                                className="hero-pdf-btn"
-                                title="Regenerar Lista con el Plan Actual"
-                            >
-                                <RefreshCw size={18} />
-                            </button>
-                            <button
                                 onClick={handleDownloadPDF}
                                 className="hero-pdf-btn"
                                 title="Descargar PDF"
@@ -610,14 +603,6 @@ const ShoppingList = () => {
                             {/* Regenerate and PDF buttons - desktop only (on mobile they're in the hero) */}
                             <div className="hide-mobile control-group" style={{ display: 'flex', gap: '0.5rem' }}>
                                 <div style={{ width: '1px', height: '24px', background: '#E2E8F0', marginRight: '0.5rem' }} />
-                                <button
-                                    onClick={handleRegenerate}
-                                    className="btn-secondary"
-                                    style={{ color: '#4F46E5', borderColor: '#C7D2FE', padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
-                                    title="Regenerar Lista"
-                                >
-                                    <RefreshCw size={16} /> Regenerar
-                                </button>
                                 <button
                                     onClick={handleDownloadPDF}
                                     className="btn-secondary"
