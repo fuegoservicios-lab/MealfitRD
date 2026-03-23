@@ -619,23 +619,23 @@ const ShoppingList = () => {
                         {/* 0. MODO CARGA IA */}
                         {isGenerating ? (
                             <div style={{ columnSpan: 'all', WebkitColumnSpan: 'all', width: '100%', textAlign: 'center', padding: '6rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                                <div style={{ background: '#EEF2FF', width: 80, height: 80, borderRadius: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: '#4F46E5', boxShadow: '0 4px 20px rgba(79, 70, 229, 0.15)' }}>
-                                    <ShoppingCart size={36} className="spin-slow" />
+                                <div style={{ background: '#EEF2FF', width: 120, height: 120, borderRadius: '3rem', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: '#4F46E5', boxShadow: '0 8px 30px rgba(79, 70, 229, 0.25)' }}>
+                                    <ShoppingCart size={64} className="spin-slow" strokeWidth={2} />
                                 </div>
-                                <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1E293B', margin: '0 0 0.5rem 0', letterSpacing: '-0.02em' }}>
+                                <h3 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#1E293B', margin: '0 0 0.5rem 0', letterSpacing: '-0.02em' }}>
                                     Consolidando tu lista...
                                 </h3>
-                                <p style={{ color: '#64748B', maxWidth: '400px', margin: '0 auto', fontSize: '1.05rem', lineHeight: 1.5 }}>
+                                <p style={{ color: '#64748B', maxWidth: '400px', margin: '0 auto', fontSize: '1.1rem', lineHeight: 1.5 }}>
                                     La Inteligencia Artificial está unificando y ordenando tus ingredientes para hacer tus compras más fáciles.
                                 </p>
                             </div>
                         ) : loadingCustom ? (
                             /* Loader silencioso inicial de base de datos */
                             <div style={{ columnSpan: 'all', width: '100%', textAlign: 'center', padding: '8rem 1rem' }}>
-                                <div className="spin-slow" style={{ color: '#4F46E5', display: 'inline-block', opacity: 0.8, filter: 'drop-shadow(0 4px 6px rgba(79,70,229,0.2))' }}>
-                                    <ShoppingCart size={48} strokeWidth={1.5} />
+                                <div className="spin-slow" style={{ color: '#4F46E5', display: 'inline-block', opacity: 0.8, filter: 'drop-shadow(0 6px 12px rgba(79,70,229,0.3))' }}>
+                                    <ShoppingCart size={80} strokeWidth={1.5} />
                                 </div>
-                                <div style={{ marginTop: '1rem', color: '#64748B', fontSize: '0.95rem', fontWeight: '500' }}>Cargando tus ingredientes...</div>
+                                <div style={{ marginTop: '1.5rem', color: '#64748B', fontSize: '1.1rem', fontWeight: '500' }}>Cargando tus ingredientes...</div>
                             </div>
                         ) : hasAIList ? (
                             <>
