@@ -645,11 +645,12 @@ const ShoppingList = () => {
                                 </p>
                             </div>
                         ) : loadingCustom ? (
-                            /* Loader silencioso inicial de base de datos (evita flashes de lista flat) */
-                            <div style={{ columnSpan: 'all', width: '100%', textAlign: 'center', padding: '6rem 1rem' }}>
-                                <div className="spin-slow" style={{ color: '#CBD5E1', display: 'inline-block' }}>
-                                    <ShoppingCart size={32} />
+                            /* Loader silencioso inicial de base de datos */
+                            <div style={{ columnSpan: 'all', width: '100%', textAlign: 'center', padding: '8rem 1rem' }}>
+                                <div className="spin-slow" style={{ color: '#4F46E5', display: 'inline-block', opacity: 0.8, filter: 'drop-shadow(0 4px 6px rgba(79,70,229,0.2))' }}>
+                                    <ShoppingCart size={48} strokeWidth={1.5} />
                                 </div>
+                                <div style={{ marginTop: '1rem', color: '#64748B', fontSize: '0.95rem', fontWeight: '500' }}>Cargando tus ingredientes...</div>
                             </div>
                         ) : hasAIList ? (
                             <>
