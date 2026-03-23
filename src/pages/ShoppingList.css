@@ -87,9 +87,6 @@
 
 /* PDF download button floating in hero */
 .hero-pdf-btn {
-    position: absolute;
-    top: 1.25rem;
-    right: 1.25rem;
     z-index: 2;
     width: 40px;
     height: 40px;

@@ -517,7 +517,7 @@ const ShoppingList = () => {
                 <div>
                     <div className="shopping-hero no-print">
                         {/* Regenerate & PDF Download - floating in hero for mobile */}
-                        <div className="hero-floating-actions no-print" style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', display: 'flex', gap: '0.5rem' }}>
+                        <div className="hero-floating-actions no-print" style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', display: 'flex', gap: '0.5rem' }}>
                             <button
                                 onClick={handleDownloadPDF}
                                 className="hero-pdf-btn"
