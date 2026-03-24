@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import PropTypes from 'prop-types';
 
@@ -43,7 +43,7 @@ const generateAIPlan = async (formData) => {
 
     globalGenerationPromise = (async () => {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 150000);
+        const timeoutId = setTimeout(() => controller.abort(), 360000); // 6 minutos para permitir el bucle de revisión médica (Intento #2)
 
         try {
             const response = await fetchWithRetry(API_URL, {
@@ -169,6 +169,8 @@ const Plan = () => {
     const [status, setStatus] = useState('analyzing');
     const [planData, setPlanData] = useState(null);
     const navigate = useNavigate();
+    const location = useLocation();
+    const previousMeals = location.state?.previousMeals || [];
 
     // 2. USEEFFECT
     useEffect(() => {
@@ -206,11 +208,12 @@ const Plan = () => {
                     localStorage.setItem('mealfit_guest_session_id', guestSessionId);
                 }
 
-                // AQUÍ ESTÁ EL CAMBIO APLICADO: Agregamos session_id validos
+                // AQUÍ ESTÁ EL CAMBIO APLICADO: Agregamos session_id validos y previousMeals
                 const dataToSend = {
                     ...formData,
                     user_id: userId, // Siempre es un UUID válido o null
-                    session_id: userId || guestSessionId // Siempre es un UUID válido
+                    session_id: userId || guestSessionId, // Siempre es un UUID válido
+                    previous_meals: previousMeals
                 };
 
                 console.log("🧠 Enviando solicitud al cerebro IA para usuario:", userId);

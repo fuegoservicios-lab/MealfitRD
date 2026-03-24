@@ -68,7 +68,16 @@ const Dashboard = () => {
 
     const handleNewPlan = () => {
         if (formData && formData.age && formData.mainGoal) {
-            navigate('/plan');
+            let previousMeals = [];
+            if (planData) {
+                const planDaysToCheck = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
+                planDaysToCheck.forEach(day => {
+                    day.meals.forEach(meal => {
+                        if (meal && meal.name) previousMeals.push(meal.name);
+                    });
+                });
+            }
+            navigate('/plan', { state: { previousMeals } });
         } else {
             setCurrentStep(0);
             navigate('/assessment');
