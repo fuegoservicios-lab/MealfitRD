@@ -321,7 +321,7 @@ const StepPreferences = () => {
                             {/* Descripción explicativa sobre la reserva de calorías */}
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                                 Marca esto si comes lo que cocinen en tu casa (La Bandera, etc).
-                                La IA planificará desayunos y cenas más ligeros para dejar espacio a esas calorías.
+                                Podrás enviarle mensajes o fotos a tu Agente IA indicando lo que almorzaste para registrarlo.
                             </div>
                         </div>
                     </div>
