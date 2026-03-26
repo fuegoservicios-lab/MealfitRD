@@ -307,6 +307,28 @@ const ShoppingList = () => {
 
     }, [planData, daysToShop, customItems.length]);
 
+    const scaleQuantityString = (str, factor) => {
+        if (!str) return str;
+        let pStr = str.trim();
+        const lStr = pStr.toLowerCase();
+        if (lStr.startsWith('media ') || lStr.startsWith('medio ')) pStr = pStr.replace(/^(media|medio)\s+/i, '0.5 ');
+        else if (lStr.startsWith('un ') || lStr.startsWith('una ')) pStr = pStr.replace(/^(un|una)\s+/i, '1 ');
+        else if (lStr.startsWith('dos ')) pStr = pStr.replace(/^dos\s+/i, '2 ');
+        
+        return pStr.replace(/^([\d.,]+)(.*)/, (match, numbStr, rest) => {
+            let num = parseFloat(numbStr.replace(',', '.'));
+            if (isNaN(num)) return match;
+            let newNum = num * factor;
+            let formatted = newNum % 1 === 0 ? newNum.toString() : (Math.round(newNum * 10) / 10).toString().replace('.', ',');
+            // Ensure there is a space if the rest of the string starts with a letter, but not if it's already spaced
+            let spacedRest = rest;
+            if (rest.length > 0 && !rest.startsWith(' ') && /[a-zA-Z]/.test(rest.charAt(0))) {
+                spacedRest = ' ' + rest;
+            }
+            return formatted + spacedRest;
+        });
+    };
+
     // Procesar items custom (IA JSON vs legacy)
     const customStructured = useMemo(() => {
         const categories = {};
@@ -320,9 +342,15 @@ const ShoppingList = () => {
                     if (!categories[cat]) categories[cat] = { emoji: parsed.emoji || '🛒', items: [] };
                     
                     let displayQty = parsed.qty || item.qty || "";
-                    if (daysToShop === 7) displayQty = parsed.qty_7 || displayQty;
-                    if (daysToShop === 15) displayQty = parsed.qty_15 || parsed.qty_7 || displayQty;
-                    if (daysToShop === 30) displayQty = parsed.qty_30 || parsed.qty_15 || parsed.qty_7 || displayQty;
+                    if (daysToShop === 7) {
+                        displayQty = parsed.qty_7 || displayQty;
+                    } else if (daysToShop === 15) {
+                        displayQty = parsed.qty_15 || parsed.qty_7 || displayQty;
+                        if (!parsed.qty_15 && displayQty) displayQty = scaleQuantityString(displayQty, 2);
+                    } else if (daysToShop === 30) {
+                        displayQty = parsed.qty_30 || parsed.qty_15 || parsed.qty_7 || displayQty;
+                        if (!parsed.qty_30 && displayQty) displayQty = scaleQuantityString(displayQty, 4);
+                    }
                     
                     const label = (displayQty && displayQty.trim() !== "") 
                         ? `${displayQty} ${parsed.name}` 
