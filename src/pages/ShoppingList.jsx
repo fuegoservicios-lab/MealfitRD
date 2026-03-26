@@ -13,6 +13,7 @@ import { fetchWithAuth } from '../config/api';
 
 // IMPORTAMOS EL GENERADOR
 import { generateShoppingListFromPlan } from '../services/shoppingGenerator';
+import { supabase } from '../supabase';
 
 // NUEVOS ESTILOS
 import './ShoppingList.css';
@@ -140,6 +141,54 @@ const ShoppingList = () => {
 
     // Obtener userId para el fetch
     const userId = typeof window !== 'undefined' ? localStorage.getItem('mealfit_user_id') : null;
+
+    // --- SUPABASE REALTIME (WebSockets) ---
+    useEffect(() => {
+        if (!userId || userId === 'guest') return;
+
+        const channel = supabase
+            .channel('shopping_list_changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*', // INSERT, UPDATE, DELETE
+                    schema: 'public',
+                    table: 'custom_shopping_items',
+                    filter: `user_id=eq.${userId}`
+                },
+                (payload) => {
+                    console.log('🛒 Realtime update received:', payload);
+                    
+                    if (payload.eventType === 'INSERT') {
+                        setCustomItems(prev => {
+                            // Prevenir duplicidad si el componente ya lo tiene
+                            if (prev.some(item => item.id === payload.new.id)) return prev;
+                            return [payload.new, ...prev]; // Añadir al inicio o final, la DB usará order by pero en real-time lo inyectamos
+                        });
+                    } else if (payload.eventType === 'DELETE') {
+                        setCustomItems(prev => prev.filter(item => item.id !== payload.old.id));
+                    } else if (payload.eventType === 'UPDATE') {
+                        setCustomItems(prev => prev.map(item => item.id === payload.new.id ? payload.new : item));
+                        
+                        // Sincronizar checkmarks opcionalmente
+                        try {
+                            const parsed = typeof payload.new.item_name === 'string' ? JSON.parse(payload.new.item_name) : null;
+                            if (parsed && typeof parsed === 'object' && parsed.is_checked !== undefined) {
+                                setCheckedItems(prevChecks => ({
+                                    ...prevChecks,
+                                    [`custom-${payload.new.id}`]: parsed.is_checked
+                                }));
+                            }
+                        } catch(e) {}
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [userId]);
 
     // Auto-consolida y hace fetch de custom shopping items al montar
     useEffect(() => {

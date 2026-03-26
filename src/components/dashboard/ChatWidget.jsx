@@ -448,7 +448,7 @@ const ChatWidget = () => {
                                     onMouseOut={e => { if (currentSessionId !== s.id) e.currentTarget.style.borderColor = '#E2E8F0'; }}
                                 >
                                     <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1E293B' }}>
-                                        {s.title}
+                                        {s.title ? s.title.replace(/\[?\(Hora actual del usuario:.*?\)?\]?/gi, '').replace(/Mensaje del usuario:\s*/gi, '').trim() || 'Nuevo chat' : 'Nuevo chat'}
                                     </span>
                                     <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
                                         {new Date(s.created_at).toLocaleDateString()} {new Date(s.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}

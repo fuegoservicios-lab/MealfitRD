@@ -1155,7 +1155,7 @@ const AgentPage = () => {
                                                 }} />
                                             </div>
                                         ) : (
-                                            s.title
+                                            s.title ? s.title.replace(/\[?\(Hora actual del usuario:.*?\)?\]?/gi, '').replace(/Mensaje del usuario:\s*/gi, '').trim() || 'Nuevo chat' : 'Nuevo chat'
                                         )}
                                     </span>
                                 </button>
