@@ -5,10 +5,25 @@ import { Check } from 'lucide-react';
 import styles from './Pricing.module.css';
 import PaymentModal from '../../components/dashboard/PaymentModal';
 
+// --- Configuración de precios ---
+const PRICING = {
+    basic: {
+        monthly: { price: '9.99', label: '/mes' },
+        annual:  { price: '89.99', label: '/año', monthlyEquiv: '7.50' },
+    },
+    plus: {
+        monthly: { price: '19.99', label: '/mes' },
+        annual:  { price: '179.99', label: '/año', monthlyEquiv: '15.00' },
+    },
+    ultra: {
+        monthly: { price: '49.99', label: '/mes' },
+        annual:  { price: '449.99', label: '/año', monthlyEquiv: '37.50' },
+    },
+};
+
 const Pricing = () => {
     const navigate = useNavigate();
 
-    // Obtenemos datos y funciones del Contexto Global
     const {
         PLAN_LIMIT,
         remainingCredits,
@@ -17,15 +32,28 @@ const Pricing = () => {
         userProfile
     } = useAssessment();
 
-    // Estado para controlar la visibilidad del Modal de Pago
+    // Estado para controlar billing period y modal
+    const [billingPeriod, setBillingPeriod] = useState('monthly'); // 'monthly' | 'annual'
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState(null);
 
+    const isAnnual = billingPeriod === 'annual';
+
     // Lógica para determinar el estado del usuario
-    const hasStarted = !!planData; // Si ya generó al menos un plan
-    const isPlus = userProfile?.plan_tier === 'plus'; // Si ya es plus
-    const isUltra = userProfile?.plan_tier === 'ultra'; // Si ya es ultra
-    const hasActivePlan = isPlus || isUltra; // Si tiene algún plan pago
+    const hasStarted = !!planData;
+    const currentTier = userProfile?.plan_tier || 'gratis';
+    const isBasic = currentTier === 'basic';
+    const isPlus = currentTier === 'plus';
+    const isUltra = currentTier === 'ultra';
+    const hasActivePlan = isBasic || isPlus || isUltra;
+
+    // Jerarquía de planes
+    const tierRank = { gratis: 0, basic: 1, plus: 2, ultra: 3, admin: 4 };
+    const currentRank = tierRank[currentTier] || 0;
+
+    // Helper: obtener precio actual según billing period
+    const getPrice = (tier) => PRICING[tier]?.[billingPeriod]?.price || '0';
+    const getPeriodLabel = (tier) => PRICING[tier]?.[billingPeriod]?.label || '';
 
     // Manejador del botón Plan Gratis
     const handleFreePlanClick = () => {
@@ -38,36 +66,46 @@ const Pricing = () => {
     };
 
     // Manejador del botón Planes Pagos
-    const handleUpgradeClick = (tier, price, name) => {
-        if (userProfile?.plan_tier === tier || (userProfile?.plan_tier === 'ultra' && tier === 'plus')) {
+    const handleUpgradeClick = (tier, name) => {
+        const targetRank = tierRank[tier] || 0;
+
+        if (targetRank <= currentRank) {
             window.scrollTo(0, 0);
-            // Si ya tiene este plan o uno superior, lo llevamos a su panel
             navigate('/dashboard');
             return;
         }
-        // Si no, preparamos los datos y abrimos la pasarela
-        setSelectedPlan({ tier, price, name });
+        const price = getPrice(tier);
+        const periodSuffix = isAnnual ? ' (Anual)' : ' (Mensual)';
+        setSelectedPlan({ tier, price, name: name + periodSuffix });
         setIsPaymentOpen(true);
     };
 
     // Callback que se ejecuta cuando PayPal confirma el pago exitoso
     const handlePaymentSuccess = async (tier) => {
-        setIsPaymentOpen(false); // Cerramos modal
-        await upgradeUserPlan(tier); // Actualizamos la base de datos y el estado local
-        navigate('/dashboard'); // Redirigimos al panel principal
+        setIsPaymentOpen(false);
+        await upgradeUserPlan(tier);
+        navigate('/dashboard');
+    };
+
+    // Texto del botón según estado del usuario
+    const getButtonText = (tier) => {
+        const targetRank = tierRank[tier] || 0;
+        if (currentTier === tier) return "Tu Plan Actual";
+        if (targetRank < currentRank) return "Ir al Panel";
+        return `Cambiar a ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
     };
 
     return (
         <section className={styles.pricing}>
 
-            {/* --- COMPONENTE DEL MODAL DE PAGO --- */}
+            {/* --- MODAL DE PAGO --- */}
             <PaymentModal
                 isOpen={isPaymentOpen}
                 onClose={() => setIsPaymentOpen(false)}
                 onSuccess={() => handlePaymentSuccess(selectedPlan?.tier)}
-                price={selectedPlan?.price || "25.00"}
-                planName={selectedPlan?.name || "Suscripción Plus"}
-                tier={selectedPlan?.tier || "plus"}
+                price={selectedPlan?.price || "9.99"}
+                planName={selectedPlan?.name || "Suscripción Básico"}
+                tier={selectedPlan?.tier || "basic"}
             />
 
             <div className={styles.container}>
@@ -78,6 +116,23 @@ const Pricing = () => {
                     <p className={styles.subtitle}>
                         Comienza gratis y desbloquea todo el potencial de la IA.
                     </p>
+
+                    {/* --- TOGGLE MENSUAL / ANUAL --- */}
+                    <div className={styles.billingToggle}>
+                        <button
+                            className={`${styles.toggleOption} ${!isAnnual ? styles.toggleActive : ''}`}
+                            onClick={() => setBillingPeriod('monthly')}
+                        >
+                            Mensual
+                        </button>
+                        <button
+                            className={`${styles.toggleOption} ${isAnnual ? styles.toggleActive : ''}`}
+                            onClick={() => setBillingPeriod('annual')}
+                        >
+                            Anual
+                            <span className={styles.discountBadge}>-25%</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div className={styles.grid}>
@@ -91,7 +146,7 @@ const Pricing = () => {
                                 <span className={styles.amount}>0</span>
                             </div>
                             <p className={styles.description}>
-                                Descubre el poder de nuestra IA: crea planes nutricionales personalizados, genera listas de compras y ajusta tus comidas (Límite de {PLAN_LIMIT} créditos totales).
+                                Ideal para probar la plataforma. Planes y recetas con IA incluidos.
                             </p>
 
                             <ul className={styles.features}>
@@ -114,41 +169,71 @@ const Pricing = () => {
                         </div>
                     </div>
 
-                    {/* --- TARJETA 2: PLUS (MÁS POPULAR) --- */}
+                    {/* --- TARJETA 2: BÁSICO --- */}
+                    <div className={styles.card}>
+                        <div className={styles.cardContent}>
+                            <h3 className={styles.planName}>Básico</h3>
+                            <div className={styles.price}>
+                                <span className={styles.currency}>USD$</span>
+                                <span className={styles.amount}>{getPrice('basic')}</span>
+                                <span className={styles.period}>{getPeriodLabel('basic')}</span>
+                            </div>
+
+                            <p className={styles.description}>
+                                Más créditos, asistente experto y memoria de IA que aprende de ti.
+                            </p>
+
+                            <ul className={styles.features}>
+                                <li><Check size={18} className={styles.check} /> <strong>50 Créditos al mes</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Asistente Experto Nutricional</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Memoria a Largo Plazo</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Aprendizaje Continuo</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Gratis</strong></li>
+                                <li><Check size={18} className={styles.check} /> Soporte Prioritario</li>
+                            </ul>
+
+                            <button
+                                className={styles.btnOutline}
+                                onClick={() => handleUpgradeClick('basic', 'Suscripción Básico')}
+                            >
+                                {getButtonText('basic')}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* --- TARJETA 3: PLUS (MÁS POPULAR) --- */}
                     <div className={`${styles.card} ${styles.popular}`}>
                         <div className={styles.popularBadge}>Más Popular</div>
                         <div className={styles.cardContent}>
                             <h3 className={styles.planName}>Plus</h3>
                             <div className={styles.price}>
                                 <span className={styles.currency}>USD$</span>
-                                <span className={styles.amount}>25</span>
-                                <span className={styles.period}>/mes</span>
+                                <span className={styles.amount}>{getPrice('plus')}</span>
+                                <span className={styles.period}>{getPeriodLabel('plus')}</span>
                             </div>
+
                             <p className={styles.description}>
-                                Sube al siguiente nivel. Obtén suficientes créditos para realizar cientos de ajustes o generaciones durante el mes.
+                                Para quienes buscan resultados serios. Ajustes ilimitados y macros exactos.
                             </p>
 
                             <ul className={styles.features}>
-                                <li><Check size={18} className={styles.check} /> <strong>200 Créditos</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Asistente Experto Nutricional</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Aprendizaje Continuo</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Memoria a Largo Plazo</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>200 Créditos al mes</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Analizador de Macros Exacto</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Progreso en Tiempo Real</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Gratis</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Básico</strong></li>
                                 <li><Check size={18} className={styles.check} /> Soporte Prioritario</li>
                             </ul>
 
                             <button
                                 className={styles.btnPrimary}
-                                onClick={() => handleUpgradeClick('plus', '25.00', 'Suscripción Plus')}
+                                onClick={() => handleUpgradeClick('plus', 'Suscripción Plus')}
                             >
-                                {isPlus ? "Tu Plan Actual" : isUltra ? "Ir al Panel" : "Cambiar a Plus"}
+                                {getButtonText('plus')}
                             </button>
                         </div>
                     </div>
 
-                    {/* --- TARJETA 3: ULTRA (ILIMITADO) --- */}
+                    {/* --- TARJETA 4: ULTRA (ILIMITADO) --- */}
                     <div className={styles.card}>
                         <div className={styles.cardContent}>
                             <h3 className={styles.planName}>
@@ -156,11 +241,12 @@ const Pricing = () => {
                             </h3>
                             <div className={styles.price}>
                                 <span className={styles.currency}>USD$</span>
-                                <span className={styles.amount}>75</span>
-                                <span className={styles.period}>/mes</span>
+                                <span className={styles.amount}>{getPrice('ultra')}</span>
+                                <span className={styles.period}>{getPeriodLabel('ultra')}</span>
                             </div>
+
                             <p className={styles.description}>
-                                Maximiza tu progreso sin restricciones. Genera tus dietas de la semana, listas de supermercado y modifica comidas sin límites.
+                                Sin límites. Genera, modifica y optimiza todo lo que necesites.
                             </p>
 
                             <ul className={styles.features}>
@@ -173,9 +259,9 @@ const Pricing = () => {
 
                             <button
                                 className={styles.btnOutline}
-                                onClick={() => handleUpgradeClick('ultra', '75.00', 'Suscripción Ultra Ilimitado')}
+                                onClick={() => handleUpgradeClick('ultra', 'Suscripción Ultra Ilimitado')}
                             >
-                                {isUltra ? "Tu Plan Actual" : "Cambiar a Ultra"}
+                                {getButtonText('ultra')}
                             </button>
                         </div>
                     </div>

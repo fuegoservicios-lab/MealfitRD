@@ -3,9 +3,9 @@
     position: relative;
     overflow: hidden;
     background:
-        radial-gradient(circle at 15% 50%, rgba(79, 70, 229, 0.08) 0%, transparent 25%),
-        radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.08) 0%, transparent 25%),
-        linear-gradient(180deg, #F8FAFC 0%, #EFF6FF 100%);
+        radial-gradient(circle at 15% 50%, rgba(79, 70, 229, 0.1) 0%, transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.1) 0%, transparent 25%),
+        linear-gradient(180deg, #E2E8F0 0%, #EFF6FF 100%);
 }
 
 .container {
@@ -53,11 +53,78 @@
     line-height: 1.6;
 }
 
+/* --- Billing Period Toggle --- */
+.billingToggle {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 99px;
+    padding: 4px;
+    margin-top: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.toggleOption {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.5rem;
+    border-radius: 99px;
+    border: none;
+    background: transparent;
+    color: #64748B;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggleOption:hover {
+    color: #1E293B;
+}
+
+.toggleActive {
+    background: #0F172A;
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
+}
+
+.toggleActive:hover {
+    color: #FFFFFF;
+}
+
+.discountBadge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.5rem;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    background: linear-gradient(135deg, #DCFCE7, #BBF7D0);
+    color: #15803D;
+    border: 1px solid #86EFAC;
+}
+
+/* --- Savings Note --- */
+.savingsNote {
+    font-size: 0.8rem;
+    color: #16A34A;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    text-align: center;
+}
+
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 2.5rem;
-    align-items: center;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    align-items: stretch;
 }
 
 /* --- Premium Card Styles --- */
@@ -67,7 +134,7 @@
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.8);
     border-radius: 24px;
-    padding: 2.5rem;
+    padding: 2rem;
     position: relative;
     box-shadow:
         0 4px 6px -1px rgba(0, 0, 0, 0.05),
@@ -138,7 +205,7 @@
 
 .amount {
     font-family: 'Outfit', sans-serif;
-    font-size: 3.5rem;
+    font-size: 3rem;
     font-weight: 800;
     line-height: 1;
     letter-spacing: -0.04em;
@@ -229,7 +296,12 @@
     background: rgba(79, 70, 229, 0.05);
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
+    .grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+    }
+
     .popular {
         transform: scale(1);
     }

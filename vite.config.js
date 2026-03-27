@@ -13,5 +13,24 @@ export default defineConfig({
         secure: false,
       }
     }
-  }
+  },
+  build: {
+    // Target modern browsers for smaller output
+    target: 'es2020',
+    // Enable CSS code splitting
+    cssCodeSplit: true,
+    // Chunk strategy for optimal caching
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor: heavy libs cached separately
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-ui': ['framer-motion', 'lucide-react', 'sonner'],
+        }
+      }
+    },
+    // Reduce chunk size warnings threshold
+    chunkSizeWarningLimit: 500,
+  },
 })

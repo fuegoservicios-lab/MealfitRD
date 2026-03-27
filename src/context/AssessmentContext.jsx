@@ -136,7 +136,7 @@ export const AssessmentProvider = ({ children }) => {
 
     // --- ESTADO PARA LOS CRÉDITOS ---
     const [planCount, setPlanCount] = useState(0);
-    const PLAN_LIMIT = 30; // Límite del plan gratuito
+    const PLAN_LIMIT = 15; // Límite del plan gratuito
 
     // --- FUNCIÓN PARA RESTAURAR SESIÓN DESDE DB ---
     const restoreSessionData = useCallback(async (userId) => {
@@ -701,7 +701,8 @@ export const AssessmentProvider = ({ children }) => {
             setUserProfile(prev => ({ ...prev, plan_tier: tier }));
             await checkPlanLimit(userId);
             
-            const planName = tier === 'ultra' ? 'Mealfit Ultra Ilimitado' : 'Mealfit Plus';
+            const planNames = { basic: 'Mealfit Básico', plus: 'Mealfit Plus', ultra: 'Mealfit Ultra Ilimitado' };
+            const planName = planNames[tier] || 'Mealfit Plus';
             
             toast.success(`¡Bienvenido a ${planName}!`, {
                 description: 'Has desbloqueado acceso premium.',
@@ -716,10 +717,11 @@ export const AssessmentProvider = ({ children }) => {
         }
     };
 
-    const isPlus = ['plus', 'admin', 'ultra'].includes(userProfile?.plan_tier);
+    const isPlus = ['basic', 'plus', 'admin', 'ultra'].includes(userProfile?.plan_tier);
 
     let userPlanLimit = PLAN_LIMIT;
-    if (userProfile?.plan_tier === 'plus') userPlanLimit = 200;
+    if (userProfile?.plan_tier === 'basic') userPlanLimit = 50;
+    else if (userProfile?.plan_tier === 'plus') userPlanLimit = 200;
     else if (['ultra', 'admin'].includes(userProfile?.plan_tier)) userPlanLimit = 'Ilimitado';
 
     return (

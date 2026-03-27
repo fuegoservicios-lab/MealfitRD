@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, CheckCircle, Apple, Utensils, Activity, TrendingUp, ChevronRight, PlayCircle } from 'lucide-react';
 import styles from './Hero.module.css';
 import { useAssessment } from '../../context/AssessmentContext';
-import heroBg from '../../assets/hero-bg.png';
+import heroBg from '../../assets/hero-bg.webp';
 
 const Hero = () => {
     const { planData } = useAssessment();

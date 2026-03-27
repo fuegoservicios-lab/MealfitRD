@@ -23,7 +23,6 @@ const Header = () => {
 
                 {/* Navegación de Escritorio */}
                 <nav className={styles.navDesktop}>
-                    <Link to="/" className={styles.navLink}>Inicio</Link>
 
 
                     {/* Lógica condicional: Si hay plan, muestra Dashboard; si no, Evaluación */}
@@ -73,13 +72,6 @@ const Header = () => {
                 {/* Navegación Móvil */}
                 {isMenuOpen && (
                     <nav className={styles.navMobile}>
-                        <Link
-                            to="/"
-                            className={styles.navLinkMobile}
-                            onClick={() => setIsMenuOpen(false)}
-                        >
-                            Inicio
-                        </Link>
 
 
                         {planData ? (
