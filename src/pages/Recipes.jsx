@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import React, { useRef, useState, useEffect } from 'react';
 import html2pdf from 'html2pdf.js';
-
+import { fetchWithAuth } from '../config/api';
 const FormattedRecipeStep = ({ step, index }) => {
     // 1. Identificar si es una sección especial (Mise en place, Fuego, Montaje)
     const getSectionInfo = (text) => {
@@ -272,12 +272,69 @@ const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
 };
 
 const Recipes = () => {
-    const { planData, formData } = useAssessment();
+    const { planData, formData, restorePlan } = useAssessment();
     const navigate = useNavigate();
     const contentRef = useRef(null);
     const [activeDayIndex, setActiveDayIndex] = useState(0);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [cookingRecipe, setCookingRecipe] = useState(null);
+    const [isExpanding, setIsExpanding] = useState(false);
+    const [checkedIngredients, setCheckedIngredients] = useState({});
+
+    const toggleIngredient = (idx) => {
+        setCheckedIngredients(prev => ({ ...prev, [idx]: !prev[idx] }));
+    };
+
+    const handleCookClick = async (meal) => {
+        setCheckedIngredients({});
+        // Si la receta ya fue expandida previamente (usamos recipeExpandedFlag) la abrimos de una
+        if (meal.isExpanded) {
+            setCookingRecipe(meal);
+            return;
+        }
+
+        setIsExpanding(true);
+        const loadingToast = toast.loading(`El Chef AI está detallando los pasos para ${meal.name}...`);
+        
+        try {
+            const userId = formData?.id !== "guest" ? formData?.id : "guest";
+            const response = await fetchWithAuth('/api/recipe/expand', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...meal, user_id: userId })
+            });
+
+            const data = await response.json();
+            if (response.ok && data.success && data.expanded_recipe) {
+                // Mutamos el objeto de manera local para no tener que llamar a un dispatch del contexto
+                // (O podríamos simplemente pasarle el override al modal)
+                const expandedMeal = { ...meal, recipe: data.expanded_recipe, isExpanded: true };
+                // Mutamos también el objeto in-place para que React lo vea a lo largo del árbol
+                meal.recipe = data.expanded_recipe;
+                meal.isExpanded = true;
+                
+                // Forzar persistencia manual en LocalStorage inmediato e impactar la DB (Supabase)
+                if (planData) {
+                    try {
+                        localStorage.setItem('mealfit_plan', JSON.stringify(planData));
+                        if(restorePlan) restorePlan(planData);
+                    } catch (e) { console.error("Error setting plan to LS/DB:", e); }
+                }
+
+                toast.success('¡Instrucciones de chef listas!', { id: loadingToast });
+                setCookingRecipe(expandedMeal);
+            } else {
+                toast.error(data.detail || 'No se pudo expandir la receta. Abriendo original.', { id: loadingToast });
+                setCookingRecipe(meal);
+            }
+        } catch (error) {
+            console.error("Error expanding recipe:", error);
+            toast.error('Hubo un error de conexión.', { id: loadingToast });
+            setCookingRecipe(meal);
+        } finally {
+            setIsExpanding(false);
+        }
+    };
 
     const handleLogConsumption = async (recipe) => {
         if (!formData || !formData.id || formData.id === 'guest') {
@@ -305,9 +362,9 @@ const Recipes = () => {
                     user_id: formData.id,
                     meal_name: recipe.name,
                     calories: recipe.cals || 0,
-                    protein: 0,
-                    carbs: 0,
-                    healthy_fats: 0
+                    protein: recipe.protein || 0,
+                    carbs: recipe.carbs || 0,
+                    healthy_fats: recipe.fats || 0
                 }),
             });
 
@@ -641,6 +698,28 @@ const Recipes = () => {
                                                 }}>
                                                     {meal.meal}
                                                 </div>
+                                                {meal.prep_time && (
+                                                    <div style={{
+                                                        display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                                        padding: '0.4rem 0.8rem', background: '#F8FAFC',
+                                                        borderRadius: '99px', border: '1px solid #E2E8F0',
+                                                        fontSize: '0.75rem', fontWeight: 700, color: '#334155'
+                                                    }}>
+                                                        <Clock size={14} />
+                                                        {meal.prep_time}
+                                                    </div>
+                                                )}
+                                                {meal.difficulty && (
+                                                    <div style={{
+                                                        display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                                        padding: '0.4rem 0.8rem', background: '#F8FAFC',
+                                                        borderRadius: '99px', border: '1px solid #E2E8F0',
+                                                        fontSize: '0.75rem', fontWeight: 700, color: '#475569'
+                                                    }}>
+                                                        <ChefHat size={14} />
+                                                        {meal.difficulty}
+                                                    </div>
+                                                )}
                                                 <div style={{
                                                     display: 'flex', alignItems: 'center', gap: '0.35rem',
                                                     padding: '0.4rem 1rem', background: '#FFF7ED',
@@ -650,6 +729,34 @@ const Recipes = () => {
                                                     <Flame size={14} fill="#F97316" strokeWidth={0} />
                                                     {meal.cals} kcal
                                                 </div>
+                                                {meal.protein !== undefined && meal.protein > 0 && (
+                                                    <>
+                                                        <div style={{
+                                                            display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                                            padding: '0.4rem 0.8rem', background: '#ECFDF5',
+                                                            borderRadius: '99px', border: '1px solid #D1FAE5',
+                                                            fontSize: '0.75rem', fontWeight: 800, color: '#059669'
+                                                        }}>
+                                                            Pro: {meal.protein}g
+                                                        </div>
+                                                        <div style={{
+                                                            display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                                            padding: '0.4rem 0.8rem', background: '#EFF6FF',
+                                                            borderRadius: '99px', border: '1px solid #DBEAFE',
+                                                            fontSize: '0.75rem', fontWeight: 800, color: '#2563EB'
+                                                        }}>
+                                                            Carbs: {meal.carbs}g
+                                                        </div>
+                                                        <div style={{
+                                                            display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                                            padding: '0.4rem 0.8rem', background: '#FEF2F2',
+                                                            borderRadius: '99px', border: '1px solid #FEE2E2',
+                                                            fontSize: '0.75rem', fontWeight: 800, color: '#DC2626'
+                                                        }}>
+                                                            Grasas: {meal.fats}g
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
 
                                             {/* Action Buttons Centered */}
@@ -657,19 +764,21 @@ const Recipes = () => {
                                                 {meal.recipe && meal.recipe.length > 0 && (
                                                     <button 
                                                         data-html2canvas-ignore="true"
-                                                        onClick={() => setCookingRecipe(meal)}
+                                                        onClick={() => handleCookClick(meal)}
+                                                        disabled={isExpanding}
                                                         style={{
                                                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
                                                             padding: isMobile ? '0.75rem 1.5rem' : '0.65rem 1.5rem', background: '#4F46E5',
                                                             borderRadius: '99px', border: 'none',
                                                             fontSize: isMobile ? '0.9rem' : '0.85rem', fontWeight: 800, color: 'white',
-                                                            cursor: 'pointer', transition: 'all 0.2s',
-                                                            boxShadow: '0 8px 16px -4px rgba(79, 70, 229, 0.4)'
+                                                            cursor: isExpanding ? 'wait' : 'pointer', transition: 'all 0.2s',
+                                                            boxShadow: '0 8px 16px -4px rgba(79, 70, 229, 0.4)',
+                                                            opacity: isExpanding ? 0.7 : 1
                                                         }}
-                                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+                                                        onMouseEnter={(e) => { e.currentTarget.style.transform = isExpanding ? 'none' : 'translateY(-2px)' }}
                                                         onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)' }}
                                                     >
-                                                        <Play size={18} fill="white" /> Cocinar
+                                                        <Play size={18} fill="white" /> {isExpanding ? "Preparando..." : "Cocinar"}
                                                     </button>
                                                 )}
                                                 <button 
@@ -727,18 +836,32 @@ const Recipes = () => {
                                                         listStyle: 'none', padding: 0, margin: 0,
                                                         display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem' 
                                                     }}>
-                                                        {meal.ingredients.map((ing, idx) => (
-                                                            <li key={idx} style={{ 
-                                                                display: 'flex', alignItems: 'center', gap: '0.75rem',
-                                                                color: '#475569', fontSize: '0.95rem', fontWeight: 600,
-                                                                background: '#FFFFFF', padding: '0.875rem 1.25rem', borderRadius: '0.75rem',
-                                                                border: '1px solid #E2E8F0',
-                                                                pageBreakInside: 'avoid', breakInside: 'avoid'
-                                                            }}>
-                                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', flexShrink: 0 }} />
-                                                                <span>{ing}</span>
-                                                            </li>
-                                                        ))}
+                                                        {meal.ingredients.map((ing, idx) => {
+                                                            const isChecked = checkedIngredients[idx];
+                                                            return (
+                                                                <li key={idx} 
+                                                                    onClick={() => toggleIngredient(idx)}
+                                                                    style={{ 
+                                                                        display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                                                        color: isChecked ? '#94A3B8' : '#475569', fontSize: '0.95rem', fontWeight: 600,
+                                                                        background: isChecked ? '#F8FAFC' : '#FFFFFF', padding: '0.875rem 1.25rem', borderRadius: '0.75rem',
+                                                                        border: '1px solid #E2E8F0',
+                                                                        pageBreakInside: 'avoid', breakInside: 'avoid',
+                                                                        cursor: 'pointer', transition: 'all 0.2s ease',
+                                                                        textDecoration: isChecked ? 'line-through' : 'none'
+                                                                    }}>
+                                                                    <div style={{ 
+                                                                        width: '20px', height: '20px', borderRadius: '6px', 
+                                                                        background: isChecked ? '#10B981' : '#FFFFFF', 
+                                                                        border: isChecked ? 'none' : '2px solid #CBD5E1', 
+                                                                        flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                                                                    }}>
+                                                                        {isChecked && <CheckCircle2 size={14} color="#FFFFFF" strokeWidth={3.5} />}
+                                                                    </div>
+                                                                    <span>{ing}</span>
+                                                                </li>
+                                                            );
+                                                        })}
                                                     </ul>
                                                 </div>
                                             )}
