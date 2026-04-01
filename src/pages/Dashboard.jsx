@@ -386,7 +386,7 @@ const Dashboard = () => {
                             border: `1px solid ${isPlus ? '#FCD34D' : '#E2E8F0'}`,
                             boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                         }}>
-                            {isPlus ? (userProfile?.plan_tier === 'ultra' ? 'MIEMBRO ULTRA' : userProfile?.plan_tier === 'basic' ? 'MIEMBRO BÁSICO' : 'MIEMBRO PLUS') : 'PLAN GRATUITO'}
+                            {isPlus ? (userProfile?.plan_tier === 'ultra' ? 'ULTRA' : userProfile?.plan_tier === 'basic' ? 'BÁSICO' : 'PLUS') : 'GRATUITO'}
                         </span>
                     </div>
 
