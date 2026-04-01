@@ -421,14 +421,21 @@ const Settings = () => {
                                          userProfile?.plan_tier === 'admin' ? 'Administrador' : 'Plan Gratis'}
                                         
                                         {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && (
-                                            <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', background: '#DCFCE7', color: '#166534', borderRadius: '1rem', fontWeight: 600 }}>
-                                                Activo
+                                            <span style={{ 
+                                                fontSize: '0.75rem', 
+                                                padding: '0.2rem 0.5rem', 
+                                                background: userProfile?.subscription_status === 'CANCELLED' ? '#F1F5F9' : '#DCFCE7', 
+                                                color: userProfile?.subscription_status === 'CANCELLED' ? '#475569' : '#166534', 
+                                                borderRadius: '1rem', 
+                                                fontWeight: 600 
+                                            }}>
+                                                {userProfile?.subscription_status === 'CANCELLED' ? 'Activo (Cancelada)' : 'Activo'}
                                             </span>
                                         )}
                                     </div>
                                 </div>
                                 
-                                {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && (
+                                {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && userProfile?.subscription_status !== 'CANCELLED' && (
                                     <button 
                                         onClick={handleCancelSubscription}
                                         disabled={isCancelling}
@@ -458,7 +465,26 @@ const Settings = () => {
                                 )}
                             </div>
                             
-                            {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && (
+                            {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && userProfile?.subscription_status === 'CANCELLED' && (
+                                <div style={{ 
+                                    display: 'flex', 
+                                    gap: '0.75rem', 
+                                    background: '#EFF6FF', 
+                                    padding: '1rem', 
+                                    borderRadius: '0.75rem',
+                                    border: '1px solid #BFDBFE',
+                                    color: '#1E3A8A',
+                                    fontSize: '0.85rem',
+                                    marginTop: '0.5rem'
+                                }}>
+                                    <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                                    <div>
+                                        Has cancelado la renovación automática. Mantendrás tus beneficios premium hasta el final de tu ciclo de facturación actual. Luego tu plan pasará a ser Gratis.
+                                    </div>
+                                </div>
+                            )}
+
+                            {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && userProfile?.subscription_status !== 'CANCELLED' && (
                                 <div style={{ 
                                     display: 'flex', 
                                     gap: '0.75rem', 
@@ -472,7 +498,7 @@ const Settings = () => {
                                 }}>
                                     <AlertCircle size={18} style={{ flexShrink: 0 }} />
                                     <div>
-                                        Al cancelar, volverás al plan gratuito y perderás los beneficios premium de tu suscripción. Los cobros automáticos se detendrán en el momento de la confirmación.
+                                        Al cancelar, la no-renovación será inmediata, pero mantendrás acceso hasta que termine tu periodo pagado actual.
                                     </div>
                                 </div>
                             )}

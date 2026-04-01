@@ -7,17 +7,17 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, price = "25.00", planName = 
 
     // Configuración de PayPal para suscripciones
     const initialOptions = {
-        "client-id": import.meta.env.VITE_PAYPAL_CLIENT_ID || "AX8mhI1HOizJC0A2RrmcEz61KYxDj9-j_mEjBSv2D7-bemszv5zl8EMkYklQAwicdCHjqAF1M2_p6Lgd",
+        "client-id": import.meta.env.VITE_PAYPAL_CLIENT_ID || "ARVcVpVZ-8CQvKUs5hZEPpvUYmt-V4ahVzHblAkOQ343_N83vcwlV_8IUHgvW2aH6dKUUtiZ5xIC4YnP",
         currency: "USD",
         intent: "subscription",
         vault: true // Necesario para suscripciones
     };
 
-    // Mapeo seguro de Plan IDs desde tu .env de React
+    // Mapeo seguro de Plan IDs desde tu .env de React o fallbacks hardcoded de Producción
     const PLAN_IDS = {
-        basic: import.meta.env.VITE_PAYPAL_PLAN_BASIC || "P-YOUR_BASIC_PLAN_ID_HERE",
-        plus: import.meta.env.VITE_PAYPAL_PLAN_PLUS || "P-YOUR_PLUS_PLAN_ID_HERE",
-        ultra: import.meta.env.VITE_PAYPAL_PLAN_ULTRA || "P-YOUR_ULTRA_PLAN_ID_HERE"
+        basic: import.meta.env.VITE_PAYPAL_PLAN_BASIC || "P-3EC609010T222652UNHGGQSY",
+        plus: import.meta.env.VITE_PAYPAL_PLAN_PLUS || "P-2N87184189425672JNHGGS4I",
+        ultra: import.meta.env.VITE_PAYPAL_PLAN_ULTRA || "P-0D041124VT473392JNHGGTUI"
     };
 
     if (!isOpen) return null;
