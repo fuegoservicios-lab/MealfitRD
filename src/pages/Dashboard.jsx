@@ -229,7 +229,7 @@ const Dashboard = () => {
                 }
                 .actions-group {
                     display: flex;
-                    align-items: center;
+                    align-items: flex-start;
                     gap: 1rem;
                     flex-wrap: wrap;
                 }
