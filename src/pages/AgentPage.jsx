@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
-import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Lock, Trash2, Check, Mic, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, ShoppingBag, Clock, Settings } from 'lucide-react';
+import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Lock, Trash2, Check, Mic, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, ShoppingBag, Clock, Settings, Edit2, Ghost } from 'lucide-react';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { fetchWithAuth } from '../config/api';
 import ReactMarkdown from 'react-markdown';
@@ -86,7 +86,7 @@ const MessageActions = ({ content, sessionId, onRegenerate }) => {
 const AgentPage = () => {
     const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, isPlus, checkPlanLimit } = useAssessment();
     const navigate = useNavigate();
-    const [confirmClear, setConfirmClear] = useState(false);
+    const [titlePollCount, setTitlePollCount] = useState(0);
     const [showNavMenu, setShowNavMenu] = useState(false);
     const navMenuRef = useRef(null);
 
@@ -112,9 +112,10 @@ const AgentPage = () => {
     const [guestSessionIds, setGuestSessionIds] = useState(() => {
         const savedList = localStorage.getItem('mealfit_guest_sessions_list');
         if (savedList) {
-            const list = JSON.parse(savedList);
+            let list = JSON.parse(savedList);
             if (!list.includes(localSessionId)) {
                 list.unshift(localSessionId);
+                list = list.slice(0, 40);
                 localStorage.setItem('mealfit_guest_sessions_list', JSON.stringify(list));
             }
             return list;
@@ -177,6 +178,8 @@ const AgentPage = () => {
     const [streamingStatus, setStreamingStatus] = useState(null);
     const [abortController, setAbortController] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
+    const [editingSessionId, setEditingSessionId] = useState(null);
+    const [editTitle, setEditTitle] = useState('');
     const [previewUrl, setPreviewUrl] = useState(null);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -303,13 +306,14 @@ const AgentPage = () => {
             const isGuest = !session?.user?.id && !userProfile?.id;
             let url = `/api/chat/sessions/${userId}`;
             
-            // Siempre enviar los session_ids del localStorage como fallback (incluso si está logueado)
-            // Esto es crucial mientras la base de datos no tenga la columna user_id en agent_sessions.
-            // LEER SIEMPRE DE LOCALSTORAGE AQUÍ PARA EVITAR ESTADOS OBSOLETOS
-            const savedListStr = localStorage.getItem('mealfit_guest_sessions_list');
-            const latestSessionIds = savedListStr ? JSON.parse(savedListStr) : [currentSessionId];
-            const sessionIdsParam = latestSessionIds.join(',');
-            url += `?session_ids=${sessionIdsParam}`;
+            if (isGuest) {
+                // Para invitados, enviamos la lista de IDs guardada en localStorage
+                const savedListStr = localStorage.getItem('mealfit_guest_sessions_list');
+                const latestSessionIds = savedListStr ? JSON.parse(savedListStr).slice(0, 40) : [currentSessionId];
+                const sessionIdsParam = latestSessionIds.join(',');
+                url += `?session_ids=${sessionIdsParam}`;
+            }
+            // Si no es guest, el backend buscará por user_id directamente en la BD (Multi-dispositivo)
             
             const response = await fetchWithAuth(url);
             if (response.ok) {
@@ -417,17 +421,22 @@ const AgentPage = () => {
         fetchChatSessions();
     }, [fetchChatSessions]);
 
-    // Polling súper rápido (800ms) para actualizar el título dinámico apenas el backend termine
+    // Polling moderado (2500ms) para actualizar el título dinámico, con tope de 8 intentos (~20s)
     useEffect(() => {
         const isGenerating = chatSessions.some(s => s.title === 'Generando título...');
-        if (!isGenerating) return;
+        if (!isGenerating) {
+            setTitlePollCount(0);
+            return;
+        }
+        if (titlePollCount >= 8) return; // Tope: evitar polling infinito
 
         const intervalId = setInterval(() => {
+            setTitlePollCount(prev => prev + 1);
             fetchChatSessions();
-        }, 800);
+        }, 2500);
 
         return () => clearInterval(intervalId);
-    }, [chatSessions, fetchChatSessions]);
+    }, [chatSessions, fetchChatSessions, titlePollCount]);
 
     // Cargar historial de mensajes cuando cambia la sesión activa
     useEffect(() => {
@@ -437,7 +446,7 @@ const AgentPage = () => {
     const handleNewChat = () => {
         const newId = crypto.randomUUID();
         setGuestSessionIds(prev => {
-            const newList = [newId, ...prev];
+            const newList = [newId, ...prev].slice(0, 40);
             localStorage.setItem('mealfit_guest_sessions_list', JSON.stringify(newList));
             return newList;
         });
@@ -451,6 +460,7 @@ const AgentPage = () => {
         }
     };
 
+
     const handleSend = async (overrideInput = null) => {
         const textToSend = typeof overrideInput === 'string' ? overrideInput : input;
         
@@ -462,9 +472,10 @@ const AgentPage = () => {
 
         // Asegurar que el currentSessionId esté en la lista de localStorage
         const savedListStr = localStorage.getItem('mealfit_guest_sessions_list');
-        const currentList = savedListStr ? JSON.parse(savedListStr) : [];
+        let currentList = savedListStr ? JSON.parse(savedListStr) : [];
         if (!currentList.includes(currentSessionId)) {
             currentList.unshift(currentSessionId);
+            currentList = currentList.slice(0, 40);
             localStorage.setItem('mealfit_guest_sessions_list', JSON.stringify(currentList));
             setGuestSessionIds(currentList);
         }
@@ -911,8 +922,59 @@ const AgentPage = () => {
         </div>
     );
 
+
+    const getGroupedSessions = () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const lastMonth = new Date(today);
+        lastMonth.setDate(lastMonth.getDate() - 30);
+
+        const groups = {
+            'Hoy': [],
+            'Últimos 30 días': [],
+            'Más antiguos': []
+        };
+
+        chatSessions.forEach(s => {
+            const dateStr = s.last_activity || s.created_at;
+            let d;
+            if (dateStr) {
+                d = new Date(dateStr);
+            }
+            if (!d || isNaN(d.getTime())) {
+                groups['Más antiguos'].push(s);
+                return;
+            }
+
+            if (d >= today) {
+                groups['Hoy'].push(s);
+            } else if (d >= lastMonth) {
+                groups['Últimos 30 días'].push(s);
+            } else {
+                groups['Más antiguos'].push(s);
+            }
+        });
+
+        return [
+            { id: 'hoy', label: 'Hoy', items: groups['Hoy'] },
+            { id: '30dias', label: '', items: groups['Últimos 30 días'] },
+            { id: 'antiguos', label: 'Más antiguos', items: groups['Más antiguos'] }
+        ].filter(g => g.items.length > 0);
+    };
+
+    const groupedSessions = getGroupedSessions();
     return (
         <DashboardLayout noPaddingMobile={true}>
+            <style>{`
+                .chat-session-btn .chat-actions-hover {
+                    opacity: 0;
+                    pointer-events: none;
+                }
+                .chat-session-btn:hover .chat-actions-hover {
+                    opacity: 1;
+                    pointer-events: auto;
+                }
+            `}</style>
             <div className="agent-container" style={{
                 display: 'flex',
                 flexDirection: 'row',
@@ -1023,142 +1085,124 @@ const AgentPage = () => {
                         </button>
                     </div>
                     
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '0 0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div className="sidebar-scrollable" style={{ flex: 1, overflowY: 'auto', padding: '0 0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', marginTop: '0.25rem' }}>
-                            <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                            <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
                                 Recientes
                             </h3>
-                            {chatSessions.length > 0 && (
-                                <button
-                                    onClick={async () => {
-                                        if (!confirmClear) {
-                                            setConfirmClear(true);
-                                            setTimeout(() => setConfirmClear(false), 3000);
-                                            return;
-                                        }
-                                        const userId = session?.user?.id || userProfile?.id;
-                                        try {
-                                            if (userId) {
-                                                await fetchWithAuth(`/api/chat/sessions/${userId}`, { method: 'DELETE' });
-                                            }
-                                            localStorage.removeItem('mealfit_guest_sessions_list');
-                                            localStorage.removeItem('mealfit_current_session');
-                                            localStorage.removeItem('mealfit_guest_session');
-                                            setChatSessions([]);
-                                            setMessages([]);
-                                            const newId = crypto.randomUUID();
-                                            localStorage.setItem('mealfit_guest_session', newId);
-                                            setCurrentSessionId(newId);
-                                            setLocalSessionId(newId);
-                                            setConfirmClear(false);
-                                        } catch (e) {
-                                            console.error(e);
-                                            alert('Error al limpiar el historial');
-                                        }
-                                    }}
-                                    style={{ 
-                                        background: confirmClear ? '#ef4444' : 'transparent', 
-                                        border: 'none', 
-                                        color: confirmClear ? 'white' : '#94a3b8', 
-                                        cursor: 'pointer', 
-                                        padding: '0.2rem 0.4rem', 
-                                        borderRadius: '0.4rem',
-                                        display: 'flex', 
-                                        alignItems: 'center', 
-                                        justifyContent: 'center',
-                                        gap: '0.25rem',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    title={confirmClear ? "Confirmar borrado" : "Limpiar historial"}
-                                    onMouseEnter={e => {
-                                        if (!confirmClear) e.currentTarget.style.color = '#ef4444';
-                                    }}
-                                    onMouseLeave={e => {
-                                        if (!confirmClear) {
-                                            e.currentTarget.style.color = '#94a3b8';
-                                            e.currentTarget.style.background = 'transparent';
-                                        }
-                                    }}
-                                >
-                                    {confirmClear ? (
-                                        <><Check size={14} /><span style={{fontSize: '0.75rem', fontWeight: 600}}>Confirmar</span></>
-                                    ) : (
-                                        <Trash2 size={16} />
-                                    )}
-                                </button>
-                            )}
                         </div>
                         {isLoadingSessions ? (
                             <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 1rem', color: '#94a3b8' }}>
                                 <Loader2 className="spin-fast" size={18} />
                             </div>
                         ) : chatSessions.length === 0 ? (
-                            <div style={{ textAlign: 'center', fontSize: '0.9rem', color: '#94a3b8', padding: '2rem 1rem', lineHeight: 1.5 }}>
-                                Tus conversaciones aparecerán aquí.
+                            <div style={{ textAlign: 'center', padding: '3rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', color: '#94a3b8' }}>
+                                <div style={{ background: 'transparent', padding: '0.5rem', display: 'inline-flex', opacity: 0.7 }}>
+                                    <Ghost size={32} strokeWidth={1.5} />
+                                </div>
+                                <span style={{ fontSize: '0.9rem', lineHeight: 1.5, maxWidth: '85%' }}>
+                                    Aún no tienes historiales.<br/>
+                                    ¡Inicia una nueva conversación!
+                                </span>
                             </div>
                         ) : (
-                            chatSessions.map(s => (
-                                <button
-                                    key={s.id}
-                                    onClick={() => {
-                                        setCurrentSessionId(s.id);
-                                        if (window.innerWidth <= 768) {
-                                            setShowSidebar(false);
-                                        }
-                                    }}
-                                    style={{
-                                        width: '100%',
-                                        textAlign: 'left',
-                                        padding: '0.75rem 1rem',
-                                        background: currentSessionId === s.id ? '#eef2ff' : 'transparent', // Indigo lightest
-                                        border: 'none',
-                                        borderRadius: '0.75rem',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        transition: 'all 0.15s ease'
-                                    }}
-                                    onMouseEnter={e => { if (currentSessionId !== s.id) e.currentTarget.style.background = '#f1f5f9'; }}
-                                    onMouseLeave={e => { if (currentSessionId !== s.id) e.currentTarget.style.background = 'transparent'; }}
-                                >
-                                    <span style={{ 
-                                        fontWeight: currentSessionId === s.id ? 600 : 500, 
-                                        fontSize: '0.95rem', 
-                                        color: currentSessionId === s.id ? '#4F46E5' : '#475569',
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.35rem',
-                                        flex: 1
-                                    }}>
-                                        {s.title === 'Generando título...' ? (
-                                            <div style={{ 
-                                                position: 'relative', 
-                                                width: '100%', 
-                                                height: '6px', 
-                                                background: currentSessionId === s.id ? 'rgba(79, 70, 229, 0.15)' : 'rgba(148, 163, 184, 0.15)', 
-                                                borderRadius: '3px', 
-                                                overflow: 'hidden',
-                                                marginTop: '2px'
-                                            }}>
-                                                <div style={{ 
-                                                    position: 'absolute', 
-                                                    top: 0, 
-                                                    left: 0, 
-                                                    width: '50%', 
-                                                    height: '100%', 
-                                                    background: currentSessionId === s.id ? 'linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.8), transparent)' : 'linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.8), transparent)', 
-                                                    animation: 'cyberSweep 1.5s ease-in-out infinite' 
-                                                }} />
+                            groupedSessions.map(group => (
+                                <div key={group.id}>
+                                    {group.label && (
+                                        <div style={{ 
+                                            padding: '0.5rem 1rem 0.25rem', 
+                                            fontSize: '0.7rem', 
+                                            fontWeight: 600, 
+                                            color: '#94a3b8', 
+                                            textTransform: 'uppercase', 
+                                            letterSpacing: '0.06em',
+                                            marginTop: '0.5rem'
+                                        }}>
+                                            {group.label}
+                                        </div>
+                                    )}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        {group.items.map(s => {
+                                            const originalTitle = s.title ? s.title.replace(/\[?\(Hora actual del usuario:.*?\)?\]?/gi, '').replace(/Mensaje del usuario:\s*/gi, '').trim() || 'Nuevo chat' : 'Nuevo chat';
+                                            
+                                            const dateStr = s.last_activity || s.created_at;
+                                            const dateObj = dateStr ? new Date(dateStr) : null;
+                                            const formattedDate = dateObj && !isNaN(dateObj) 
+                                                ? dateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '')
+                                                : '';
+
+                                            return (
+                                            <div key={s.id} className="chat-session-btn" style={{ position: 'relative', width: '100%' }}>
+                                                <button
+                                                    onClick={() => {
+                                                        setCurrentSessionId(s.id);
+                                                        if (window.innerWidth <= 768) {
+                                                            setShowSidebar(false);
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        width: '100%',
+                                                        textAlign: 'left',
+                                                        padding: '0.75rem 2.5rem 0.75rem 1rem',
+                                                        background: currentSessionId === s.id ? '#eef2ff' : 'transparent',
+                                                        border: 'none',
+                                                        borderRadius: '0.75rem',
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.5rem',
+                                                        transition: 'all 0.15s ease'
+                                                    }}
+                                                    onMouseEnter={e => { if (currentSessionId !== s.id) e.currentTarget.style.background = '#f1f5f9'; }}
+                                                    onMouseLeave={e => { if (currentSessionId !== s.id) e.currentTarget.style.background = 'transparent'; }}
+                                                >
+                                                    <span style={{ 
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '0.15rem',
+                                                        flex: 1,
+                                                        minWidth: 0,
+                                                        overflow: 'hidden'
+                                                    }}>
+                                                        {s.title === 'Generando título...' ? (
+                                                            <div style={{ position: 'relative', width: '100%', height: '6px', background: currentSessionId === s.id ? 'rgba(79, 70, 229, 0.15)' : 'rgba(148, 163, 184, 0.15)', borderRadius: '3px', overflow: 'hidden', marginTop: '2px' }}>
+                                                                <div style={{ position: 'absolute', top: 0, left: 0, width: '50%', height: '100%', background: currentSessionId === s.id ? 'linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.8), transparent)' : 'linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.8), transparent)', animation: 'cyberSweep 1.5s ease-in-out infinite' }} />
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <span 
+                                                                    title={originalTitle}
+                                                                    style={{ 
+                                                                    fontWeight: currentSessionId === s.id ? 600 : 500, 
+                                                                    fontSize: '0.95rem', 
+                                                                    color: currentSessionId === s.id ? '#4F46E5' : '#475569',
+                                                                    whiteSpace: 'nowrap',
+                                                                    overflow: 'hidden',
+                                                                    textOverflow: 'ellipsis',
+                                                                    width: '100%',
+                                                                    display: 'block'
+                                                                }}>
+                                                                    {originalTitle}
+                                                                </span>
+                                                                {formattedDate && (
+                                                                    <span style={{ 
+                                                                        fontSize: '0.70rem', 
+                                                                        color: currentSessionId === s.id ? 'rgba(79, 70, 229, 0.6)' : '#94a3b8', 
+                                                                        fontWeight: 400 
+                                                                    }}>
+                                                                        {formattedDate}
+                                                                    </span>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </span>
+                                                </button>
+
                                             </div>
-                                        ) : (
-                                            s.title ? s.title.replace(/\[?\(Hora actual del usuario:.*?\)?\]?/gi, '').replace(/Mensaje del usuario:\s*/gi, '').trim() || 'Nuevo chat' : 'Nuevo chat'
-                                        )}
-                                    </span>
-                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             ))
                         )}
                     </div>
@@ -1535,6 +1579,9 @@ const AgentPage = () => {
                 @keyframes pulse-mic { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.15); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
                 .pulse-anim-mic { animation: pulse-mic 1.5s infinite ease-in-out; }
                 @keyframes shimmer { to { background-position: 200% center; } }
+                @keyframes cyberSweep { 0% { left: -50%; } 100% { left: 100%; } }
+                @keyframes fadeSlideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
                 .wave-anim { animation: wave 2.5s infinite; transform-origin: 70% 70%; }
                 @keyframes wave {
                     0% { transform: rotate(0deg); }
@@ -1545,6 +1592,25 @@ const AgentPage = () => {
                     50% { transform: rotate(10deg); }
                     60% { transform: rotate(0deg); }
                     100% { transform: rotate(0deg); }
+                }
+
+                /* --- Sidebar Scrollbar --- */
+                .sidebar-scrollable {
+                    scrollbar-width: thin;
+                    scrollbar-color: rgba(203, 213, 225, 0.5) transparent;
+                }
+                .sidebar-scrollable::-webkit-scrollbar {
+                    width: 5px;
+                }
+                .sidebar-scrollable::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .sidebar-scrollable::-webkit-scrollbar-thumb {
+                    background-color: rgba(203, 213, 225, 0.5);
+                    border-radius: 10px;
+                }
+                .sidebar-scrollable:hover::-webkit-scrollbar-thumb {
+                    background-color: rgba(148, 163, 184, 0.6);
                 }
 
                 /* ====== MOBILE REDESIGN ====== */
