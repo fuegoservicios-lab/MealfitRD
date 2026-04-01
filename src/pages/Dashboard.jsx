@@ -66,15 +66,46 @@ const Dashboard = () => {
         return <Navigate to="/" replace />;
     }
 
+    // Cálculos para la UI de límites
+    const isLimitReached = typeof userPlanLimit === 'number' && planCount >= userPlanLimit;
+
+    // Calcular si el periodo de compras expiró para sugerir "Actualizar Plan" en lugar de "Platos"
+    const groceryDuration = formData?.groceryDuration || 'weekly';
+    const planCreatedAt = planData?.created_at ? new Date(planData.created_at) : new Date();
+    const daysSinceCreation = Math.floor((new Date() - planCreatedAt) / (1000 * 60 * 60 * 24));
+    
+    let isPlanExpired = false;
+    let maxDays = 7;
+    if (groceryDuration === 'weekly') { maxDays = 7; if (daysSinceCreation >= 7) isPlanExpired = true; }
+    if (groceryDuration === 'biweekly') { maxDays = 15; if (daysSinceCreation >= 15) isPlanExpired = true; }
+    if (groceryDuration === 'monthly') { maxDays = 30; if (daysSinceCreation >= 30) isPlanExpired = true; }
+    
+    const daysLeft = Math.max(0, maxDays - daysSinceCreation);
+
     const handleNewPlan = () => {
         if (formData && formData.age && formData.mainGoal) {
             let previousMeals = [];
-            if (planData) {
+            
+            // Si NO ha expirado el plan (Actualizar Platos), enviamos las comidas previas 
+            // para que la IA mantenga la lista de compras y solo rote las preparaciones.
+            // Si SÍ expiró el plan (Actualizar Plan), enviamos el arreglo vacío para que
+            // la IA genere recomendaciones y una lista de compras totalmente nueva.
+            if (planData && !isPlanExpired) {
                 const planDaysToCheck = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
                 planDaysToCheck.forEach(day => {
                     day.meals.forEach(meal => {
                         if (meal && meal.name) previousMeals.push(meal.name);
                     });
+                });
+                
+                toast('Rotando Menú', {
+                    description: 'Diseñando nuevos platos con tus ingredientes actuales...',
+                    icon: '🍲',
+                });
+            } else {
+                toast('Ciclo Renovado', {
+                    description: 'Generando nueva lista de compras y menú desde cero...',
+                    icon: '🛒',
                 });
             }
             navigate('/plan', { state: { previousMeals } });
@@ -83,9 +114,6 @@ const Dashboard = () => {
             navigate('/assessment');
         }
     };
-
-    // Cálculos para la UI de límites
-    const isLimitReached = typeof userPlanLimit === 'number' && planCount >= userPlanLimit;
 
     // Retrocompatibilidad y extracción de días
     const planDays = planData?.days || [{ day: 1, meals: planData?.meals || planData?.perfectDay || [] }];
@@ -401,23 +429,42 @@ const Dashboard = () => {
                         </div>
                     </div>
 
-                    {/* BOTÓN GENERAR NUEVO PLAN */}
-                    <button
-                        onClick={handleNewPlan}
-                        disabled={isLimitReached}
-                        className="new-plan-btn"
-                        style={{
-                            background: isLimitReached
-                                ? '#E2E8F0'
-                                : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
-                            color: isLimitReached ? '#94A3B8' : 'white',
-                            cursor: isLimitReached ? 'not-allowed' : 'pointer',
-                            boxShadow: isLimitReached ? 'none' : '0 10px 20px -5px rgba(15, 23, 42, 0.3)',
-                        }}
-                    >
-                        {isLimitReached ? <AlertCircle size={20} /> : <Wand2 size={20} />}
-                        <span>{isLimitReached ? 'Límite Alcanzado' : 'Generar Nueva Opción'}</span>
-                    </button>
+                    {/* REGENERACIÓN DE MENÚ: BOTÓN Y TEXTO AUXILIAR */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'center' }}>
+                        <button
+                            onClick={handleNewPlan}
+                            disabled={isLimitReached}
+                            className="new-plan-btn"
+                            style={{
+                                background: isLimitReached
+                                    ? '#E2E8F0'
+                                    : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
+                                color: isLimitReached ? '#94A3B8' : 'white',
+                                cursor: isLimitReached ? 'not-allowed' : 'pointer',
+                                boxShadow: isLimitReached ? 'none' : '0 10px 20px -5px rgba(15, 23, 42, 0.3)',
+                            }}
+                        >
+                            {isLimitReached ? <AlertCircle size={20} /> : <Wand2 size={20} />}
+                            <span>{isLimitReached ? 'Límite Alcanzado' : (isPlanExpired ? 'Actualizar Plan' : 'Actualizar Platos')}</span>
+                        </button>
+                        
+                        {/* Indicador de vigencia de la lista de compras */}
+                        {!isLimitReached && (
+                            <span style={{ 
+                                fontSize: '0.7rem', 
+                                color: isPlanExpired ? '#EF4444' : '#64748B', 
+                                fontWeight: 600,
+                                background: isPlanExpired ? '#FEF2F2' : 'transparent',
+                                padding: isPlanExpired ? '0.15rem 0.6rem' : '0',
+                                borderRadius: '1rem',
+                                transition: 'all 0.3s ease'
+                            }}>
+                                {isPlanExpired 
+                                    ? "⏳ Lista vencida. Renovación sugerida" 
+                                    : `🛒 Faltan ${daysLeft} día${daysLeft !== 1 ? 's' : ''} de súper`}
+                            </span>
+                        )}
+                    </div>
                 </div>
             </header>
 
