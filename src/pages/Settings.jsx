@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import {
     User, Bell, Shield, ChevronRight,
-    LogOut, Save, Trash2, Database, Mail, Brain, CreditCard, AlertCircle
+    LogOut, Save, Trash2, Database, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import { useAssessment } from '../context/AssessmentContext';
 import { useNavigate } from 'react-router-dom';
 import styles from './Settings.module.css';
@@ -39,6 +41,7 @@ const Settings = () => {
 
     // --- ESTADOS DE PAGO ---
     const [isCancelling, setIsCancelling] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
 
     // --- EFECTOS ---
 
@@ -120,10 +123,11 @@ const Settings = () => {
 
         if (result.success) {
             setSaveStatus('success');
+            toast.success("Perfil actualizado con éxito.");
             setTimeout(() => setSaveStatus(''), 3000);
         } else {
             setSaveStatus('error');
-            alert("Hubo un error al guardar. Por favor verifica tu conexión.");
+            toast.error("Hubo un error al guardar. Por favor verifica tu conexión.");
         }
     };
 
@@ -138,20 +142,23 @@ const Settings = () => {
             if (response.ok) {
                 // Actualizamos el estado local quitando el hecho borrado
                 setUserFacts(prev => prev.filter(f => f.id !== factId));
+                toast.success("Información olvidada con éxito.");
             } else {
-                alert("Hubo un problema al olvidar la información.");
+                toast.error("Hubo un problema al olvidar la información.");
             }
         } catch (error) {
             console.error("Error borrando fact:", error);
-            alert("No se pudo conectar con el servidor para borrar.");
+            toast.error("No se pudo conectar con el servidor para borrar.");
         } finally {
             setIsDeletingFact(null);
         }
     };
 
-    const handleCancelSubscription = async () => {
-        if (!confirm("¿Estás seguro de que deseas cancelar tu suscripción? Perderás los beneficios de tu plan inmediatamente o al final del ciclo.")) return;
-        
+    const handleCancelSubscription = () => {
+        setShowCancelModal(true);
+    };
+
+    const runCancelSubscription = async () => {
         setIsCancelling(true);
         try {
             const response = await fetchWithAuth('/api/subscription/cancel', {
@@ -161,15 +168,18 @@ const Settings = () => {
 
             const data = await response.json();
             if (response.ok && data.success) {
-                alert("Tu suscripción ha sido cancelada exitosamente.");
+                setShowCancelModal(false);
+                toast.success("Tu suscripción ha sido cancelada exitosamente.");
                 // Forzar la recarga del perfil global
-                window.location.reload();
+                setTimeout(() => window.location.reload(), 2000);
             } else {
-                alert(data.message || "Hubo un error al cancelar la suscripción. Por favor contacta a soporte.");
+                toast.error(data.message || "Hubo un error al cancelar la suscripción.");
+                setShowCancelModal(false);
             }
         } catch (error) {
             console.error("Error cancelando suscripción:", error);
-            alert("No se pudo conectar con el servidor para cancelar. Inténtalo más tarde.");
+            toast.error("No se pudo conectar con el servidor para cancelar. Inténtalo más tarde.");
+            setShowCancelModal(false);
         } finally {
             setIsCancelling(false);
         }
@@ -182,6 +192,95 @@ const Settings = () => {
     return (
         <DashboardLayout>
             <div className={styles.wrapper}>
+                <AnimatePresence>
+                    {showCancelModal && (
+                        <div style={{
+                            position: 'fixed', inset: 0, zIndex: 9999, display: 'flex',
+                            alignItems: 'center', justifyContent: 'center', padding: '1.25rem'
+                        }}>
+                            {/* Backdrop */}
+                            <motion.div 
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                onClick={() => !isCancelling && setShowCancelModal(false)}
+                                style={{
+                                    position: 'absolute', inset: 0, 
+                                    background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)'
+                                }}
+                            />
+
+                            {/* Modal Content */}
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                style={{
+                                    background: '#FFFFFF', borderRadius: '1.25rem', padding: '2rem',
+                                    width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1,
+                                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                                }}
+                            >
+                                <button 
+                                    onClick={() => !isCancelling && setShowCancelModal(false)}
+                                    disabled={isCancelling}
+                                    style={{
+                                        position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none',
+                                        color: '#64748B', cursor: isCancelling ? 'not-allowed' : 'pointer', display: 'flex', padding: '0.25rem',
+                                        borderRadius: '0.5rem', transition: 'background 0.2s', opacity: isCancelling ? 0.5 : 1
+                                    }}
+                                    onMouseOver={(e) => { if (!isCancelling) e.currentTarget.style.background = '#F1F5F9'; }}
+                                    onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                                >
+                                    <X size={20} />
+                                </button>
+                                
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+                                    <div style={{ background: '#FEF2F2', color: '#EF4444', padding: '0.75rem', borderRadius: '50%' }}>
+                                        <AlertTriangle size={24} strokeWidth={2.5} />
+                                    </div>
+                                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0F172A' }}>
+                                        Cancelar Suscripción
+                                    </h3>
+                                </div>
+                                
+                                <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '2rem' }}>
+                                    ¿Estás seguro de que deseas cancelar tu suscripción? Perderás todos tus beneficios premium al finalizar tu ciclo actual. <strong>Esta acción no se puede deshacer.</strong>
+                                </p>
+                                
+                                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                                    <button 
+                                        onClick={() => setShowCancelModal(false)}
+                                        disabled={isCancelling}
+                                        style={{
+                                            padding: '0.75rem 1.25rem', borderRadius: '0.75rem', border: 'none',
+                                            background: '#F1F5F9', color: '#475569', fontWeight: 600, 
+                                            cursor: isCancelling ? 'not-allowed' : 'pointer', transition: 'all 0.2s',
+                                            opacity: isCancelling ? 0.7 : 1
+                                        }}
+                                        onMouseOver={(e) => { if (!isCancelling) e.currentTarget.style.background = '#E2E8F0'; }}
+                                        onMouseOut={(e) => { if (!isCancelling) e.currentTarget.style.background = '#F1F5F9'; }}
+                                    >
+                                        Mantener Plan
+                                    </button>
+                                    <button 
+                                        onClick={runCancelSubscription}
+                                        disabled={isCancelling}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                            padding: '0.75rem 1.25rem', borderRadius: '0.75rem', border: 'none',
+                                            background: '#EF4444', color: '#FFFFFF', fontWeight: 600, 
+                                            cursor: isCancelling ? 'wait' : 'pointer',
+                                            transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
+                                            opacity: isCancelling ? 0.8 : 1
+                                        }}
+                                        onMouseOver={(e) => { if (!isCancelling) e.currentTarget.style.background = '#DC2626'; }}
+                                        onMouseOut={(e) => { if (!isCancelling) e.currentTarget.style.background = '#EF4444'; }}
+                                    >
+                                        {isCancelling ? 'Cancelando...' : 'Sí, Cancelar'}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
+
                 {/* --- HEADER --- */}
                 <header className={styles.header}>
                     <h1 className={styles.headerTitle}>
@@ -417,7 +516,7 @@ const Settings = () => {
                                     </div>
                                     <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0F172A', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         {userProfile?.plan_tier === 'ultra' ? 'Ultra (Ilimitado)' : 
-                                         userProfile?.plan_tier === 'plus' ? 'Plus (Premium)' : 
+                                         userProfile?.plan_tier === 'plus' ? 'Plus' : 
                                          userProfile?.plan_tier === 'admin' ? 'Administrador' : 'Plan Gratis'}
                                         
                                         {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && (
@@ -517,7 +616,7 @@ const Settings = () => {
                             <div style={{ background: '#FEF08A', padding: '0.5rem', borderRadius: '0.5rem', color: '#CA8A04' }}>
                                 <Brain size={20} />
                             </div>
-                            Lo que el Agente sabe de ti
+                            Memoria
                         </h2>
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
                             Tu Agente aprende de tus conversaciones para ser más preciso. Borra lo que ya no necesite saber.
