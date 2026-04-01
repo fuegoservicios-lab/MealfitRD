@@ -328,6 +328,7 @@ const Dashboard = () => {
                     }
                     .actions-group {
                         width: 100%;
+                        align-items: flex-start;
                     }
                     .new-plan-wrapper {
                         flex: 1.1;
