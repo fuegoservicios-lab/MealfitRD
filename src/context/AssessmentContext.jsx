@@ -685,20 +685,49 @@ export const AssessmentProvider = ({ children }) => {
         setLoadingData(false);
     };
 
-    const upgradeUserPlan = async (tier = 'plus') => {
+    const upgradeUserPlan = async (tier = 'plus', subscriptionId = null) => {
         try {
             const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
             if (!userId) throw new Error("No user ID");
-            console.log(`💳 Procesando actualización a ${tier}...`);
-            const { error } = await supabase
-                .from('user_profiles')
-                .update({
-                    plan_tier: tier,
-                    updated_at: new Date()
-                })
-                .eq('id', userId);
-            if (error) throw error;
-            setUserProfile(prev => ({ ...prev, plan_tier: tier }));
+            console.log(`💳 Procesando actualización a ${tier} (Suscripción: ${subscriptionId || 'Desconocida'})...`);
+
+            if (subscriptionId) {
+                // Validación Segura B2B con nuestro Backend
+                toast.loading('Verificando tu pago. Por favor espera...', { id: 'payment-verify' });
+                const response = await fetchWithAuth('/api/subscription/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        subscriptionID: subscriptionId,
+                        tier: tier
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.detail || "Fallo en la verificación del pago en el servidor.");
+                }
+                
+                toast.success('Pago verificado exitosamente.', { id: 'payment-verify' });
+                
+                // Recargar el perfil desde la base de datos ya que el servidor hizo el UPDATE
+                await refreshProfileAndPlan();
+                
+            } else {
+                // Caso antiguo o admin bypass
+                console.warn("⚠️ Bypass de suscripción llamado (Sin ID de suscripción).");
+                const { error } = await supabase
+                    .from('user_profiles')
+                    .update({
+                        plan_tier: tier,
+                        updated_at: new Date()
+                    })
+                    .eq('id', userId);
+                if (error) throw error;
+                setUserProfile(prev => ({ ...prev, plan_tier: tier }));
+            }
+
             await checkPlanLimit(userId);
             
             const planNames = { basic: 'Mealfit Básico', plus: 'Mealfit Plus', ultra: 'Mealfit Ultra Ilimitado' };
@@ -712,7 +741,8 @@ export const AssessmentProvider = ({ children }) => {
             return true;
         } catch (error) {
             console.error("Error upgrading user:", error);
-            toast.error('Error al actualizar perfil');
+            toast.error(error.message || 'Error al actualizar perfil');
+            toast.dismiss('payment-verify');
             return false;
         }
     };

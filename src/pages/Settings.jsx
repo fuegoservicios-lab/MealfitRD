@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import {
     User, Bell, Shield, ChevronRight,
-    LogOut, Save, Trash2, Database, Mail, Brain
+    LogOut, Save, Trash2, Database, Mail, Brain, CreditCard, AlertCircle
 } from 'lucide-react';
 import { useAssessment } from '../context/AssessmentContext';
 import { useNavigate } from 'react-router-dom';
@@ -36,6 +36,9 @@ const Settings = () => {
     const [userFacts, setUserFacts] = useState([]);
     const [isLoadingFacts, setIsLoadingFacts] = useState(false);
     const [isDeletingFact, setIsDeletingFact] = useState(null); // ID del fact que se está borrando
+
+    // --- ESTADOS DE PAGO ---
+    const [isCancelling, setIsCancelling] = useState(false);
 
     // --- EFECTOS ---
 
@@ -143,6 +146,32 @@ const Settings = () => {
             alert("No se pudo conectar con el servidor para borrar.");
         } finally {
             setIsDeletingFact(null);
+        }
+    };
+
+    const handleCancelSubscription = async () => {
+        if (!confirm("¿Estás seguro de que deseas cancelar tu suscripción? Perderás los beneficios de tu plan inmediatamente o al final del ciclo.")) return;
+        
+        setIsCancelling(true);
+        try {
+            const response = await fetchWithAuth('/api/subscription/cancel', {
+                method: 'POST',
+                body: JSON.stringify({ user_id: userProfile?.id })
+            });
+
+            const data = await response.json();
+            if (response.ok && data.success) {
+                alert("Tu suscripción ha sido cancelada exitosamente.");
+                // Forzar la recarga del perfil global
+                window.location.reload();
+            } else {
+                alert(data.message || "Hubo un error al cancelar la suscripción. Por favor contacta a soporte.");
+            }
+        } catch (error) {
+            console.error("Error cancelando suscripción:", error);
+            alert("No se pudo conectar con el servidor para cancelar. Inténtalo más tarde.");
+        } finally {
+            setIsCancelling(false);
         }
     };
 
@@ -362,6 +391,99 @@ const Settings = () => {
                             </div>
                         </section>
                     </div>
+
+                    {/* SECCIÓN NUEVA: SUSCRIPCIÓN */}
+                    <section className={styles.section}>
+                        <h2 className={styles.sectionTitle} style={{ marginBottom: '1rem' }}>
+                            <div style={{ background: '#E0E7FF', padding: '0.5rem', borderRadius: '0.5rem', color: '#4F46E5' }}>
+                                <CreditCard size={20} />
+                            </div>
+                            Suscripción y Pagos
+                        </h2>
+                        
+                        <div style={{ 
+                            background: '#F8FAFC', 
+                            border: '1px solid #E2E8F0', 
+                            padding: '1.5rem', 
+                            borderRadius: '1rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '1rem'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                                <div>
+                                    <div style={{ fontSize: '0.9rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                        Plan Actual
+                                    </div>
+                                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0F172A', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        {userProfile?.plan_tier === 'ultra' ? 'Ultra (Ilimitado)' : 
+                                         userProfile?.plan_tier === 'plus' ? 'Plus (Premium)' : 
+                                         userProfile?.plan_tier === 'admin' ? 'Administrador' : 'Plan Gratis'}
+                                        
+                                        {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && (
+                                            <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', background: '#DCFCE7', color: '#166534', borderRadius: '1rem', fontWeight: 600 }}>
+                                                Activo
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                
+                                {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && (
+                                    <button 
+                                        onClick={handleCancelSubscription}
+                                        disabled={isCancelling}
+                                        style={{
+                                            background: '#FEF2F2',
+                                            color: '#DC2626',
+                                            border: '1px solid #FECACA',
+                                            padding: '0.6rem 1.25rem',
+                                            borderRadius: '0.75rem',
+                                            fontWeight: 600,
+                                            cursor: isCancelling ? 'wait' : 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            transition: 'all 0.2s',
+                                            opacity: isCancelling ? 0.7 : 1
+                                        }}
+                                        onMouseOver={(e) => {
+                                            if(!isCancelling) e.currentTarget.style.background = '#FEE2E2';
+                                        }}
+                                        onMouseOut={(e) => {
+                                            if(!isCancelling) e.currentTarget.style.background = '#FEF2F2';
+                                        }}
+                                    >
+                                        {isCancelling ? 'Cancelando...' : 'Cancelar Suscripción'}
+                                    </button>
+                                )}
+                            </div>
+                            
+                            {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && (
+                                <div style={{ 
+                                    display: 'flex', 
+                                    gap: '0.75rem', 
+                                    background: '#FFFBEB', 
+                                    padding: '1rem', 
+                                    borderRadius: '0.75rem',
+                                    border: '1px solid #FEF3C7',
+                                    color: '#B45309',
+                                    fontSize: '0.85rem',
+                                    marginTop: '0.5rem'
+                                }}>
+                                    <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                                    <div>
+                                        Al cancelar, volverás al plan gratuito y perderás los beneficios premium de tu suscripción. Los cobros automáticos se detendrán en el momento de la confirmación.
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {userProfile?.plan_tier === 'gratis' && (
+                                <div style={{ fontSize: '0.9rem', color: '#475569' }}>
+                                    Actualmente estás en el plan gratis. Puedes mejorar tu plan explorando más funcionalidades de la app.
+                                </div>
+                            )}
+                        </div>
+                    </section>
 
                     {/* SECCIÓN NUEVA: CEREBRO IA */}
                     <section className={styles.section}>

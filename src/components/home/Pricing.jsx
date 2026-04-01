@@ -45,7 +45,6 @@ const Pricing = () => {
     const isBasic = currentTier === 'basic';
     const isPlus = currentTier === 'plus';
     const isUltra = currentTier === 'ultra';
-    const hasActivePlan = isBasic || isPlus || isUltra;
 
     // Jerarquía de planes
     const tierRank = { gratis: 0, basic: 1, plus: 2, ultra: 3, admin: 4 };
@@ -69,6 +68,7 @@ const Pricing = () => {
     const handleUpgradeClick = (tier, name) => {
         const targetRank = tierRank[tier] || 0;
 
+        // Validacion de seguridad (aunque el boton este disabled)
         if (targetRank <= currentRank) {
             window.scrollTo(0, 0);
             navigate('/dashboard');
@@ -80,20 +80,41 @@ const Pricing = () => {
         setIsPaymentOpen(true);
     };
 
-    // Callback que se ejecuta cuando PayPal confirma el pago exitoso
-    const handlePaymentSuccess = async (tier) => {
+    // Callback que se ejecuta cuando PayPal confirma el pago exitoso (Suscripciones)
+    const handlePaymentSuccess = async (tier, subscriptionId) => {
         setIsPaymentOpen(false);
-        await upgradeUserPlan(tier);
+        await upgradeUserPlan(tier, subscriptionId);
         navigate('/dashboard');
     };
 
     // Texto del botón según estado del usuario
     const getButtonText = (tier) => {
+        if (tier === 'gratis') {
+            if (currentRank > 0) return "Incluido en tu Plan";
+            if (currentRank === 0 && hasStarted) return `Créditos: ${remainingCredits}/${PLAN_LIMIT}`;
+            return "Empezar Gratis Ahora";
+        }
+
         const targetRank = tierRank[tier] || 0;
         if (currentTier === tier) return "Tu Plan Actual";
-        if (targetRank < currentRank) return "Ir al Panel";
+        if (targetRank < currentRank) return "Incluido en tu Plan";
         return `Cambiar a ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
     };
+
+    // Lógica de deshabilitación de botones
+    const isButtonDisabled = (tier) => {
+        const targetRank = tierRank[tier] || 0;
+        // Si el usuario es Gratis, nunca deshabilitar el botón Gratis para que pueda navegar
+        if (currentRank === 0 && tier === 'gratis') return false;
+        
+        // No deshabilitar el plan actual para que puedan hacer clic e ir al dashboard
+        if (targetRank === currentRank) return false;
+        
+        // Para cualquier otro caso, deshabilitar SOLO si el plan visualizado es INFERIOR al actual
+        return targetRank < currentRank;
+    };
+
+    const disabledStyles = { opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(100%)' };
 
     return (
         <section className={styles.pricing}>
@@ -102,7 +123,7 @@ const Pricing = () => {
             <PaymentModal
                 isOpen={isPaymentOpen}
                 onClose={() => setIsPaymentOpen(false)}
-                onSuccess={() => handlePaymentSuccess(selectedPlan?.tier)}
+                onSuccess={(subId) => handlePaymentSuccess(selectedPlan?.tier, subId)}
                 price={selectedPlan?.price || "9.99"}
                 planName={selectedPlan?.name || "Suscripción Básico"}
                 tier={selectedPlan?.tier || "basic"}
@@ -158,13 +179,10 @@ const Pricing = () => {
                             <button
                                 className={styles.btnOutline}
                                 onClick={handleFreePlanClick}
+                                disabled={isButtonDisabled('gratis')}
+                                style={isButtonDisabled('gratis') ? disabledStyles : {}}
                             >
-                                {hasActivePlan
-                                    ? "Ir al Panel"
-                                    : (hasStarted
-                                        ? `Créditos: ${remainingCredits}/${PLAN_LIMIT}`
-                                        : 'Empezar Gratis Ahora')
-                                }
+                                {getButtonText('gratis')}
                             </button>
                         </div>
                     </div>
@@ -195,6 +213,8 @@ const Pricing = () => {
                             <button
                                 className={styles.btnOutline}
                                 onClick={() => handleUpgradeClick('basic', 'Suscripción Básico')}
+                                disabled={isButtonDisabled('basic')}
+                                style={isButtonDisabled('basic') ? disabledStyles : {}}
                             >
                                 {getButtonText('basic')}
                             </button>
@@ -227,6 +247,8 @@ const Pricing = () => {
                             <button
                                 className={styles.btnPrimary}
                                 onClick={() => handleUpgradeClick('plus', 'Suscripción Plus')}
+                                disabled={isButtonDisabled('plus')}
+                                style={isButtonDisabled('plus') ? disabledStyles : {}}
                             >
                                 {getButtonText('plus')}
                             </button>
@@ -260,6 +282,8 @@ const Pricing = () => {
                             <button
                                 className={styles.btnOutline}
                                 onClick={() => handleUpgradeClick('ultra', 'Suscripción Ultra Ilimitado')}
+                                disabled={isButtonDisabled('ultra')}
+                                style={isButtonDisabled('ultra') ? disabledStyles : {}}
                             >
                                 {getButtonText('ultra')}
                             </button>
