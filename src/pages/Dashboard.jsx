@@ -329,6 +329,9 @@ const Dashboard = () => {
                     .actions-group {
                         width: 100%;
                     }
+                    .new-plan-wrapper {
+                        flex: 1.1;
+                    }
                     .new-plan-btn {
                         width: 100%;
                         justify-content: center;
@@ -438,7 +441,7 @@ const Dashboard = () => {
                     </div>
 
                     {/* REGENERACIÓN DE MENÚ: BOTÓN Y TEXTO AUXILIAR */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'center' }}>
+                    <div className="new-plan-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'center' }}>
                         <button
                             onClick={handleNewPlan}
                             disabled={isLimitReached}
