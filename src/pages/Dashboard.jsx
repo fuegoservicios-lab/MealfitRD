@@ -423,8 +423,16 @@ const Dashboard = () => {
                             <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>
                                 Créditos
                             </span>
-                            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                                {remainingCredits} {userPlanLimit !== 'Ilimitado' && <span style={{ color: '#94A3B8' }}>/ {userPlanLimit}</span>}
+                            <div style={{ 
+                                fontSize: '1rem', 
+                                fontWeight: 800, 
+                                color: 'var(--text-main)',
+                                display: 'flex', 
+                                alignItems: 'baseline', 
+                                gap: '3px', 
+                                whiteSpace: 'nowrap' 
+                            }}>
+                                {remainingCredits} {userPlanLimit !== 'Ilimitado' && <span style={{ color: '#94A3B8', fontSize: '0.85rem', fontWeight: 600 }}>/ {userPlanLimit}</span>}
                             </div>
                         </div>
                     </div>
