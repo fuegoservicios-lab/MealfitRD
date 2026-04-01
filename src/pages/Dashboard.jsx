@@ -255,6 +255,10 @@ const Dashboard = () => {
                         flex-direction: column;
                         align-items: stretch;
                     }
+                    .header-text-group {
+                        align-items: center;
+                        text-align: center;
+                    }
                     .dashboard-title {
                         font-size: 1.65rem;
                     }
@@ -365,7 +369,7 @@ const Dashboard = () => {
 
             {/* --- HEADER PREMIUM --- */}
             <header className="dashboard-header">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div className="header-text-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
 
                     {/* PLAN TIER BADGE */}
                     <div style={{ marginBottom: '0.25rem' }}>
