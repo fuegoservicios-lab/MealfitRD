@@ -990,11 +990,6 @@ const Dashboard = () => {
                                 </div>
                                 Recetas
                             </h3>
-                            <Link to="/dashboard/recipes" onClick={() => window.scrollTo(0, 0)} style={{ textDecoration: 'none' }}>
-                                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#EA580C', background: '#FFF7ED', padding: '0.25rem 0.75rem', borderRadius: '99px', cursor: 'pointer' }}>
-                                    Ver Todo
-                                </span>
-                            </Link>
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
