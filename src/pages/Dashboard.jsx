@@ -996,8 +996,9 @@ const Dashboard = () => {
                             {currentDayMeals.slice(0, 3).map((meal, i) => (
                                 <div key={i} style={{
                                     display: 'flex', alignItems: 'center', gap: '1rem',
-                                    padding: '0.75rem', borderRadius: '1rem',
-                                    background: 'white', border: '1px solid #F1F5F9'
+                                    padding: '0.85rem', borderRadius: '1rem',
+                                    background: 'white', border: '1px solid #E2E8F0',
+                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)'
                                 }}>
                                     <div style={{
                                         width: 40, height: 40, borderRadius: '0.75rem',
