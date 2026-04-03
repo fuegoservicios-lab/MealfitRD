@@ -441,7 +441,7 @@ const Dashboard = () => {
                                 gap: '3px', 
                                 whiteSpace: 'nowrap' 
                             }}>
-                                {remainingCredits} {userPlanLimit !== 'Ilimitado' && <span style={{ color: '#94A3B8', fontSize: '0.85rem', fontWeight: 600 }}>/ {userPlanLimit}</span>}
+                                {remainingCredits} {userPlanLimit !== 'Ilimitado' && <span style={{ color: '#64748B', fontSize: '0.9rem', fontWeight: 700 }}>/ {userPlanLimit}</span>}
                             </div>
                         </div>
                     </div>
