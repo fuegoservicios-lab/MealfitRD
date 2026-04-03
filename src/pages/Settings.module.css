@@ -119,6 +119,17 @@
     justify-content: flex-end;
 }
 
+.planHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.planAction {
+    flex-shrink: 0;
+}
+
 
 
 /* AI Facts Styles */
@@ -284,6 +295,17 @@
     }
     
     .saveBtnContainer button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .planHeader {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1.25rem;
+    }
+
+    .planAction button {
         width: 100%;
         justify-content: center;
     }

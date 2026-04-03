@@ -513,8 +513,8 @@ const Settings = () => {
                             flexDirection: 'column',
                             gap: '1rem'
                         }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                                <div>
+                            <div className={styles.planHeader}>
+                                <div style={{ width: '100%' }}>
                                     <div style={{ fontSize: '0.9rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                         Plan Actual
                                     </div>
@@ -539,32 +539,34 @@ const Settings = () => {
                                 </div>
                                 
                                 {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && userProfile?.subscription_status !== 'CANCELLED' && (
-                                    <button 
-                                        onClick={handleCancelSubscription}
-                                        disabled={isCancelling}
-                                        style={{
-                                            background: '#FEF2F2',
-                                            color: '#DC2626',
-                                            border: '1px solid #FECACA',
-                                            padding: '0.6rem 1.25rem',
-                                            borderRadius: '0.75rem',
-                                            fontWeight: 600,
-                                            cursor: isCancelling ? 'wait' : 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.5rem',
-                                            transition: 'all 0.2s',
-                                            opacity: isCancelling ? 0.7 : 1
-                                        }}
-                                        onMouseOver={(e) => {
-                                            if(!isCancelling) e.currentTarget.style.background = '#FEE2E2';
-                                        }}
-                                        onMouseOut={(e) => {
-                                            if(!isCancelling) e.currentTarget.style.background = '#FEF2F2';
-                                        }}
-                                    >
-                                        {isCancelling ? 'Cancelando...' : 'Cancelar Suscripción'}
-                                    </button>
+                                    <div className={styles.planAction}>
+                                        <button 
+                                            onClick={handleCancelSubscription}
+                                            disabled={isCancelling}
+                                            style={{
+                                                background: '#FEF2F2',
+                                                color: '#DC2626',
+                                                border: '1px solid #FECACA',
+                                                padding: '0.6rem 1.25rem',
+                                                borderRadius: '0.75rem',
+                                                fontWeight: 600,
+                                                cursor: isCancelling ? 'wait' : 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                transition: 'all 0.2s',
+                                                opacity: isCancelling ? 0.7 : 1
+                                            }}
+                                            onMouseOver={(e) => {
+                                                if(!isCancelling) e.currentTarget.style.background = '#FEE2E2';
+                                            }}
+                                            onMouseOut={(e) => {
+                                                if(!isCancelling) e.currentTarget.style.background = '#FEF2F2';
+                                            }}
+                                        >
+                                            {isCancelling ? 'Cancelando...' : 'Cancelar Suscripción'}
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                             
