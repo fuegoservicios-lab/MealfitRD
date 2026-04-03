@@ -227,6 +227,18 @@ const Plan = () => {
                     return;
                 }
 
+                // Lógica de fechas para las compras (Grocery Cycle)
+                const oldPlanStr = localStorage.getItem('mealfit_plan');
+                const oldPlan = oldPlanStr ? JSON.parse(oldPlanStr) : {};
+                
+                if (previousMeals && previousMeals.length > 0) {
+                    // Si estamos "Actualizando Platos" (menú rotativo), mantenemos la fecha original
+                    generatedPlan.grocery_start_date = oldPlan.grocery_start_date || oldPlan.created_at || new Date().toISOString();
+                } else {
+                    // Si es un "Ciclo Renovado" (plan nuevo desde cero), empezamos a contar desde hoy
+                    generatedPlan.grocery_start_date = new Date().toISOString();
+                }
+
                 // El backend ya guarda el plan en _save_plan_and_track_background (con título IA, frecuencias, etc.)
                 // NO guardamos aquí para evitar duplicados en el historial.
 

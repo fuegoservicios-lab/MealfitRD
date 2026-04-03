@@ -152,7 +152,7 @@ export const AssessmentProvider = ({ children }) => {
             // 1. Buscar el último plan creado por este usuario en Supabase
             const { data: plans, error } = await supabase
                 .from('meal_plans')
-                .select('plan_data')
+                .select('plan_data, created_at')
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false })
                 .limit(1);
@@ -161,6 +161,12 @@ export const AssessmentProvider = ({ children }) => {
 
             if (plans && plans.length > 0) {
                 const latestPlan = plans[0].plan_data;
+                const planCreatedAt = plans[0].created_at;
+
+                // FIX: Asegurar que el plan de la BD tenga una fecha de inicio de compras para el contador de Dashboard
+                if (!latestPlan.grocery_start_date) {
+                    latestPlan.grocery_start_date = planCreatedAt;
+                }
 
                 // Leemos directamente del localStorage para la comparación
                 const localSaved = localStorage.getItem('mealfit_plan');
