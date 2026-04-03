@@ -1,4 +1,4 @@
-import { ClipboardList, Sparkles, Utensils, TrendingUp } from 'lucide-react';
+import { ClipboardList, Cpu, Utensils, TrendingUp } from 'lucide-react';
 import styles from './HowItWorks.module.css';
 
 const steps = [
@@ -10,7 +10,7 @@ const steps = [
         bg: "#EFF6FF"
     },
     {
-        icon: Sparkles,
+        icon: Cpu,
         title: "IA de Alta Potencia",
         desc: "Nuestro motor hiperavanzado procesa millones de variables nutricionales en segundos para armar tu plan perfecto.",
         color: "#8B5CF6",
