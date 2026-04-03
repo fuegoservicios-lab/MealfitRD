@@ -102,10 +102,10 @@ const StepGoals = () => {
 
     return (
         <motion.div>
-            <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: 700, color: 'var(--text-main)' }}>
+            <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: 700, color: 'var(--text-main)', display: 'none' }}>
                 4. Objetivos y Mentalidad
             </h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem', fontSize: '1rem' }}>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem', fontSize: '1rem', display: 'none' }}>
                 La nutrición es 50% biología y 50% psicología.
             </p>
 
@@ -213,21 +213,30 @@ const StepGoals = () => {
                             rows={3}
                             style={{
                                 width: '100%',
-                                padding: '1rem',
+                                padding: '1.25rem',
                                 paddingLeft: '3rem',
-                                borderRadius: 'var(--radius-lg)',
+                                borderRadius: '1rem',
                                 border: '1px solid var(--border)',
                                 fontSize: '0.95rem',
                                 fontFamily: 'inherit',
                                 resize: 'vertical',
                                 outline: 'none',
-                                transition: 'border-color 0.2s',
-                                minHeight: '100px'
+                                transition: 'all 0.25s ease',
+                                minHeight: '120px',
+                                background: '#FAFAFA'
                             }}
-                            onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-                            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                            onFocus={(e) => {
+                                e.target.style.borderColor = 'var(--primary)';
+                                e.target.style.background = 'white';
+                                e.target.style.boxShadow = '0 0 0 4px rgba(37, 99, 235, 0.1)';
+                            }}
+                            onBlur={(e) => {
+                                e.target.style.borderColor = 'var(--border)';
+                                e.target.style.background = '#FAFAFA';
+                                e.target.style.boxShadow = 'none';
+                            }}
                         />
-                        <div style={{ position: 'absolute', top: '1.1rem', left: '1rem', color: 'var(--text-muted)' }}>
+                        <div style={{ position: 'absolute', top: '1.25rem', left: '1rem', color: 'var(--text-muted)' }}>
                             <Battery size={20} />
                         </div>
                     </div>
@@ -245,15 +254,15 @@ const StepGoals = () => {
                         style={{
                             cursor: 'pointer',
                             marginTop: '0.5rem',
-                            padding: '1rem',
-                            borderRadius: formData.includeSupplements ? 'var(--radius-lg) var(--radius-lg) 0 0' : 'var(--radius-lg)',
-                            border: formData.includeSupplements ? '1px solid #8b5cf6' : '1px solid var(--border)',
-                            borderBottom: formData.includeSupplements ? '1px dashed rgba(139, 92, 246, 0.3)' : undefined,
-                            backgroundColor: formData.includeSupplements ? 'rgba(139, 92, 246, 0.05)' : 'white',
+                            padding: '1.25rem 1rem',
+                            borderRadius: formData.includeSupplements ? '1rem 1rem 0 0' : '1rem',
+                            border: formData.includeSupplements ? '2px solid #8b5cf6' : '2px solid var(--border)',
+                            borderBottom: formData.includeSupplements ? '2px dashed rgba(139, 92, 246, 0.3)' : undefined,
+                            backgroundColor: formData.includeSupplements ? 'rgba(139, 92, 246, 0.03)' : 'white',
                             display: 'flex',
                             alignItems: 'flex-start',
                             gap: '1rem',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.25s'
                         }}
                     >
                         <div style={{
@@ -261,10 +270,15 @@ const StepGoals = () => {
                             borderRadius: '50%',
                             border: formData.includeSupplements ? '6px solid #8b5cf6' : '2px solid var(--text-muted)',
                             flexShrink: 0,
-                            marginTop: 2
-                        }} />
+                            marginTop: 2,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            position: 'relative'
+                        }}>
+                        </div>
                         <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div style={{ fontWeight: 600, color: formData.includeSupplements ? '#8b5cf6' : 'var(--text-main)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem' }}>
                                 <Pill size={18} color={formData.includeSupplements ? '#8b5cf6' : 'var(--text-muted)'} />
                                 Incluir Suplementos en mi Plan
                             </div>
@@ -280,17 +294,17 @@ const StepGoals = () => {
                     {/* Expandable Supplement Options */}
                     {formData.includeSupplements && (
                         <div style={{
-                            padding: '1rem',
-                            border: '1px solid #8b5cf6',
+                            padding: '1.5rem 1rem',
+                            border: '2px solid #8b5cf6',
                             borderTop: 'none',
-                            borderRadius: '0 0 var(--radius-lg) var(--radius-lg)',
+                            borderRadius: '0 0 1rem 1rem',
                             backgroundColor: 'rgba(139, 92, 246, 0.02)',
                             animation: 'fadeSlideDown 0.25s ease-out'
                         }}>
-                            <p style={{ fontSize: '0.8rem', color: '#8b5cf6', fontWeight: 600, marginBottom: '0.75rem', marginTop: 0 }}>
+                            <p style={{ fontSize: '0.9rem', color: '#8b5cf6', fontWeight: 600, marginBottom: '1rem', marginTop: 0 }}>
                                 ¿Cuáles tomas o te interesan?
                             </p>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '0.5rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '0.75rem' }}>
                                 {[
                                     { val: 'whey_protein', label: 'Proteína Whey', emoji: '🥛' },
                                     { val: 'creatine', label: 'Creatina', emoji: '⚡' },
@@ -317,7 +331,7 @@ const StepGoals = () => {
                                             }}
                                             style={{
                                                 cursor: 'pointer',
-                                                padding: '0.6rem 0.75rem',
+                                                padding: '0.75rem',
                                                 borderRadius: '0.75rem',
                                                 border: isSelected ? '1.5px solid #8b5cf6' : '1px solid #e2e8f0',
                                                 backgroundColor: isSelected ? 'rgba(139, 92, 246, 0.08)' : 'white',
@@ -325,13 +339,13 @@ const StepGoals = () => {
                                                 alignItems: 'center',
                                                 gap: '0.5rem',
                                                 transition: 'all 0.15s ease',
-                                                boxShadow: isSelected ? '0 2px 8px rgba(139, 92, 246, 0.15)' : 'none'
+                                                boxShadow: isSelected ? '0 2px 8px rgba(139, 92, 246, 0.15)' : '0 1px 2px rgba(0,0,0,0.02)'
                                             }}
                                         >
-                                            <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>{supp.emoji}</span>
+                                            <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>{supp.emoji}</span>
                                             <span style={{
-                                                fontSize: '0.82rem',
-                                                fontWeight: isSelected ? 600 : 400,
+                                                fontSize: '0.85rem',
+                                                fontWeight: isSelected ? 600 : 500,
                                                 color: isSelected ? '#7c3aed' : 'var(--text-main)'
                                             }}>
                                                 {supp.label}
@@ -344,7 +358,7 @@ const StepGoals = () => {
                                 })}
                             </div>
                             {(formData.selectedSupplements || []).length === 0 && (
-                                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.75rem', marginBottom: 0, fontStyle: 'italic' }}>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '1rem', marginBottom: 0, fontStyle: 'italic' }}>
                                     Si no seleccionas ninguno, la IA recomendará suplementos según tu objetivo.
                                 </p>
                             )}
@@ -353,7 +367,7 @@ const StepGoals = () => {
                 </section>
 
                 {/* Navigation */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', paddingTop: '2rem', borderTop: '1px solid var(--border)', marginTop: '2rem' }}>
+                <div className={stylesLayout.stickyActionBar}>
                     <button
                         onClick={prevStep}
                         style={{
@@ -402,12 +416,15 @@ const StepGoals = () => {
                             opacity: (isFormValid && !isSubmitting) ? 1 : 0.8,
                             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                             pointerEvents: (isSubmitting) ? 'none' : 'auto',
-                            letterSpacing: '0.02em'
+                            letterSpacing: '0.02em',
+                            flex: 1,
+                            justifyContent: 'center',
+                            minWidth: '200px'
                         }}
                         onMouseEnter={(e) => {
                             if (isFormValid && !isSubmitting) {
                                 e.currentTarget.style.transform = 'translateY(-3px) scale(1.02)';
-                                e.currentTarget.style.boxShadow = '0 20px 30px -10px rgba(37, 99, 235, 0.5)';
+                                e.currentTarget.style.boxShadow = '0 15px 30px -10px rgba(37, 99, 235, 0.5)';
                             }
                         }}
                         onMouseLeave={(e) => {

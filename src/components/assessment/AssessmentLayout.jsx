@@ -17,9 +17,9 @@ const AssessmentLayout = ({ children, totalSteps }) => {
 
     return (
         <div className={styles.layout}>
-            {/* Header for Assessment */}
+            {/* Header for Assessment - Mobile Only or Minimal */}
             <header className={styles.header}>
-                <div className="container" style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                <div className="container" style={{ display: 'flex', alignItems: 'center', height: '100%', padding: '0 1.5rem' }}>
                     {currentStep > 0 && (
                         <button onClick={prevStep} className={styles.backBtn}>
                             <ChevronLeft size={24} />
@@ -43,8 +43,32 @@ const AssessmentLayout = ({ children, totalSteps }) => {
             </div>
 
             <main className={styles.main}>
-                <div className={styles.stepContainer}>
-                    {children}
+                {/* Left Side: Desktop Visuals */}
+                <div className={styles.leftPanel}>
+                    <div className={styles.leftContent}>
+                        <div className={styles.badge}>Paso {currentStep === 0 ? "0" : currentStep} de {totalSteps - 1}</div>
+                        <h1 className={styles.leftTitle}>
+                            {currentStep === 0 ? "Tu Transformación" :
+                             currentStep === 1 ? "Háblanos de ti" :
+                             currentStep === 2 ? "Estilo de vida" :
+                             currentStep === 3 ? "Tus Gustos" :
+                             "Tu Meta Final"}
+                        </h1>
+                        <p className={styles.leftSubtitle}>
+                            {currentStep === 0 ? "Comenzaremos a diseñar el menú perfecto para ti." :
+                             "Con estos datos, la IA calculará tus macros exactos y tus porciones ideales para no pasar hambre y ver resultados."}
+                        </p>
+                    </div>
+                    {/* Decorative Elements */}
+                    <div className={styles.decorativeCircle1}></div>
+                    <div className={styles.decorativeCircle2}></div>
+                </div>
+
+                {/* Right Side: Form */}
+                <div className={styles.rightPanel}>
+                    <div className={styles.stepContainer}>
+                        {children}
+                    </div>
                 </div>
             </main>
         </div>

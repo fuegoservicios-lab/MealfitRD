@@ -19,7 +19,7 @@ export const Select = ({ children, ...props }) => (
     </div>
 );
 
-export const RadioCard = ({ name, value, checked, onChange, label, icon: Icon }) => (
+export const RadioCard = ({ name, value, checked, onChange, label, icon: Icon, desc }) => (
     <label className={`${styles.radioCard} ${checked ? styles.checked : ''}`}>
         <input
             type="radio"
@@ -29,12 +29,15 @@ export const RadioCard = ({ name, value, checked, onChange, label, icon: Icon })
             onChange={onChange}
             className={styles.radioHidden}
         />
-        {Icon && <Icon className={styles.icon} size={24} />}
-        <span className={styles.radioLabel}>{label}</span>
+        {Icon && <Icon className={styles.icon} size={28} strokeWidth={checked ? 2.5 : 1.5} />}
+        <div className={styles.radioTextContent}>
+            <span className={styles.radioLabel}>{label}</span>
+            {desc && <span className={styles.radioDesc}>{desc}</span>}
+        </div>
     </label>
 );
 
-export const Checkbox = ({ name, value, checked, onChange, label }) => (
+export const Checkbox = ({ name, value, checked, onChange, label, desc }) => (
     <label className={styles.checkboxWrapper}>
         <input
             type="checkbox"
@@ -45,7 +48,10 @@ export const Checkbox = ({ name, value, checked, onChange, label }) => (
             className={styles.checkboxInput}
         />
         <span className={styles.checkboxCustom} />
-        <span className={styles.checkboxLabel}>{label}</span>
+        <div className={styles.checkTextContent}>
+            <span className={styles.checkboxLabel}>{label}</span>
+            {desc && <span className={styles.checkboxDesc}>{desc}</span>}
+        </div>
     </label>
 );
 

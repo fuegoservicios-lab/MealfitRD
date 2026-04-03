@@ -109,10 +109,10 @@ const StepPreferences = () => {
 
     return (
         <motion.div>
-            <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: 700, color: 'var(--text-main)' }}>
+            <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: 700, color: 'var(--text-main)', display: 'none' }}>
                 3. Preferencias Alimenticias
             </h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem', fontSize: '1rem' }}>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem', fontSize: '1rem', display: 'none' }}>
                 Personaliza tu plan según tus gustos y necesidades.
             </p>
 
@@ -206,15 +206,24 @@ const StepPreferences = () => {
                             onChange={(e) => updateData('otherAllergies', e.target.value)}
                             style={{
                                 width: '100%',
-                                padding: '0.75rem 1rem',
-                                borderRadius: 'var(--radius-md)',
+                                padding: '1rem 1.25rem',
+                                borderRadius: '0.75rem',
                                 border: '1px solid var(--border)',
-                                fontSize: '0.9rem',
+                                fontSize: '0.95rem',
                                 outline: 'none',
-                                transition: 'border-color 0.2s'
+                                transition: 'all 0.25s ease',
+                                background: '#FAFAFA'
                             }}
-                            onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-                            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                            onFocus={(e) => {
+                                e.target.style.borderColor = 'var(--primary)';
+                                e.target.style.background = 'white';
+                                e.target.style.boxShadow = '0 0 0 4px rgba(37, 99, 235, 0.1)';
+                            }}
+                            onBlur={(e) => {
+                                e.target.style.borderColor = 'var(--border)';
+                                e.target.style.background = '#FAFAFA';
+                                e.target.style.boxShadow = 'none';
+                            }}
                         />
                     </div>
                 </section>
@@ -275,15 +284,24 @@ const StepPreferences = () => {
                             onChange={(e) => updateData('otherConditions', e.target.value)}
                             style={{
                                 width: '100%',
-                                padding: '0.75rem 1rem',
-                                borderRadius: 'var(--radius-md)',
+                                padding: '1rem 1.25rem',
+                                borderRadius: '0.75rem',
                                 border: '1px solid var(--border)',
-                                fontSize: '0.9rem',
+                                fontSize: '0.95rem',
                                 outline: 'none',
-                                transition: 'border-color 0.2s'
+                                transition: 'all 0.25s ease',
+                                background: '#FAFAFA'
                             }}
-                            onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-                            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                            onFocus={(e) => {
+                                e.target.style.borderColor = 'var(--primary)';
+                                e.target.style.background = 'white';
+                                e.target.style.boxShadow = '0 0 0 4px rgba(37, 99, 235, 0.1)';
+                            }}
+                            onBlur={(e) => {
+                                e.target.style.borderColor = 'var(--border)';
+                                e.target.style.background = '#FAFAFA';
+                                e.target.style.boxShadow = 'none';
+                            }}
                         />
                     </div>
                 </section>
@@ -296,26 +314,41 @@ const StepPreferences = () => {
                         style={{
                             cursor: 'pointer',
                             marginTop: '0.5rem',
-                            padding: '1rem',
-                            borderRadius: 'var(--radius-lg)',
-                            border: formData.skipLunch ? '1px solid var(--primary)' : '1px solid var(--border)',
-                            backgroundColor: formData.skipLunch ? 'var(--bg-light)' : 'white',
+                            padding: '1.25rem 1rem',
+                            borderRadius: '1rem',
+                            border: formData.skipLunch ? '2px solid var(--primary)' : '2px solid var(--border)',
+                            backgroundColor: formData.skipLunch ? 'rgba(37, 99, 235, 0.04)' : 'white',
                             display: 'flex',
                             alignItems: 'flex-start',
                             gap: '1rem',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.25s'
                         }}
                     >
                         <div style={{
                             width: 24, height: 24,
-                            borderRadius: '50%',
-                            border: formData.skipLunch ? '6px solid var(--primary)' : '2px solid var(--text-muted)',
+                            borderRadius: '6px',
+                            border: formData.skipLunch ? '0' : '2px solid #CBD5E1',
+                            backgroundColor: formData.skipLunch ? 'var(--primary)' : 'transparent',
                             flexShrink: 0,
-                            marginTop: 2
-                        }} />
+                            marginTop: 2,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            position: 'relative'
+                        }}>
+                             {formData.skipLunch && (
+                                <div style={{
+                                    width: '6px', height: '12px',
+                                    border: 'solid white',
+                                    borderWidth: '0 2px 2px 0',
+                                    transform: 'rotate(45deg)',
+                                    marginBottom: '2px'
+                                }}></div>
+                            )}
+                        </div>
                         <div>
                             {/* Título cambiado para mayor claridad */}
-                            <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
+                            <div style={{ fontWeight: 600, color: formData.skipLunch ? 'var(--primary)' : 'var(--text-main)', marginBottom: '0.25rem', fontSize: '1rem' }}>
                                 Almuerzo Familiar / Ya resuelto
                             </div>
                             {/* Descripción explicativa sobre la reserva de calorías */}
@@ -362,7 +395,7 @@ const StepPreferences = () => {
                 </section>
 
                 {/* Navigation Buttons */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', paddingTop: '2rem', borderTop: '1px solid var(--border)', marginTop: '2rem' }}>
+                <div className={stylesLayout.stickyActionBar}>
                     <button
                         onClick={prevStep}
                         style={{
@@ -410,12 +443,15 @@ const StepPreferences = () => {
                             boxShadow: isFormValid ? '0 10px 25px -5px rgba(37, 99, 235, 0.4)' : 'none',
                             opacity: isFormValid ? 1 : 0.8,
                             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            letterSpacing: '0.02em'
+                            letterSpacing: '0.02em',
+                            flex: 1,
+                            justifyContent: 'center',
+                            minWidth: '200px'
                         }}
                         onMouseEnter={(e) => {
                             if (isFormValid) {
                                 e.currentTarget.style.transform = 'translateY(-3px) scale(1.02)';
-                                e.currentTarget.style.boxShadow = '0 20px 30px -10px rgba(37, 99, 235, 0.5)';
+                                e.currentTarget.style.boxShadow = '0 15px 30px -10px rgba(37, 99, 235, 0.5)';
                             }
                         }}
                         onMouseLeave={(e) => {

@@ -2,7 +2,8 @@ import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useAssessment } from '../../context/AssessmentContext';
 import { Label, Input, RadioCard } from '../common/FormUI';
-import { ArrowRight, FastForward } from 'lucide-react';
+import { ArrowRight, FastForward, User, UserCircle, Monitor, Footprints, Activity, Dumbbell, Trophy } from 'lucide-react';
+import stylesLayout from './AssessmentLayout.module.css';
 
 const StepBiometrics = () => {
     const { formData, updateData, nextStep, setCurrentStep } = useAssessment();
@@ -18,21 +19,14 @@ const StepBiometrics = () => {
     const [feet, setFeet] = useState('');
     const [inches, setInches] = useState('');
 
-    // --- HEIGHT LOGIC ---
-    // (Existing height logic remains here)
-
-    // --- WEIGHT LOGIC ---
     const [weightUnit, setWeightUnit] = useState(formData.weightUnit || 'lb'); // 'lb' | 'kg'
 
     const handleWeightUnitChange = (newUnit) => {
         setWeightUnit(newUnit);
         updateData('weightUnit', newUnit);
-        // Limpiar el peso al cambiar de unidad para evitar confusión
         updateData('weight', '');
     };
 
-    // --- HEIGHT LOGIC (Existing) ---
-    // Sincronizar inputs cuando cambiamos de unidad o cargamos datos
     useEffect(() => {
         if (formData.height) {
             if (unit === 'ft') {
@@ -43,13 +37,12 @@ const StepBiometrics = () => {
                 setInches(inc.toString());
             }
         }
-    }, [unit]); // Solo cuando cambia la unidad (o al montar si quisiéramos)
+    }, [unit]);
 
     const handleFtChange = (ft, inc) => {
         setFeet(ft);
         setInches(inc);
 
-        // Calcular CM y guardar
         const f = parseFloat(ft) || 0;
         const i = parseFloat(inc) || 0;
         if (f > 0 || i > 0) {
@@ -64,12 +57,12 @@ const StepBiometrics = () => {
 
     return (
         <motion.div>
-            <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>1. Biometría y Metabolismo</h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
+            <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', display: 'none' }}>1. Biometría y Metabolismo</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem', display: 'none' }}>
                 Para calcular tus macronutrientes exactos, necesitamos conocer tu punto de partida.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
                 {/* Gender Selection */}
                 <div>
@@ -79,6 +72,7 @@ const StepBiometrics = () => {
                             name="gender"
                             value="female"
                             label="Mujer"
+                            icon={UserCircle}
                             checked={formData.gender === 'female'}
                             onChange={handleChange}
                         />
@@ -86,6 +80,7 @@ const StepBiometrics = () => {
                             name="gender"
                             value="male"
                             label="Hombre"
+                            icon={User}
                             checked={formData.gender === 'male'}
                             onChange={handleChange}
                         />
@@ -108,15 +103,15 @@ const StepBiometrics = () => {
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                             <Label htmlFor="height" style={{ marginBottom: 0 }}>Altura</Label>
-                            <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '0.5rem', padding: '2px' }}>
+                            <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '0.5rem', padding: '3px' }}>
                                 <button
                                     onClick={() => setUnit('cm')}
                                     style={{
                                         border: 'none', background: unit === 'cm' ? 'white' : 'transparent',
-                                        padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem',
+                                        padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem',
                                         fontWeight: 600, color: unit === 'cm' ? 'var(--primary)' : '#64748B',
-                                        boxShadow: unit === 'cm' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                                        cursor: 'pointer'
+                                        boxShadow: unit === 'cm' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                        cursor: 'pointer', transition: 'all 0.2s'
                                     }}
                                 >
                                     CM
@@ -125,10 +120,10 @@ const StepBiometrics = () => {
                                     onClick={() => setUnit('ft')}
                                     style={{
                                         border: 'none', background: unit === 'ft' ? 'white' : 'transparent',
-                                        padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem',
+                                        padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem',
                                         fontWeight: 600, color: unit === 'ft' ? 'var(--primary)' : '#64748B',
-                                        boxShadow: unit === 'ft' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                                        cursor: 'pointer'
+                                        boxShadow: unit === 'ft' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                        cursor: 'pointer', transition: 'all 0.2s'
                                     }}
                                 >
                                     FT
@@ -170,15 +165,15 @@ const StepBiometrics = () => {
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                             <Label htmlFor="weight" style={{ marginBottom: 0 }}>Peso Actual</Label>
-                            <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '0.5rem', padding: '2px' }}>
+                            <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '0.5rem', padding: '3px' }}>
                                 <button
                                     onClick={() => handleWeightUnitChange('lb')}
                                     style={{
                                         border: 'none', background: weightUnit === 'lb' ? 'white' : 'transparent',
-                                        padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem',
+                                        padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem',
                                         fontWeight: 600, color: weightUnit === 'lb' ? 'var(--primary)' : '#64748B',
-                                        boxShadow: weightUnit === 'lb' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                                        cursor: 'pointer'
+                                        boxShadow: weightUnit === 'lb' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                        cursor: 'pointer', transition: 'all 0.2s'
                                     }}
                                 >
                                     LB
@@ -187,10 +182,10 @@ const StepBiometrics = () => {
                                     onClick={() => handleWeightUnitChange('kg')}
                                     style={{
                                         border: 'none', background: weightUnit === 'kg' ? 'white' : 'transparent',
-                                        padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem',
+                                        padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem',
                                         fontWeight: 600, color: weightUnit === 'kg' ? 'var(--primary)' : '#64748B',
-                                        boxShadow: weightUnit === 'kg' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                                        cursor: 'pointer'
+                                        boxShadow: weightUnit === 'kg' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                        cursor: 'pointer', transition: 'all 0.2s'
                                     }}
                                 >
                                     KG
@@ -222,41 +217,64 @@ const StepBiometrics = () => {
 
                 {/* Activity Level */}
                 <div>
-                    <Label>Nivel de Actividad</Label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <Label>Nivel de Actividad General</Label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         {[
-                            { val: 'sedentary', label: 'Sedentario (Oficina, poco ejercicio)' },
-                            { val: 'light', label: 'Ligero (Ejercicio 1-3 días/sem)' },
-                            { val: 'moderate', label: 'Moderado (Ejercicio 3-5 días/sem)' },
-                            { val: 'active', label: 'Activo (Deporte 6-7 días/sem)' },
-                            { val: 'athlete', label: 'Atleta (Entrenamientos dobles/físico)' }
+                            { val: 'sedentary', label: 'Sedentario', desc: 'Trabajo de escritorio, poco o ningún ejercicio.', icon: Monitor },
+                            { val: 'light', label: 'Ligero', desc: 'Ejercicio suave de 1 a 3 días por semana.', icon: Footprints },
+                            { val: 'moderate', label: 'Moderado', desc: 'Ejercicio moderado de 3 a 5 días por semana.', icon: Activity },
+                            { val: 'active', label: 'Activo', desc: 'Deportes fuertes o ejercicio 6 a 7 días por semana.', icon: Dumbbell },
+                            { val: 'athlete', label: 'Atleta', desc: 'Entrenamientos dobles, trabajo físico demandante.', icon: Trophy }
                         ].map((opt) => (
-                            <label
+                            <RadioCard
                                 key={opt.val}
-                                style={{
-                                    padding: '1rem',
-                                    border: `1px solid ${formData.activityLevel === opt.val ? 'var(--primary)' : 'var(--border)'}`,
-                                    borderRadius: 'var(--radius-md)',
-                                    background: formData.activityLevel === opt.val ? 'rgba(37,99,235,0.05)' : 'white',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s'
-                                }}
-                            >
-                                <input
-                                    type="radio"
-                                    name="activityLevel"
-                                    value={opt.val}
-                                    checked={formData.activityLevel === opt.val}
-                                    onChange={handleChange}
-                                    style={{ marginRight: '0.75rem' }}
-                                />
-                                {opt.label}
-                            </label>
+                                name="activityLevel"
+                                value={opt.val}
+                                label={opt.label}
+                                desc={opt.desc}
+                                icon={opt.icon}
+                                checked={formData.activityLevel === opt.val}
+                                onChange={handleChange}
+                            />
                         ))}
                     </div>
                 </div>
 
-                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div className={stylesLayout.stickyActionBar}>
+                    {isFormPreviouslyFilled && (
+                        <motion.button
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.2 }}
+                            onClick={() => setCurrentStep(4)}
+                            id="skip-to-generate"
+                            style={{
+                                padding: '1rem 1.5rem',
+                                background: 'transparent',
+                                color: 'var(--primary)',
+                                border: '2px solid var(--primary)',
+                                borderRadius: '1rem',
+                                fontWeight: 700,
+                                fontSize: '0.95rem',
+                                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.25s ease',
+                                fontFamily: 'inherit',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(37, 99, 235, 0.06)';
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.transform = 'translateY(0)';
+                            }}
+                        >
+                            <FastForward size={18} />
+                            Saltar al Final
+                        </motion.button>
+                    )}
+
                     <button
                         onClick={nextStep}
                         disabled={!isFormValid}
@@ -275,12 +293,15 @@ const StepBiometrics = () => {
                             boxShadow: isFormValid ? '0 10px 25px -5px rgba(37, 99, 235, 0.4)' : 'none',
                             opacity: isFormValid ? 1 : 0.8,
                             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            letterSpacing: '0.02em'
+                            letterSpacing: '0.02em',
+                            flex: 1,
+                            justifyContent: 'center',
+                            minWidth: '200px'
                         }}
                         onMouseEnter={(e) => {
                             if (isFormValid) {
                                 e.currentTarget.style.transform = 'translateY(-3px) scale(1.02)';
-                                e.currentTarget.style.boxShadow = '0 20px 30px -10px rgba(37, 99, 235, 0.5)';
+                                e.currentTarget.style.boxShadow = '0 15px 30px -10px rgba(37, 99, 235, 0.5)';
                             }
                         }}
                         onMouseLeave={(e) => {
@@ -292,40 +313,6 @@ const StepBiometrics = () => {
                     >
                         Siguiente <ArrowRight size={20} />
                     </button>
-
-                    {isFormPreviouslyFilled && (
-                        <motion.button
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: 0.2 }}
-                            onClick={() => setCurrentStep(4)}
-                            id="skip-to-generate"
-                            style={{
-                                padding: '1rem 1.5rem',
-                                background: 'transparent',
-                                color: 'var(--primary)',
-                                border: '1.5px solid var(--primary)',
-                                borderRadius: '1rem',
-                                fontWeight: 600,
-                                fontSize: '0.9rem',
-                                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                cursor: 'pointer',
-                                transition: 'all 0.25s ease',
-                                fontFamily: 'inherit',
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'rgba(37, 99, 235, 0.06)';
-                                e.currentTarget.style.transform = 'translateY(-2px)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'transparent';
-                                e.currentTarget.style.transform = 'translateY(0)';
-                            }}
-                        >
-                            <FastForward size={16} />
-                            Skip
-                        </motion.button>
-                    )}
                 </div>
 
             </div>

@@ -9,20 +9,24 @@
 .input,
 .select {
     width: 100%;
-    padding: 0.75rem 1rem;
+    padding: 1rem 1.25rem;
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: 0.75rem;
     font-family: var(--font-body);
     font-size: 1rem;
-    background: white;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    font-weight: 500;
+    color: var(--text-main);
+    background: #FAFAFA;
+    transition: all 0.25s ease;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
 }
 
 .input:focus,
 .select:focus {
     outline: none;
+    background: white;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
 }
 
 .selectWrapper {
@@ -41,55 +45,126 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 1rem;
+    padding: 1.25rem 1rem;
     background: white;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border: 2px solid var(--border);
+    border-radius: 1rem;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     text-align: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    position: relative;
+    overflow: hidden;
 }
 
 .radioCard:hover {
-    background: var(--bg-page);
-    border-color: var(--text-muted);
+    background: #FAFAFA;
+    border-color: #CBD5E1;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
 .radioCard.checked {
-    background: rgba(37, 99, 235, 0.05);
+    background: rgba(37, 99, 235, 0.04);
     border-color: var(--primary);
-    padding: 0.5rem 0;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.15);
+}
+
+.icon {
+    color: var(--text-muted);
+    transition: color 0.2s;
+}
+
+.radioCard.checked .icon {
+    color: var(--primary);
+}
+
+.radioTextContent {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.radioLabel {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-main);
+    transition: color 0.2s;
+}
+
+.radioCard.checked .radioLabel {
+    color: var(--primary);
+}
+
+.radioDesc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.3;
 }
 
 .checkboxInput {
     display: none;
 }
 
-.checkboxCustom {
-    width: 20px;
-    height: 20px;
+.checkboxWrapper {
+    display: flex;
+    align-items: center;
+    padding: 1.25rem 1rem;
+    background: white;
     border: 2px solid var(--border);
-    border-radius: 4px;
-    margin-right: 0.75rem;
+    border-radius: 1rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.checkboxWrapper:hover {
+    background: #FAFAFA;
+    border-color: #CBD5E1;
+}
+
+.checkboxCustom {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #CBD5E1;
+    border-radius: 6px;
+    margin-right: 1rem;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
+    flex-shrink: 0;
 }
 
-.checkboxInput:checked+.checkboxCustom {
+.checkboxInput:checked + .checkboxCustom {
     background: var(--primary);
     border-color: var(--primary);
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
 }
 
-.checkboxInput:checked+.checkboxCustom::after {
-    content: '✓';
-    color: white;
-    font-size: 14px;
-    font-weight: bold;
+.checkboxInput:checked + .checkboxCustom::after {
+    content: '';
+    width: 6px;
+    height: 12px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    margin-bottom: 2px;
+}
+
+.checkTextContent {
+    display: flex;
+    flex-direction: column;
 }
 
 .checkboxLabel {
+    font-weight: 600;
     color: var(--text-main);
+    font-size: 1rem;
+}
+
+.checkboxDesc {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
 }
