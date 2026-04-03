@@ -304,12 +304,16 @@ const Settings = () => {
 
                         <div className={styles.profileFlex}>
                             
-                            {/* Avatar y Nombre */}
-                            <div className={styles.avatarContainer}>
+                            {/* Avatar Centrado */}
+                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
                                 <div className={styles.avatar}>
                                     {userName ? userName.charAt(0).toUpperCase() : 'U'}
                                 </div>
-                                <div style={{ flex: 1, minWidth: '200px' }}>
+                            </div>
+                            
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                {/* Nombre */}
+                                <div style={{ width: '100%' }}>
                                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
                                         Nombre Completo <span style={{ color: '#EF4444' }}>*</span>
                                     </label>
@@ -350,24 +354,24 @@ const Settings = () => {
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                            
-                            {/* Campo de Email (Solo Lectura) */}
-                            <div className={styles.emailContainer}>
-                                <div style={{ background: 'white', padding: '0.5rem', borderRadius: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                                    <Mail size={18} color="#64748B" />
-                                </div>
-                                <div className={styles.emailInfo}>
-                                    <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Correo Electrónico (ID)</span>
-                                    <span style={{ color: '#334155', fontSize: '0.95rem', fontWeight: 500 }}>{displayEmail}</span>
-                                </div>
-                                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#94A3B8', fontSize: '0.8rem', fontWeight: 600 }}>
-                                    <Shield size={14} /> Protegido
+                                
+                                {/* Campo de Email (Solo Lectura) */}
+                                <div className={styles.emailContainer}>
+                                    <div style={{ background: 'white', padding: '0.5rem', borderRadius: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', flexShrink: 0 }}>
+                                        <Mail size={18} color="#64748B" />
+                                    </div>
+                                    <div className={styles.emailInfo}>
+                                        <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Correo Electrónico (ID)</span>
+                                        <span style={{ color: '#334155', fontSize: '0.95rem', fontWeight: 500, wordBreak: 'break-all' }}>{displayEmail}</span>
+                                    </div>
+                                    <div className={styles.emailBadge}>
+                                        <Shield size={14} /> Protegido
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Botón Guardar */}
-                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <div className={styles.saveBtnContainer} style={{ marginTop: '0.5rem' }}>
                                 <button
                                     onClick={handleSaveProfile}
                                     disabled={isSaving}
