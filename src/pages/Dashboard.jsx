@@ -175,7 +175,7 @@ const Dashboard = () => {
                 .menu-section-header {
                     display: flex;
                     align-items: center;
-                    justify-content: space-between;
+                    justify-content: center;
                     margin-bottom: 1.5rem;
                 }
                 .menu-section-title {
@@ -183,6 +183,7 @@ const Dashboard = () => {
                     font-weight: 700;
                     color: var(--text-main);
                     margin: 0;
+                    text-align: center;
                 }
                 .menu-section-count {
                     font-size: 0.875rem;
