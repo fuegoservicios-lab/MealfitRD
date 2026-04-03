@@ -167,9 +167,9 @@
     align-items: center;
     justify-content: center;
     gap: 0.6rem;
-    color: #64748B;
-    background: #F1F5F9;
-    border: 1px solid #E2E8F0;
+    color: #EF4444;
+    background: #FFFFFF;
+    border: 1px solid #FECACA;
     padding: 0.85rem;
     border-radius: 1rem;
     cursor: pointer;
@@ -180,8 +180,8 @@
 
 .logoutBtn:hover {
     background: #FEF2F2;
-    color: #EF4444;
-    border-color: #FECACA;
+    color: #DC2626;
+    border-color: #FCA5A5;
     transform: translateY(-2px);
     box-shadow: 0 4px 10px -2px rgba(239, 68, 68, 0.15);
 }
