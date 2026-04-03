@@ -31,7 +31,7 @@ const Header = () => {
                             to="/dashboard"
                             className={styles.ctaButton}
                         >
-                            <LayoutDashboard size={18} /> Ver mi Plan
+                            <LayoutDashboard size={18} /> Ir al Dashboard
                         </Link>
                     ) : (
                         <Link to="/assessment" className={styles.ctaButton}>
@@ -80,7 +80,7 @@ const Header = () => {
                                 className={styles.ctaButtonMobile}
                                 onClick={() => setIsMenuOpen(false)}
                             >
-                                <LayoutDashboard size={18} /> Ver mi Plan
+                                <LayoutDashboard size={18} /> Ir al Dashboard
                             </Link>
                         ) : (
                             <Link
