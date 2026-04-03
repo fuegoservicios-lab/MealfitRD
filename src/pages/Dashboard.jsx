@@ -980,7 +980,7 @@ const Dashboard = () => {
                         border: '1px solid white',
                         boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.02)'
                     }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '1.5rem' }}>
                             <h3 style={{
                                 fontSize: '1.2rem', fontWeight: 800, color: '#0F172A',
                                 display: 'flex', alignItems: 'center', gap: '0.75rem'
