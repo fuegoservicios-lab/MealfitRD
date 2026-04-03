@@ -69,6 +69,8 @@ const AssessmentLayout = ({ children, totalSteps }) => {
                     <div className={styles.stepContainer}>
                         {children}
                     </div>
+                    {/* Add extra scroll space padding solely for mobile devices below the steps */}
+                    {currentStep > 0 && <div className={styles.mobileScrollSpacer}></div>}
                 </div>
             </main>
         </div>
