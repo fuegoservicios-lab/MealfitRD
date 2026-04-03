@@ -200,7 +200,10 @@ export const AssessmentProvider = ({ children }) => {
             }
 
             const response = await fetchWithAuth(`/api/user/credits/${userId}`);
-            if (!response.ok) throw new Error("Error consultando créditos");
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Error consultando créditos: ${response.status} - ${errorText}`);
+            }
             const data = await response.json();
 
             setPlanCount(data.credits || 0);

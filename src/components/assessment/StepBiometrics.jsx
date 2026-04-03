@@ -62,11 +62,11 @@ const StepBiometrics = () => {
                 Para calcular tus macronutrientes exactos, necesitamos conocer tu punto de partida.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', paddingBottom: '2rem' }}>
 
                 {/* Gender Selection */}
                 <div>
-                    <Label>Género Biológico</Label>
+                    <Label>Género Biológico&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         <RadioCard
                             name="gender"
@@ -90,7 +90,7 @@ const StepBiometrics = () => {
                 {/* Basic Metrics Group */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
-                        <Label htmlFor="age">Edad (años)</Label>
+                        <Label htmlFor="age">Edad (años)&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
                         <Input
                             id="age"
                             name="age"
@@ -102,7 +102,7 @@ const StepBiometrics = () => {
                     </div>
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                            <Label htmlFor="height" style={{ marginBottom: 0 }}>Altura</Label>
+                            <Label htmlFor="height" style={{ marginBottom: 0 }}>Altura&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
                             <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '0.5rem', padding: '3px' }}>
                                 <button
                                     onClick={() => setUnit('cm')}
@@ -164,7 +164,7 @@ const StepBiometrics = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                            <Label htmlFor="weight" style={{ marginBottom: 0 }}>Peso Actual</Label>
+                            <Label htmlFor="weight" style={{ marginBottom: 0 }}>Peso Actual&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
                             <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '0.5rem', padding: '3px' }}>
                                 <button
                                     onClick={() => handleWeightUnitChange('lb')}
@@ -217,7 +217,7 @@ const StepBiometrics = () => {
 
                 {/* Activity Level */}
                 <div>
-                    <Label>Nivel de Actividad General</Label>
+                    <Label>Nivel de Actividad General&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         {[
                             { val: 'sedentary', label: 'Sedentario', desc: 'Trabajo de escritorio, poco o ningún ejercicio.', icon: Monitor },
@@ -286,8 +286,8 @@ const StepBiometrics = () => {
                             color: isFormValid ? 'white' : '#94A3B8',
                             border: 'none',
                             borderRadius: '1rem',
-                            fontWeight: 700,
-                            fontSize: '1rem',
+                            fontWeight: 800,
+                            fontSize: '1.15rem',
                             display: 'flex', alignItems: 'center', gap: '0.75rem',
                             cursor: isFormValid ? 'pointer' : 'not-allowed',
                             boxShadow: isFormValid ? '0 10px 25px -5px rgba(37, 99, 235, 0.4)' : 'none',

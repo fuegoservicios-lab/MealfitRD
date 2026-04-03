@@ -20,12 +20,12 @@ const StepLifestyle = () => {
                 Tu plan debe adaptarse a tu ritmo de vida, no al revés.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', paddingBottom: '2rem' }}>
 
                 {/* Sleep & Stress Group */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                     <div>
-                        <Label>Horas de Sueño</Label>
+                        <Label>Horas de Sueño&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                             {['< 6 horas', '6-7 horas', '7-8 horas', '> 8 horas'].map((opt) => (
                                 <RadioCard
@@ -41,7 +41,7 @@ const StepLifestyle = () => {
                         </div>
                     </div>
                     <div>
-                        <Label>Estrés Diario</Label>
+                        <Label>Estrés Diario&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                             {['Bajo', 'Moderado', 'Alto', 'Muy Alto'].map((opt) => (
                                 <RadioCard
@@ -60,7 +60,7 @@ const StepLifestyle = () => {
 
                 {/* Cooking Time */}
                 <div>
-                    <Label>¿Tiempo para cocinar?</Label>
+                    <Label>¿Tiempo para cocinar?&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         {[
                             { val: 'none', label: 'Nada', desc: 'Opciones listas, rectas de 5 min', icon: Timer },
@@ -84,12 +84,12 @@ const StepLifestyle = () => {
 
                 {/* Budget */}
                 <div>
-                    <Label>Presupuesto</Label>
+                    <Label>Presupuesto&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         {[
                             { val: 'low', label: 'Económico', desc: 'Lo básico y esencial', icon: Wallet },
                             { val: 'medium', label: 'Moderado', desc: 'Equilibrio calidad/precio', icon: Banknote },
-                            { val: 'high', label: 'Premium', desc: 'Ingredientes orgánicos', icon: Landmark },
+                            { val: 'high', label: 'Alto', desc: 'Mayor variedad y calidad', icon: Landmark },
                             { val: 'unlimited', label: 'Sin límite', desc: 'Sin restricciones', icon: Infinity }
                         ].map((opt) => (
                             <RadioCard
@@ -115,8 +115,8 @@ const StepLifestyle = () => {
                             color: '#64748B',
                             border: '1px solid #E2E8F0',
                             borderRadius: '1rem',
-                            fontWeight: 600,
-                            fontSize: '0.95rem',
+                            fontWeight: 700,
+                            fontSize: '1.05rem',
                             display: 'flex', alignItems: 'center', gap: '0.75rem',
                             cursor: 'pointer',
                             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -147,8 +147,8 @@ const StepLifestyle = () => {
                             color: isFormValid ? 'white' : '#94A3B8',
                             border: 'none',
                             borderRadius: '1rem',
-                            fontWeight: 700,
-                            fontSize: '1rem',
+                            fontWeight: 800,
+                            fontSize: '1.15rem',
                             display: 'flex', alignItems: 'center', gap: '0.75rem',
                             cursor: isFormValid ? 'pointer' : 'not-allowed',
                             boxShadow: isFormValid ? '0 10px 25px -5px rgba(37, 99, 235, 0.4)' : 'none',

@@ -20,7 +20,7 @@ const AssessmentLayout = ({ children, totalSteps }) => {
             {/* Header for Assessment - Mobile Only or Minimal */}
             <header className={styles.header}>
                 <div className="container" style={{ display: 'flex', alignItems: 'center', height: '100%', padding: '0 1.5rem' }}>
-                    {currentStep > 0 && (
+                    {currentStep === 1 && (
                         <button onClick={prevStep} className={styles.backBtn}>
                             <ChevronLeft size={24} />
                         </button>

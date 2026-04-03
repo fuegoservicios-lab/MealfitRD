@@ -110,11 +110,11 @@ const StepGoals = () => {
                 La nutrición es 50% biología y 50% psicología.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', paddingBottom: '2rem' }}>
 
                 {/* Main Goal Section */}
                 <section>
-                    <Label>Objetivo Principal <span style={{ color: 'var(--primary)' }}>*</span></Label>
+                    <Label>Objetivo Principal&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
                         <GoalCard
                             val="lose_fat"
@@ -198,13 +198,41 @@ const StepGoals = () => {
                             onToggle={(val) => handleCheckboxChange('struggles', val)}
                         />
                     </div>
+                    <div style={{ marginTop: '1rem' }}>
+                        <input
+                            type="text"
+                            placeholder="Ej. Viajes frecuentes, etc..."
+                            value={formData.otherStruggles || ''}
+                            onChange={(e) => updateData('otherStruggles', e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '1rem 1.25rem',
+                                borderRadius: '0.75rem',
+                                border: '1px solid var(--border)',
+                                fontSize: '0.95rem',
+                                outline: 'none',
+                                transition: 'all 0.25s ease',
+                                background: '#FAFAFA'
+                            }}
+                            onFocus={(e) => {
+                                e.target.style.borderColor = 'var(--primary)';
+                                e.target.style.background = 'white';
+                                e.target.style.boxShadow = '0 0 0 4px rgba(37, 99, 235, 0.1)';
+                            }}
+                            onBlur={(e) => {
+                                e.target.style.borderColor = 'var(--border)';
+                                e.target.style.background = '#FAFAFA';
+                                e.target.style.boxShadow = 'none';
+                            }}
+                        />
+                    </div>
                 </section>
 
                 {/* Motivation Section */}
                 <section>
-                    <Label>¿Qué te motiva realmente? <span style={{ color: 'var(--primary)' }}>*</span></Label>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: '1.5' }}>
-                        Cuéntanos por qué quieres lograr esto. Mientras más detalles nos des, mejor adaptará la IA tu rutina.
+                    <Label>¿Qué te motiva?&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: '1.5' }}>
+                        ¿Por qué quieres lograr esto? Tu respuesta ayuda a la IA a personalizar el plan a tu medida.
                     </p>
                     <div style={{ position: 'relative' }}>
                         <textarea
@@ -255,40 +283,50 @@ const StepGoals = () => {
                         style={{
                             cursor: 'pointer',
                             marginTop: '0.5rem',
-                            padding: '1.25rem 1rem',
+                            padding: '1.25rem 1.5rem',
                             borderRadius: formData.includeSupplements ? '1rem 1rem 0 0' : '1rem',
-                            border: formData.includeSupplements ? '2px solid #8b5cf6' : '2px solid var(--border)',
-                            borderBottom: formData.includeSupplements ? '2px dashed rgba(139, 92, 246, 0.3)' : undefined,
+                            border: formData.includeSupplements ? '2px solid #8b5cf6' : '1px solid var(--border)',
+                            borderBottom: formData.includeSupplements ? '2px dashed rgba(139, 92, 246, 0.3)' : '1px solid var(--border)',
                             backgroundColor: formData.includeSupplements ? 'rgba(139, 92, 246, 0.03)' : 'white',
                             display: 'flex',
-                            alignItems: 'flex-start',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
                             gap: '1rem',
                             transition: 'all 0.25s'
                         }}
                     >
-                        <div style={{
-                            width: 24, height: 24,
-                            borderRadius: '50%',
-                            border: formData.includeSupplements ? '6px solid #8b5cf6' : '2px solid var(--text-muted)',
-                            flexShrink: 0,
-                            marginTop: 2,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            position: 'relative'
-                        }}>
-                        </div>
                         <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, color: formData.includeSupplements ? '#8b5cf6' : 'var(--text-main)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem' }}>
-                                <Pill size={18} color={formData.includeSupplements ? '#8b5cf6' : 'var(--text-muted)'} />
+                            <div style={{ fontWeight: 600, color: formData.includeSupplements ? '#8b5cf6' : 'var(--text-main)', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1rem' }}>
+                                <Pill size={20} color={formData.includeSupplements ? '#8b5cf6' : 'var(--text-muted)'} />
                                 Incluir Suplementos en mi Plan
                             </div>
-                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5, paddingLeft: '1.85rem' }}>
                                 {formData.includeSupplements
                                     ? 'Selecciona los suplementos que tomas o quieres incluir. La IA los integrará a tu plan.'
-                                    : 'La IA incluirá recomendaciones de suplementos personalizados según tu objetivo. Si no lo activas, el plan será 100% basado en alimentos.'
+                                    : 'La IA incluirá recomendaciones de suplementos. Si no lo activas, el plan será 100% basado en alimentos.'
                                 }
                             </div>
+                        </div>
+
+                        {/* Toggle Switch UI */}
+                        <div style={{
+                            width: 44, height: 24,
+                            borderRadius: 12,
+                            backgroundColor: formData.includeSupplements ? '#8b5cf6' : '#CBD5E1',
+                            position: 'relative',
+                            transition: 'all 0.3s ease',
+                            flexShrink: 0
+                        }}>
+                             <div style={{
+                                  width: 18, height: 18,
+                                  borderRadius: '50%',
+                                  backgroundColor: 'white',
+                                  position: 'absolute',
+                                  top: 3,
+                                  left: formData.includeSupplements ? 23 : 3,
+                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                             }} />
                         </div>
                     </div>
 
@@ -377,8 +415,8 @@ const StepGoals = () => {
                             color: '#64748B',
                             border: '1px solid #E2E8F0',
                             borderRadius: '1rem',
-                            fontWeight: 600,
-                            fontSize: '0.95rem',
+                            fontWeight: 700,
+                            fontSize: '1.05rem',
                             display: 'flex', alignItems: 'center', gap: '0.75rem',
                             cursor: 'pointer',
                             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -409,8 +447,8 @@ const StepGoals = () => {
                             color: isFormValid ? 'white' : '#94A3B8',
                             border: 'none',
                             borderRadius: '1rem',
-                            fontWeight: 700,
-                            fontSize: '1rem',
+                            fontWeight: 800,
+                            fontSize: '1.15rem',
                             display: 'flex', alignItems: 'center', gap: '0.75rem',
                             cursor: (isFormValid && !isSubmitting) ? 'pointer' : 'not-allowed',
                             boxShadow: isFormValid ? '0 10px 25px -5px rgba(37, 99, 235, 0.4)' : 'none',

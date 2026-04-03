@@ -6,7 +6,7 @@ import {
     ArrowLeft, ArrowRight,
     Utensils, Leaf, Beef, Wheat, Fish, Salad,
     Milk, Egg, Nut, AlertCircle, Activity, Heart,
-    Check, CalendarDays, CalendarRange, CalendarClock
+    Check, CalendarDays, CalendarRange, CalendarClock, Ban
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 
@@ -117,11 +117,11 @@ const StepPreferences = () => {
                 Personaliza tu plan según tus gustos y necesidades.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem', paddingBottom: '2rem' }}>
 
                 {/* Diet Type Section */}
                 <section>
-                    <Label>Tipo de Dieta <span style={{ color: 'var(--primary)' }}>*</span></Label>
+                    <Label>Tipo de Dieta&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
                         <DietOption
                             val="balanced"
@@ -197,12 +197,26 @@ const StepPreferences = () => {
                             isSelected={formData.allergies.includes("Soya")}
                             onToggle={(val) => handleCheckboxChange('allergies', val)}
                         />
+                        <ChipOption
+                            val="Ninguna"
+                            label="Ninguna"
+                            icon={Ban}
+                            isSelected={formData.allergies.includes("Ninguna")}
+                            onToggle={(val) => {
+                                if (formData.allergies.includes("Ninguna")) {
+                                    handleCheckboxChange('allergies', "Ninguna");
+                                } else {
+                                    // Limpiar todas y poner Ninguna
+                                    updateData('allergies', ["Ninguna"]);
+                                }
+                            }}
+                        />
                     </div>
 
                     <div style={{ marginTop: '1rem' }}>
                         <input
                             type="text"
-                            placeholder="¿Tienes alguna otra alergia? Escribe aquí..."
+                            placeholder="Ej. Maní, Mariscos, etc..."
                             value={formData.otherAllergies || ''}
                             onChange={(e) => updateData('otherAllergies', e.target.value)}
                             style={{
@@ -275,12 +289,26 @@ const StepPreferences = () => {
                             isSelected={formData.medicalConditions.includes("Hipotiroidismo")}
                             onToggle={(val) => handleCheckboxChange('medicalConditions', val)}
                         />
+                        <ChipOption
+                            val="Ninguna"
+                            label="Ninguna"
+                            icon={Ban}
+                            isSelected={formData.medicalConditions.includes("Ninguna")}
+                            onToggle={(val) => {
+                                if (formData.medicalConditions.includes("Ninguna")) {
+                                    handleCheckboxChange('medicalConditions', "Ninguna");
+                                } else {
+                                    // Limpiar todas y poner Ninguna
+                                    updateData('medicalConditions', ["Ninguna"]);
+                                }
+                            }}
+                        />
                     </div>
 
                     <div style={{ marginTop: '1rem' }}>
                         <input
                             type="text"
-                            placeholder="¿Tienes alguna otra condición médica? Escribe aquí..."
+                            placeholder="Escribe tu condición médica aquí..."
                             value={formData.otherConditions || ''}
                             onChange={(e) => updateData('otherConditions', e.target.value)}
                             style={{
@@ -354,8 +382,7 @@ const StepPreferences = () => {
                             </div>
                             {/* Descripción explicativa sobre la reserva de calorías */}
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                                Marca esto si comes lo que cocinen en tu casa (La Bandera, etc).
-                                Podrás enviarle mensajes o fotos a tu Agente IA indicando lo que almorzaste para registrarlo.
+                                Actívalo si comes la comida de tu casa. La IA no te dará receta de almuerzo, solo te reservará las calorías para que luego le cuentes qué comiste.
                             </div>
                         </div>
                     </div>
@@ -363,10 +390,8 @@ const StepPreferences = () => {
 
                 {/* Grocery Shopping Frequency Section */}
                 <section>
-                    <Label>Frecuencia de Compras del Supermercado</Label>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
-                        ¿Cada cuánto compras tus alimentos? La IA optimizará los ingredientes según la duración de tu compra.
-                    </p>
+                    <Label>Frecuencia de Compras del Supermercado&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
+
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
                         <DietOption
                             val="weekly"
@@ -405,8 +430,8 @@ const StepPreferences = () => {
                             color: '#64748B',
                             border: '1px solid #E2E8F0',
                             borderRadius: '1rem',
-                            fontWeight: 600,
-                            fontSize: '0.95rem',
+                            fontWeight: 700,
+                            fontSize: '1.05rem',
                             display: 'flex', alignItems: 'center', gap: '0.75rem',
                             cursor: 'pointer',
                             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -437,8 +462,8 @@ const StepPreferences = () => {
                             color: isFormValid ? 'white' : '#94A3B8',
                             border: 'none',
                             borderRadius: '1rem',
-                            fontWeight: 700,
-                            fontSize: '1rem',
+                            fontWeight: 800,
+                            fontSize: '1.15rem',
                             display: 'flex', alignItems: 'center', gap: '0.75rem',
                             cursor: isFormValid ? 'pointer' : 'not-allowed',
                             boxShadow: isFormValid ? '0 10px 25px -5px rgba(37, 99, 235, 0.4)' : 'none',
