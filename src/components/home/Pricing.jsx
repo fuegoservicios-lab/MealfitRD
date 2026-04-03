@@ -41,14 +41,16 @@ const Pricing = () => {
 
     // Lógica para determinar el estado del usuario
     const hasStarted = !!planData;
-    const currentTier = userProfile?.plan_tier || 'gratis';
+    const rawTier = (userProfile?.plan_tier || '').toLowerCase().trim(); // Ensure lowercase
+    const currentTier = ['gratis', 'basic', 'plus', 'ultra', 'admin'].includes(rawTier) ? rawTier : 'gratis';
+    
     const isBasic = currentTier === 'basic';
     const isPlus = currentTier === 'plus';
     const isUltra = currentTier === 'ultra';
 
     // Jerarquía de planes
     const tierRank = { gratis: 0, basic: 1, plus: 2, ultra: 3, admin: 4 };
-    const currentRank = tierRank[currentTier] || 0;
+    const currentRank = tierRank[currentTier];
 
     // Helper: obtener precio actual según billing period
     const getPrice = (tier) => PRICING[tier]?.[billingPeriod]?.price || '0';
