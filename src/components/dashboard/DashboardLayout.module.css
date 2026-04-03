@@ -105,9 +105,9 @@
     padding: 0.85rem 1.25rem;
     border-radius: 1rem; /* Premium pill shape */
     text-decoration: none;
-    color: #64748B;
+    color: #334155; /* Darker for better emphasis */
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 1.05rem; /* Increased size */
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
@@ -125,7 +125,7 @@
 .navItemActive {
     color: var(--primary);
     background: linear-gradient(90deg, #EFF6FF 0%, transparent 100%);
-    font-weight: 700;
+    font-weight: 800; /* Max emphasis on active */
     box-shadow: inset 4px 0 0 var(--primary); /* Modern inset border */
     transform: translateX(2px);
 }
