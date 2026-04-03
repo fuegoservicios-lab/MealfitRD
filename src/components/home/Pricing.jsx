@@ -113,14 +113,15 @@ const Pricing = () => {
 
     // Lógica de deshabilitación de botones
     const isButtonDisabled = (tier) => {
+        // Permitir click si no está autenticado (invitados eligiendo plan)
+        if (!userProfile?.id) return false;
+
         const targetRank = tierRank[tier] || 0;
-        // Si el usuario es Gratis, nunca deshabilitar el botón Gratis para que pueda navegar
-        if (currentRank === 0 && tier === 'gratis') return false;
         
-        // No deshabilitar el plan actual para que puedan hacer clic e ir al dashboard
-        if (targetRank === currentRank) return false;
+        // Deshabilitar el botón si es el plan actual
+        if (currentTier === tier) return true;
         
-        // Para cualquier otro caso, deshabilitar SOLO si el plan visualizado es INFERIOR al actual
+        // Deshabilitar SOLO si el plan visualizado es INFERIOR al actual
         return targetRank < currentRank;
     };
 
