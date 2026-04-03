@@ -997,9 +997,13 @@ const Dashboard = () => {
                                 <div key={i} style={{
                                     display: 'flex', alignItems: 'center', gap: '1rem',
                                     padding: '0.85rem', borderRadius: '1rem',
-                                    background: 'white', border: '1px solid #E2E8F0',
-                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)'
-                                }}>
+                                    background: 'white', border: '1px solid #CBD5E1', /* Slightly darker border */
+                                    boxShadow: '0 8px 16px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.04)', /* Deeper, more noticeable shadow */
+                                    transition: 'all 0.2s ease', cursor: 'pointer'
+                                }}
+                                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 24px -4px rgba(15, 23, 42, 0.12)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 16px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.04)'; }}
+                                >
                                     <div style={{
                                         width: 40, height: 40, borderRadius: '0.75rem',
                                         background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center',
