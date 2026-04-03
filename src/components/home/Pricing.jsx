@@ -89,15 +89,23 @@ const Pricing = () => {
 
     // Texto del botón según estado del usuario
     const getButtonText = (tier) => {
-        if (tier === 'gratis') {
-            if (currentRank > 0) return "Incluido en tu Plan";
-            if (currentRank === 0 && hasStarted) return `Créditos: ${remainingCredits}/${PLAN_LIMIT}`;
-            return "Empezar Gratis Ahora";
+        // Usuario no autenticado
+        if (!userProfile?.id) {
+            if (tier === 'gratis') return "Empezar Gratis Ahora";
+            return `Cambiar a ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
+        }
+
+        // Usuario autenticado
+        if (currentTier === tier) {
+            return "Tu Plan Actual";
         }
 
         const targetRank = tierRank[tier] || 0;
-        if (currentTier === tier) return "Tu Plan Actual";
-        if (targetRank < currentRank) return "Incluido en tu Plan";
+        
+        if (targetRank < currentRank) {
+            return "Incluido en tu Plan";
+        }
+        
         return `Cambiar a ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
     };
 
