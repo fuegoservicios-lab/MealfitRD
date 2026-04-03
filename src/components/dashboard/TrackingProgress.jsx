@@ -186,9 +186,9 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
             <div style={{ 
                 height: large ? 14 : 10, 
                 width: '100%', 
-                background: '#F1F5F9', 
+                background: '#E2E8F0', 
                 borderRadius: '99px',
-                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)',
+                boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.08)',
                 overflow: 'hidden'
             }}>
                 <div style={{
