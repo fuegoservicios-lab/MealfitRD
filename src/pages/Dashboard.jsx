@@ -907,7 +907,7 @@ const Dashboard = () => {
                             <div style={{ background: '#F0F9FF', padding: '0.4rem', borderRadius: '0.75rem', color: '#0284C7' }}>
                                 <Lightbulb size={22} strokeWidth={2.5} />
                             </div>
-                            Estrategia Nutricional
+                            Razonamiento
                         </h3>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
