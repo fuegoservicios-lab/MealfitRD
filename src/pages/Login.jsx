@@ -309,7 +309,7 @@ const Login = () => {
                         <div className={styles.footerText}>
                             ¿No tienes cuenta?{' '}
                             <Link to="/register" className={styles.link}>
-                                Regístrate gratis
+                                Registrarse
                             </Link>
                         </div>
                     </>
