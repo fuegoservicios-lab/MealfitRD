@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import stylesLayout from './AssessmentLayout.module.css';
 import { useAssessment } from '../../context/AssessmentContext';
 import { Label } from '../common/FormUI';
 import {
