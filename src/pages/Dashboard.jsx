@@ -514,10 +514,10 @@ const Dashboard = () => {
                 <div style={{ flex: 2 }}>
                     <div className="menu-section-header">
                         <h2 className="menu-section-title">
-                            Tu Menú de Hoy
+                            Platos de Hoy
                         </h2>
                         <span className="menu-section-count">
-                            {formData?.skipLunch ? '3 Comidas Planificadas' : '4 Comidas Completas'}
+                            {/* Número de comidas oculto según petición */}
                         </span>
                     </div>
 
