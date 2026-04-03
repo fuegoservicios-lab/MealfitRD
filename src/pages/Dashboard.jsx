@@ -1034,7 +1034,7 @@ const Dashboard = () => {
                             onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(15, 23, 42, 0.15)'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(15, 23, 42, 0.1)'; }}
                         >
-                            Ver Recetas Completas <ArrowRight size={18} />
+                            Ver Todo <ArrowRight size={18} />
                         </Link>
                     </div>
 
