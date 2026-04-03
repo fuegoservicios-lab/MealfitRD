@@ -429,7 +429,7 @@ const Dashboard = () => {
                             <Zap size={18} fill={isLimitReached ? '#EF4444' : '#3B82F6'} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', WebkitTextStroke: '0.5px #334155' }}>
                                 Créditos
                             </span>
                             <div style={{ 
