@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import styles from './Header.module.css';
 import { Menu, X, LayoutDashboard, LogOut } from 'lucide-react';
 import { useState } from 'react';
@@ -12,6 +12,10 @@ const Header = () => {
     // Obtenemos planData para saber si el usuario ya tiene un plan activo
     // Obtener session y resetApp para el logout
     const { planData, session, resetApp } = useAssessment();
+    const location = useLocation();
+
+    // No mostrar el botón "Empezar Ahora" si estamos en las rutas de evaluación o plan
+    const hideStartNow = location.pathname.startsWith('/assessment') || location.pathname.startsWith('/plan');
 
     return (
         <>
@@ -25,7 +29,7 @@ const Header = () => {
                 <nav className={styles.navDesktop}>
 
 
-                    {/* Lógica condicional: Si hay plan, muestra Dashboard; si no, Evaluación */}
+                    {/* Lógica condicional: Si hay plan, muestra Dashboard; si no y no estamos en evaluación/plan, Evaluación */}
                     {planData ? (
                         <Link
                             to="/dashboard"
@@ -33,7 +37,7 @@ const Header = () => {
                         >
                             <LayoutDashboard size={18} /> Mi Panel
                         </Link>
-                    ) : (
+                    ) : !hideStartNow && (
                         <Link to="/assessment" className={styles.ctaButton}>
                             Empezar Ahora
                         </Link>
@@ -82,7 +86,7 @@ const Header = () => {
                             >
                                 <LayoutDashboard size={18} /> Mi Panel
                             </Link>
-                        ) : (
+                        ) : !hideStartNow && (
                             <Link
                                 to="/assessment"
                                 className={styles.ctaButtonMobile}

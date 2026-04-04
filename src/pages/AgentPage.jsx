@@ -153,7 +153,15 @@ const AgentPage = () => {
                     if (response.ok) {
                         const data = await response.json();
                         if (data.sessions && data.sessions.length > 0) {
-                            setCurrentSessionId(data.sessions[0].id);
+                            // Leer desde localStorage para evitar leer estado antiguo (stale closure)
+                            const savedSessionId = localStorage.getItem('mealfit_current_session');
+                            const isCurrentValid = data.sessions.some(s => s.id === savedSessionId);
+                            
+                            if (!isCurrentValid) {
+                                setCurrentSessionId(data.sessions[0].id);
+                            } else if (currentSessionId !== savedSessionId) {
+                                setCurrentSessionId(savedSessionId);
+                            }
                         } else {
                             const newId = crypto.randomUUID();
                             setCurrentSessionId(newId);
@@ -345,10 +353,11 @@ const AgentPage = () => {
         }
     }, [session?.user?.id, userProfile?.id, localSessionId, currentSessionId]);
 
-    const fetchSessionMessages = useCallback(async (sessionId) => {
+    const fetchSessionMessages = useCallback(async (sessionId, retryCount = 0) => {
         setIsLoadingHistory(true);
+        let response;
         try {
-            const response = await fetchWithAuth(`/api/chat/history/${sessionId}`);
+            response = await fetchWithAuth(`/api/chat/history/${sessionId}`);
             if (response.ok) {
                 const data = await response.json();
                 if (data.messages && data.messages.length > 0) {
@@ -387,10 +396,15 @@ const AgentPage = () => {
                             // Limpiar "Mensaje del usuario:" que inyecta el backend para darle contexto al LLM
                             content = content.replace(/Mensaje del usuario:\s*/gi, '');
                             
-                            content = content.trim();
-                            if (!content && isImage) content = '';
+                            // Remover la sección de <dietary_context>
+                            content = content.replace(/<dietary_context>[\s\S]*?<\/dietary_context>/, '').trim();
                         }
                         
+                        // Si el bot genera el system title, lo ocultamos
+                        if (m.role === 'model' && content.startsWith('[SYSTEM_TITLE]')) {
+                            return null;
+                        }
+
                         return {
                             role: m.role,
                             content: content || '',
@@ -401,16 +415,57 @@ const AgentPage = () => {
                 } else {
                     setMessages([]);
                 }
+            } else if (response.status === 403 || response.status === 401) {
+                // Reintentar un par de veces por si hay un retraso en la hidratación del token
+                if (retryCount < 2) {
+                    console.warn(`⏳ [fetchSessionMessages] Esperando autenticación para ${sessionId}... (intento ${retryCount+1})`);
+                    setTimeout(() => fetchSessionMessages(sessionId, retryCount + 1), 800);
+                    return;
+                }
+                // Después de reintentos, simplemente mostrar vacío sin destruir la sesión
+                console.warn(`⚠️ No se pudo cargar historial de ${sessionId} (${response.status}).`);
+                setMessages([]);
             } else {
                 setMessages([]);
             }
         } catch (error) {
-            console.error("Error fetching messages:", error);
+            console.error("Error fetching session messages:", error);
+            if (retryCount < 2) {
+                setTimeout(() => fetchSessionMessages(sessionId, retryCount + 1), 600);
+                return;
+            }
             setMessages([]);
         } finally {
-            setIsLoadingHistory(false);
+            if (retryCount >= 2 || (response && response.ok)) {
+                setIsLoadingHistory(false);
+            }
         }
-    }, []);
+    }, [setMessages, setIsLoadingHistory]);
+
+    const handleDeleteChat = async (sessionIdToDelete, e) => {
+        if (e) e.stopPropagation();
+        try {
+            const response = await fetchWithAuth(`/api/chat/session/${sessionIdToDelete}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                setChatSessions(prev => prev.filter(s => s.id !== sessionIdToDelete));
+                
+                // Si borramos el chat actual activo, redirigimos a un chat nuevo
+                if (currentSessionId === sessionIdToDelete) {
+                    const newId = crypto.randomUUID();
+                    localStorage.setItem('mealfit_current_session', newId);
+                    setCurrentSessionId(newId);
+                }
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                console.error("Error al eliminar el chat devuelto por el servidor:", errorData);
+            }
+        } catch (error) {
+            console.error("Excepción eliminando chat:", error);
+        }
+    };
 
     useEffect(() => {
         scrollToBottom();
@@ -438,10 +493,14 @@ const AgentPage = () => {
         return () => clearInterval(intervalId);
     }, [chatSessions, fetchChatSessions, titlePollCount]);
 
-    // Cargar historial de mensajes cuando cambia la sesión activa
+    // Cargar historial de mensajes de forma segura (evitar 403 prematuro)
     useEffect(() => {
+        // SIEMPRE esperar a que la sesión de Supabase esté hidratada antes de hacer peticiones autenticadas
+        if (!session?.user?.id) return;
+        if (!currentSessionId) return;
+
         fetchSessionMessages(currentSessionId);
-    }, [currentSessionId, fetchSessionMessages]);
+    }, [currentSessionId, fetchSessionMessages, session?.user?.id]);
 
     const handleNewChat = () => {
         const newId = crypto.randomUUID();
@@ -451,7 +510,7 @@ const AgentPage = () => {
             return newList;
         });
         setCurrentSessionId(newId);
-        setMessages([]);
+        setMessages([{ role: 'model', content: '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?', isWelcome: true }]);
         setInput('');
         clearSelectedFile();
         fetchChatSessions();
@@ -558,8 +617,14 @@ const AgentPage = () => {
                 
                 setStreamingStatus('Conectando...');
                 
+                // Limpiar mensaje de bienvenida si es el primero del usuario
+                if (newMessages.length > 0 && newMessages[0].isWelcome) {
+                    newMessages.shift();
+                }
+
                 setChatSessions((prev) => {
-                    if (!prev.some(s => s.id === currentSessionId)) {
+                    const exists = prev.some(s => s.id === currentSessionId);
+                    if (!exists) {
                         return [{ id: currentSessionId, title: 'Generando título...', created_at: new Date().toISOString() }, ...prev];
                     }
                     return prev;
@@ -1164,38 +1229,67 @@ const AgentPage = () => {
                                                         minWidth: 0,
                                                         overflow: 'hidden'
                                                     }}>
-                                                        {s.title === 'Generando título...' ? (
-                                                            <div style={{ position: 'relative', width: '100%', height: '6px', background: currentSessionId === s.id ? 'rgba(79, 70, 229, 0.15)' : 'rgba(148, 163, 184, 0.15)', borderRadius: '3px', overflow: 'hidden', marginTop: '2px' }}>
-                                                                <div style={{ position: 'absolute', top: 0, left: 0, width: '50%', height: '100%', background: currentSessionId === s.id ? 'linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.8), transparent)' : 'linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.8), transparent)', animation: 'cyberSweep 1.5s ease-in-out infinite' }} />
+                                                        {s.title !== 'Generando título...' && (
+                                                            <span 
+                                                                title={originalTitle}
+                                                                style={{ 
+                                                                fontWeight: currentSessionId === s.id ? 600 : 500, 
+                                                                fontSize: '0.95rem', 
+                                                                color: currentSessionId === s.id ? '#4F46E5' : '#475569',
+                                                                whiteSpace: 'nowrap',
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis',
+                                                                width: '100%',
+                                                                display: 'block'
+                                                            }}>
+                                                                {originalTitle}
+                                                            </span>
+                                                        )}
+                                                        
+                                                        {((isLoading && currentSessionId === s.id) || s.title === 'Generando título...') ? (
+                                                            <div style={{ position: 'relative', width: '100%', height: '4px', background: currentSessionId === s.id ? 'rgba(79, 70, 229, 0.15)' : 'rgba(148, 163, 184, 0.15)', borderRadius: '2px', overflow: 'hidden', marginTop: '3px' }}>
+                                                                <div style={{ position: 'absolute', top: 0, left: 0, width: '60%', height: '100%', background: currentSessionId === s.id ? 'linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.8), transparent)' : 'linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.8), transparent)', animation: (isLoading && currentSessionId === s.id) ? 'cyberSweep 1.5s ease-in-out infinite' : 'none' }} />
                                                             </div>
                                                         ) : (
-                                                            <>
-                                                                <span 
-                                                                    title={originalTitle}
-                                                                    style={{ 
-                                                                    fontWeight: currentSessionId === s.id ? 600 : 500, 
-                                                                    fontSize: '0.95rem', 
-                                                                    color: currentSessionId === s.id ? '#4F46E5' : '#475569',
-                                                                    whiteSpace: 'nowrap',
-                                                                    overflow: 'hidden',
-                                                                    textOverflow: 'ellipsis',
-                                                                    width: '100%',
-                                                                    display: 'block'
+                                                            formattedDate && (
+                                                                <span style={{ 
+                                                                    fontSize: '0.70rem', 
+                                                                    color: currentSessionId === s.id ? 'rgba(79, 70, 229, 0.6)' : '#94a3b8', 
+                                                                    fontWeight: 400 
                                                                 }}>
-                                                                    {originalTitle}
+                                                                    {formattedDate}
                                                                 </span>
-                                                                {formattedDate && (
-                                                                    <span style={{ 
-                                                                        fontSize: '0.70rem', 
-                                                                        color: currentSessionId === s.id ? 'rgba(79, 70, 229, 0.6)' : '#94a3b8', 
-                                                                        fontWeight: 400 
-                                                                    }}>
-                                                                        {formattedDate}
-                                                                    </span>
-                                                                )}
-                                                            </>
+                                                            )
                                                         )}
                                                     </span>
+                                                </button>
+                                                
+                                                {/* Botón de eliminar (Hover) */}
+                                                <button
+                                                    className="chat-actions-hover"
+                                                    title="Eliminar chat"
+                                                    onClick={(e) => handleDeleteChat(s.id, e)}
+                                                    style={{
+                                                        position: 'absolute',
+                                                        right: '0.4rem',
+                                                        top: '50%',
+                                                        transform: 'translateY(-50%)',
+                                                        background: 'white',
+                                                        color: '#ef4444',
+                                                        border: '1px solid #fee2e2',
+                                                        borderRadius: '0.4rem',
+                                                        padding: '0.35rem',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.15s ease',
+                                                        boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+                                                    }}
+                                                    onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                                                >
+                                                    <Trash2 size={15} strokeWidth={2} />
                                                 </button>
 
                                             </div>
