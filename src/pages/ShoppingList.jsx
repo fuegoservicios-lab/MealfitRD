@@ -89,7 +89,7 @@ const getAILightColor = (catName) => {
 
 
 const ShoppingList = () => {
-    const { planData } = useAssessment();
+    const { planData, formData, updateData, updateUserProfile, session } = useAssessment();
     const navigate = useNavigate();
 
     // Estado para los items marcados (usando el nombre del item como key para persistencia simple)
@@ -138,6 +138,7 @@ const ShoppingList = () => {
     const [customItems, setCustomItems] = useState([]);
     const [loadingCustom, setLoadingCustom] = useState(true); // Inicialmente cargando la DB
     const [isGenerating, setIsGenerating] = useState(false); // La IA arranca falsa, a menos que la DB esté vacía
+    const [itemToDelete, setItemToDelete] = useState(null); // Modal para eliminar item
 
     // Obtener userId para el fetch
     const userId = typeof window !== 'undefined' ? localStorage.getItem('mealfit_user_id') : null;
@@ -273,15 +274,18 @@ const ShoppingList = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const handleDeleteCustomItem = async (itemId) => {
+    const executeDelete = async (itemId) => {
         try {
             await fetchWithAuth(`/api/shopping/custom/${itemId}`, { method: 'DELETE' });
             setCustomItems(prev => prev.filter(i => i.id !== itemId));
-            toast.success('Item eliminado de la lista');
         } catch (err) {
             console.error('Error deleting custom item:', err);
             toast.error('Error al eliminar el item');
         }
+    };
+
+    const handleDeleteCustomItem = (structItem) => {
+        setItemToDelete(structItem);
     };
 
     // Generamos la lista plana y luego la categorizamos (Solo para fallback)
@@ -790,7 +794,7 @@ const ShoppingList = () => {
                                                                 </div>
                                                             </div>
                                                             <button
-                                                                onClick={(e) => { e.stopPropagation(); handleDeleteCustomItem(structItem.id); }}
+                                                                onClick={(e) => { e.stopPropagation(); handleDeleteCustomItem(structItem); }}
                                                                 className="btn-secondary no-print shopping-item-delete-btn"
                                                                 style={{ padding: '0.4rem', borderRadius: '0.5rem', border: 'none', background: 'transparent' }}
                                                                 onMouseEnter={(e) => { e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.background = '#FEE2E2'; }}
@@ -908,6 +912,93 @@ const ShoppingList = () => {
 
                 </div>
             </div>
+
+            {/* --- MODAL PARA ELIMINAR ITEM --- */}
+            {itemToDelete && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', animation: 'fadeIn 0.2s ease-out' }}>
+                    <div style={{ background: '#ffffff', borderRadius: '1.25rem', width: '100%', maxWidth: '380px', padding: '1.5rem', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0F172A', fontWeight: 800 }}>Eliminar {itemToDelete.name}</h3>
+                            <button onClick={() => setItemToDelete(null)} style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '0.25rem', borderRadius: '0.5rem', display: 'flex' }} onMouseEnter={(e) => e.currentTarget.style.background = '#F1F5F9'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.95rem', color: '#64748B', lineHeight: '1.5' }}>
+                            Si no deseas comer este ingrediente nuevamente, podemos decirle a la IA que lo evite en tus futuros menús.
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <button 
+                                onClick={() => {
+                                    executeDelete(itemToDelete.id);
+                                    setItemToDelete(null);
+                                    toast.success('Eliminado de la lista 🏠');
+                                }}
+                                style={{ padding: '0.85rem 1rem', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '0.75rem', color: '#334155', fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', transition: 'all 0.2s', width: '100%', textAlign: 'left' }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                            >
+                                🏠 Ya lo tengo en casa (Solo borrar)
+                            </button>
+
+                            <button 
+                                onClick={() => {
+                                    executeDelete(itemToDelete.id);
+                                    
+                                    // Calculamos tiempo de expiración
+                                    const groceryMap = { 'weekly': 7, 'biweekly': 15, 'monthly': 30 };
+                                    const userDuration = planData?.form_data?.groceryDuration || formData?.groceryDuration || 'weekly';
+                                    const durationDays = groceryMap[userDuration] || 7;
+                                    
+                                    const expiryDate = new Date();
+                                    expiryDate.setDate(expiryDate.getDate() + durationDays);
+                                    
+                                    const currentTempDislikes = formData?.temporary_dislikes || {};
+                                    const newTempDislikes = {
+                                        ...currentTempDislikes,
+                                        [itemToDelete.name]: expiryDate.toISOString()
+                                    };
+                                    
+                                    updateData('temporary_dislikes', newTempDislikes);
+                                    if (session?.user) {
+                                        updateUserProfile({ health_profile: { ...formData, temporary_dislikes: newTempDislikes } });
+                                    }
+                                    
+                                    setItemToDelete(null);
+                                    toast.success('Ignorado hasta tu próximo súper 🛒');
+                                }}
+                                style={{ padding: '0.85rem 1rem', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '0.75rem', color: '#C2410C', fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', transition: 'all 0.2s', width: '100%', textAlign: 'left' }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = '#FFEDD5'; e.currentTarget.style.borderColor = '#FDBA74'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = '#FFF7ED'; e.currentTarget.style.borderColor = '#FED7AA'; }}
+                            >
+                                🛒 No lo encontré / No lo compraré hoy
+                            </button>
+                            
+                            <button 
+                                onClick={() => {
+                                    executeDelete(itemToDelete.id);
+                                    const currentDislikes = formData?.dislikes || [];
+                                    if (!currentDislikes.includes(itemToDelete.name)) {
+                                        const newDislikes = [...currentDislikes, itemToDelete.name];
+                                        updateData('dislikes', newDislikes);
+                                        if (session?.user) {
+                                            updateUserProfile({ health_profile: { ...formData, dislikes: newDislikes } });
+                                        }
+                                        toast.success(`¡Entendido! "${itemToDelete.name}" añadido a tu lista negra 🚫`);
+                                    } else {
+                                        toast.success('Eliminado de la lista');
+                                    }
+                                    setItemToDelete(null);
+                                }}
+                                style={{ padding: '0.85rem 1rem', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '0.75rem', color: '#DC2626', fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', transition: 'all 0.2s', width: '100%', textAlign: 'left' }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = '#FEE2E2'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = '#FEF2F2'; }}
+                            >
+                                🚫 No me gusta (Evitar en el futuro)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </DashboardLayout>
     );

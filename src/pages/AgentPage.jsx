@@ -46,7 +46,7 @@ const MessageActions = ({ content, sessionId, onRegenerate }) => {
     const handleMouseLeave = (e) => { e.currentTarget.style.background = 'transparent'; };
 
     return (
-        <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.85rem', marginLeft: '-0.4rem' }}>
+        <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem', marginBottom: '0.5rem', marginLeft: '-0.4rem' }}>
             <button 
                 onClick={() => handleFeedback('up')} 
                 style={actionBtnStyle(feedback === 'up')}
@@ -1616,7 +1616,8 @@ const AgentPage = () => {
                                     gap: '0.75rem', 
                                     alignItems: 'center',
                                     color: '#475569',
-                                    padding: '0.5rem 0',
+                                    padding: '0.5rem 0 0.5rem 1.5rem',
+                                    marginBottom: '3.5rem',
                                     fontSize: '0.95rem',
                                     fontWeight: 500,
                                     animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
@@ -1688,22 +1689,22 @@ const AgentPage = () => {
                     100% { transform: rotate(0deg); }
                 }
 
-                /* --- Sidebar Scrollbar --- */
-                .sidebar-scrollable {
+                /* --- Custom Scrollbar (Sidebar & PC Chat) --- */
+                .sidebar-scrollable, .messages-container {
                     scrollbar-width: thin;
-                    scrollbar-color: rgba(203, 213, 225, 0.5) transparent;
+                    scrollbar-color: rgba(203, 213, 225, 0.4) transparent;
                 }
-                .sidebar-scrollable::-webkit-scrollbar {
-                    width: 5px;
+                .sidebar-scrollable::-webkit-scrollbar, .messages-container::-webkit-scrollbar {
+                    width: 6px;
                 }
-                .sidebar-scrollable::-webkit-scrollbar-track {
+                .sidebar-scrollable::-webkit-scrollbar-track, .messages-container::-webkit-scrollbar-track {
                     background: transparent;
                 }
-                .sidebar-scrollable::-webkit-scrollbar-thumb {
-                    background-color: rgba(203, 213, 225, 0.5);
+                .sidebar-scrollable::-webkit-scrollbar-thumb, .messages-container::-webkit-scrollbar-thumb {
+                    background-color: rgba(203, 213, 225, 0.4);
                     border-radius: 10px;
                 }
-                .sidebar-scrollable:hover::-webkit-scrollbar-thumb {
+                .sidebar-scrollable:hover::-webkit-scrollbar-thumb, .messages-container:hover::-webkit-scrollbar-thumb {
                     background-color: rgba(148, 163, 184, 0.6);
                 }
 
