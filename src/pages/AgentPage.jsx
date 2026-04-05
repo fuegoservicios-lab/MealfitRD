@@ -568,6 +568,8 @@ const AgentPage = () => {
                 formData.append('file', currentFile);
                 formData.append('user_id', session?.user?.id || userProfile?.id || localSessionId);
                 formData.append('session_id', currentSessionId);
+                const currentTzOffset = new Date().getTimezoneOffset();
+                formData.append('tz_offset_mins', currentTzOffset.toString());
                 
                 const uploadRes = await fetchWithAuth('/api/diary/upload', {
                     method: 'POST',
@@ -1188,7 +1190,10 @@ const AgentPage = () => {
                                     )}
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                         {group.items.map(s => {
-                                            const originalTitle = s.title ? s.title.replace(/\[?\(Hora actual del usuario:.*?\)?\]?/gi, '').replace(/Mensaje del usuario:\s*/gi, '').trim() || 'Nuevo chat' : 'Nuevo chat';
+                                            let originalTitle = s.title ? s.title.replace(/\[?\(Hora actual del usuario:[^)]*\)\]?/gi, '').replace(/Mensaje del usuario:\s*/gi, '').trim() || 'Nuevo chat' : 'Nuevo chat';
+                                            if (originalTitle.length > 45) {
+                                                originalTitle = originalTitle.substring(0, 45).trim() + '...';
+                                            }
                                             
                                             const dateStr = s.last_activity || s.created_at;
                                             const dateObj = dateStr ? new Date(dateStr) : null;
@@ -1208,7 +1213,7 @@ const AgentPage = () => {
                                                     style={{
                                                         width: '100%',
                                                         textAlign: 'left',
-                                                        padding: '0.75rem 2.5rem 0.75rem 1rem',
+                                                        padding: '0.75rem 3.5rem 0.75rem 1.25rem',
                                                         background: currentSessionId === s.id ? '#eef2ff' : 'transparent',
                                                         border: 'none',
                                                         borderRadius: '0.75rem',
@@ -1224,42 +1229,43 @@ const AgentPage = () => {
                                                     <span style={{ 
                                                         display: 'flex',
                                                         flexDirection: 'column',
-                                                        gap: '0.15rem',
+                                                        gap: ((isLoading && currentSessionId === s.id) || s.title === 'Generando título...') ? '0' : '0.15rem',
                                                         flex: 1,
                                                         minWidth: 0,
-                                                        overflow: 'hidden'
+                                                        overflow: 'hidden',
+                                                        justifyContent: 'center',
+                                                        minHeight: '2.3rem'
                                                     }}>
-                                                        {s.title !== 'Generando título...' && (
-                                                            <span 
-                                                                title={originalTitle}
-                                                                style={{ 
-                                                                fontWeight: currentSessionId === s.id ? 600 : 500, 
-                                                                fontSize: '0.95rem', 
-                                                                color: currentSessionId === s.id ? '#4F46E5' : '#475569',
-                                                                whiteSpace: 'nowrap',
-                                                                overflow: 'hidden',
-                                                                textOverflow: 'ellipsis',
-                                                                width: '100%',
-                                                                display: 'block'
-                                                            }}>
-                                                                {originalTitle}
-                                                            </span>
-                                                        )}
-                                                        
                                                         {((isLoading && currentSessionId === s.id) || s.title === 'Generando título...') ? (
-                                                            <div style={{ position: 'relative', width: '100%', height: '4px', background: currentSessionId === s.id ? 'rgba(79, 70, 229, 0.15)' : 'rgba(148, 163, 184, 0.15)', borderRadius: '2px', overflow: 'hidden', marginTop: '3px' }}>
+                                                            <div style={{ position: 'relative', width: '100%', height: '4px', background: currentSessionId === s.id ? 'rgba(79, 70, 229, 0.15)' : 'rgba(148, 163, 184, 0.15)', borderRadius: '2px', overflow: 'hidden' }}>
                                                                 <div style={{ position: 'absolute', top: 0, left: 0, width: '60%', height: '100%', background: currentSessionId === s.id ? 'linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.8), transparent)' : 'linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.8), transparent)', animation: (isLoading && currentSessionId === s.id) ? 'cyberSweep 1.5s ease-in-out infinite' : 'none' }} />
                                                             </div>
                                                         ) : (
-                                                            formattedDate && (
-                                                                <span style={{ 
-                                                                    fontSize: '0.70rem', 
-                                                                    color: currentSessionId === s.id ? 'rgba(79, 70, 229, 0.6)' : '#94a3b8', 
-                                                                    fontWeight: 400 
+                                                            <>
+                                                                <span 
+                                                                    title={originalTitle}
+                                                                    style={{ 
+                                                                    fontWeight: currentSessionId === s.id ? 600 : 500, 
+                                                                    fontSize: '0.95rem', 
+                                                                    color: currentSessionId === s.id ? '#4F46E5' : '#475569',
+                                                                    whiteSpace: 'nowrap',
+                                                                    overflow: 'hidden',
+                                                                    textOverflow: 'ellipsis',
+                                                                    width: '100%',
+                                                                    display: 'block'
                                                                 }}>
-                                                                    {formattedDate}
+                                                                    {originalTitle}
                                                                 </span>
-                                                            )
+                                                                {formattedDate && (
+                                                                    <span style={{ 
+                                                                        fontSize: '0.70rem', 
+                                                                        color: currentSessionId === s.id ? 'rgba(79, 70, 229, 0.6)' : '#94a3b8', 
+                                                                        fontWeight: 400 
+                                                                    }}>
+                                                                        {formattedDate}
+                                                                    </span>
+                                                                )}
+                                                            </>
                                                         )}
                                                     </span>
                                                 </button>
