@@ -1745,7 +1745,7 @@ const AgentPage = () => {
                     }
                     /* --- Messages area --- */
                     .messages-container {
-                        padding: 0.5rem 1.25rem 0.5rem 1.25rem !important;
+                        padding: 0.5rem 0.85rem 0.5rem 0.85rem !important;
                         background: #f8fafc !important;
                         -ms-overflow-style: none;
                         scrollbar-width: none;
@@ -1778,7 +1778,7 @@ const AgentPage = () => {
                     }
                     /* --- Input bar floating --- */
                     .input-wrapper {
-                        padding: 0.6rem 1.25rem calc(0.5rem + env(safe-area-inset-bottom)) 1.25rem !important;
+                        padding: 0.6rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom)) 0.75rem !important;
                         background: rgba(255,255,255,0.88) !important;
                         backdrop-filter: blur(16px) !important;
                         -webkit-backdrop-filter: blur(16px) !important;
@@ -1797,20 +1797,19 @@ const AgentPage = () => {
                         background-clip: text !important;
                     }
                     .empty-state-pills {
-                        display: flex !important;
-                        flex-direction: column !important;
-                        align-items: flex-start !important;
+                        display: grid !important;
+                        grid-template-columns: 1fr 1fr !important;
                         gap: 0.6rem !important;
                         width: 100% !important;
                     }
                     .suggestion-pill {
-                        width: fit-content !important;
-                        padding: 0.85rem 1.15rem !important;
-                        border-radius: 2rem !important;
-                        font-size: 0.92rem !important;
-                        flex-direction: row !important;
-                        gap: 0.5rem !important;
-                        text-align: left !important;
+                        width: 100% !important;
+                        padding: 0.85rem 0.75rem !important;
+                        border-radius: 1rem !important;
+                        font-size: 0.85rem !important;
+                        flex-direction: column !important;
+                        gap: 0.35rem !important;
+                        text-align: center !important;
                         background: #ffffff !important;
                         border: 1px solid #e2e8f0 !important;
                         box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
@@ -1821,7 +1820,7 @@ const AgentPage = () => {
                         box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
                     }
                     .suggestion-pill-icon {
-                        font-size: 1.25rem !important;
+                        font-size: 1.5rem !important;
                     }
                     /* --- Loading typing dots --- */
                     .typing-dots-container {
