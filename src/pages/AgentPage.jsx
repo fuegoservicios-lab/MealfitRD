@@ -1780,12 +1780,17 @@ const AgentPage = () => {
                     .input-wrapper {
                         position: relative !important;
                         bottom: auto !important;
-                        padding: 0.8rem 1.25rem calc(1rem + env(safe-area-inset-bottom)) 1.25rem !important;
+                        padding: 0.8rem 1.25rem calc(2.5rem + env(safe-area-inset-bottom)) 1.25rem !important;
                         background: rgba(255,255,255,0.92) !important;
                         backdrop-filter: blur(20px) !important;
                         -webkit-backdrop-filter: blur(20px) !important;
                         border-top: none !important;
                         box-shadow: 0 -4px 30px rgba(0,0,0,0.06) !important;
+                        transition: padding-bottom 0.2s ease-out !important;
+                        border-radius: 0 !important;
+                    }
+                    .input-wrapper:focus-within {
+                        padding-bottom: 0.8rem !important;
                     }
                     /* --- Welcome screen --- */
                     .welcome-heading {
