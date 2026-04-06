@@ -1778,17 +1778,12 @@ const AgentPage = () => {
                     }
                     /* --- Input bar floating --- */
                     .input-wrapper {
-                        padding: 0.6rem 1.25rem calc(2.25rem + env(safe-area-inset-bottom)) 1.25rem !important;
-                        background: rgba(255,255,255,0.88) !important;
-                        backdrop-filter: blur(16px) !important;
-                        -webkit-backdrop-filter: blur(16px) !important;
+                        padding: 0.8rem 1.25rem calc(1rem + env(safe-area-inset-bottom)) 1.25rem !important;
+                        background: rgba(255,255,255,0.92) !important;
+                        backdrop-filter: blur(20px) !important;
+                        -webkit-backdrop-filter: blur(20px) !important;
                         border-top: none !important;
                         box-shadow: 0 -4px 30px rgba(0,0,0,0.06) !important;
-                        transition: padding 0.25s ease-out !important;
-                        border-radius: 0 !important;
-                    }
-                    .input-wrapper:focus-within {
-                        padding-bottom: 0.8rem !important;
                     }
                     /* --- Welcome screen --- */
                     .welcome-heading {
