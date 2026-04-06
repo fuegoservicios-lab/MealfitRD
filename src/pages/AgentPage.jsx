@@ -1778,6 +1778,8 @@ const AgentPage = () => {
                     }
                     /* --- Input bar floating --- */
                     .input-wrapper {
+                        position: relative !important;
+                        bottom: auto !important;
                         padding: 0.8rem 1.25rem calc(1rem + env(safe-area-inset-bottom)) 1.25rem !important;
                         background: rgba(255,255,255,0.92) !important;
                         backdrop-filter: blur(20px) !important;
