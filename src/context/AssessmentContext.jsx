@@ -124,7 +124,7 @@ export const AssessmentProvider = ({ children }) => {
 
     const initialFormData = {
         age: '', gender: '', height: '', weight: '', weightUnit: 'lb', bodyFat: '', activityLevel: '',
-        sleepHours: '', stressLevel: '', cookingTime: '', budget: '', workSchedule: '',
+        sleepHours: '', stressLevel: '', cookingTime: '', budget: '', scheduleType: 'standard',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
         mainGoal: '', motivation: '', struggles: [], skipLunch: false,
         includeSupplements: false, selectedSupplements: [], groceryDuration: 'weekly',
@@ -152,7 +152,7 @@ export const AssessmentProvider = ({ children }) => {
             // 1. Buscar el último plan creado por este usuario en Supabase
             const { data: plans, error } = await supabase
                 .from('meal_plans')
-                .select('plan_data, created_at')
+                .select('id, plan_data, created_at')
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false })
                 .limit(1);
@@ -162,22 +162,52 @@ export const AssessmentProvider = ({ children }) => {
             if (plans && plans.length > 0) {
                 const latestPlan = plans[0].plan_data;
                 const planCreatedAt = plans[0].created_at;
+                const planId = plans[0].id;
 
                 // FIX: Asegurar que el plan de la BD tenga una fecha de inicio de compras para el contador de Dashboard
+                let didInjectGroceryDate = false;
                 if (!latestPlan.grocery_start_date) {
-                    latestPlan.grocery_start_date = planCreatedAt;
+                    const localSaved = localStorage.getItem('mealfit_plan');
+                    let localGroceryStartDate = null;
+                    if (localSaved) {
+                        try {
+                            const parsed = JSON.parse(localSaved);
+                            localGroceryStartDate = parsed.grocery_start_date;
+                        } catch(e) {}
+                    }
+                    
+                    // Si el plan vino de la IA/Chat, no trae esta fecha.
+                    // Priorizamos mantener la local, si no existe usamos la de creación.
+                    latestPlan.grocery_start_date = localGroceryStartDate || planCreatedAt;
+                    didInjectGroceryDate = true;
                 }
 
                 // Leemos directamente del localStorage para la comparación
-                const localSaved = localStorage.getItem('mealfit_plan');
+                const localSavedForCompare = localStorage.getItem('mealfit_plan');
+
+                let localSavedParsed = null;
+                if (localSavedForCompare) {
+                    try {
+                        localSavedParsed = JSON.parse(localSavedForCompare);
+                    } catch(e) {
+                        console.warn("⚠️ Error parseando plan local, forzando sincronización con la nube.");
+                    }
+                }
 
                 // Solo actualizamos si el plan en la nube es diferente al local
-                if (!localSaved || JSON.stringify(JSON.parse(localSaved)) !== JSON.stringify(latestPlan)) {
+                if (!localSavedParsed || JSON.stringify(localSavedParsed) !== JSON.stringify(latestPlan)) {
                     console.log("📥 Descargando plan actualizado desde la nube...");
                     setPlanData(latestPlan);
                     localStorage.setItem('mealfit_plan', JSON.stringify(latestPlan));
                 } else {
                     console.log("✅ El plan local está sincronizado con la nube.");
+                }
+
+                // Guardar la fecha en DB para persistencia cruzada (si se inyectó)
+                if (didInjectGroceryDate && userId && userId !== 'guest') {
+                    supabase.from('meal_plans').update({ plan_data: latestPlan }).eq('id', planId).then((res) => {
+                        if (res.error) console.error('Error sincronizando fecha inicio compras', res.error);
+                    });
                 }
             } else {
                 console.log("ℹ️ El usuario no tiene planes guardados en la nube.");

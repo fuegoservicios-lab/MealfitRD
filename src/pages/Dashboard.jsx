@@ -71,8 +71,16 @@ const Dashboard = () => {
 
     // Calcular si el periodo de compras expiró para sugerir "Actualizar Plan" en lugar de "Platos"
     const groceryDuration = formData?.groceryDuration || 'weekly';
-    const planCreatedAt = planData?.grocery_start_date ? new Date(planData.grocery_start_date) : (planData?.created_at ? new Date(planData.created_at) : new Date());
-    const daysSinceCreation = Math.floor((new Date() - planCreatedAt) / (1000 * 60 * 60 * 24));
+    
+    // Normalizar fechas a medianoche para calcular días calendario transcurridos correctamente
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    
+    const rawStartDate = planData?.grocery_start_date || planData?.created_at;
+    const startMidnight = rawStartDate ? new Date(rawStartDate) : new Date();
+    startMidnight.setHours(0, 0, 0, 0);
+
+    const daysSinceCreation = Math.round((todayMidnight - startMidnight) / (1000 * 60 * 60 * 24));
     
     let isPlanExpired = false;
     let maxDays = 7;

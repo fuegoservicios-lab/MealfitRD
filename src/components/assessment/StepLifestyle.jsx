@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useAssessment } from '../../context/AssessmentContext';
 import { Label, RadioCard } from '../common/FormUI';
-import { ArrowLeft, ArrowRight, Clock, DollarSign, Battery, Moon, ChefHat, Timer, CheckCircle, Wallet, Banknote, Landmark, Infinity } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Clock, DollarSign, Battery, Moon, ChefHat, Timer, CheckCircle, Wallet, Banknote, Landmark, Infinity, Sun, RefreshCw } from 'lucide-react';
 import stylesLayout from './AssessmentLayout.module.css';
 
 const StepLifestyle = () => {
@@ -11,7 +11,7 @@ const StepLifestyle = () => {
         updateData(e.target.name, e.target.value);
     };
 
-    const isFormValid = formData.sleepHours && formData.stressLevel && formData.cookingTime && formData.budget;
+    const isFormValid = formData.sleepHours && formData.stressLevel && formData.cookingTime && formData.budget && formData.scheduleType;
 
     return (
         <motion.div>
@@ -21,6 +21,29 @@ const StepLifestyle = () => {
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', paddingBottom: '2rem' }}>
+
+                {/* Biological Rhythm */}
+                <div>
+                    <Label>Ritmo Biológico / Horario&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', '@media (min-width: 640px)': { gridTemplateColumns: '1fr 1fr 1fr' } }}>
+                        {[
+                            { val: 'standard', label: 'Día (Tradicional)', desc: 'Duermo de noche, activo de día', icon: Sun },
+                            { val: 'night_shift', label: 'Turno Nocturno', desc: 'Duermo de día, trabajo de noche', icon: Moon },
+                            { val: 'variable', label: 'Rotativo / Variable', desc: 'Mi horario cambia constantemente', icon: RefreshCw }
+                        ].map((opt) => (
+                            <RadioCard
+                                key={opt.val}
+                                name="scheduleType"
+                                value={opt.val}
+                                label={opt.label}
+                                desc={opt.desc}
+                                icon={opt.icon}
+                                checked={formData.scheduleType === opt.val}
+                                onChange={handleChange}
+                            />
+                        ))}
+                    </div>
+                </div>
 
                 {/* Sleep & Stress Group */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
