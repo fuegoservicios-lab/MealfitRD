@@ -199,8 +199,8 @@
     display: none;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem 1.5rem;
-    padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+    padding: 0.85rem 1.5rem;
+    padding-top: calc(max(env(safe-area-inset-top), 24px) + 0.85rem);
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);

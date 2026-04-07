@@ -1378,6 +1378,7 @@ const AgentPage = () => {
                 {/* Chat Header */}
                 <div className="mobile-chat-header" style={{
                     padding: '0.75rem 1.25rem',
+                    paddingTop: 'calc(0.75rem + max(env(safe-area-inset-top), 24px))',
                     background: messages.length === 0 ? '#f4f7fc' : 'rgba(255,255,255,0.85)',
                     backdropFilter: messages.length === 0 ? 'none' : 'blur(8px)',
                     display: 'flex',
@@ -1504,7 +1505,7 @@ const AgentPage = () => {
                 {/* Mensajes o Pantalla Principal (Gemini Style) */}
                 <div className="messages-container" style={{
                     flex: 1,
-                    padding: messages.length === 0 ? '5rem 1.5rem 0 1.5rem' : '5rem 2rem 0.5rem 2rem', 
+                    padding: messages.length === 0 ? 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 1.5rem 0 1.5rem' : 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 2rem 0.5rem 2rem', 
                     overflowY: 'auto',
                     display: 'flex',
                     flexDirection: 'column',
