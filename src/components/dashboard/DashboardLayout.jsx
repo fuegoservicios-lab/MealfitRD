@@ -99,7 +99,10 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 </header>
                 )}
 
-                <main className={`${styles.mainContent} ${noPaddingMobile ? styles.noPaddingMobile : ''}`}>
+                <main 
+                    className={`${styles.mainContent} ${noPaddingMobile ? styles.noPaddingMobile : ''}`}
+                    style={noPaddingMobile ? { padding: 0, maxWidth: '100vw', overflow: 'hidden', margin: 0, width: '100%' } : {}}
+                >
                     {children}
                 </main>
             </div>

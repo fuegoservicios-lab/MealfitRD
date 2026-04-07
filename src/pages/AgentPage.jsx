@@ -97,6 +97,15 @@ const AgentPage = () => {
     const [showNavMenu, setShowNavMenu] = useState(false);
     const navMenuRef = useRef(null);
 
+    // IsMobile detection para asegurar sobrescritura inline a prueba de fallos de iOS
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 1024 : false);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 1024);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     // Close nav menu on outside click
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -1103,14 +1112,14 @@ const AgentPage = () => {
                 style={{
                 display: 'flex',
                 flexDirection: 'row',
-                height: 'calc(100dvh - 4rem)',
+                height: isMobile ? '100dvh' : 'calc(100dvh - 4rem)',
                 background: '#ffffff',
-                borderRadius: '1.5rem',
-                boxShadow: '0 10px 40px -10px rgba(0,0,0,0.08)',
-                border: '1px solid rgba(226, 232, 240, 0.8)',
+                borderRadius: isMobile ? '0' : '1.5rem',
+                boxShadow: isMobile ? 'none' : '0 10px 40px -10px rgba(0,0,0,0.08)',
+                border: isMobile ? 'none' : '1px solid rgba(226, 232, 240, 0.8)',
                 overflow: 'hidden',
-                margin: '0 auto',
-                maxWidth: '1200px',
+                margin: isMobile ? '0' : '0 auto',
+                maxWidth: isMobile ? '100vw' : '1200px',
                 width: '100%',
                 position: 'relative'
             }}>
