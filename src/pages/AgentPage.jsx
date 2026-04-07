@@ -187,7 +187,7 @@ const AgentPage = () => {
                 localStorage.setItem('mealfit_guest_session', newId);
                 setLocalSessionId(newId);
                 setCurrentSessionId(newId);
-                setMessages([{ role: 'model', content: '' + generateIntelligentWelcome(userProfile, formData, planData) + '', isWelcome: true }]);
+                setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
                 setChatSessions([]);
             }
         }
@@ -200,12 +200,23 @@ const AgentPage = () => {
     const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : true);
 
     const [messages, setMessages] = useState([
-        { role: 'model', content: '' + generateIntelligentWelcome(userProfile, formData, planData) + '', isWelcome: true }
+        { role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }
     ]);
     const messagesRef = useRef(messages);
     useEffect(() => {
         messagesRef.current = messages;
     }, [messages]);
+
+    // Re-generate welcome when planData/formData become available (they load async)
+    const hasHydratedWelcome = useRef(false);
+    useEffect(() => {
+        if (hasHydratedWelcome.current) return;
+        // Only regenerate if we actually have plan data now AND the current messages are just the initial welcome
+        if ((planData || formData?.name) && messages.length === 1 && messages[0]?.isWelcome) {
+            hasHydratedWelcome.current = true;
+            setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
+        }
+    }, [planData, formData, userProfile]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [streamingStatus, setStreamingStatus] = useState(null);
@@ -387,8 +398,14 @@ const AgentPage = () => {
             if (response.ok) {
                 const data = await response.json();
                 if (data.messages && data.messages.length > 0) {
-                    // Filtrar los mensajes de sistema/bienvenida si los hay guardados
-                    const filteredMessages = data.messages.filter(m => m.content !== '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?' && m.content !== '' + generateIntelligentWelcome(userProfile, formData, planData) + '');
+                    // Filtrar los mensajes de sistema/bienvenida: detectar por flag o por patrones conocidos
+                    const filteredMessages = data.messages.filter(m => {
+                        if (!m.content) return false;
+                        // Filtrar mensajes de bienvenida viejos y nuevos por patrones estables (no time-dependent)
+                        if (m.content === '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?') return false;
+                        if (m.role === 'model' && m.content.includes('Son las ') && m.content.includes('de tu súper)')) return false;
+                        return true;
+                    });
                     setMessages(filteredMessages.map(m => {
                         let content = m.content;
                         let isImage = false;
@@ -439,7 +456,7 @@ const AgentPage = () => {
                         };
                     }));
                 } else {
-                    setMessages([{ role: 'model', content: '' + generateIntelligentWelcome(userProfile, formData, planData) + '', isWelcome: true }]);
+                    setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
                 }
             } else if (response.status === 403 || response.status === 401) {
                 // Reintentar un par de veces por si hay un retraso en la hidratación del token
@@ -450,9 +467,9 @@ const AgentPage = () => {
                 }
                 // Después de reintentos, simplemente mostrar vacío sin destruir la sesión
                 console.warn(`⚠️ No se pudo cargar historial de ${sessionId} (${response.status}).`);
-                setMessages([{ role: 'model', content: '' + generateIntelligentWelcome(userProfile, formData, planData) + '', isWelcome: true }]);
+                setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
             } else {
-                setMessages([{ role: 'model', content: '' + generateIntelligentWelcome(userProfile, formData, planData) + '', isWelcome: true }]);
+                setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
             }
         } catch (error) {
             console.error("Error fetching session messages:", error);
@@ -460,13 +477,14 @@ const AgentPage = () => {
                 setTimeout(() => fetchSessionMessages(sessionId, retryCount + 1), 600);
                 return;
             }
-            setMessages([{ role: 'model', content: '' + generateIntelligentWelcome(userProfile, formData, planData) + '', isWelcome: true }]);
+            setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
         } finally {
             if (retryCount >= 2 || (response && response.ok)) {
                 setIsLoadingHistory(false);
             }
         }
-    }, [setMessages, setIsLoadingHistory]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setMessages, setIsLoadingHistory, userProfile, formData, planData]);
 
     const handleDeleteChat = async (sessionIdToDelete, e) => {
         if (e) e.stopPropagation();
@@ -536,7 +554,7 @@ const AgentPage = () => {
             return newList;
         });
         setCurrentSessionId(newId);
-        setMessages([{ role: 'model', content: '' + generateIntelligentWelcome(userProfile, formData, planData) + '', isWelcome: true }]);
+        setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
         setInput('');
         clearSelectedFile();
         fetchChatSessions();
