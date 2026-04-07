@@ -59,14 +59,20 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
             const activeDayIndex = (cycleDayNum - 1) % planDays.length;
             const currentDayMeals = planDays[activeDayIndex]?.meals || [];
             
+            // Search by m.meal field (type: "Desayuno") NOT by m.name (dish: "Mangú con Huevo")
             let exactMeal = null;
-            if (mealKeyword === 'desayuno') exactMeal = currentDayMeals.find(m => m?.name?.toLowerCase().includes('desayuno'));
-            else if (mealKeyword === 'almuerzo') exactMeal = currentDayMeals.find(m => m?.name?.toLowerCase().includes('almuerzo'));
-            else if (mealKeyword === 'cena') exactMeal = currentDayMeals.find(m => m?.name?.toLowerCase().includes('cena'));
-            else exactMeal = currentDayMeals.find(m => m?.name?.toLowerCase().includes('snack') || m?.name?.toLowerCase().includes('merienda'));
+            if (mealKeyword === 'desayuno') {
+                exactMeal = currentDayMeals.find(m => m?.meal?.toLowerCase().includes('desayuno'));
+            } else if (mealKeyword === 'almuerzo') {
+                exactMeal = currentDayMeals.find(m => m?.meal?.toLowerCase().includes('almuerzo'));
+            } else if (mealKeyword === 'cena') {
+                exactMeal = currentDayMeals.find(m => m?.meal?.toLowerCase().includes('cena'));
+            } else {
+                exactMeal = currentDayMeals.find(m => m?.meal?.toLowerCase().includes('snack') || m?.meal?.toLowerCase().includes('merienda'));
+            }
             
             if (exactMeal && exactMeal.name) {
-                exactMealName = exactMeal.name.replace(/^(desayuno|almuerzo|cena|snack|merienda)[\s]*[:-][\s]*/i, '').trim();
+                exactMealName = exactMeal.name.trim();
             }
         }
     }
