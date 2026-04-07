@@ -1784,15 +1784,16 @@ const AgentPage = () => {
                         max-width: none !important;
                         width: 100% !important;
                         flex: 1 !important;
-                        background: #f8fafc !important;
+                        background: #ffffff !important;
                     }
                     /* --- Header glassmorphism --- */
                     .mobile-chat-header {
-                        background: rgba(255,255,255,0.82) !important;
+                        background: rgba(255,255,255,0.85) !important;
                         backdrop-filter: blur(20px) saturate(180%) !important;
                         -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
                         border-bottom: 1px solid rgba(226,232,240,0.6) !important;
-                        padding: 0.7rem 1rem !important;
+                        padding: 0.75rem 1.25rem !important;
+                        padding-top: calc(0.75rem + max(env(safe-area-inset-top), 24px)) !important;
                         position: sticky !important;
                         top: 0 !important;
                         z-index: 20 !important;
@@ -1804,8 +1805,8 @@ const AgentPage = () => {
                     }
                     /* --- Messages area --- */
                     .messages-container {
-                        padding: 0.5rem 0.85rem 0.5rem 0.85rem !important;
-                        background: #f8fafc !important;
+                        padding: 1rem 1rem 1rem 1rem !important;
+                        background: #ffffff !important;
                         -ms-overflow-style: none;
                         scrollbar-width: none;
                     }
@@ -1817,8 +1818,8 @@ const AgentPage = () => {
                         border-radius: 1.25rem 1.25rem 0.3rem 1.25rem !important;
                         padding: 0.8rem 1.1rem !important;
                         box-shadow: 0 2px 8px rgba(79,70,229,0.08) !important;
-                        max-width: 82% !important;
-                        font-size: 0.93rem !important;
+                        max-width: 85% !important;
+                        font-size: 0.95rem !important;
                     }
                     /* --- Bot bubble --- */
                     .msg-bubble-bot {
