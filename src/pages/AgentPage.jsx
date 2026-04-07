@@ -60,7 +60,9 @@ const AgentPage = () => {
     });
     
     const [currentSessionId, _setCurrentSessionId] = useState(() => {
-        return localStorage.getItem('mealfit_current_session') || localSessionId;
+        const newId = crypto.randomUUID();
+        localStorage.setItem('mealfit_current_session', newId);
+        return newId;
     });
     const setCurrentSessionId = (id) => {
         localStorage.setItem('mealfit_current_session', id);
@@ -76,36 +78,9 @@ const AgentPage = () => {
                 localStorage.setItem('mealfit_guest_session', newId);
                 setLocalSessionId(newId);
                 setCurrentSessionId(newId);
-                setMessages([]);
+                setMessages([{ role: 'model', content: '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?', isWelcome: true }]);
                 setChatSessions([]);
             }
-        } else if (session?.user?.id || userProfile?.id) {
-            const userId = session?.user?.id || userProfile?.id;
-            const initUserSession = async () => {
-                try {
-                    const response = await fetchWithAuth(`/api/chat/sessions/${userId}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.sessions && data.sessions.length > 0) {
-                            // Leer desde localStorage para evitar leer estado antiguo (stale closure)
-                            const savedSessionId = localStorage.getItem('mealfit_current_session');
-                            const isCurrentValid = data.sessions.some(s => s.id === savedSessionId);
-                            
-                            if (!isCurrentValid) {
-                                setCurrentSessionId(data.sessions[0].id);
-                            } else if (currentSessionId !== savedSessionId) {
-                                setCurrentSessionId(savedSessionId);
-                            }
-                        } else {
-                            const newId = crypto.randomUUID();
-                            setCurrentSessionId(newId);
-                        }
-                    }
-                } catch (e) {
-                    console.error("Error setting initial user session:", e);
-                }
-            };
-            initUserSession();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session?.user?.id, userProfile?.id]);
@@ -115,7 +90,9 @@ const AgentPage = () => {
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : true);
 
-    const [messages, setMessages] = useState([]);
+    const [messages, setMessages] = useState([
+        { role: 'model', content: '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?', isWelcome: true }
+    ]);
     const messagesRef = useRef(messages);
     useEffect(() => {
         messagesRef.current = messages;
@@ -353,7 +330,7 @@ const AgentPage = () => {
                         };
                     }));
                 } else {
-                    setMessages([]);
+                    setMessages([{ role: 'model', content: '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?', isWelcome: true }]);
                 }
             } else if (response.status === 403 || response.status === 401) {
                 // Reintentar un par de veces por si hay un retraso en la hidratación del token
@@ -364,9 +341,9 @@ const AgentPage = () => {
                 }
                 // Después de reintentos, simplemente mostrar vacío sin destruir la sesión
                 console.warn(`⚠️ No se pudo cargar historial de ${sessionId} (${response.status}).`);
-                setMessages([]);
+                setMessages([{ role: 'model', content: '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?', isWelcome: true }]);
             } else {
-                setMessages([]);
+                setMessages([{ role: 'model', content: '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?', isWelcome: true }]);
             }
         } catch (error) {
             console.error("Error fetching session messages:", error);
@@ -374,7 +351,7 @@ const AgentPage = () => {
                 setTimeout(() => fetchSessionMessages(sessionId, retryCount + 1), 600);
                 return;
             }
-            setMessages([]);
+            setMessages([{ role: 'model', content: '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?', isWelcome: true }]);
         } finally {
             if (retryCount >= 2 || (response && response.ok)) {
                 setIsLoadingHistory(false);
