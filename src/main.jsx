@@ -27,3 +27,14 @@ createRoot(document.getElementById('root')).render(
     <App />
   // </StrictMode>,
 )
+
+// Remove the PWA splash screen smoothly once React has hydrated
+const splash = document.getElementById('pwa-splash');
+if (splash) {
+  setTimeout(() => {
+    splash.style.opacity = '0';
+    setTimeout(() => {
+      splash.remove();
+    }, 500); // Wait for CSS transition to finish
+  }, 100); // Brief delay to ensure React has fully painted
+}
