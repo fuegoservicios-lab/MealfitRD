@@ -52,10 +52,10 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
             else mealKeyword = hour < 21 ? 'cena' : 'snack';
             
             let exactMeal = null;
-            if (mealKeyword === 'desayuno') exactMeal = currentDayMeals.find(m => m.name.toLowerCase().includes('desayuno'));
-            if (!exactMeal && mealKeyword === 'almuerzo') exactMeal = currentDayMeals.find(m => m.name.toLowerCase().includes('almuerzo'));
-            if (!exactMeal && mealKeyword === 'cena') exactMeal = currentDayMeals.find(m => m.name.toLowerCase().includes('cena'));
-            if (!exactMeal) exactMeal = currentDayMeals.find(m => m.name.toLowerCase().includes('snack') || m.name.toLowerCase().includes('merienda'));
+            if (mealKeyword === 'desayuno') exactMeal = currentDayMeals.find(m => m?.name?.toLowerCase().includes('desayuno'));
+            if (!exactMeal && mealKeyword === 'almuerzo') exactMeal = currentDayMeals.find(m => m?.name?.toLowerCase().includes('almuerzo'));
+            if (!exactMeal && mealKeyword === 'cena') exactMeal = currentDayMeals.find(m => m?.name?.toLowerCase().includes('cena'));
+            if (!exactMeal) exactMeal = currentDayMeals.find(m => m?.name?.toLowerCase().includes('snack') || m?.name?.toLowerCase().includes('merienda'));
             
             if (exactMeal && exactMeal.name) {
                 // Extract clean name, removing typical prefixes
