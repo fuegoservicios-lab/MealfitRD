@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAssessment } from '../context/AssessmentContext';
-import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
     ShoppingCart, ArrowLeft, Download, Check, ChevronDown, Minus,
@@ -591,7 +590,7 @@ const ShoppingList = () => {
     };
 
     return (
-        <DashboardLayout>
+        <>
             <div className="shopping-container">
 
 
@@ -1001,7 +1000,7 @@ const ShoppingList = () => {
                 </div>
             )}
 
-        </DashboardLayout>
+        </>
     );
 };
 

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
-import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { useAssessment } from '../context/AssessmentContext';
 import { Utensils, Calendar, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -247,7 +246,7 @@ const History = () => {
     );
 
     return (
-        <DashboardLayout>
+        <>
             <div className={styles.container}>
                 <div className={styles.headerRow}>
                     <div>
@@ -596,7 +595,7 @@ const History = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
-        </DashboardLayout>
+        </>
     );
 };
 

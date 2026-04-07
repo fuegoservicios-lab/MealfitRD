@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAssessment } from '../context/AssessmentContext';
-import DashboardLayout from '../components/dashboard/DashboardLayout';
+
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
@@ -129,7 +129,7 @@ const Dashboard = () => {
     const currentDaySupplements = planDays[activeDayIndex]?.supplements || [];
 
     return (
-        <DashboardLayout>
+        <>
 
             {/* Mobile Responsive Styles */}
             <style>{`
@@ -1056,7 +1056,7 @@ const Dashboard = () => {
 
                 </div>
             </div>
-        </DashboardLayout>
+        </>
     );
 };
 

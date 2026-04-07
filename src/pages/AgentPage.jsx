@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Lock, Trash2, Check, Mic, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, ShoppingBag, Clock, Settings, Edit2, Ghost } from 'lucide-react';
-import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { fetchWithAuth } from '../config/api';
 import ReactMarkdown from 'react-markdown';
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
@@ -1019,7 +1018,7 @@ const AgentPage = () => {
 
     const groupedSessions = getGroupedSessions();
     return (
-        <DashboardLayout noPaddingMobile={true}>
+        <>
             <style>{`
                 .chat-session-btn .chat-actions-hover {
                     opacity: 0;
@@ -1639,7 +1638,7 @@ const AgentPage = () => {
                     }
                 }
             `}</style>
-        </DashboardLayout>
+        </>
     );
 };
 export default AgentPage;

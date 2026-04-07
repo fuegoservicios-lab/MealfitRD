@@ -1,5 +1,4 @@
 import { useAssessment } from '../context/AssessmentContext';
-import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Utensils, ArrowLeft, Clock, ChefHat, Share2, Flame, CheckCircle2, Download, Leaf, Play, X, ChevronRight, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -551,7 +550,7 @@ const Recipes = () => {
     };
 
     return (
-        <DashboardLayout>
+        <>
             <AnimatePresence>
                 {cookingRecipe && <CookingModeOverlay recipe={cookingRecipe} onClose={() => setCookingRecipe(null)} onComplete={handleLogConsumption} />}
             </AnimatePresence>
@@ -928,7 +927,7 @@ const Recipes = () => {
                     </motion.div>
                 </div>
             </div>
-        </DashboardLayout>
+        </>
     );
 };
 

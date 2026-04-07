@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Layout from './components/layout/Layout';
+import DashboardLayout from './components/dashboard/DashboardLayout';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -50,6 +51,32 @@ const AnimatedLayout = () => {
   );
 };
 
+// --- Native Style Page Transitions for Dashboard (Persistent Tab Bar) ---
+const DashboardAnimatedLayout = () => {
+  const location = useLocation();
+  useThemeColor();
+  const isAgent = location.pathname.includes('/agent');
+  
+  return (
+    <DashboardLayout noPaddingMobile={isAgent}>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, x: 10 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -10 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          style={{ width: '100%', minHeight: '100%', display: 'flex', flexDirection: 'column' }}
+        >
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
+        </motion.div>
+      </AnimatePresence>
+    </DashboardLayout>
+  );
+};
+
 function App() {
   return (
     <AssessmentProvider>
@@ -81,36 +108,15 @@ function App() {
               </ProtectedRoute>
             } />
 
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/shopping" element={
-              <ProtectedRoute>
-                <ShoppingList />
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/recipes" element={
-              <ProtectedRoute>
-                <Recipes />
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/agent" element={
-              <ProtectedRoute>
-                <AgentPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/settings" element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            } />
-            <Route path="/history" element={
-              <ProtectedRoute>
-                <History />
-              </ProtectedRoute>
-            } />
+            {/* Rutas con Tabs Fijos (Dashboard) */}
+            <Route element={<ProtectedRoute><DashboardAnimatedLayout /></ProtectedRoute>}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard/shopping" element={<ShoppingList />} />
+              <Route path="/dashboard/recipes" element={<Recipes />} />
+              <Route path="/dashboard/agent" element={<AgentPage />} />
+              <Route path="/dashboard/settings" element={<Settings />} />
+              <Route path="/history" element={<History />} />
+            </Route>
 
             {/* Rutas Legales (Públicas) */}
             <Route path="/privacy" element={<Layout><Privacy /></Layout>} />

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import DashboardLayout from '../components/dashboard/DashboardLayout';
 import {
     User, Bell, Shield, ChevronRight,
     LogOut, Save, Trash2, Database, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle
@@ -190,7 +189,7 @@ const Settings = () => {
     const displayEmail = userProfile?.email || "Cargando correo...";
 
     return (
-        <DashboardLayout>
+        <>
             <div className={styles.wrapper}>
                 <AnimatePresence>
                     {showCancelModal && (
@@ -686,7 +685,7 @@ const Settings = () => {
                     </section>
                 </div>
             </div>
-        </DashboardLayout>
+        </>
     );
 };
 
