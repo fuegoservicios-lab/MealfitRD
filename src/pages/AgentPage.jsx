@@ -1186,7 +1186,7 @@ const AgentPage = () => {
                                 transition: 'all 0.15s'
                             }}
                         >
-                            <MoreVertical size={22} strokeWidth={2} />
+                            <Menu size={24} strokeWidth={2} />
                         </button>
                         {showNavMenu && (
                             <div className="nav-dropdown" style={{

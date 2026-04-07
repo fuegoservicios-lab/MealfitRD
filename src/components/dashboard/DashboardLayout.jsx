@@ -93,9 +93,6 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                     <Link to="/" className={styles.mobileLogo}>
                         Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
                     </Link>
-                    <button onClick={toggleMenu} className={styles.menuBtn}>
-                        {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                    </button>
                 </header>
                 )}
 
