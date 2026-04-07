@@ -1175,7 +1175,7 @@ const AgentPage = () => {
                     flexDirection: 'column',
                     flexShrink: 0
                 }}>
-                    <div style={{ padding: '1.25rem 1rem', display: 'flex', gap: '0.5rem' }}>
+                    <div className="sidebar-header-padding" style={{ padding: '1.25rem 1rem', display: 'flex', gap: '0.5rem' }}>
                         <button
                             onClick={handleNewChat}
                             style={{
@@ -1797,6 +1797,10 @@ const AgentPage = () => {
                         position: sticky !important;
                         top: 0 !important;
                         z-index: 20 !important;
+                    }
+                    /* --- Sidebar top safe-area --- */
+                    .sidebar-header-padding {
+                        padding-top: calc(1.25rem + max(env(safe-area-inset-top), 24px)) !important;
                     }
                     .agent-header-title {
                         font-size: 1.1rem !important;
