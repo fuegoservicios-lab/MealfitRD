@@ -275,6 +275,10 @@ const AgentPage = () => {
     const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : true);
 
     const [messages, setMessages] = useState([]);
+    const messagesRef = useRef(messages);
+    useEffect(() => {
+        messagesRef.current = messages;
+    }, [messages]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [streamingStatus, setStreamingStatus] = useState(null);
@@ -873,7 +877,7 @@ const AgentPage = () => {
 
     const handleRegenerate = (modelMsgIndex) => {
         // Find the last user message before this model message
-        const lastUserMsg = messages.slice(0, modelMsgIndex).reverse().find(m => m.role === 'user');
+        const lastUserMsg = messagesRef.current.slice(0, modelMsgIndex).reverse().find(m => m.role === 'user');
         if (lastUserMsg && !isLoading) {
             handleSend(lastUserMsg.content);
         }
