@@ -6,7 +6,45 @@ import { fetchWithAuth } from '../config/api';
 import ReactMarkdown from 'react-markdown';
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
 import { SidebarRecientes } from '../components/agent/SidebarRecientes';
+const generateIntelligentWelcome = (userProfile, formData, planData) => {
+    const nameStr = formData?.name || userProfile?.name || userProfile?.first_name || '';
+    const nameParts = nameStr.split(' ');
+    const firstName = nameParts[0] ? ' ' + nameParts[0] : '';
+    
+    const now = new Date();
+    const hour = now.getHours();
+    
+    let timeGreeting = '¡Hola';
+    let mealContext = '';
+    
+    if (hour >= 5 && hour < 12) {
+        timeGreeting = '¡Buenos días';
+        mealContext = hour < 10 ? '¿Listo para tu desayuno o necesitas una idea rápida?' : '¿Buscando ya ideas para el almuerzo?';
+    } else if (hour >= 12 && hour < 18) {
+        timeGreeting = '¡Buenas tardes';
+        mealContext = hour < 15 ? '¿Ya almorzaste?' : '¿Necesitas un buen snack para la tarde o ideas para tu cena?';
+    } else {
+        timeGreeting = '¡Buenas noches';
+        mealContext = hour < 21 ? '¿A punto de preparar tu cena?' : '¿Buscando algo ligero antes de dormir?';
+    }
 
+    let goalContext = 'estoy aquí como tu especialista para guiarte.';
+    if (planData && (planData.goal || planData.objective)) {
+        const goal = planData.goal || planData.objective || '';
+        const lowerGoal = goal.toLowerCase();
+        let goalText = '';
+        if (lowerGoal.includes('pérdida') || lowerGoal.includes('peso')) goalText = 'bajar de peso';
+        else if (lowerGoal.includes('músculo') || lowerGoal.includes('masa')) goalText = 'ganar masa muscular';
+        else if (lowerGoal.includes('mantenimiento')) goalText = 'mantenerte en forma';
+        
+        if (goalText) {
+            goalContext = 'seguimos enfocados en tu meta de ' + goalText + '.';
+        }
+    }
+
+    const timeStr = now.toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true});
+    return timeGreeting + firstName + '! Son las ' + timeStr + ', ' + goalContext + ' ' + mealContext;
+};
 
 const AgentPage = () => {
     const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, isPlus, checkPlanLimit } = useAssessment();
@@ -78,7 +116,7 @@ const AgentPage = () => {
                 localStorage.setItem('mealfit_guest_session', newId);
                 setLocalSessionId(newId);
                 setCurrentSessionId(newId);
-                setMessages([{ role: 'model', content: '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?', isWelcome: true }]);
+                setMessages([{ role: 'model', content: '' + generateIntelligentWelcome(userProfile, formData, planData) + '', isWelcome: true }]);
                 setChatSessions([]);
             }
         }
@@ -91,7 +129,7 @@ const AgentPage = () => {
     const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : true);
 
     const [messages, setMessages] = useState([
-        { role: 'model', content: '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?', isWelcome: true }
+        { role: 'model', content: '' + generateIntelligentWelcome(userProfile, formData, planData) + '', isWelcome: true }
     ]);
     const messagesRef = useRef(messages);
     useEffect(() => {
@@ -279,7 +317,7 @@ const AgentPage = () => {
                 const data = await response.json();
                 if (data.messages && data.messages.length > 0) {
                     // Filtrar los mensajes de sistema/bienvenida si los hay guardados
-                    const filteredMessages = data.messages.filter(m => m.content !== '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?' && m.content !== '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?');
+                    const filteredMessages = data.messages.filter(m => m.content !== '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?' && m.content !== '' + generateIntelligentWelcome(userProfile, formData, planData) + '');
                     setMessages(filteredMessages.map(m => {
                         let content = m.content;
                         let isImage = false;
@@ -330,7 +368,7 @@ const AgentPage = () => {
                         };
                     }));
                 } else {
-                    setMessages([{ role: 'model', content: '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?', isWelcome: true }]);
+                    setMessages([{ role: 'model', content: '' + generateIntelligentWelcome(userProfile, formData, planData) + '', isWelcome: true }]);
                 }
             } else if (response.status === 403 || response.status === 401) {
                 // Reintentar un par de veces por si hay un retraso en la hidratación del token
@@ -341,9 +379,9 @@ const AgentPage = () => {
                 }
                 // Después de reintentos, simplemente mostrar vacío sin destruir la sesión
                 console.warn(`⚠️ No se pudo cargar historial de ${sessionId} (${response.status}).`);
-                setMessages([{ role: 'model', content: '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?', isWelcome: true }]);
+                setMessages([{ role: 'model', content: '' + generateIntelligentWelcome(userProfile, formData, planData) + '', isWelcome: true }]);
             } else {
-                setMessages([{ role: 'model', content: '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?', isWelcome: true }]);
+                setMessages([{ role: 'model', content: '' + generateIntelligentWelcome(userProfile, formData, planData) + '', isWelcome: true }]);
             }
         } catch (error) {
             console.error("Error fetching session messages:", error);
@@ -351,7 +389,7 @@ const AgentPage = () => {
                 setTimeout(() => fetchSessionMessages(sessionId, retryCount + 1), 600);
                 return;
             }
-            setMessages([{ role: 'model', content: '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?', isWelcome: true }]);
+            setMessages([{ role: 'model', content: '' + generateIntelligentWelcome(userProfile, formData, planData) + '', isWelcome: true }]);
         } finally {
             if (retryCount >= 2 || (response && response.ok)) {
                 setIsLoadingHistory(false);
@@ -427,7 +465,7 @@ const AgentPage = () => {
             return newList;
         });
         setCurrentSessionId(newId);
-        setMessages([{ role: 'model', content: '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar hoy?', isWelcome: true }]);
+        setMessages([{ role: 'model', content: '' + generateIntelligentWelcome(userProfile, formData, planData) + '', isWelcome: true }]);
         setInput('');
         clearSelectedFile();
         fetchChatSessions();
