@@ -1774,7 +1774,7 @@ const AgentPage = () => {
                 }
 
                 /* ====== MOBILE REDESIGN ====== */
-                @media (max-width: 768px) {
+                @media (max-width: 1024px) {
                     .agent-container {
                         height: 100dvh !important;
                         border-radius: 0 !important;
@@ -1921,7 +1921,7 @@ const AgentPage = () => {
                         -webkit-backdrop-filter: blur(3px);
                     }
                 }
-                @media (min-width: 769px) {
+                @media (min-width: 1025px) {
                     .sidebar-overlay { display: none; }
                     .messages-container {
                         justify-content: flex-start !important;
