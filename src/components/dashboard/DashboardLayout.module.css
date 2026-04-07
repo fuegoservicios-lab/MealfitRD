@@ -316,6 +316,7 @@
 @media (max-width: 768px) {
     .mainContent {
         padding: 0.65rem 0.85rem;
+        padding-bottom: calc(2rem + 75px + env(safe-area-inset-bottom, 0px));
         overflow-x: hidden;
         max-width: 100vw;
     }
