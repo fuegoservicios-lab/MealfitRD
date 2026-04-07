@@ -6,7 +6,17 @@ const Layout = ({ children }) => {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
             <Header />
-            <main style={{ flex: 1, paddingTop: '80px' }}>
+            <main className="main-content" style={{ flex: 1 }}>
+                <style>{`
+                    .main-content {
+                        padding-top: calc(80px + max(env(safe-area-inset-top), 24px));
+                    }
+                    @media (min-width: 768px) {
+                        .main-content {
+                            padding-top: 70px;
+                        }
+                    }
+                `}</style>
                 {children}
             </main>
             <Footer />
