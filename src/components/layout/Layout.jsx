@@ -9,7 +9,7 @@ const Layout = ({ children }) => {
             <main className="main-content" style={{ flex: 1 }}>
                 <style>{`
                     .main-content {
-                        padding-top: calc(80px + max(env(safe-area-inset-top), 24px));
+                        padding-top: calc(60px + max(env(safe-area-inset-top), 24px));
                     }
                     @media (min-width: 768px) {
                         .main-content {

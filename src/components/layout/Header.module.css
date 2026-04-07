@@ -3,7 +3,7 @@
     top: 0;
     left: 0;
     right: 0;
-    height: calc(80px + max(env(safe-area-inset-top), 24px));
+    height: calc(60px + max(env(safe-area-inset-top), 24px));
     padding-top: max(env(safe-area-inset-top), 24px);
     background: rgba(255, 255, 255, 0.65);
     /* More transparent */
@@ -119,7 +119,7 @@
 
 .navMobile {
     position: absolute;
-    top: calc(70px + max(env(safe-area-inset-top), 24px));
+    top: calc(60px + max(env(safe-area-inset-top), 24px));
     left: 1rem;
     right: 1rem;
     background: rgba(255, 255, 255, 0.95);
