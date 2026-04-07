@@ -17,15 +17,74 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
     let timeGreeting = '¡Hola';
     let mealContext = '';
     
+    // Cycle and exact meal logic
+    let rawStartDate = planData?.grocery_start_date || planData?.created_at;
+    let cycleDayNum = 1;
+    let exactMealName = '';
+    let isPlanExpired = false;
+
+    if (planData) {
+        if (rawStartDate) {
+            const startMidnight = new Date(rawStartDate);
+            startMidnight.setHours(0, 0, 0, 0);
+            const todayMidnight = new Date();
+            todayMidnight.setHours(0, 0, 0, 0);
+            const diff = Math.round((todayMidnight - startMidnight) / (1000 * 60 * 60 * 24));
+            
+            const groceryDuration = formData?.groceryDuration || 'weekly';
+            let maxDays = 7;
+            if (groceryDuration === 'weekly') maxDays = 7;
+            else if (groceryDuration === 'biweekly') maxDays = 15;
+            else if (groceryDuration === 'monthly') maxDays = 30;
+            
+            if (diff >= maxDays) isPlanExpired = true;
+            cycleDayNum = Math.min(Math.max(1, diff + 1), maxDays);
+        }
+        
+        const planDays = planData?.days || [{ day: 1, meals: planData?.meals || planData?.perfectDay || [] }];
+        if (!isPlanExpired && planDays.length > 0) {
+            const activeDayIndex = (cycleDayNum - 1) % planDays.length;
+            const currentDayMeals = planDays[activeDayIndex]?.meals || [];
+            
+            let mealKeyword = '';
+            if (hour >= 5 && hour < 12) mealKeyword = hour < 10 ? 'desayuno' : 'snack';
+            else if (hour >= 12 && hour < 18) mealKeyword = hour < 15 ? 'almuerzo' : 'snack';
+            else mealKeyword = hour < 21 ? 'cena' : 'snack';
+            
+            let exactMeal = null;
+            if (mealKeyword === 'desayuno') exactMeal = currentDayMeals.find(m => m.name.toLowerCase().includes('desayuno'));
+            if (!exactMeal && mealKeyword === 'almuerzo') exactMeal = currentDayMeals.find(m => m.name.toLowerCase().includes('almuerzo'));
+            if (!exactMeal && mealKeyword === 'cena') exactMeal = currentDayMeals.find(m => m.name.toLowerCase().includes('cena'));
+            if (!exactMeal) exactMeal = currentDayMeals.find(m => m.name.toLowerCase().includes('snack') || m.name.toLowerCase().includes('merienda'));
+            
+            if (exactMeal && exactMeal.name) {
+                // Extract clean name, removing typical prefixes
+                exactMealName = exactMeal.name.replace(/^(desayuno|almuerzo|cena|snack|merienda)[\s]*[:-][\s]*/i, '').trim();
+            }
+        }
+    }
+    
     if (hour >= 5 && hour < 12) {
         timeGreeting = '¡Buenos días';
-        mealContext = hour < 10 ? '¿Listo para tu desayuno o necesitas una idea rápida?' : '¿Buscando ya ideas para el almuerzo?';
+        if (exactMealName) {
+            mealContext = hour < 10 ? `Según tu plan de hoy, te toca **${exactMealName}** de desayuno, ¿tienes los ingredientes o armamos una alternativa rápida?` : `¿Pensando ya en el almuerzo? Hoy te toca **${exactMealName}**, ¿te ayudo a prepararlo?`;
+        } else {
+            mealContext = hour < 10 ? '¿Listo para tu desayuno o necesitas una idea rápida?' : '¿Buscando ya ideas para el almuerzo?';
+        }
     } else if (hour >= 12 && hour < 18) {
         timeGreeting = '¡Buenas tardes';
-        mealContext = hour < 15 ? '¿Ya almorzaste?' : '¿Necesitas un buen snack para la tarde o ideas para tu cena?';
+        if (exactMealName) {
+            mealContext = hour < 15 ? `Hoy de almuerzo tienes marcado **${exactMealName}**. ¿Ya lo preparaste o necesitas cambiar algo con los ingredientes que tienes?` : `¿Necesitas un snack? Si no, recuerda que te toca **${exactMealName}** de cena y podemos ir preparándolo.`;
+        } else {
+            mealContext = hour < 15 ? '¿Ya almorzaste?' : '¿Necesitas un buen snack para la tarde o ideas para tu cena?';
+        }
     } else {
         timeGreeting = '¡Buenas noches';
-        mealContext = hour < 21 ? '¿A punto de preparar tu cena?' : '¿Buscando algo ligero antes de dormir?';
+        if (exactMealName) {
+            mealContext = hour < 21 ? `De cena para hoy tienes: **${exactMealName}**. ¿Quieres que te pase las instrucciones paso a paso o prefieres otra cosa de tu refri?` : '¿Buscando algo ligero antes de dormir?';
+        } else {
+            mealContext = hour < 21 ? '¿A punto de preparar tu cena?' : '¿Buscando algo ligero antes de dormir?';
+        }
     }
 
     let goalContext = 'estoy aquí como tu especialista para guiarte.';
@@ -38,12 +97,17 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
         else if (lowerGoal.includes('mantenimiento')) goalText = 'mantenerte en forma';
         
         if (goalText) {
-            goalContext = 'seguimos enfocados en tu meta de ' + goalText + '.';
+            goalContext = `seguimos enfocados en tu meta de ${goalText}.`;
         }
     }
 
+    let dayContext = '';
+    if (planData && !isPlanExpired) {
+        dayContext = ` (Día ${cycleDayNum} de tu súper)`;
+    }
+
     const timeStr = now.toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true});
-    return timeGreeting + firstName + '! Son las ' + timeStr + ', ' + goalContext + ' ' + mealContext;
+    return `${timeGreeting}${firstName}! Son las ${timeStr}${dayContext}. ${goalContext} ${mealContext}`;
 };
 
 const AgentPage = () => {
