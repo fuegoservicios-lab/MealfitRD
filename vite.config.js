@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.png', 'favicon.svg'],
+      includeAssets: ['favicon.png'],
       manifest: {
         name: 'MealfitRD | Nutrición con IA',
         short_name: 'MealfitRD',
