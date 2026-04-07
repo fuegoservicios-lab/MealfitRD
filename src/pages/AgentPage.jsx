@@ -101,13 +101,15 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
     }
 
     let goalContext = 'estoy aquí como tu especialista para guiarte.';
-    if (planData && (planData.goal || planData.objective)) {
-        const goal = planData.goal || planData.objective || '';
-        const lowerGoal = goal.toLowerCase();
+    // Schema field is "main_goal", with fallbacks for legacy data
+    const goalField = planData?.main_goal || planData?.goal || planData?.objective || '';
+    if (goalField) {
+        const lowerGoal = goalField.toLowerCase();
         let goalText = '';
-        if (lowerGoal.includes('pérdida') || lowerGoal.includes('peso')) goalText = 'bajar de peso';
-        else if (lowerGoal.includes('músculo') || lowerGoal.includes('masa')) goalText = 'ganar masa muscular';
-        else if (lowerGoal.includes('mantenimiento')) goalText = 'mantenerte en forma';
+        if (lowerGoal.includes('pérdida') || lowerGoal.includes('peso') || lowerGoal.includes('déficit') || lowerGoal.includes('bajar')) goalText = 'bajar de peso';
+        else if (lowerGoal.includes('músculo') || lowerGoal.includes('masa') || lowerGoal.includes('ganar')) goalText = 'ganar masa muscular';
+        else if (lowerGoal.includes('mantenimiento') || lowerGoal.includes('mantener')) goalText = 'mantenerte en forma';
+        else if (lowerGoal.includes('recomp')) goalText = 'recomponer tu cuerpo';
         
         if (goalText) {
             goalContext = `seguimos enfocados en tu meta de ${goalText}.`;
