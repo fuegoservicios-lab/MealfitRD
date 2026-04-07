@@ -127,7 +127,7 @@ const ChatWidget = () => {
         } catch (error) {
             console.error("Error fetching sessions:", error);
         }
-    }, [session?.user?.id, userProfile?.id, localSessionId, guestSessionIds, currentSessionId]);
+    }, [session?.user?.id, userProfile?.id, localSessionId, currentSessionId]);
 
     const fetchSessionMessages = useCallback(async (sessionId) => {
         setIsLoadingHistory(true);

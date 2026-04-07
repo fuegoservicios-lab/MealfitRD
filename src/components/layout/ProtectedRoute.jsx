@@ -6,18 +6,9 @@ const ProtectedRoute = ({ children }) => {
     const { session, loadingAuth } = useAssessment();
 
     if (loadingAuth) {
-        // Simple loading state while checking session
-        return (
-            <div style={{
-                height: '100vh',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#64748B'
-            }}>
-                Cargando...
-            </div>
-        );
+        // Mantenemos la pantalla limpia mientras auth termia, 
+        // asumiendo que un splash screen u 'otro cargando' cubre visualmente
+        return <div className="h-screen w-screen bg-slate-50/50" />;
     }
 
     if (!session) {

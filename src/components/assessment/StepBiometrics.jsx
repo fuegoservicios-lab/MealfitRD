@@ -27,6 +27,7 @@ const StepBiometrics = () => {
         updateData('weight', '');
     };
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         if (formData.height) {
             if (unit === 'ft') {

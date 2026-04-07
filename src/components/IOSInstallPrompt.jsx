@@ -2,20 +2,15 @@ import { useState, useEffect } from 'react';
 import { Share, X } from 'lucide-react';
 
 const IOSInstallPrompt = () => {
-    const [isIOS, setIsIOS] = useState(false);
-    const [isStandalone, setIsStandalone] = useState(false);
     const [showPrompt, setShowPrompt] = useState(false);
 
     useEffect(() => {
-        // Detact IOS
+        // Detect IOS
         const userAgent = window.navigator.userAgent.toLowerCase();
         const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
         
         // Detect Standalone (installed)
         const isStandaloneMode = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-
-        setIsIOS(isIOSDevice);
-        setIsStandalone(isStandaloneMode);
 
         // Check if user previously dismissed
         const hasDismissed = localStorage.getItem('dismissed_ios_prompt');

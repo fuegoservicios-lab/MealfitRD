@@ -180,7 +180,7 @@ const ShoppingList = () => {
                                     [`custom-${payload.new.id}`]: parsed.is_checked
                                 }));
                             }
-                        } catch(e) {}
+                        } catch(error) {}
                     }
                 }
             )
@@ -217,7 +217,7 @@ const ShoppingList = () => {
                                     if (parsed && typeof parsed === 'object' && parsed.is_checked !== undefined) {
                                         next[`custom-${it.id}`] = parsed.is_checked;
                                     }
-                                } catch(e) {}
+                                    } catch(error) {}
                             });
                             return next;
                         });
@@ -265,6 +265,7 @@ const ShoppingList = () => {
         fetchAndConsolidate();
         
         return () => { isMounted = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId]);
 
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -364,7 +365,7 @@ const ShoppingList = () => {
                 } else {
                     standalone.push(item);
                 }
-            } catch(e) {
+            } catch(error) {
                 standalone.push(item);
             }
         });

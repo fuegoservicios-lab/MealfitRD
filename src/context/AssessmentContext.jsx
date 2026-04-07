@@ -346,6 +346,15 @@ export const AssessmentProvider = ({ children }) => {
                 setLoadingData(false);
             }
             setLoadingAuth(false);
+            
+            // 🚀 Desvanecer Splash Screen nativo una vez React esté listo con la sesión
+            setTimeout(() => {
+                const splash = document.getElementById('pwa-splash');
+                if (splash) {
+                    splash.style.opacity = '0';
+                    setTimeout(() => splash.remove(), 500);
+                }
+            }, 100); // Darle un mini-delay para que React pinte el ProtectedRoute o Dashboard
         };
 
         // Obtener sesión inicial

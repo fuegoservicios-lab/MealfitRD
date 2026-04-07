@@ -101,6 +101,70 @@ const FormattedRecipeStep = ({ step, index }) => {
     );
 };
 
+const FormattedLargeStep = ({ text, currentStep, isLastStep, isMobile }) => {
+    const getSectionInfo = (t) => {
+        const lowerT = t.toLowerCase();
+        if (lowerT.startsWith("mise en place:")) return { title: "Mise en place", color: "#00B4D8", icon: <ChefHat size={32} /> };
+        if (lowerT.startsWith("el toque de fuego:") || lowerT.startsWith("toque de fuego:")) return { title: "El Toque de Fuego", color: "#F97316", icon: <Flame size={32} /> };
+        if (lowerT.startsWith("montaje:")) return { title: "Montaje", color: "#8B5CF6", icon: <Utensils size={32} /> };
+        return null;
+    };
+
+    const sectionInfo = getSectionInfo(text);
+    const sectionTitle = sectionInfo ? sectionInfo.title : null;
+    let content = text;
+    if (sectionTitle) {
+        const prefixRegex = sectionTitle.toLowerCase() === "toque de fuego" || sectionTitle.toLowerCase() === "el toque de fuego"
+            ? /(el )?toque de fuego:\s*/i : new RegExp(`${sectionTitle}:\s*`, 'i');
+        content = content.replace(prefixRegex, '');
+    }
+
+    const parseBold = (str) => {
+        const parts = str.split(/(\*\*.*?\*\*)/g);
+        return parts.map((part, i) => {
+            if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} style={{ color: '#0F172A', fontWeight: 800 }}>{part.slice(2, -2)}</strong>;
+            return part;
+        });
+    };
+
+    return (
+        <motion.div 
+            key={currentStep}
+            initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? '1.5rem' : '2rem' }}
+        >
+            {sectionTitle ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', borderRadius: '50%', background: `${sectionInfo.color}15`, color: sectionInfo.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {React.cloneElement(sectionInfo.icon, { size: isMobile ? 28 : 32 })}
+                    </div>
+                    <h2 style={{ color: sectionInfo.color, fontSize: isMobile ? '1.25rem' : '1.5rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>
+                        {sectionTitle}
+                    </h2>
+                </div>
+            ) : (
+                <div style={{ width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? '2rem' : '2.5rem', fontWeight: 900, boxShadow: '0 10px 25px -5px rgba(79, 70, 229, 0.4)' }}>
+                    {currentStep + 1}
+                </div>
+            )}
+            <p style={{ fontSize: isMobile ? '1.25rem' : '1.5rem', lineHeight: 1.6, color: '#1E293B', fontWeight: 500, margin: 0, maxWidth: '800px', padding: '0 1rem' }}>
+                {parseBold(content.replace(/^\d+[\.\)]\s*/, ''))}
+            </p>
+            {isLastStep && (
+                <motion.div 
+                    initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }}
+                    style={{ marginTop: isMobile ? '1rem' : '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}
+                >
+                    <div style={{ width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', background: '#DCFCE7', borderRadius: '50%', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <CheckCircle2 size={isMobile ? 32 : 40} strokeWidth={3} />
+                    </div>
+                    <h3 style={{ color: '#16A34A', fontSize: isMobile ? '1.5rem' : '1.8rem', fontWeight: 900, margin: 0 }}>¡Plato Terminado!</h3>
+                </motion.div>
+            )}
+        </motion.div>
+    );
+};
+
 const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -125,69 +189,6 @@ const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
     const handleNext = () => { if (!isLastStep) setCurrentStep(prev => prev + 1); };
     const handlePrev = () => { if (!isFirstStep) setCurrentStep(prev => prev - 1); };
 
-    const FormattedLargeStep = ({ text }) => {
-        const getSectionInfo = (t) => {
-            const lowerT = t.toLowerCase();
-            if (lowerT.startsWith("mise en place:")) return { title: "Mise en place", color: "#00B4D8", icon: <ChefHat size={32} /> };
-            if (lowerT.startsWith("el toque de fuego:") || lowerT.startsWith("toque de fuego:")) return { title: "El Toque de Fuego", color: "#F97316", icon: <Flame size={32} /> };
-            if (lowerT.startsWith("montaje:")) return { title: "Montaje", color: "#8B5CF6", icon: <Utensils size={32} /> };
-            return null;
-        };
-
-        const sectionInfo = getSectionInfo(text);
-        const sectionTitle = sectionInfo ? sectionInfo.title : null;
-        let content = text;
-        if (sectionTitle) {
-            const prefixRegex = sectionTitle.toLowerCase() === "toque de fuego" || sectionTitle.toLowerCase() === "el toque de fuego"
-                ? /(el )?toque de fuego:\s*/i : new RegExp(`${sectionTitle}:\s*`, 'i');
-            content = content.replace(prefixRegex, '');
-        }
-
-        const parseBold = (str) => {
-            const parts = str.split(/(\*\*.*?\*\*)/g);
-            return parts.map((part, i) => {
-                if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} style={{ color: '#0F172A', fontWeight: 800 }}>{part.slice(2, -2)}</strong>;
-                return part;
-            });
-        };
-
-        return (
-            <motion.div 
-                key={currentStep}
-                initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? '1.5rem' : '2rem' }}
-            >
-                {sectionTitle ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', borderRadius: '50%', background: `${sectionInfo.color}15`, color: sectionInfo.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {React.cloneElement(sectionInfo.icon, { size: isMobile ? 28 : 32 })}
-                        </div>
-                        <h2 style={{ color: sectionInfo.color, fontSize: isMobile ? '1.25rem' : '1.5rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>
-                            {sectionTitle}
-                        </h2>
-                    </div>
-                ) : (
-                    <div style={{ width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? '2rem' : '2.5rem', fontWeight: 900, boxShadow: '0 10px 25px -5px rgba(79, 70, 229, 0.4)' }}>
-                        {currentStep + 1}
-                    </div>
-                )}
-                <p style={{ fontSize: isMobile ? '1.25rem' : '1.5rem', lineHeight: 1.6, color: '#1E293B', fontWeight: 500, margin: 0, maxWidth: '800px', padding: '0 1rem' }}>
-                    {parseBold(content.replace(/^\d+[\.\)]\s*/, ''))}
-                </p>
-                {isLastStep && (
-                    <motion.div 
-                        initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }}
-                        style={{ marginTop: isMobile ? '1rem' : '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}
-                    >
-                        <div style={{ width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', background: '#DCFCE7', borderRadius: '50%', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <CheckCircle2 size={isMobile ? 32 : 40} strokeWidth={3} />
-                        </div>
-                        <h3 style={{ color: '#16A34A', fontSize: isMobile ? '1.5rem' : '1.8rem', fontWeight: 900, margin: 0 }}>¡Plato Terminado!</h3>
-                    </motion.div>
-                )}
-            </motion.div>
-        );
-    };
 
     return (
         <motion.div
@@ -215,7 +216,7 @@ const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
             
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '1.5rem 1rem' : '2rem', overflowY: 'auto' }}>
                 <AnimatePresence mode="wait">
-                    <FormattedLargeStep text={steps[currentStep]} />
+                    <FormattedLargeStep text={steps[currentStep]} currentStep={currentStep} isLastStep={isLastStep} isMobile={isMobile} />
                 </AnimatePresence>
             </div>
 

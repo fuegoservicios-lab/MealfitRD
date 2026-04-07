@@ -284,6 +284,7 @@ const Plan = () => {
 // --- PANTALLA DE CARGA PREMIUM ---
 const LoadingScreen = ({ status }) => {
     const [progress, setProgress] = useState(0);
+    const displayProgress = status === 'ready' ? 100 : progress;
     const [tipIndex, setTipIndex] = useState(0);
 
     const steps = [
@@ -306,7 +307,6 @@ const LoadingScreen = ({ status }) => {
 
     useEffect(() => {
         if (status === 'ready') {
-            setProgress(100);
             return;
         }
 
@@ -349,7 +349,7 @@ const LoadingScreen = ({ status }) => {
     }, [tips.length]);
 
     // Determinar qué pasos ya se completaron
-    const activeStepIndex = steps.findIndex(s => progress < s.pct);
+    const activeStepIndex = steps.findIndex(s => displayProgress < s.pct);
     const currentStep = activeStepIndex === -1 ? steps.length - 1 : Math.max(0, activeStepIndex - 1);
 
     return (
@@ -454,7 +454,7 @@ const LoadingScreen = ({ status }) => {
                     textAlign: 'left',
                 }}>
                     {steps.map((step, i) => {
-                        const isDone = progress >= step.pct;
+                        const isDone = displayProgress >= step.pct;
                         const isCurrent = i === currentStep && !isDone;
                         return (
                             <motion.div
@@ -526,7 +526,7 @@ const LoadingScreen = ({ status }) => {
                             borderRadius: '10px',
                             position: 'relative',
                         }}
-                        animate={{ width: `${progress}%` }}
+                        animate={{ width: `${displayProgress}%` }}
                         transition={{ type: 'spring', stiffness: 40, damping: 20 }}
                     />
                     {/* Shimmer overlay */}
@@ -540,7 +540,7 @@ const LoadingScreen = ({ status }) => {
                     color: 'rgba(255,255,255,0.35)', fontWeight: 600, marginBottom: '1rem',
                 }}>
                     <span>{steps[currentStep]?.text || 'Procesando...'}</span>
-                    <span style={{ color: '#818cf8', fontWeight: 700 }}>{Math.round(progress)}%</span>
+                    <span style={{ color: '#818cf8', fontWeight: 700 }}>{Math.round(displayProgress)}%</span>
                 </div>
 
                 {/* === TIP CAROUSEL === */}

@@ -25,24 +25,8 @@ const Terms = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default
 const Cookies = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Cookies })));
 const MedicalDisclaimer = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.MedicalDisclaimer })));
 
-// --- Minimal loading fallback ---
-const PageLoader = () => (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '60vh',
-    gap: '0.5rem'
-  }}>
-    <div style={{
-      width: 28, height: 28,
-      border: '3px solid #E2E8F0',
-      borderTopColor: '#4F46E5',
-      borderRadius: '50%',
-      animation: 'spin 0.6s linear infinite'
-    }} />
-  </div>
-);
+// --- Minimal loading fallback (Empty to prevent double loading screens) ---
+const PageLoader = () => <div className="min-h-screen bg-slate-50/50" />;
 
 // --- Native Style Page Transitions ---
 const AnimatedLayout = () => {

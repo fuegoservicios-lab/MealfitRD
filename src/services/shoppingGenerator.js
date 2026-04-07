@@ -186,7 +186,7 @@ export const generateShoppingListFromPlan = (planData, days = 7) => {
                 consolidated[key] = { originalName: parsed.name, unit: parsed.unit, quantity: 0, isAbstract: parsed.isAbstract };
             }
             consolidated[key].quantity += parsed.quantity;
-        } catch (e) {
+        } catch (error) {
             const keyRaw = normalizeNameForKey(raw.trim());
             const key = `raw_${keyRaw}`;
             if (!consolidated[key]) consolidated[key] = { originalName: raw, quantity: 1, isAbstract: true, unit: '' };
