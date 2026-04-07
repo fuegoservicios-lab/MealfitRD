@@ -853,7 +853,7 @@ const AgentPage = () => {
             }
         } catch (error) {
             if (error.name === 'AbortError') {
-                console.log("Streaming cancelado por el usuario.");
+
                 return;
             }
             console.error("Chat Error:", error);
@@ -867,7 +867,7 @@ const AgentPage = () => {
 
     const handleStopGeneration = () => {
         if (abortController) {
-            console.log("Abortando generación manual...");
+
             abortController.abort();
             setAbortController(null);
             setIsLoading(false);

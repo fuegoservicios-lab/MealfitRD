@@ -158,7 +158,7 @@ const ShoppingList = () => {
                     filter: `user_id=eq.${userId}`
                 },
                 (payload) => {
-                    console.log('🛒 Realtime update received:', payload);
+
                     
                     if (payload.eventType === 'INSERT') {
                         setCustomItems(prev => {

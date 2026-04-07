@@ -39,7 +39,7 @@ const generateAIPlan = async (formData) => {
     }
 
     const API_URL = '/api/analyze';
-    console.log("🚀 Iniciando generación a:", API_URL);
+
 
     globalGenerationPromise = (async () => {
         const controller = new AbortController();
@@ -55,7 +55,7 @@ const generateAIPlan = async (formData) => {
 
             clearTimeout(timeoutId);
             const data = await response.json();
-            console.log("✅ Respuesta IA recibida:", data);
+
             return (Array.isArray(data) && data.length > 0) ? data[0] : data;
         } catch (error) {
             if (error.name === 'AbortError') {
@@ -120,7 +120,7 @@ const savePlanToHistory = async (finalPlan) => {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
-            console.log("ℹ️ Usuario invitado. El plan no se guardará en el historial permanente.");
+
             return;
         }
 
@@ -134,7 +134,7 @@ const savePlanToHistory = async (finalPlan) => {
         if (recentPlans && recentPlans.length > 0) {
             const diffSeconds = (Date.now() - new Date(recentPlans[0].created_at).getTime()) / 1000;
             if (diffSeconds < 60) {
-                console.log(`✅ Plan duplicado detectado (hace ${Math.round(diffSeconds)}s). Guardado omitido.`);
+
                 return;
             }
         }
@@ -156,7 +156,7 @@ const savePlanToHistory = async (finalPlan) => {
         if (saveError) {
             console.error("❌ Error guardando historial:", saveError.message);
         } else {
-            console.log("💾 Plan guardado exitosamente en el historial.");
+
         }
     } catch (dbError) {
         console.error("⚠️ Error crítico al intentar guardar historial:", dbError);
@@ -216,14 +216,14 @@ const Plan = () => {
                     previous_meals: previousMeals
                 };
 
-                console.log("🧠 Enviando solicitud al cerebro IA para usuario:", userId);
+
 
                 // Enviamos al backend (Nota: generateAIPlan YA NO inserta en DB automáticamente)
                 const generatedPlan = await generateAIPlan(dataToSend);
 
                 // SI EL COMPONENTE SE DESMONTÓ, DETENEMOS AQUÍ (NO GUARDAMOS EN DB)
                 if (ignore) {
-                    console.log("🛑 Componente desmontado, cancelando guardado en DB.");
+
                     return;
                 }
 

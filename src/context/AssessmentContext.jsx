@@ -146,7 +146,7 @@ export const AssessmentProvider = ({ children }) => {
         }
 
         setLoadingData(true);
-        console.log("🔄 Sincronizando datos del usuario...");
+
 
         try {
             // 1. Buscar el último plan creado por este usuario en Supabase
@@ -196,11 +196,11 @@ export const AssessmentProvider = ({ children }) => {
 
                 // Solo actualizamos si el plan en la nube es diferente al local
                 if (!localSavedParsed || JSON.stringify(localSavedParsed) !== JSON.stringify(latestPlan)) {
-                    console.log("📥 Descargando plan actualizado desde la nube...");
+
                     setPlanData(latestPlan);
                     localStorage.setItem('mealfit_plan', JSON.stringify(latestPlan));
                 } else {
-                    console.log("✅ El plan local está sincronizado con la nube.");
+
                 }
 
                 // Guardar la fecha en DB para persistencia cruzada (si se inyectó)
@@ -210,7 +210,7 @@ export const AssessmentProvider = ({ children }) => {
                     });
                 }
             } else {
-                console.log("ℹ️ El usuario no tiene planes guardados en la nube.");
+
             }
         } catch (err) {
             console.error("❌ Error restaurando sesión:", err);
@@ -371,7 +371,7 @@ export const AssessmentProvider = ({ children }) => {
         const userId = session?.user?.id;
         if (!userId) return;
 
-        console.log("📡 Suscribiendo a cambios en Realtime para user_profiles...");
+
         
         const profileSubscription = supabase
             .channel('public:user_profiles')
@@ -384,7 +384,7 @@ export const AssessmentProvider = ({ children }) => {
                     filter: `id=eq.${userId}`
                 },
                 (payload) => {
-                    console.log('⚡ ¡Cambio detectado en la Base de Datos (Realtime)!', payload);
+
                     // Disparar sincronización mágica
                     refreshProfileAndPlan();
                 }
@@ -392,7 +392,7 @@ export const AssessmentProvider = ({ children }) => {
             .subscribe();
 
         return () => {
-            console.log("🔌 Desconectando suscripción Realtime...");
+
             supabase.removeChannel(profileSubscription);
         };
     }, [session, refreshProfileAndPlan]);
@@ -494,7 +494,7 @@ export const AssessmentProvider = ({ children }) => {
         const userDietType = formData.dietType || "balanced";
         const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
 
-        console.log(`🔄 Regenerando Día ${dayIndex + 1} | ${mealType} (Rechazado: ${currentName})...`);
+
 
         try {
             // 1. LLAMADA A LA IA
@@ -520,7 +520,7 @@ export const AssessmentProvider = ({ children }) => {
             if (!response.ok) throw new Error("Error conectando con la IA");
 
             const newMealData = await response.json();
-            console.log("✅ Nueva opción recibida:", newMealData);
+
 
             // 2. ACTUALIZAR ESTADO LOCAL
             const updatedPlan = { ...planData };
@@ -573,7 +573,7 @@ export const AssessmentProvider = ({ children }) => {
 
                     if (latestRows && latestRows.length > 0) {
                         const planId = latestRows[0].id;
-                        console.log("💾 Guardando cambio en DB ID:", planId);
+
 
                         // b) Ejecutar UPDATE del campo plan_data
                         const { error: updateError } = await supabase
@@ -585,7 +585,7 @@ export const AssessmentProvider = ({ children }) => {
                             console.error("❌ Error Supabase UPDATE:", updateError);
                             toast.error("Error de sincronización", { description: "El cambio es solo local." });
                         } else {
-                            console.log("✅ DB Actualizada correctamente.");
+
                         }
                     }
                 } catch (dbError) {
@@ -690,7 +690,7 @@ export const AssessmentProvider = ({ children }) => {
                             description: 'No se pudo sincronizar con la nube.'
                         });
                     } else {
-                        console.log('✅ Plan restaurado sincronizado con Supabase.');
+
                     }
                 }
             } catch (dbError) {
@@ -728,7 +728,7 @@ export const AssessmentProvider = ({ children }) => {
         try {
             const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
             if (!userId) throw new Error("No user ID");
-            console.log(`💳 Procesando actualización a ${tier} (Suscripción: ${subscriptionId || 'Desconocida'})...`);
+
 
             if (subscriptionId) {
                 // Validación Segura B2B con nuestro Backend

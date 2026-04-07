@@ -194,7 +194,7 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, price = "25.00", planName = 
                                 }}
                                 onApprove={async (data, actions) => {
                                     try {
-                                        console.log("Suscripción exitosa en UI. Validando en Backend. ID:", data.subscriptionID);
+
                                         // Pasamos el subscriptionID al onSuccess callback para verificar
                                         onSuccess(data.subscriptionID);
                                     } catch (err) {
@@ -206,7 +206,7 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, price = "25.00", planName = 
                                     console.error("Error PayPal:", err);
                                 }}
                                 onCancel={() => {
-                                    console.log("Usuario canceló el proceso de suscripción");
+
                                 }}
                             />
                         </PayPalScriptProvider>

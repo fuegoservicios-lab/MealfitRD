@@ -206,7 +206,7 @@ const ChatWidget = () => {
 
         try {
             const actualUserId = session?.user?.id || userProfile?.id || localSessionId;
-            console.log("🚀 Enviando a Chat API Stream -> session_id:", currentSessionId, "user_id:", actualUserId);
+
             setStreamingStatus('Conectando...');
 
             const response = await fetchWithAuth('/api/chat/stream', {
