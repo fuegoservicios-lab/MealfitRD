@@ -1,8 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import * as Sentry from "@sentry/react";
+import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.jsx'
+
+// Register Service Worker
+registerSW({ immediate: true })
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,

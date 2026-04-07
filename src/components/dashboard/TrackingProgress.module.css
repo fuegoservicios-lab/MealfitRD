@@ -164,8 +164,23 @@
     }
 
     .macroGrid {
-        grid-template-columns: 1fr;
-        gap: 1.25rem;
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        gap: 1rem;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 0.5rem;
+        scrollbar-width: none;
+    }
+
+    .macroGrid::-webkit-scrollbar {
+        display: none;
+    }
+
+    .macroGrid > * {
+        scroll-snap-align: start;
+        min-width: 75%;
+        flex-shrink: 0;
     }
 
     .guestBadge {

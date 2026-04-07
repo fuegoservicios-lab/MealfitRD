@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, ShoppingBag, Utensils, Settings, LogOut, User, Menu, X, Clock, Bot } from 'lucide-react';
 import { useAssessment } from '../../context/AssessmentContext';
 import LogoutConfirmModal from './LogoutConfirmModal';
+import BottomTabBar from './BottomTabBar';
 import styles from './DashboardLayout.module.css';
 
 const DashboardLayout = ({ children, noPaddingMobile = false }) => {
@@ -102,6 +103,8 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                     {children}
                 </main>
             </div>
+
+            {!noPaddingMobile && <BottomTabBar />}
 
             <LogoutConfirmModal
                 isOpen={showLogoutModal}

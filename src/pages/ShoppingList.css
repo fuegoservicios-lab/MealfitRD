@@ -571,6 +571,7 @@
     /* --- CONTAINER --- */
     .shopping-container {
         padding: 0.5rem 0.75rem;
+        padding-bottom: calc(0.5rem + 70px + env(safe-area-inset-bottom, 0px));
         max-width: 100vw;
         overflow-x: hidden;
     }
@@ -627,7 +628,7 @@
         align-items: center;
         justify-content: space-between;
         flex-wrap: nowrap;
-        gap: 0.5rem;
+        gap: 0.75rem;
         padding: 0.55rem 1rem 0.55rem 0.75rem;
         border-radius: 0.85rem;
         margin-bottom: 0.85rem;
@@ -642,9 +643,9 @@
     /* Show floating PDF button on mobile */
     .hero-pdf-btn {
         display: flex;
-        width: 36px;
-        height: 36px;
-        border-radius: 0.6rem;
+        width: 44px;
+        height: 44px;
+        border-radius: 0.75rem;
     }
 
     .control-group {
@@ -672,25 +673,29 @@
     }
 
     .day-btn {
-        padding: 0.3rem 0.65rem;
+        padding: 0.4rem 0.75rem;
         font-size: 0.78rem;
         border-radius: 0.35rem;
-        min-width: 32px;
+        min-width: 44px;
+        min-height: 36px;
         text-align: center;
     }
 
     .toggle-switch {
-        width: 32px;
-        height: 18px;
+        width: 40px;
+        height: 22px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
     }
 
     .toggle-knob {
-        width: 14px;
-        height: 14px;
+        width: 18px;
+        height: 18px;
     }
 
     .toggle-switch.active .toggle-knob {
-        transform: translateX(14px);
+        transform: translateX(18px);
     }
 
     .btn-primary, .btn-secondary {
@@ -739,9 +744,9 @@
     }
 
     .mark-all-btn {
-        width: 24px;
-        height: 24px;
-        border-radius: 0.4rem;
+        width: 44px;
+        height: 44px;
+        border-radius: 0.625rem;
     }
 
     .cat-collapse-icon {
@@ -755,9 +760,10 @@
     }
 
     .shopping-item {
-        padding: 0.55rem 0.4rem;
+        padding: 0.65rem 0.4rem;
         gap: 0.65rem;
         align-items: center;
+        min-height: 48px;
     }
 
     .custom-checkbox {
@@ -780,16 +786,21 @@
 
     /* Delete button estilizado en mobile */
     .shopping-item-delete-btn {
-        opacity: 0.5;
+        opacity: 0.7;
         pointer-events: auto;
-        padding: 0.3rem !important;
+        padding: 0.6rem !important;
         color: #94A3B8 !important;
         transition: opacity 0.2s;
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .shopping-item-delete-btn svg {
-        width: 14px;
-        height: 14px;
+        width: 20px;
+        height: 20px;
     }
 
     .shopping-item:active .shopping-item-delete-btn {

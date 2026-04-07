@@ -373,6 +373,9 @@ const Dashboard = () => {
                         padding: 1rem;
                         border-radius: 1rem;
                     }
+                    .meal-right-side > div:last-child {
+                        gap: 0.5rem !important;
+                    }
                 }
             `}</style>
 
@@ -476,11 +479,11 @@ const Dashboard = () => {
                         {/* Indicador de vigencia de la lista de compras */}
                         {!isLimitReached && (
                             <span style={{ 
-                                fontSize: '0.7rem', 
-                                color: isPlanExpired ? '#EF4444' : '#64748B', 
+                                fontSize: '0.78rem', 
+                                color: isPlanExpired ? '#EF4444' : '#475569', 
                                 fontWeight: 600,
-                                background: isPlanExpired ? '#FEF2F2' : 'transparent',
-                                padding: isPlanExpired ? '0.15rem 0.6rem' : '0',
+                                background: isPlanExpired ? '#FEF2F2' : '#F1F5F9',
+                                padding: '0.2rem 0.65rem',
                                 borderRadius: '1rem',
                                 transition: 'all 0.3s ease'
                             }}>
@@ -718,7 +721,7 @@ const Dashboard = () => {
                                             </div>
 
                                             {/* BUTTONS GROUP */}
-                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.75rem' }}>
 
                                                 {/* VER RECETA */}
                                                 <button

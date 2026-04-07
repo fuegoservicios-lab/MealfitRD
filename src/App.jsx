@@ -1,11 +1,14 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import Layout from './components/layout/Layout';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { AssessmentProvider } from './context/AssessmentContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
+import IOSInstallPrompt from './components/IOSInstallPrompt';
+import useThemeColor from './components/common/useThemeColor';
 
 // --- Lazy-loaded pages (code-split into separate chunks) ---
 const Assessment = lazy(() => import('./pages/Assessment'));
@@ -41,12 +44,35 @@ const PageLoader = () => (
   </div>
 );
 
+// --- Native Style Page Transitions ---
+const AnimatedLayout = () => {
+  const location = useLocation();
+  useThemeColor();
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={location.pathname}
+        initial={{ opacity: 0, x: 10 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -10 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <Suspense fallback={<PageLoader />}>
+          <Outlet />
+        </Suspense>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
 function App() {
   return (
     <AssessmentProvider>
       <Router>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
+        <IOSInstallPrompt />
+        <Routes>
+          <Route element={<AnimatedLayout />}>
             {/* Public Routes: Auth */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -110,8 +136,8 @@ function App() {
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+          </Route>
+        </Routes>
       </Router>
     </AssessmentProvider>
   );

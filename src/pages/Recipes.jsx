@@ -566,28 +566,28 @@ const Recipes = () => {
                         data-html2canvas-ignore="true"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        style={{ paddingTop: isMobile ? '2.5rem' : '3.5rem', marginBottom: isMobile ? '2.5rem' : '3.5rem', textAlign: 'center', position: 'relative', zIndex: 2 }}
+                        style={{ paddingTop: isMobile ? '1.5rem' : '3.5rem', marginBottom: isMobile ? '1.5rem' : '3.5rem', textAlign: 'center', position: 'relative', zIndex: 2 }}
                     >
                         <div style={{
-                            margin: '0 auto 1.5rem',
+                            margin: isMobile ? '0 auto 0.75rem' : '0 auto 1.5rem',
                             display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}>
                             <div style={{ 
-                                background: 'white', padding: isMobile ? '1.25rem' : '1.5rem', 
+                                background: 'white', padding: isMobile ? '0.85rem' : '1.5rem', 
                                 borderRadius: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)', border: '1px solid rgba(255,255,255,0.8)'
                             }}>
-                                <Utensils size={isMobile ? 44 : 52} strokeWidth={2.5} color="#4F46E5" />
+                                <Utensils size={isMobile ? 32 : 52} strokeWidth={2.5} color="#4F46E5" />
                             </div>
                         </div>
                         <h1 style={{
-                            fontSize: isMobile ? '2.2rem' : '2.8rem', fontWeight: 900, color: '#0F172A',
-                            marginBottom: '1rem', letterSpacing: '-0.03em', lineHeight: 1.1
+                            fontSize: isMobile ? '1.8rem' : '2.8rem', fontWeight: 900, color: '#0F172A',
+                            marginBottom: isMobile ? '0.5rem' : '1rem', letterSpacing: '-0.03em', lineHeight: 1.1
                         }}>
                             Tus Recetas
                         </h1>
-                        <p style={{ color: '#475569', fontSize: isMobile ? '1.1rem' : '1.25rem', maxWidth: '600px', margin: '0 auto', lineHeight: 1.6, padding: isMobile ? '0 1.5rem' : '0' }}>
-                            Aquí tienes el paso a paso detallado para preparar tus comidas personalizadas y alcanzar tus objetivos.
+                        <p style={{ color: '#475569', fontSize: isMobile ? '0.95rem' : '1.25rem', maxWidth: '600px', margin: '0 auto', lineHeight: 1.5, padding: isMobile ? '0 1rem' : '0' }}>
+                            Paso a paso para preparar tus comidas personalizadas.
                         </p>
                     </motion.div>
 
@@ -684,13 +684,14 @@ const Recipes = () => {
                                         >
                                             {/* Card Header with Floating Action */}
                                         <div style={{
-                                            padding: isMobile ? '2rem 1.5rem' : '2.5rem 3rem',
+                                            padding: isMobile ? '1.5rem 1.25rem' : '2.5rem 3rem',
                                             display: 'flex',
                                             flexDirection: 'column',
-                                            gap: '1.5rem'
+                                            gap: isMobile ? '1rem' : '1.5rem'
                                         }}>
                                             {/* Tags Centered */}
-                                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                                            {/* Info pills: meal type, time, difficulty, calories */}
+                                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: isMobile ? '0.5rem' : '0.75rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
                                                 <div style={{
                                                     textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.05em',
                                                     color: '#4F46E5', background: '#EEF2FF',
@@ -729,35 +730,36 @@ const Recipes = () => {
                                                     <Flame size={14} fill="#F97316" strokeWidth={0} />
                                                     {meal.cals} kcal
                                                 </div>
-                                                {meal.protein !== undefined && meal.protein > 0 && (
-                                                    <>
-                                                        <div style={{
-                                                            display: 'flex', alignItems: 'center', gap: '0.35rem',
-                                                            padding: '0.4rem 0.8rem', background: '#ECFDF5',
-                                                            borderRadius: '99px', border: '1px solid #D1FAE5',
-                                                            fontSize: '0.75rem', fontWeight: 800, color: '#059669'
-                                                        }}>
-                                                            Pro: {meal.protein}g
-                                                        </div>
-                                                        <div style={{
-                                                            display: 'flex', alignItems: 'center', gap: '0.35rem',
-                                                            padding: '0.4rem 0.8rem', background: '#EFF6FF',
-                                                            borderRadius: '99px', border: '1px solid #DBEAFE',
-                                                            fontSize: '0.75rem', fontWeight: 800, color: '#2563EB'
-                                                        }}>
-                                                            Carbs: {meal.carbs}g
-                                                        </div>
-                                                        <div style={{
-                                                            display: 'flex', alignItems: 'center', gap: '0.35rem',
-                                                            padding: '0.4rem 0.8rem', background: '#FEF2F2',
-                                                            borderRadius: '99px', border: '1px solid #FEE2E2',
-                                                            fontSize: '0.75rem', fontWeight: 800, color: '#DC2626'
-                                                        }}>
-                                                            Grasas: {meal.fats}g
-                                                        </div>
-                                                    </>
-                                                )}
                                             </div>
+                                            {/* Macros compact grid — only if macros exist */}
+                                            {meal.protein !== undefined && meal.protein > 0 && (
+                                                <div style={{
+                                                    display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: isMobile ? '0.4rem' : '0.5rem',
+                                                    maxWidth: isMobile ? '100%' : '360px', margin: '0 auto'
+                                                }}>
+                                                    <div style={{
+                                                        textAlign: 'center', padding: '0.4rem 0.5rem', background: '#ECFDF5',
+                                                        borderRadius: '0.65rem', border: '1px solid #D1FAE5',
+                                                        fontSize: '0.75rem', fontWeight: 800, color: '#059669'
+                                                    }}>
+                                                        Pro: {meal.protein}g
+                                                    </div>
+                                                    <div style={{
+                                                        textAlign: 'center', padding: '0.4rem 0.5rem', background: '#EFF6FF',
+                                                        borderRadius: '0.65rem', border: '1px solid #DBEAFE',
+                                                        fontSize: '0.75rem', fontWeight: 800, color: '#2563EB'
+                                                    }}>
+                                                        Carbs: {meal.carbs}g
+                                                    </div>
+                                                    <div style={{
+                                                        textAlign: 'center', padding: '0.4rem 0.5rem', background: '#FEF2F2',
+                                                        borderRadius: '0.65rem', border: '1px solid #FEE2E2',
+                                                        fontSize: '0.75rem', fontWeight: 800, color: '#DC2626'
+                                                    }}>
+                                                        Grasas: {meal.fats}g
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             {/* Action Buttons Centered */}
                                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
@@ -834,7 +836,7 @@ const Recipes = () => {
                                                     </div>
                                                     <ul style={{ 
                                                         listStyle: 'none', padding: 0, margin: 0,
-                                                        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem' 
+                                                        display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem' 
                                                     }}>
                                                         {meal.ingredients.map((ing, idx) => {
                                                             const isChecked = checkedIngredients[idx];

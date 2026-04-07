@@ -10,9 +10,57 @@
   "icons": [
     {
       "src": "/favicon.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nuevo Chat",
+      "short_name": "Chat",
+      "description": "Inicia una nueva consulta con tu agente de IA",
+      "url": "/dashboard/agent",
+      "icons": [{ "src": "/favicon.png", "sizes": "512x512" }]
+    },
+    {
+      "name": "Mi Plan",
+      "short_name": "Plan",
+      "description": "Ver mi plan de alimentación actual",
+      "url": "/dashboard",
+      "icons": [{ "src": "/favicon.png", "sizes": "512x512" }]
+    },
+    {
+      "name": "Lista del Súper",
+      "short_name": "Súper",
+      "description": "Ver los ingredientes a comprar",
+      "url": "/dashboard/shopping",
+      "icons": [{ "src": "/favicon.png", "sizes": "512x512" }]
     }
   ]
 }

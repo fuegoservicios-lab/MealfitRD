@@ -9,7 +9,14 @@ const MessageActions = ({ content, sessionId, onRegenerate }) => {
     const [copied, setCopied] = useState(false);
     const [feedback, setFeedback] = useState(null);
 
+    const triggerHaptic = (pattern = 40) => {
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate(pattern);
+        }
+    };
+
     const handleFeedback = async (type) => {
+        triggerHaptic(40);
         const newFeedback = feedback === type ? null : type;
         setFeedback(newFeedback); // Optimistic UI update
         try {
@@ -521,6 +528,9 @@ const AgentPage = () => {
 
 
     const handleSend = async (overrideInput = null) => {
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate(40); // Haptic feedback on send
+        }
         const textToSend = typeof overrideInput === 'string' ? overrideInput : input;
         
         if ((!textToSend.trim() && !selectedFile) || isLoading) return;
@@ -803,7 +813,9 @@ const AgentPage = () => {
             left: 0,
             right: 0,
             width: '100%',
-            zIndex: 10
+            zIndex: 10,
+            transform: keyboardOffset > 0 ? `translateY(-${keyboardOffset}px)` : 'none',
+            transition: 'transform 0.15s ease-out',
         }}>
             <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
                 {isCentered && (
@@ -940,6 +952,7 @@ const AgentPage = () => {
                             </button>
                         ) : (input.trim() || selectedFile) ? (
                             <button
+                                className="touch-scale"
                                 onClick={handleSend}
                                 disabled={isLoading}
                                 style={{
@@ -962,6 +975,7 @@ const AgentPage = () => {
                             </button>
                         ) : (
                             <button
+                                className="touch-scale"
                                 onClick={toggleDictation}
                                 style={{
                                     background: isListening ? '#ef4444' : 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
@@ -989,6 +1003,46 @@ const AgentPage = () => {
         </div>
     );
 
+
+    // --- iOS Keyboard: adjust input wrapper using visualViewport API ---
+    const [keyboardOffset, setKeyboardOffset] = useState(0);
+    useEffect(() => {
+        const vv = window.visualViewport;
+        if (!vv) return;
+        const handleResize = () => {
+            const offset = window.innerHeight - vv.height;
+            setKeyboardOffset(offset > 50 ? offset : 0);
+        };
+        vv.addEventListener('resize', handleResize);
+        vv.addEventListener('scroll', handleResize);
+        return () => {
+            vv.removeEventListener('resize', handleResize);
+            vv.removeEventListener('scroll', handleResize);
+        };
+    }, []);
+
+    // --- Swipe gestures for mobile sidebar ---
+    const touchStartRef = useRef(null);
+    const touchEndRef = useRef(null);
+
+    const handleTouchStart = (e) => {
+        touchEndRef.current = null;
+        touchStartRef.current = e.targetTouches[0].clientX;
+    };
+
+    const handleTouchMove = (e) => {
+        touchEndRef.current = e.targetTouches[0].clientX;
+    };
+
+    const handleTouchEnd = () => {
+        if (!touchStartRef.current || !touchEndRef.current) return;
+        const distance = touchStartRef.current - touchEndRef.current;
+        if (distance < -60 && !showSidebar) {
+            setShowSidebar(true);
+        } else if (distance > 60 && showSidebar) {
+            setShowSidebar(false);
+        }
+    };
 
     const getGroupedSessions = () => {
         const today = new Date();
@@ -1042,10 +1096,14 @@ const AgentPage = () => {
                     pointer-events: auto;
                 }
             `}</style>
-            <div className="agent-container" style={{
+            <div className="agent-container" 
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                style={{
                 display: 'flex',
                 flexDirection: 'row',
-                height: 'calc(100vh - 4rem)',
+                height: 'calc(100dvh - 4rem)',
                 background: '#ffffff',
                 borderRadius: '1.5rem',
                 boxShadow: '0 10px 40px -10px rgba(0,0,0,0.08)',
