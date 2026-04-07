@@ -5,7 +5,7 @@
     align-items: center;
     overflow: hidden;
     overflow-x: clip;
-    padding: calc(6rem + max(env(safe-area-inset-top), 24px)) 0 4rem;
+    padding: calc(4.5rem + max(env(safe-area-inset-top), 24px)) 0 4rem;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
