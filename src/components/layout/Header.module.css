@@ -3,7 +3,8 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 80px;
+    height: calc(80px + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
     background: rgba(255, 255, 255, 0.65);
     /* More transparent */
     backdrop-filter: blur(24px);
@@ -118,7 +119,7 @@
 
 .navMobile {
     position: absolute;
-    top: 70px;
+    top: calc(70px + env(safe-area-inset-top, 0px));
     left: 1rem;
     right: 1rem;
     background: rgba(255, 255, 255, 0.95);
