@@ -100,7 +100,7 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
             : '¿Necesitas un buen snack para calmar el hambre?';
     }
 
-    let goalContext = 'estoy aquí como tu especialista para guiarte.';
+    let goalContext = '';
     // Schema field is "main_goal", with fallbacks for legacy data
     const goalField = planData?.main_goal || planData?.goal || planData?.objective || '';
     if (goalField) {
@@ -112,12 +112,56 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
         else if (lowerGoal.includes('recomp')) goalText = 'recomponer tu cuerpo';
         
         if (goalText) {
-            goalContext = `seguimos enfocados en tu meta de ${goalText}.`;
+            goalContext = `Seguimos enfocados en tu meta de ${goalText}. `;
         }
     }
 
     const timeStr = now.toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true});
-    return `${timeGreeting}${firstName}! Son las ${timeStr}, ${goalContext} ${mealContext}`;
+    return `${timeGreeting}${firstName}! Son las ${timeStr}. ${goalContext}${mealContext}`;
+};
+
+const compressImageFile = (file, maxWidth = 1200, quality = 0.8) => {
+    return new Promise((resolve) => {
+        const objectUrl = URL.createObjectURL(file);
+        const img = new Image();
+        img.src = objectUrl;
+        img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob(
+                (blob) => {
+                    if (!blob) {
+                        resolve(file); // fallback
+                        return;
+                    }
+                    const newFile = new File([blob], file.name, {
+                        type: 'image/jpeg',
+                        lastModified: Date.now(),
+                    });
+                    resolve(newFile);
+                },
+                'image/jpeg',
+                quality
+            );
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            resolve(file); // fallback
+        };
+    });
 };
 
 const AgentPage = () => {
@@ -234,6 +278,9 @@ const AgentPage = () => {
     const [isListening, setIsListening] = useState(false);
     const recognitionRef = useRef(null);
     const originalInputRef = useRef('');
+    
+    // Para Drag & Drop de Imágenes
+    const [isDragging, setIsDragging] = useState(false);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -305,20 +352,44 @@ const AgentPage = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isLoading]);
 
+    const processSelectedFile = async (file) => {
+        if (!file.type.startsWith('image/')) {
+            alert('Formato no soportado. Por favor sube una imagen válida.');
+            return;
+        }
+        
+        // Generar preview local INMEDIATAMENTE para anular percepción de lag
+        setPreviewUrl(prev => {
+            if (prev) URL.revokeObjectURL(prev);
+            return URL.createObjectURL(file);
+        });
+        
+        // Guardar original temporalmente
+        setSelectedFile(file);
+        
+        try {
+            // Comprimir imagen asincrónicamente
+            const compressedFile = await compressImageFile(file);
+            setSelectedFile(compressedFile);
+        } catch (err) {
+            console.error("No se pudo comprimir la imagen:", err);
+            // Si falla, el archivo original ya quedó configurado como fallback
+        }
+    };
+
     const handleFileSelect = (e) => {
         const file = e.target.files?.[0];
-        if (file && file.type.startsWith('image/')) {
-            setSelectedFile(file);
-            // Convertir a base64 para que persista en el chat después de limpiar
-            const reader = new FileReader();
-            reader.onloadend = () => setPreviewUrl(reader.result);
-            reader.readAsDataURL(file);
+        if (file) {
+            processSelectedFile(file);
         }
     };
 
     const clearSelectedFile = () => {
+        setPreviewUrl(prev => {
+            if (prev) URL.revokeObjectURL(prev);
+            return null;
+        });
         setSelectedFile(null);
-        setPreviewUrl(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
@@ -332,13 +403,34 @@ const AgentPage = () => {
                 e.preventDefault();
                 const file = item.getAsFile();
                 if (file) {
-                    setSelectedFile(file);
-                    const reader = new FileReader();
-                    reader.onloadend = () => setPreviewUrl(reader.result);
-                    reader.readAsDataURL(file);
+                    processSelectedFile(file);
                 }
                 break;
             }
+        }
+    };
+
+    // --- Drag and Drop Handlers ---
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isDragging) setIsDragging(true);
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.currentTarget.contains(e.relatedTarget)) return;
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) {
+            processSelectedFile(file);
         }
     };
 
@@ -890,10 +982,13 @@ const AgentPage = () => {
                                 padding: '4px',
                                 background: '#ffffff',
                                 borderRadius: '8px',
-                                border: '1px solid #e2e8f0'
+                                border: '1px solid #e2e8f0',
+                                animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
                             }}>
-                                <img src={previewUrl} alt="Preview" style={{ height: '48px', borderRadius: '6px', opacity: isLoading ? 0.5 : 1 }} />
+                                <img src={previewUrl} alt="Preview" style={{ width: '48px', height: '48px', borderRadius: '6px', opacity: isLoading ? 0.5 : 1, objectFit: 'cover' }} />
                                 <button
+                                    type="button"
+                                    aria-label="Quitar imagen"
                                     onClick={clearSelectedFile}
                                     disabled={isLoading}
                                     style={{
@@ -918,33 +1013,26 @@ const AgentPage = () => {
                     }}>
                         <input
                             type="file"
-                            accept="image/*"
+                            accept="image/png, image/jpeg, image/jpg, image/webp, image/heic"
                             ref={fileInputRef}
                             style={{ display: 'none' }}
                             onChange={handleFileSelect}
                         />
 
                         <button
-                            onClick={() => fileInputRef.current?.click()}
-                            style={{
-                                background: 'transparent',
-                                color: '#64748b',
-                                border: 'none',
-                                borderRadius: '50%',
-                                width: '40px',
-                                height: '40px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: isLoading ? 'default' : 'pointer',
-                                transition: 'all 0.2s',
-                                flexShrink: 0
+                            type="button"
+                            aria-label="Adjuntar imagen"
+                            className={`attachment-btn ${isLoading ? 'disabled' : ''}`}
+                            disabled={isLoading}
+                            onClick={() => {
+                                if (fileInputRef.current) {
+                                    fileInputRef.current.value = '';
+                                    fileInputRef.current.click();
+                                }
                             }}
-                            onMouseEnter={(e) => { if(!isLoading) e.currentTarget.style.color = '#3b82f6'; }}
-                            onMouseLeave={(e) => { if(!isLoading) e.currentTarget.style.color = '#64748b'; }}
                             title="Adjuntar imagen"
                         >
-                            <Plus size={20} />
+                            <Paperclip size={20} strokeWidth={2} />
                         </button>
 
                         <input
@@ -969,6 +1057,8 @@ const AgentPage = () => {
                         />
                         {isLoading ? (
                             <button
+                                type="button"
+                                aria-label="Detener generación"
                                 onClick={handleStopGeneration}
                                 title="Detener generación"
                                 style={{
@@ -1135,11 +1225,43 @@ const AgentPage = () => {
                     opacity: 1;
                     pointer-events: auto;
                 }
+
+                .attachment-btn {
+                    background: transparent;
+                    color: #64748b;
+                    border: none;
+                    border-radius: 50%;
+                    width: 40px;
+                    height: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+                    flex-shrink: 0;
+                    outline: none;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                .attachment-btn:not(.disabled):hover {
+                    color: #3b82f6;
+                    background: #f1f5f9;
+                }
+                .attachment-btn:not(.disabled):active {
+                    transform: scale(0.85);
+                    background: #e2e8f0;
+                }
+                .attachment-btn.disabled {
+                    opacity: 0.5;
+                    cursor: default;
+                }
             `}</style>
             <div className="agent-container" 
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
                 style={{
                 display: 'flex',
                 flexDirection: 'row',
@@ -1154,6 +1276,43 @@ const AgentPage = () => {
                 width: '100%',
                 position: 'relative'
             }}>
+                {/* Overlay Drag & Drop */}
+                {isDragging && (
+                    <div style={{
+                        position: 'absolute',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        background: 'rgba(255, 255, 255, 0.85)',
+                        backdropFilter: 'blur(8px)',
+                        zIndex: 100,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '4px dashed #3b82f6',
+                        borderRadius: isMobile ? '0' : '1.5rem',
+                        transition: 'all 0.2s ease',
+                        pointerEvents: 'none'
+                    }}>
+                        <div style={{
+                            background: 'white',
+                            padding: '2rem 3rem',
+                            borderRadius: '1.25rem',
+                            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '1rem',
+                            animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                        }}>
+                            <ImageIcon size={48} color="#3b82f6" strokeWidth={1.5} />
+                            <h2 style={{ margin: 0, color: '#1e293b', fontSize: '1.5rem', fontWeight: 600 }}>
+                                Suelta tu imagen aquí
+                            </h2>
+                            <p style={{ margin: 0, color: '#64748b' }}>
+                                La subiremos optimizada para responderte.
+                            </p>
+                        </div>
+                    </div>
+                )}
                 {/* Overlay para Plan Gratis */}
                 {!isPlus && (
                     <div style={{
