@@ -1141,25 +1141,34 @@ const AgentPage = () => {
 
 
     // --- True Native Mobile Viewport Sizing ---
-    // Set a CSS custom property on <html> so ALL containers can use it
+    // Set a CSS custom property on <html> so ALL containers can use it.
+    // CRITICAL: iOS Safari fires 'scroll' on visualViewport when the user
+    // scrolls with the keyboard open (viewport panning). We must listen to
+    // BOTH 'resize' AND 'scroll' to prevent the gap from reappearing.
     useEffect(() => {
         const vv = window.visualViewport;
         if (!vv) return;
         const root = document.documentElement;
-        const handleResize = () => {
+        const handleViewport = () => {
             if (window.innerWidth <= 1024) {
                 root.style.setProperty('--app-height', `${vv.height}px`);
+                // Prevent iOS from panning the outer page — lock at position 0
                 window.scrollTo(0, 0);
             } else {
                 root.style.setProperty('--app-height', 'calc(100dvh - 4rem)');
             }
+        };
+        const handleResizeWithScroll = () => {
+            handleViewport();
             setTimeout(scrollToBottom, 50);
         };
         
-        handleResize();
-        vv.addEventListener('resize', handleResize);
+        handleResizeWithScroll();
+        vv.addEventListener('resize', handleResizeWithScroll);
+        vv.addEventListener('scroll', handleViewport);
         return () => {
-            vv.removeEventListener('resize', handleResize);
+            vv.removeEventListener('resize', handleResizeWithScroll);
+            vv.removeEventListener('scroll', handleViewport);
             root.style.removeProperty('--app-height');
         };
     }, []);
