@@ -1141,23 +1141,27 @@ const AgentPage = () => {
 
 
     // --- True Native Mobile Viewport Sizing ---
-    const [viewportHeight, setViewportHeight] = useState('100dvh');
+    // Set a CSS custom property on <html> so ALL containers can use it
     useEffect(() => {
         const vv = window.visualViewport;
         if (!vv) return;
+        const root = document.documentElement;
         const handleResize = () => {
             if (window.innerWidth <= 1024) {
-                setViewportHeight(`${vv.height}px`);
-                window.scrollTo(0, 0); // aggressively prevent iOS from panning the body
+                root.style.setProperty('--app-height', `${vv.height}px`);
+                window.scrollTo(0, 0);
             } else {
-                setViewportHeight('calc(100dvh - 4rem)');
+                root.style.setProperty('--app-height', 'calc(100dvh - 4rem)');
             }
             setTimeout(scrollToBottom, 50);
         };
         
-        handleResize(); // Initial set
+        handleResize();
         vv.addEventListener('resize', handleResize);
-        return () => vv.removeEventListener('resize', handleResize);
+        return () => {
+            vv.removeEventListener('resize', handleResize);
+            root.style.removeProperty('--app-height');
+        };
     }, []);
 
     // --- Swipe gestures for mobile sidebar ---
@@ -1274,7 +1278,7 @@ const AgentPage = () => {
                 style={{
                 display: 'flex',
                 flexDirection: 'row',
-                height: viewportHeight,
+                height: isMobile ? 'var(--app-height, 100dvh)' : 'var(--app-height, calc(100dvh - 4rem))',
                 background: '#ffffff',
                 borderRadius: isMobile ? '0' : '1.5rem',
                 boxShadow: isMobile ? 'none' : '0 10px 40px -10px rgba(0,0,0,0.08)',
