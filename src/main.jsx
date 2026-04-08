@@ -22,9 +22,13 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0, 
 });
 
+import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
+
 createRoot(document.getElementById('root')).render(
   // <StrictMode>
+  <GlobalErrorBoundary>
     <App />
+  </GlobalErrorBoundary>
   // </StrictMode>,
 )
 
