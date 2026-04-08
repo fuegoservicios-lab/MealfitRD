@@ -32,8 +32,7 @@ const Hero = () => {
                         </h1>
 
                         <p className={styles.subtitle}>
-                            Planes de alimentación 100% personalizados que se adaptan a tus gustos,
-                            presupuesto y estilo de vida. Sin restricciones absurdas.
+                            La IA que crea tu plan de comida basado en <strong>tus gustos</strong>, tu presupuesto y tu día a día. Comer bien nunca fue tan fácil.
                         </p>
 
                         <div className={styles.actions}>
