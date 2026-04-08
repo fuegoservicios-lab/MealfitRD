@@ -1043,6 +1043,7 @@ const AgentPage = () => {
                             onPaste={handlePaste}
                             placeholder="Pregúntale a MealfitRD"
                             onFocus={() => setTimeout(scrollToBottom, 300)}
+                            enterKeyHint="send"
                             style={{
                                 flex: 1,
                                 background: 'transparent',
