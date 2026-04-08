@@ -145,7 +145,7 @@ const ShoppingList = () => {
     const [editForm, setEditForm] = useState({
         name: '',
         qty: '',
-        meal_slot: 'Despensa General'
+        meal_slot: 'Desayuno'
     });
 
     // Obtener userId para el fetch
@@ -301,7 +301,7 @@ const ShoppingList = () => {
         setEditForm({
             name: structItem.name || '',
             qty: structItem.qty || '',
-            meal_slot: structItem.meal_slot || structItem.raw?.meal_slot || 'Despensa General'
+            meal_slot: structItem.meal_slot || structItem.raw?.meal_slot || 'Desayuno'
         });
         setItemToEdit(structItem);
     };
@@ -310,7 +310,7 @@ const ShoppingList = () => {
         setEditForm({
             name: '',
             qty: '',
-            meal_slot: 'Despensa General'
+            meal_slot: 'Desayuno'
         });
         setItemToEdit({ isNew: true });
     };
@@ -447,7 +447,8 @@ const ShoppingList = () => {
             "Almuerzo": { emoji: '🍛', items: [] },
             "Merienda": { emoji: '🍎', items: [] },
             "Cena": { emoji: '🥗', items: [] },
-            "Despensa General": { emoji: '🛒', items: [] },
+            "Versátil": { emoji: '🔄', items: [] },
+            "Despensa": { emoji: '🏪', items: [] },
             "Suplementos": { emoji: '💊', items: [] }
         };
         const standalone = [];
@@ -482,10 +483,12 @@ const ShoppingList = () => {
                 // Not JSON, fallback to raw string
             }
 
-            const slotName = mealSlotStr || 'Despensa General';
-            if (!slots[slotName]) slots[slotName] = { emoji: emojiStr || '🛒', items: [] };
+            const slotName = mealSlotStr || 'Desayuno';
+            if (!slots[slotName]) slots[slotName] = { emoji: emojiStr || '🍳', items: [] };
 
-            const displayQty = item.qty || qtyStr;
+            // Si tenemos datos estructurados del JSON, qtyStr ya tiene la cantidad correcta para el período (7/15/30 días)
+            // Solo usar item.qty como fallback si no hay datos estructurados
+            const displayQty = isStructured ? (qtyStr || item.qty || "") : (item.qty || qtyStr);
             const label = (displayQty && displayQty.trim() !== "") 
                 ? `${displayQty} ${parsedName}` 
                 : parsedName;
@@ -815,13 +818,7 @@ const ShoppingList = () => {
                                 </span>
                             </label>
 
-                            {/* Consolidando indicator (desktop only) */}
-                            {isGenerating && (
-                                <div className="hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748B', fontSize: '0.9rem' }}>
-                                    <ShoppingCart size={16} className="spin-slow" />
-                                    <span>Consolidando...</span>
-                                </div>
-                            )}
+
 
                             {/* Regenerate and PDF buttons - desktop only (on mobile they're in the hero) */}
                             <div className="hide-mobile control-group" style={{ display: 'flex', gap: '0.5rem' }}>
@@ -1282,7 +1279,8 @@ const ShoppingList = () => {
                                     <option value="Almuerzo">Almuerzo</option>
                                     <option value="Merienda">Merienda</option>
                                     <option value="Cena">Cena</option>
-                                    <option value="Despensa General">Despensa General</option>
+                                    <option value="Versátil">Versátil</option>
+                                    <option value="Despensa">Despensa</option>
                                     <option value="Suplementos">Suplementos</option>
                                 </select>
                             </div>

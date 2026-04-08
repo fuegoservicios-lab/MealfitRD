@@ -116,13 +116,8 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
         }
     }
 
-    let dayContext = '';
-    if (planData && !isPlanExpired && !isNaN(cycleDayNum)) {
-        dayContext = ` (Día ${cycleDayNum} de tu súper)`;
-    }
-
     const timeStr = now.toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true});
-    return `${timeGreeting}${firstName}! Son las ${timeStr}${dayContext}. ${goalContext} ${mealContext}`;
+    return `${timeGreeting}${firstName}! Son las ${timeStr}, ${goalContext} ${mealContext}`;
 };
 
 const AgentPage = () => {
@@ -411,7 +406,7 @@ const AgentPage = () => {
                         if (!m.content) return false;
                         // Filtrar mensajes de bienvenida viejos y nuevos por patrones estables (no time-dependent)
                         if (m.content === '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?') return false;
-                        if (m.role === 'model' && m.content.includes('Son las ') && m.content.includes('de tu súper)')) return false;
+                        if (m.role === 'model' && m.content.includes('Son las ') && (m.content.includes('de tu súper)') || m.content.includes('especialista para guiarte') || m.content.includes('enfocados en tu meta'))) return false;
                         return true;
                     });
                     setMessages(filteredMessages.map(m => {
