@@ -1753,8 +1753,10 @@ const AgentPage = () => {
                         border-bottom: 1px solid rgba(226,232,240,0.6) !important;
                         padding: 0.75rem 1.25rem !important;
                         padding-top: calc(0.75rem + max(env(safe-area-inset-top), 24px)) !important;
-                        position: sticky !important;
+                        position: absolute !important;
                         top: 0 !important;
+                        left: 0 !important;
+                        right: 0 !important;
                         z-index: 20 !important;
                     }
                     /* --- Sidebar top safe-area --- */
@@ -1770,7 +1772,7 @@ const AgentPage = () => {
                     .messages-container {
                         padding-left: 1rem !important;
                         padding-right: 1rem !important;
-                        padding-top: calc(3.5rem + max(env(safe-area-inset-top), 24px)) !important;
+                        padding-top: calc(4.5rem + max(env(safe-area-inset-top), 24px)) !important;
                         padding-bottom: 0.5rem !important;
                         background: #ffffff !important;
                         -ms-overflow-style: none;
