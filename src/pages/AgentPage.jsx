@@ -1140,35 +1140,20 @@ const AgentPage = () => {
     );
 
 
-    // --- True Native Mobile Viewport Sizing ---
-    // Set a CSS custom property on <html> so ALL containers can use it.
-    // CRITICAL: iOS Safari fires 'scroll' on visualViewport when the user
-    // scrolls with the keyboard open (viewport panning). We must listen to
-    // BOTH 'resize' AND 'scroll' to prevent the gap from reappearing.
+    // --- Standard Viewport Sizing ---
     useEffect(() => {
-        const vv = window.visualViewport;
-        if (!vv) return;
         const root = document.documentElement;
-        const handleViewport = () => {
-            if (window.innerWidth <= 1024) {
-                root.style.setProperty('--app-height', `${vv.height}px`);
-                // Prevent iOS from panning the outer page — lock at position 0
-                window.scrollTo(0, 0);
-            } else {
+        const handleResize = () => {
+            if (window.innerWidth > 1024) {
                 root.style.setProperty('--app-height', 'calc(100dvh - 4rem)');
+            } else {
+                root.style.removeProperty('--app-height');
             }
         };
-        const handleResizeWithScroll = () => {
-            handleViewport();
-            setTimeout(scrollToBottom, 50);
-        };
-        
-        handleResizeWithScroll();
-        vv.addEventListener('resize', handleResizeWithScroll);
-        vv.addEventListener('scroll', handleViewport);
+        handleResize();
+        window.addEventListener('resize', handleResize);
         return () => {
-            vv.removeEventListener('resize', handleResizeWithScroll);
-            vv.removeEventListener('scroll', handleViewport);
+            window.removeEventListener('resize', handleResize);
             root.style.removeProperty('--app-height');
         };
     }, []);
@@ -1807,7 +1792,7 @@ const AgentPage = () => {
                         background: transparent !important;
                         border-left: 3px solid rgba(79,70,229,0.25) !important;
                         border-radius: 0 !important;
-                        padding: 0.6rem 0 0.6rem 0.9rem !important;
+                        padding: 0.9rem 0 0.6rem 0.9rem !important;
                         font-size: 0.93rem !important;
                     }
                     /* --- Bot avatar --- */
