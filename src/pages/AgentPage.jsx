@@ -1669,6 +1669,8 @@ const AgentPage = () => {
                                     }}>{streamingStatus ? loadingPhrases[loadingPhraseIdx] : 'Pensando...'}</span>
                                 </div>
                             )}
+                            {/* Compensación dinámica de altura: Permite que el último mensaje haga scroll por encima del teclado en iOS */}
+                            <div style={{ height: keyboardOffset > 0 ? `${keyboardOffset}px` : '0px', width: '100%', flexShrink: 0, transition: 'height 0.15s ease-out' }} />
                             <div ref={messagesEndRef} />
                         </div>
                     )}
