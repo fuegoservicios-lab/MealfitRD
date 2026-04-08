@@ -946,8 +946,6 @@ const AgentPage = () => {
             right: 0,
             width: '100%',
             zIndex: 10,
-            transform: keyboardOffset > 0 ? `translateY(-${keyboardOffset}px)` : 'none',
-            transition: 'transform 0.15s ease-out',
         }}>
             <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
                 {isCentered && (
@@ -1142,22 +1140,24 @@ const AgentPage = () => {
     );
 
 
-    // --- iOS Keyboard: adjust input wrapper using visualViewport API ---
-    const [keyboardOffset, setKeyboardOffset] = useState(0);
+    // --- True Native Mobile Viewport Sizing ---
+    const [viewportHeight, setViewportHeight] = useState('100dvh');
     useEffect(() => {
         const vv = window.visualViewport;
         if (!vv) return;
         const handleResize = () => {
-            const offset = window.innerHeight - vv.height;
-            setKeyboardOffset(offset > 50 ? offset : 0);
+            if (window.innerWidth <= 1024) {
+                setViewportHeight(`${vv.height}px`);
+                window.scrollTo(0, 0); // aggressively prevent iOS from panning the body
+            } else {
+                setViewportHeight('calc(100dvh - 4rem)');
+            }
             setTimeout(scrollToBottom, 50);
         };
+        
+        handleResize(); // Initial set
         vv.addEventListener('resize', handleResize);
-        vv.addEventListener('scroll', handleResize);
-        return () => {
-            vv.removeEventListener('resize', handleResize);
-            vv.removeEventListener('scroll', handleResize);
-        };
+        return () => vv.removeEventListener('resize', handleResize);
     }, []);
 
     // --- Swipe gestures for mobile sidebar ---
@@ -1274,7 +1274,7 @@ const AgentPage = () => {
                 style={{
                 display: 'flex',
                 flexDirection: 'row',
-                height: isMobile ? '100dvh' : 'calc(100dvh - 4rem)',
+                height: viewportHeight,
                 background: '#ffffff',
                 borderRadius: isMobile ? '0' : '1.5rem',
                 boxShadow: isMobile ? 'none' : '0 10px 40px -10px rgba(0,0,0,0.08)',
@@ -1524,9 +1524,7 @@ const AgentPage = () => {
                 {/* Mensajes o Pantalla Principal (Gemini Style) */}
                 <div className="messages-container" style={{
                     flex: 1,
-                    padding: messages.length === 0 
-                        ? 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 1.5rem 0 1.5rem' 
-                        : 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 2rem calc(100px + env(safe-area-inset-bottom)) 2rem', 
+                    padding: messages.length === 0 ? 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 1.5rem 0 1.5rem' : 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 2rem 0.5rem 2rem', 
                     overflowY: 'auto',
                     display: 'flex',
                     flexDirection: 'column',
@@ -1671,8 +1669,6 @@ const AgentPage = () => {
                                     }}>{streamingStatus ? loadingPhrases[loadingPhraseIdx] : 'Pensando...'}</span>
                                 </div>
                             )}
-                            {/* Compensación dinámica de altura: Permite que el último mensaje haga scroll por encima del teclado en iOS */}
-                            <div style={{ height: keyboardOffset > 0 ? `${keyboardOffset}px` : '0px', width: '100%', flexShrink: 0, transition: 'height 0.15s ease-out' }} />
                             <div ref={messagesEndRef} />
                         </div>
                     )}
@@ -1740,7 +1736,6 @@ const AgentPage = () => {
                 /* ====== MOBILE REDESIGN ====== */
                 @media (max-width: 1024px) {
                     .agent-container {
-                        height: 100dvh !important;
                         border-radius: 0 !important;
                         border: none !important;
                         box-shadow: none !important;
