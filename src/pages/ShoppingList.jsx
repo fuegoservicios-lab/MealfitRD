@@ -3,7 +3,7 @@ import { useAssessment } from '../context/AssessmentContext';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
     ShoppingCart, ArrowLeft, Download, Check, ChevronDown, Minus,
-    Leaf, Drumstick, Wheat, Milk, Archive, Circle, CheckCircle, ShoppingBag, Layers, X, RefreshCw
+    Leaf, Drumstick, Wheat, Milk, Archive, Circle, CheckCircle, ShoppingBag, Layers, X, RefreshCw, Plus, Edit2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import html2pdf from 'html2pdf.js';
@@ -138,6 +138,15 @@ const ShoppingList = () => {
     const [loadingCustom, setLoadingCustom] = useState(true); // Inicialmente cargando la DB
     const [isGenerating, setIsGenerating] = useState(false); // La IA arranca falsa, a menos que la DB esté vacía
     const [itemToDelete, setItemToDelete] = useState(null); // Modal para eliminar item
+    const [confirmRegenerate, setConfirmRegenerate] = useState(false); // Modal confirmar reorden
+    const [itemToEdit, setItemToEdit] = useState(null); // State for Add/Edit modal. If { isNew: true }, it's a new item.
+
+    // Edit form state
+    const [editForm, setEditForm] = useState({
+        name: '',
+        qty: '',
+        meal_slot: 'Despensa General'
+    });
 
     // Obtener userId para el fetch
     const userId = typeof window !== 'undefined' ? localStorage.getItem('mealfit_user_id') : null;
@@ -288,6 +297,104 @@ const ShoppingList = () => {
         setItemToDelete(structItem);
     };
 
+    const handleOpenEdit = (structItem) => {
+        setEditForm({
+            name: structItem.name || '',
+            qty: structItem.qty || '',
+            meal_slot: structItem.meal_slot || structItem.raw?.meal_slot || 'Despensa General'
+        });
+        setItemToEdit(structItem);
+    };
+
+    const handleOpenAdd = () => {
+        setEditForm({
+            name: '',
+            qty: '',
+            meal_slot: 'Despensa General'
+        });
+        setItemToEdit({ isNew: true });
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editForm.name.trim()) {
+            toast.error('El nombre es obligatorio');
+            return;
+        }
+
+        try {
+            // Determine quantity logic based on current view (daysToShop)
+            const payload = {
+                display_name: editForm.name.trim(),
+                meal_slot: editForm.meal_slot
+            };
+            if (daysToShop === 7) payload.qty_7 = editForm.qty;
+            else if (daysToShop === 15) payload.qty_15 = editForm.qty;
+            else if (daysToShop === 30) payload.qty_30 = editForm.qty;
+
+            if (itemToEdit.isNew) {
+                // ADD NEW
+                const itemData = { name: editForm.name.trim(), meal_slot: editForm.meal_slot };
+                
+                if (daysToShop === 7) itemData.qty_7 = editForm.qty;
+                else if (daysToShop === 15) itemData.qty_15 = editForm.qty;
+                else if (daysToShop === 30) itemData.qty_30 = editForm.qty;
+                
+                itemData.qty = editForm.qty; // old parsing fallback uses qty
+                const postPayload = {
+                    user_id: userId,
+                    items: [itemData]
+                };
+                const res = await fetchWithAuth('/api/shopping/custom', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(postPayload)
+                });
+                const data = await res.json();
+                if (data.success && data.inserted) {
+                    setCustomItems(prev => [...data.inserted, ...prev]);
+                    toast.success('Ingrediente añadido');
+                }
+            } else {
+                // EDIT EXISTING
+                await fetchWithAuth(`/api/shopping/custom/${itemToEdit.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                // Actualizar UI localmente inmediatamente en formato JSON para que el hook lo desempaquete
+                setCustomItems(prev => prev.map(item => {
+                    if (item.id === itemToEdit.id) {
+                        try {
+                            const parsed = JSON.parse(item.item_name || '{}');
+                            const updatedParsed = typeof parsed === 'object' ? parsed : {};
+                            
+                            updatedParsed.name = editForm.name.trim();
+                            updatedParsed.meal_slot = editForm.meal_slot;
+                            
+                            if (daysToShop === 7) updatedParsed.qty_7 = editForm.qty;
+                            else if (daysToShop === 15) updatedParsed.qty_15 = editForm.qty;
+                            else if (daysToShop === 30) updatedParsed.qty_30 = editForm.qty;
+                            
+                            updatedParsed.qty = editForm.qty; // Fallback
+                            
+                            return { ...item, item_name: JSON.stringify(updatedParsed) };
+                        } catch(e) {
+                            return { ...item, item_name: JSON.stringify({ name: editForm.name.trim(), meal_slot: editForm.meal_slot, qty: editForm.qty }) };
+                        }
+                    }
+                    return item;
+                }));
+
+                toast.success('Item actualizado');
+            }
+            setItemToEdit(null);
+        } catch(err) {
+            console.error('Error saving item:', err);
+            toast.error('Error al guardar el item');
+        }
+    };
+
     // Generamos la lista plana y luego la categorizamos (Solo para fallback)
     const categorizedList = useMemo(() => {
         if (!planData || customItems.length > 0) return {};
@@ -335,39 +442,73 @@ const ShoppingList = () => {
 
     // Procesar items custom (IA JSON vs legacy)
     const customStructured = useMemo(() => {
-        const categories = {};
+        const slots = {
+            "Desayuno": { emoji: '🍳', items: [] },
+            "Almuerzo": { emoji: '🍛', items: [] },
+            "Merienda": { emoji: '🍎', items: [] },
+            "Cena": { emoji: '🥗', items: [] },
+            "Despensa General": { emoji: '🛒', items: [] },
+            "Suplementos": { emoji: '💊', items: [] }
+        };
         const standalone = [];
         
         customItems.forEach(item => {
+            let parsedName = item.item_name;
+            let qtyStr = item.qty || "";
+            let mealSlotStr = item.meal_slot;
+            let emojiStr = item.emoji;
+            let isStructured = false;
+
             try {
                 const parsed = JSON.parse(item.item_name);
-                if (parsed && parsed.category) {
-                    const cat = parsed.category;
-                    if (!categories[cat]) categories[cat] = { emoji: parsed.emoji || '🛒', items: [] };
+                if (parsed && typeof parsed === 'object') {
+                    parsedName = parsed.name || item.item_name;
+                    qtyStr = parsed.qty || qtyStr;
+                    mealSlotStr = mealSlotStr || parsed.meal_slot;
+                    emojiStr = emojiStr || parsed.emoji;
+                    isStructured = true;
                     
-                    let displayQty = parsed.qty || item.qty || "";
                     if (daysToShop === 7) {
-                        displayQty = parsed.qty_7 || displayQty;
+                        qtyStr = parsed.qty_7 || qtyStr;
                     } else if (daysToShop === 15) {
-                        displayQty = parsed.qty_15 || parsed.qty_7 || displayQty;
-                        if (!parsed.qty_15 && displayQty) displayQty = scaleQuantityString(displayQty, 2);
+                        qtyStr = parsed.qty_15 || parsed.qty_7 || qtyStr;
+                        if (!parsed.qty_15 && qtyStr) qtyStr = scaleQuantityString(qtyStr, 2);
                     } else if (daysToShop === 30) {
-                        displayQty = parsed.qty_30 || parsed.qty_15 || parsed.qty_7 || displayQty;
-                        if (!parsed.qty_30 && displayQty) displayQty = scaleQuantityString(displayQty, 4);
+                        qtyStr = parsed.qty_30 || parsed.qty_15 || parsed.qty_7 || qtyStr;
+                        if (!parsed.qty_30 && qtyStr) qtyStr = scaleQuantityString(qtyStr, 4);
                     }
-                    
-                    const label = (displayQty && displayQty.trim() !== "") 
-                        ? `${displayQty} ${parsed.name}` 
-                        : parsed.name;
-                    
-                    categories[cat].items.push({ id: item.id, name: parsed.name, qty: displayQty, label, raw: item });
-                } else {
-                    standalone.push(item);
                 }
             } catch(error) {
-                standalone.push(item);
+                // Not JSON, fallback to raw string
+            }
+
+            const slotName = mealSlotStr || 'Despensa General';
+            if (!slots[slotName]) slots[slotName] = { emoji: emojiStr || '🛒', items: [] };
+
+            const displayQty = item.qty || qtyStr;
+            const label = (displayQty && displayQty.trim() !== "") 
+                ? `${displayQty} ${parsedName}` 
+                : parsedName;
+
+            slots[slotName].items.push({ 
+                id: item.id, 
+                name: parsedName, 
+                qty: displayQty, 
+                meal_slot: slotName,
+                emoji: emojiStr,
+                label, 
+                raw: item 
+            });
+        });
+
+        // Solo mantener los slots que tienen items
+        const categories = {};
+        Object.entries(slots).forEach(([name, data]) => {
+            if (data.items.length > 0) {
+                categories[name] = data;
             }
         });
+
         return { categories, standalone };
     }, [customItems, daysToShop]);
 
@@ -554,8 +695,9 @@ const ShoppingList = () => {
         }
     };
 
-    const handleRegenerate = async () => {
-        if (!window.confirm('¿Estás seguro de regenerar? Esto borrará tu lista actual (y tus marcas de chequeo) para crear una nueva basada en tu plan.')) return;
+    const handleRegenerate = () => setConfirmRegenerate(true);
+
+    const executeRegenerate = async () => {
         
         setIsGenerating(true);
         // Desplazar arriba
@@ -683,7 +825,23 @@ const ShoppingList = () => {
 
                             {/* Regenerate and PDF buttons - desktop only (on mobile they're in the hero) */}
                             <div className="hide-mobile control-group" style={{ display: 'flex', gap: '0.5rem' }}>
-                                <div style={{ width: '1px', height: '24px', background: '#E2E8F0', marginRight: '0.5rem' }} />
+                                <button
+                                    onClick={handleRegenerate}
+                                    className="btn-secondary"
+                                    style={{ background: '#FFF1F2', color: '#E11D48', borderColor: '#FECDD3' }}
+                                    title="Forzar actualización desde el plan"
+                                >
+                                    <RefreshCw size={18} /> Reorganizar
+                                </button>
+                                <div style={{ width: '1px', height: '24px', background: '#E2E8F0', margin: '0 0.25rem' }} />
+                                <button
+                                    onClick={handleOpenAdd}
+                                    className="btn-secondary"
+                                    style={{ background: '#EEF2FF', color: '#4F46E5', borderColor: '#C7D2FE' }}
+                                >
+                                    <Plus size={18} /> Añadir Item
+                                </button>
+                                <div style={{ width: '1px', height: '24px', background: '#E2E8F0', margin: '0 0.25rem' }} />
                                 <button
                                     onClick={handleDownloadPDF}
                                     className="btn-secondary"
@@ -691,6 +849,24 @@ const ShoppingList = () => {
                                     <Download size={18} /> PDF
                                 </button>
                             </div>
+                        </div>
+                    )}
+                    
+                    {/* Add Button for Mobile (Floating logic or under the panel) */}
+                    {totalItems > 0 && isMobile && (
+                        <div style={{ padding: '0 1rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <button
+                                onClick={handleRegenerate}
+                                style={{ width: '100%', padding: '0.8rem', background: '#FFF1F2', color: '#E11D48', border: '1px solid #FECDD3', borderRadius: '0.75rem', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                            >
+                                <RefreshCw size={18} /> Reorganizar por Comidas
+                            </button>
+                            <button
+                                onClick={handleOpenAdd}
+                                style={{ width: '100%', padding: '0.8rem', background: '#EEF2FF', color: '#4F46E5', border: '1px dashed #A5B4FC', borderRadius: '0.75rem', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                            >
+                                <Plus size={18} /> Añadir Ingrediente
+                            </button>
                         </div>
                     )}
 
@@ -793,16 +969,28 @@ const ShoppingList = () => {
                                                                     )}
                                                                 </div>
                                                             </div>
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleDeleteCustomItem(structItem); }}
-                                                                className="btn-secondary no-print shopping-item-delete-btn"
-                                                                style={{ padding: '0.4rem', borderRadius: '0.5rem', border: 'none', background: 'transparent' }}
-                                                                onMouseEnter={(e) => { e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.background = '#FEE2E2'; }}
-                                                                onMouseLeave={(e) => { e.currentTarget.style.color = '#475569'; e.currentTarget.style.background = 'transparent'; }}
-                                                                title="Eliminar item"
-                                                            >
-                                                                <X size={16} strokeWidth={2.5}/>
-                                                            </button>
+                                                            <div style={{ display: 'flex', gap: '0.25rem' }} className="no-print">
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleOpenEdit(structItem); }}
+                                                                    className="btn-secondary shopping-item-delete-btn"
+                                                                    style={{ padding: '0.4rem', borderRadius: '0.5rem', border: 'none', background: 'transparent' }}
+                                                                    onMouseEnter={(e) => { e.currentTarget.style.color = '#3B82F6'; e.currentTarget.style.background = '#EFF6FF'; }}
+                                                                    onMouseLeave={(e) => { e.currentTarget.style.color = '#475569'; e.currentTarget.style.background = 'transparent'; }}
+                                                                    title="Editar item"
+                                                                >
+                                                                    <Edit2 size={16} strokeWidth={2.5}/>
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleDeleteCustomItem(structItem); }}
+                                                                    className="btn-secondary shopping-item-delete-btn"
+                                                                    style={{ padding: '0.4rem', borderRadius: '0.5rem', border: 'none', background: 'transparent' }}
+                                                                    onMouseEnter={(e) => { e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.background = '#FEE2E2'; }}
+                                                                    onMouseLeave={(e) => { e.currentTarget.style.color = '#475569'; e.currentTarget.style.background = 'transparent'; }}
+                                                                    title="Eliminar item"
+                                                                >
+                                                                    <X size={16} strokeWidth={2.5}/>
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     );
                                                 })}
@@ -994,6 +1182,116 @@ const ShoppingList = () => {
                                 onMouseLeave={(e) => { e.currentTarget.style.background = '#FEF2F2'; }}
                             >
                                 🚫 No me gusta (Evitar en el futuro)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* --- MODAL PARA CONFIRMAR REGENERACIÓN --- */}
+            {confirmRegenerate && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', animation: 'fadeIn 0.2s ease-out' }}>
+                    <div style={{ background: '#ffffff', borderRadius: '1.25rem', width: '100%', maxWidth: '380px', padding: '1.5rem', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{ background: '#FEE2E2', color: '#EF4444', padding: '0.5rem', borderRadius: '0.75rem', display: 'flex' }}>
+                                    <RefreshCw size={24} />
+                                </div>
+                                <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0F172A', fontWeight: 800 }}>
+                                    ¿Reorganizar Lista?
+                                </h3>
+                            </div>
+                            <button onClick={() => setConfirmRegenerate(false)} style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '0.25rem', borderRadius: '0.5rem', display: 'flex' }} onMouseEnter={(e) => e.currentTarget.style.background = '#F1F5F9'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        
+                        <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: '1.5', margin: '0 0 1.5rem 0' }}>
+                            Esto borrará tu lista actual (y tus marcas de chequeo) para agrupar los ingredientes según los Tiempos de Comida de tu plan activo.
+                        </p>
+                        
+                        <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            <button 
+                                onClick={() => setConfirmRegenerate(false)}
+                                style={{ flex: 1, padding: '0.85rem', background: '#F1F5F9', color: '#475569', borderRadius: '0.75rem', fontWeight: '600', border: 'none', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+                                onMouseEnter={(e) => e.currentTarget.style.background = '#E2E8F0'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = '#F1F5F9'}
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    setConfirmRegenerate(false);
+                                    executeRegenerate();
+                                }}
+                                style={{ flex: 1, padding: '0.85rem', background: '#EF4444', color: '#fff', borderRadius: '0.75rem', fontWeight: '600', border: 'none', fontSize: '0.95rem', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
+                                onMouseEnter={(e) => e.currentTarget.style.background = '#DC2626'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = '#EF4444'}
+                            >
+                                Reorganizar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL PARA AÑADIR / EDITAR ITEM --- */}
+            {itemToEdit && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', animation: 'fadeIn 0.2s ease-out' }}>
+                    <div style={{ background: '#ffffff', borderRadius: '1.25rem', width: '100%', maxWidth: '380px', padding: '1.5rem', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0F172A', fontWeight: 800 }}>
+                                {itemToEdit.isNew ? 'Añadir Ingrediente' : 'Editar Ingrediente'}
+                            </h3>
+                            <button onClick={() => setItemToEdit(null)} style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '0.25rem', borderRadius: '0.5rem', display: 'flex' }} onMouseEnter={(e) => e.currentTarget.style.background = '#F1F5F9'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Nombre del Ingrediente</label>
+                                <input 
+                                    type="text" 
+                                    value={editForm.name}
+                                    onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                                    placeholder="Ej: Tomate barcelo"
+                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #CBD5E1', fontSize: '0.95rem' }}
+                                />
+                            </div>
+                            
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Cantidad ({daysToShop} días)</label>
+                                <input 
+                                    type="text" 
+                                    value={editForm.qty}
+                                    onChange={(e) => setEditForm(prev => ({ ...prev, qty: e.target.value }))}
+                                    placeholder="Ej: 5 lbs o 3 unidades"
+                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #CBD5E1', fontSize: '0.95rem' }}
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Momento de Comida</label>
+                                <select 
+                                    value={editForm.meal_slot}
+                                    onChange={(e) => setEditForm(prev => ({ ...prev, meal_slot: e.target.value }))}
+                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #CBD5E1', fontSize: '0.95rem', background: '#fff' }}
+                                >
+                                    <option value="Desayuno">Desayuno</option>
+                                    <option value="Almuerzo">Almuerzo</option>
+                                    <option value="Merienda">Merienda</option>
+                                    <option value="Cena">Cena</option>
+                                    <option value="Despensa General">Despensa General</option>
+                                    <option value="Suplementos">Suplementos</option>
+                                </select>
+                            </div>
+
+                            <button 
+                                onClick={handleSaveEdit}
+                                style={{ marginTop: '0.5rem', padding: '0.85rem', background: '#4F46E5', color: '#fff', borderRadius: '0.5rem', fontWeight: '600', border: 'none', fontSize: '1rem', cursor: 'pointer' }}
+                            >
+                                {itemToEdit.isNew ? 'Añadir' : 'Guardar Cambios'}
                             </button>
                         </div>
                     </div>
