@@ -1524,7 +1524,9 @@ const AgentPage = () => {
                 {/* Mensajes o Pantalla Principal (Gemini Style) */}
                 <div className="messages-container" style={{
                     flex: 1,
-                    padding: messages.length === 0 ? 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 1.5rem 0 1.5rem' : 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 2rem 0.5rem 2rem', 
+                    padding: messages.length === 0 
+                        ? 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 1.5rem 0 1.5rem' 
+                        : 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 2rem calc(100px + env(safe-area-inset-bottom)) 2rem', 
                     overflowY: 'auto',
                     display: 'flex',
                     flexDirection: 'column',
