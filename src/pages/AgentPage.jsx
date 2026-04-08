@@ -1768,7 +1768,10 @@ const AgentPage = () => {
                     }
                     /* --- Messages area --- */
                     .messages-container {
-                        padding: 1rem 1rem 1rem 1rem !important;
+                        padding-left: 1rem !important;
+                        padding-right: 1rem !important;
+                        padding-top: calc(3.5rem + max(env(safe-area-inset-top), 24px)) !important;
+                        padding-bottom: 0.5rem !important;
                         background: #ffffff !important;
                         -ms-overflow-style: none;
                         scrollbar-width: none;
