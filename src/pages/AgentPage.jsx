@@ -1080,52 +1080,58 @@ const AgentPage = () => {
                             >
                                 <Square size={16} fill="white" />
                             </button>
-                        ) : (input.trim() || selectedFile) ? (
-                            <button
-                                className="touch-scale"
-                                onClick={handleSend}
-                                disabled={isLoading}
-                                style={{
-                                    background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '50%',
-                                    width: '40px',
-                                    height: '40px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: isLoading ? 'default' : 'pointer',
-                                    flexShrink: 0,
-                                    marginLeft: 'auto',
-                                    marginRight: '2px'
-                                }}
-                            >
-                                <ArrowUp size={22} strokeWidth={2.5} />
-                            </button>
                         ) : (
-                            <button
-                                className="touch-scale"
-                                onClick={toggleDictation}
-                                style={{
-                                    background: isListening ? '#ef4444' : 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '50%',
-                                    width: '40px',
-                                    height: '40px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: isLoading ? 'default' : 'pointer',
-                                    flexShrink: 0,
-                                    marginLeft: 'auto',
-                                    marginRight: '2px'
-                                }}
-                                title="Dictado por voz"
-                            >
-                                <Mic size={20} className={isListening ? "pulse-anim-mic" : ""} />
-                            </button>
+                            <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto', alignItems: 'center' }}>
+                                {(!input.trim() || isListening) && (
+                                    <button
+                                        type="button"
+                                        aria-label="Dictado por voz"
+                                        className="touch-scale"
+                                        onClick={toggleDictation}
+                                        style={{
+                                            background: isListening ? '#ef4444' : 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '50%',
+                                            width: '40px',
+                                            height: '40px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: isLoading ? 'default' : 'pointer',
+                                            flexShrink: 0
+                                        }}
+                                        title="Dictado por voz"
+                                    >
+                                        <Mic size={20} className={isListening ? "pulse-anim-mic" : ""} />
+                                    </button>
+                                )}
+                                {(input.trim() || selectedFile) && (
+                                    <button
+                                        type="button"
+                                        aria-label="Enviar"
+                                        className="touch-scale"
+                                        onClick={handleSend}
+                                        disabled={isLoading}
+                                        style={{
+                                            background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '50%',
+                                            width: '40px',
+                                            height: '40px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: isLoading ? 'default' : 'pointer',
+                                            flexShrink: 0,
+                                            marginRight: '2px'
+                                        }}
+                                    >
+                                        <ArrowUp size={22} strokeWidth={2.5} />
+                                    </button>
+                                )}
+                            </div>
                         )}
                     </div>
                 </div>
