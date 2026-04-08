@@ -1042,6 +1042,7 @@ const AgentPage = () => {
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
                             placeholder="Pregúntale a MealfitRD"
+                            onFocus={() => setTimeout(scrollToBottom, 300)}
                             style={{
                                 flex: 1,
                                 background: 'transparent',
@@ -1148,6 +1149,7 @@ const AgentPage = () => {
         const handleResize = () => {
             const offset = window.innerHeight - vv.height;
             setKeyboardOffset(offset > 50 ? offset : 0);
+            setTimeout(scrollToBottom, 50);
         };
         vv.addEventListener('resize', handleResize);
         vv.addEventListener('scroll', handleResize);
