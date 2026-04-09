@@ -385,10 +385,7 @@ const AgentPage = () => {
     };
 
     const clearSelectedFile = () => {
-        setPreviewUrl(prev => {
-            if (prev) URL.revokeObjectURL(prev);
-            return null;
-        });
+        setPreviewUrl(null);
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
@@ -725,16 +722,21 @@ const AgentPage = () => {
                     uploadedImageUrl = uploadData.image_url;
                 }
                 
-                if (!userMsg) {
-                    // Update base64 to actual URL for the current session state
-                    setMessages(prev => {
-                        const updated = [...prev];
-                        if (updated.length > 0 && updated[updated.length - 1].isImage) {
-                            updated[updated.length - 1].imageUrl = uploadedImageUrl || updated[updated.length - 1].imageUrl;
+                // Update temporary local preview URL to actual server URL
+                setMessages(prev => {
+                    const updated = [...prev];
+                    let lastUserMsgIdx = -1;
+                    for (let i = updated.length - 1; i >= 0; i--) {
+                        if (updated[i].role === 'user') {
+                            lastUserMsgIdx = i;
+                            break;
                         }
-                        return updated;
-                    });
-                }
+                    }
+                    if (lastUserMsgIdx !== -1 && updated[lastUserMsgIdx].isImage) {
+                        updated[lastUserMsgIdx].imageUrl = uploadedImageUrl || updated[lastUserMsgIdx].imageUrl;
+                    }
+                    return updated;
+                });
             }
 
             // Interactuar por el chat normal SIEMPRE (incluso si solo hay imagen)
