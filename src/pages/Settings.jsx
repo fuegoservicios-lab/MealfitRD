@@ -593,6 +593,9 @@ const Settings = () => {
                                                 letterSpacing: '0.5px',
                                                 textTransform: 'uppercase'
                                             }}>NUEVO</span>
+                                            {!['plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase()) && (
+                                                <span style={{ fontSize: '0.85rem' }} title="Requiere Plan Plus o Ultra">🔒</span>
+                                            )}
                                         </div>
                                         <div style={{ fontSize: '0.78rem', color: '#92400E', lineHeight: '1.45', marginTop: '0.25rem' }}>
                                             Renovar tus platos diarios tomando en cuenta tus nuevos gustos.
@@ -603,7 +606,18 @@ const Settings = () => {
                                     <input
                                         type="checkbox"
                                         checked={autoRotateMeals}
-                                        onChange={() => setAutoRotateMeals(!autoRotateMeals)}
+                                        onChange={() => {
+                                            const tier = (userProfile?.plan_tier || '').toLowerCase();
+                                            const isPlusOrHigher = ['plus', 'ultra', 'admin'].includes(tier);
+                                            if (!isPlusOrHigher) {
+                                                toast.error("Función exclusiva de planes Premium", {
+                                                    description: "Mejora a Plus o Ultra para usar la Rotación Autónoma.",
+                                                    icon: "🔒"
+                                                });
+                                                return;
+                                            }
+                                            setAutoRotateMeals(!autoRotateMeals);
+                                        }}
                                     />
                                     <span className={styles.toggleSlider}></span>
                                 </label>
@@ -801,7 +815,16 @@ const Settings = () => {
                         </p>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {isLoadingFacts ? (
+                            {!['basic', 'plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase()) ? (
+                                <div style={{ textAlign: 'center', color: '#94A3B8', padding: '2.5rem 1.5rem', background: '#F8FAFC', borderRadius: '1rem', border: '1px dashed #CBD5E1' }}>
+                                    <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔒</div>
+                                    <h3 style={{ margin: '0 0 0.5rem 0', color: '#334155' }}>Memoria a Largo Plazo</h3>
+                                    <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5, color: '#64748B' }}>
+                                        El Cerebro IA está disponible a partir del plan <strong>Básico</strong>.<br />
+                                        La IA aprenderá de tus gustos y conversaciones automáticamente.
+                                    </p>
+                                </div>
+                            ) : isLoadingFacts ? (
                                 <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', background: '#F8FAFC', borderRadius: '1rem' }}>
                                     Conectando con el Cerebro Neural...
                                 </div>
@@ -847,7 +870,7 @@ const Settings = () => {
                                             }}
                                             onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'}
                                             onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                                            title="Olvidar Dator"
+                                            title="Olvidar Dato"
                                         >
                                             <Trash2 size={18} />
                                         </button>

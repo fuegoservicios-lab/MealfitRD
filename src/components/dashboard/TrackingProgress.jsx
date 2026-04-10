@@ -6,7 +6,13 @@ import { fetchWithAuth } from '../../config/api';
 import styles from './TrackingProgress.module.css';
 
 const TrackingProgress = ({ planData, userId }) => {
-    const { isPlus } = useAssessment();
+    const { userProfile } = useAssessment();
+    const tierRank = (() => {
+        const tier = (userProfile?.plan_tier || '').toLowerCase();
+        const rankMap = { 'gratis': 1, 'basic': 2, 'plus': 3, 'ultra': 4, 'admin': 5 };
+        return rankMap[tier] || 1;
+    })();
+
     const [consumed, setConsumed] = useState({
         calories: 0,
         protein: 0,
@@ -79,8 +85,8 @@ const TrackingProgress = ({ planData, userId }) => {
 
     return (
         <div className={styles.card}>
-            {/* Overlay para Plan Gratis */}
-            {!isPlus && (
+            {/* Overlay para Plan Gratis o Básico */}
+            {tierRank < 3 && (
                 <div className={styles.premiumOverlay}>
                     <div className={styles.premiumBox}>
                         <div style={{

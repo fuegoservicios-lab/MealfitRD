@@ -804,7 +804,7 @@ export const AssessmentProvider = ({ children }) => {
         }
     };
 
-    const isPlus = ['basic', 'plus', 'admin', 'ultra'].includes(userProfile?.plan_tier);
+    const isPremium = ['basic', 'plus', 'admin', 'ultra'].includes(userProfile?.plan_tier);
 
     let userPlanLimit = PLAN_LIMIT;
     if (userProfile?.plan_tier === 'basic') userPlanLimit = 50;
@@ -836,7 +836,7 @@ export const AssessmentProvider = ({ children }) => {
             PLAN_LIMIT,
             userPlanLimit,
             checkPlanLimit,
-            isPlus,
+            isPremium,
             remainingCredits: typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : '∞',
             upgradeUserPlan,
             restorePlan,

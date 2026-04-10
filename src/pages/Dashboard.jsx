@@ -28,7 +28,7 @@ const Dashboard = () => {
         PLAN_LIMIT,
         userPlanLimit,
         remainingCredits,
-        isPlus,
+        isPremium,
         userProfile,
         loadingData,
         setCurrentStep,
@@ -145,7 +145,16 @@ const Dashboard = () => {
         // Desactivado por defecto si no existe la clave para que sea puramente opcional
         const autoRotateEnabled = autoRotateSaved !== null ? autoRotateSaved === 'true' : false;
 
-        if (autoRotateEnabled) {
+        const tier = (userProfile?.plan_tier || '').toLowerCase();
+        const isPlusOrHigher = ['plus', 'ultra', 'admin'].includes(tier);
+
+        if (autoRotateEnabled && !isPlusOrHigher) {
+            // Self-healing: Apagar rotación si el usuario ya no es premium (ej: expiró suscripción)
+            localStorage.setItem('mealfit_auto_rotate', 'false');
+            return;
+        }
+
+        if (autoRotateEnabled && isPlusOrHigher) {
             const today = new Date().toLocaleDateString();
             const lastRotation = localStorage.getItem('mealfit_last_auto_rotation');
 
@@ -1024,12 +1033,12 @@ const Dashboard = () => {
                             fontWeight: '800',
                             letterSpacing: '0.05em',
                             textTransform: 'uppercase',
-                            background: isPlus ? 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' : '#F8FAFC',
-                            color: isPlus ? '#B45309' : '#64748B',
-                            border: `1px solid ${isPlus ? '#FCD34D' : '#E2E8F0'}`,
+                            background: isPremium ? 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' : '#F8FAFC',
+                            color: isPremium ? '#B45309' : '#64748B',
+                            border: `1px solid ${isPremium ? '#FCD34D' : '#E2E8F0'}`,
                             boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                         }}>
-                            {isPlus ? (userProfile?.plan_tier === 'ultra' ? 'ULTRA' : userProfile?.plan_tier === 'basic' ? 'BÁSICO' : 'PLUS') : 'GRATUITO'}
+                            {isPremium ? (userProfile?.plan_tier === 'ultra' ? 'ULTRA' : userProfile?.plan_tier === 'basic' ? 'BÁSICO' : 'PLUS') : 'GRATUITO'}
                         </span>
                     </div>
 
@@ -1256,7 +1265,7 @@ const Dashboard = () => {
                                 const isLiked = meal.name ? !!likedMeals[meal.name] : false;
 
                                 if (isSkippedLunch) {
-                                    if (isPlus) {
+                                    if (isPremium) {
                                         return (
                                             <div key={index} style={{
                                                 background: 'linear-gradient(135deg, rgba(239, 246, 255, 0.8), rgba(219, 234, 254, 0.5))',

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Lock, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
+import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
 import { SidebarRecientes } from '../components/agent/SidebarRecientes';
@@ -193,7 +194,7 @@ const compressImageFile = (file, maxWidth = 1200, quality = 0.8) => {
 };
 
 const AgentPage = () => {
-    const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, isPlus, checkPlanLimit } = useAssessment();
+    const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, isPremium, checkPlanLimit } = useAssessment();
     const navigate = useNavigate();
     const [titlePollCount, setTitlePollCount] = useState(0);
     const [showNavMenu, setShowNavMenu] = useState(false);
@@ -201,6 +202,11 @@ const AgentPage = () => {
 
     // IsMobile detection para asegurar sobrescritura inline a prueba de fallos de iOS
     const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 1024 : false);
+
+    // Determinar nivel del plan
+    const tier = (userProfile?.plan_tier || 'gratis').toLowerCase().trim();
+    const tierRank = tier === 'admin' ? 5 : tier === 'ultra' ? 4 : tier === 'plus' ? 3 : tier === 'basic' ? 2 : 1;
+
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth <= 1024);
@@ -1384,6 +1390,14 @@ const AgentPage = () => {
                             className={`attachment-btn ${isLoading ? 'disabled' : ''}`}
                             disabled={isLoading}
                             onClick={() => {
+                                const tier = (userProfile?.plan_tier || '').toLowerCase();
+                                if (tier === 'gratis') {
+                                    toast.error("Requiere Plan Básico", {
+                                        description: "Mejora a Básico o superior para el Asistente con Visión.",
+                                        icon: "🔒"
+                                    });
+                                    return;
+                                }
                                 if (fileInputRef.current) {
                                     fileInputRef.current.value = '';
                                     fileInputRef.current.click();
@@ -1665,7 +1679,7 @@ const AgentPage = () => {
                     </div>
                 )}
                 {/* Overlay para Plan Gratis */}
-                {!isPlus && (
+                {tierRank < 2 && (
                     <div style={{
                         position: 'absolute',
                         top: 0,
@@ -1699,7 +1713,7 @@ const AgentPage = () => {
                             </div>
                             <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.75rem', marginTop: 0 }}>Función Premium</h3>
                             <p style={{ fontSize: '0.95rem', color: '#64748B', lineHeight: 1.5, margin: 0 }}>
-                                Tu Asistente Experto Nutricional requiere una suscripción Plus. ¡Mejora tu plan!
+                                Tu Asistente Experto Nutricional requiere una suscripción Básico o superior. ¡Mejora tu plan en ajustes!
                             </p>
                         </div>
                     </div>

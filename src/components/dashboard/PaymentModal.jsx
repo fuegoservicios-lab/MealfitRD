@@ -3,7 +3,7 @@ import { X, ShieldCheck, CreditCard, Sparkles, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import PropTypes from 'prop-types';
 
-const PaymentModal = ({ isOpen, onClose, onSuccess, price = "25.00", planName = "Suscripción Plus", tier = "plus" }) => {
+const PaymentModal = ({ isOpen, onClose, onSuccess, price = "25.00", planName = "Suscripción Plus", tier = "plus", isAnnual = false }) => {
 
     // Configuración de PayPal para suscripciones
     const initialOptions = {
@@ -15,9 +15,16 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, price = "25.00", planName = 
 
     // Mapeo seguro de Plan IDs desde tu .env de React o fallbacks hardcoded de Producción
     const PLAN_IDS = {
-        basic: import.meta.env.VITE_PAYPAL_PLAN_BASIC || "P-3EC609010T222652UNHGGQSY",
-        plus: import.meta.env.VITE_PAYPAL_PLAN_PLUS || "P-2N87184189425672JNHGGS4I",
-        ultra: import.meta.env.VITE_PAYPAL_PLAN_ULTRA || "P-0D041124VT473392JNHGGTUI"
+        monthly: {
+            basic: import.meta.env.VITE_PAYPAL_PLAN_BASIC_MONTHLY || import.meta.env.VITE_PAYPAL_PLAN_BASIC || "P-3EC609010T222652UNHGGQSY",
+            plus: import.meta.env.VITE_PAYPAL_PLAN_PLUS_MONTHLY || import.meta.env.VITE_PAYPAL_PLAN_PLUS || "P-2N87184189425672JNHGGS4I",
+            ultra: import.meta.env.VITE_PAYPAL_PLAN_ULTRA_MONTHLY || import.meta.env.VITE_PAYPAL_PLAN_ULTRA || "P-0D041124VT473392JNHGGTUI"
+        },
+        annual: {
+            basic: import.meta.env.VITE_PAYPAL_PLAN_BASIC_ANNUAL || "P-ANNUAL_BASIC_PLACEHOLDER",
+            plus: import.meta.env.VITE_PAYPAL_PLAN_PLUS_ANNUAL || "P-ANNUAL_PLUS_PLACEHOLDER",
+            ultra: import.meta.env.VITE_PAYPAL_PLAN_ULTRA_ANNUAL || "P-ANNUAL_ULTRA_PLACEHOLDER"
+        }
     };
 
     if (!isOpen) return null;
@@ -166,7 +173,7 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, price = "25.00", planName = 
                                 ${price}
                             </span>
                             <span style={{ fontSize: '1rem', fontWeight: 500, color: '#64748B', marginLeft: '0.25rem' }}>
-                                USD / mes
+                                {isAnnual ? 'USD / año' : 'USD / mes'}
                             </span>
                         </div>
                     </div>
@@ -183,10 +190,11 @@ const PaymentModal = ({ isOpen, onClose, onSuccess, price = "25.00", planName = 
                                     height: 48
                                 }}
                                 createSubscription={(data, actions) => {
-                                    const paypalPlanId = PLAN_IDS[tier];
+                                    const targetPeriod = isAnnual ? 'annual' : 'monthly';
+                                    const paypalPlanId = PLAN_IDS[targetPeriod][tier];
                                     if (paypalPlanId.includes("PLACEHOLDER")) {
-                                        alert("Error: Faltan los Plan IDs configurados en .env");
-                                        return actions.reject();
+                                        alert("Aviso: Aún no has configurado los Plan IDs Anuales en tu archivo .env. PayPal cancelará este intento.");
+                                        return Promise.reject(new Error("Plan ID Anual faltante"));
                                     }
                                     return actions.subscription.create({
                                         'plan_id': paypalPlanId
@@ -259,7 +267,8 @@ PaymentModal.propTypes = {
     onSuccess: PropTypes.func.isRequired,
     price: PropTypes.string,
     planName: PropTypes.string,
-    tier: PropTypes.string
+    tier: PropTypes.string,
+    isAnnual: PropTypes.bool
 };
 
 export default PaymentModal;

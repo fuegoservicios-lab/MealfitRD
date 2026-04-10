@@ -49,8 +49,8 @@ const Pricing = () => {
     const isUltra = currentTier === 'ultra';
 
     // Jerarquía de planes
-    const tierRank = { gratis: 0, basic: 1, plus: 2, ultra: 3, admin: 4 };
-    const currentRank = tierRank[currentTier];
+    const tierRank = { gratis: 1, basic: 2, plus: 3, ultra: 4, admin: 5 };
+    const currentRank = tierRank[currentTier] || 1;
 
     // Helper: obtener precio actual según billing period
     const getPrice = (tier) => PRICING[tier]?.[billingPeriod]?.price || '0';
@@ -68,7 +68,7 @@ const Pricing = () => {
 
     // Manejador del botón Planes Pagos
     const handleUpgradeClick = (tier, name) => {
-        const targetRank = tierRank[tier] || 0;
+        const targetRank = tierRank[tier] || 1;
 
         // Validacion de seguridad (aunque el boton este disabled)
         if (targetRank <= currentRank) {
@@ -78,7 +78,7 @@ const Pricing = () => {
         }
         const price = getPrice(tier);
         const periodSuffix = isAnnual ? ' (Anual)' : ' (Mensual)';
-        setSelectedPlan({ tier, price, name: name + periodSuffix });
+        setSelectedPlan({ tier, price, name: name + periodSuffix, isAnnual });
         setIsPaymentOpen(true);
     };
 
@@ -102,7 +102,7 @@ const Pricing = () => {
             return "Tu Plan Actual";
         }
 
-        const targetRank = tierRank[tier] || 0;
+        const targetRank = tierRank[tier] || 1;
         
         if (targetRank < currentRank) {
             return "Incluido en tu Plan";
@@ -116,7 +116,7 @@ const Pricing = () => {
         // Permitir click si no está autenticado (invitados eligiendo plan)
         if (!userProfile?.id) return false;
 
-        const targetRank = tierRank[tier] || 0;
+        const targetRank = tierRank[tier] || 1;
         
         // Deshabilitar el botón si es el plan actual
         if (currentTier === tier) return true;
@@ -138,6 +138,7 @@ const Pricing = () => {
                 price={selectedPlan?.price || "9.99"}
                 planName={selectedPlan?.name || "Suscripción Básico"}
                 tier={selectedPlan?.tier || "basic"}
+                isAnnual={selectedPlan?.isAnnual || false}
             />
 
             <div className={styles.container}>
@@ -174,7 +175,7 @@ const Pricing = () => {
                         <div className={styles.cardContent}>
                             <h3 className={styles.planName}>Gratis</h3>
                             <div className={styles.price}>
-                                <span className={styles.currency}>RD$</span>
+                                <span className={styles.currency}>USD$</span>
                                 <span className={styles.amount}>0</span>
                             </div>
                             <p className={styles.description}>
@@ -183,7 +184,9 @@ const Pricing = () => {
 
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>{PLAN_LIMIT} Créditos</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Recetas personalizadas</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Plan de Comidas Básico</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Recetas Personalizadas</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Lista de Compras Inteligente</strong></li>
                             </ul>
 
                             <button
@@ -213,9 +216,9 @@ const Pricing = () => {
 
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>50 Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Asistente Experto Nutricional</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Asistente con Visión</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Memoria a Largo Plazo</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Aprendizaje Continuo</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Lista Inteligente</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Gratis</strong></li>
                             </ul>
 
@@ -247,10 +250,12 @@ const Pricing = () => {
 
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>200 Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Analizador de Macros Exacto</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Progreso en Tiempo Real</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Control de Despensa</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Rotación Autónoma</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>IA Emocional</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Analizador de Macros</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Reportes de Progreso</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Básico</strong></li>
-                                <li><Check size={18} className={styles.check} /> Soporte Prioritario</li>
                             </ul>
 
                             <button
@@ -281,11 +286,10 @@ const Pricing = () => {
                             </p>
 
                             <ul className={styles.features}>
-                                <li><Check size={18} className={styles.check} /> <strong>Dietas y planes ilimitados</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Asistencia Ilimitada</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Reportes de progreso detallados</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Dietas y Créditos Ilimitados</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Generación sin límites</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Soporte Prioritario VIP</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Plus</strong></li>
-                                <li><Check size={18} className={styles.check} /> Atención Exclusiva</li>
                             </ul>
 
                             <button
