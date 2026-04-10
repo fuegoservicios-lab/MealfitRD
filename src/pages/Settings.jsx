@@ -28,9 +28,26 @@ const Settings = () => {
     const [isPushLoading, setIsPushLoading] = useState(false);
 
     useEffect(() => {
-        if (isPushSupported() && 'Notification' in window) {
-            setPushEnabled(Notification.permission === 'granted');
-        }
+        const checkSubscription = async () => {
+            if (isPushSupported() && 'Notification' in window) {
+                // Si el permiso está denegado o por defecto, sabemos que es falso
+                if (Notification.permission !== 'granted') {
+                    setPushEnabled(false);
+                    return;
+                }
+                
+                // Si está concedido, tenemos que verificar si hay una suscripción activa
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const subscription = await registration.pushManager.getSubscription();
+                    setPushEnabled(!!subscription);
+                } catch (e) {
+                    console.error("Error checking subscription:", e);
+                    setPushEnabled(false);
+                }
+            }
+        };
+        checkSubscription();
     }, []);
 
     // CORRECCIÓN: Inicialización Lazy para evitar conflictos de renderizado

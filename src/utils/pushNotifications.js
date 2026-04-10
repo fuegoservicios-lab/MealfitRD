@@ -89,13 +89,19 @@ export const unsubscribeFromPushNotifications = async () => {
         const subscription = await registration.pushManager.getSubscription();
         
         if (subscription) {
-            await fetchWithAuth('/api/notifications/unsubscribe', {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ endpoint: subscription.endpoint })
-            });
+            try {
+                // Notificar al backend pero no bloquear si el backend falla
+                await fetchWithAuth('/api/notifications/unsubscribe', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ endpoint: subscription.endpoint })
+                });
+            } catch (backendErr) {
+                console.error("No se pudo notificar al backend de la desuscripción:", backendErr);
+            }
+            
             await subscription.unsubscribe();
         }
         return true;
