@@ -132,8 +132,6 @@ const Settings = () => {
     
     const handleTogglePush = async () => {
         try {
-            toast.info("Procesando...");
-
             if (!isPushSupported()) {
                 toast.error("Tu navegador no soporta notificaciones Push.");
                 return;
