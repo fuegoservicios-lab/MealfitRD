@@ -333,42 +333,91 @@ const AgentPage = () => {
     const isLoadingRef = useRef(isLoading);
     useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
 
-    const synthRef = useRef(typeof window !== 'undefined' ? window.speechSynthesis : null);
-    
+    // --- NATIVE TTS AUDIO ENGINE (ELEVENLABS) ---
+    const ttsQueue = useRef([]);
+    const isPlayingAudio = useRef(false);
+    const currentAudioRef = useRef(null);
+
+    const processTTSQueue = async () => {
+        if (isPlayingAudio.current || ttsQueue.current.length === 0) return;
+        
+        isPlayingAudio.current = true;
+        const textToSpeechChunk = ttsQueue.current.shift();
+        
+        isSpeakingRef.current = true;
+        setIsSpeaking(true);
+        
+        try {
+            const response = await fetchWithAuth('/api/chat/tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: textToSpeechChunk })
+            });
+
+            if (!response.ok) throw new Error("TTS fetch failed");
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            
+            // Fix iOS mute constraint: ensure it plays as audio
+            audio.playsInline = true;
+            
+            currentAudioRef.current = audio;
+            
+            audio.onended = () => {
+                URL.revokeObjectURL(url);
+                isPlayingAudio.current = false;
+                currentAudioRef.current = null;
+                
+                if (ttsQueue.current.length === 0) {
+                    isSpeakingRef.current = false;
+                    setIsSpeaking(false);
+                    setTimeout(() => {
+                        if (callModeRef.current && !isLoadingRef.current) {
+                            try { recognitionRef.current?.start(); } catch(e){}
+                        }
+                    }, 50);
+                } else {
+                    processTTSQueue();
+                }
+            };
+            
+            await audio.play();
+            
+        } catch (error) {
+            console.error("TTS Play Error", error);
+            isPlayingAudio.current = false;
+            currentAudioRef.current = null;
+            if (ttsQueue.current.length === 0) {
+                isSpeakingRef.current = false;
+                setIsSpeaking(false);
+            } else {
+                processTTSQueue();
+            }
+        }
+    };
+
     const queueTTS = useCallback((text) => {
-        if (!synthRef.current) return;
         const cleanText = text.replace(/[*_#\[\]]/g, '').trim();
         if (!cleanText) return;
-        
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.lang = 'es-DO';
-        utterance.rate = 1.05; 
-        
-        utterance.onstart = () => {
-            isSpeakingRef.current = true; // Sincronización instantánea
-            setIsSpeaking(true);
-            // No detenemos recognition: permitimos interrupción (barge-in)
-        };
-        
-        utterance.onend = () => {
-            isSpeakingRef.current = false; // Sincronización instantánea
-            setIsSpeaking(false);
-            setTimeout(() => {
-                // Ensure mic restarts if it died while talking for some reason
-                if (!synthRef.current.speaking && callModeRef.current && !isLoadingRef.current) {
-                    try { recognitionRef.current?.start(); } catch(e){}
-                }
-            }, 100);
-        };
-        
-        synthRef.current.speak(utterance);
+        ttsQueue.current.push(cleanText);
+        processTTSQueue();
     }, []);
 
     const toggleCallMode = () => {
         if (isCallModeActive) {
             setIsCallModeActive(false);
             callModeRef.current = false;
-            if (synthRef.current) synthRef.current.cancel();
+            if (currentAudioRef.current) {
+                currentAudioRef.current.pause();
+                currentAudioRef.current.currentTime = 0;
+                currentAudioRef.current = null;
+            }
+            ttsQueue.current = [];
+            isPlayingAudio.current = false;
+            isSpeakingRef.current = false;
+            setIsSpeaking(false);
             if (recognitionRef.current) {
                 try { recognitionRef.current.stop(); } catch(e){}
             }
@@ -376,14 +425,12 @@ const AgentPage = () => {
             setIsCallModeActive(true);
             callModeRef.current = true;
             
-            // Hack para iOS/Móvil: Inicializar el motor TTS en el evento de clic del usuario
-            if (synthRef.current) {
-                try {
-                    const silentUtterance = new SpeechSynthesisUtterance(' ');
-                    silentUtterance.volume = 0;
-                    synthRef.current.speak(silentUtterance);
-                } catch(e) {}
-            }
+            // Hack para iOS/Móvil: Inicializar el Audio Context en el evento de clic
+            try {
+                const initAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+                initAudio.volume = 0.01;
+                initAudio.play().catch(()=>{});
+            } catch(e) {}
 
             if (!isListening) {
                 toggleDictation();
@@ -440,11 +487,18 @@ const AgentPage = () => {
             
             // --- BARGE-IN (Interrupción por voz) ---
             const hasRealLetters = newTextChunk.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, '').length > 0;
-            const isTTSActive = synthRef.current && (synthRef.current.speaking || synthRef.current.pending || isSpeakingRef.current);
+            const isTTSActive = isSpeakingRef.current || ttsQueue.current.length > 0 || isPlayingAudio.current;
             
             if (callModeRef.current && isTTSActive && hasRealLetters) {
                 // Si estábamos hablando y escuchamos al usuario decir una palabra real, callar IA y cancelar stream actual
-                if (synthRef.current) synthRef.current.cancel();
+                if (currentAudioRef.current) {
+                    currentAudioRef.current.pause();
+                    currentAudioRef.current.currentTime = 0;
+                    currentAudioRef.current = null;
+                }
+                ttsQueue.current = [];
+                isPlayingAudio.current = false;
+                isSpeakingRef.current = false;
                 if (abortControllerRef.current) abortControllerRef.current.abort();
                 setIsSpeaking(false);
                 setIsLoading(false);
