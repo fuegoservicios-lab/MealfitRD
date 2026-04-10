@@ -498,26 +498,6 @@ const Settings = () => {
                             </h2>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 0', borderBottom: '1px solid #F1F5F9' }}>
-                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1, paddingRight: '1rem' }}>
-                                        <div style={{ background: '#F8FAFC', padding: '0.6rem', borderRadius: '0.5rem', flexShrink: 0, border: '1px solid #F1F5F9' }}>
-                                            <Bell size={18} color="#64748B" />
-                                        </div>
-                                        <div>
-                                            <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Alertas de la App</div>
-                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4', marginTop: '0.1rem' }}>Te avisa internamente a la hora de comer</div>
-                                        </div>
-                                    </div>
-                                    <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={notifications}
-                                            onChange={() => setNotifications(!notifications)}
-                                        />
-                                        <span className={styles.toggleSlider}></span>
-                                    </label>
-                                </div>
-                                
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 0' }}>
                                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1, paddingRight: '1rem' }}>
                                         <div style={{ background: 'linear-gradient(135deg, #F5F3FF 0%, #EEF2FF 100%)', padding: '0.6rem', borderRadius: '0.5rem', flexShrink: 0, border: '1px solid #E0E7FF' }}>
@@ -525,10 +505,10 @@ const Settings = () => {
                                         </div>
                                         <div>
                                             <div style={{ fontWeight: 600, color: 'var(--text-main)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                                Asistente IA
+                                                Notificaciones Push
                                                 <span style={{ fontSize: '0.6rem', background: '#8B5CF6', color: '#FFFFFF', padding: '0.15rem 0.4rem', borderRadius: '1rem', fontWeight: 700, letterSpacing: '0.5px' }}>BETA</span>
                                             </div>
-                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4', marginTop: '0.1rem' }}>Mensajes Push nativos en tu pantalla de bloqueo</div>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4', marginTop: '0.1rem' }}>Te avisa si olvidaste registrar una comida</div>
                                         </div>
                                     </div>
                                     <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
