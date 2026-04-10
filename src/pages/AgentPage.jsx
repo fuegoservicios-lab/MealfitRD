@@ -442,6 +442,26 @@ const AgentPage = () => {
             }
         }
     };
+    
+    // Función para manejar la interrupción táctil (Barge-In interactivo) para evitar la limitante de iOS
+    const handleInterruptBargeIn = () => {
+        if (audioPlayerRef.current) {
+            audioPlayerRef.current.pause();
+            audioPlayerRef.current.currentTime = 0;
+        }
+        ttsQueue.current = [];
+        isPlayingAudio.current = false;
+        isSpeakingRef.current = false;
+        if (abortControllerRef.current) abortControllerRef.current.abort();
+        setIsSpeaking(false);
+        setIsLoading(false);
+        setStreamingStatus(null);
+        setTimeout(() => {
+            if (callModeRef.current) {
+                try { recognitionRef.current?.start(); } catch(e){}
+            }
+        }, 100);
+    };
     // -------------------------------------------
 
     const toggleDictation = () => {
@@ -1251,7 +1271,39 @@ const AgentPage = () => {
             width: '100%',
             zIndex: 10,
         }}>
-            <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+            <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', position: 'relative' }}>
+                
+                {isSpeaking && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '-50px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        zIndex: 20,
+                        animation: 'fadeInUp 0.3s ease-out'
+                    }}>
+                        <button
+                            onClick={handleInterruptBargeIn}
+                            style={{
+                                padding: '8px 20px',
+                                borderRadius: '30px',
+                                border: '1px solid rgba(226, 232, 240, 0.8)',
+                                background: '#ffffff',
+                                color: '#ef4444',
+                                fontSize: '0.9rem',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                            }}
+                        >
+                            <span style={{ fontSize: '1.1rem' }}>✋</span> Detener 
+                        </button>
+                    </div>
+                )}
+
                 {isCentered && (
                     <div style={{ 
                         display: 'none' 
