@@ -41,13 +41,13 @@ export const requestNotificationPermission = async () => {
  * Suscribe el dispositivo y guarda el objeto de suscripción en el Backend.
  */
 export const subscribeToPushNotifications = async () => {
-    if (!isPushSupported()) return false;
+    if (!isPushSupported()) return { success: false, error: "Push no soportado en este navegador." };
     
     // El frontend .env contiene esto
     const publicVapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
     if (!publicVapidKey) {
         console.error("No VITE_VAPID_PUBLIC_KEY configurado.");
-        return false;
+        return { success: false, error: "No se configuró la llave VAPID." };
     }
 
     try {
