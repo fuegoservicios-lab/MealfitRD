@@ -336,7 +336,7 @@ const AgentPage = () => {
     // --- NATIVE TTS AUDIO ENGINE (ELEVENLABS) ---
     const ttsQueue = useRef([]);
     const isPlayingAudio = useRef(false);
-    const audioPlayerRef = useRef(typeof window !== "undefined" ? new Audio() : null);
+    const audioPlayerRef = useRef(null);
 
     const processTTSQueue = async () => {
         if (isPlayingAudio.current || ttsQueue.current.length === 0) return;
@@ -359,16 +359,22 @@ const AgentPage = () => {
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
             
-            // Fix iOS mute constraint: ALWAYS reuse the pre-warmed audioPlayerRef
+            // Fix iOS mute constraint: ALWAYS reuse the pre-warmed audioPlayerRef attached to the DOM
             const audio = audioPlayerRef.current;
+            if (!audio) throw new Error("Audio player DOM not found");
+            
             audio.playsInline = true;
             audio.volume = 1.0; // Restablecer el volumen al 100%
             audio.src = url;
+            audio.load(); // Forzar la carga del nuevo src en iOS
             
-            audio.onended = () => {
+            // Usar onloadeddata o manejar la promesa de play directamente
+            const handleEnded = () => {
                 URL.revokeObjectURL(url);
                 isPlayingAudio.current = false;
                 
+                audio.removeEventListener('ended', handleEnded);
+
                 if (ttsQueue.current.length === 0) {
                     isSpeakingRef.current = false;
                     setIsSpeaking(false);
@@ -381,6 +387,8 @@ const AgentPage = () => {
                     processTTSQueue();
                 }
             };
+
+            audio.addEventListener('ended', handleEnded);
             
             await audio.play();
             
@@ -1468,6 +1476,8 @@ const AgentPage = () => {
                     </div>
                 </div>
             </div>
+            {/* Reproductor Nativo Montado en el DOM para Evitar Bloqueos de iOS Safari */}
+            <audio ref={audioPlayerRef} playsInline style={{ display: 'none' }} id="tts-audio-player" />
         </div>
     );
 
