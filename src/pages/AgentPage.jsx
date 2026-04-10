@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
-import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Lock, Trash2, Check, Mic, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost } from 'lucide-react';
+import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Lock, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import ReactMarkdown from 'react-markdown';
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
@@ -296,6 +296,7 @@ const AgentPage = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [streamingStatus, setStreamingStatus] = useState(null);
     const [abortController, setAbortController] = useState(null);
+    const abortControllerRef = useRef(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [editingSessionId, setEditingSessionId] = useState(null);
     const [editTitle, setEditTitle] = useState('');
@@ -307,6 +308,7 @@ const AgentPage = () => {
     const [micErrorMsg, setMicErrorMsg] = useState(null);
     const recognitionRef = useRef(null);
     const originalInputRef = useRef('');
+    const silenceTimerRef = useRef(null);
     
     // Para Drag & Drop de Imágenes
     const [isDragging, setIsDragging] = useState(false);
@@ -316,6 +318,69 @@ const AgentPage = () => {
     useEffect(() => {
         latestInputRef.current = input;
     }, [input]);
+
+    const handleSendRef = useRef(null);
+    
+    // --- Lógica de Modo Llamada (Voz Nativa) ---
+    const [isCallModeActive, setIsCallModeActive] = useState(false);
+    const callModeRef = useRef(false);
+    useEffect(() => { callModeRef.current = isCallModeActive; }, [isCallModeActive]);
+    
+    const [isSpeaking, setIsSpeaking] = useState(false);
+    const isSpeakingRef = useRef(false);
+    useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
+    
+    const isLoadingRef = useRef(isLoading);
+    useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
+
+    const synthRef = useRef(typeof window !== 'undefined' ? window.speechSynthesis : null);
+    
+    const queueTTS = useCallback((text) => {
+        if (!synthRef.current) return;
+        const cleanText = text.replace(/[*_#\[\]]/g, '').trim();
+        if (!cleanText) return;
+        
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = 'es-DO';
+        utterance.rate = 1.05; 
+        
+        utterance.onstart = () => {
+            isSpeakingRef.current = true; // Sincronización instantánea
+            setIsSpeaking(true);
+            // No detenemos recognition: permitimos interrupción (barge-in)
+        };
+        
+        utterance.onend = () => {
+            isSpeakingRef.current = false; // Sincronización instantánea
+            setIsSpeaking(false);
+            setTimeout(() => {
+                // Ensure mic restarts if it died while talking for some reason
+                if (!synthRef.current.speaking && callModeRef.current && !isLoadingRef.current) {
+                    try { recognitionRef.current?.start(); } catch(e){}
+                }
+            }, 100);
+        };
+        
+        synthRef.current.speak(utterance);
+    }, []);
+
+    const toggleCallMode = () => {
+        if (isCallModeActive) {
+            setIsCallModeActive(false);
+            callModeRef.current = false;
+            if (synthRef.current) synthRef.current.cancel();
+            if (recognitionRef.current) {
+                try { recognitionRef.current.stop(); } catch(e){}
+            }
+        } else {
+            setIsCallModeActive(true);
+            callModeRef.current = true;
+            if (!isListening) {
+                toggleDictation();
+            }
+        }
+    };
+    // -------------------------------------------
 
     const toggleDictation = () => {
         if (isListening) {
@@ -335,7 +400,7 @@ const AgentPage = () => {
             return;
         }
 
-        // Crear una nueva instancia cada vez para evitar problemas de estado atascado en PC
+        // Usamos continuous = true SIEMPRE para anular el auto-stop del navegador y forzar nuestro temporizador de 3s
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
@@ -346,22 +411,53 @@ const AgentPage = () => {
         recognition.onstart = () => {
             setIsListening(true);
             finalTranscript = '';
+            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         };
 
         recognition.onresult = (event) => {
             let interimTranscript = '';
+            let newTextChunk = '';
+            
             for (let i = event.resultIndex; i < event.results.length; ++i) {
+                const chunk = event.results[i][0].transcript;
+                newTextChunk += chunk;
                 if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript + ' ';
+                    finalTranscript += chunk + ' ';
                 } else {
-                    interimTranscript += event.results[i][0].transcript;
+                    interimTranscript += chunk;
                 }
             }
+            
+            // --- BARGE-IN (Interrupción por voz) ---
+            const hasRealLetters = newTextChunk.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, '').length > 0;
+            const isTTSActive = synthRef.current && (synthRef.current.speaking || synthRef.current.pending || isSpeakingRef.current);
+            
+            if (callModeRef.current && isTTSActive && hasRealLetters) {
+                // Si estábamos hablando y escuchamos al usuario decir una palabra real, callar IA y cancelar stream actual
+                if (synthRef.current) synthRef.current.cancel();
+                if (abortControllerRef.current) abortControllerRef.current.abort();
+                setIsSpeaking(false);
+                setIsLoading(false);
+                setStreamingStatus(null);
+            }
+            // ---------------------------------------
+
             const newText = (originalInputRef.current + ' ' + finalTranscript + interimTranscript).replace(/\s+/g, ' ').trim();
             setInput(newText);
+
+            if (callModeRef.current) {
+                if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+                silenceTimerRef.current = setTimeout(() => {
+                    // Detenemos manualmente para forzar onend inmediatamente después de 3s de silencio
+                    if (recognitionRef.current) {
+                        try { recognitionRef.current.stop(); } catch(e){}
+                    }
+                }, 3000);
+            }
         };
 
         recognition.onerror = (event) => {
+            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
             console.error("Speech recognition error", event.error);
             setIsListening(false);
             if (event.error === 'not-allowed') {
@@ -375,7 +471,23 @@ const AgentPage = () => {
         };
 
         recognition.onend = () => {
+            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
             setIsListening(false);
+            if (callModeRef.current) {
+                const currentText = latestInputRef.current.trim();
+                if (currentText && !isSpeakingRef.current && !isLoadingRef.current) {
+                    if (handleSendRef.current) {
+                        originalInputRef.current = ''; // Reset buffer on send
+                        handleSendRef.current(currentText);
+                    }
+                } else {
+                    // Mantenemos el ciclo activo para seguir escuchando interrupciones/nuevo texto
+                    originalInputRef.current = latestInputRef.current;
+                    setTimeout(() => {
+                        try { recognitionRef.current?.start(); } catch(e){}
+                    }, 50);
+                }
+            }
         };
 
         recognitionRef.current = recognition;
@@ -715,6 +827,10 @@ const AgentPage = () => {
     };
 
 
+    useEffect(() => {
+        handleSendRef.current = handleSend;
+    }, [input, selectedFile, previewUrl, messages, currentSessionId, isLoading, isListening]); // ensure dependencies for fresh closure
+
     const handleSend = async (overrideInput = null, options = {}) => {
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
             navigator.vibrate(40); // Haptic feedback on send
@@ -846,6 +962,7 @@ const AgentPage = () => {
                 
                 const controller = new AbortController();
                 setAbortController(controller);
+                abortControllerRef.current = controller;
                 
                 const response = await fetchWithAuth('/api/chat/stream', {
                     method: 'POST',
@@ -858,7 +975,8 @@ const AgentPage = () => {
                         current_plan: planData,
                         form_data: formData,
                         local_date: localDateStr,
-                        tz_offset: now.getTimezoneOffset()
+                        tz_offset: now.getTimezoneOffset(),
+                        is_call_mode: !!callModeRef.current
                     })
                 });
 
@@ -868,6 +986,7 @@ const AgentPage = () => {
                     let fullText = "";
                     let isMessageCreated = false;
                     let buffer = "";
+                    let lastSpokenIndex = 0;
 
                     while (true) {
                         const { done, value } = await reader.read();
@@ -888,6 +1007,20 @@ const AgentPage = () => {
                                         setStreamingStatus(dataObj.message);
                                     } else if (dataObj.type === 'chunk') {
                                         fullText += dataObj.text;
+                                        
+                                        // Extraer oraciones completas para TTS en Modo Llamada
+                                        if (callModeRef.current) {
+                                            const textSoFar = fullText.substring(lastSpokenIndex);
+                                            const match = textSoFar.match(/.*?[.!?\n](?=\s|$)/);
+                                            if (match) {
+                                                const sentenceToSpeak = match[0].trim();
+                                                lastSpokenIndex += match[0].length;
+                                                if (sentenceToSpeak) {
+                                                    queueTTS(sentenceToSpeak);
+                                                }
+                                            }
+                                        }
+
                                         if (!isMessageCreated) {
                                             isMessageCreated = true;
                                             setIsLoading(false);
@@ -907,6 +1040,13 @@ const AgentPage = () => {
                                         setStreamingStatus(null);
                                         fullText = dataObj.response;
                                         
+                                        if (callModeRef.current) {
+                                            const remainingText = fullText.substring(lastSpokenIndex).trim();
+                                            if (remainingText) {
+                                                queueTTS(remainingText);
+                                            }
+                                        }
+
                                         if (!isMessageCreated) {
                                             isMessageCreated = true;
                                             setMessages(prev => [...prev, { role: 'model', content: fullText }]);
@@ -975,9 +1115,9 @@ const AgentPage = () => {
 
     const handleStopGeneration = () => {
         if (abortController) {
-
             abortController.abort();
             setAbortController(null);
+            abortControllerRef.current = null;
             setIsLoading(false);
             setStreamingStatus(null);
         }
@@ -1178,29 +1318,65 @@ const AgentPage = () => {
                             </button>
                         ) : (
                             <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto', alignItems: 'center' }}>
-                                {(!input.trim() || isListening) && (
-                                    <button
-                                        type="button"
-                                        aria-label="Dictado por voz"
-                                        className="touch-scale"
-                                        onClick={toggleDictation}
-                                        style={{
-                                            background: isListening ? '#ef4444' : 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '50%',
-                                            width: '40px',
-                                            height: '40px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            cursor: isLoading ? 'default' : 'pointer',
-                                            flexShrink: 0
-                                        }}
-                                        title="Dictado por voz"
-                                    >
-                                        <Mic size={20} className={isListening ? "pulse-anim-mic" : ""} />
-                                    </button>
+                                {(!input.trim() || isListening || isCallModeActive) && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            aria-label="Modo Llamada"
+                                            className={`touch-scale ${isCallModeActive ? 'call-mode-active' : ''}`}
+                                            onClick={toggleCallMode}
+                                            style={{
+                                                background: isCallModeActive ? '#10b981' : '#f1f5f9',
+                                                color: isCallModeActive ? 'white' : '#64748b',
+                                                border: '1px solid',
+                                                borderColor: isCallModeActive ? '#10b981' : '#e2e8f0',
+                                                borderRadius: '20px',
+                                                padding: '0 12px',
+                                                height: '40px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                justifyContent: 'center',
+                                                cursor: 'pointer',
+                                                flexShrink: 0,
+                                                fontSize: '0.85rem',
+                                                fontWeight: '600',
+                                                transition: 'all 0.2s ease',
+                                                boxShadow: isCallModeActive ? '0 4px 14px rgba(16, 185, 129, 0.4)' : 'none'
+                                            }}
+                                            title="Modo Llamada Manos Libres"
+                                        >
+                                            <PhoneCall size={18} strokeWidth={2} className={isCallModeActive ? "pulse-animation" : ""} />
+                                            {isCallModeActive ? 'En Llamada' : 'Llamar'}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            aria-label="Dictado por voz"
+                                            className="touch-scale"
+                                            onClick={toggleDictation}
+                                            style={{
+                                                background: isListening && !isCallModeActive ? '#ef4444' : 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '50%',
+                                                width: '40px',
+                                                height: '40px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                cursor: isLoading ? 'default' : 'pointer',
+                                                flexShrink: 0
+                                            }}
+                                            title="Dictado por voz"
+                                        >
+                                            {isListening && !isCallModeActive ?
+                                                <div className="mic-pulse">
+                                                    <Mic size={20} fill="white" />
+                                                </div>
+                                                : <Mic size={20} strokeWidth={2.5} />}
+                                        </button>
+                                    </>
                                 )}
                                 {(input.trim() || selectedFile) && (
                                     <button
