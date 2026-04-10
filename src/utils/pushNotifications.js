@@ -1,4 +1,4 @@
-import { fetchWithAuth } from './api';
+import { fetchWithAuth } from '../config/api';
 
 /**
  * Convierte un VAPID public key base64 a un Uint8Array para Web Push
