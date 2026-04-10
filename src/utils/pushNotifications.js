@@ -51,7 +51,19 @@ export const subscribeToPushNotifications = async () => {
     }
 
     try {
-        const registration = await navigator.serviceWorker.ready;
+        let registration = await navigator.serviceWorker.getRegistration();
+        
+        // Si no hay registro activo, usar timeout para ready
+        if (!registration) {
+            registration = await Promise.race([
+                navigator.serviceWorker.ready,
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Service Worker timeout")), 3000))
+            ]);
+        }
+
+        if (!registration) {
+            throw new Error("No hay Service Worker registrado.");
+        }
         
         let subscription = await registration.pushManager.getSubscription();
         
@@ -85,7 +97,19 @@ export const unsubscribeFromPushNotifications = async () => {
     if (!isPushSupported()) return true;
 
     try {
-        const registration = await navigator.serviceWorker.ready;
+        let registration = await navigator.serviceWorker.getRegistration();
+        
+        if (!registration) {
+            registration = await Promise.race([
+                navigator.serviceWorker.ready,
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Service Worker timeout")), 3000))
+            ]);
+        }
+
+        if (!registration) {
+            return true; // Si no hay SW, no hay subscripción, consideramos que ya está desactivado
+        }
+
         const subscription = await registration.pushManager.getSubscription();
         
         if (subscription) {

@@ -38,9 +38,21 @@ const Settings = () => {
                 
                 // Si está concedido, tenemos que verificar si hay una suscripción activa
                 try {
-                    const registration = await navigator.serviceWorker.ready;
-                    const subscription = await registration.pushManager.getSubscription();
-                    setPushEnabled(!!subscription);
+                    let registration = await navigator.serviceWorker.getRegistration();
+                    
+                    if (!registration) {
+                        registration = await Promise.race([
+                            navigator.serviceWorker.ready,
+                            new Promise((_, reject) => setTimeout(() => reject(new Error("SW timeout")), 2000))
+                        ]);
+                    }
+
+                    if (registration) {
+                        const subscription = await registration.pushManager.getSubscription();
+                        setPushEnabled(!!subscription);
+                    } else {
+                        setPushEnabled(false);
+                    }
                 } catch (e) {
                     console.error("Error checking subscription:", e);
                     setPushEnabled(false);

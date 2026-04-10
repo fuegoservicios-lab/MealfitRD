@@ -11,6 +11,10 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'custom-sw.js',
       registerType: 'autoUpdate',
+      devOptions: {
+        enabled: true,
+        type: 'module',
+      },
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       },
