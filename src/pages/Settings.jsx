@@ -494,33 +494,57 @@ const Settings = () => {
                                 <div style={{ background: '#F3E8FF', padding: '0.5rem', borderRadius: '0.5rem', color: '#9333EA' }}>
                                     <Bell size={20} />
                                 </div>
-                                Preferencias
+                                Notificaciones
                             </h2>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 0' }}>
-                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1, paddingRight: '1rem' }}>
-                                        <div style={{ background: 'linear-gradient(135deg, #F5F3FF 0%, #EEF2FF 100%)', padding: '0.6rem', borderRadius: '0.5rem', flexShrink: 0, border: '1px solid #E0E7FF' }}>
-                                            <Brain size={18} color="#6366F1" />
+                            <div style={{ 
+                                background: 'linear-gradient(135deg, #F8F7FF 0%, #F0EEFF 50%, #EEF2FF 100%)', 
+                                borderRadius: '1rem', 
+                                padding: '1.25rem', 
+                                border: '1px solid #E0E7FF',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '1rem'
+                            }}>
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
+                                    <div style={{ 
+                                        background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)', 
+                                        padding: '0.75rem', 
+                                        borderRadius: '0.75rem', 
+                                        flexShrink: 0,
+                                        boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
+                                    }}>
+                                        <Brain size={20} color="#FFFFFF" />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontWeight: 700, color: 'var(--text-main)', display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.95rem' }}>
+                                            Alertas Inteligentes
+                                            <span style={{ 
+                                                fontSize: '0.55rem', 
+                                                background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', 
+                                                color: '#FFFFFF', 
+                                                padding: '0.2rem 0.5rem', 
+                                                borderRadius: '1rem', 
+                                                fontWeight: 700, 
+                                                letterSpacing: '0.5px',
+                                                textTransform: 'uppercase'
+                                            }}>Beta</span>
                                         </div>
-                                        <div>
-                                            <div style={{ fontWeight: 600, color: 'var(--text-main)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                                Notificaciones Push
-                                                <span style={{ fontSize: '0.6rem', background: '#8B5CF6', color: '#FFFFFF', padding: '0.15rem 0.4rem', borderRadius: '1rem', fontWeight: 700, letterSpacing: '0.5px' }}>BETA</span>
-                                            </div>
-                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4', marginTop: '0.1rem' }}>Te avisa si olvidaste registrar una comida</div>
+                                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.45', marginTop: '0.25rem' }}>
+                                            Recibe avisos en tu pantalla si olvidas registrar una comida
                                         </div>
                                     </div>
-                                    <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={pushEnabled}
-                                            onChange={handleTogglePush}
-                                            disabled={isPushLoading}
-                                        />
-                                        <span className={styles.toggleSlider} style={{ opacity: isPushLoading ? 0.5 : 1 }}></span>
-                                    </label>
                                 </div>
+                                <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={pushEnabled}
+                                        onChange={handleTogglePush}
+                                        disabled={isPushLoading}
+                                    />
+                                    <span className={styles.toggleSlider} style={{ opacity: isPushLoading ? 0.5 : 1 }}></span>
+                                </label>
                             </div>
                         </section>
 
