@@ -362,6 +362,7 @@ const AgentPage = () => {
             // Fix iOS mute constraint: ALWAYS reuse the pre-warmed audioPlayerRef
             const audio = audioPlayerRef.current;
             audio.playsInline = true;
+            audio.volume = 1.0; // Restablecer el volumen al 100%
             audio.src = url;
             
             audio.onended = () => {
