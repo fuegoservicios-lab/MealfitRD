@@ -336,7 +336,7 @@ const AgentPage = () => {
     // --- NATIVE TTS AUDIO ENGINE (ELEVENLABS) ---
     const ttsQueue = useRef([]);
     const isPlayingAudio = useRef(false);
-    const currentAudioRef = useRef(null);
+    const audioPlayerRef = useRef(typeof window !== "undefined" ? new Audio() : null);
 
     const processTTSQueue = async () => {
         if (isPlayingAudio.current || ttsQueue.current.length === 0) return;
@@ -358,17 +358,15 @@ const AgentPage = () => {
 
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
-            const audio = new Audio(url);
             
-            // Fix iOS mute constraint: ensure it plays as audio
+            // Fix iOS mute constraint: ALWAYS reuse the pre-warmed audioPlayerRef
+            const audio = audioPlayerRef.current;
             audio.playsInline = true;
-            
-            currentAudioRef.current = audio;
+            audio.src = url;
             
             audio.onended = () => {
                 URL.revokeObjectURL(url);
                 isPlayingAudio.current = false;
-                currentAudioRef.current = null;
                 
                 if (ttsQueue.current.length === 0) {
                     isSpeakingRef.current = false;
@@ -388,7 +386,6 @@ const AgentPage = () => {
         } catch (error) {
             console.error("TTS Play Error", error);
             isPlayingAudio.current = false;
-            currentAudioRef.current = null;
             if (ttsQueue.current.length === 0) {
                 isSpeakingRef.current = false;
                 setIsSpeaking(false);
@@ -409,10 +406,9 @@ const AgentPage = () => {
         if (isCallModeActive) {
             setIsCallModeActive(false);
             callModeRef.current = false;
-            if (currentAudioRef.current) {
-                currentAudioRef.current.pause();
-                currentAudioRef.current.currentTime = 0;
-                currentAudioRef.current = null;
+            if (audioPlayerRef.current) {
+                audioPlayerRef.current.pause();
+                audioPlayerRef.current.currentTime = 0;
             }
             ttsQueue.current = [];
             isPlayingAudio.current = false;
@@ -425,11 +421,11 @@ const AgentPage = () => {
             setIsCallModeActive(true);
             callModeRef.current = true;
             
-            // Hack para iOS/Móvil: Inicializar el Audio Context en el evento de clic
+            // Hack para iOS/Móvil: Desbloquear el player único para todo el ciclo de vida de la página
             try {
-                const initAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
-                initAudio.volume = 0.01;
-                initAudio.play().catch(()=>{});
+                audioPlayerRef.current.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+                audioPlayerRef.current.volume = 0.01;
+                audioPlayerRef.current.play().catch(()=>{});
             } catch(e) {}
 
             if (!isListening) {
@@ -491,10 +487,9 @@ const AgentPage = () => {
             
             if (callModeRef.current && isTTSActive && hasRealLetters) {
                 // Si estábamos hablando y escuchamos al usuario decir una palabra real, callar IA y cancelar stream actual
-                if (currentAudioRef.current) {
-                    currentAudioRef.current.pause();
-                    currentAudioRef.current.currentTime = 0;
-                    currentAudioRef.current = null;
+                if (audioPlayerRef.current) {
+                    audioPlayerRef.current.pause();
+                    audioPlayerRef.current.currentTime = 0;
                 }
                 ttsQueue.current = [];
                 isPlayingAudio.current = false;
