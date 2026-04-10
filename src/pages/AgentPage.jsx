@@ -375,6 +375,15 @@ const AgentPage = () => {
         } else {
             setIsCallModeActive(true);
             callModeRef.current = true;
+            
+            // Hack para iOS/Móvil: Inicializar el motor TTS en el evento de clic del usuario
+            if (synthRef.current) {
+                try {
+                    const silentUtterance = new SpeechSynthesisUtterance('');
+                    synthRef.current.speak(silentUtterance);
+                } catch(e) {}
+            }
+
             if (!isListening) {
                 toggleDictation();
             }
@@ -1323,7 +1332,7 @@ const AgentPage = () => {
                                         <button
                                             type="button"
                                             aria-label="Modo Llamada"
-                                            className={`touch-scale ${isCallModeActive ? 'call-mode-active' : ''}`}
+                                            className={`touch-scale mobile-only-btn ${isCallModeActive ? 'call-mode-active' : ''}`}
                                             onClick={toggleCallMode}
                                             style={{
                                                 background: isCallModeActive ? '#10b981' : '#f1f5f9',
@@ -2183,6 +2192,9 @@ const AgentPage = () => {
                         justify-content: center !important;
                     }
                     .nav-menu-wrapper {
+                        display: none !important;
+                    }
+                    .mobile-only-btn {
                         display: none !important;
                     }
                 }
