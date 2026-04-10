@@ -131,39 +131,48 @@ const Settings = () => {
     // --- MANEJADORES (HANDLERS) ---
     
     const handleTogglePush = async () => {
-        if (!isPushSupported()) {
-            toast.error("Tu navegador o dispositivo no soporta notificaciones de fondo (Push).");
-            return;
-        }
+        try {
+            toast.info("Procesando...");
 
-        setIsPushLoading(true);
-        if (pushEnabled) {
-            // Desuscribir
-            const success = await unsubscribeFromPushNotifications();
-            if (success) {
-                setPushEnabled(false);
-                toast.success("Notificaciones de la IA desactivadas.");
-            } else {
-                toast.error("Error al desactivar notificaciones.");
-            }
-        } else {
-            // Suscribir
-            const permissionGranted = await requestNotificationPermission();
-            if (!permissionGranted) {
-                toast.error("Debes permitir las notificaciones en tu navegador o sistema.");
-                setIsPushLoading(false);
+            if (!isPushSupported()) {
+                toast.error("Tu navegador no soporta notificaciones Push.");
                 return;
             }
 
-            const result = await subscribeToPushNotifications();
-            if (result.success) {
-                setPushEnabled(true);
-                toast.success("¡Notificaciones de la IA activadas con éxito!");
+            setIsPushLoading(true);
+
+            if (pushEnabled) {
+                // Desuscribir
+                const success = await unsubscribeFromPushNotifications();
+                if (success) {
+                    setPushEnabled(false);
+                    toast.success("Notificaciones de la IA desactivadas.");
+                } else {
+                    toast.error("Error al desactivar notificaciones.");
+                }
             } else {
-                toast.error(`Fallo: ${result.error}`);
+                // Suscribir
+                const permissionGranted = await requestNotificationPermission();
+                if (!permissionGranted) {
+                    toast.error("Debes permitir las notificaciones en los ajustes de Brave. Haz clic en el candado 🔒 de la barra de direcciones.");
+                    setIsPushLoading(false);
+                    return;
+                }
+
+                const result = await subscribeToPushNotifications();
+                if (result && result.success) {
+                    setPushEnabled(true);
+                    toast.success("¡Notificaciones de la IA activadas con éxito!");
+                } else {
+                    toast.error(`Fallo: ${result?.error || 'Error desconocido'}`);
+                }
             }
+            setIsPushLoading(false);
+        } catch (err) {
+            console.error("handleTogglePush error:", err);
+            toast.error(`Error inesperado: ${err.message}`);
+            setIsPushLoading(false);
         }
-        setIsPushLoading(false);
     };
 
     const handleResetApp = () => {

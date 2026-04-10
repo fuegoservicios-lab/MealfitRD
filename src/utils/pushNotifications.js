@@ -89,6 +89,15 @@ export const subscribeToPushNotifications = async () => {
         return { success: true };
     } catch (err) {
         console.error("Error al suscribirse a push:", err);
+        
+        // Brave bloquea los servicios de Google Push (FCM) por defecto
+        if (err.name === 'AbortError' || (err.message && err.message.includes('push service'))) {
+            return { 
+                success: false, 
+                error: "Brave bloquea Push por defecto. Ve a brave://settings/privacy y activa 'Usar servicios de Google para mensajería push'." 
+            };
+        }
+        
         return { success: false, error: err.message };
     }
 };
