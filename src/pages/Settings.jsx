@@ -9,6 +9,7 @@ import { useAssessment } from '../context/AssessmentContext';
 import { useNavigate } from 'react-router-dom';
 import styles from './Settings.module.css';
 import { fetchWithAuth } from '../config/api';
+import { requestNotificationPermission, subscribeToPushNotifications, unsubscribeFromPushNotifications, isPushSupported } from '../utils/pushNotifications';
 
 const Settings = () => {
     // Obtenemos userProfile y updateUserProfile del contexto global
@@ -17,10 +18,20 @@ const Settings = () => {
 
     // --- ESTADOS LOCALES ---
     
-    // Estado para las notificaciones
+    // Estado para las notificaciones (Avisos de comidas)
     const [notifications, setNotifications] = useState(() => {
         return localStorage.getItem('mealfit_notifications') === 'true';
     });
+
+    // Estado para las Notificaciones Web Push (IA)
+    const [pushEnabled, setPushEnabled] = useState(false);
+    const [isPushLoading, setIsPushLoading] = useState(false);
+
+    useEffect(() => {
+        if (isPushSupported() && 'Notification' in window) {
+            setPushEnabled(Notification.permission === 'granted');
+        }
+    }, []);
 
     // CORRECCIÓN: Inicialización Lazy para evitar conflictos de renderizado
     // Si ya tenemos el dato en el contexto, lo usamos inmediatamente al crear el componente.
@@ -89,6 +100,42 @@ const Settings = () => {
     }, [userProfile?.id]);
 
     // --- MANEJADORES (HANDLERS) ---
+    
+    const handleTogglePush = async () => {
+        if (!isPushSupported()) {
+            toast.error("Tu navegador o dispositivo no soporta notificaciones de fondo (Push).");
+            return;
+        }
+
+        setIsPushLoading(true);
+        if (pushEnabled) {
+            // Desuscribir
+            const success = await unsubscribeFromPushNotifications();
+            if (success) {
+                setPushEnabled(false);
+                toast.success("Notificaciones de la IA desactivadas.");
+            } else {
+                toast.error("Error al desactivar notificaciones.");
+            }
+        } else {
+            // Suscribir
+            const permissionGranted = await requestNotificationPermission();
+            if (!permissionGranted) {
+                toast.error("Debes permitir las notificaciones en tu navegador o sistema.");
+                setIsPushLoading(false);
+                return;
+            }
+
+            const success = await subscribeToPushNotifications();
+            if (success) {
+                setPushEnabled(true);
+                toast.success("¡Notificaciones de la IA activadas con éxito!");
+            } else {
+                toast.error("Hubo un problema al habilitar las notificaciones Push.");
+            }
+        }
+        setIsPushLoading(false);
+    };
 
     const handleResetApp = () => {
         if (confirmReset) {
@@ -422,7 +469,7 @@ const Settings = () => {
                                         </div>
                                         <div>
                                             <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Alertas de Comidas</div>
-                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Te avisa a la hora de comer</div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Te avisa internamente a la hora de comer</div>
                                         </div>
                                     </div>
                                     <label className={styles.toggleSwitch}>
@@ -432,6 +479,27 @@ const Settings = () => {
                                             onChange={() => setNotifications(!notifications)}
                                         />
                                         <span className={styles.toggleSlider}></span>
+                                    </label>
+                                </div>
+                                
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 0' }}>
+                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                        <div style={{ background: '#FEF08A', padding: '0.6rem', borderRadius: '0.5rem' }}>
+                                            <Brain size={18} color="#CA8A04" />
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>Notificaciones de la IA</div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Mensajes Push Nativo (Pantalla de bloqueo)</div>
+                                        </div>
+                                    </div>
+                                    <label className={styles.toggleSwitch}>
+                                        <input
+                                            type="checkbox"
+                                            checked={pushEnabled}
+                                            onChange={handleTogglePush}
+                                            disabled={isPushLoading}
+                                        />
+                                        <span className={styles.toggleSlider} style={{ opacity: isPushLoading ? 0.5 : 1 }}></span>
                                     </label>
                                 </div>
                             </div>
