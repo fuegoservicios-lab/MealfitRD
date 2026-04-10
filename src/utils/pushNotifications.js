@@ -65,6 +65,9 @@ export const subscribeToPushNotifications = async () => {
         // Subir al backend
         const res = await fetchWithAuth('/api/notifications/subscribe', {
             method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify(subscription)
         });
 
@@ -88,6 +91,9 @@ export const unsubscribeFromPushNotifications = async () => {
         if (subscription) {
             await fetchWithAuth('/api/notifications/unsubscribe', {
                 method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({ endpoint: subscription.endpoint })
             });
             await subscription.unsubscribe();
