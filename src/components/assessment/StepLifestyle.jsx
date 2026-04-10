@@ -25,7 +25,7 @@ const StepLifestyle = () => {
                 {/* Biological Rhythm */}
                 <div>
                     <Label>Ritmo Biológico / Horario&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', '@media (min-width: 640px)': { gridTemplateColumns: '1fr 1fr 1fr' } }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
                         {[
                             { val: 'standard', label: 'Día (Tradicional)', desc: 'Duermo de noche, activo de día', icon: Sun },
                             { val: 'night_shift', label: 'Turno Nocturno', desc: 'Duermo de día, trabajo de noche', icon: Moon },

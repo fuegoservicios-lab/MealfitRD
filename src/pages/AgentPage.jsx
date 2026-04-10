@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
-import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Lock, Trash2, Check, Mic, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, ShoppingBag, Clock, Settings, Edit2, Ghost } from 'lucide-react';
+import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Lock, Trash2, Check, Mic, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import ReactMarkdown from 'react-markdown';
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
@@ -79,25 +79,53 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
     
     if (mealKeyword === 'desayuno') {
         timeGreeting = '¡Buenos días';
-        mealContext = exactMealName 
-            ? `Según tu plan, hoy te toca **${exactMealName}** de desayuno, ¿tienes los ingredientes listos o armamos una alternativa rápida?` 
-            : '¿Listo para tu desayuno o necesitas una idea rápida?';
+        const variants = exactMealName ? [
+            `Según tu plan, hoy te toca **${exactMealName}** de desayuno, ¿tienes los ingredientes listos o armamos una alternativa rápida?`,
+            `Para desayunar hoy tienes marcado **${exactMealName}**. ¡Cuéntame si ya lo preparaste o si quieres cambiar algo!`,
+            `Tu desayuno sugerido de hoy es **${exactMealName}**. ¿Preparado para arrancar el día con energía?`
+        ] : [
+            '¿Listo para tu desayuno o necesitas una idea rápida?',
+            '¡Es hora de desayunar! ¿Ya sabes qué vas a preparar?',
+            '¿Qué tienes pensado para el desayuno de hoy? Si no sabes, ¡te ayudo!'
+        ];
+        mealContext = variants[Math.floor(Math.random() * variants.length)];
     } else if (mealKeyword === 'almuerzo') {
         timeGreeting = hour < 12 ? '¡Buenos días' : '¡Buenas tardes';
-        mealContext = exactMealName 
-            ? `Hoy de almuerzo tienes marcado **${exactMealName}**. ¿Ya lo preparaste o necesitas cambiar algo con los ingredientes que tienes?` 
-            : '¿Preparando ya el almuerzo o necesitas una receta rápida?';
+        const variants = exactMealName ? [
+            `Hoy de almuerzo tienes marcado **${exactMealName}**. ¿Ya lo preparaste o necesitas cambiar algo con los ingredientes que tienes?`,
+            `Es la hora del almuerzo y te toca **${exactMealName}**. ¿Te ayudo con la receta o tienes un plan distinto?`,
+            `Para tu almuerzo de hoy está planeado **${exactMealName}**. ¡Avisa si necesitas reemplazar algún ingrediente!`
+        ] : [
+            '¿Preparando ya el almuerzo o necesitas una receta rápida?',
+            '¡Llegó la hora de almorzar! ¿Qué vas a preparar?',
+            '¿Necesitas ideas para tu comida del mediodía? Dime qué hay en tu nevera.'
+        ];
+        mealContext = variants[Math.floor(Math.random() * variants.length)];
     } else if (mealKeyword === 'cena') {
         timeGreeting = hour < 18 ? '¡Buenas tardes' : '¡Buenas noches';
-        mealContext = exactMealName 
-            ? `De cena para hoy tienes: **${exactMealName}**. ¿Quieres que te pase las instrucciones paso a paso o prefieres otra cosa?` 
-            : '¿Buscando algo ligero antes de dormir o tu cena?';
+        const variants = exactMealName ? [
+            `De cena para hoy tienes: **${exactMealName}**. ¿Quieres que te pase las instrucciones paso a paso o prefieres otra cosa?`,
+            `Para cerrar el día, tu cena sugerida es **${exactMealName}**. ¿Qué te parece?`,
+            `Tu cena de hoy será **${exactMealName}**. ¡Si necesitas hacerlo más fácil o cambiar ingredientes, estoy aquí!`
+        ] : [
+            '¿Buscando algo ligero antes de dormir o tu cena completa?',
+            '¡Es hora de cenar! ¿Ya sabes qué harás?',
+            '¿Qué cenaremos hoy? Dime tus opciones y te recomiendo algo rápido.'
+        ];
+        mealContext = variants[Math.floor(Math.random() * variants.length)];
     } else {
         // snack
         timeGreeting = hour < 12 ? '¡Buenos días' : (hour < 18 ? '¡Buenas tardes' : '¡Buenas noches');
-        mealContext = exactMealName 
-            ? `Es hora de tu snack o merienda: **${exactMealName}**. Si no lo tienes, dime qué hay en tu refri y lo resolvemos.` 
-            : '¿Necesitas un buen snack para calmar el hambre?';
+        const variants = exactMealName ? [
+            `Es hora de tu snack o merienda: **${exactMealName}**. Si no lo tienes, dime qué hay en tu refri y lo resolvemos.`,
+            `Para tu merienda te toca **${exactMealName}**. ¿Listo para disfrutarla?`,
+            `Tu snack sugerido es **${exactMealName}**. ¡Cuéntame si prefieres otra opción dulce o salada!`
+        ] : [
+            '¿Necesitas un buen snack para calmar el hambre?',
+            '¡Hora de una merienda rápida! ¿Quieres ideas?',
+            '¿Qué te provoca de snack ahora mismo? Tengo varias opciones.'
+        ];
+        mealContext = variants[Math.floor(Math.random() * variants.length)];
     }
 
     let goalContext = '';
@@ -276,57 +304,88 @@ const AgentPage = () => {
     const fileInputRef = useRef(null);
 
     const [isListening, setIsListening] = useState(false);
+    const [micErrorMsg, setMicErrorMsg] = useState(null);
     const recognitionRef = useRef(null);
     const originalInputRef = useRef('');
     
     // Para Drag & Drop de Imágenes
     const [isDragging, setIsDragging] = useState(false);
 
+    const latestInputRef = useRef(input);
+
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (SpeechRecognition) {
-                const recognition = new SpeechRecognition();
-                recognition.continuous = true;
-                recognition.interimResults = true;
-                recognition.lang = 'es-DO';
-
-                recognition.onstart = () => setIsListening(true);
-                
-                recognition.onresult = (event) => {
-                    let currentTranscript = '';
-                    for (let i = event.resultIndex; i < event.results.length; ++i) {
-                        currentTranscript += event.results[i][0].transcript;
-                    }
-                    setInput((originalInputRef.current + ' ' + currentTranscript).trim());
-                };
-
-                recognition.onerror = (event) => {
-                    console.error("Speech recognition error", event.error);
-                    setIsListening(false);
-                };
-
-                recognition.onend = () => {
-                    setIsListening(false);
-                };
-
-                recognitionRef.current = recognition;
-            }
-        }
-    }, []);
+        latestInputRef.current = input;
+    }, [input]);
 
     const toggleDictation = () => {
         if (isListening) {
-            recognitionRef.current?.stop();
-        } else {
             if (recognitionRef.current) {
-                originalInputRef.current = input;
                 try {
-                    recognitionRef.current.start();
-                } catch(e) { console.error(e); }
-            } else {
-                alert('Tu navegador no soporta el dictado por voz (Se recomienda Chrome o Safari).');
+                    recognitionRef.current.stop();
+                } catch(e) {}
             }
+            setIsListening(false);
+            return;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            setMicErrorMsg('Micrófono no soportado en este navegador');
+            setTimeout(() => setMicErrorMsg(null), 3500);
+            return;
+        }
+
+        // Crear una nueva instancia cada vez para evitar problemas de estado atascado en PC
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'es-DO';
+
+        let finalTranscript = '';
+
+        recognition.onstart = () => {
+            setIsListening(true);
+            finalTranscript = '';
+        };
+
+        recognition.onresult = (event) => {
+            let interimTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript + ' ';
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+            const newText = (originalInputRef.current + ' ' + finalTranscript + interimTranscript).replace(/\s+/g, ' ').trim();
+            setInput(newText);
+        };
+
+        recognition.onerror = (event) => {
+            console.error("Speech recognition error", event.error);
+            setIsListening(false);
+            if (event.error === 'not-allowed') {
+                setMicErrorMsg('Micrófono inactivo o bloqueado');
+            } else if (event.error === 'network') {
+                setMicErrorMsg('Dictado no compatible en este navegador');
+            } else {
+                setMicErrorMsg('Error al conectar el micrófono');
+            }
+            setTimeout(() => setMicErrorMsg(null), 3500);
+        };
+
+        recognition.onend = () => {
+            setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+        originalInputRef.current = latestInputRef.current;
+        
+        try {
+            recognition.start();
+        } catch(e) {
+            console.error("Error starting mic", e);
+            setIsListening(false);
         }
     };
 
@@ -656,13 +715,13 @@ const AgentPage = () => {
     };
 
 
-    const handleSend = async (overrideInput = null) => {
+    const handleSend = async (overrideInput = null, options = {}) => {
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
             navigator.vibrate(40); // Haptic feedback on send
         }
         const textToSend = typeof overrideInput === 'string' ? overrideInput : input;
         
-        if ((!textToSend.trim() && !selectedFile) || isLoading) return;
+        if ((!textToSend.trim() && !selectedFile && !options.overrideImageUrl) || isLoading) return;
 
         if (isListening) {
             recognitionRef.current?.stop();
@@ -686,11 +745,15 @@ const AgentPage = () => {
         clearSelectedFile();
         setIsLoading(true);
 
-        const newMessages = [...messages];
+        const newMessages = options.truncateIndex !== undefined 
+            ? messages.slice(0, options.truncateIndex) 
+            : [...messages];
         
         // Agregar mensaje visual si hay imagen
         if (currentFile) {
             newMessages.push({ role: 'user', content: userMsg || '', isImage: true, imageUrl: currentPreview });
+        } else if (options.overrideImageUrl) {
+            newMessages.push({ role: 'user', content: userMsg || '', isImage: true, imageUrl: options.overrideImageUrl });
         } else {
             newMessages.push({ role: 'user', content: userMsg });
         }
@@ -740,11 +803,13 @@ const AgentPage = () => {
             }
 
             // Interactuar por el chat normal SIEMPRE (incluso si solo hay imagen)
-            if (userMsg || currentFile) {
+            if (userMsg || currentFile || options.overrideImageUrl) {
                 // Incorporate image URL into promptToSend so it's persisted in DB
                 let promptToSend = userMsg || "";
                 if (currentFile && uploadedImageUrl) {
                     promptToSend = `[IMAGE: ${uploadedImageUrl}]\n${promptToSend}`;
+                } else if (options.overrideImageUrl) {
+                    promptToSend = `[IMAGE: ${options.overrideImageUrl}]\n${promptToSend}`;
                 }
                 
                 // Obtener hora actual local formateada
@@ -919,10 +984,39 @@ const AgentPage = () => {
     };
 
     const handleRegenerate = (modelMsgIndex) => {
-        // Find the last user message before this model message
-        const lastUserMsg = messagesRef.current.slice(0, modelMsgIndex).reverse().find(m => m.role === 'user');
-        if (lastUserMsg && !isLoading) {
-            handleSend(lastUserMsg.content);
+        if (isLoading) return;
+
+        const targetMsg = messagesRef.current[modelMsgIndex];
+
+        // 1. Mensaje de bienvenida autónomo (se reemplaza en el mismo lugar)
+        if (targetMsg?.isWelcome) {
+            setMessages(prev => {
+                const updated = [...prev];
+                updated[modelMsgIndex] = { 
+                    role: 'model', 
+                    content: generateIntelligentWelcome(userProfile, formData, planData), 
+                    isWelcome: true 
+                };
+                return updated;
+            });
+            return;
+        }
+
+        // 2. Mensaje normal de chat
+        let lastUserMsgIdx = -1;
+        for (let i = modelMsgIndex - 1; i >= 0; i--) {
+            if (messagesRef.current[i].role === 'user') {
+                lastUserMsgIdx = i;
+                break;
+            }
+        }
+
+        if (lastUserMsgIdx !== -1) {
+            const lastUserMsg = messagesRef.current[lastUserMsgIdx];
+            handleSend(lastUserMsg.content, { 
+                truncateIndex: lastUserMsgIdx, 
+                overrideImageUrl: lastUserMsg.imageUrl 
+            });
         }
     };
 
@@ -1041,7 +1135,7 @@ const AgentPage = () => {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
-                            placeholder="Pregúntale a MealfitRD"
+                            placeholder={micErrorMsg || "Pregúntale a MealfitRD"}
                             onFocus={() => setTimeout(scrollToBottom, 300)}
                             enterKeyHint="send"
                             style={{
@@ -1280,7 +1374,7 @@ const AgentPage = () => {
                 boxShadow: isMobile ? 'none' : '0 10px 40px -10px rgba(0,0,0,0.08)',
                 border: isMobile ? 'none' : '1px solid rgba(226, 232, 240, 0.8)',
                 overflow: 'hidden',
-                margin: isMobile ? '0' : '0 auto',
+                margin: isMobile ? '0' : '2.25rem auto 0',
                 maxWidth: isMobile ? '100vw' : '1200px',
                 width: '100%',
                 position: 'relative'
@@ -1397,7 +1491,7 @@ const AgentPage = () => {
                 {/* Chat Header */}
                 <div className="mobile-chat-header" style={{
                     padding: '0.75rem 1.25rem',
-                    paddingTop: 'calc(0.75rem + max(env(safe-area-inset-top), 24px))',
+                    paddingTop: isMobile ? 'calc(0.75rem + max(env(safe-area-inset-top), 24px))' : '0.75rem',
                     background: messages.length === 0 ? '#f4f7fc' : 'rgba(255,255,255,0.85)',
                     backdropFilter: messages.length === 0 ? 'none' : 'blur(8px)',
                     display: 'flex',
@@ -1482,7 +1576,7 @@ const AgentPage = () => {
                                 {[
                                     { icon: LayoutDashboard, label: 'Mi Plan', path: '/dashboard' },
                                     { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' },
-                                    { icon: ShoppingBag, label: 'Lista de Compras', path: '/dashboard/shopping' },
+
                                     { icon: Clock, label: 'Historial', path: '/history' },
                                     { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' }
                                 ].map((item) => (

@@ -15,7 +15,7 @@ import useThemeColor from './components/common/useThemeColor';
 const Assessment = lazy(() => import('./pages/Assessment'));
 const Plan = lazy(() => import('./pages/Plan'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
-const ShoppingList = lazy(() => import('./pages/ShoppingList'));
+
 const Recipes = lazy(() => import('./pages/Recipes'));
 const Settings = lazy(() => import('./pages/Settings'));
 const History = lazy(() => import('./pages/History'));
@@ -111,7 +111,7 @@ function App() {
             {/* Rutas con Tabs Fijos (Dashboard) */}
             <Route element={<ProtectedRoute><DashboardAnimatedLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/dashboard/shopping" element={<ShoppingList />} />
+
               <Route path="/dashboard/recipes" element={<Recipes />} />
               <Route path="/dashboard/agent" element={<AgentPage />} />
               <Route path="/dashboard/settings" element={<Settings />} />

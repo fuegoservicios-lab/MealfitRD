@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ShoppingBag, Utensils, Settings, LogOut, User, Menu, X, Clock, Bot } from 'lucide-react';
+import { LayoutDashboard, Utensils, Settings, LogOut, User, Menu, X, Clock, Bot } from 'lucide-react';
 import { useAssessment } from '../../context/AssessmentContext';
 import LogoutConfirmModal from './LogoutConfirmModal';
 import BottomTabBar from './BottomTabBar';
@@ -26,7 +26,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
         { icon: LayoutDashboard, label: 'Mi Plan', path: '/dashboard' },
         { icon: Bot, label: 'Mi Agente', path: '/dashboard/agent' },
         { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' }, // Placeholder
-        { icon: ShoppingBag, label: 'Lista de Compras', path: '/dashboard/shopping' },
+
         { icon: Clock, label: 'Historial', path: '/history' },
         { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' }, // Placeholder
     ];

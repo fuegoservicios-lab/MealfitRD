@@ -100,8 +100,7 @@ const generateAIPlan = async (formData) => {
                             { meal: "Cena", time: "8:00 PM", name: "Pollo Desmenuzado", desc: "Pechuga de pollo desmenuzada con pimientos y cebolla.", cals: 420 }
                         ]
                     }
-                ],
-                shoppingList: { daily: ["Plátanos", "Huevos", "Pollo", "Vegetales Variados", "Arroz", "Habichuelas", "Avena", "Frutas", "Atún", "Aguacate", "Batata"] }
+                ]
             };
         } finally {
             globalGenerationPromise = null;
@@ -170,7 +169,8 @@ const Plan = () => {
     const [planData, setPlanData] = useState(null);
     const navigate = useNavigate();
     const location = useLocation();
-    const previousMeals = location.state?.previousMeals || [];
+    const previousMeals = location.state?.previous_meals || location.state?.previousMeals || [];
+    const currentIngredients = location.state?.current_shopping_list || location.state?.currentIngredients || [];
 
     // 2. USEEFFECT
     useEffect(() => {
@@ -213,7 +213,8 @@ const Plan = () => {
                     ...formData,
                     user_id: userId, // Siempre es un UUID válido o null
                     session_id: userId || guestSessionId, // Siempre es un UUID válido
-                    previous_meals: previousMeals
+                    previous_meals: previousMeals,
+                    current_shopping_list: currentIngredients
                 };
 
 
@@ -227,7 +228,7 @@ const Plan = () => {
                     return;
                 }
 
-                // Lógica de fechas para las compras (Grocery Cycle)
+                // Lógica de fechas para abastecimiento (Grocery Cycle)
                 const oldPlanStr = localStorage.getItem('mealfit_plan');
                 const oldPlan = oldPlanStr ? JSON.parse(oldPlanStr) : {};
                 

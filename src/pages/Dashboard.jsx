@@ -6,11 +6,13 @@ import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
     RefreshCw, ChefHat, Heart, Pill,
     Brain, Wallet, AlertCircle, Dumbbell, Wheat,
-    Lightbulb, Wand2, Clock, BookOpen, Loader2, Target
+    Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import TrackingProgress from '../components/dashboard/TrackingProgress';
+import { supabase } from '../supabase';
+import html2pdf from 'html2pdf.js';
 
 const Dashboard = () => {
     // 1. Obtenemos estado y funciones del Contexto Global
@@ -27,7 +29,8 @@ const Dashboard = () => {
         isPlus,
         userProfile,
         loadingData,
-        setCurrentStep
+        setCurrentStep,
+        updateData
     } = useAssessment();
 
     const navigate = useNavigate();
@@ -69,7 +72,7 @@ const Dashboard = () => {
     // Cálculos para la UI de límites
     const isLimitReached = typeof userPlanLimit === 'number' && planCount >= userPlanLimit;
 
-    // Calcular si el periodo de compras expiró para sugerir "Actualizar Plan" en lugar de "Platos"
+    // Calcular si el periodo de abastecimiento expiró para sugerir "Actualizar Plan" en lugar de "Platos"
     const groceryDuration = formData?.groceryDuration || 'weekly';
     
     // Normalizar fechas a medianoche para calcular días calendario transcurridos correctamente
@@ -93,16 +96,21 @@ const Dashboard = () => {
     const handleNewPlan = () => {
         if (formData && formData.age && formData.mainGoal) {
             let previousMeals = [];
+            let currentIngredients = [];
             
             // Si NO ha expirado el plan (Actualizar Platos), enviamos las comidas previas 
-            // para que la IA mantenga la lista de compras y solo rote las preparaciones.
+            // para que la IA mantenga el plan de despensa y solo rote las preparaciones.
             // Si SÍ expiró el plan (Actualizar Plan), enviamos el arreglo vacío para que
-            // la IA genere recomendaciones y una lista de compras totalmente nueva.
+            // la IA genere recomendaciones y un plan de abastecimiento totalmente nuevo.
             if (planData && !isPlanExpired) {
                 const planDaysToCheck = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
+                
                 planDaysToCheck.forEach(day => {
                     day.meals.forEach(meal => {
                         if (meal && meal.name) previousMeals.push(meal.name);
+                        if (meal && meal.ingredients && Array.isArray(meal.ingredients)) {
+                            currentIngredients.push(...meal.ingredients);
+                        }
                     });
                 });
                 
@@ -112,14 +120,552 @@ const Dashboard = () => {
                 });
             } else {
                 toast('Ciclo Renovado', {
-                    description: 'Generando nueva lista de compras y menú desde cero...',
-                    icon: '🛒',
+                    description: 'Generando nuevo plan de abastecimiento y menú desde cero...',
+                    icon: '📦',
                 });
             }
-            navigate('/plan', { state: { previousMeals } });
+            navigate('/plan', { state: { previous_meals: previousMeals, current_shopping_list: typeof currentIngredients !== 'undefined' ? currentIngredients : [] } });
         } else {
             setCurrentStep(0);
             navigate('/assessment');
+        }
+    };
+
+    const handleDownloadShoppingList = async () => {
+        try {
+            const loadingToast = toast.loading('Generando lista de abastecimiento...', { position: 'top-center' });
+            
+            let data = [];
+            if (planData && planData.days) {
+                planData.days.forEach(day => {
+                    (day.meals || day.perfectDay || []).forEach(meal => {
+                        if (meal.ingredients && Array.isArray(meal.ingredients)) {
+                            data.push(...meal.ingredients);
+                        }
+                    });
+                });
+            }
+
+            if (!data || data.length === 0) {
+                toast.dismiss(loadingToast);
+                toast.error('No se encontró una lista de despensa activa.');
+                return;
+            }
+
+            const getPluralUnit = (num, u) => {
+                if (num <= 1 || !u) return u;
+                const l = u.toLowerCase();
+                if (l === 'libra' || l === 'lb') return 'lbs';
+                if (l === 'paquete') return 'paquetes';
+                if (l === 'pote') return 'potes';
+                if (l === 'unidad') return 'unidades';
+                if (l === 'lata') return 'latas';
+                if (l === 'cabeza') return 'cabezas';
+                if (l === 'diente') return 'dientes';
+                if (l === 'cartón' || l === 'carton') return 'cartones';
+                if (l === 'sobre') return 'sobres';
+                if (l === 'botella') return 'botellas';
+                return u;
+            };
+
+            const normalizeName = (origName) => {
+                let n = String(origName).toLowerCase().trim();
+                
+                n = n.replace(/\(.*?\)/g, '').trim(); // Remover paréntesis tipo (1 taza) primero
+                n = n.replace(/^(cda|cdta|cdita|cucharada|cucharadita|taza|vaso|pizca|chorrito|puñado|atado|manojo|scoop|lonja|loncha)(s)?\s*(de\s+|del\s+)?/i, '');
+                n = n.replace(/^(de\s+|del\s+)/i, '');
+                
+                if (n.includes('aceite')) {
+                    if (n.includes('sésamo') || n.includes('sesamo') || n.includes('maní')) return 'Aceite de sésamo o maní';
+                    if (n.includes('coco')) return 'Aceite de coco';
+                    return 'Aceite de oliva';
+                }
+                if (n.includes('almendra')) return 'Almendras';
+                if (n.includes('chía') || n.includes('chia')) return 'Semillas de chía';
+                if (/\bavena\b/.test(n)) return 'Avena';
+                if (n.includes('ají') || n.includes('ajies') || n.includes('pimiento')) return 'Ajíes';
+                
+                if (/\bres\b/.test(n) || n.includes('bistec') || n.includes('machada')) return 'Carne de res magra';
+                if (n.includes('cerdo') || n.includes('chuleta') || n.includes('masita') || n.includes('longaniza') || n.includes('tocineta')) return 'Carne de cerdo magra';
+                
+                // --- Pavo y Pollo ---
+                if (/\bpavo\b/.test(n)) {
+                    if (n.includes('molido') || n.includes('molida')) return 'Pavo molido magro';
+                    if (n.includes('salami')) return 'Salami de pavo dominicano';
+                    return 'Pechuga de pavo'; 
+                }
+                if (/\bpollo\b/.test(n) || /\bpechuga\b/.test(n)) return 'Pechuga de pollo';
+
+                if (n.includes('camarones') || n.includes('camaron') || n.includes('camarón')) return 'Camarones pelados';
+                if (n.includes('pescado') || /\bmero\b/.test(n) || /\bchillo\b/.test(n) || n.includes('tilapia') || Boolean(n.match(/\bsalmón\b|\bsalmon\b/))) return 'Filete de pescado';
+                if (n.includes('tortilla') || n.includes('wrap') || n.includes('plantilla') || n.includes('taco')) return 'Plantillas para wrap';
+                
+                // --- Quesos ---
+                if (n.includes('queso de freir') || n.includes('queso de freír') || n.includes('queso blanco de freír')) return 'Queso blanco de freír ligero';
+                if (n.includes('cottage')) return 'Queso cottage';
+                if (n.includes('ricotta')) return 'Queso ricotta descremado';
+                if (n.includes('mozzarella')) return 'Queso mozzarella descremado';
+                if (n.includes('queso blanco')) return 'Queso blanco ligero';
+
+                if (n.includes('batata')) return 'Batata';
+                if (n.includes('plátano') || n.includes('platano')) {
+                    if (n.includes('maduro')) return 'Plátano maduro';
+                    return 'Plátano verde';
+                }
+                if (/\bhuevo\b/.test(n) || /\bhuevos\b/.test(n)) return 'Huevos';
+                if (n.includes('vainita')) return 'Vainitas';
+                if (n.includes('coliflor')) return 'Coliflor';
+                if (n.includes('naranja')) return 'Naranja';
+                if (/\bpapa\b/.test(n) || n.includes('yautía') || n.includes('yautia')) return 'Papa o Yautía';
+                if (n.includes('tayota')) return 'Tayota';
+                if (n.includes('brócoli') || n.includes('brocoli')) return 'Brócoli';
+                if (n.includes('fresa')) return 'Fresas';
+                if (n.includes('guineo') || n.includes('banana')) {
+                     if (n.includes('verde') || n.includes('guineíto') || n.includes('guineito')) return 'Guineítos verdes';
+                     return 'Guineos maduros';
+                }
+                if (n.includes('manzana')) return 'Manzana';
+                if (n.includes('yogurt') || n.includes('yogur')) return 'Yogurt griego natural';
+                if (/\barroz\b/.test(n)) return 'Arroz';
+                if (n.includes('garbanzo')) return 'Garbanzos';
+                if (n.includes('habichuela')) return 'Habichuelas';
+                if (n.includes('lenteja')) return 'Lentejas';
+                if (n.includes('atún') || n.includes('atun') || n.includes('sardina')) return 'Atún en agua (lata)';
+                if (/\bpan\b/.test(n)) return 'Pan integral';
+                if (n.includes('casabe')) return 'Casabe';
+                if (n.includes('harina de maíz') || n.includes('harina de maiz')) return 'Harina de maíz';
+                
+                if (/\bsal\b/.test(n) && /\bajo\b/.test(n)) return 'Sal y ajo en polvo';
+                if (n.includes('salsa de soya') || n.includes('salsa china')) return 'Salsa de soya';
+                if (n.includes('cebolla')) return 'Cebolla';
+                if (n.includes('orégano') || n.includes('oregano')) return 'Orégano';
+                if (n.includes('canela')) return 'Canela';
+                if (n.includes('pasta de tomate') || n.includes('salsa de tomate')) return 'Pasta de tomate natural';
+                if (n.includes('tomate')) return 'Tomate';
+                if (n.includes('limón') || n.includes('limon')) return 'Limón';
+                if (n.includes('piña')) return 'Piña';
+                if (n.includes('melón') || n.includes('melon')) return 'Melón';
+                if (n.includes('chinola')) return 'Chinola';
+                if (n.includes('repollo')) return 'Repollo';
+                if (n.includes('tofu')) return 'Tofu firme';
+                if (n.includes('molondron') || n.includes('molondrón')) return 'Molondrones';
+                if (n.includes('zanahoria')) return 'Zanahorias';
+                if (n.includes('cilantro') || n.includes('verdura')) return 'Cilantro o verdura';
+                if (n.includes('berenjena')) return 'Berenjenas';
+                if (n.includes('leche en polvo')) return 'Leche en polvo';
+
+                const stops = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada', 'magra', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada', 'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados', 'al gusto', 'pizca de', 'rodajas de', 'en aros', 'de la despensa', 'ralladura y jugo de 1/2', 'natural', 'bajo en grasa', 'descremado', 'descremada', 'horneado', 'grandes', 'firme'];
+                stops.forEach(s => n = n.replace(new RegExp(`\\b${s}\\b`, 'gi'), ''));
+                n = n.replace(/,/g, '').trim();
+                
+                return n.charAt(0).toUpperCase() + n.slice(1);
+            };
+
+            const parseQtyToNumber = (qtyStr) => {
+                if (!qtyStr || String(qtyStr).trim() === 'None') return { num: 0, unit: '' };
+                let parsedStr = String(qtyStr).trim().replace(/[\u00BD½]/g, ' 1/2').replace(/  +/g, ' ').trim();
+                const regex = /^([\d.,]+(?:[ \/]+[\d.,]+)?)\s*(.*)$/;
+                const match = parsedStr.match(regex);
+                if (match) {
+                    let nStr = match[1].replace(',', '.').trim();
+                    let unit = match[2];
+                    let num = 0;
+                    if (nStr.includes('/')) {
+                        const parts = nStr.split(' ');
+                        if (parts.length === 2 && parts[1].includes('/')) {
+                            const frac = parts[1].split('/');
+                            num = parseFloat(parts[0]) + (parseFloat(frac[0]) / parseFloat(frac[1]));
+                        } else if (parts.length === 1 && nStr.includes('/')) {
+                            const frac = nStr.split('/');
+                            num = parseFloat(frac[0]) / parseFloat(frac[1]);
+                        }
+                    } else {
+                        num = parseFloat(nStr);
+                    }
+                    return { num: isNaN(num) ? 0 : num, unit: unit.trim() };
+                }
+                return { num: 0, unit: String(qtyStr).trim() }; 
+            };
+
+            const consData = {};
+            data.forEach(rawItem => {
+                let item = rawItem;
+                
+                if (typeof rawItem === 'string') {
+                    let cleanStr = String(rawItem).replace(/^[-*•]\s*/, '').trim();
+                    // Red de Seguridad Extra: Convertir palabras engañosas a números reales
+                    const wordMap = { 'un cuarto de': '1/4', 'un cuarto': '1/4', 'media': '1/2', 'medio': '1/2', 'un': '1', 'una': '1', 'dos': '2', 'tres': '3', 'cuatro': '4', 'cinco': '5', 'seis': '6', 'siete': '7', 'ocho': '8', 'nueve': '9', 'diez': '10', 'docena de': '12', 'docena': '12', 'par de': '2' };
+                    for (const [w, n] of Object.entries(wordMap)) {
+                        cleanStr = cleanStr.replace(new RegExp(`^${w}\\b`, 'i'), n);
+                    }
+
+                    const regex = /^([\d.,1\/2½]+(?:[ \t]+[\d.,1\/2½]+)?)\s*(?:(lbs|lb|libras|libra|onzas|oz|gr|g|kg|ml|lt|l|tazas|taza|cdta|cda|cucharaditas|cucharadita|cucharadas|cucharada|unidades|unidad|paquetes|paquete|paq|potes|pote|cartones|cartón|carton|latas|lata|cabezas|cabeza|dientes|diente|sobres|sobre|botellas|botella)\b)?\s*(?:de\s+|del\s+)?(.*)$/i;
+                    const match = cleanStr.match(regex);
+                    
+                    if (match) {
+                        const cant = `${match[1] || ''} ${match[2] || ''}`.trim();
+                        item = {
+                            category: 'Alimentos',
+                            display_name: match[3] || cleanStr,
+                            qty_7: cant || "None"
+                        };
+                    } else {
+                        item = {
+                            category: 'Alimentos',
+                            display_name: cleanStr,
+                            qty_7: "None"
+                        };
+                    }
+                }
+
+                let cat = item.category || 'Alimentos';
+                if (cat === 'Otros') cat = 'Alimentos';
+                
+                let origName = item.display_name || item.name || item.item_name;
+                if (typeof origName === 'string' && origName.trim().startsWith('{')) {
+                    try { 
+                        const parsed = JSON.parse(origName);
+                        origName = parsed.display_name || parsed.name || parsed.item_name || origName; 
+                    } catch(e){}
+                } else if (typeof origName === 'object' && origName !== null) {
+                    origName = origName.display_name || origName.name || origName.item_name || JSON.stringify(origName);
+                }
+                
+                const normName = normalizeName(origName);
+                // Prevenir falsos duplicados cruzados entre categorias con la key compuesta
+                const uniqueKey = `${cat}_${normName}`;
+                
+                if (!consData[uniqueKey]) {
+                    consData[uniqueKey] = {
+                        ...item,
+                        category: cat,
+                        display_name: normName,
+                        qty_7: item.qty_7 || item.qty || '', 
+                        _parsedNum: 0,
+                        _unit: ''
+                    };
+                }
+                
+                let { num, unit } = parseQtyToNumber(item.qty_7 || item.qty);
+
+                const nLowerGlobal = normName.toLowerCase();
+                // --- CONVERSIÓN DE PESOS (Gramos, onzas, kilos) A LIBRAS E INTERCEPCIONES COMERCIALES ---
+                const uLower = (unit || '').toLowerCase();
+                const isGrams = ['g', 'gr', 'gramo', 'gramos'].includes(uLower);
+                const isOunces = ['oz', 'onza', 'onzas'].includes(uLower);
+                const isKilos = ['kg', 'kilo', 'kilos', 'kilogramo', 'kilogramos'].includes(uLower);
+
+                if (isGrams || isOunces || isKilos) {
+                    if (nLowerGlobal.includes('atún') || nLowerGlobal.includes('atun') || nLowerGlobal.includes('sardina')) {
+                        let totalGrams = num;
+                        if (isOunces) totalGrams = num * 28.3495;
+                        if (isKilos) totalGrams = num * 1000;
+                        num = Math.ceil(totalGrams / 150) || 1; 
+                        unit = 'lata';
+                    } else if (nLowerGlobal.includes('habichuela') || nLowerGlobal.includes('garbanzo') || nLowerGlobal.includes('lenteja') || nLowerGlobal.includes('guandul') || nLowerGlobal.includes('maíz')) {
+                        let totalGrams = num;
+                        if (isOunces) totalGrams = num * 28.3495;
+                        if (isKilos) totalGrams = num * 1000;
+                        num = Math.ceil(totalGrams / 400) || 1; 
+                        unit = 'lata';
+                    } else if (nLowerGlobal.includes('yogurt') || nLowerGlobal.includes('yogur') || nLowerGlobal.includes('mostaza') || nLowerGlobal.includes('mayonesa')) {
+                        let totalGrams = num;
+                        if (isOunces) totalGrams = num * 28.3495;
+                        if (isKilos) totalGrams = num * 1000;
+                        num = Math.ceil(totalGrams / 250) || 1; 
+                        unit = 'pote';
+                    } else if (nLowerGlobal.includes('pan') || nLowerGlobal.includes('avena') || nLowerGlobal.includes('galleta') || nLowerGlobal.includes('casabe') || nLowerGlobal.includes('almendra') || nLowerGlobal.includes('nuez') || nLowerGlobal.includes('nueces')) {
+                        num = 1; 
+                        unit = 'paquete';
+                    } else {
+                        // Convertir a libras
+                        if (isGrams) num = num / 453.592;
+                        if (isOunces) num = num / 16;
+                        if (isKilos) num = num * 2.20462;
+                        
+                        if (num < 0.5) num = 0.5; // Todo dominicano compra al menos 1/2 libra
+                        // Redondear a la media libra más cercana (0.5, 1, 1.5, etc.) para el supermercado
+                        num = Math.ceil(num * 2) / 2;
+                        unit = 'lb';
+                    }
+                }
+
+                // --- CORRECCIÓN DE ALUCINACIONES DE LA IA E INTERCEPCIÓN DE LÍQUIDOS ---
+                const isVolume = ['ml', 'mililitro', 'mililitros', 'l', 'litro', 'litros'].includes((unit || '').toLowerCase());
+                if (isVolume) {
+                    if (nLowerGlobal.includes('atún') || nLowerGlobal.includes('atun')) {
+                        unit = 'lata'; // Error de la IA (litros en vez de lata)
+                        num = 1;
+                    } else if (nLowerGlobal.includes('leche') || nLowerGlobal.includes('jugo')) {
+                        let totalLiters = (unit.toLowerCase().includes('m')) ? num / 1000 : num;
+                        num = Math.ceil(totalLiters) || 1;
+                        unit = 'cartón';
+                    } else if (nLowerGlobal.includes('aceite') || nLowerGlobal.includes('vinagre') || nLowerGlobal.includes('salsa') || nLowerGlobal.includes('vainilla') || nLowerGlobal.includes('miel') || nLowerGlobal.includes('sirope')) {
+                        num = Math.ceil(num / 500) || 1; // Potes de medio litro
+                        unit = 'pote';
+                    }
+                }
+
+                // --- CONVERSIÓN DE UNIDADES CULINARIAS A COMERCIALES ---
+                const cookingUnits = ['cda', 'cdta', 'cucharada', 'cucharadas', 'cucharadita', 'cucharaditas', 'taza', 'tazas', 'vaso', 'vasos', 'pizca', 'chorrito', 'rodaja', 'rodajas', 'diente', 'dientes', 'lonja', 'lonjas', 'al gusto'];
+                if (cookingUnits.includes((unit || '').toLowerCase())) {
+                    // Si el AI genera unidades de cocina (ej: 4 tazas arroz, 1 cda aceite)
+                    // Las convertimos a 1 paquete/pote/etc para simplificarlas para el súper
+                    num = 1;
+                    unit = ''; // El string vacío fuerza a disparar el fallback inteligente abajo
+                }
+
+                const genericUnits = ['lb', 'lbs', 'libra', 'libras', 'l', 'lt', 'unidad', 'unidades', ''];
+                const isGenericWeightOrCount = genericUnits.includes((unit || '').toLowerCase().trim());
+                const originalParsedUnit = (unit || '').toLowerCase().trim();
+
+                if (num > 0) {
+                    if (isGenericWeightOrCount) {
+                        if (nLowerGlobal.includes('huevo')) unit = 'cartón';
+                        else if (nLowerGlobal.includes('pan') || nLowerGlobal.includes('wrap') || nLowerGlobal.includes('avena') || nLowerGlobal.includes('canela') || nLowerGlobal.includes('orégano') || nLowerGlobal.includes('semilla') || nLowerGlobal.includes('almendra') || nLowerGlobal.includes('chía') || nLowerGlobal.includes('chia') || nLowerGlobal.includes('casabe') || nLowerGlobal.includes('nuez') || nLowerGlobal.includes('nueces') || nLowerGlobal.includes('ensalada')) unit = 'paquete';
+                        else if (nLowerGlobal.includes('habichuela') || nLowerGlobal.includes('garbanzo') || nLowerGlobal.includes('lenteja') || nLowerGlobal.includes('guandul') || nLowerGlobal.includes('gandul') || nLowerGlobal.includes('maíz') || nLowerGlobal.includes('atún') || nLowerGlobal.includes('atun') || nLowerGlobal.includes('sardina')) unit = 'lata';
+                        else if (nLowerGlobal.includes('lechuga') || /\bajo(s)?\b/.test(nLowerGlobal)) unit = 'cabeza';
+                        else if (nLowerGlobal.includes('yogurt') || nLowerGlobal.includes('yogur') || nLowerGlobal.includes('polvo') || nLowerGlobal.includes('aceite') || nLowerGlobal.includes('mostaza') || nLowerGlobal.includes('mayonesa') || nLowerGlobal.includes('ketchup') || nLowerGlobal.includes('mermelada') || nLowerGlobal.includes('miel') || nLowerGlobal.includes('sirope') || nLowerGlobal.includes('mantequilla') || nLowerGlobal.includes('maní') || nLowerGlobal.includes('aceituna')) unit = 'pote';
+                        else if (nLowerGlobal.includes('salsa') || nLowerGlobal.includes('sésamo') || nLowerGlobal.includes('sesamo') || nLowerGlobal.includes('vinagre')) unit = 'botella';
+                        else if (nLowerGlobal.includes('leche') || nLowerGlobal.includes('jugo')) unit = 'cartón';
+                        else if (nLowerGlobal.includes('aguacate') || nLowerGlobal.includes('limón') || nLowerGlobal.includes('limon') || nLowerGlobal.includes('manzana') || nLowerGlobal.includes('naranja') || nLowerGlobal.includes('guineo')) unit = 'unidad';
+                        else if (nLowerGlobal.includes('carne') || nLowerGlobal.includes('pollo') || nLowerGlobal.includes('queso') || nLowerGlobal.includes('batata') || nLowerGlobal.includes('arroz') || nLowerGlobal.includes('cerdo') || nLowerGlobal.includes('salmón') || nLowerGlobal.includes('pescado') || nLowerGlobal.includes('yuca') || nLowerGlobal.includes('plátano') || nLowerGlobal.includes('papa') || nLowerGlobal.includes('yautía') || nLowerGlobal.includes('brócoli') || nLowerGlobal.includes('zanahoria') || nLowerGlobal.includes('berenjena') || nLowerGlobal.includes('camarones') || nLowerGlobal.includes('tomate') || nLowerGlobal.includes('cebolla') || nLowerGlobal.includes('ají') || nLowerGlobal.includes('aji') || nLowerGlobal.includes('pimiento') || nLowerGlobal.includes('tayota') || nLowerGlobal.includes('vainita') || nLowerGlobal.includes('coliflor') || nLowerGlobal.includes('repollo')) unit = 'lb';
+                        else unit = unit || 'unidad'; // Recuperar la unidad original (ej. 'lb') o unidad como fallback final
+                        
+                        // Blindaje de sobre - escalamiento:
+                        // Si la IA mandó un conteo de porciones diminutas (ej. "10 (unidades) de aceitunas" o "4 huevos")
+                        // y nosotros lo forzamos a un empaque (pote, paquete, cartón), garantizamos que una receta NO ocupe más de 1 empaque.
+                        if ((originalParsedUnit === 'unidad' || originalParsedUnit === 'unidades' || originalParsedUnit === '') && num > 1) {
+                            const bulkContainers = ['paquete', 'pote', 'botella', 'cartón', 'cabeza', 'lata'];
+                            if (bulkContainers.includes(unit)) {
+                                num = 1;
+                            }
+                        }
+                    }
+                    
+                    if (!consData[uniqueKey]._unit && unit) {
+                        consData[uniqueKey]._unit = unit; 
+                    }
+                    
+                    const bulkUnits = ['paquete', 'paquetes', 'pote', 'potes', 'botella', 'botellas', 'cartón', 'cartones', 'cabeza', 'cabezas', 'lata', 'latas'];
+                    if (bulkUnits.includes((consData[uniqueKey]._unit || '').toLowerCase())) {
+                        // Para empaques de despensa o bultos, 2 recetas que piden "1 paquete de avena" usarán el MISM0 paquete
+                        consData[uniqueKey]._parsedNum = Math.max(consData[uniqueKey]._parsedNum, num);
+                    } else {
+                        // Para items por peso o contables individuales (lbs, unidades), sumamos
+                        consData[uniqueKey]._parsedNum += num;
+                    }
+                    
+                    let nNum = Math.ceil(consData[uniqueKey]._parsedNum);
+                    let finalUnit = getPluralUnit(nNum, consData[uniqueKey]._unit);
+                    consData[uniqueKey].qty_7 = `${nNum} ${finalUnit}`.trim();
+                } else if (consData[uniqueKey]._parsedNum === 0 && (!consData[uniqueKey].qty_7 || consData[uniqueKey].qty_7 === 'None')) {
+                    let fallbackQty = item.qty_7 || item.qty;
+                    const isGenericFallback = genericUnits.includes((fallbackQty || '').toString().toLowerCase().replace(/[0-9]/g, '').trim());
+                    if (!fallbackQty || fallbackQty === 'None' || isGenericFallback) {
+                        if (nLowerGlobal.includes('queso') || nLowerGlobal.includes('pescado') || nLowerGlobal.includes('carne') || nLowerGlobal.includes('pollo') || nLowerGlobal.includes('yuca') || nLowerGlobal.includes('plátano') || nLowerGlobal.includes('papa') || nLowerGlobal.includes('yautía') || nLowerGlobal.includes('brócoli') || nLowerGlobal.includes('zanahoria') || nLowerGlobal.includes('berenjena') || nLowerGlobal.includes('camarones') || nLowerGlobal.includes('tomate') || nLowerGlobal.includes('cebolla') || nLowerGlobal.includes('ají') || nLowerGlobal.includes('aji') || nLowerGlobal.includes('pimiento') || nLowerGlobal.includes('tayota') || nLowerGlobal.includes('vainita') || nLowerGlobal.includes('coliflor') || nLowerGlobal.includes('repollo') || nLowerGlobal.includes('arroz') || nLowerGlobal.includes('azúcar')) fallbackQty = '1 lb';
+                        else if (nLowerGlobal.includes('pan') || nLowerGlobal.includes('avena') || nLowerGlobal.includes('galleta') || nLowerGlobal.includes('casabe') || nLowerGlobal.includes('almendra') || nLowerGlobal.includes('nuez') || nLowerGlobal.includes('nueces') || nLowerGlobal.includes('orégano') || nLowerGlobal.includes('semilla') || nLowerGlobal.includes('canela') || nLowerGlobal.includes('ensalada') || nLowerGlobal.includes('pasta') || nLowerGlobal.includes('quinoa')) fallbackQty = '1 paquete';
+                        else if (nLowerGlobal.includes('habichuela') || nLowerGlobal.includes('garbanzo') || nLowerGlobal.includes('lenteja') || nLowerGlobal.includes('guandul') || nLowerGlobal.includes('gandul') || nLowerGlobal.includes('maíz') || nLowerGlobal.includes('atún') || nLowerGlobal.includes('atun') || nLowerGlobal.includes('sardina')) fallbackQty = '1 lata';
+                        else if (nLowerGlobal.includes('yogurt') || nLowerGlobal.includes('yogur') || nLowerGlobal.includes('mostaza') || nLowerGlobal.includes('mayonesa') || nLowerGlobal.includes('ketchup') || nLowerGlobal.includes('aceite') || nLowerGlobal.includes('miel') || nLowerGlobal.includes('sirope') || nLowerGlobal.includes('polvo') || nLowerGlobal.includes('mermelada') || nLowerGlobal.includes('mantequilla') || nLowerGlobal.includes('maní') || nLowerGlobal.includes('aceituna')) fallbackQty = '1 pote';
+                        else if (nLowerGlobal.includes('salsa') || nLowerGlobal.includes('vinagre')) fallbackQty = '1 botella';
+                        else if (nLowerGlobal.includes('leche') || nLowerGlobal.includes('jugo') || nLowerGlobal.includes('huevo')) fallbackQty = '1 cartón';
+                        else fallbackQty = fallbackQty && fallbackQty !== 'None' ? fallbackQty : '1 unidad';
+                    }
+                    consData[uniqueKey].qty_7 = fallbackQty;
+                }
+            });
+
+            // Agrupar por categoría
+            const grouped = {};
+            Object.values(consData).forEach(item => {
+                let cat = item.category;
+                if (!grouped[cat]) grouped[cat] = [];
+                grouped[cat].push(item);
+            });
+
+            // Count total items to adjust density and keep the PDF on 1 page
+            const totalItems = Object.values(consData).length;
+            const isDense = totalItems >= 26;
+            const rootPadding = isDense ? '12px' : '20px';
+            const headerPadding = isDense ? '12px 16px' : '16px 20px';
+            const headerMargin = isDense ? '12px' : '20px';
+            const gapMargin = isDense ? '6px' : '10px';  // grid gap
+            const listGap = isDense ? '8px' : '10px';
+
+            // Obtener duración actual
+            const duration = formData?.groceryDuration || 'weekly';
+            let durationText = '7 Días';
+            let qtyField = 'qty_7';
+            if (duration === 'biweekly') { durationText = '15 Días'; qtyField = 'qty_15'; }
+            if (duration === 'monthly') { durationText = '1 Mes'; qtyField = 'qty_30'; }
+
+            // Generar contenido HTML estilizado para el PDF
+            const element = document.createElement('div');
+            
+            let htmlContent = `
+            <div style="font-family: 'Inter', system-ui, sans-serif; padding: ${rootPadding}; color: #1f2937; background-color: #ffffff;">
+                <!-- Header Box -->
+                <div style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px; padding: ${headerPadding}; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); display: flex; align-items: center; justify-content: space-between; margin-bottom: ${headerMargin}; border-top: 5px solid #10b981;">
+                    <div>
+                        <h1 style="margin: 0 0 8px 0; color: #111827; font-size: 20px; font-weight: 800; letter-spacing: -0.025em;">Lista de Compras</h1>
+                        <div style="display: flex; gap: 8px;">
+                            <span style="background-color: #ecfdf5; color: #065f46; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #10b98140;">Ciclo: ${durationText}</span>
+                            <span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">Generado: ${new Date().toLocaleDateString('es-DO')}</span>
+                        </div>
+                    </div>
+                    <img src="/favicon-transparent.png" alt="MealfitRD Logo" style="height: 40px;" />
+                </div>
+
+                
+                <!-- Disclaimer de Cantidades -->
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 3px solid #3b82f6; padding: 10px 14px; border-radius: 6px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 10px;">
+                    <svg style="flex-shrink: 0; width: 16px; height: 16px; color: #3b82f6; margin-top: 1px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p style="margin: 0; font-size: 11px; color: #334155; line-height: 1.4;">
+                        <strong>Nota importante:</strong> Las cantidades de esta lista de compras <strong>no son 100% exactas</strong>, son proyecciones base para 1 persona. Te recomendamos ajustarlas y comprar <strong>al gusto</strong> según lo que consumes usualmente o si cocinas para más familiares.
+                    </p>
+                </div>
+
+                <!-- Three Column Layout for Categories -->
+                <div style="column-count: 3; column-gap: 16px;">
+            `;
+
+            Object.keys(grouped).sort().forEach(cat => {
+                const icon = `<span style="background-color: #10b981; color: white; border-radius: 4px; padding: 4px; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></span>`;
+                htmlContent += `
+                <div style="background-color: #ffffff; border: 1px solid #f3f4f6; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); break-inside: auto; page-break-inside: auto;">
+                    <div style="background-color: #f8fafc; padding: ${isDense ? '6px 10px' : '8px 12px'}; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 6px;">
+                        ${icon}
+                        <h3 style="margin: 0; font-size: 11px; font-weight: 800; color: #1f2937; text-transform: uppercase; letter-spacing: 0.05em;">${cat}</h3>
+                    </div>
+                    <ul style="list-style: none; padding: 0; margin: 0;">
+                `;
+                grouped[cat].forEach((item, index) => {
+                    const isLast = index === grouped[cat].length - 1;
+                    const borderBottom = isLast ? '' : 'border-bottom: 1px solid #f3f4f6;';
+                    // Obtenemos la cantidad base (7 días)
+                    const baseQty = item.qty_7 || item.qty || '';
+                    let displayQty = baseQty;
+                    
+                    // Condición para no multiplicar despensa básica que dura mucho tiempo
+                    const nLower = String(item.display_name || item.name || '').toLowerCase();
+                    const isPantryStaple = 
+                        nLower.includes('aceite') ||
+                        nLower.includes('salsa de soya') ||
+                        /\bsal\b/.test(nLower) ||
+                        nLower.includes('ajo en polvo') ||
+                        nLower.includes('especias') ||
+                        nLower.includes('orégano') ||
+                        nLower.includes('canela') ||
+                        nLower.includes('multivitamínico') ||
+                        nLower.includes('chía') ||
+                        nLower.includes('almendra') ||
+                        nLower.includes('avena') ||
+                        nLower.includes('miel') ||
+                        nLower.includes('sirope') ||
+                        nLower.includes('vinagre') ||
+                        nLower.includes('vainilla') ||
+                        nLower.includes('al gusto') ||
+                        nLower.includes('pizca');
+
+                    // Lógica determinística para multiplicar cantidades según la duración
+                    if (!isPantryStaple && baseQty && String(baseQty).trim() !== 'None' && duration !== 'weekly') {
+                        const multiplier = duration === 'biweekly' ? 2 : 4;
+                        let parsedBase = String(baseQty).trim().replace(/[\u00BD½]/g, ' 1/2').replace(/  +/g, ' ').trim();
+                        // Regex que permite capturar hasta un número + espacio + unidad o fracción simple
+                        const regex = /^([\d.,]+(?:[ \/]+[\d.,]+)?)\s*(.*)$/;
+                        const match = parsedBase.match(regex);
+                        
+                        if (match) {
+                            let numStr = match[1].replace(',', '.').trim();
+                            let unit = match[2];
+                            let num = 0;
+                            
+                            // Parsear fracciones como "1 1/2" o "1/2"
+                            if (numStr.includes('/')) {
+                                const parts = numStr.split(' ');
+                                if (parts.length === 2 && parts[1].includes('/')) {
+                                    const frac = parts[1].split('/');
+                                    num = parseFloat(parts[0]) + (parseFloat(frac[0]) / parseFloat(frac[1]));
+                                } else if (parts.length === 1 && numStr.includes('/')) {
+                                    const frac = numStr.split('/');
+                                    num = parseFloat(frac[0]) / parseFloat(frac[1]);
+                                }
+                            } else {
+                                num = parseFloat(numStr);
+                            }
+                            
+                            if (!isNaN(num) && num > 0) {
+                                let newNum = num * multiplier;
+                                
+                                // Redondear siempre hacia arriba a números enteros
+                                let finalNum = Math.ceil(newNum);
+                                let finalUnit = getPluralUnit(finalNum, unit);
+                                displayQty = `${finalNum} ${finalUnit}`.trim();
+                            }
+                        }
+                    }
+
+                    let display = item.display_name || item.name || item.item_name;
+                    if (typeof display === 'string' && display.trim().startsWith('{')) {
+                        try {
+                            const parsed = JSON.parse(display);
+                            display = parsed.display_name || parsed.name || parsed.item_name || display;
+                        } catch(e) {}
+                    } else if (typeof display === 'object' && display !== null) {
+                        display = display.display_name || display.name || display.item_name || JSON.stringify(display);
+                    }
+                    
+                    // Tag de cantidad super compacto para 3 columnas
+                    const qtyStr = displayQty && String(displayQty).trim() !== 'None' ? `<span style="font-weight: 700; color: #059669; font-size: ${isDense ? '8.5px' : '9.5px'}; background-color: #ecfdf5; border: 1px solid #10b98130; padding: 1.5px 4px; border-radius: 4px; margin-left: 6px; white-space: nowrap; align-self: flex-start;">${displayQty}</span>` : '';
+
+                    htmlContent += `
+                        <li style="display: flex; align-items: flex-start; padding: ${isDense ? '4px 8px' : '6px 12px'}; ${borderBottom} page-break-inside: avoid;">
+                            <div style="width: ${isDense ? '12px' : '14px'}; height: ${isDense ? '12px' : '14px'}; border: 1.5px solid #d1d5db; border-radius: ${isDense ? '3px' : '4px'}; margin-right: ${isDense ? '6px' : '10px'}; flex-shrink: 0; background-color: #ffffff; margin-top: 2px;"></div>
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                                <span style="font-size: ${isDense ? '10px' : '11px'}; font-weight: 600; color: #374151; line-height: 1.3;">${display}</span>
+                                ${qtyStr}
+                            </div>
+                        </li>
+                    `;
+                });
+                htmlContent += `
+                    </ul>
+                </div>
+                `;
+            });
+
+            htmlContent += `
+                </div> <!-- End Layout -->
+                
+                <!-- Footer -->
+                <div style="margin-top: 15px; text-align: center; color: #9ca3af; font-size: 10px; border-top: 2px dashed #e5e7eb; padding-top: 10px;">
+                    <p style="margin: 0; font-weight: 700; color: #6b7280; letter-spacing: 1px;">PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE</p>
+                </div>
+            </div>
+            `;
+
+            element.innerHTML = htmlContent;
+
+            // html2pdf opciones
+            const opt = {
+                margin:       [5, 0, 5, 0], // top, left, bottom, right (en mm)
+                filename:     `Lista_Compras_${durationText.replace(' ', '_')}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            await html2pdf().set(opt).from(element).save();
+
+            toast.dismiss(loadingToast);
+            toast.success('Lista PDF descargada exitosamente', { icon: '📄', position: 'top-center' });
+
+        } catch (error) {
+            console.error('Error downloading shopping list:', error);
+            toast.dismiss();
+            toast.error('Error al generar la lista de compras.');
         }
     };
 
@@ -238,7 +784,7 @@ const Dashboard = () => {
                 }
                 .actions-group {
                     display: flex;
-                    align-items: flex-start;
+                    align-items: center;
                     gap: 1rem;
                     flex-wrap: wrap;
                 }
@@ -457,41 +1003,89 @@ const Dashboard = () => {
                         </div>
                     </div>
 
-                    {/* REGENERACIÓN DE MENÚ: BOTÓN Y TEXTO AUXILIAR */}
-                    <div className="new-plan-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'center' }}>
-                        <button
-                            onClick={handleNewPlan}
-                            disabled={isLimitReached}
-                            className="new-plan-btn"
-                            style={{
-                                background: isLimitReached
-                                    ? '#E2E8F0'
-                                    : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
-                                color: isLimitReached ? '#94A3B8' : 'white',
-                                cursor: isLimitReached ? 'not-allowed' : 'pointer',
-                                boxShadow: isLimitReached ? 'none' : '0 10px 20px -5px rgba(15, 23, 42, 0.3)',
-                            }}
-                        >
-                            {isLimitReached ? <AlertCircle size={20} /> : <Wand2 size={20} />}
-                            <span>{isLimitReached ? 'Límite Alcanzado' : (isPlanExpired ? 'Actualizar Plan' : 'Actualizar Platos')}</span>
-                        </button>
+                    {/* REGENERACIÓN DE MENÚ Y EXPORTACIÓN */}
+                    <div className="new-plan-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'stretch' }}>
                         
-                        {/* Indicador de vigencia de la lista de compras */}
-                        {!isLimitReached && (
-                            <span style={{ 
-                                fontSize: '0.78rem', 
-                                color: isPlanExpired ? '#EF4444' : '#475569', 
-                                fontWeight: 600,
-                                background: isPlanExpired ? '#FEF2F2' : '#F1F5F9',
-                                padding: '0.2rem 0.65rem',
-                                borderRadius: '1rem',
-                                transition: 'all 0.3s ease'
-                            }}>
-                                {isPlanExpired 
-                                    ? "⏳ Lista vencida. Renovación sugerida" 
-                                    : `🛒 Faltan ${daysLeft} día${daysLeft !== 1 ? 's' : ''} de súper`}
-                            </span>
-                        )}
+                        {/* SELECTOR DE CICLO DE DESPENSA */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', background: '#FFFFFF', padding: '0.4rem 0.75rem', borderRadius: '0.75rem', border: '1px solid #E2E8F0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Clock size={14} color="#64748B"/>
+                                <span className="hidden sm:inline" style={{fontSize: '0.75rem', fontWeight: 700, color: '#64748B'}}>DESPENSA:</span>
+                                <select 
+                                    value={groceryDuration}
+                                    onChange={(e) => updateData('groceryDuration', e.target.value)}
+                                    style={{ border: 'none', background: 'transparent', fontSize: '0.8rem', outline: 'none', color: '#0F172A', fontWeight: 700, cursor: 'pointer' }}
+                                >
+                                    <option value="weekly">Estática por 7 Días</option>
+                                    <option value="biweekly">Estática por 15 Días</option>
+                                    <option value="monthly">Estática por 1 Mes</option>
+                                </select>
+                            </div>
+                            
+                            {!isPlanExpired ? (
+                                <div style={{ background: '#FEF2F2', color: '#EF4444', padding: '0.2rem 0.6rem', borderRadius: '0.5rem', fontSize: '0.7rem', fontWeight: 700, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                                    {daysLeft} {daysLeft === 1 ? 'd' : 'días'}
+                                </div>
+                            ) : (
+                                <div style={{ background: '#FEF2F2', color: '#EF4444', padding: '0.2rem 0.6rem', borderRadius: '0.5rem', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
+                                    Expirada
+                                </div>
+                            )}
+                        </div>
+
+                        {/* BOTONES LADO A LADO */}
+                        <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                            <button
+                                onClick={handleNewPlan}
+                                disabled={isLimitReached}
+                                className="new-plan-btn"
+                                style={{
+                                    background: isLimitReached
+                                        ? '#E2E8F0'
+                                        : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
+                                    color: isLimitReached ? '#94A3B8' : 'white',
+                                    cursor: isLimitReached ? 'not-allowed' : 'pointer',
+                                    boxShadow: isLimitReached ? 'none' : '0 10px 20px -5px rgba(15, 23, 42, 0.3)',
+                                    flex: 1, // Toma la mitad del espacio
+                                    width: 'auto',
+                                    justifyContent: 'center',
+                                    padding: '0.85rem 0.5rem',
+                                    border: 'none',
+                                    borderRadius: '1rem',
+                                    fontWeight: '700',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.4rem'
+                                }}
+                            >
+                                {isLimitReached ? <AlertCircle size={18} /> : <Wand2 size={18} />}
+                                <span style={{fontSize: '0.85rem'}}>{isLimitReached ? 'Límite' : (isPlanExpired ? 'Nuevo Plan' : 'Rotar Platos')}</span>
+                            </button>
+
+                            <button
+                                onClick={handleDownloadShoppingList}
+                                className="new-plan-btn"
+                                style={{
+                                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 10px 20px -5px rgba(16, 185, 129, 0.3)',
+                                    flex: 1, // Toma la mitad del espacio
+                                    width: 'auto',
+                                    justifyContent: 'center',
+                                    padding: '0.85rem 0.5rem',
+                                    border: 'none',
+                                    borderRadius: '1rem',
+                                    fontWeight: '700',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.4rem'
+                                }}
+                            >
+                                <ShoppingCart size={18} />
+                                <span style={{fontSize: '0.85rem'}}>Exportar PDF</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -898,7 +1492,7 @@ const Dashboard = () => {
                     )}
                 </div>
 
-                {/* Right Column: INSIGHTS & SHOPPING */}
+                {/* Right Column: INSIGHTS & INGREDIENTS */}
                 <div style={{ flex: 1, minWidth: '300px' }}>
 
                     {/* Insights Card */}

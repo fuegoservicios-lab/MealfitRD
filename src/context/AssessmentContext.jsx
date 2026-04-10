@@ -164,7 +164,7 @@ export const AssessmentProvider = ({ children }) => {
                 const planCreatedAt = plans[0].created_at;
                 const planId = plans[0].id;
 
-                // FIX: Asegurar que el plan de la BD tenga una fecha de inicio de compras para el contador de Dashboard
+                // FIX: Asegurar que el plan de la BD tenga una fecha de inicio de abastecimiento para el contador de Dashboard
                 let didInjectGroceryDate = false;
                 if (!latestPlan.grocery_start_date) {
                     const localSaved = localStorage.getItem('mealfit_plan');
@@ -206,7 +206,7 @@ export const AssessmentProvider = ({ children }) => {
                 // Guardar la fecha en DB para persistencia cruzada (si se inyectó)
                 if (didInjectGroceryDate && userId && userId !== 'guest') {
                     supabase.from('meal_plans').update({ plan_data: latestPlan }).eq('id', planId).then((res) => {
-                        if (res.error) console.error('Error sincronizando fecha inicio compras', res.error);
+                        if (res.error) console.error('Error sincronizando fecha inicio despensa', res.error);
                     });
                 }
             } else {
@@ -503,7 +503,15 @@ export const AssessmentProvider = ({ children }) => {
         const userDietType = formData.dietType || "balanced";
         const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
 
-
+        // Extraer la lista de compra actual para RESTRINGIR las sugerencias del LLM a esta despensa
+        let currentIngredients = [];
+        planDays.forEach(day => {
+            (day.meals || []).forEach(m => {
+                if (m.ingredients && Array.isArray(m.ingredients)) {
+                    currentIngredients.push(...m.ingredients);
+                }
+            });
+        });
 
         try {
             // 1. LLAMADA A LA IA
@@ -522,7 +530,8 @@ export const AssessmentProvider = ({ children }) => {
                     allergies: formData.allergies || [],
                     dislikes: formData.dislikes || [],
                     liked_meals: Object.keys(likedMeals || {}),
-                    disliked_meals: Object.keys(dislikedMeals || {})
+                    disliked_meals: Object.keys(dislikedMeals || {}),
+                    current_shopping_list: currentIngredients
                 })
             });
 

@@ -183,7 +183,6 @@ const Pricing = () => {
 
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>{PLAN_LIMIT} Créditos</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Lista de Compras Automática</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Recetas personalizadas</strong></li>
                             </ul>
 
@@ -218,7 +217,6 @@ const Pricing = () => {
                                 <li><Check size={18} className={styles.check} /> <strong>Memoria a Largo Plazo</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Aprendizaje Continuo</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Gratis</strong></li>
-                                <li><Check size={18} className={styles.check} /> Soporte Prioritario</li>
                             </ul>
 
                             <button

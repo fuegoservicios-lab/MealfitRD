@@ -1,12 +1,11 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Bot, Utensils, ShoppingBag, Settings } from 'lucide-react';
+import { LayoutDashboard, Bot, Utensils, Settings } from 'lucide-react';
 import styles from './BottomTabBar.module.css';
 
 const tabs = [
     { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
     { icon: Bot, label: 'Agente', path: '/dashboard/agent' },
     { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' },
-    { icon: ShoppingBag, label: 'Compras', path: '/dashboard/shopping' },
     { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' },
 ];
 
