@@ -341,6 +341,11 @@ const AgentPage = () => {
     const processTTSQueue = async () => {
         if (isPlayingAudio.current || ttsQueue.current.length === 0) return;
         
+        // VOZ DESACTIVADA TEMPORALMENTE (Plan Gratuito ElevenLabs)
+        // Vaciamos la cola para no reproducir ni llamar a la API
+        ttsQueue.current = [];
+        return;
+        
         isPlayingAudio.current = true;
         const textToSpeechChunk = ttsQueue.current.shift();
         
@@ -1440,36 +1445,7 @@ const AgentPage = () => {
                             <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto', alignItems: 'center' }}>
                                 {(!input.trim() || isListening || isCallModeActive) && (
                                     <>
-                                        <button
-                                            type="button"
-                                            aria-label="Modo Llamada"
-                                            className={`touch-scale mobile-only-btn ${isCallModeActive ? 'call-mode-active' : ''}`}
-                                            onClick={toggleCallMode}
-                                            style={{
-                                                background: isCallModeActive ? '#10b981' : '#f1f5f9',
-                                                color: isCallModeActive ? 'white' : '#64748b',
-                                                border: '1px solid',
-                                                borderColor: isCallModeActive ? '#10b981' : '#e2e8f0',
-                                                borderRadius: '20px',
-                                                padding: '0 12px',
-                                                height: '40px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '6px',
-                                                justifyContent: 'center',
-                                                cursor: 'pointer',
-                                                flexShrink: 0,
-                                                fontSize: '0.85rem',
-                                                fontWeight: '600',
-                                                transition: 'all 0.2s ease',
-                                                boxShadow: isCallModeActive ? '0 4px 14px rgba(16, 185, 129, 0.4)' : 'none'
-                                            }}
-                                            title="Modo Llamada Manos Libres"
-                                        >
-                                            <PhoneCall size={18} strokeWidth={2} className={isCallModeActive ? "pulse-animation" : ""} />
-                                            {isCallModeActive ? 'En Llamada' : 'Llamar'}
-                                        </button>
-
+                                        {/* BOTON LLAMADA DESACTIVADO TEMPORALMENTE (ElevenLabs API limit) */}
                                         <button
                                             type="button"
                                             aria-label="Dictado por voz"
