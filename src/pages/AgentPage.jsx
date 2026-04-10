@@ -1445,33 +1445,7 @@ const AgentPage = () => {
                             <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto', alignItems: 'center' }}>
                                 {(!input.trim() || isListening || isCallModeActive) && (
                                     <>
-                                        {/* BOTON LLAMADA DESACTIVADO TEMPORALMENTE (ElevenLabs API limit) */}
-                                        <button
-                                            type="button"
-                                            aria-label="Dictado por voz"
-                                            className="touch-scale"
-                                            onClick={toggleDictation}
-                                            style={{
-                                                background: isListening && !isCallModeActive ? '#ef4444' : 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
-                                                color: 'white',
-                                                border: 'none',
-                                                borderRadius: '50%',
-                                                width: '40px',
-                                                height: '40px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                cursor: isLoading ? 'default' : 'pointer',
-                                                flexShrink: 0
-                                            }}
-                                            title="Dictado por voz"
-                                        >
-                                            {isListening && !isCallModeActive ?
-                                                <div className="mic-pulse">
-                                                    <Mic size={20} fill="white" />
-                                                </div>
-                                                : <Mic size={20} strokeWidth={2.5} />}
-                                        </button>
+                                        {/* FUNCIONALIDAD DE VOZ (LLAMADA/MIC) DESACTIVADA TEMPORALMENTE */}
                                     </>
                                 )}
                                 {(input.trim() || selectedFile) && (
