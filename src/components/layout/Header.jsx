@@ -16,6 +16,9 @@ const Header = () => {
 
     // No mostrar el botón "Empezar Ahora" si estamos en las rutas de evaluación o plan
     const hideStartNow = location.pathname.startsWith('/assessment') || location.pathname.startsWith('/plan');
+    
+    // Ocultar elementos del panel cuando estamos explícitamente en modo de carga (ruta /plan)
+    const isPlanLoading = location.pathname.startsWith('/plan');
 
     return (
         <>
@@ -30,7 +33,7 @@ const Header = () => {
 
 
                     {/* Lógica condicional: Si hay plan, muestra Dashboard; si no y no estamos en evaluación/plan, Evaluación */}
-                    {planData ? (
+                    {planData && !isPlanLoading ? (
                         <Link
                             to="/dashboard"
                             className={styles.ctaButton}
@@ -44,7 +47,7 @@ const Header = () => {
                     )}
 
                     {/* Botón Logout solo si hay sesión */}
-                    {session && (
+                    {session && !isPlanLoading && (
                         <button
                             onClick={() => setShowLogoutModal(true)}
                             className={styles.navLink}
@@ -78,7 +81,7 @@ const Header = () => {
                     <nav className={styles.navMobile}>
 
 
-                        {planData ? (
+                        {planData && !isPlanLoading ? (
                             <Link
                                 to="/dashboard"
                                 className={styles.ctaButtonMobile}
@@ -97,7 +100,7 @@ const Header = () => {
                         )}
 
                         {/* Botón Logout Móvil */}
-                        {session && (
+                        {session && !isPlanLoading && (
                             <button
                                 onClick={() => {
                                     setShowLogoutModal(true);

@@ -23,6 +23,12 @@ const Settings = () => {
         return localStorage.getItem('mealfit_notifications') === 'true';
     });
 
+    // Estado para la Rotación Automática Diaria
+    const [autoRotateMeals, setAutoRotateMeals] = useState(() => {
+        const saved = localStorage.getItem('mealfit_auto_rotate');
+        return saved !== null ? saved === 'true' : false; // Desactivado por defecto (opcional)
+    });
+
     // Estado para las Notificaciones Web Push (IA)
     const [pushEnabled, setPushEnabled] = useState(false);
     const [isPushLoading, setIsPushLoading] = useState(false);
@@ -103,6 +109,11 @@ const Settings = () => {
     useEffect(() => {
         localStorage.setItem('mealfit_notifications', notifications);
     }, [notifications]);
+
+    // Persistir preferencia de rotación automática
+    useEffect(() => {
+        localStorage.setItem('mealfit_auto_rotate', autoRotateMeals);
+    }, [autoRotateMeals]);
 
     // Cargar los "hechos" del Cerebro de la IA
     useEffect(() => {
@@ -544,6 +555,57 @@ const Settings = () => {
                                         disabled={isPushLoading}
                                     />
                                     <span className={styles.toggleSlider} style={{ opacity: isPushLoading ? 0.5 : 1 }}></span>
+                                </label>
+                            </div>
+
+                            {/* Nuevo Módulo de Rotación Automática */}
+                            <div style={{ 
+                                background: 'linear-gradient(135deg, #FFF9EB 0%, #FEF3C7 50%, #FEF08A 100%)', 
+                                borderRadius: '1rem', 
+                                padding: '1.25rem', 
+                                border: '1px solid #FDE68A',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '1rem',
+                                marginTop: '1rem'
+                            }}>
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
+                                    <div style={{ 
+                                        background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', 
+                                        padding: '0.75rem', 
+                                        borderRadius: '0.75rem', 
+                                        flexShrink: 0,
+                                        boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+                                    }}>
+                                        <Brain size={20} color="#FFFFFF" />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontWeight: 700, color: 'var(--text-main)', display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.95rem' }}>
+                                            Rotación Autónoma
+                                            <span style={{ 
+                                                fontSize: '0.55rem', 
+                                                background: 'linear-gradient(135deg, #F59E0B, #D97706)', 
+                                                color: '#FFFFFF', 
+                                                padding: '0.2rem 0.5rem', 
+                                                borderRadius: '1rem', 
+                                                fontWeight: 700, 
+                                                letterSpacing: '0.5px',
+                                                textTransform: 'uppercase'
+                                            }}>NUEVO</span>
+                                        </div>
+                                        <div style={{ fontSize: '0.78rem', color: '#92400E', lineHeight: '1.45', marginTop: '0.25rem' }}>
+                                            Renovar tus platos diarios tomando en cuenta tus nuevos gustos.
+                                        </div>
+                                    </div>
+                                </div>
+                                <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={autoRotateMeals}
+                                        onChange={() => setAutoRotateMeals(!autoRotateMeals)}
+                                    />
+                                    <span className={styles.toggleSlider}></span>
                                 </label>
                             </div>
                         </section>

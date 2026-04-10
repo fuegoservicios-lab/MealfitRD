@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAssessment } from '../context/AssessmentContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { requestNotificationPermission, subscribeToPushNotifications, isPushSupported } from '../utils/pushNotifications';
 
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import {
@@ -40,6 +42,10 @@ const Dashboard = () => {
 
     // Estado local para la navegación por pestañas (Días)
     const [activeDayIndex, setActiveDayIndex] = useState(0);
+
+    // Estado para el modal de Onboarding de Alertas Inteligentes
+    const [showPushOnboarding, setShowPushOnboarding] = useState(false);
+    const [isPushEnabling, setIsPushEnabling] = useState(false);
 
     // 2. ESTADO DE CARGA: Si estamos recuperando datos de la DB, mostramos loader
     if (loadingData) {
@@ -129,6 +135,85 @@ const Dashboard = () => {
             setCurrentStep(0);
             navigate('/assessment');
         }
+    };
+
+    // --- NUEVO: ROTACIÓN AUTOMÁTICA DIARIA (LAZY) ---
+    useEffect(() => {
+        if (loadingData || !planData || !formData) return;
+
+        const autoRotateSaved = localStorage.getItem('mealfit_auto_rotate');
+        // Desactivado por defecto si no existe la clave para que sea puramente opcional
+        const autoRotateEnabled = autoRotateSaved !== null ? autoRotateSaved === 'true' : false;
+
+        if (autoRotateEnabled) {
+            const today = new Date().toLocaleDateString();
+            const lastRotation = localStorage.getItem('mealfit_last_auto_rotation');
+
+            if (!lastRotation) {
+                // Es la primera vez que entra con la función activa.
+                // Registramos el día para que comience a rotar a partir de MAÑANA,
+                // sin interrumpir la experiencia el día de hoy.
+                localStorage.setItem('mealfit_last_auto_rotation', today);
+            } else if (lastRotation !== today) {
+                // Guardamos el día actual para asegurar que no se cicle
+                localStorage.setItem('mealfit_last_auto_rotation', today);
+                
+                toast('Rotación Autónoma 🌅', {
+                    description: 'Diseñando un nuevo menú ajustado a tus aprendizajes...',
+                    icon: '🔄',
+                    duration: 4000
+                });
+
+                // Disparamos la rotación de fondo como si el usuario diera a "Actualizar Platos/Plan"
+                setTimeout(() => {
+                    handleNewPlan();
+                }, 500); // Pequeño delay de 500ms para asegurar renderizado previo
+            }
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loadingData, planData, formData]);
+
+    // --- NUEVO: ONBOARDING DE ALERTAS INTELIGENTES (WEB PUSH) ---
+    useEffect(() => {
+        if (!loadingData && userProfile && isPushSupported() && 'Notification' in window) {
+            const hasSeenOnboarding = localStorage.getItem('mealfit_push_onboarding_seen');
+            if (!hasSeenOnboarding && Notification.permission === 'default') {
+                // Pequeño retraso para que la interfaz se asiente primero antes de mostrar el modal
+                const timer = setTimeout(() => {
+                    setShowPushOnboarding(true);
+                }, 2000);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [loadingData, userProfile]);
+
+    const handleEnablePush = async () => {
+        setIsPushEnabling(true);
+        try {
+            const permission = await requestNotificationPermission();
+            if (permission) {
+                await subscribeToPushNotifications(userProfile.id);
+                toast.success("¡Alertas Inteligentes activadas!", {
+                    description: "Te avisaremos si olvidas registrar una comida.",
+                    icon: '🧠'
+                });
+            } else {
+                toast.info("Notificaciones omitidas", {
+                    description: "Puedes activarlas más adelante desde Ajustes."
+                });
+            }
+        } catch (error) {
+            console.error("Error activando notificaciones:", error);
+        } finally {
+            setIsPushEnabling(false);
+            setShowPushOnboarding(false);
+            localStorage.setItem('mealfit_push_onboarding_seen', 'true');
+        }
+    };
+
+    const handleDismissPushOnboarding = () => {
+        setShowPushOnboarding(false);
+        localStorage.setItem('mealfit_push_onboarding_seen', 'true');
     };
 
     const handleDownloadShoppingList = async () => {
@@ -1650,6 +1735,100 @@ const Dashboard = () => {
 
                 </div>
             </div>
+
+            {/* MODAL DE ONBOARDING WEB PUSH (Alertas Inteligentes) */}
+            <AnimatePresence>
+                {showPushOnboarding && (
+                    <div style={{
+                        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: 'rgba(15, 23, 42, 0.7)',
+                        backdropFilter: 'blur(8px)',
+                        zIndex: 99999,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '1rem'
+                    }}>
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            style={{
+                                background: '#FFFFFF',
+                                borderRadius: '24px',
+                                padding: '2.5rem 2rem',
+                                width: '100%', maxWidth: '420px',
+                                position: 'relative',
+                                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                                textAlign: 'center',
+                                overflow: 'hidden'
+                            }}
+                        >
+                            {/* Decorative background circle */}
+                            <div style={{
+                                position: 'absolute', top: '-50px', left: '50%', transform: 'translateX(-50%)',
+                                width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, rgba(255,255,255,0) 70%)',
+                                borderRadius: '50%', zIndex: 0
+                            }}></div>
+                            
+                            <div style={{
+                                width: '64px', height: '64px', borderRadius: '20px',
+                                background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                margin: '0 auto 1.5rem auto', position: 'relative', zIndex: 1,
+                                boxShadow: '0 8px 16px rgba(99, 102, 241, 0.3)'
+                            }}>
+                                <Brain size={32} color="#FFFFFF" strokeWidth={2} />
+                            </div>
+
+                            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.75rem', position: 'relative', zIndex: 1 }}>
+                                Activa tu Nutricionista IA
+                            </h2>
+                            <p style={{ color: '#64748B', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '2rem', position: 'relative', zIndex: 1 }}>
+                                Déjame mandarte un aviso a tu celular a la hora de comer para que nunca olvides tu rutina y alcances tus metas más rápido.
+                            </p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', position: 'relative', zIndex: 1 }}>
+                                <button 
+                                    onClick={handleEnablePush}
+                                    disabled={isPushEnabling}
+                                    style={{
+                                        background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
+                                        color: '#FFFFFF', border: 'none',
+                                        padding: '1rem', borderRadius: '1rem',
+                                        fontWeight: 700, fontSize: '1rem',
+                                        cursor: isPushEnabling ? 'wait' : 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                        boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
+                                        opacity: isPushEnabling ? 0.7 : 1,
+                                        transform: isPushEnabling ? 'scale(0.98)' : 'scale(1)',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    {isPushEnabling ? (
+                                        <><Loader2 size={20} className="spin-animation" /> Activando...</>
+                                    ) : (
+                                        <>¡Sí, encender alertas!</>
+                                    )}
+                                </button>
+                                
+                                <button 
+                                    onClick={handleDismissPushOnboarding}
+                                    disabled={isPushEnabling}
+                                    style={{
+                                        background: 'transparent', color: '#94A3B8', border: 'none',
+                                        padding: '0.75rem', borderRadius: '1rem',
+                                        fontWeight: 600, fontSize: '0.9rem',
+                                        cursor: 'pointer',
+                                        transition: 'color 0.2s'
+                                    }}
+                                >
+                                    Quizá más tarde
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </>
     );
 };
