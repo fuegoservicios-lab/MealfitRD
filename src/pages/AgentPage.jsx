@@ -379,7 +379,8 @@ const AgentPage = () => {
             // Hack para iOS/Móvil: Inicializar el motor TTS en el evento de clic del usuario
             if (synthRef.current) {
                 try {
-                    const silentUtterance = new SpeechSynthesisUtterance('');
+                    const silentUtterance = new SpeechSynthesisUtterance(' ');
+                    silentUtterance.volume = 0;
                     synthRef.current.speak(silentUtterance);
                 } catch(e) {}
             }
@@ -409,9 +410,9 @@ const AgentPage = () => {
             return;
         }
 
-        // Usamos continuous = true SIEMPRE para anular el auto-stop del navegador y forzar nuestro temporizador de 3s
         const recognition = new SpeechRecognition();
-        recognition.continuous = true;
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        recognition.continuous = !isIOS; // iOS no soporta continuous=true
         recognition.interimResults = true;
         recognition.lang = 'es-DO';
 
