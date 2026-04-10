@@ -74,7 +74,6 @@ export const subscribeToPushNotifications = async () => {
             });
         }
 
-        // Subir al backend
         const res = await fetchWithAuth('/api/notifications/subscribe', {
             method: 'POST',
             headers: {
@@ -83,10 +82,14 @@ export const subscribeToPushNotifications = async () => {
             body: JSON.stringify(subscription)
         });
 
-        return res.ok;
+        if (!res.ok) {
+            throw new Error(`Error del servidor (${res.status})`);
+        }
+
+        return { success: true };
     } catch (err) {
         console.error("Error al suscribirse a push:", err);
-        return false;
+        return { success: false, error: err.message };
     }
 };
 

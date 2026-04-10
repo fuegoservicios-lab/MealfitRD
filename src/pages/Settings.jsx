@@ -155,12 +155,12 @@ const Settings = () => {
                 return;
             }
 
-            const success = await subscribeToPushNotifications();
-            if (success) {
+            const result = await subscribeToPushNotifications();
+            if (result.success) {
                 setPushEnabled(true);
                 toast.success("¡Notificaciones de la IA activadas con éxito!");
             } else {
-                toast.error("Hubo un problema al habilitar las notificaciones Push.");
+                toast.error(`Fallo: ${result.error}`);
             }
         }
         setIsPushLoading(false);
