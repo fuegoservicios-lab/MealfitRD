@@ -185,8 +185,16 @@ const Dashboard = () => {
     // --- NUEVO: ONBOARDING DE ALERTAS INTELIGENTES (WEB PUSH) ---
     useEffect(() => {
         if (!loadingData && userProfile && isPushSupported() && 'Notification' in window) {
+            // Evaluamos si es un usuario recién registrado basándonos en la fecha de creación
+            // Consideramos "nuevo" si su cuenta se creó hace menos de unas 2-24 horas, o simplemente
+            // miramos el planCount === 1 (es su primer plan generado)
+            // Por ejemplo, aquí usamos planCount === 1 como proxy de "usuario nuevo", 
+            // ya que está entrando por primera vez con su primer plan.
+            const isNewUser = formData?.isNewUser || planCount === 1;
+
             const hasSeenOnboarding = localStorage.getItem('mealfit_push_onboarding_seen');
-            if (!hasSeenOnboarding && Notification.permission === 'default') {
+            
+            if (isNewUser && !hasSeenOnboarding && Notification.permission === 'default') {
                 // Pequeño retraso para que la interfaz se asiente primero antes de mostrar el modal
                 const timer = setTimeout(() => {
                     setShowPushOnboarding(true);
@@ -194,7 +202,7 @@ const Dashboard = () => {
                 return () => clearTimeout(timer);
             }
         }
-    }, [loadingData, userProfile]);
+    }, [loadingData, userProfile, planCount, formData]);
 
     const handleEnablePush = async () => {
         setIsPushEnabling(true);
