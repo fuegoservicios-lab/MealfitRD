@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Utensils, Settings, LogOut, User, Menu, X, Clock, Bot } from 'lucide-react';
+import { LayoutDashboard, Utensils, Settings, LogOut, User, Menu, X, Clock, Bot, Archive } from 'lucide-react';
 import { useAssessment } from '../../context/AssessmentContext';
 import LogoutConfirmModal from './LogoutConfirmModal';
 import BottomTabBar from './BottomTabBar';
@@ -23,10 +23,10 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const closeMenu = () => setIsMobileMenuOpen(false);
 
     const menuItems = [
-        { icon: LayoutDashboard, label: 'Mi Plan', path: '/dashboard' },
-        { icon: Bot, label: 'Mi Agente', path: '/dashboard/agent' },
+        { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
+        { icon: Bot, label: 'Agente', path: '/dashboard/agent' },
+        { icon: Archive, label: 'Nevera', path: '/dashboard/pantry' },
         { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' }, // Placeholder
-
         { icon: Clock, label: 'Historial', path: '/history' },
         { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' }, // Placeholder
     ];

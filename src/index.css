@@ -19,6 +19,7 @@
   --bg-page: #F8FAFC;
   /* Slate 50 */
   --bg-card: #FFFFFF;
+  --bg-muted: #F1F5F9;
   --bg-glass: rgba(255, 255, 255, 0.7);
 
   --text-main: #0F172A;
@@ -31,6 +32,12 @@
   --border: #E2E8F0;
   /* Slate 200 */
   --border-light: rgba(255, 255, 255, 0.2);
+
+  /* Semantic UI Colors */
+  --danger: #EF4444;
+  --danger-bg: #FEF2F2;
+  --danger-text: #B91C1C;
+  --warning: #F59E0B;
 
   /* Typography */
   --font-heading: 'Outfit', sans-serif;
@@ -57,6 +64,8 @@
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
 }
+
+
 
 * {
   margin: 0;
@@ -137,6 +146,21 @@ button {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+/* Soft inline scrollbar for components */
+.soft-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.soft-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.soft-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3); /* Slate 400 with opacity */
+  border-radius: 10px;
+}
+.soft-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
 }
 
 /* Responsive Utilities */

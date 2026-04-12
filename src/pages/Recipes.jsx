@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import React, { useRef, useState, useEffect } from 'react';
 import html2pdf from 'html2pdf.js';
-import { fetchWithAuth } from '../config/api';
+import { fetchWithAuth, API_BASE } from '../config/api';
 const FormattedRecipeStep = ({ step, index }) => {
     // 1. Identificar si es una sección especial (Mise en place, Fuego, Montaje)
     const getSectionInfo = (text) => {
@@ -352,7 +352,7 @@ const Recipes = () => {
                 jwt = parsed?.currentSession?.access_token || parsed?.access_token || token;
             }
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/diary/consumed`, {
+            const response = await fetch(`${API_BASE}/api/diary/consumed`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

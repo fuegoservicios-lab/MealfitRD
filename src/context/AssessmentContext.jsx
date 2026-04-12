@@ -164,7 +164,7 @@ export const AssessmentProvider = ({ children }) => {
                 const planCreatedAt = plans[0].created_at;
                 const planId = plans[0].id;
 
-                // FIX: Asegurar que el plan de la BD tenga una fecha de inicio de abastecimiento para el contador de Dashboard
+                // FIX: Asegurar que el plan de la BD tenga una fecha de inicio de compras para el contador de Dashboard
                 let didInjectGroceryDate = false;
                 if (!latestPlan.grocery_start_date) {
                     const localSaved = localStorage.getItem('mealfit_plan');
@@ -508,7 +508,14 @@ export const AssessmentProvider = ({ children }) => {
         planDays.forEach(day => {
             (day.meals || []).forEach(m => {
                 if (m.ingredients && Array.isArray(m.ingredients)) {
-                    currentIngredients.push(...m.ingredients);
+                    // Safety net: Normalizar cada ingrediente a string limpio
+                    // (protege contra cambios futuros de estructura a objetos)
+                    const normalized = m.ingredients.map(ing => {
+                        if (typeof ing === 'string') return ing;
+                        if (typeof ing === 'object' && ing !== null) return ing.display_name || ing.name || ing.item_name || String(ing);
+                        return String(ing);
+                    }).filter(s => s && s.length > 2);
+                    currentIngredients.push(...normalized);
                 }
             });
         });
@@ -531,7 +538,7 @@ export const AssessmentProvider = ({ children }) => {
                     dislikes: formData.dislikes || [],
                     liked_meals: Object.keys(likedMeals || {}),
                     disliked_meals: Object.keys(dislikedMeals || {}),
-                    current_shopping_list: currentIngredients
+                    current_pantry_ingredients: currentIngredients
                 })
             });
 
@@ -567,6 +574,10 @@ export const AssessmentProvider = ({ children }) => {
             updatedDayObj.meals = updatedMeals;
             updatedDays[dayIndex] = updatedDayObj;
             updatedPlan.days = updatedDays;
+
+            // Invalidar la lista pre-calculada para que el memo allPlanIngredients
+            // recalcule desde los ingredientes actualizados del plan
+            delete updatedPlan.aggregated_shopping_list;
 
             // Add rejected meal to disliked list with current timestamp
             setDislikedMeals(prev => ({
@@ -840,7 +851,8 @@ export const AssessmentProvider = ({ children }) => {
             remainingCredits: typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : '∞',
             upgradeUserPlan,
             restorePlan,
-            refreshProfileAndPlan
+            refreshProfileAndPlan,
+            restoreSessionData
         }}>
             {children}
         </AssessmentContext.Provider>

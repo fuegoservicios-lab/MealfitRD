@@ -19,6 +19,9 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
         }
         return response;
     } catch (err) {
+        // NUNCA reintentar si fue un abort (timeout) — reenviaría todo el pipeline
+        if (err.name === 'AbortError') throw err;
+        
         if (retries > 1) {
             console.warn(`⚠️ Intento fallido. Reintentando en ${backoff / 1000}s... (${retries - 1} intentos restantes)`);
             await new Promise(r => setTimeout(r, backoff));
@@ -43,7 +46,9 @@ const generateAIPlan = async (formData) => {
 
     globalGenerationPromise = (async () => {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 360000); // 6 minutos para permitir el bucle de revisión médica (Intento #2)
+        // Timeout: 8 minutos para cubrir hasta 2 intentos del bucle médico
+        // (Intento 1: ~120s + Revisión: ~10s + Intento 2: ~120s + Revisión: ~10s + margen)
+        const timeoutId = setTimeout(() => controller.abort(), 480000);
 
         try {
             const response = await fetchWithRetry(API_URL, {
@@ -51,7 +56,7 @@ const generateAIPlan = async (formData) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),
                 signal: controller.signal
-            }, 3);
+            }, 2); // Solo 2 intentos (no 3) para evitar cascada de re-envíos
 
             clearTimeout(timeoutId);
             const data = await response.json();
@@ -170,7 +175,7 @@ const Plan = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const previousMeals = location.state?.previous_meals || location.state?.previousMeals || [];
-    const currentIngredients = location.state?.current_shopping_list || location.state?.currentIngredients || [];
+    const currentIngredients = location.state?.current_pantry_ingredients || location.state?.currentIngredients || [];
 
     // 2. USEEFFECT
     useEffect(() => {
@@ -214,7 +219,7 @@ const Plan = () => {
                     user_id: userId, // Siempre es un UUID válido o null
                     session_id: userId || guestSessionId, // Siempre es un UUID válido
                     previous_meals: previousMeals,
-                    current_shopping_list: currentIngredients
+                    current_pantry_ingredients: currentIngredients
                 };
 
 
@@ -228,7 +233,7 @@ const Plan = () => {
                     return;
                 }
 
-                // Lógica de fechas para abastecimiento (Grocery Cycle)
+                // Lógica de fechas para compras (Grocery Cycle)
                 const oldPlanStr = localStorage.getItem('mealfit_plan');
                 const oldPlan = oldPlanStr ? JSON.parse(oldPlanStr) : {};
                 

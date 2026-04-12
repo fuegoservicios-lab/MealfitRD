@@ -194,7 +194,7 @@ const compressImageFile = (file, maxWidth = 1200, quality = 0.8) => {
 };
 
 const AgentPage = () => {
-    const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, isPremium, checkPlanLimit } = useAssessment();
+    const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, isPremium, checkPlanLimit, restoreSessionData } = useAssessment();
     const navigate = useNavigate();
     const [titlePollCount, setTitlePollCount] = useState(0);
     const [showNavMenu, setShowNavMenu] = useState(false);
@@ -1107,6 +1107,19 @@ const AgentPage = () => {
                                     } else if (dataObj.type === 'chunk') {
                                         fullText += dataObj.text;
                                         
+                                        let displayContent = fullText;
+                                        // Detectar y procesar evento silencioso REFRESH_PLAN
+                                        if (fullText.includes('[UI_ACTION: REFRESH_PLAN]')) {
+                                            fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_PLAN\]/g, '');
+                                            displayContent = fullText;
+                                            if (session?.user?.id) {
+                                                restoreSessionData(session.user.id);
+                                            }
+                                        } else {
+                                            // Ocultar fragmento incompleto del token temporalmente en la UI
+                                            displayContent = fullText.replace(/\[UI_ACT[^\]]*$/g, '');
+                                        }
+                                        
                                         // Extraer oraciones completas para TTS en Modo Llamada
                                         if (callModeRef.current) {
                                             const textSoFar = fullText.substring(lastSpokenIndex);
@@ -1124,12 +1137,12 @@ const AgentPage = () => {
                                             isMessageCreated = true;
                                             setIsLoading(false);
                                             setStreamingStatus(null);
-                                            setMessages(prev => [...prev, { role: 'model', content: fullText, isStreaming: true }]);
+                                            setMessages(prev => [...prev, { role: 'model', content: displayContent, isStreaming: true }]);
                                         } else {
                                             setMessages(prev => {
                                                 const updated = [...prev];
                                                 if (updated.length > 0 && updated[updated.length - 1].isStreaming) {
-                                                    updated[updated.length - 1] = { ...updated[updated.length - 1], content: fullText };
+                                                    updated[updated.length - 1] = { ...updated[updated.length - 1], content: displayContent };
                                                 }
                                                 return updated;
                                             });
@@ -1138,6 +1151,14 @@ const AgentPage = () => {
                                         setIsLoading(false);
                                         setStreamingStatus(null);
                                         fullText = dataObj.response;
+                                        
+                                        // Limpieza de seguridad al final por si el chunk llegó mal cortado
+                                        if (fullText.includes('[UI_ACTION: REFRESH_PLAN]')) {
+                                            fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_PLAN\]/g, '');
+                                            if (session?.user?.id) {
+                                                restoreSessionData(session.user.id);
+                                            }
+                                        }
                                         
                                         if (callModeRef.current) {
                                             const remainingText = fullText.substring(lastSpokenIndex).trim();
@@ -1836,7 +1857,7 @@ const AgentPage = () => {
                                 animation: 'fadeSlideDown 0.2s ease'
                             }}>
                                 {[
-                                    { icon: LayoutDashboard, label: 'Mi Plan', path: '/dashboard' },
+                                    { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
                                     { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' },
 
                                     { icon: Clock, label: 'Historial', path: '/history' },
