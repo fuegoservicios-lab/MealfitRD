@@ -8,7 +8,7 @@ import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
     RefreshCw, ChefHat, Heart, Pill,
     Brain, Wallet, AlertCircle, Dumbbell, Wheat,
-    Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, Trash2
+    Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, Trash2, ChevronDown
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
@@ -39,10 +39,23 @@ const Dashboard = () => {
 
     // Estado local para saber qué tarjeta se está regenerando (loading spinner específico)
     const [regeneratingId, setRegeneratingId] = useState(null);
+    const [showDespensaDropdown, setShowDespensaDropdown] = useState(false);
+    const despensaDropdownRef = useRef(null);
+
+    // Cierra el dropdown custom si el usuario hace clic fuera de él
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (despensaDropdownRef.current && !despensaDropdownRef.current.contains(event.target)) {
+                setShowDespensaDropdown(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     // Estado local para la navegación por pestañas (Días)
     const [activeDayIndex, setActiveDayIndex] = useState(0);
-    
+
     // Estado para "Nevera Virtual" - ingredientes temporalmente marcados como agotados
     // Persistido en localStorage para sobrevivir recargas de página y navegación
     const [disabledIngredients, setDisabledIngredients] = useState(() => {
@@ -163,24 +176,26 @@ const Dashboard = () => {
 
     // Calcular si el periodo de compras expiró para sugerir "Actualizar Plan" en lugar de "Platos"
     const groceryDuration = formData?.groceryDuration || 'weekly';
-    
+
     // Normalizar fechas a medianoche para calcular días calendario transcurridos correctamente
     const todayMidnight = new Date();
     todayMidnight.setHours(0, 0, 0, 0);
-    
+
     const rawStartDate = planData?.grocery_start_date || planData?.created_at;
     const startMidnight = rawStartDate ? new Date(rawStartDate) : new Date();
     startMidnight.setHours(0, 0, 0, 0);
 
     const daysSinceCreation = Math.round((todayMidnight - startMidnight) / (1000 * 60 * 60 * 24));
-    
+
     let isPlanExpired = false;
     let maxDays = 7;
     if (groceryDuration === 'weekly') { maxDays = 7; if (daysSinceCreation >= 7) isPlanExpired = true; }
     if (groceryDuration === 'biweekly') { maxDays = 15; if (daysSinceCreation >= 15) isPlanExpired = true; }
     if (groceryDuration === 'monthly') { maxDays = 30; if (daysSinceCreation >= 30) isPlanExpired = true; }
-    
+
     const daysLeft = Math.max(0, maxDays - daysSinceCreation);
+
+
 
     // Pre-calcular ingredientes de la despensa para mostrarlos en UI
     // Prioridad unificada: Mostrar una fusión (UNION) entre el Inventario Físico Real y la Lista de Compras del Ciclo.
@@ -226,7 +241,7 @@ const Dashboard = () => {
                     const idString = ing.display_string || ing.name || String(ing);
                     const qty = ing.display_qty || '';
                     const name = ing.name || ing.display_name || ing.display_string || 'Ingrediente';
-                    
+
                     if (!currentIngredientsMap.has(name.toLowerCase().trim())) {
                         currentIngredientsMap.set(name.toLowerCase().trim(), {
                             id_string: idString,
@@ -236,19 +251,19 @@ const Dashboard = () => {
                     }
                     return;
                 }
-                
+
                 // Fallback directo sin Regex para strings legacy
                 const str_ing = String(ing).trim();
                 if (!currentIngredientsMap.has(str_ing.toLowerCase())) {
-                    currentIngredientsMap.set(str_ing.toLowerCase(), { 
-                        id_string: str_ing, 
-                        quantity: 'Al gusto', 
-                        name: str_ing 
+                    currentIngredientsMap.set(str_ing.toLowerCase(), {
+                        id_string: str_ing,
+                        quantity: 'Al gusto',
+                        name: str_ing
                     });
                 }
             });
         } else {
-             // 3. Fallback Legacy si no hay aggregated_shopping_list
+            // 3. Fallback Legacy si no hay aggregated_shopping_list
             const planDaysToCheck = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
             planDaysToCheck.forEach(day => {
                 day.meals.forEach(meal => {
@@ -257,7 +272,7 @@ const Dashboard = () => {
                             let qty = 'Al gusto';
                             let name = 'Desconocido';
                             let id_string = '';
-                            
+
                             if (typeof ing === 'object' && ing !== null) {
                                 name = ing.name || ing.display_name || ing.display_string || String(ing);
                                 qty = ing.display_qty || (ing.market_qty && ing.market_unit ? `${ing.market_qty} ${ing.market_unit}` : 'Al gusto');
@@ -282,7 +297,7 @@ const Dashboard = () => {
     // Despensa puramente física, mapeada del user_inventory real
     const physicalPantryIngredients = useMemo(() => {
         if (!liveInventory || !Array.isArray(liveInventory) || liveInventory.length === 0) return [];
-        
+
         return liveInventory.map(item => {
             const qty = parseFloat(item.quantity) || 0;
             const unit = item.unit || 'unidad';
@@ -314,25 +329,25 @@ const Dashboard = () => {
         if (formData && formData.age && formData.mainGoal) {
             let previousMeals = [];
             let currentIngredients = [];
-            
+
             // Si NO ha expirado el plan (Actualizar Platos), enviamos las comidas previas 
             // para que la IA mantenga el plan de despensa y solo rote las preparaciones.
             // Si SÍ expiró el plan (Actualizar Plan), enviamos el arreglo vacío para que
             // la IA genere recomendaciones y una lista de compras totalmente nueva.
             if (planData && !isPlanExpired) {
                 const planDaysToCheck = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
-                
+
                 planDaysToCheck.forEach(day => {
                     day.meals.forEach(meal => {
                         if (meal && meal.name) previousMeals.push(meal.name);
                     });
                 });
-                
+
                 // Usamos allPlanIngredients menos los disabledIngredients
                 currentIngredients = allPlanIngredients
                     .filter(ingObj => !disabledIngredients.includes(ingObj.name.toLowerCase().trim()))
                     .map(ingObj => ingObj.id_string);
-                
+
                 toast('Actualizando Platos', {
                     description: 'Diseñando nuevos platos con tus ingredientes actuales...',
                     icon: '🍲',
@@ -413,7 +428,7 @@ const Dashboard = () => {
             } else if (lastRotation !== today) {
                 // Guardamos el día actual para asegurar que no se cicle
                 localStorage.setItem('mealfit_last_auto_rotation', today);
-                
+
                 toast('Rotación Autónoma 🌅', {
                     description: 'Diseñando nuevos platos con tu despensa actual...',
                     icon: '🔄',
@@ -426,7 +441,7 @@ const Dashboard = () => {
                 }, 500); // Pequeño delay de 500ms para asegurar renderizado previo
             }
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loadingData, planData, formData]);
 
     // --- NUEVO: ONBOARDING DE ALERTAS INTELIGENTES (WEB PUSH) ---
@@ -440,7 +455,7 @@ const Dashboard = () => {
             const isNewUser = formData?.isNewUser || planCount === 1;
 
             const hasSeenOnboarding = localStorage.getItem('mealfit_push_onboarding_seen');
-            
+
             if (isNewUser && !hasSeenOnboarding && Notification.permission === 'default') {
                 // Pequeño retraso para que la interfaz se asiente primero antes de mostrar el modal
                 const timer = setTimeout(() => {
@@ -483,10 +498,10 @@ const Dashboard = () => {
     const handleDownloadShoppingList = async () => {
         try {
             const loadingToast = toast.loading('Generando lista de compras...', { position: 'top-center' });
-            
+
             // Obtener duración actual desde el formulario para cambiar la cantidad en el PDF sobre la marcha
             const duration = formData?.groceryDuration || 'weekly';
-            
+
             // Usar la lista consolidada correcta según el ciclo seleccionado
             let sourceListKey = 'aggregated_shopping_list';
             if (duration === 'weekly' && planData.aggregated_shopping_list_weekly) {
@@ -497,12 +512,12 @@ const Dashboard = () => {
                 sourceListKey = 'aggregated_shopping_list_monthly';
             }
 
-            const sourceIngredients = (planData[sourceListKey] && Array.isArray(planData[sourceListKey]) && planData[sourceListKey].length > 0) 
-                 ? planData[sourceListKey] 
-                 : (planData.aggregated_shopping_list && Array.isArray(planData.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0)
-                 ? planData.aggregated_shopping_list
-                 : (allPlanIngredients || []);
-            
+            const sourceIngredients = (planData[sourceListKey] && Array.isArray(planData[sourceListKey]) && planData[sourceListKey].length > 0)
+                ? planData[sourceListKey]
+                : (planData.aggregated_shopping_list && Array.isArray(planData.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0)
+                    ? planData.aggregated_shopping_list
+                    : (allPlanIngredients || []);
+
             if (sourceIngredients.length === 0) {
                 toast.dismiss(loadingToast);
                 toast.error('No se encontró una lista de despensa activa.');
@@ -519,7 +534,7 @@ const Dashboard = () => {
                     // Nivel 3: Consumir display_category del backend (Single Source of Truth)
                     name = item.name || item.display_name || item.item_name || 'Desconocido';
                     cat = item.display_category || item.category || '🛒 OTROS';
-                    
+
                     if (item.display_qty) {
                         // Nivel 3: display_qty ya viene con pluralización correcta del backend
                         qtyStr = item.display_qty;
@@ -530,7 +545,7 @@ const Dashboard = () => {
                         if (parts.length > 0 && parts[0].trim().length > 0) {
                             qtyStr = parts[0].trim();
                         } else {
-                           qtyStr = item.display_string;
+                            qtyStr = item.display_string;
                         }
                     }
                 } else {
@@ -548,13 +563,13 @@ const Dashboard = () => {
                     qty_base: qtyStr || 'Al gusto'
                 };
             });
-            
+
             const perishables = {};
             const stables = {};
             Object.values(consData).forEach(item => {
                 let cat = item.category;
                 const shelfLife = item.item_ref?.shelf_life_days;
-                
+
                 let isPerishable = false;
                 if (shelfLife !== undefined && shelfLife !== null) {
                     isPerishable = shelfLife <= 7;
@@ -564,7 +579,7 @@ const Dashboard = () => {
                         isPerishable = true;
                     }
                 }
-                
+
                 if (isPerishable) {
                     if (!perishables[cat]) perishables[cat] = [];
                     perishables[cat].push(item);
@@ -591,7 +606,7 @@ const Dashboard = () => {
 
             // Generar contenido HTML estilizado para el PDF
             const element = document.createElement('div');
-            
+
             let htmlContent = `
             <div style="font-family: 'Inter', system-ui, sans-serif; padding: ${rootPadding}; color: #1f2937; background-color: #ffffff;">
                 <!-- Header Box -->
@@ -636,7 +651,7 @@ const Dashboard = () => {
                     if (b.includes('ESTIMADO TOTAL')) return -1;
                     return a.localeCompare(b);
                 });
-                
+
                 sortedKeys.forEach(cat => {
                     const icon = `<span style="background-color: #10b981; color: white; border-radius: 4px; padding: 4px; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px;"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></span>`;
                     innerHtml += `
@@ -650,25 +665,25 @@ const Dashboard = () => {
                     groupObj[cat].forEach((item, index) => {
                         const isLast = index === groupObj[cat].length - 1;
                         const borderBottom = isLast ? '' : 'border-bottom: 1px solid #f3f4f6;';
-                        
+
                         let displayQty = item.qty_base || '';
                         let display = item.display_name || item.name || item.item_name;
-                        
+
                         if (typeof display === 'string' && display.trim().startsWith('{')) {
                             try {
                                 const parsed = JSON.parse(display);
                                 display = parsed.display_name || parsed.name || parsed.item_name || display;
-                            } catch(e) {}
+                            } catch (e) { }
                         } else if (typeof display === 'object' && display !== null) {
                             display = display.display_name || display.name || display.item_name || JSON.stringify(display);
                         }
-                        
+
                         const conf = (item.item_ref && item.item_ref.confidence_score) ? item.item_ref.confidence_score : 1.0;
                         let tagBg = '#ecfdf5'; let tagColor = '#059669'; let tagBorder = '#10b98130';
                         if (conf >= 0.9) { tagBg = '#ecfdf5'; tagColor = '#059669'; tagBorder = '#10b98130'; }
                         else if (conf >= 0.7) { tagBg = '#fff7ed'; tagColor = '#ea580c'; tagBorder = '#ea580c30'; }
                         else { tagBg = '#fef2f2'; tagColor = '#ef4444'; tagBorder = '#ef444430'; }
-                        
+
                         const qtyStr = displayQty && String(displayQty).trim() !== 'None' ? `<span style="font-weight: 700; color: ${tagColor}; font-size: ${isDense ? '8.5px' : '9.5px'}; background-color: ${tagBg}; border: 1px solid ${tagBorder}; padding: 1.5px 4px; border-radius: 4px; margin-left: 6px; white-space: nowrap; align-self: flex-start;">${displayQty}</span>` : '';
 
                         innerHtml += `
@@ -689,7 +704,7 @@ const Dashboard = () => {
             if (Object.keys(perishables).length > 0) {
                 htmlContent += generateBlocks(perishables);
             }
-            
+
             htmlContent += `
                 </div> <!-- End Columns -->
                 <!-- Estables -->
@@ -723,11 +738,11 @@ const Dashboard = () => {
 
             // html2pdf opciones
             const opt = {
-                margin:       [5, 0, 5, 0], // top, left, bottom, right (en mm)
-                filename:     `Lista_de_compras_${durationText.replace(' ', '_')}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                margin: [5, 0, 5, 0], // top, left, bottom, right (en mm)
+                filename: `Lista_de_compras_${durationText.replace(' ', '_')}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
             await html2pdf().set(opt).from(element).save();
@@ -743,21 +758,31 @@ const Dashboard = () => {
     };
 
     const handleRestock = async () => {
+        console.log('🛒 [RESTOCK] handleRestock INVOKED');
+        console.log('🛒 [RESTOCK] userProfile:', userProfile);
+        console.log('🛒 [RESTOCK] planData?.id:', planData?.id);
+        console.log('🛒 [RESTOCK] planData?.is_restocked:', planData?.is_restocked);
+
         if (!userProfile?.id) {
+            console.log('🛒 [RESTOCK] BLOCKED: No user profile');
             toast.error('Debes iniciar sesión para usar esta función.');
             return;
         }
 
         // 1. Validación Principal: Servidor (Impide duplicación entre dispositivos)
         if (planData?.is_restocked) {
+            console.log('🛒 [RESTOCK] BLOCKED: Plan already restocked (server flag)');
             toast.info('Ya registraste las compras para este ciclo (Verificado en Nube).', { icon: '📦' });
             setShowRestockModal(false);
             return;
         }
 
         // 2. Validación Secundaria: Caché Local (UX Inmediata)
-        const restockKey = `mealfit_restock_${planData?.id || 'unknown'}`;
-        if (localStorage.getItem(restockKey)) {
+        // IMPORTANTE: Incluir user_id para que no se compartan keys entre cuentas en localhost
+        // Si no hay plan_id, saltamos el chequeo local y confiamos en la validación del servidor
+        const restockKey = planData?.id ? `mealfit_restock_${userProfile.id}_${planData.id}` : null;
+        if (restockKey && localStorage.getItem(restockKey)) {
+            console.log('🛒 [RESTOCK] BLOCKED: localStorage key exists:', restockKey);
             toast.info('Ya registraste las compras para este ciclo. Puedes editar cantidades directamente en la Nevera.', { icon: '📦' });
             setShowRestockModal(false);
             return;
@@ -779,29 +804,67 @@ const Dashboard = () => {
                 sourceListKey = 'aggregated_shopping_list_monthly';
             }
 
-            const activeShoppingList = (planData[sourceListKey] && Array.isArray(planData[sourceListKey]) && planData[sourceListKey].length > 0) 
-                 ? planData[sourceListKey] 
-                 : (planData.aggregated_shopping_list && Array.isArray(planData.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0)
-                 ? planData.aggregated_shopping_list
-                 : (allPlanIngredients || []);
+            const activeShoppingList = (planData[sourceListKey] && Array.isArray(planData[sourceListKey]) && planData[sourceListKey].length > 0)
+                ? planData[sourceListKey]
+                : (planData.aggregated_shopping_list && Array.isArray(planData.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0)
+                    ? planData.aggregated_shopping_list
+                    : (allPlanIngredients || []);
+
+            console.log('🛒 [RESTOCK] sourceListKey:', sourceListKey);
+            console.log('🛒 [RESTOCK] activeShoppingList length:', activeShoppingList.length);
+            console.log('🛒 [RESTOCK] activeShoppingList[0]:', activeShoppingList[0]);
+            console.log('🛒 [RESTOCK] disabledIngredients:', disabledIngredients);
 
             const sourceIngredients = activeShoppingList.map(ing => {
                 let name = '';
+                let structured = null;
                 let raw = '';
                 if (typeof ing === 'object' && ing !== null) {
-                    raw = ing.display_string || ing.name || String(ing);
                     name = ing.name || ing.display_name || ing.display_string || String(ing);
+                    // Send structured data directly to bypass display_string re-parsing
+                    // (display_string contains Unicode fractions like ½ that _parse_quantity can't handle)
+                    if (ing.name && (ing.market_qty !== undefined || ing.display_qty)) {
+                        const mqRaw = ing.market_qty ?? ing.display_qty ?? 1;
+                        let mqNum = 0;
+                        if (typeof mqRaw === 'number') {
+                            mqNum = mqRaw;
+                        } else if (typeof mqRaw === 'string') {
+                            // Parse fractional strings like "1/2", "1 1/2", "3/4"
+                            const parts = mqRaw.trim().split(/\s+/);
+                            try {
+                                if (parts.length === 2 && parts[1].includes('/')) {
+                                    const [n, d] = parts[1].split('/');
+                                    mqNum = parseFloat(parts[0]) + parseFloat(n) / parseFloat(d);
+                                } else if (parts.length === 1 && parts[0].includes('/')) {
+                                    const [n, d] = parts[0].split('/');
+                                    mqNum = parseFloat(n) / parseFloat(d);
+                                } else {
+                                    mqNum = parseFloat(mqRaw) || 0;
+                                }
+                            } catch { mqNum = parseFloat(mqRaw) || 0; }
+                        }
+                        structured = {
+                            name: ing.name,
+                            quantity: mqNum,
+                            unit: ing.market_unit || 'unidad'
+                        };
+                    }
+                    raw = ing.display_string || ing.id_string || `${ing.display_qty || '1'} de ${ing.name || 'Ingrediente'}`;
                 } else {
                     raw = String(ing);
                     const match = raw.match(/^([\d.,\/\s½¼¾%]+(?:oz|lbs?|g|kg|ml|l|taza[s]?|cda[s]?|cdta[s]?|u|pz[a]?[s]?|dientes?|manojo|piezas?|rebanadas?)\s*(?:de\s*)?)(.*)$/i) || raw.match(/^([\d.,\/\s½¼¾%]+(?:de\s*)?)(.*)$/i);
                     name = raw;
                     if (match) name = match[2];
                 }
-                return { raw, normalized: name.toLowerCase().trim() };
+                return { raw, structured, normalized: name.toLowerCase().trim() };
             }).filter(item => !disabledIngredients.includes(item.normalized))
-            .map(item => item.raw);
-                
+                .map(item => item.structured || item.raw);
+
+            console.log('🛒 [RESTOCK] sourceIngredients count:', sourceIngredients.length);
+            console.log('🛒 [RESTOCK] sourceIngredients sample:', sourceIngredients.slice(0, 3));
+
             if (sourceIngredients.length === 0) {
+                console.log('🛒 [RESTOCK] BLOCKED: Zero ingredients after filtering');
                 toast.dismiss(loadingToast);
                 toast.error('No hay ingredientes para guardar.');
                 setIsRestocking(false);
@@ -811,6 +874,8 @@ const Dashboard = () => {
 
             const sessionObj = await supabase.auth.getSession();
             const token = sessionObj.data.session?.access_token;
+            console.log('🛒 [RESTOCK] Token exists:', !!token);
+            console.log('🛒 [RESTOCK] Sending to:', `${API_BASE}/api/restock`);
 
             const response = await fetch(`${API_BASE}/api/restock`, {
                 method: 'POST',
@@ -826,10 +891,12 @@ const Dashboard = () => {
             });
 
             const data = await response.json();
+            console.log('🛒 [RESTOCK] Response status:', response.status);
+            console.log('🛒 [RESTOCK] Response data:', data);
             toast.dismiss(loadingToast);
 
             if (response.ok && data.success) {
-                localStorage.setItem(restockKey, new Date().toISOString());
+                if (restockKey) localStorage.setItem(restockKey, new Date().toISOString());
                 toast.success('¡Ingredientes ingresados a tu Nevera Virtual!', { icon: '📦' });
                 setShowRestockModal(false);
                 // Refrescar inventario real para sincronizar la Despensa del Dashboard
@@ -841,15 +908,17 @@ const Dashboard = () => {
                         .gt('quantity', 0)
                         .order('ingredient_name', { ascending: true });
                     if (freshInv) setLiveInventory(freshInv);
+                    console.log('🛒 [RESTOCK] Fresh inventory count:', freshInv?.length);
                 } catch (e) { /* non-blocking */ }
                 // Limpiar ingredientes deshabilitados ya que la despensa se actualizó
                 setDisabledIngredients([]);
                 navigate('/dashboard/pantry');
             } else {
+                console.log('🛒 [RESTOCK] FAILED:', data.message);
                 toast.error(data.message || 'Error al actualizar la despensa.');
             }
         } catch (error) {
-            console.error('Error en restock:', error);
+            console.error('🛒 [RESTOCK] CATCH ERROR:', error);
             toast.dismiss(loadingToast);
             toast.error('Hubo un error de conexión al registrar la compra.');
         } finally {
@@ -881,6 +950,8 @@ const Dashboard = () => {
                     border-radius: 2rem;
                     border: 1px solid rgba(255,255,255,0.6);
                     box-shadow: 0 20px 40px -10px rgba(0,0,0,0.05);
+                    position: relative;
+                    z-index: 100;
                 }
                 .dashboard-title {
                     font-size: 2.5rem;
@@ -895,31 +966,44 @@ const Dashboard = () => {
                     font-size: 1.1rem;
                     font-weight: 500;
                 }
-                .macros-grid {
-                    background: white;
-                    border-radius: 1.25rem;
-                    border: 1px solid #E2E8F0;
-                    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.03);
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
+                .macros-card {
+                    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.8) 100%);
+                    backdrop-filter: blur(20px);
+                    border-radius: 1.75rem;
+                    border: 1px solid rgba(226, 232, 240, 0.8);
+                    box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.05), inset 0 2px 4px rgba(255, 255, 255, 0.8);
+                    margin-bottom: 2.5rem;
                     overflow: hidden;
+                    position: relative;
                 }
-                .stat-item {
-                    padding: 1.5rem;
+                .macros-card-header {
+                    padding: 1.5rem 1.75rem 0.5rem 1.75rem;
                     display: flex;
                     align-items: center;
-                    gap: 1rem;
-                    background: white;
-                    border-right: 1px solid #F1F5F9;
+                    gap: 0.6rem;
+                    margin: 0;
                 }
-                .stat-item:last-child {
-                    border-right: none;
+                .macros-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    position: relative;
+                }
+                .macros-grid > div:not(:last-child) {
+                    border-right: 1px solid rgba(226, 232, 240, 0.6);
+                }
+                .stat-item {
+                    padding: 1.5rem 1.75rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 1.15rem;
+                    background: transparent;
+                    cursor: default;
                 }
                 .menu-section-header {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    margin-bottom: 1.5rem;
+                    padding: 2.5rem 2rem 1.5rem 4rem;
                 }
                 .menu-section-title {
                     font-size: 1.25rem;
@@ -935,13 +1019,10 @@ const Dashboard = () => {
                 .option-buttons {
                     display: flex;
                     gap: 1rem;
-                    margin-bottom: 2rem;
                     justify-content: center;
-                    background: #F8FAFC;
-                    padding: 0.75rem;
-                    border-radius: 1rem;
-                    border: 1px solid #E2E8F0;
-                    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+                    background: transparent;
+                    padding: 0.5rem 2rem 1.5rem 4rem;
+                    border-bottom: 2px dashed #94A3B8;
                 }
                 .option-btn {
                     flex: 1;
@@ -952,19 +1033,59 @@ const Dashboard = () => {
                     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                     font-size: 1rem;
                 }
+                .meals-container {
+                    background-color: #FDFCF8;
+                    border-radius: 0.5rem 1.75rem 1.75rem 0.5rem;
+                    border: 1px solid #E2E8F0;
+                    border-left: 20px solid #1E293B;
+                    box-shadow: 4px 4px 0px rgba(0,0,0,0.02), 8px 8px 0px rgba(0,0,0,0.01), 0 25px 50px -12px rgba(0,0,0,0.15), inset 8px 0px 8px -4px rgba(0,0,0,0.2);
+                    display: flex;
+                    flex-direction: column;
+                    overflow: hidden;
+                    position: relative;
+                }
+                .meals-container::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    bottom: 0;
+                    left: 2.5rem;
+                    width: 3px;
+                    border-left: 1px solid rgba(248, 113, 113, 0.4);
+                    border-right: 1px solid rgba(248, 113, 113, 0.4);
+                    z-index: 0;
+                    pointer-events: none;
+                }
                 .meal-card {
-                    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.75) 100%);
-                    backdrop-filter: blur(16px);
-                    padding: 1.75rem;
-                    border-radius: 2rem;
-                    border: 1px solid white;
+                    padding: 2.5rem 2.5rem 2.5rem 4.5rem;
                     display: grid;
                     grid-template-columns: 1fr auto;
                     gap: 1.5rem;
                     align-items: center;
-                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
-                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    background: transparent;
                     position: relative;
+                    z-index: 1;
+                }
+                .meal-card:not(:last-child)::after,
+                .skipped-lunch:not(:last-child)::after {
+                    content: '';
+                    display: block;
+                    position: absolute;
+                    bottom: 0;
+                    left: 2.5rem;
+                    right: 0;
+                    height: 2px;
+                    background: rgba(147, 197, 253, 0.3);
+                }
+                .skipped-lunch {
+                    padding: 2.5rem 2.5rem 2.5rem 4.5rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 1.5rem;
+                    position: relative;
+                    flex-wrap: wrap;
+                    z-index: 1;
                 }
                 .main-grid {
                     display: grid;
@@ -976,6 +1097,8 @@ const Dashboard = () => {
                     align-items: center;
                     gap: 1rem;
                     flex-wrap: wrap;
+                    position: relative;
+                    z-index: 50;
                 }
                 .new-plan-btn {
                     padding: 0.85rem 1.75rem;
@@ -985,9 +1108,17 @@ const Dashboard = () => {
                     display: flex;
                     align-items: center;
                     gap: 0.75rem;
-                    transition: all 0.3s ease;
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                     font-size: 0.95rem;
                     cursor: pointer;
+                }
+                .new-plan-btn:hover:not(:disabled) {
+                    box-shadow: var(--hover-shadow, 0 15px 30px -5px rgba(0,0,0,0.15)) !important;
+                    filter: brightness(1.1);
+                }
+                .new-plan-btn:active:not(:disabled) {
+                    box-shadow: var(--active-shadow, 0 5px 15px -5px rgba(0,0,0,0.1)) !important;
+                    filter: brightness(0.95);
                 }
 
                 @media (max-width: 768px) {
@@ -1009,55 +1140,82 @@ const Dashboard = () => {
                     .dashboard-subtitle {
                         font-size: 0.9rem;
                     }
+                    .macros-card {
+                        border-radius: 1.25rem;
+                    }
+                    .macros-card-header {
+                        padding: 1.25rem 1.15rem 0.25rem 1.15rem;
+                    }
                     .macros-grid {
                         grid-template-columns: repeat(2, 1fr);
-                        border-radius: 1rem;
+                    }
+                    .macros-grid > div:not(:last-child) {
+                        border-right: none;
                     }
                     .stat-item {
-                        padding: 1rem 1.15rem;
-                        gap: 0.65rem;
-                        border-right: none;
-                        border-bottom: 1px solid #F1F5F9;
+                        padding: 1.25rem 1.15rem;
+                        gap: 0.85rem;
+                        border-bottom: 1px solid rgba(226, 232, 240, 0.6);
                     }
                     .stat-item:nth-child(odd) {
-                        border-right: 1px solid #F1F5F9;
+                        border-right: 1px solid rgba(226, 232, 240, 0.6) !important;
                     }
                     .stat-item:nth-child(n+3) {
-                        border-bottom: none;
+                        border-bottom: none !important;
                     }
                     .stat-item .stat-icon {
-                        width: 38px;
-                        height: 38px;
-                        border-radius: 10px;
+                        width: 40px !important;
+                        height: 40px !important;
+                        border-radius: 10px !important;
+                    }
+                    .stat-item .stat-icon svg {
+                        width: 20px;
+                        height: 20px;
                     }
                     .stat-item .stat-value {
-                        font-size: 1.25rem;
+                        font-size: 1.25rem !important;
                     }
                     .stat-item .stat-label {
-                        font-size: 0.7rem;
+                        font-size: 0.7rem !important;
                     }
                     .menu-section-header {
                         flex-direction: column;
                         align-items: center;
                         text-align: center;
-                        gap: 0.25rem;
-                        margin-bottom: 1rem;
+                        gap: 0.5rem;
+                        margin-bottom: 0.5rem;
+                        padding: 1.5rem 1rem 0.5rem 2.25rem;
+                    }
+                    .menu-section-title {
+                        text-align: center;
+                        width: 100%;
                     }
                     .option-buttons {
                         gap: 0.5rem;
-                        padding: 0.5rem;
-                        margin-bottom: 1.25rem;
+                        padding: 0 1.5rem 1.25rem 2.5rem;
+                        margin-bottom: 0;
                     }
                     .option-btn {
                         padding: 0.7rem 0.5rem;
                         font-size: 0.85rem;
                         border-radius: 0.6rem;
                     }
+                    .meals-container::before {
+                        left: 0.5rem;
+                    }
+                    .meal-card:not(:last-child)::after,
+                    .skipped-lunch:not(:last-child)::after {
+                        left: 0.5rem;
+                        display: block;
+                    }
                     .meal-card {
-                        padding: 1.25rem;
-                        border-radius: 1.25rem;
+                        padding: 2rem 1.25rem 2rem 2.25rem;
+                        border-radius: 0;
                         grid-template-columns: 1fr;
                         gap: 1rem;
+                    }
+                    .skipped-lunch {
+                        padding: 2rem 1.25rem 2rem 2.25rem;
                     }
                     .meal-right-side {
                         flex-direction: row !important;
@@ -1104,9 +1262,25 @@ const Dashboard = () => {
                     .stat-item {
                         padding: 0.85rem 0.7rem;
                     }
+                    .meals-container::before {
+                        left: 0.5rem;
+                    }
+                    .meal-card:not(:last-child)::after,
+                    .skipped-lunch:not(:last-child)::after {
+                        left: 0.5rem;
+                    }
+                    .menu-section-header {
+                        padding: 1.25rem 1rem 0.5rem 1.75rem;
+                    }
+                    .option-buttons {
+                        padding: 0.5rem 1.5rem 1.25rem 1.75rem;
+                    }
                     .meal-card {
-                        padding: 1rem;
-                        border-radius: 1rem;
+                        padding: 1.5rem 1rem 1.5rem 1.75rem;
+                        border-radius: 0;
+                    }
+                    .skipped-lunch {
+                        padding: 1.5rem 1rem 1.5rem 1.75rem;
                     }
                     .meal-right-side > div:last-child {
                         gap: 0.5rem !important;
@@ -1130,8 +1304,8 @@ const Dashboard = () => {
                             textTransform: 'uppercase',
                             background: isPremium ? 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' : '#F8FAFC',
                             color: isPremium ? '#B45309' : '#64748B',
-                            border: `1px solid ${isPremium ? '#FCD34D' : '#E2E8F0'}`,
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                            border: `1.5px solid ${isPremium ? '#FCD34D' : '#CBD5E1'}`,
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
                         }}>
                             {isPremium ? (userProfile?.plan_tier === 'ultra' ? 'ULTRA' : userProfile?.plan_tier === 'basic' ? 'BÁSICO' : 'PLUS') : 'GRATUITO'}
                         </span>
@@ -1178,14 +1352,14 @@ const Dashboard = () => {
                             <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', WebkitTextStroke: '0.5px #334155' }}>
                                 Créditos
                             </span>
-                            <div style={{ 
-                                fontSize: '1rem', 
-                                fontWeight: 800, 
+                            <div style={{
+                                fontSize: '1rem',
+                                fontWeight: 800,
                                 color: 'var(--text-main)',
-                                display: 'flex', 
-                                alignItems: 'baseline', 
-                                gap: '3px', 
-                                whiteSpace: 'nowrap' 
+                                display: 'flex',
+                                alignItems: 'baseline',
+                                gap: '3px',
+                                whiteSpace: 'nowrap'
                             }}>
                                 {remainingCredits} {userPlanLimit !== 'Ilimitado' && <span style={{ color: '#94A3B8', fontSize: '0.85rem', fontWeight: 600 }}>/ {userPlanLimit}</span>}
                             </div>
@@ -1194,32 +1368,199 @@ const Dashboard = () => {
 
                     {/* REGENERACIÓN DE MENÚ Y EXPORTACIÓN */}
                     <div className="new-plan-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'stretch' }}>
-                        
+
                         {/* SELECTOR DE CICLO DE DESPENSA */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', background: '#FFFFFF', padding: '0.4rem 0.75rem', borderRadius: '0.75rem', border: '1px solid #E2E8F0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', minHeight: '38px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', transform: 'translateY(-1px)' }}>
-                                <Clock size={14} color="#64748B" style={{ display: 'block' }} />
-                                <span className="hidden sm:inline-flex" style={{fontSize: '0.75rem', fontWeight: 700, color: '#64748B', lineHeight: '1', alignItems: 'center'}}>DESPENSA:</span>
-                                <select 
-                                    value={groceryDuration}
-                                    onChange={(e) => updateData('groceryDuration', e.target.value)}
-                                    style={{ border: 'none', background: 'transparent', fontSize: '0.8rem', outline: 'none', color: '#0F172A', fontWeight: 700, cursor: 'pointer', padding: 0, margin: 0, lineHeight: '1' }}
-                                >
-                                    <option value="weekly">Estática por 7 Días</option>
-                                    <option value="biweekly">Estática por 15 Días</option>
-                                    <option value="monthly">Estática por 1 Mes</option>
-                                </select>
+                        {/* SELECTOR DE CICLO DE DESPENSA — Custom Dropdown */}
+                        <div ref={despensaDropdownRef} style={{ position: 'relative' }}>
+                            <div
+                                onClick={() => setShowDespensaDropdown(!showDespensaDropdown)}
+                                onMouseEnter={(e) => {
+                                    if (!showDespensaDropdown) {
+                                        e.currentTarget.style.background = 'linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%)';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (!showDespensaDropdown) {
+                                        e.currentTarget.style.background = 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)';
+                                    }
+                                }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    gap: '0.75rem',
+                                    background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
+                                    padding: '0.5rem 0.75rem 0.5rem 1rem',
+                                    borderRadius: '12px',
+                                    border: `1.5px solid ${showDespensaDropdown ? '#10B981' : '#CBD5E1'}`,
+                                    boxShadow: showDespensaDropdown
+                                        ? '0 0 0 3px rgba(16, 185, 129, 0.1), 0 2px 4px rgba(0,0,0,0.05)'
+                                        : '0 2px 5px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.8)',
+                                    minHeight: '42px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    userSelect: 'none'
+                                }}
+                            >
+                                {/* Accent line */}
+                                <div style={{
+                                    position: 'absolute', left: 0, top: '20%', bottom: '20%', width: '3px',
+                                    borderRadius: '0 3px 3px 0',
+                                    background: 'linear-gradient(180deg, #10B981, #059669)'
+                                }} />
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <div style={{
+                                        width: '28px', height: '28px', borderRadius: '8px',
+                                        background: 'linear-gradient(135deg, #ECFDF5, #D1FAE5)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        flexShrink: 0
+                                    }}>
+                                        <Clock size={14} color="#059669" strokeWidth={2.5} />
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', lineHeight: '1' }}>
+                                        <span style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
+                                            Despensa
+                                        </span>
+                                        <span style={{ fontSize: '0.82rem', color: '#0F172A', fontWeight: 700 }}>
+                                            {{ weekly: '7\u00A0\u00A0Días', biweekly: '15\u00A0\u00A0Días', monthly: '1\u00A0\u00A0Mes' }[groceryDuration] || '7\u00A0\u00A0Días'}
+                                        </span>
+                                    </div>
+                                    <motion.div
+                                        animate={{ rotate: showDespensaDropdown ? 180 : 0 }}
+                                        transition={{ duration: 0.2 }}
+                                    >
+                                        <ChevronDown size={14} color="#94A3B8" strokeWidth={2.5} />
+                                    </motion.div>
+                                </div>
+
+                                {!isPlanExpired ? (
+                                    <div style={{
+                                        background: daysLeft <= 2
+                                            ? 'linear-gradient(135deg, #FEE2E2, #FECACA)'
+                                            : 'linear-gradient(135deg, #DBEAFE, #BFDBFE)',
+                                        color: daysLeft <= 2 ? '#DC2626' : '#2563EB',
+                                        padding: '0.3rem 0.7rem',
+                                        borderRadius: '8px',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 800,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.03em',
+                                        display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                        flexShrink: 0,
+                                        boxShadow: daysLeft <= 2
+                                            ? '0 2px 6px rgba(220, 38, 38, 0.15)'
+                                            : '0 2px 6px rgba(37, 99, 235, 0.1)'
+                                    }}>
+                                        <div style={{
+                                            width: '5px', height: '5px', borderRadius: '50%',
+                                            background: daysLeft <= 2 ? '#DC2626' : '#2563EB',
+                                            animation: daysLeft <= 2 ? 'pulseGlow 2s infinite' : 'none'
+                                        }} />
+                                        {daysLeft} {daysLeft === 1 ? 'día' : 'días'}
+                                    </div>
+                                ) : (
+                                    <div style={{
+                                        background: 'linear-gradient(135deg, #FEE2E2, #FECACA)',
+                                        color: '#DC2626',
+                                        padding: '0.3rem 0.7rem',
+                                        borderRadius: '8px',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 800,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.03em',
+                                        display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                        flexShrink: 0,
+                                        boxShadow: '0 2px 6px rgba(220, 38, 38, 0.15)'
+                                    }}>
+                                        <AlertCircle size={12} />
+                                        Expirada
+                                    </div>
+                                )}
                             </div>
-                            
-                            {!isPlanExpired ? (
-                                <div style={{ background: '#FEF2F2', color: '#EF4444', padding: '0.25rem 0.65rem', borderRadius: '0.5rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                                    {daysLeft} {daysLeft === 1 ? 'd' : 'días'}
-                                </div>
-                            ) : (
-                                <div style={{ background: '#FEF2F2', color: '#EF4444', padding: '0.25rem 0.65rem', borderRadius: '0.5rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                                    Expirada
-                                </div>
-                            )}
+
+                            {/* Custom Dropdown Menu */}
+                            <AnimatePresence>
+                                {showDespensaDropdown && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                                        transition={{ type: 'spring', stiffness: 450, damping: 30, mass: 0.8 }}
+                                        style={{
+                                            position: 'absolute', top: 'calc(100% + 8px)', left: '-4px', right: '-4px',
+                                            zIndex: 9999,
+                                            background: 'rgba(255, 255, 255, 0.95)',
+                                            backdropFilter: 'blur(16px)',
+                                            borderRadius: '12px',
+                                            border: '1.5px solid #CBD5E1',
+                                            boxShadow: '0 20px 40px -10px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.5) inset',
+                                            overflow: 'hidden',
+                                            padding: '4px'
+                                        }}
+                                    >
+                                        {[
+                                            { value: 'weekly', label: '7\u00A0\u00A0Días', sub: 'Semanal' },
+                                            { value: 'biweekly', label: '15\u00A0\u00A0Días', sub: 'Quincenal' },
+                                            { value: 'monthly', label: '1\u00A0\u00A0Mes', sub: 'Mensual' }
+                                        ].map((opt) => (
+                                            <div
+                                                key={opt.value}
+                                                onClick={() => {
+                                                    updateData('groceryDuration', opt.value);
+                                                    setShowDespensaDropdown(false);
+                                                }}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                    padding: '0.5rem 0.6rem',
+                                                    borderRadius: '8px',
+                                                    cursor: 'pointer',
+                                                    background: groceryDuration === opt.value
+                                                        ? 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)'
+                                                        : 'transparent',
+                                                    border: groceryDuration === opt.value ? '1px solid #BBF7D0' : '1px solid transparent',
+                                                    boxShadow: groceryDuration === opt.value ? '0 2px 8px rgba(16, 185, 129, 0.15)' : 'none',
+                                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                                                }}
+                                                onMouseEnter={e => {
+                                                    if (groceryDuration !== opt.value) {
+                                                        e.currentTarget.style.background = '#F8FAFC';
+                                                        e.currentTarget.style.transform = 'translateX(4px)';
+                                                    }
+                                                }}
+                                                onMouseLeave={e => {
+                                                    if (groceryDuration !== opt.value) {
+                                                        e.currentTarget.style.background = 'transparent';
+                                                        e.currentTarget.style.transform = 'translateX(0)';
+                                                    }
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
+                                                    <span style={{
+                                                        fontSize: '0.78rem', fontWeight: 800,
+                                                        color: groceryDuration === opt.value ? '#059669' : '#334155',
+                                                        letterSpacing: '-0.01em'
+                                                    }}>
+                                                        {opt.label}
+                                                    </span>
+                                                    <span style={{ fontSize: '0.65rem', color: '#64748B', fontWeight: 500 }}>
+                                                        {opt.sub}
+                                                    </span>
+                                                </div>
+                                                {groceryDuration === opt.value && (
+                                                    <motion.div
+                                                        initial={{ scale: 0, opacity: 0 }}
+                                                        animate={{ scale: 1, opacity: 1 }}
+                                                        transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+                                                    >
+                                                        <CheckCircle size={14} color="#059669" strokeWidth={2.5} />
+                                                    </motion.div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
                         {/* BOTONES LADO A LADO */}
@@ -1234,8 +1575,10 @@ const Dashboard = () => {
                                         : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
                                     color: isLimitReached ? '#94A3B8' : 'white',
                                     cursor: isLimitReached ? 'not-allowed' : 'pointer',
-                                    boxShadow: isLimitReached ? 'none' : '0 10px 20px -5px rgba(15, 23, 42, 0.3)',
-                                    flex: '1 1 auto', 
+                                    '--hover-shadow': '0 20px 40px -5px rgba(15, 23, 42, 0.45), inset 0 0 0 1px rgba(255,255,255,0.1)',
+                                    '--active-shadow': '0 5px 15px -5px rgba(15, 23, 42, 0.2)',
+                                    boxShadow: isLimitReached ? 'none' : '0 10px 20px -5px rgba(15, 23, 42, 0.35)',
+                                    flex: '1 1 auto',
                                     width: 'auto',
                                     justifyContent: 'center',
                                     padding: '0.75rem 0.75rem',
@@ -1249,7 +1592,7 @@ const Dashboard = () => {
                                 }}
                             >
                                 {isLimitReached ? <AlertCircle size={18} /> : <Wand2 size={18} />}
-                                <span style={{fontSize: '0.85rem'}}>{isLimitReached ? 'Límite' : (isPlanExpired ? 'Nuevo Plan' : 'Actualizar Platos')}</span>
+                                <span style={{ fontSize: '0.85rem' }}>{isLimitReached ? 'Límite' : (isPlanExpired ? 'Nuevo Plan' : 'Actualizar Platos')}</span>
                             </button>
 
                             <button
@@ -1259,8 +1602,10 @@ const Dashboard = () => {
                                     background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                                     color: 'white',
                                     cursor: 'pointer',
-                                    boxShadow: '0 10px 20px -5px rgba(16, 185, 129, 0.3)',
-                                    flex: '1 1 auto', 
+                                    '--hover-shadow': '0 20px 40px -5px rgba(16, 185, 129, 0.5), inset 0 0 0 1px rgba(255,255,255,0.2)',
+                                    '--active-shadow': '0 5px 15px -5px rgba(16, 185, 129, 0.2)',
+                                    boxShadow: '0 10px 20px -5px rgba(16, 185, 129, 0.4)',
+                                    flex: '1 1 auto',
                                     width: 'auto',
                                     justifyContent: 'center',
                                     padding: '0.75rem 0.75rem',
@@ -1274,7 +1619,7 @@ const Dashboard = () => {
                                 }}
                             >
                                 <CheckCircle size={18} />
-                                <span style={{fontSize: '0.85rem'}}>Registrar Compras</span>
+                                <span style={{ fontSize: '0.85rem' }}>Registrar Compras</span>
                             </button>
 
                             <button
@@ -1283,9 +1628,12 @@ const Dashboard = () => {
                                 style={{
                                     background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
                                     color: '#334155',
-                                    border: '1px solid #E2E8F0',
+                                    border: '1.5px solid #CBD5E1',
+                                    '--hover-shadow': '0 15px 30px -5px rgba(0, 0, 0, 0.1), inset 0 0 0 1.5px #CBD5E1',
+                                    '--active-shadow': '0 5px 15px -5px rgba(0, 0, 0, 0.05), inset 0 0 0 1.5px #CBD5E1',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
                                     cursor: 'pointer',
-                                    flex: '1 1 auto', 
+                                    flex: '1 1 auto',
                                     width: 'auto',
                                     justifyContent: 'center',
                                     padding: '0.75rem 0.75rem',
@@ -1298,7 +1646,7 @@ const Dashboard = () => {
                                 }}
                             >
                                 <ShoppingCart size={18} />
-                                <span style={{fontSize: '0.85rem'}}>PDF</span>
+                                <span style={{ fontSize: '0.85rem' }}>PDF</span>
                             </button>
                         </div>
                     </div>
@@ -1306,14 +1654,14 @@ const Dashboard = () => {
             </header>
 
             {/* --- MACROS & CALORIES SUMMARY ROW --- */}
-            <div style={{ marginBottom: '2.5rem' }}>
-                <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div className="macros-card">
+                <h2 className="macros-card-header" style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A' }}>
                     <div style={{ background: '#EFF6FF', color: '#3B82F6', padding: '0.4rem', borderRadius: '0.5rem', display: 'flex' }}>
                         <Target size={20} strokeWidth={2.5} />
                     </div>
                     Objetivo del Día
                 </h2>
-                
+
                 <div className="macros-grid">
                     <StatItem label="Calorías Totales" value={planData.calories} unit="kcal" icon={Flame} color="#F59E0B" bgColor="#FFFBEB" isFirst={true} />
                     <StatItem label="Proteína" value={planData.macros?.protein || "0g"} unit="" icon={Dumbbell} color="#3B82F6" bgColor="#EFF6FF" />
@@ -1323,16 +1671,16 @@ const Dashboard = () => {
             </div>
 
             {/* --- DAILY TRACKER UI --- */}
-            <TrackingProgress 
-                planData={planData} 
-                userId={userProfile?.id || formData?.session_id || 'guest'} 
+            <TrackingProgress
+                planData={planData}
+                userId={userProfile?.id || formData?.session_id || 'guest'}
             />
 
             {/* --- MAIN CONTENT COLUMNS --- */}
             <div className="main-grid">
 
                 {/* Left Column: MEALS TIMELINE */}
-                <div style={{ flex: 2 }}>
+                <div className="meals-container" style={{ flex: 2, alignSelf: 'start' }}>
                     <div className="menu-section-header">
                         <h2 className="menu-section-title">
                             Platos de Hoy
@@ -1364,7 +1712,7 @@ const Dashboard = () => {
                         </div>
                     )}
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
                         {(() => {
                             // Copia segura de platos usando el día activo (filtrar suplementos que tienen su propia sección)
                             let displayMeals = [...currentDayMeals].filter(m => !m.meal?.toLowerCase().includes('suplemento'));
@@ -1388,22 +1736,15 @@ const Dashboard = () => {
                                 if (isSkippedLunch) {
                                     if (isPremium) {
                                         return (
-                                            <div key={index} style={{
+                                            <div key={index} className="skipped-lunch" style={{
                                                 background: 'linear-gradient(135deg, rgba(239, 246, 255, 0.8), rgba(219, 234, 254, 0.5))',
-                                                padding: '1.5rem',
-                                                borderRadius: '1.5rem',
-                                                border: '2px dashed #93C5FD',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                gap: '1.5rem',
-                                                color: '#1E40AF',
-                                                boxShadow: '0 4px 15px -5px rgba(59, 130, 246, 0.1)',
-                                                flexWrap: 'wrap'
+                                                borderTop: index > 0 ? '1px dashed #93C5FD' : 'none',
+                                                borderBottom: index < displayMeals.length - 1 ? '1px dashed #93C5FD' : 'none',
+                                                color: '#1E40AF'
                                             }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                                     <div style={{
-                                                        background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', 
+                                                        background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
                                                         color: 'white',
                                                         borderRadius: '12px', width: 48, height: 48,
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1456,14 +1797,10 @@ const Dashboard = () => {
                                     }
 
                                     return (
-                                        <div key={index} style={{
+                                        <div key={index} className="skipped-lunch" style={{
                                             background: 'rgba(239, 246, 255, 0.6)',
-                                            padding: '1.5rem',
-                                            borderRadius: '1rem',
-                                            border: '1px dashed #3B82F6',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '1rem',
+                                            borderTop: index > 0 ? '1px dashed #3B82F6' : 'none',
+                                            borderBottom: index < displayMeals.length - 1 ? '1px dashed #3B82F6' : 'none',
                                             color: '#1E40AF'
                                         }}>
                                             <div style={{
@@ -1504,12 +1841,12 @@ const Dashboard = () => {
                                             {/* TIEMPO DE PREPARACIÓN */}
                                             {meal.prep_time && (
                                                 <div style={{
-                                                    display: 'inline-flex', alignItems: 'center', gap: '4px',
-                                                    fontSize: '0.75rem', color: '#64748B', background: '#F1F5F9',
-                                                    padding: '2px 8px', borderRadius: '4px', marginBottom: '0.75rem', fontWeight: 600,
-                                                    border: '1px solid #E2E8F0'
+                                                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                                    fontSize: '0.75rem', color: '#2563EB', background: '#EFF6FF',
+                                                    padding: '4px 10px', borderRadius: '6px', marginBottom: '0.75rem', fontWeight: 700,
+                                                    border: '1px solid #BFDBFE', boxShadow: '0 1px 2px rgba(37,99,235,0.05)'
                                                 }}>
-                                                    <Clock size={12} /> {meal.prep_time}
+                                                    <Clock size={13} strokeWidth={2.5} /> {meal.prep_time}
                                                 </div>
                                             )}
 
@@ -1711,14 +2048,14 @@ const Dashboard = () => {
                 <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
 
                     {/* Despensa (Virtual Fridge) */}
-                    {!isPlanExpired && physicalPantryIngredients.length > 0 && (
+                    {!isPlanExpired && (
                         <div style={{
                             background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.5) 100%)',
                             backdropFilter: 'blur(12px)',
                             padding: '1.75rem',
                             borderRadius: '2rem',
-                            border: '1px solid white',
-                            boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.02)',
+                            border: '1.5px solid rgba(203, 213, 225, 0.8)',
+                            boxShadow: '0 20px 40px -10px rgba(0,0,0,0.08), 0 0 0 1px rgba(148, 163, 184, 0.05)',
                             marginBottom: '2rem',
                             width: '100%',
                             boxSizing: 'border-box'
@@ -1732,94 +2069,100 @@ const Dashboard = () => {
                                 </div>
                                 Despensa
                             </h3>
-                            <p style={{ fontSize: '0.9rem', fontWeight: 500, color: '#334155', marginBottom: '1.25rem', lineHeight: 1.5, textAlign: 'center' }}>
-                                Toca un ingrediente para reportarlo como "agotado". Al <b>Actualizar Platos</b>, la IA ya no lo usará.
+                            <p style={{ fontSize: '0.9rem', fontWeight: 400, color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.4, textAlign: 'center' }}>
+                                Toca lo que se agotó. La IA lo excluirá de tu próximo menú.
                             </p>
-                            
-                            <div className="soft-scrollbar" style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '350px', overflowY: 'auto', padding: '0.25rem', paddingRight: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
-                                {[...physicalPantryIngredients]
-                                    .sort((a, b) => {
-                                        const aDisabled = disabledIngredients.includes(a.name.toLowerCase().trim());
-                                        const bDisabled = disabledIngredients.includes(b.name.toLowerCase().trim());
-                                        if (aDisabled !== bDisabled) return aDisabled ? 1 : -1;
-                                        return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
-                                    })
-                                    .map((ingObj, idx) => {
-                                    const normalizedName = ingObj.name.toLowerCase().trim();
-                                    const isDisabled = disabledIngredients.includes(normalizedName);
-                                    const quantity = ingObj.quantity;
-                                    const name = ingObj.name;
 
-                                    return (
-                                        <motion.button
-                                            key={normalizedName}
-                                            whileHover={{ scale: isDisabled ? 1.0 : 1.03, opacity: 0.9 }}
-                                            whileTap={{ scale: 0.95 }}
-                                            layout
-                                            onClick={() => {
-                                                if (isDisabled) {
-                                                    setDisabledIngredients(prev => prev.filter(i => i !== normalizedName));
-                                                } else {
-                                                    setDisabledIngredients(prev => [...prev, normalizedName]);
-                                                }
-                                            }}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.4rem',
-                                                background: isDisabled ? '#F8FAFC' : '#FFFFFF',
-                                                color: isDisabled ? '#94A3B8' : '#0F172A',
-                                                border: `1px solid ${isDisabled ? '#F1F5F9' : '#E2E8F0'}`,
-                                                boxShadow: isDisabled ? 'inset 0 2px 4px rgba(0,0,0,0.02)' : '0 2px 5px rgba(0,0,0,0.04)',
-                                                borderRadius: '9999px',
-                                                padding: quantity ? '0.25rem 0.75rem 0.25rem 0.25rem' : '0.4rem 0.8rem',
-                                                fontSize: '0.85rem',
-                                                cursor: 'pointer',
-                                                transition: 'background 0.2s, color 0.2s, border 0.2s, box-shadow 0.2s'
-                                            }}
-                                            title={isDisabled ? "Agotado. Toca para restaurar." : "Disponible. Toca para reportar como agotado."}
-                                        >
-                                            {quantity && (
-                                                <div style={{
-                                                    background: isDisabled ? '#E2E8F0' : '#F1F5F9',
-                                                    color: isDisabled ? '#94A3B8' : '#64748B',
-                                                    padding: '0.2rem 0.5rem',
-                                                    borderRadius: '9999px',
-                                                    fontSize: '0.7rem',
-                                                    fontWeight: 700,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    textDecoration: isDisabled ? 'line-through' : 'none'
-                                                }}>
-                                                    {quantity}
-                                                </div>
-                                            )}
-                                            
-                                            <span style={{ 
-                                                fontWeight: 600, 
-                                                textDecoration: isDisabled ? 'line-through' : 'none',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.3rem'
-                                            }}>
-                                                {name}
-                                                <AnimatePresence>
-                                                    {isDisabled && (
-                                                        <motion.div
-                                                            initial={{ scale: 0, opacity: 0 }}
-                                                            animate={{ scale: 1, opacity: 1 }}
-                                                            exit={{ scale: 0, opacity: 0 }}
-                                                            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                                                        >
-                                                            <Trash2 size={13} color="#EF4444" style={{ marginLeft: '2px', opacity: 0.9 }} />
-                                                        </motion.div>
+                            {physicalPantryIngredients.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '1rem', color: '#64748B', fontSize: '0.95rem' }}>
+                                    Tu despensa está vacía. Registra las compras de tu plan para llenarla.
+                                </div>
+                            ) : (
+                                <div className="soft-scrollbar" style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '350px', overflowY: 'auto', padding: '0.25rem', paddingRight: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
+                                    {[...physicalPantryIngredients]
+                                        .sort((a, b) => {
+                                            const aDisabled = disabledIngredients.includes(a.name.toLowerCase().trim());
+                                            const bDisabled = disabledIngredients.includes(b.name.toLowerCase().trim());
+                                            if (aDisabled !== bDisabled) return aDisabled ? 1 : -1;
+                                            return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
+                                        })
+                                        .map((ingObj, idx) => {
+                                            const normalizedName = ingObj.name.toLowerCase().trim();
+                                            const isDisabled = disabledIngredients.includes(normalizedName);
+                                            const quantity = ingObj.quantity;
+                                            const name = ingObj.name;
+
+                                            return (
+                                                <motion.button
+                                                    key={normalizedName}
+                                                    whileHover={{ scale: isDisabled ? 1.0 : 1.03, opacity: 0.9 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    layout
+                                                    onClick={() => {
+                                                        if (isDisabled) {
+                                                            setDisabledIngredients(prev => prev.filter(i => i !== normalizedName));
+                                                        } else {
+                                                            setDisabledIngredients(prev => [...prev, normalizedName]);
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.4rem',
+                                                        background: isDisabled ? '#F8FAFC' : '#FFFFFF',
+                                                        color: isDisabled ? '#94A3B8' : '#0F172A',
+                                                        border: `1px solid ${isDisabled ? '#E2E8F0' : '#CBD5E1'}`,
+                                                        boxShadow: isDisabled ? 'inset 0 2px 4px rgba(0,0,0,0.02)' : '0 2px 5px rgba(0,0,0,0.06)',
+                                                        borderRadius: '9999px',
+                                                        padding: quantity ? '0.25rem 0.75rem 0.25rem 0.25rem' : '0.4rem 0.8rem',
+                                                        fontSize: '0.85rem',
+                                                        cursor: 'pointer',
+                                                        transition: 'background 0.2s, color 0.2s, border 0.2s, box-shadow 0.2s'
+                                                    }}
+                                                    title={isDisabled ? "Agotado. Toca para restaurar." : "Disponible. Toca para reportar como agotado."}
+                                                >
+                                                    {quantity && (
+                                                        <div style={{
+                                                            background: isDisabled ? '#E2E8F0' : '#F1F5F9',
+                                                            color: isDisabled ? '#94A3B8' : '#64748B',
+                                                            padding: '0.2rem 0.5rem',
+                                                            borderRadius: '9999px',
+                                                            fontSize: '0.7rem',
+                                                            fontWeight: 700,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            textDecoration: isDisabled ? 'line-through' : 'none'
+                                                        }}>
+                                                            {quantity}
+                                                        </div>
                                                     )}
-                                                </AnimatePresence>
-                                            </span>
-                                        </motion.button>
-                                    );
-                                })}
-                            </div>
+
+                                                    <span style={{
+                                                        fontWeight: 600,
+                                                        textDecoration: isDisabled ? 'line-through' : 'none',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.3rem'
+                                                    }}>
+                                                        {name}
+                                                        <AnimatePresence>
+                                                            {isDisabled && (
+                                                                <motion.div
+                                                                    initial={{ scale: 0, opacity: 0 }}
+                                                                    animate={{ scale: 1, opacity: 1 }}
+                                                                    exit={{ scale: 0, opacity: 0 }}
+                                                                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                                                >
+                                                                    <Trash2 size={13} color="#EF4444" style={{ marginLeft: '2px', opacity: 0.9 }} />
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </span>
+                                                </motion.button>
+                                            );
+                                        })}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -1829,16 +2172,16 @@ const Dashboard = () => {
                         backdropFilter: 'blur(12px)',
                         padding: '1.75rem',
                         borderRadius: '2rem',
-                        border: '1px solid white',
+                        border: '1.5px solid rgba(203, 213, 225, 0.8)',
                         marginBottom: '2rem',
-                        boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.02)'
+                        boxShadow: '0 20px 40px -10px rgba(0,0,0,0.08), 0 0 0 1px rgba(148, 163, 184, 0.05)'
                     }}>
                         <h3 style={{
                             fontSize: '1.2rem', fontWeight: 800, color: '#0F172A',
                             marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem'
                         }}>
                             <div style={{ background: '#F0F9FF', padding: '0.4rem', borderRadius: '0.75rem', color: '#0284C7' }}>
-                                <Lightbulb size={22} strokeWidth={2.5} />
+                                <Brain size={22} strokeWidth={2.5} />
                             </div>
                             Razonamiento
                         </h3>
@@ -1851,7 +2194,7 @@ const Dashboard = () => {
                                 let bgColor = "#F1F5F9";
 
                                 if (insight.toLowerCase().includes('diagnóstico') || i === 0) {
-                                    icon = <Brain size={20} />;
+                                    icon = <Lightbulb size={20} />;
                                     title = "Diagnóstico";
                                     color = "#7C3AED"; // Violet
                                     bgColor = "#F5F3FF";
@@ -1934,8 +2277,8 @@ const Dashboard = () => {
                                     boxShadow: '0 8px 16px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.04)', /* Deeper, more noticeable shadow */
                                     transition: 'all 0.2s ease', cursor: 'pointer'
                                 }}
-                                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 24px -4px rgba(15, 23, 42, 0.12)'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 16px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.04)'; }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 24px -4px rgba(15, 23, 42, 0.12)'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 16px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.04)'; }}
                                 >
                                     <div style={{
                                         width: 40, height: 40, borderRadius: '0.75rem',
@@ -1959,16 +2302,16 @@ const Dashboard = () => {
                             ))}
                         </div>
 
-                        <Link to="/dashboard/recipes" 
+                        <Link to="/dashboard/recipes"
                             onClick={() => window.scrollTo(0, 0)}
                             style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                            textDecoration: 'none', color: 'white',
-                            background: 'var(--text-main)',
-                            fontWeight: 600, padding: '1rem', borderRadius: '1rem',
-                            fontSize: '0.95rem', transition: 'all 0.2s',
-                            boxShadow: '0 4px 6px -1px rgba(15, 23, 42, 0.1)'
-                        }}
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                textDecoration: 'none', color: 'white',
+                                background: 'var(--text-main)',
+                                fontWeight: 600, padding: '1rem', borderRadius: '1rem',
+                                fontSize: '0.95rem', transition: 'all 0.2s',
+                                boxShadow: '0 4px 6px -1px rgba(15, 23, 42, 0.1)'
+                            }}
                             onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(15, 23, 42, 0.15)'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(15, 23, 42, 0.1)'; }}
                         >
@@ -1990,7 +2333,7 @@ const Dashboard = () => {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         padding: '1rem'
                     }}>
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, scale: 0.9, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -2012,7 +2355,7 @@ const Dashboard = () => {
                                 width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, rgba(255,255,255,0) 70%)',
                                 borderRadius: '50%', zIndex: 0
                             }}></div>
-                            
+
                             <div style={{
                                 width: '64px', height: '64px', borderRadius: '20px',
                                 background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
@@ -2031,7 +2374,7 @@ const Dashboard = () => {
                             </p>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', position: 'relative', zIndex: 1 }}>
-                                <button 
+                                <button
                                     onClick={handleEnablePush}
                                     disabled={isPushEnabling}
                                     style={{
@@ -2053,8 +2396,8 @@ const Dashboard = () => {
                                         <>¡Sí, encender alertas!</>
                                     )}
                                 </button>
-                                
-                                <button 
+
+                                <button
                                     onClick={handleDismissPushOnboarding}
                                     disabled={isPushEnabling}
                                     style={{
@@ -2085,60 +2428,181 @@ const Dashboard = () => {
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                             style={{
                                 background: '#FFFFFF', borderRadius: '1.5rem', padding: '2rem',
                                 width: '100%', maxWidth: '400px', textAlign: 'center',
-                                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                                overflow: 'hidden', position: 'relative'
                             }}
                         >
-                            <div style={{
-                                width: '64px', height: '64px', borderRadius: '20px',
-                                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                margin: '0 auto 1.5rem auto', boxShadow: '0 8px 16px rgba(16, 185, 129, 0.3)'
-                            }}>
-                                <CheckCircle size={32} color="#FFFFFF" strokeWidth={2} />
-                            </div>
+                            <AnimatePresence mode="wait">
+                                {!isRestocking ? (
+                                    /* === ESTADO: CONFIRMACIÓN === */
+                                    <motion.div
+                                        key="confirm"
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.2 }}
+                                    >
+                                        <div style={{
+                                            width: '64px', height: '64px', borderRadius: '20px',
+                                            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            margin: '0 auto 1.5rem auto', boxShadow: '0 8px 16px rgba(16, 185, 129, 0.3)'
+                                        }}>
+                                            <ShoppingCart size={28} color="#FFFFFF" strokeWidth={2} />
+                                        </div>
 
-                            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.75rem' }}>
-                                ¿Confirmar Compra?
-                            </h2>
-                            <p style={{ color: '#64748B', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '2rem' }}>
-                                Esto agregará todos los ingredientes de la lista de compras directamente a tu Nevera Virtual para usar en el futuro.
-                            </p>
+                                        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.75rem' }}>
+                                            ¿Confirmar Compra?
+                                        </h2>
+                                        <p style={{ color: '#64748B', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '2rem' }}>
+                                            Esto agregará todos los ingredientes de la lista de compras directamente a tu Nevera Virtual.
+                                        </p>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                <button 
-                                    onClick={handleRestock}
-                                    disabled={isRestocking}
-                                    style={{
-                                        background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                                        color: '#FFFFFF', border: 'none', padding: '1rem', borderRadius: '1rem',
-                                        fontWeight: 700, fontSize: '1rem', cursor: isRestocking ? 'wait' : 'pointer',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                        boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
-                                        opacity: isRestocking ? 0.7 : 1, transition: 'all 0.2s'
-                                    }}
-                                >
-                                    {isRestocking ? (
-                                        <><Loader2 size={20} className="spin-animation" /> Procesando...</>
-                                    ) : (
-                                        <>Añadir a mi Nevera</>
-                                    )}
-                                </button>
-                                
-                                <button 
-                                    onClick={() => setShowRestockModal(false)}
-                                    disabled={isRestocking}
-                                    style={{
-                                        background: 'transparent', color: '#94A3B8', border: 'none',
-                                        padding: '0.75rem', borderRadius: '1rem', fontWeight: 600, fontSize: '0.9rem',
-                                        cursor: 'pointer', transition: 'color 0.2s'
-                                    }}
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                            <button
+                                                onClick={handleRestock}
+                                                style={{
+                                                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                                                    color: '#FFFFFF', border: 'none', padding: '1rem', borderRadius: '1rem',
+                                                    fontWeight: 700, fontSize: '1rem', cursor: 'pointer',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                                                    transition: 'all 0.2s', transform: 'scale(1)'
+                                                }}
+                                                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                                                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                                            >
+                                                <CheckCircle size={20} /> Añadir a mi Nevera
+                                            </button>
+
+                                            <button
+                                                onClick={() => setShowRestockModal(false)}
+                                                style={{
+                                                    background: 'transparent', color: '#94A3B8', border: 'none',
+                                                    padding: '0.75rem', borderRadius: '1rem', fontWeight: 600, fontSize: '0.9rem',
+                                                    cursor: 'pointer', transition: 'color 0.2s'
+                                                }}
+                                            >
+                                                Cancelar
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                ) : (
+                                    /* === ESTADO: PROCESANDO (Animación Premium) === */
+                                    <motion.div
+                                        key="loading"
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.3 }}
+                                        style={{ padding: '0.5rem 0' }}
+                                    >
+                                        {/* Icono animado con pulso */}
+                                        <div style={{ position: 'relative', margin: '0 auto 1.5rem auto', width: '72px', height: '72px' }}>
+                                            <motion.div
+                                                animate={{ rotate: 360 }}
+                                                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                                                style={{
+                                                    position: 'absolute', inset: 0,
+                                                    borderRadius: '50%',
+                                                    border: '3px solid transparent',
+                                                    borderTopColor: '#10B981',
+                                                    borderRightColor: '#10B981',
+                                                }}
+                                            />
+                                            <motion.div
+                                                animate={{ rotate: -360 }}
+                                                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                                                style={{
+                                                    position: 'absolute', inset: '6px',
+                                                    borderRadius: '50%',
+                                                    border: '3px solid transparent',
+                                                    borderBottomColor: '#059669',
+                                                    borderLeftColor: '#059669',
+                                                    opacity: 0.6
+                                                }}
+                                            />
+                                            <div style={{
+                                                position: 'absolute', inset: '14px',
+                                                borderRadius: '50%',
+                                                background: 'linear-gradient(135deg, #ECFDF5, #D1FAE5)',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                            }}>
+                                                <motion.div
+                                                    animate={{ scale: [1, 1.15, 1] }}
+                                                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                                                >
+                                                    <ShoppingCart size={22} color="#059669" strokeWidth={2.5} />
+                                                </motion.div>
+                                            </div>
+                                        </div>
+
+                                        <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.5rem' }}>
+                                            Registrando compras...
+                                        </h2>
+                                        <p style={{ color: '#64748B', fontSize: '0.85rem', lineHeight: '1.4', marginBottom: '1.5rem' }}>
+                                            Estamos organizando tus ingredientes en la Nevera
+                                        </p>
+
+                                        {/* Barra de progreso animada */}
+                                        <div style={{
+                                            width: '100%', height: '6px', borderRadius: '3px',
+                                            background: '#F1F5F9', overflow: 'hidden', marginBottom: '1.25rem'
+                                        }}>
+                                            <motion.div
+                                                initial={{ width: '0%' }}
+                                                animate={{ width: '92%' }}
+                                                transition={{ duration: 4, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                                style={{
+                                                    height: '100%', borderRadius: '3px',
+                                                    background: 'linear-gradient(90deg, #10B981, #059669, #10B981)',
+                                                    backgroundSize: '200% 100%',
+                                                    animation: 'shimmer 1.5s ease-in-out infinite'
+                                                }}
+                                            />
+                                        </div>
+
+                                        {/* Pasos de progreso */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', textAlign: 'left' }}>
+                                            {[
+                                                { label: 'Verificando ingredientes', delay: 0 },
+                                                { label: 'Actualizando inventario', delay: 1.2 },
+                                                { label: 'Sincronizando Nevera', delay: 2.4 }
+                                            ].map((step, i) => (
+                                                <motion.div
+                                                    key={step.label}
+                                                    initial={{ opacity: 0, x: -10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: step.delay, duration: 0.4 }}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', gap: '0.6rem',
+                                                        fontSize: '0.85rem', color: '#64748B'
+                                                    }}
+                                                >
+                                                    <motion.div
+                                                        initial={{ scale: 0 }}
+                                                        animate={{ scale: 1 }}
+                                                        transition={{ delay: step.delay + 0.2, type: 'spring', stiffness: 300 }}
+                                                        style={{
+                                                            width: '20px', height: '20px', borderRadius: '50%',
+                                                            background: 'linear-gradient(135deg, #10B981, #059669)',
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            flexShrink: 0
+                                                        }}
+                                                    >
+                                                        <CheckCircle size={12} color="#fff" strokeWidth={3} />
+                                                    </motion.div>
+                                                    {step.label}
+                                                </motion.div>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </motion.div>
                     </div>
                 )}
@@ -2159,13 +2623,14 @@ const StatItem = ({ label, value, unit, icon, color, bgColor, isFirst }) => {
                 background: bgColor,
                 color: color,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0
+                flexShrink: 0,
+                boxShadow: `0 8px 16px -6px ${color}40, inset 0 2px 4px rgba(255,255,255,0.7)`
             }}>
                 <Icon size={24} strokeWidth={2.5} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                    <div className="stat-value" style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em' }}>
+                    <div className="stat-value" style={{ fontSize: '1.55rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em' }}>
                         {value}
                     </div>
                     {unit && (
@@ -2174,7 +2639,7 @@ const StatItem = ({ label, value, unit, icon, color, bgColor, isFirst }) => {
                         </div>
                     )}
                 </div>
-                <div className="stat-label" style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                <div className="stat-label" style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     {label}
                 </div>
             </div>

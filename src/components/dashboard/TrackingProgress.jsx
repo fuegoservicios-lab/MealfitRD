@@ -90,15 +90,15 @@ const TrackingProgress = ({ planData, userId }) => {
                 <div className={styles.premiumOverlay}>
                     <div className={styles.premiumBox}>
                         <div style={{
-                            background: '#FEF2F2', color: '#EF4444', height: 48, width: 48,
-                            borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            margin: '0 auto 1rem'
+                            background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 100%)', color: '#FFFFFF', height: 44, width: 44,
+                            borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            margin: '0 auto 1rem', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.35), inset 0 2px 4px rgba(255,255,255,0.3)'
                         }}>
-                            <Lock size={24} strokeWidth={2.5} />
+                            <Lock size={20} strokeWidth={2.5} />
                         </div>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.5rem', marginTop: 0 }}>Función Premium</h3>
-                        <p style={{ fontSize: '0.9rem', color: '#64748B', lineHeight: 1.5, margin: 0 }}>
-                            El Progreso en Tiempo Real y Analizador de Macros exige suscripción Plus. ¡Mejora tu plan!
+                        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#1E293B', marginBottom: '0.4rem', marginTop: 0 }}>Exclusivo Plus</h3>
+                        <p style={{ fontSize: '0.9rem', fontWeight: 500, color: '#475569', lineHeight: 1.5, margin: 0 }}>
+                            Desbloquea el análisis inteligente de macros en tiempo real.
                         </p>
                     </div>
                 </div>
