@@ -69,12 +69,14 @@ const Header = () => {
                 </nav>
 
                 {/* Botón Menú Móvil */}
-                <button
-                    className={styles.mobileToggle}
-                    onClick={() => setIsMenuOpen(!isMenuOpen)}
-                >
-                    {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                </button>
+                {!isPlanLoading && (
+                    <button
+                        className={styles.mobileToggle}
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    >
+                        {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                    </button>
+                )}
 
                 {/* Navegación Móvil */}
                 {isMenuOpen && (
