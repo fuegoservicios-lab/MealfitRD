@@ -125,7 +125,7 @@ export const AssessmentProvider = ({ children }) => {
 
     const initialFormData = {
         age: '', gender: '', height: '', weight: '', weightUnit: 'lb', bodyFat: '', activityLevel: '',
-        sleepHours: '', stressLevel: '', cookingTime: '', budget: '', scheduleType: 'standard',
+        sleepHours: '', stressLevel: '', cookingTime: '', budget: '', scheduleType: '',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
         mainGoal: '', motivation: '', struggles: [], skipLunch: false,
         includeSupplements: false, selectedSupplements: [], groceryDuration: 'weekly',

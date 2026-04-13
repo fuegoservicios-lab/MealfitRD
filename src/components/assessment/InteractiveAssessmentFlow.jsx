@@ -25,53 +25,53 @@ const InteractiveAssessmentFlow = () => {
     // The sequence of steps
     const steps = [
         {
-            title: <>¿Eres hombre o mujer? <span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>¿Eres hombre o mujer?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Las necesidades nutricionales varían según tu sexo biológico.",
             component: <QGender onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>Tus Medidas <span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>Tus Medidas&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Ingresa tu edad, altura y peso para calcular tus macros con precisión.",
             hasInternalNext: true,
             component: <QMeasurements onManualAdvance={nextStep} />
         },
         {
-            title: <>¿Cuál es tu nivel de actividad física? <span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>¿Cuál es tu nivel de actividad física?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Considera tanto tu trabajo como tus entrenamientos.",
             component: <QActivityLevel onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>¿Cómo es tu horario cotidiano? <span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>¿Cómo es tu horario cotidiano?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Adaptaremos los horarios de tus comidas a tu reloj biológico.",
             component: <QSchedule onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>¿Cuántas horas duermes? <span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>¿Cuántas horas duermes?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "La calidad de tu sueño afecta directamente tu metabolismo.",
             component: <QSleep onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>¿Cuál es tu nivel de estrés diario? <span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>¿Cuál es tu nivel de estrés diario?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Un alto nivel de estrés puede dificultar la pérdida de grasa.",
             component: <QStress onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>¿Cuánto tiempo tienes para cocinar? <span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>¿Cuánto tiempo tienes para cocinar?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Te daremos recetas reales que se ajusten a tu agenda.",
             component: <QCookingTime onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>Tu presupuesto para compras <span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>Tu presupuesto para compras&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Ajustaremos los ingredientes para no afectar tu bolsillo.",
             component: <QBudget onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>¿Qué tipo de dieta prefieres? <span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>¿Qué tipo de dieta prefieres?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Selecciona el estilo de alimentación que más disfrutes.",
             component: <QDietType onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>¿Tienes alguna alergia o intolerancia? <span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>¿Tienes alguna alergia o intolerancia?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Marca todas las opciones que apliquen.",
             hasInternalNext: true,
             component: <QAllergies onManualAdvance={nextStep} />
@@ -83,7 +83,7 @@ const InteractiveAssessmentFlow = () => {
             component: <QMedical onManualAdvance={nextStep} />
         },
         {
-            title: <>¿Cuál es tu objetivo PRINCIPAL? <span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>¿Cuál es tu objetivo PRINCIPAL?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Define la meta que quieres lograr con este plan.",
             component: <QMainGoal onAutoAdvance={handleAutoAdvance} />
         },
@@ -94,7 +94,7 @@ const InteractiveAssessmentFlow = () => {
             component: <QStruggles onManualAdvance={nextStep} />
         },
         {
-            title: <>¿Por qué quieres hacer esto AHORA? <span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>¿Por qué quieres hacer esto AHORA?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Escribe tu motivación real. Esto será tu gasolina en días difíciles.",
             hasInternalNext: true,
             component: <QMotivation onManualAdvance={nextStep} />
