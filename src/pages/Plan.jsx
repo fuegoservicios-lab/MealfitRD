@@ -361,9 +361,8 @@ const LoadingScreen = ({ status }) => {
     return (
         <div style={{
             minHeight: '100dvh', // Use dvh to fix mobile Safari bottom bar overlap
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
-            padding: '1.5rem',
-            paddingTop: '0.5rem', // Much tighter to the top
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            padding: '2rem 1.5rem', // Added top padding for the physical notch
             background: 'linear-gradient(135deg, #0f0c29 0%, #1a1a3e 40%, #24243e 100%)',
             position: 'relative', overflow: 'hidden',
         }}>
@@ -399,7 +398,7 @@ const LoadingScreen = ({ status }) => {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-                style={{ width: '100%', maxWidth: '440px', textAlign: 'center', position: 'relative', zIndex: 2, marginTop: '-2rem' }}
+                style={{ width: '100%', maxWidth: '440px', textAlign: 'center', position: 'relative', zIndex: 2, marginTop: '-5vh' }}
             >
                 {/* === ANIMATED SPINNER === */}
                 <div style={{
