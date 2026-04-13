@@ -347,10 +347,17 @@ const Pantry = () => {
             );
         }
 
-        // Agrupar por Categoría del Master
+        // Agrupar por Categoría del Master (con normalización de duplicados)
+        const CATEGORY_NORMALIZE = {
+            'Despensa': 'Despensa y Granos',
+            'Granos': 'Despensa y Granos',
+            'Cereales': 'Cereales y Granos',
+            'Carbohidratos': 'Cereales y Granos',
+        };
         const grouped = {};
         textMatch.forEach(item => {
-            const cat = item.master_ingredients?.category || "OTROS";
+            let cat = item.master_ingredients?.category || "OTROS";
+            cat = CATEGORY_NORMALIZE[cat] || cat; // Normalizar
             if(!grouped[cat]) grouped[cat] = [];
             grouped[cat].push(item);
         });

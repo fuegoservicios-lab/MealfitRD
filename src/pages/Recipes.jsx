@@ -282,6 +282,13 @@ const Recipes = () => {
     const [checkedIngredients, setCheckedIngredients] = useState({});
     const [activeMealIndex, setActiveMealIndex] = useState(0);
 
+    // Scroll to top on mount (cuando se navega desde BottomTabBar o sidebar)
+    useEffect(() => {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+    }, []);
+
     const toggleIngredient = (idx) => {
         setCheckedIngredients(prev => ({ ...prev, [idx]: !prev[idx] }));
     };
@@ -579,12 +586,25 @@ const Recipes = () => {
                                 fontSize: isMobile ? '1.5rem' : '3.5rem', fontWeight: 900, color: 'var(--text-main)',
                                 marginBottom: '0.25rem', letterSpacing: '-0.04em', lineHeight: 1.1, wordBreak: 'break-word'
                             }}>
-                                Menú del Día
+                                Recetas
                             </h1>
                             <p style={{ color: 'var(--text-muted)', fontSize: isMobile ? '0.85rem' : '1.25rem', maxWidth: '600px', margin: '0 auto', lineHeight: 1.5, padding: '0' }}>
                                 Tu plan nutricional personalizado, plato por plato.
                             </p>
                         </motion.div>
+
+                        <style>{`
+                            .meal-hover-card {
+                                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                            }
+                            .meal-hover-card:not(.active):hover {
+                                box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.08) !important;
+                                transform: translateY(-2px) scale(1.02) !important;
+                            }
+                            .meal-hover-card.active:hover {
+                                box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.15) !important;
+                            }
+                        `}</style>
 
                         {/* DAY SELECTOR */}
                         {planData.days && planData.days.length > 1 && (
@@ -609,11 +629,11 @@ const Recipes = () => {
                                             color: activeDayIndex === idx ? 'var(--bg-card)' : 'var(--text-muted)',
                                             fontWeight: 800, cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                             fontSize: isMobile ? '0.8rem' : '1rem',
-                                            boxShadow: activeDayIndex === idx ? '0 6px 14px -4px rgba(59, 130, 246, 0.4)' : 'none',
+                                            boxShadow: activeDayIndex === idx ? '0 4px 10px -2px rgba(0, 0, 0, 0.15)' : 'none',
                                             transform: activeDayIndex === idx ? 'translateY(-1px)' : 'translateY(0)',
                                         }}
                                     >
-                                        Día {String.fromCharCode(65 + idx)}
+                                        {String.fromCharCode(65 + idx)}
                                     </button>
                                 ))}
                             </div>
@@ -647,25 +667,26 @@ const Recipes = () => {
                                             /* MOBILE: 2-column mini-cards grid — all visible, tap to select */
                                             <div style={{
                                                 display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem',
-                                                padding: '0.15rem 0', overflow: 'hidden', maxWidth: '100%'
+                                                padding: '0.2rem', maxWidth: '100%'
                                             }}>
                                                 {validMeals.map((meal, index) => {
                                                     const isActive = currentMealIndex === index;
                                                     return (
                                                         <button
                                                             key={index}
+                                                            className={`meal-hover-card ${isActive ? 'active' : ''}`}
                                                             onClick={() => { setActiveMealIndex(index); setCheckedIngredients({}); }}
                                                             style={{
                                                                 display: 'flex', flexDirection: 'column', gap: '0.3rem',
                                                                 padding: '0.75rem 0.85rem',
                                                                 borderRadius: '1rem',
-                                                                border: isActive ? '1.5px solid var(--primary)' : '1.5px solid var(--border)',
-                                                                background: isActive ? 'var(--primary)' : 'var(--bg-card)',
-                                                                color: isActive ? '#FFFFFF' : 'var(--text-main)',
+                                                                border: isActive ? '1.5px solid var(--text-main)' : '1.5px solid var(--border)',
+                                                                background: 'var(--bg-card)',
+                                                                color: 'var(--text-main)',
                                                                 cursor: 'pointer', textAlign: 'left',
                                                                 transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                                                                 boxShadow: isActive
-                                                                    ? '0 6px 16px -4px rgba(59, 130, 246, 0.45)'
+                                                                    ? '0 8px 20px -6px rgba(0, 0, 0, 0.15)'
                                                                     : '0 1px 3px rgba(0,0,0,0.04)',
                                                                 transform: isActive ? 'scale(1.02)' : 'scale(1)',
                                                                 minWidth: 0, overflow: 'hidden',
@@ -674,7 +695,7 @@ const Recipes = () => {
                                                             <span style={{
                                                                 fontSize: '0.65rem', fontWeight: 800,
                                                                 textTransform: 'uppercase', letterSpacing: '0.06em',
-                                                                color: isActive ? 'rgba(255,255,255,0.85)' : 'var(--text-muted)',
+                                                                color: isActive ? 'var(--text-main)' : 'var(--text-muted)',
                                                             }}>
                                                                 {meal.meal}
                                                             </span>
@@ -682,13 +703,13 @@ const Recipes = () => {
                                                                 fontSize: '0.85rem', fontWeight: 800, lineHeight: 1.2,
                                                                 overflow: 'hidden', textOverflow: 'ellipsis',
                                                                 whiteSpace: 'nowrap',
-                                                                color: isActive ? '#FFFFFF' : 'var(--text-main)',
+                                                                color: 'var(--text-main)',
                                                             }}>
                                                                 {meal.name}
                                                             </span>
                                                             <span style={{
                                                                 fontSize: '0.7rem', fontWeight: 600,
-                                                                color: isActive ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)',
+                                                                color: isActive ? 'var(--text-main)' : 'var(--text-muted)',
                                                                 display: 'flex', alignItems: 'center', gap: '0.2rem'
                                                             }}>
                                                                 <Flame size={10} strokeWidth={2.5} /> {meal.cals} kcal
@@ -708,30 +729,31 @@ const Recipes = () => {
                                                     return (
                                                         <div
                                                             key={index}
+                                                            className={`meal-hover-card ${isActive ? 'active' : ''}`}
                                                             onClick={() => { setActiveMealIndex(index); setCheckedIngredients({}); }}
                                                             style={{
                                                                 flex: '1 1 auto', minWidth: '150px',
-                                                                background: isActive ? 'var(--primary)' : 'var(--bg-page)',
+                                                                background: isActive ? 'var(--bg-card)' : 'var(--bg-page)',
                                                                 borderRadius: '1.5rem', padding: '1.25rem',
-                                                                border: isActive ? '1px solid transparent' : '1px solid var(--border)',
-                                                                boxShadow: isActive ? '0 15px 30px -10px rgba(59, 130, 246, 0.5)' : 'none',
+                                                                border: isActive ? '2px solid var(--text-main)' : '1px solid var(--border)',
+                                                                boxShadow: isActive ? '0 10px 25px -5px rgba(0, 0, 0, 0.1)' : 'none',
                                                                 cursor: 'pointer', transition: 'all 0.3s',
                                                                 transform: isActive ? 'scale(1.02) translateY(-4px)' : 'scale(1)',
-                                                                color: isActive ? '#FFFFFF' : 'var(--text-main)',
+                                                                color: 'var(--text-main)',
                                                                 display: 'flex', flexDirection: 'column', gap: '0.5rem'
                                                             }}
                                                         >
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: isActive ? '#FFFFFF' : 'var(--text-muted)', opacity: isActive ? 0.9 : 1 }}>
+                                                                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: isActive ? 'var(--text-main)' : 'var(--text-muted)', opacity: isActive ? 1 : 0.8 }}>
                                                                     {meal.meal}
                                                                 </span>
-                                                                {isActive && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FFFFFF', boxShadow: '0 0 10px rgba(255,255,255,0.8)' }} />}
+                                                                {isActive && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--text-main)' }} />}
                                                             </div>
-                                                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: isActive ? '#FFFFFF' : 'var(--text-main)' }}>
+                                                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-main)' }}>
                                                                 {meal.name}
                                                             </h3>
-                                                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: isActive ? '#FFFFFF' : 'var(--text-muted)', opacity: isActive ? 0.9 : 1, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                                                <Flame size={14} color={isActive ? '#FFFFFF' : 'var(--text-muted)'} strokeWidth={isActive ? 2.5 : 2} /> {meal.cals} kcal
+                                                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: isActive ? 'var(--text-main)' : 'var(--text-muted)', opacity: isActive ? 1 : 0.8, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                                <Flame size={14} color={isActive ? 'var(--text-main)' : 'var(--text-muted)'} strokeWidth={isActive ? 2.5 : 2} /> {meal.cals} kcal
                                                             </div>
                                                         </div>
                                                     );
@@ -745,9 +767,9 @@ const Recipes = () => {
                                         <AnimatePresence mode="wait">
                                             <motion.div
                                                 key={'meal-' + currentMealIndex}
-                                                initial={{ opacity: 0, x: 20, filter: 'blur(5px)' }}
-                                                animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-                                                exit={{ opacity: 0, x: -20, filter: 'blur(5px)' }}
+                                                initial={{ opacity: 0, x: 20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: -20 }}
                                                 transition={{ type: 'spring', stiffness: 250, damping: 25 }}
                                                 style={{
                                                     background: 'transparent', borderRadius: '0', padding: isMobile ? '1.5rem 0' : '2rem 0',

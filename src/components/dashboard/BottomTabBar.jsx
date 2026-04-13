@@ -19,6 +19,12 @@ const BottomTabBar = () => {
             navigator.vibrate(15);
         }
         navigate(path);
+        // Wait for React to render the new route, then force scroll to absolute top
+        setTimeout(() => {
+            window.scrollTo(0, 0);
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+        }, 0);
     };
 
     return (
