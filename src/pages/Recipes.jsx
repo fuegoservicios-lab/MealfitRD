@@ -37,7 +37,7 @@ const FormattedRecipeStep = ({ step, index }) => {
         const parts = text.split(/(\*\*.*?\*\*)/g);
         return parts.map((part, i) => {
             if (part.startsWith('**') && part.endsWith('**')) {
-                return <strong key={i} style={{ color: '#0F172A', fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+                return <strong key={i} style={{ color: 'var(--text-main)', fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
             }
             return part;
         });
@@ -47,7 +47,7 @@ const FormattedRecipeStep = ({ step, index }) => {
         <div style={{
             display: 'flex', gap: '1rem',
             padding: sectionTitle ? '1.25rem' : '1rem 0.5rem',
-            background: sectionTitle ? 'white' : 'transparent',
+            background: sectionTitle ? 'var(--bg-card)' : 'transparent',
             borderRadius: sectionTitle ? '0.75rem' : '0',
             border: sectionTitle ? `1px solid ${sectionColor}30` : 'none',
             boxShadow: sectionTitle ? `0 4px 12px -2px ${sectionColor}15` : 'none',
@@ -61,7 +61,7 @@ const FormattedRecipeStep = ({ step, index }) => {
                 width: '32px', height: '32px',
                 background: sectionTitle ? sectionColor : 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
                 borderRadius: '50%',
-                color: 'white', fontWeight: 700, fontSize: '0.9rem',
+                color: 'var(--bg-card)', fontWeight: 700, fontSize: '0.9rem',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
                 border: 'none',
@@ -90,7 +90,7 @@ const FormattedRecipeStep = ({ step, index }) => {
                     </h4>
                 )}
                 <p style={{
-                    margin: 0, color: '#475569',
+                    margin: 0, color: 'var(--text-muted)',
                     fontSize: '0.95rem', lineHeight: 1.7
                 }}>
                     {parseBold(content.replace(/^\d+[\.\)]\s*/, ''))}
@@ -121,13 +121,13 @@ const FormattedLargeStep = ({ text, currentStep, isLastStep, isMobile }) => {
     const parseBold = (str) => {
         const parts = str.split(/(\*\*.*?\*\*)/g);
         return parts.map((part, i) => {
-            if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} style={{ color: '#0F172A', fontWeight: 800 }}>{part.slice(2, -2)}</strong>;
+            if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} style={{ color: 'var(--text-main)', fontWeight: 800 }}>{part.slice(2, -2)}</strong>;
             return part;
         });
     };
 
     return (
-        <motion.div 
+        <motion.div
             key={currentStep}
             initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? '1.5rem' : '2rem' }}
@@ -142,7 +142,7 @@ const FormattedLargeStep = ({ text, currentStep, isLastStep, isMobile }) => {
                     </h2>
                 </div>
             ) : (
-                <div style={{ width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? '2rem' : '2.5rem', fontWeight: 900, boxShadow: '0 10px 25px -5px rgba(79, 70, 229, 0.4)' }}>
+                <div style={{ width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', color: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? '2rem' : '2.5rem', fontWeight: 900, boxShadow: '0 10px 25px -5px rgba(79, 70, 229, 0.4)' }}>
                     {currentStep + 1}
                 </div>
             )}
@@ -150,14 +150,14 @@ const FormattedLargeStep = ({ text, currentStep, isLastStep, isMobile }) => {
                 {parseBold(content.replace(/^\d+[\.\)]\s*/, ''))}
             </p>
             {isLastStep && (
-                <motion.div 
+                <motion.div
                     initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }}
                     style={{ marginTop: isMobile ? '1rem' : '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}
                 >
-                    <div style={{ width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', background: '#DCFCE7', borderRadius: '50%', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', background: 'rgba(16, 185, 129, 0.15)', borderRadius: '50%', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <CheckCircle2 size={isMobile ? 32 : 40} strokeWidth={3} />
                     </div>
-                    <h3 style={{ color: '#16A34A', fontSize: isMobile ? '1.5rem' : '1.8rem', fontWeight: 900, margin: 0 }}>¡Plato Terminado!</h3>
+                    <h3 style={{ color: 'var(--secondary)', fontSize: isMobile ? '1.5rem' : '1.8rem', fontWeight: 900, margin: 0 }}>¡Plato Terminado!</h3>
                 </motion.div>
             )}
         </motion.div>
@@ -173,7 +173,7 @@ const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
         document.body.style.overflow = 'hidden';
         const handleResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', handleResize);
-        return () => { 
+        return () => {
             document.body.style.overflow = '';
             window.removeEventListener('resize', handleResize);
         };
@@ -194,47 +194,47 @@ const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             style={{
                 position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                background: 'rgba(255, 255, 255, 0.98)', zIndex: 9999, display: 'flex', flexDirection: 'column',
-                backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+                background: 'var(--bg-page)', zIndex: 9999, display: 'flex', flexDirection: 'column',
+                backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(10px)',
             }}
         >
             <div style={{ padding: isMobile ? '1.25rem 1rem' : '1.5rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #F1F5F9', gap: '1rem' }}>
                 <div style={{ flex: 1, paddingRight: isMobile ? '0' : '1rem' }}>
-                    <h3 style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.25rem', fontWeight: 800, color: '#0F172A', lineHeight: 1.3 }}>{recipe.name}</h3>
-                    <p style={{ margin: 0, color: '#64748B', fontWeight: 600, fontSize: '0.9rem', marginTop: '0.25rem' }}>Paso {currentStep + 1} de {steps.length}</p>
+                    <h3 style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.25rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.3 }}>{recipe.name}</h3>
+                    <p style={{ margin: 0, color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.9rem', marginTop: '0.25rem' }}>Paso {currentStep + 1} de {steps.length}</p>
                 </div>
-                <button 
+                <button
                     onClick={onClose}
-                    style={{ flexShrink: 0, background: '#F1F5F9', border: 'none', width: isMobile ? '40px' : '48px', height: isMobile ? '40px' : '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748B', transition: 'all 0.2s' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#E2E8F0'; e.currentTarget.style.color = '#0F172A'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#64748B'; }}
+                    style={{ flexShrink: 0, background: 'var(--bg-page)', border: 'none', width: isMobile ? '40px' : '48px', height: isMobile ? '40px' : '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', transition: 'all 0.2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--border)'; e.currentTarget.style.color = 'var(--text-main)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-page)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
                 >
                     <X size={isMobile ? 20 : 24} strokeWidth={2.5} />
                 </button>
             </div>
-            
+
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '1.5rem 1rem' : '2rem', overflowY: 'auto' }}>
                 <AnimatePresence mode="wait">
                     <FormattedLargeStep text={steps[currentStep]} currentStep={currentStep} isLastStep={isLastStep} isMobile={isMobile} />
                 </AnimatePresence>
             </div>
 
-            <div style={{ padding: isMobile ? '1rem' : '2rem', display: 'flex', gap: '1rem', justifyContent: 'center', alignItems: 'stretch', background: 'white', borderTop: '1px solid #F1F5F9', boxShadow: '0 -10px 20px rgba(0,0,0,0.02)' }}>
-                <button 
+            <div style={{ padding: isMobile ? '1rem' : '2rem', display: 'flex', gap: '1rem', justifyContent: 'center', alignItems: 'stretch', background: 'var(--bg-card)', borderTop: '1px solid var(--border)', boxShadow: '0 -10px 20px rgba(0,0,0,0.02)' }}>
+                <button
                     onClick={handlePrev} disabled={isFirstStep}
-                    style={{ 
+                    style={{
                         opacity: isFirstStep ? 0.3 : 1, pointerEvents: isFirstStep ? 'none' : 'auto',
-                        padding: isMobile ? '1rem 0.5rem' : '1rem 1.5rem', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '1rem',
-                        display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#475569', fontWeight: 700, fontSize: isMobile ? '1rem' : '1.1rem', cursor: 'pointer', transition: 'all 0.2s',
+                        padding: isMobile ? '1rem 0.5rem' : '1rem 1.5rem', background: 'var(--bg-page)', border: '1px solid var(--border)', borderRadius: '1rem',
+                        display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontWeight: 700, fontSize: isMobile ? '1rem' : '1.1rem', cursor: 'pointer', transition: 'all 0.2s',
                         maxWidth: isMobile ? 'none' : '200px'
                     }}
                 >
                     <ChevronLeft size={isMobile ? 20 : 24} /> Anterior
                 </button>
                 {isLastStep ? (
-                    <button 
+                    <button
                         onClick={async () => {
-                            if(onComplete) {
+                            if (onComplete) {
                                 setIsSubmitting(true);
                                 await onComplete(recipe);
                                 setIsSubmitting(false);
@@ -243,9 +243,9 @@ const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
                             }
                         }}
                         disabled={isSubmitting}
-                        style={{ 
-                            padding: isMobile ? '1rem 0.5rem' : '1rem 2rem', background: '#10B981', border: 'none', borderRadius: '1rem',
-                            display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'white', fontWeight: 800, fontSize: isMobile ? '1rem' : '1.1rem', cursor: isSubmitting ? 'wait' : 'pointer',
+                        style={{
+                            padding: isMobile ? '1rem 0.5rem' : '1rem 2rem', background: 'var(--secondary)', border: 'none', borderRadius: '1rem',
+                            display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'var(--bg-card)', fontWeight: 800, fontSize: isMobile ? '1rem' : '1.1rem', cursor: isSubmitting ? 'wait' : 'pointer',
                             boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.4)',
                             opacity: isSubmitting ? 0.7 : 1,
                             maxWidth: isMobile ? 'none' : '300px'
@@ -254,11 +254,11 @@ const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
                         <CheckCircle2 size={isMobile ? 20 : 24} /> {isSubmitting ? "Cargando..." : "Terminar"}
                     </button>
                 ) : (
-                    <button 
+                    <button
                         onClick={handleNext}
-                        style={{ 
-                            padding: isMobile ? '1rem 0.5rem' : '1rem 2rem', background: '#4F46E5', border: 'none', borderRadius: '1rem',
-                            display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'white', fontWeight: 800, fontSize: isMobile ? '1rem' : '1.1rem', cursor: 'pointer',
+                        style={{
+                            padding: isMobile ? '1rem 0.5rem' : '1rem 2rem', background: 'var(--primary)', border: 'none', borderRadius: '1rem',
+                            display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'var(--bg-card)', fontWeight: 800, fontSize: isMobile ? '1rem' : '1.1rem', cursor: 'pointer',
                             boxShadow: '0 10px 25px -5px rgba(79, 70, 229, 0.4)',
                             maxWidth: isMobile ? 'none' : '200px'
                         }}
@@ -280,6 +280,7 @@ const Recipes = () => {
     const [cookingRecipe, setCookingRecipe] = useState(null);
     const [isExpanding, setIsExpanding] = useState(false);
     const [checkedIngredients, setCheckedIngredients] = useState({});
+    const [activeMealIndex, setActiveMealIndex] = useState(0);
 
     const toggleIngredient = (idx) => {
         setCheckedIngredients(prev => ({ ...prev, [idx]: !prev[idx] }));
@@ -295,7 +296,7 @@ const Recipes = () => {
 
         setIsExpanding(true);
         const loadingToast = toast.loading(`El Chef AI está detallando los pasos para ${meal.name}...`);
-        
+
         try {
             const userId = formData?.id !== "guest" ? formData?.id : "guest";
             const response = await fetchWithAuth('/api/recipe/expand', {
@@ -312,12 +313,12 @@ const Recipes = () => {
                 // Mutamos también el objeto in-place para que React lo vea a lo largo del árbol
                 meal.recipe = data.expanded_recipe;
                 meal.isExpanded = true;
-                
+
                 // Forzar persistencia manual en LocalStorage inmediato e impactar la DB (Supabase)
                 if (planData) {
                     try {
                         localStorage.setItem('mealfit_plan', JSON.stringify(planData));
-                        if(restorePlan) restorePlan(planData);
+                        if (restorePlan) restorePlan(planData);
                     } catch (e) { console.error("Error setting plan to LS/DB:", e); }
                 }
 
@@ -392,22 +393,22 @@ const Recipes = () => {
         <div data-html2canvas-ignore="true" style={{
             position: 'absolute', top: 0, left: 0, right: 0, height: '100%',
             overflow: 'hidden', zIndex: 0, pointerEvents: 'none',
-            opacity: 0.8
+            opacity: 1
         }}>
             <div style={{
-                position: 'absolute', top: '-5%', left: '-15%', width: '500px', height: '500px',
-                background: 'radial-gradient(circle, rgba(219, 234, 254, 0.7) 0%, rgba(255,255,255,0) 70%)', // Blue-100
-                filter: 'blur(60px)', transform: 'translateZ(0)', borderRadius: '50%'
+                position: 'absolute', top: '-10%', left: '-10%', width: '60vw', height: '60vw',
+                background: 'radial-gradient(circle at center, var(--primary) 0%, transparent 60%)',
+                filter: 'blur(100px)', transform: 'translateZ(0)', borderRadius: '50%', opacity: 0.15
             }} />
             <div style={{
-                position: 'absolute', top: '5%', right: '-20%', width: '400px', height: '400px',
-                background: 'radial-gradient(circle, rgba(237, 233, 254, 0.7) 0%, rgba(255,255,255,0) 70%)', // Violet-100
-                filter: 'blur(60px)', transform: 'translateZ(0)', borderRadius: '50%'
+                position: 'absolute', top: '20%', right: '-10%', width: '40vw', height: '40vw',
+                background: 'radial-gradient(circle at center, var(--secondary) 0%, transparent 60%)',
+                filter: 'blur(100px)', transform: 'translateZ(0)', borderRadius: '50%', opacity: 0.1
             }} />
             <div style={{
-                position: 'absolute', top: '25%', left: '10%', width: '600px', height: '600px',
-                background: 'radial-gradient(circle, rgba(224, 231, 255, 0.5) 0%, rgba(255,255,255,0) 70%)', // Indigo-100
-                filter: 'blur(60px)', transform: 'translateZ(0)', borderRadius: '50%'
+                position: 'absolute', top: '60%', left: '10%', width: '50vw', height: '50vw',
+                background: 'radial-gradient(circle at center, var(--accent) 0%, transparent 60%)',
+                filter: 'blur(80px)', transform: 'translateZ(0)', borderRadius: '50%', opacity: 0.05
             }} />
         </div>
     );
@@ -426,7 +427,7 @@ const Recipes = () => {
             if (lowerT.startsWith("mise en place:")) { sectionTitle = "Mise en place"; color = "#00B4D8"; }
             if (lowerT.startsWith("el toque de fuego:") || lowerT.startsWith("toque de fuego:")) { sectionTitle = "El Toque de Fuego"; color = "#F97316"; }
             if (lowerT.startsWith("montaje:")) { sectionTitle = "Montaje"; color = "#8B5CF6"; }
-            
+
             if (sectionTitle) {
                 const prefixRegex = sectionTitle.toLowerCase() === "toque de fuego" || sectionTitle.toLowerCase() === "el toque de fuego"
                     ? /(el )?toque de fuego:\s*/i : new RegExp(`${sectionTitle}:\s*`, 'i');
@@ -554,95 +555,65 @@ const Recipes = () => {
             <AnimatePresence>
                 {cookingRecipe && <CookingModeOverlay recipe={cookingRecipe} onClose={() => setCookingRecipe(null)} onComplete={handleLogConsumption} />}
             </AnimatePresence>
-            <div style={{ maxWidth: '850px', margin: '0 auto', paddingBottom: '4rem' }}>
+            <div style={{ maxWidth: '850px', margin: '0 auto', paddingBottom: '4rem', overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
 
-
-
-                {/* Contenido Imprimible */}
-                <div ref={contentRef} id="recipes-pdf-content" style={{ position: 'relative', zIndex: 1, paddingBottom: isMobile ? '0' : '2rem' }}>
+                <div ref={contentRef} style={{ position: 'relative', zIndex: 1, paddingBottom: isMobile ? '0' : '2rem', overflow: 'hidden', maxWidth: '100%' }}>
                     <AmbientBackground />
-                    {/* Hero Section */}
-                    <motion.div
-                        data-html2canvas-ignore="true"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        style={{ paddingTop: isMobile ? '1.5rem' : '3.5rem', marginBottom: isMobile ? '1.5rem' : '3.5rem', textAlign: 'center', position: 'relative', zIndex: 2 }}
-                    >
-                        <div style={{
-                            margin: isMobile ? '0 auto 0.75rem' : '0 auto 1.5rem',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
-                            <div style={{ 
-                                background: 'white', padding: isMobile ? '0.85rem' : '1.5rem', 
-                                borderRadius: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)', border: '1px solid rgba(255,255,255,0.8)'
-                            }}>
-                                <Utensils size={isMobile ? 32 : 52} strokeWidth={2.5} color="#4F46E5" />
-                            </div>
-                        </div>
-                        <h1 style={{
-                            fontSize: isMobile ? '1.8rem' : '2.8rem', fontWeight: 900, color: '#0F172A',
-                            marginBottom: isMobile ? '0.5rem' : '1rem', letterSpacing: '-0.03em', lineHeight: 1.1
-                        }}>
-                            Tus Recetas
-                        </h1>
-                        <p style={{ color: '#475569', fontSize: isMobile ? '0.95rem' : '1.25rem', maxWidth: '600px', margin: '0 auto', lineHeight: 1.5, padding: isMobile ? '0 1rem' : '0' }}>
-                            Paso a paso para preparar tus comidas personalizadas.
-                        </p>
-                    </motion.div>
 
-                    <motion.div
-                        variants={containerVariants}
-                        initial="hidden"
-                        animate="visible"
-                        style={{ display: 'flex', flexDirection: 'column', gap: '3.5rem' }}
-                    >
-                        {/* TAB SELECTOR PARA OPCIONES */}
+                    <div className="recipe-book-wrapper" style={{
+                        padding: isMobile ? '1.25rem 1rem' : '2.5rem 2rem 2.5rem 4.5rem',
+                        marginTop: isMobile ? '0.5rem' : '3.5rem',
+                        minWidth: 0,
+                        maxWidth: '100%',
+                        boxSizing: 'border-box'
+                    }}>
+
+                        {/* Hero Section */}
+                        <motion.div
+                            data-html2canvas-ignore="true"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            style={{ textAlign: 'center', position: 'relative', zIndex: 2, marginBottom: isMobile ? '0' : '-0.5rem' }}
+                        >
+                            <h1 style={{
+                                fontSize: isMobile ? '1.5rem' : '3.5rem', fontWeight: 900, color: 'var(--text-main)',
+                                marginBottom: '0.25rem', letterSpacing: '-0.04em', lineHeight: 1.1, wordBreak: 'break-word'
+                            }}>
+                                Menú del Día
+                            </h1>
+                            <p style={{ color: 'var(--text-muted)', fontSize: isMobile ? '0.85rem' : '1.25rem', maxWidth: '600px', margin: '0 auto', lineHeight: 1.5, padding: '0' }}>
+                                Tu plan nutricional personalizado, plato por plato.
+                            </p>
+                        </motion.div>
+
+                        {/* DAY SELECTOR */}
                         {planData.days && planData.days.length > 1 && (
-                            <div 
+                            <div
                                 data-html2canvas-ignore="true"
                                 style={{
-                                    display: 'flex',
-                                    gap: isMobile ? '0.5rem' : '1rem',
-                                    marginBottom: '0.5rem',
-                                    justifyContent: 'center',
-                                    background: 'rgba(255, 255, 255, 0.85)',
-                                    backdropFilter: 'blur(12px)',
-                                    WebkitBackdropFilter: 'blur(12px)',
-                                    padding: isMobile ? '0.75rem' : '1rem',
-                                    borderRadius: '99px',
-                                    border: '1px solid rgba(255, 255, 255, 1)',
-                                    boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.05)',
-                                    position: 'relative', zIndex: 2
+                                    display: 'flex', gap: isMobile ? '0.35rem' : '1rem',
+                                    justifyContent: 'center', background: 'var(--bg-page)',
+                                    padding: isMobile ? '0.35rem' : '0.75rem', borderRadius: '99px',
+                                    border: '1px solid var(--border)',
+                                    position: 'relative', zIndex: 2, margin: '0'
                                 }}>
                                 {planData.days.map((dayObj, idx) => (
                                     <button
                                         key={idx}
-                                        onClick={() => setActiveDayIndex(idx)}
+                                        onClick={() => { setActiveDayIndex(idx); setActiveMealIndex(0); setCheckedIngredients({}); }}
                                         style={{
-                                            flex: 1,
-                                            padding: isMobile ? '0.75rem 0.25rem' : '1rem',
+                                            flex: 1, padding: isMobile ? '0.6rem 0.15rem' : '0.85rem 1rem', width: isMobile ? 'auto' : '120px',
                                             borderRadius: '99px',
-                                            border: activeDayIndex === idx ? 'none' : '1px solid #E2E8F0',
-                                            background: activeDayIndex === idx ? '#3B82F6' : 'white',
-                                            color: activeDayIndex === idx ? 'white' : '#475569',
-                                            fontWeight: 800,
-                                            cursor: 'pointer',
-                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                            fontSize: isMobile ? '0.9rem' : '1rem',
-                                            lineHeight: 1.2,
-                                            boxShadow: activeDayIndex === idx ? '0 10px 20px -5px rgba(59, 130, 246, 0.4)' : '0 2px 4px rgba(0,0,0,0.02)',
-                                            transform: activeDayIndex === idx ? 'translateY(-2px)' : 'translateY(0)',
-                                            display: 'flex',
-                                            flexDirection: 'row',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: isMobile ? '0.35rem' : '0.5rem',
-                                            whiteSpace: 'nowrap'
+                                            border: activeDayIndex === idx ? 'none' : '1px solid transparent',
+                                            background: activeDayIndex === idx ? 'var(--primary)' : 'transparent',
+                                            color: activeDayIndex === idx ? 'var(--bg-card)' : 'var(--text-muted)',
+                                            fontWeight: 800, cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            fontSize: isMobile ? '0.8rem' : '1rem',
+                                            boxShadow: activeDayIndex === idx ? '0 6px 14px -4px rgba(59, 130, 246, 0.4)' : 'none',
+                                            transform: activeDayIndex === idx ? 'translateY(-1px)' : 'translateY(0)',
                                         }}
                                     >
-                                        <span>Opción</span>
-                                        <span>{String.fromCharCode(65 + idx)}</span>
+                                        Día {String.fromCharCode(65 + idx)}
                                     </button>
                                 ))}
                             </div>
@@ -650,283 +621,335 @@ const Recipes = () => {
 
                         {(() => {
                             const planDays = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
-                            // Prevent out of bounds if array changes
                             const currentDayIndex = Math.min(activeDayIndex, planDays.length - 1);
                             const dayObj = planDays[currentDayIndex];
-                            const dayIdx = currentDayIndex;
-
                             if (!dayObj) return null;
 
+                            const validMeals = dayObj.meals?.filter(meal => {
+                                if (formData?.skipLunch) {
+                                    const isLunch = meal.meal.toLowerCase().includes('almuerzo') || meal.name.toLowerCase().includes('lunch');
+                                    return !isLunch;
+                                }
+                                return true;
+                            }) || [];
+
+                            if (validMeals.length === 0) return null;
+
+                            const currentMealIndex = Math.min(activeMealIndex, validMeals.length - 1);
+                            const activeMeal = validMeals[currentMealIndex];
+
                             return (
-                            <div key={`day-${dayIdx}`} style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-                                {dayObj.meals?.filter(meal => {
-                                    if (formData?.skipLunch) {
-                                        const isLunch = meal.meal.toLowerCase().includes('almuerzo') || meal.name.toLowerCase().includes('lunch');
-                                        return !isLunch;
-                                    }
-                                    return true;
-                                }).map((meal, index) => (
-                                    <div key={index} style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-                                        {/* HTML2PDF Forced Page Break between recipes */}
-                                        {index > 0 && <div className="html2pdf__page-break" />}
-                                        <motion.div
-                                            id={`recipe-card-${index}`}
-                                            variants={itemVariants}
-                                            style={{
-                                                background: 'white',
-                                                borderRadius: isMobile ? '1.5rem' : '2rem',
-                                                border: '1px solid rgba(255,255,255,0.8)', // Subtle border
-                                                overflow: 'visible', // Changed from hidden to avoid PDF render bugs
-                                                boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.02)', // Premium shadow
-                                                position: 'relative',
-                                                zIndex: 2
-                                            }}
-                                        >
-                                            {/* Card Header with Floating Action */}
-                                        <div style={{
-                                            padding: isMobile ? '1.5rem 1.25rem' : '2.5rem 3rem',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: isMobile ? '1rem' : '1.5rem'
-                                        }}>
-                                            {/* Tags Centered */}
-                                            {/* Info pills: meal type, time, difficulty, calories */}
-                                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: isMobile ? '0.5rem' : '0.75rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
-                                                <div style={{
-                                                    textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.05em',
-                                                    color: '#4F46E5', background: '#EEF2FF',
-                                                    padding: '0.4rem 1rem', borderRadius: '99px', display: 'flex', alignItems: 'center'
-                                                }}>
-                                                    {meal.meal}
-                                                </div>
-                                                {meal.prep_time && (
-                                                    <div style={{
-                                                        display: 'flex', alignItems: 'center', gap: '0.35rem',
-                                                        padding: '0.4rem 0.8rem', background: '#F8FAFC',
-                                                        borderRadius: '99px', border: '1px solid #E2E8F0',
-                                                        fontSize: '0.75rem', fontWeight: 700, color: '#334155'
-                                                    }}>
-                                                        <Clock size={14} />
-                                                        {meal.prep_time}
-                                                    </div>
-                                                )}
-                                                {meal.difficulty && (
-                                                    <div style={{
-                                                        display: 'flex', alignItems: 'center', gap: '0.35rem',
-                                                        padding: '0.4rem 0.8rem', background: '#F8FAFC',
-                                                        borderRadius: '99px', border: '1px solid #E2E8F0',
-                                                        fontSize: '0.75rem', fontWeight: 700, color: '#475569'
-                                                    }}>
-                                                        <ChefHat size={14} />
-                                                        {meal.difficulty}
-                                                    </div>
-                                                )}
-                                                <div style={{
-                                                    display: 'flex', alignItems: 'center', gap: '0.35rem',
-                                                    padding: '0.4rem 1rem', background: '#FFF7ED',
-                                                    borderRadius: '99px', border: '1px solid #FFEDD5',
-                                                    fontSize: '0.75rem', fontWeight: 800, color: '#EA580C'
-                                                }}>
-                                                    <Flame size={14} fill="#F97316" strokeWidth={0} />
-                                                    {meal.cals} kcal
-                                                </div>
-                                            </div>
-                                            {/* Macros compact grid — only if macros exist */}
-                                            {meal.protein !== undefined && meal.protein > 0 && (
-                                                <div style={{
-                                                    display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: isMobile ? '0.4rem' : '0.5rem',
-                                                    maxWidth: isMobile ? '100%' : '360px', margin: '0 auto'
-                                                }}>
-                                                    <div style={{
-                                                        textAlign: 'center', padding: '0.4rem 0.5rem', background: '#ECFDF5',
-                                                        borderRadius: '0.65rem', border: '1px solid #D1FAE5',
-                                                        fontSize: '0.75rem', fontWeight: 800, color: '#059669'
-                                                    }}>
-                                                        Pro: {meal.protein}g
-                                                    </div>
-                                                    <div style={{
-                                                        textAlign: 'center', padding: '0.4rem 0.5rem', background: '#EFF6FF',
-                                                        borderRadius: '0.65rem', border: '1px solid #DBEAFE',
-                                                        fontSize: '0.75rem', fontWeight: 800, color: '#2563EB'
-                                                    }}>
-                                                        Carbs: {meal.carbs}g
-                                                    </div>
-                                                    <div style={{
-                                                        textAlign: 'center', padding: '0.4rem 0.5rem', background: '#FEF2F2',
-                                                        borderRadius: '0.65rem', border: '1px solid #FEE2E2',
-                                                        fontSize: '0.75rem', fontWeight: 800, color: '#DC2626'
-                                                    }}>
-                                                        Grasas: {meal.fats}g
-                                                    </div>
-                                                </div>
-                                            )}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '1.25rem' : '2rem', position: 'relative', zIndex: 2, minWidth: 0, width: '100%' }}>
 
-                                            {/* Action Buttons Centered */}
-                                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-                                                {meal.recipe && meal.recipe.length > 0 && (
-                                                    <button 
-                                                        data-html2canvas-ignore="true"
-                                                        onClick={() => handleCookClick(meal)}
-                                                        disabled={isExpanding}
-                                                        style={{
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                                            padding: isMobile ? '0.75rem 1.5rem' : '0.65rem 1.5rem', background: '#4F46E5',
-                                                            borderRadius: '99px', border: 'none',
-                                                            fontSize: isMobile ? '0.9rem' : '0.85rem', fontWeight: 800, color: 'white',
-                                                            cursor: isExpanding ? 'wait' : 'pointer', transition: 'all 0.2s',
-                                                            boxShadow: '0 8px 16px -4px rgba(79, 70, 229, 0.4)',
-                                                            opacity: isExpanding ? 0.7 : 1
-                                                        }}
-                                                        onMouseEnter={(e) => { e.currentTarget.style.transform = isExpanding ? 'none' : 'translateY(-2px)' }}
-                                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)' }}
-                                                    >
-                                                        <Play size={18} fill="white" /> {isExpanding ? "Preparando..." : "Cocinar"}
-                                                    </button>
-                                                )}
-                                                <button 
-                                                    data-html2canvas-ignore="true"
-                                                    onClick={() => handleDownloadPDF(meal)}
-                                                    style={{
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                                        padding: isMobile ? '0.75rem 1.5rem' : '0.65rem 1.5rem', background: 'white',
-                                                        borderRadius: '99px', border: '1px solid #E2E8F0',
-                                                        fontSize: isMobile ? '0.9rem' : '0.85rem', fontWeight: 700, color: '#64748B',
-                                                        cursor: 'pointer', transition: 'all 0.2s'
-                                                    }}
-                                                    onMouseEnter={(e) => { e.currentTarget.style.color = '#4F46E5'; e.currentTarget.style.borderColor = '#C7D2FE'; e.currentTarget.style.background = '#EEF2FF' }}
-                                                    onMouseLeave={(e) => { e.currentTarget.style.color = '#64748B'; e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = 'white' }}
-                                                >
-                                                    <Download size={18} strokeWidth={2.5} /> Descargar
-                                                </button>
-                                            </div>
-
-                                            {/* Recipe Title */}
-                                            <h2 style={{
-                                                fontSize: isMobile ? '1.5rem' : '1.8rem', fontWeight: 900, color: '#0F172A',
-                                                margin: 0, lineHeight: 1.25, letterSpacing: '-0.02em', textAlign: 'center'
-                                            }}>
-                                                {meal.name}
-                                            </h2>
-
-                                            {/* Description Callout */}
+                                    {/* MEAL SELECTOR */}
+                                    <div data-html2canvas-ignore="true">
+                                        {isMobile ? (
+                                            /* MOBILE: 2-column mini-cards grid — all visible, tap to select */
                                             <div style={{
-                                                background: '#F8FAFC', padding: '1.25rem 1.5rem', borderRadius: '1rem',
-                                                borderLeft: '4px solid #4F46E5',
-                                                pageBreakInside: 'avoid', breakInside: 'avoid',
-                                                marginTop: '0.5rem'
+                                                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem',
+                                                padding: '0.15rem 0', overflow: 'hidden', maxWidth: '100%'
                                             }}>
-                                                <p style={{
-                                                    color: '#64748B', margin: 0, fontStyle: 'italic',
-                                                    fontSize: '1.05rem', lineHeight: 1.6
-                                                }}>
-                                                    "{meal.desc}"
-                                                </p>
+                                                {validMeals.map((meal, index) => {
+                                                    const isActive = currentMealIndex === index;
+                                                    return (
+                                                        <button
+                                                            key={index}
+                                                            onClick={() => { setActiveMealIndex(index); setCheckedIngredients({}); }}
+                                                            style={{
+                                                                display: 'flex', flexDirection: 'column', gap: '0.3rem',
+                                                                padding: '0.75rem 0.85rem',
+                                                                borderRadius: '1rem',
+                                                                border: isActive ? '1.5px solid var(--primary)' : '1.5px solid var(--border)',
+                                                                background: isActive ? 'var(--primary)' : 'var(--bg-card)',
+                                                                color: isActive ? '#FFFFFF' : 'var(--text-main)',
+                                                                cursor: 'pointer', textAlign: 'left',
+                                                                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                                boxShadow: isActive
+                                                                    ? '0 6px 16px -4px rgba(59, 130, 246, 0.45)'
+                                                                    : '0 1px 3px rgba(0,0,0,0.04)',
+                                                                transform: isActive ? 'scale(1.02)' : 'scale(1)',
+                                                                minWidth: 0, overflow: 'hidden',
+                                                            }}
+                                                        >
+                                                            <span style={{
+                                                                fontSize: '0.65rem', fontWeight: 800,
+                                                                textTransform: 'uppercase', letterSpacing: '0.06em',
+                                                                color: isActive ? 'rgba(255,255,255,0.85)' : 'var(--text-muted)',
+                                                            }}>
+                                                                {meal.meal}
+                                                            </span>
+                                                            <span style={{
+                                                                fontSize: '0.85rem', fontWeight: 800, lineHeight: 1.2,
+                                                                overflow: 'hidden', textOverflow: 'ellipsis',
+                                                                whiteSpace: 'nowrap',
+                                                                color: isActive ? '#FFFFFF' : 'var(--text-main)',
+                                                            }}>
+                                                                {meal.name}
+                                                            </span>
+                                                            <span style={{
+                                                                fontSize: '0.7rem', fontWeight: 600,
+                                                                color: isActive ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)',
+                                                                display: 'flex', alignItems: 'center', gap: '0.2rem'
+                                                            }}>
+                                                                <Flame size={10} strokeWidth={2.5} /> {meal.cals} kcal
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
-
-                                            {/* Ingredients Box */}
-                                            {meal.ingredients && meal.ingredients.length > 0 && (
-                                                <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-                                                    <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                        <div style={{ background: '#ECFDF5', padding: '0.5rem', borderRadius: '0.75rem', color: '#10B981', display: 'flex' }}>
-                                                            <Leaf size={24} strokeWidth={2.5} />
+                                        ) : (
+                                            /* DESKTOP: Large cards layout */
+                                            <div style={{
+                                                display: 'flex', flexWrap: 'wrap',
+                                                gap: '1rem', padding: '0.25rem 0'
+                                            }}>
+                                                {validMeals.map((meal, index) => {
+                                                    const isActive = currentMealIndex === index;
+                                                    return (
+                                                        <div
+                                                            key={index}
+                                                            onClick={() => { setActiveMealIndex(index); setCheckedIngredients({}); }}
+                                                            style={{
+                                                                flex: '1 1 auto', minWidth: '150px',
+                                                                background: isActive ? 'var(--primary)' : 'var(--bg-page)',
+                                                                borderRadius: '1.5rem', padding: '1.25rem',
+                                                                border: isActive ? '1px solid transparent' : '1px solid var(--border)',
+                                                                boxShadow: isActive ? '0 15px 30px -10px rgba(59, 130, 246, 0.5)' : 'none',
+                                                                cursor: 'pointer', transition: 'all 0.3s',
+                                                                transform: isActive ? 'scale(1.02) translateY(-4px)' : 'scale(1)',
+                                                                color: isActive ? '#FFFFFF' : 'var(--text-main)',
+                                                                display: 'flex', flexDirection: 'column', gap: '0.5rem'
+                                                            }}
+                                                        >
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: isActive ? '#FFFFFF' : 'var(--text-muted)', opacity: isActive ? 0.9 : 1 }}>
+                                                                    {meal.meal}
+                                                                </span>
+                                                                {isActive && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FFFFFF', boxShadow: '0 0 10px rgba(255,255,255,0.8)' }} />}
+                                                            </div>
+                                                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: isActive ? '#FFFFFF' : 'var(--text-main)' }}>
+                                                                {meal.name}
+                                                            </h3>
+                                                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: isActive ? '#FFFFFF' : 'var(--text-muted)', opacity: isActive ? 0.9 : 1, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                                <Flame size={14} color={isActive ? '#FFFFFF' : 'var(--text-muted)'} strokeWidth={isActive ? 2.5 : 2} /> {meal.cals} kcal
+                                                            </div>
                                                         </div>
-                                                        <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0F172A', margin: 0 }}>
-                                                            Ingredientes
-                                                        </h3>
-                                                    </div>
-                                                    <ul style={{ 
-                                                        listStyle: 'none', padding: 0, margin: 0,
-                                                        display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem' 
-                                                    }}>
-                                                        {meal.ingredients.map((ing, idx) => {
-                                                            const isChecked = checkedIngredients[idx];
-                                                            return (
-                                                                <li key={idx} 
-                                                                    onClick={() => toggleIngredient(idx)}
-                                                                    style={{ 
-                                                                        display: 'flex', alignItems: 'center', gap: '0.75rem',
-                                                                        color: isChecked ? '#94A3B8' : '#475569', fontSize: '0.95rem', fontWeight: 600,
-                                                                        background: isChecked ? '#F8FAFC' : '#FFFFFF', padding: '0.875rem 1.25rem', borderRadius: '0.75rem',
-                                                                        border: '1px solid #E2E8F0',
-                                                                        pageBreakInside: 'avoid', breakInside: 'avoid',
-                                                                        cursor: 'pointer', transition: 'all 0.2s ease',
-                                                                        textDecoration: isChecked ? 'line-through' : 'none'
-                                                                    }}>
-                                                                    <div style={{ 
-                                                                        width: '20px', height: '20px', borderRadius: '6px', 
-                                                                        background: isChecked ? '#10B981' : '#FFFFFF', 
-                                                                        border: isChecked ? 'none' : '2px solid #CBD5E1', 
-                                                                        flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' 
-                                                                    }}>
-                                                                        {isChecked && <CheckCircle2 size={14} color="#FFFFFF" strokeWidth={3.5} />}
-                                                                    </div>
-                                                                    <span>{ing}</span>
-                                                                </li>
-                                                            );
-                                                        })}
-                                                    </ul>
-                                                </div>
-                                            )}
-
-                                            <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '1rem' }}>
-                                                <div style={{ background: '#FFF7ED', padding: '0.5rem', borderRadius: '0.5rem', color: '#EA580C', display: 'flex' }}>
-                                                    <ChefHat size={18} strokeWidth={2.5} />
-                                                </div>
-                                                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
-                                                    Instrucciones de Preparación
-                                                </h3>
+                                                    );
+                                                })}
                                             </div>
+                                        )}
+                                    </div>
 
-                                            {meal.recipe && meal.recipe.length > 0 ? (
-                                                <div style={{ position: 'relative', paddingLeft: '0.5rem' }}>
-                                                    {/* Vertical Timeline Line */}
-                                                    <div style={{
-                                                        position: 'absolute', left: '23px', top: '16px', bottom: '24px',
-                                                        width: '2px', background: '#E2E8F0', zIndex: 0
-                                                    }} />
+                                    {/* ACTIVE MEAL FOCUS AREA */}
+                                    <div style={{ padding: '0', minWidth: 0, overflow: 'hidden' }}>
+                                        <AnimatePresence mode="wait">
+                                            <motion.div
+                                                key={'meal-' + currentMealIndex}
+                                                initial={{ opacity: 0, x: 20, filter: 'blur(5px)' }}
+                                                animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+                                                exit={{ opacity: 0, x: -20, filter: 'blur(5px)' }}
+                                                transition={{ type: 'spring', stiffness: 250, damping: 25 }}
+                                                style={{
+                                                    background: 'transparent', borderRadius: '0', padding: isMobile ? '1.5rem 0' : '2rem 0',
+                                                    border: 'none', boxShadow: 'none',
+                                                    position: 'relative', zIndex: 10, width: '100%', boxSizing: 'border-box', minWidth: 0, overflow: 'hidden'
+                                                }}
+                                            >
 
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                                                        {meal.recipe.map((step, i) => (
-                                                            <FormattedRecipeStep key={i} step={step} index={i} />
-                                                        ))}
+                                                {/* Header & Badges */}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center', textAlign: 'center' }}>
+                                                    <h2 style={{ fontSize: isMobile ? '1.4rem' : '2.8rem', fontWeight: 900, color: 'var(--text-main)', margin: 0, lineHeight: 1.15, letterSpacing: '-0.02em', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                                                        {activeMeal.name}
+                                                    </h2>
+
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                                                        {activeMeal.prep_time && (
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.8rem', background: 'var(--bg-page)', borderRadius: '99px', border: '1px solid var(--border)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                                                                <Clock size={14} /> {activeMeal.prep_time}
+                                                            </div>
+                                                        )}
+                                                        {activeMeal.difficulty && (
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.8rem', background: 'var(--bg-page)', borderRadius: '99px', border: '1px solid var(--border)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                                                                <ChefHat size={14} /> {activeMeal.difficulty}
+                                                            </div>
+                                                        )}
                                                     </div>
 
-                                                    {/* Completion Indicator */}
-                                                    <div style={{ display: 'flex', gap: '1rem', marginTop: '2.5rem', position: 'relative', zIndex: 1, alignItems: 'center' }}>
-                                                        <div style={{
-                                                            width: '32px', height: '32px',
-                                                            background: '#DCFCE7', borderRadius: '50%',
-                                                            color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                            flexShrink: 0
-                                                        }}>
-                                                            <CheckCircle2 size={16} strokeWidth={2.5} />
-                                                        </div>
-                                                        <div style={{ color: '#16A34A', fontWeight: 700, fontSize: '0.95rem' }}>
-                                                            ¡Listo para servir!
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div style={{
-                                                    textAlign: 'center', padding: '3rem',
-                                                    background: '#F8FAFC', borderRadius: '1rem', border: '1px dashed #E2E8F0'
-                                                }}>
-                                                    <ChefHat size={32} color="#94A3B8" style={{ marginBottom: '1rem', opacity: 0.5 }} />
-                                                    <p style={{ color: '#64748B', margin: 0 }}>
-                                                        No hay pasos detallados disponibles. Guíate de la descripción general.
+                                                    <p style={{ color: 'var(--text-muted)', margin: 0, fontStyle: 'italic', fontSize: isMobile ? '0.95rem' : '1.1rem', lineHeight: 1.6, maxWidth: '600px', wordBreak: 'break-word' }}>
+                                                        "{activeMeal.desc}"
                                                     </p>
                                                 </div>
-                                            )}
-                                        </div>
-                                    </motion.div>
+
+                                                {/* Action Bar */}
+                                                <div style={{ display: 'flex', gap: '0.75rem', marginTop: isMobile ? '1rem' : '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                                    {activeMeal.recipe && activeMeal.recipe.length > 0 && (
+                                                        <button
+                                                            data-html2canvas-ignore="true"
+                                                            onClick={() => handleCookClick(activeMeal)}
+                                                            disabled={isExpanding}
+                                                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.8rem 1.5rem', background: 'var(--text-main)', borderRadius: '99px', border: 'none', fontSize: '0.9rem', fontWeight: 800, color: 'var(--bg-card)', cursor: isExpanding ? 'wait' : 'pointer', transition: 'all 0.2s', boxShadow: '0 8px 16px -4px rgba(15, 23, 42, 0.4)', opacity: isExpanding ? 0.7 : 1 }}
+                                                        >
+                                                            <Play size={18} fill="white" /> {isExpanding ? "Generando..." : "Cocinar"}
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        data-html2canvas-ignore="true"
+                                                        onClick={() => handleDownloadPDF(activeMeal)}
+                                                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.8rem 1.5rem', background: 'var(--bg-page)', borderRadius: '99px', border: '1px solid var(--border)', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                    >
+                                                        <Download size={18} strokeWidth={2.5} /> Receta PDF
+                                                    </button>
+                                                </div>
+
+                                                <hr style={{ border: 'none', borderTop: '1px dashed var(--border)', margin: '2.5rem 0' }} />
+
+                                                {/* Content Split: Macros/Ingredients & Steps */}
+                                                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '2rem' : '3rem', alignItems: 'flex-start', minWidth: 0, width: '100%' }}>
+
+                                                    {/* LEFT/TOP COLUMN: Ingredients & Macros */}
+                                                    <div style={{ flex: isMobile ? '1 1 auto' : '0 0 320px', width: '100%', position: isMobile ? 'static' : 'sticky', top: '2rem', minWidth: 0 }}>
+
+                                                        {/* Sleek Macros Design */}
+                                                        {activeMeal.protein !== undefined && activeMeal.protein > 0 && (
+                                                            <div style={{ background: 'var(--bg-page)', borderRadius: '1.25rem', border: '1px solid var(--border)', padding: '1rem', marginBottom: '2rem', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--secondary)', textTransform: 'uppercase' }}>PROTEÍNAS</div>
+                                                                    <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-main)' }}>{activeMeal.protein}<span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>g</span></div>
+                                                                </div>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)' }}>
+                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase' }}>CARBOS</div>
+                                                                    <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-main)' }}>{activeMeal.carbs}<span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>g</span></div>
+                                                                </div>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--danger)', textTransform: 'uppercase' }}>GRASAS</div>
+                                                                    <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-main)' }}>{activeMeal.fats}<span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>g</span></div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Ingredients */}
+                                                        {activeMeal.ingredients && activeMeal.ingredients.length > 0 && (
+                                                            <div>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                                                                    <div style={{ width: '8px', height: '24px', background: 'var(--secondary)', borderRadius: '4px' }} />
+                                                                    <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-main)', margin: 0 }}>Ingredientes</h3>
+                                                                </div>
+                                                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                                    {activeMeal.ingredients.map((ing, idx) => {
+                                                                        const isChecked = checkedIngredients[idx];
+                                                                        return (
+                                                                            <li key={idx}
+                                                                                onClick={() => toggleIngredient(idx)}
+                                                                                style={{
+                                                                                    display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
+                                                                                    color: isChecked ? 'var(--text-light)' : 'var(--text-main)', fontSize: '0.95rem', fontWeight: 600,
+                                                                                    cursor: 'pointer', transition: 'all 0.2s ease', opacity: isChecked ? 0.6 : 1,
+                                                                                    textDecoration: isChecked ? 'line-through' : 'none',
+                                                                                    padding: '0.5rem 0'
+                                                                                }}>
+                                                                                <div style={{
+                                                                                    width: '24px', height: '24px', borderRadius: '50%',
+                                                                                    background: isChecked ? 'var(--secondary)' : 'var(--bg-page)',
+                                                                                    border: isChecked ? 'none' : '1px solid var(--border)',
+                                                                                    flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                                    transition: 'all 0.2s'
+                                                                                }}>
+                                                                                    {isChecked && <CheckCircle2 size={14} color="#FFFFFF" strokeWidth={3.5} />}
+                                                                                </div>
+                                                                                <span style={{ lineHeight: 1.4 }}>{ing}</span>
+                                                                            </li>
+                                                                        );
+                                                                    })}
+                                                                </ul>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* RIGHT/BOTTOM COLUMN: Steps */}
+                                                    <div style={{ flex: 1, width: '100%', minWidth: 0 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                                                            <div style={{ width: '8px', height: '24px', background: 'var(--primary)', borderRadius: '4px' }} />
+                                                            <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-main)', margin: 0 }}>Instrucciones</h3>
+                                                        </div>
+
+                                                        {activeMeal.recipe && activeMeal.recipe.length > 0 ? (
+                                                            <div style={{ position: 'relative', paddingLeft: '0.25rem' }}>
+                                                                <div style={{ position: 'absolute', left: '19px', top: '16px', bottom: '24px', width: '2px', background: 'var(--border)', zIndex: 0 }} />
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                                                    {activeMeal.recipe.map((step, i) => (
+                                                                        <FormattedRecipeStep key={i} step={step} index={i} />
+                                                                    ))}
+                                                                </div>
+                                                                {/* Completion Indicator */}
+                                                                <div style={{ display: 'flex', gap: '1rem', marginTop: '2.5rem', position: 'relative', zIndex: 1, alignItems: 'center' }}>
+                                                                    <div style={{ width: '32px', height: '32px', background: 'var(--secondary)', borderRadius: '50%', color: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 0 15px rgba(16, 185, 129, 0.4)' }}>
+                                                                        <CheckCircle2 size={16} strokeWidth={3} />
+                                                                    </div>
+                                                                    <div style={{ color: 'var(--text-main)', fontWeight: 800, fontSize: '1rem' }}>¡Listo para disfrutar!</div>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg-page)', borderRadius: '1.5rem', border: '1px dashed var(--border)' }}>
+                                                                <ChefHat size={40} color="var(--text-light)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
+                                                                <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>No hay pasos detallados. Guíate de la descripción general.</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                </div>
+                                            </motion.div>
+                                        </AnimatePresence>
                                     </div>
-                                ))}
-                            </div>
+
+                                </div>
                             );
                         })()}
-                    </motion.div>
+                    </div>
                 </div>
             </div>
+
+            <style>{`
+                .recipe-book-wrapper {
+                    background-color: var(--bg-card);
+                    border-radius: 0.5rem 1.75rem 1.75rem 0.5rem;
+                    border: 1px solid var(--border-light);
+                    border-left: 20px solid #1E293B;
+                    box-shadow: 4px 4px 0px rgba(0,0,0,0.02), 8px 8px 0px rgba(0,0,0,0.01), 0 25px 50px -12px rgba(0,0,0,0.15), inset 8px 0px 8px -4px rgba(0,0,0,0.2);
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2rem;
+                    position: relative;
+                    z-index: 2;
+                    overflow: hidden;
+                    max-width: 100%;
+                }
+
+                .recipe-book-wrapper::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    bottom: 0;
+                    left: 2.5rem;
+                    width: 3px;
+                    border-left: 1px solid rgba(248, 113, 113, 0.4);
+                    border-right: 1px solid rgba(248, 113, 113, 0.4);
+                    z-index: 0;
+                    pointer-events: none;
+                }
+
+                @media (max-width: 768px) {
+                    .recipe-book-wrapper {
+                        border-left: none;
+                        border-radius: 1.25rem;
+                        gap: 1rem;
+                        box-shadow: 0 4px 20px -4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+                        border: 1px solid var(--border);
+                    }
+                    .recipe-book-wrapper::before {
+                        display: none;
+                    }
+                }
+            `}</style>
         </>
     );
 };
