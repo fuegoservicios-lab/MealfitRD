@@ -247,21 +247,26 @@
 
     .grid {
         gap: 1rem;
+        max-width: 100%;
     }
 
     .preferencesGrid {
         grid-template-columns: 1fr;
         gap: 1rem;
+        max-width: 100%;
     }
 
     .section {
         border-radius: 1rem;
         padding: 1.25rem;
+        max-width: 100%;
+        overflow: hidden;
     }
 
     .sectionTitle {
         margin-bottom: 1.25rem;
         font-size: 1.15rem;
+        word-break: break-word;
     }
 
     .profileFlex {
@@ -283,6 +288,8 @@
         align-items: center;
         gap: 0.75rem;
         flex-wrap: wrap; /* allow text wrapping if small */
+        overflow: hidden;
+        word-break: break-all;
     }
 
     .emailBadge {
