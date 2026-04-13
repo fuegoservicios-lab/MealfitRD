@@ -462,37 +462,102 @@ const Pantry = () => {
     return (
         <div style={{ padding: '0px', paddingBottom: '100px', backgroundColor: 'var(--bg-page)', minHeight: '100vh', transition: 'background-color 0.3s' }}>
             
+            <style>{`
+                .nevera-header {
+                    padding: 2rem;
+                    background: var(--bg-glass);
+                    backdrop-filter: blur(12px);
+                    border-bottom: 1px solid var(--border-light);
+                    box-shadow: var(--shadow-sm);
+                    margin-bottom: 1.5rem;
+                    position: sticky;
+                    top: 0;
+                    z-index: 40;
+                    transition: background-color 0.3s, border-color 0.3s;
+                }
+                .nevera-top {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    flex-wrap: wrap;
+                    gap: 1rem;
+                }
+                .nevera-title-wrapper {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                }
+                .nevera-add-btn {
+                    background: var(--text-main);
+                    color: var(--bg-card);
+                    border: none;
+                    padding: 0.8rem 1.5rem;
+                    border-radius: 99px;
+                    font-weight: 700;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                    cursor: pointer;
+                    box-shadow: var(--shadow-sm);
+                    transition: transform 0.1s;
+                }
+                .nevera-add-btn:active {
+                    transform: scale(0.97);
+                }
+                @media (max-width: 640px) {
+                    .nevera-header {
+                        padding: 1.25rem 1rem;
+                    }
+                    .nevera-top {
+                        flex-direction: column;
+                        align-items: stretch;
+                        gap: 1.25rem;
+                    }
+                    .nevera-title-wrapper {
+                        gap: 0.75rem;
+                    }
+                    .nevera-title-wrapper h1 {
+                        font-size: 2rem !important;
+                    }
+                    .nevera-badge-text {
+                        font-size: 0.75rem !important;
+                        white-space: nowrap;
+                    }
+                    .nevera-add-btn {
+                        width: 100%;
+                    }
+                }
+            `}</style>
+            
             {/* Header / Nav */}
-            <header style={{
-                 padding: '2rem',
-                 background: 'var(--bg-glass)',
-                 backdropFilter: 'blur(12px)',
-                 borderBottom: '1px solid var(--border-light)',
-                 boxShadow: 'var(--shadow-sm)',
-                 marginBottom: '1.5rem',
-                 position: 'sticky',
-                 top: 0,
-                 zIndex: 40,
-                 transition: 'background-color 0.3s, border-color 0.3s'
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <div style={{background: 'var(--primary)', padding: '0.75rem', borderRadius: '1rem', color: 'white', boxShadow: 'var(--shadow-glow-primary)'}}>
-                            <Archive size={30} strokeWidth={2.5} />
+            <header className="nevera-header">
+                <div className="nevera-top">
+                    <div className="nevera-title-wrapper">
+                        <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.25) 100%)', 
+                            padding: '1rem', 
+                            borderRadius: '1.2rem', 
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            boxShadow: 'inset 0 2px 10px rgba(255,255,255,0.2), 0 4px 15px rgba(59, 130, 246, 0.15)',
+                            color: '#2563EB',
+                            flexShrink: 0
+                        }}>
+                            <Archive size={32} strokeWidth={2.5} />
                         </div>
                         <div>
-                            <h1 style={{ margin: 0, fontSize: '2.2rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.03em', lineHeight: 1 }}>Nevera</h1>
-                            <p style={{ margin: '0.25rem 0 0 0', color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.95rem' }}>Inventario Físico Restrictivo 🔒</p>
+                            <h1 style={{ margin: 0, fontSize: '2.4rem', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.04em', lineHeight: 1.1 }}>Nevera</h1>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: '0.4rem 0 0 0', background: 'var(--bg-muted)', padding: '0.25rem 0.75rem', borderRadius: '99px', border: '1px solid var(--border-light)' }}>
+                                <span className="nevera-badge-text" style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.85rem' }}>Inventario Físico Restrictivo</span>
+                                <span style={{ fontSize: '0.85rem' }}>🔒</span>
+                            </div>
                         </div>
                     </div>
 
                     <button 
                         onClick={() => setShowAddMenu(true)}
-                        style={{
-                            background: 'var(--text-main)', color: 'var(--bg-card)', border: 'none', padding: '0.8rem 1.5rem',
-                            borderRadius: '99px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem',
-                            cursor: 'pointer', boxShadow: 'var(--shadow-sm)'
-                        }}
+                        className="nevera-add-btn"
                     >
                         <Plus strokeWidth={3} size={18} /> Añadir Alimento
                     </button>

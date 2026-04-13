@@ -19,6 +19,7 @@ const Header = () => {
     
     // Ocultar elementos del panel cuando estamos explícitamente en modo de carga (ruta /plan)
     const isPlanLoading = location.pathname.startsWith('/plan');
+    const isHome = location.pathname === '/';
 
     return (
         <>
@@ -34,12 +35,14 @@ const Header = () => {
 
                     {/* Lógica condicional: Si hay plan, muestra Dashboard; si no y no estamos en evaluación/plan, Evaluación */}
                     {planData && !isPlanLoading ? (
-                        <Link
-                            to="/dashboard"
-                            className={styles.ctaButton}
-                        >
-                            <LayoutDashboard size={18} /> Panel
-                        </Link>
+                        !isHome && (
+                            <Link
+                                to="/dashboard"
+                                className={styles.ctaButton}
+                            >
+                                <LayoutDashboard size={18} /> Panel
+                            </Link>
+                        )
                     ) : !hideStartNow && (
                         <Link to="/assessment" className={styles.ctaButton}>
                             Empezar Ahora
@@ -84,13 +87,15 @@ const Header = () => {
 
 
                         {planData && !isPlanLoading ? (
-                            <Link
-                                to="/dashboard"
-                                className={styles.ctaButtonMobile}
-                                onClick={() => setIsMenuOpen(false)}
-                            >
-                                <LayoutDashboard size={18} /> Panel
-                            </Link>
+                            !isHome && (
+                                <Link
+                                    to="/dashboard"
+                                    className={styles.ctaButtonMobile}
+                                    onClick={() => setIsMenuOpen(false)}
+                                >
+                                    <LayoutDashboard size={18} /> Panel
+                                </Link>
+                            )
                         ) : !hideStartNow && (
                             <Link
                                 to="/assessment"
