@@ -179,14 +179,15 @@ const Pricing = () => {
                                 <span className={styles.amount}>0</span>
                             </div>
                             <p className={styles.description}>
-                                Ideal para probar la plataforma. Planes y recetas con IA incluidos.
+                                Descubre el poder de la IA. Plan personalizado, recetas y lista de compras incluidos.
                             </p>
 
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>{PLAN_LIMIT} Créditos</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Plan de Comidas Básico</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Recetas Personalizadas</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Lista de Compras Inteligente</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Plan de Comidas con IA</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Recetas Paso a Paso</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Lista de Compras PDF</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Nevera Virtual (Despensa)</strong></li>
                             </ul>
 
                             <button
@@ -211,14 +212,15 @@ const Pricing = () => {
                             </div>
 
                             <p className={styles.description}>
-                                Más créditos, asistente experto y memoria de IA que aprende de ti.
+                                Más créditos y un asistente IA con memoria que aprende de tus gustos.
                             </p>
 
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>50 Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Asistente con Visión</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Asistente IA con Visión</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Memoria a Largo Plazo</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Lista Inteligente</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Rotación de Platos</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Historial de Planes</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Gratis</strong></li>
                             </ul>
 
@@ -245,16 +247,15 @@ const Pricing = () => {
                             </div>
 
                             <p className={styles.description}>
-                                Para quienes buscan resultados serios. Ajustes ilimitados y macros exactos.
+                                Tu nutricionista virtual completo. Despensa inteligente, macros exactos y progreso real.
                             </p>
 
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>200 Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Control de Despensa</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Rotación Autónoma</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>IA Emocional</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Registro de Compras</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Seguimiento de Progreso</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Analizador de Macros</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Reportes de Progreso</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Rotación Autónoma de Platos</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Básico</strong></li>
                             </ul>
 
@@ -282,12 +283,13 @@ const Pricing = () => {
                             </div>
 
                             <p className={styles.description}>
-                                Sin límites. Genera, modifica y optimiza todo lo que necesites.
+                                Sin límites. Genera, regenera y optimiza todo lo que necesites, cuando quieras.
                             </p>
 
                             <ul className={styles.features}>
-                                <li><Check size={18} className={styles.check} /> <strong>Dietas y Créditos Ilimitados</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Generación sin límites</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Créditos Ilimitados</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Generación Ilimitada de Planes</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Acceso Anticipado a Nuevas Funciones</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Soporte Prioritario VIP</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Plus</strong></li>
                             </ul>
