@@ -589,6 +589,25 @@ const Dashboard = () => {
                 }
             });
 
+            // ── Dedup: Consolidar categorías duplicadas entre secciones ──
+            // Si una categoría aparece en AMBAS secciones, mover TODOS sus items
+            // a la sección donde esa categoría pertenece por naturaleza.
+            const PERISHABLE_CATS = ['proteína', 'vegetal', 'fruta', 'lácteo'];
+            const duplicatedCats = Object.keys(perishables).filter(c => stables[c]);
+            duplicatedCats.forEach(cat => {
+                const lowerCat = cat.toLowerCase();
+                const belongsToPerishable = PERISHABLE_CATS.some(p => lowerCat.includes(p));
+                if (belongsToPerishable) {
+                    // Mover items estables de esta categoría → perecederos
+                    perishables[cat] = [...perishables[cat], ...stables[cat]];
+                    delete stables[cat];
+                } else {
+                    // Mover items perecederos de esta categoría → estables
+                    stables[cat] = [...stables[cat], ...perishables[cat]];
+                    delete perishables[cat];
+                }
+            });
+
             // Count total items to adjust density and keep the PDF on 1 page
             const totalItems = Object.values(consData).length;
             const isDense = totalItems >= 26;
@@ -632,16 +651,6 @@ const Dashboard = () => {
                     </p>
                 </div>
 
-                <!-- Prioridad Alta -->
-                <div style="background-color: #fef2f2; border: 1px solid #fca5a5; padding: 6px 12px; border-radius: 6px; margin-bottom: 12px; display: table;">
-                    <div style="display: table-cell; vertical-align: middle; padding-right: 6px; padding-top: 2px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    </div>
-                    <div style="display: table-cell; vertical-align: middle;">
-                        <span style="font-size: 11px; font-weight: 800; color: #991b1b; letter-spacing: 0.05em;">COMPRA INMEDIATA (PERECEDEROS 1-7 DÍAS)</span>
-                    </div>
-                </div>
-                <div style="column-count: 3; column-gap: 16px;">
             `;
 
             const generateBlocks = (groupObj) => {
@@ -702,11 +711,24 @@ const Dashboard = () => {
             };
 
             if (Object.keys(perishables).length > 0) {
+                htmlContent += `
+                <!-- Prioridad Alta -->
+                <div style="background-color: #fef2f2; border: 1px solid #fca5a5; padding: 6px 12px; border-radius: 6px; margin-bottom: 12px; display: table;">
+                    <div style="display: table-cell; vertical-align: middle; padding-right: 6px; padding-top: 2px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div style="display: table-cell; vertical-align: middle;">
+                        <span style="font-size: 11px; font-weight: 800; color: #991b1b; letter-spacing: 0.05em;">COMPRA INMEDIATA (PERECEDEROS 1-7 DÍAS)</span>
+                    </div>
+                </div>
+                <div style="column-count: 3; column-gap: 16px;">
+                `;
                 htmlContent += generateBlocks(perishables);
+                htmlContent += `</div> <!-- End Columns -->`;
             }
 
-            htmlContent += `
-                </div> <!-- End Columns -->
+            if (Object.keys(stables).length > 0) {
+                htmlContent += `
                 <!-- Estables -->
                 <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 6px; margin-top: 4px; margin-bottom: 12px; display: table;">
                     <div style="display: table-cell; vertical-align: middle; padding-right: 6px; padding-top: 2px;">
@@ -717,16 +739,13 @@ const Dashboard = () => {
                     </div>
                 </div>
                 <div style="column-count: 3; column-gap: 16px;">
-            `;
-
-            if (Object.keys(stables).length > 0) {
+                `;
                 htmlContent += generateBlocks(stables);
+                htmlContent += `</div> <!-- End Columns -->`;
             }
 
 
             htmlContent += `
-                </div> <!-- End Layout -->
-                
                 <!-- Footer -->
                 <div style="margin-top: 15px; text-align: center; color: #9ca3af; font-size: 10px; border-top: 2px dashed #e5e7eb; padding-top: 10px;">
                     <p style="margin: 0; font-weight: 700; color: #6b7280; letter-spacing: 1px;">PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE</p>

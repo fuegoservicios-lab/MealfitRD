@@ -570,7 +570,7 @@ const Settings = () => {
                                 gap: '1rem',
                                 marginTop: '1rem'
                             }}>
-                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1, minWidth: 0 }}>
                                     <div style={{ 
                                         background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', 
                                         padding: '0.75rem', 
@@ -580,9 +580,9 @@ const Settings = () => {
                                     }}>
                                         <Brain size={20} color="#FFFFFF" />
                                     </div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ fontWeight: 700, color: 'var(--text-main)', display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.95rem' }}>
-                                            Rotación Autónoma
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontWeight: 700, color: 'var(--text-main)', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', fontSize: '0.95rem' }}>
+                                            <span>Rotación Autónoma</span>
                                             <span style={{ 
                                                 fontSize: '0.55rem', 
                                                 background: 'linear-gradient(135deg, #F59E0B, #D97706)', 
@@ -594,7 +594,7 @@ const Settings = () => {
                                                 textTransform: 'uppercase'
                                             }}>NUEVO</span>
                                             {!['plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase()) && (
-                                                <span style={{ fontSize: '0.85rem' }} title="Requiere Plan Plus o Ultra">🔒</span>
+                                                <span style={{ fontSize: '0.85rem', flexShrink: 0 }} title="Requiere Plan Plus o Ultra">🔒</span>
                                             )}
                                         </div>
                                         <div style={{ fontSize: '0.78rem', color: '#92400E', lineHeight: '1.45', marginTop: '0.25rem' }}>

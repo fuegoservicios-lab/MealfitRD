@@ -90,6 +90,7 @@ export const AssessmentProvider = ({ children }) => {
     // Navegación del Wizard (Pasos de la evaluación)
     const [currentStep, setCurrentStep] = useState(0);
     const [direction, setDirection] = useState(0);
+    const [maxReachedStep, setMaxReachedStep] = useState(0);
 
     // Datos del Plan Generado (JSON devuelto por la IA)
     const [planData, setPlanData] = useState(savedPlan ? JSON.parse(savedPlan) : null);
@@ -443,7 +444,6 @@ export const AssessmentProvider = ({ children }) => {
         if (dislikedMeals) localStorage.setItem('mealfit_dislikes', JSON.stringify(dislikedMeals));
     }, [dislikedMeals]);
 
-
     // --- LÓGICA DE NEGOCIO Y WEBHOOKS ---
 
     const toggleMealLike = async (mealName, mealType) => {
@@ -728,7 +728,14 @@ export const AssessmentProvider = ({ children }) => {
         }
     };
 
-    const nextStep = () => { setDirection(1); setCurrentStep((prev) => prev + 1); };
+    const nextStep = () => {
+        setDirection(1);
+        setCurrentStep((prev) => {
+            const next = prev + 1;
+            setMaxReachedStep((max) => Math.max(max, next));
+            return next;
+        });
+    };
     const prevStep = () => { setDirection(-1); setCurrentStep((prev) => Math.max(0, prev - 1)); };
 
     const resetApp = async () => {
@@ -750,6 +757,7 @@ export const AssessmentProvider = ({ children }) => {
         setUserProfile(null);
         setPlanCount(0);
         setCurrentStep(0);
+        setMaxReachedStep(0);
         setLoadingData(false);
     };
 
@@ -831,6 +839,8 @@ export const AssessmentProvider = ({ children }) => {
             updateUserProfile,
             currentStep,
             setCurrentStep,
+            maxReachedStep,
+            setMaxReachedStep,
             direction,
             nextStep,
             prevStep,

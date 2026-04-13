@@ -43,7 +43,7 @@ const Header = () => {
                                 <LayoutDashboard size={18} /> Panel
                             </Link>
                         )
-                    ) : !hideStartNow && (
+                    ) : !hideStartNow && !isHome && (
                         <Link to="/assessment" className={styles.ctaButton}>
                             Empezar Ahora
                         </Link>
@@ -96,7 +96,7 @@ const Header = () => {
                                     <LayoutDashboard size={18} /> Panel
                                 </Link>
                             )
-                        ) : !hideStartNow && (
+                        ) : !hideStartNow && !isHome && (
                             <Link
                                 to="/assessment"
                                 className={styles.ctaButtonMobile}

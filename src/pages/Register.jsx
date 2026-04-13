@@ -47,7 +47,7 @@ const Register = () => {
 
             if (signUpError) throw signUpError;
 
-            navigate('/');
+            navigate('/assessment');
         } catch (err) {
             let errorMessage = err.message;
             if (errorMessage === 'User already registered' || errorMessage.includes('already registered')) {
