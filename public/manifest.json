@@ -2,6 +2,7 @@
   "name": "MealfitRD | Nutrición con IA",
   "short_name": "MealfitRD",
   "description": "Planes de alimentación personalizados con IA avanzada.",
+  "lang": "es-DO",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111827",
