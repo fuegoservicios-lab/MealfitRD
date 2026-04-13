@@ -105,7 +105,7 @@ function App() {
 
             <Route path="/plan" element={
               <ProtectedRoute>
-                <Plan />
+                <Layout><Plan /></Layout>
               </ProtectedRoute>
             } />
 
