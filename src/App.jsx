@@ -57,7 +57,7 @@ const DashboardAnimatedLayout = () => {
   const location = useLocation();
   useThemeColor();
   const isAgent = location.pathname.includes('/agent');
-  
+
   return (
     <DashboardLayout noPaddingMobile={isAgent}>
       <AnimatePresence mode="wait">
