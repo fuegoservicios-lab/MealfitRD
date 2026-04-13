@@ -71,7 +71,9 @@
 .billingToggle {
     display: inline-flex;
     align-items: center;
-    background: rgba(25, 20, 50, 0.95);
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 99px;
     padding: 4px;
@@ -142,7 +144,9 @@
 
 /* --- Premium Card Styles --- */
 .card {
-    background: rgba(20, 15, 45, 0.85);
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 24px;
     padding: 2rem;
@@ -239,11 +243,14 @@
 }
 
 .description {
-    color: rgba(203, 213, 225, 0.7);
+    color: #CBD5E1;
     margin-bottom: 2rem;
-    font-size: 1rem;
-    line-height: 1.5;
-    min-height: 3rem;
+    padding-bottom: 1.5rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    min-height: 3.5rem;
+    font-weight: 400;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
 }
 
 .features {
@@ -258,9 +265,10 @@
     align-items: flex-start;
     gap: 0.75rem;
     margin-bottom: 1rem;
-    color: rgba(226, 232, 240, 0.85);
+    color: rgba(255, 255, 255, 0.98);
     font-size: 0.95rem;
     line-height: 1.5;
+    font-weight: 500;
 }
 
 .check {
@@ -408,7 +416,8 @@
         margin-bottom: 0.8rem;
     }
 
-    .btnPrimary, .btnOutline {
+    .btnPrimary,
+    .btnOutline {
         width: 100%;
         padding: 0.875rem;
     }

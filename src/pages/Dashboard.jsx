@@ -166,9 +166,9 @@ const Dashboard = () => {
         );
     }
 
-    // 3. Protección de Ruta: Si terminó de cargar y NO hay plan, mandar al inicio
+    // 3. Protección de Ruta: Si terminó de cargar y NO hay plan, mandar al formulario de evaluación
     if (!planData) {
-        return <Navigate to="/" replace />;
+        return <Navigate to="/assessment" replace />;
     }
 
     // Cálculos para la UI de límites

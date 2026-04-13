@@ -20,6 +20,7 @@ const Header = () => {
     // Ocultar elementos del panel cuando estamos explícitamente en modo de carga (ruta /plan)
     const isPlanLoading = location.pathname.startsWith('/plan');
     const isHome = location.pathname === '/';
+    const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
 
     return (
         <>
@@ -35,7 +36,7 @@ const Header = () => {
 
                     {/* Lógica condicional: Si hay plan, muestra Dashboard; si no y no estamos en evaluación/plan, Evaluación */}
                     {planData && !isPlanLoading ? (
-                        !isHome && (
+                        !isHome && !isLegalPage && (
                             <Link
                                 to="/dashboard"
                                 className={styles.ctaButton}
@@ -43,7 +44,7 @@ const Header = () => {
                                 <LayoutDashboard size={18} /> Panel
                             </Link>
                         )
-                    ) : !hideStartNow && !isHome && (
+                    ) : !hideStartNow && !isHome && !isLegalPage && (
                         <Link to="/assessment" className={styles.ctaButton}>
                             Empezar Ahora
                         </Link>
@@ -87,7 +88,7 @@ const Header = () => {
 
 
                         {planData && !isPlanLoading ? (
-                            !isHome && (
+                            !isHome && !isLegalPage && (
                                 <Link
                                     to="/dashboard"
                                     className={styles.ctaButtonMobile}
@@ -96,7 +97,7 @@ const Header = () => {
                                     <LayoutDashboard size={18} /> Panel
                                 </Link>
                             )
-                        ) : !hideStartNow && !isHome && (
+                        ) : !hideStartNow && !isHome && !isLegalPage && (
                             <Link
                                 to="/assessment"
                                 className={styles.ctaButtonMobile}

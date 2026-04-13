@@ -1,12 +1,44 @@
 .footer {
-    background: #0f172a;
+    position: relative;
+    background: linear-gradient(120deg, #0F172A, #1E293B, #020617);
+    background-size: 200% 200%;
+    animation: darkBreathe 12s ease-in-out infinite alternate;
     color: #cbd5e1;
     padding: 4rem 0 2rem;
     margin-top: auto;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
+    overflow: hidden;
+}
+
+.footer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: panGrid 20s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes darkBreathe {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+}
+
+@keyframes panGrid {
+    0% { background-position: 0 0; }
+    100% { background-position: 40px 40px; }
 }
 
 .container {
+    position: relative;
+    z-index: 1;
     display: grid;
     grid-template-columns: 1.5fr 1fr;
     gap: 4rem;

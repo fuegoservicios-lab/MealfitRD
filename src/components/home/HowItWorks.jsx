@@ -7,28 +7,28 @@ const steps = [
         title: "Perfil Integral",
         desc: "Capturamos más que tu peso. Evaluamos tu estilo de vida, alergias, presupuesto y nivel de estrés.",
         color: "#3B82F6",
-        bg: "#EFF6FF"
+        bg: "rgba(59, 130, 246, 0.15)"
     },
     {
         icon: Cpu,
         title: "IA de Alta Potencia",
         desc: "Nuestro motor hiperavanzado procesa millones de variables nutricionales en segundos para armar tu plan perfecto.",
         color: "#8B5CF6",
-        bg: "#F5F3FF"
+        bg: "rgba(139, 92, 246, 0.15)"
     },
     {
         icon: Utensils,
         title: "Menú Milimétrico",
         desc: "Cada receta generada está calibrada exactamente a tus macros y preferencias, usando ingredientes accesibles.",
         color: "#10B981",
-        bg: "#ECFDF5"
+        bg: "rgba(16, 185, 129, 0.15)"
     },
     {
         icon: TrendingUp,
         title: "Evolución Dinámica",
         desc: "La IA aprende de tus progresos semana a semana, recalculando las porciones para evitar el estancamiento.",
         color: "#F97316",
-        bg: "#FFF7ED"
+        bg: "rgba(249, 115, 22, 0.15)"
     }
 ];
 
@@ -49,7 +49,7 @@ const HowItWorks = () => {
                     <div className={styles.gridLine}>
                         <div className={styles.gridLineActive}></div>
                     </div>
-                    
+
                     <div className={styles.grid}>
                         {steps.map((step, index) => {
                             const Icon = step.icon;
