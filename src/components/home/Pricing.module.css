@@ -71,9 +71,7 @@
 .billingToggle {
     display: inline-flex;
     align-items: center;
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: rgba(25, 20, 50, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 99px;
     padding: 4px;
@@ -144,9 +142,7 @@
 
 /* --- Premium Card Styles --- */
 .card {
-    background: rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    background: rgba(20, 15, 45, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 24px;
     padding: 2rem;

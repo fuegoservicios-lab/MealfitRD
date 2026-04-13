@@ -111,8 +111,7 @@ const PaymentModal = ({
                 style={{
                     position: 'fixed', inset: 0, zIndex: 9999,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'rgba(0, 0, 0, 0.8)',
-                    backdropFilter: 'blur(8px)',
+                    background: 'rgba(0, 0, 0, 0.9)',
                     padding: '1rem',
                 }}
             >
