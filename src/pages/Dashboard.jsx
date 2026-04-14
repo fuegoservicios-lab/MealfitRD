@@ -85,6 +85,18 @@ const Dashboard = () => {
     const [showRestockModal, setShowRestockModal] = useState(false);
     const [isRestocking, setIsRestocking] = useState(false);
 
+    // Helper: Resetear estado de restock cuando cambian cantidades (personas/duración)
+    const resetRestockState = useCallback(() => {
+        setSessionRestocked(false);
+        // Limpiar localStorage key del restock actual
+        if (userProfile?.id && planData?.grocery_start_date) {
+            localStorage.removeItem(`mealfit_restock_cache_${userProfile.id}_${planData.grocery_start_date}`);
+        }
+        if (userProfile?.id) {
+            localStorage.removeItem(`mealfit_restock_cache_${userProfile.id}_latest`);
+        }
+    }, [userProfile?.id, planData?.grocery_start_date]);
+
     // Estado para el modal de Onboarding de Alertas Inteligentes
     const [showPushOnboarding, setShowPushOnboarding] = useState(false);
     const [isPushEnabling, setIsPushEnabling] = useState(false);
@@ -1566,8 +1578,11 @@ const Dashboard = () => {
                                                                 })
                                                             }).then(res => res.json()).then(result => {
                                                                 if (result.success && result.plan_data) {
+                                                                    // Limpiar is_restocked porque las cantidades cambiaron
+                                                                    delete result.plan_data.is_restocked;
                                                                     localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
                                                                     setPlanData(result.plan_data);
+                                                                    resetRestockState();
                                                                     toast.success('Lista actualizada', { id: recalcToast });
                                                                 } else {
                                                                     toast.dismiss(recalcToast);
@@ -1800,8 +1815,11 @@ const Dashboard = () => {
                                                                 newList.forEach(it => { if (kws.some(k => (it.name||'').toLowerCase().includes(k))) console.log('  NEW:', it.name, it.display_qty); });
                                                                 
                                                                 // Aplicar directamente los datos recalculados
+                                                                // Limpiar is_restocked porque las cantidades cambiaron
+                                                                delete result.plan_data.is_restocked;
                                                                 localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
                                                                 setPlanData(result.plan_data);
+                                                                resetRestockState();
                                                                 toast.success(`Lista actualizada para ${num} ${num === 1 ? 'persona' : 'personas'}`, { id: recalcToast, icon: '👥' });
                                                             } else if (result.success) {
                                                                 console.warn('⚠️ [RECALC] success=true but NO plan_data! Result:', result);
