@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAssessment } from '../context/AssessmentContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { requestNotificationPermission, subscribeToPushNotifications, isPushSupported } from '../utils/pushNotifications';
