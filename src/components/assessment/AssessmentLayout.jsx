@@ -4,16 +4,31 @@ import { motion } from 'framer-motion';
 import { useAssessment } from '../../context/AssessmentContext';
 import { ChevronLeft } from 'lucide-react';
 import styles from './AssessmentLayout.module.css';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const AssessmentLayout = ({ children, totalSteps }) => {
-    const { currentStep, prevStep, planData } = useAssessment();
+    const { currentStep, prevStep, planData, userProfile, resetApp } = useAssessment();
+    const navigate = useNavigate();
 
     const progress = ((currentStep) / (totalSteps - 1)) * 100;
 
     useEffect(() => {
         window.scrollTo(0, 0);
     }, [currentStep]);
+
+    const handleCancel = async () => {
+        const hasCompletedAssessment = userProfile?.health_profile 
+            && Object.keys(userProfile.health_profile).length > 0;
+
+        if (hasCompletedAssessment || planData) {
+            // Usuario existente re-haciendo el assessment → volver al dashboard
+            navigate('/dashboard');
+        } else {
+            // Usuario nuevo que no ha completado nada → cerrar sesión
+            await resetApp();
+            navigate('/login');
+        }
+    };
 
     return (
         <div className={styles.layout}>
@@ -28,7 +43,7 @@ const AssessmentLayout = ({ children, totalSteps }) => {
                     <Link to="/" className={styles.logo} style={{ textDecoration: 'none', color: 'inherit' }}>
                         Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
                     </Link>
-                    <Link to={planData ? '/dashboard' : '/'} className={styles.closeBtn}>Cancelar</Link>
+                    <button onClick={handleCancel} className={styles.closeBtn} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Cancelar</button>
                 </div>
             </header>
 
