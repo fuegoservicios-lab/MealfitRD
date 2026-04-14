@@ -8,7 +8,7 @@ import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
     RefreshCw, ChefHat, Heart, Pill, Lock,
     Brain, Wallet, AlertCircle, Dumbbell, Wheat,
-    Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, Trash2, ChevronDown
+    Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, Trash2, ChevronDown, Users
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
@@ -32,7 +32,12 @@ const Dashboard = () => {
         userProfile,
         loadingData,
         setCurrentStep,
-        updateData
+        updateData,
+        refreshProfileAndPlan,
+        restoreSessionData,
+        setPlanData,
+        setRecalcLock,
+        updateUserProfile
     } = useAssessment();
 
     const navigate = useNavigate();
@@ -42,12 +47,17 @@ const Dashboard = () => {
     const [sessionRestocked, setSessionRestocked] = useState(false);
     const [showDespensaDropdown, setShowDespensaDropdown] = useState(false);
     const despensaDropdownRef = useRef(null);
+    const [showHouseholdDropdown, setShowHouseholdDropdown] = useState(false);
+    const householdDropdownRef = useRef(null);
 
-    // Cierra el dropdown custom si el usuario hace clic fuera de él
+    // Cierra los dropdowns custom si el usuario hace clic fuera de ellos
     useEffect(() => {
         function handleClickOutside(event) {
             if (despensaDropdownRef.current && !despensaDropdownRef.current.contains(event.target)) {
                 setShowDespensaDropdown(false);
+            }
+            if (householdDropdownRef.current && !householdDropdownRef.current.contains(event.target)) {
+                setShowHouseholdDropdown(false);
             }
         }
         document.addEventListener("mousedown", handleClickOutside);
@@ -56,6 +66,7 @@ const Dashboard = () => {
 
     // Estado local para la navegación por pestañas (Días)
     const [activeDayIndex, setActiveDayIndex] = useState(0);
+    const [isRecalculating, setIsRecalculating] = useState(false);
 
     // Estado para "Nevera Virtual" - ingredientes temporalmente marcados como agotados
     // Persistido en localStorage para sobrevivir recargas de página y navegación
@@ -235,7 +246,7 @@ const Dashboard = () => {
             });
         }
 
-        // 2. Agregar Lista de Compras (lo nuevo) - Si no existe, se añade
+        // 2. Agregar Lista de Compras (lo nuevo) - Debe sobreescribir para reflejar cantidades escaladas
         if (planData.aggregated_shopping_list && Array.isArray(planData.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0) {
             planData.aggregated_shopping_list.forEach(ing => {
                 if (typeof ing === 'object' && ing !== null) {
@@ -243,25 +254,23 @@ const Dashboard = () => {
                     const qty = ing.display_qty || '';
                     const name = ing.name || ing.display_name || ing.display_string || 'Ingrediente';
 
-                    if (!currentIngredientsMap.has(name.toLowerCase().trim())) {
-                        currentIngredientsMap.set(name.toLowerCase().trim(), {
-                            id_string: idString,
-                            quantity: qty,
-                            name: name
-                        });
-                    }
+                    // Siempre sobreescribimos para asegurar que el UI refleje el nuevo tamaño del hogar
+                    currentIngredientsMap.set(name.toLowerCase().trim(), {
+                        id_string: idString,
+                        quantity: qty,
+                        name: name
+                    });
+                    
                     return;
                 }
 
                 // Fallback directo sin Regex para strings legacy
                 const str_ing = String(ing).trim();
-                if (!currentIngredientsMap.has(str_ing.toLowerCase())) {
-                    currentIngredientsMap.set(str_ing.toLowerCase(), {
-                        id_string: str_ing,
-                        quantity: 'Al gusto',
-                        name: str_ing
-                    });
-                }
+                currentIngredientsMap.set(str_ing.toLowerCase(), {
+                    id_string: str_ing,
+                    quantity: 'Al gusto',
+                    name: str_ing
+                });
             });
         } else {
             // 3. Fallback Legacy si no hay aggregated_shopping_list
@@ -633,8 +642,9 @@ const Dashboard = () => {
                 <div style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px; padding: ${headerPadding}; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); display: flex; align-items: center; justify-content: space-between; margin-bottom: ${headerMargin}; border-top: 5px solid #10b981;">
                     <div>
                         <h1 style="margin: 0 0 8px 0; color: #111827; font-size: 20px; font-weight: 800; letter-spacing: -0.025em;">Lista de Compras</h1>
-                        <div style="display: flex; gap: 8px;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <span style="background-color: #ecfdf5; color: #065f46; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #10b98140;">Ciclo: ${durationText}</span>
+                            ${(formData?.householdSize || 1) > 1 ? `<span style="background-color: #f5f3ff; color: #6d28d9; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #ddd6fe;">👥 ${formData.householdSize} Personas</span>` : ''}
                             <span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">Generado: ${new Date().toLocaleDateString('es-DO')}</span>
                         </div>
                     </div>
@@ -648,7 +658,7 @@ const Dashboard = () => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <p style="margin: 0; font-size: 11px; color: #334155; line-height: 1.4;">
-                        <strong>Smart Engine:</strong> Las cantidades listadas han sido <strong>calculadas de manera exacta</strong> según empaques del mercado local dominicano. Ajusta las proporciones si cocinas para múltiples personas o según tu inventario actual en casa. <strong>Nota: "Ud." significa "Unidad" (pieza entera).</strong>
+                        <strong>Smart Engine:</strong> Las cantidades listadas han sido <strong>calculadas de manera exacta</strong> según empaques del mercado local dominicano${(formData?.householdSize || 1) > 1 ? ` y <strong>multiplicadas para ${formData.householdSize} personas</strong>` : ''}. Ajusta según tu inventario actual en casa. <strong>Nota: "Ud." significa "Unidad" (pieza entera).</strong>
                     </p>
                 </div>
 
@@ -1529,7 +1539,48 @@ const Dashboard = () => {
                                                 key={opt.value}
                                                 onClick={() => {
                                                     updateData('groceryDuration', opt.value);
+                                                    if (userProfile && typeof updateUserProfile === 'function') {
+                                                        updateUserProfile({
+                                                            health_profile: {
+                                                                ...formData,
+                                                                groceryDuration: opt.value
+                                                            }
+                                                        });
+                                                    }
                                                     setShowDespensaDropdown(false);
+                                                    
+                                                    // Trigger recalculation on duration change as well to ensure UI sync
+                                                    if (userProfile?.id && planData) {
+                                                        setIsRecalculating(true);
+                                                        setRecalcLock(true); // 🔒 Bloquear restoreSessionData
+                                                        const recalcToast = toast.loading('Calculando lista...', { position: 'top-center' });
+                                                        supabase.auth.getSession().then(({ data: { session } }) => {
+                                                            if (!session) { toast.error("Sesión expirada"); setIsRecalculating(false); return; }
+                                                            fetch(`${API_BASE}/api/recalculate-shopping-list`, {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+                                                                body: JSON.stringify({
+                                                                    user_id: userProfile.id,
+                                                                    householdSize: formData?.householdSize || 1,
+                                                                    groceryDuration: opt.value
+                                                                })
+                                                            }).then(res => res.json()).then(result => {
+                                                                if (result.success && result.plan_data) {
+                                                                    localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
+                                                                    setPlanData(result.plan_data);
+                                                                    toast.success('Lista actualizada', { id: recalcToast });
+                                                                } else {
+                                                                    toast.dismiss(recalcToast);
+                                                                }
+                                                                setIsRecalculating(false);
+                                                                setRecalcLock(false); // 🔓 Desbloquear
+                                                            }).catch(() => {
+                                                                toast.dismiss(recalcToast);
+                                                                setIsRecalculating(false);
+                                                                setRecalcLock(false); // 🔓 Desbloquear en error
+                                                            });
+                                                        });
+                                                    }
                                                 }}
                                                 style={{
                                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -1579,6 +1630,250 @@ const Dashboard = () => {
                                                 )}
                                             </div>
                                         ))}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        {/* SELECTOR DE PERSONAS */}
+                        <div ref={householdDropdownRef} style={{ position: 'relative', width: '100%' }}>
+                            <div
+                                onClick={() => setShowHouseholdDropdown(!showHouseholdDropdown)}
+                                onMouseEnter={(e) => {
+                                    if (!showHouseholdDropdown) {
+                                        e.currentTarget.style.background = 'linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%)';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (!showHouseholdDropdown) {
+                                        e.currentTarget.style.background = 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)';
+                                    }
+                                }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    gap: '0.75rem',
+                                    background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
+                                    padding: '0.5rem 0.75rem 0.5rem 1rem',
+                                    borderRadius: '12px',
+                                    border: `1.5px solid ${showHouseholdDropdown ? '#8B5CF6' : '#CBD5E1'}`,
+                                    boxShadow: showHouseholdDropdown
+                                        ? '0 0 0 3px rgba(139, 92, 246, 0.1), 0 2px 4px rgba(0,0,0,0.05)'
+                                        : '0 2px 5px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.8)',
+                                    minHeight: '42px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    userSelect: 'none'
+                                }}
+                            >
+                                {/* Accent line */}
+                                <div style={{
+                                    position: 'absolute', left: 0, top: '20%', bottom: '20%', width: '3px',
+                                    borderRadius: '0 3px 3px 0',
+                                    background: 'linear-gradient(180deg, #8B5CF6, #7C3AED)'
+                                }} />
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <div style={{
+                                        width: '28px', height: '28px', borderRadius: '8px',
+                                        background: 'linear-gradient(135deg, #F5F3FF, #EDE9FE)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        flexShrink: 0
+                                    }}>
+                                        <Users size={14} color="#7C3AED" strokeWidth={2.5} />
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', lineHeight: '1' }}>
+                                        <span style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
+                                            Personas
+                                        </span>
+                                        <span style={{ fontSize: '0.82rem', color: '#0F172A', fontWeight: 700 }}>
+                                            {formData?.householdSize || 1}
+                                        </span>
+                                    </div>
+                                    <motion.div
+                                        animate={{ rotate: showHouseholdDropdown ? 180 : 0 }}
+                                        transition={{ duration: 0.2 }}
+                                    >
+                                        <ChevronDown size={14} color="#94A3B8" strokeWidth={2.5} />
+                                    </motion.div>
+                                </div>
+
+                                {(formData?.householdSize || 1) > 1 && (
+                                    <div style={{
+                                        background: 'linear-gradient(135deg, #F5F3FF, #EDE9FE)',
+                                        color: '#7C3AED',
+                                        padding: '0.3rem 0.7rem',
+                                        borderRadius: '8px',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 800,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.03em',
+                                        display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                        flexShrink: 0,
+                                        boxShadow: '0 2px 6px rgba(139, 92, 246, 0.1)',
+                                        border: '1px solid #DDD6FE'
+                                    }}>
+                                        ×{formData?.householdSize || 1}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Household Dropdown Menu */}
+                            <AnimatePresence>
+                                {showHouseholdDropdown && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                                        transition={{ type: 'spring', stiffness: 450, damping: 30, mass: 0.8 }}
+                                        style={{
+                                            position: 'absolute', top: 'calc(100% + 8px)', left: '-4px', right: '-4px',
+                                            zIndex: 9999,
+                                            background: 'rgba(255, 255, 255, 0.95)',
+                                            backdropFilter: 'blur(16px)',
+                                            borderRadius: '12px',
+                                            border: '1.5px solid #CBD5E1',
+                                            boxShadow: '0 20px 40px -10px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.5) inset',
+                                            overflow: 'hidden',
+                                            padding: '4px'
+                                        }}
+                                    >
+                                        <div style={{ padding: '6px 10px 4px', marginBottom: '2px' }}>
+                                            <span style={{ fontSize: '0.65rem', color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                ¿Cuántas personas comen?
+                                            </span>
+                                        </div>
+                                        {[1, 2, 3, 4, 5, 6].map((num) => (
+                                            <div
+                                                key={num}
+                                                onClick={async () => {
+                                                    updateData('householdSize', num);
+                                                    if (userProfile && typeof updateUserProfile === 'function') {
+                                                        updateUserProfile({
+                                                            health_profile: {
+                                                                ...formData,
+                                                                householdSize: num
+                                                            }
+                                                        });
+                                                    }
+                                                    setShowHouseholdDropdown(false);
+                                                    
+                                                    // Recalcular lista de compras en tiempo real
+                                                    if (userProfile?.id && planData) {
+                                                        setIsRecalculating(true);
+                                                        setRecalcLock(true); // 🔒 Bloquear restoreSessionData
+                                                        const recalcToast = toast.loading('Recalculando lista de compras...', { position: 'top-center' });
+                                                        try {
+                                                            const sessionObj = await supabase.auth.getSession();
+                                                            const token = sessionObj.data.session?.access_token;
+                                                            if (!token) {
+                                                                toast.error("Sesión expirada");
+                                                                setIsRecalculating(false);
+                                                                return;
+                                                            }
+                                                            const response = await fetch(`${API_BASE}/api/recalculate-shopping-list`, {
+                                                                method: 'POST',
+                                                                headers: {
+                                                                    'Content-Type': 'application/json',
+                                                                    'Authorization': `Bearer ${token}`
+                                                                },
+                                                                body: JSON.stringify({
+                                                                    user_id: userProfile.id,
+                                                                    householdSize: num,
+                                                                    groceryDuration: formData?.groceryDuration || 'weekly'
+                                                                })
+                                                            });
+                                                            const result = await response.json();
+                                                            console.log('🔍 [RECALC RESULT]', { success: result.success, has_plan_data: !!result.plan_data, message: result.message });
+                                                            if (result.plan_data?._debug_recalc) {
+                                                                console.log('🔍 [FINGERPRINT]', result.plan_data._debug_recalc);
+                                                            }
+                                                            if (result.success && result.plan_data) {
+                                                                // DEBUG: Compare key items between old and new plan_data
+                                                                const oldList = planData?.aggregated_shopping_list_weekly || [];
+                                                                const newList = result.plan_data?.aggregated_shopping_list_weekly || [];
+                                                                console.log('🔍 [RECALC] OLD weekly list length:', oldList.length);
+                                                                console.log('🔍 [RECALC] NEW weekly list length:', newList.length);
+                                                                const kws = ['pechuga', 'yogurt', 'aguacate'];
+                                                                oldList.forEach(it => { if (kws.some(k => (it.name||'').toLowerCase().includes(k))) console.log('  OLD:', it.name, it.display_qty); });
+                                                                newList.forEach(it => { if (kws.some(k => (it.name||'').toLowerCase().includes(k))) console.log('  NEW:', it.name, it.display_qty); });
+                                                                
+                                                                // Aplicar directamente los datos recalculados
+                                                                localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
+                                                                setPlanData(result.plan_data);
+                                                                toast.success(`Lista actualizada para ${num} ${num === 1 ? 'persona' : 'personas'}`, { id: recalcToast, icon: '👥' });
+                                                            } else if (result.success) {
+                                                                console.warn('⚠️ [RECALC] success=true but NO plan_data! Result:', result);
+                                                                await restoreSessionData(userProfile.id);
+                                                                toast.success(`Lista actualizada para ${num} ${num === 1 ? 'persona' : 'personas'}`, { id: recalcToast, icon: '👥' });
+                                                            } else {
+                                                                console.error('❌ [RECALC] Failed:', result);
+                                                                toast.dismiss(recalcToast);
+                                                            }
+                                                            setIsRecalculating(false);
+                                                            setRecalcLock(false); // 🔓 Desbloquear
+                                                        } catch (e) {
+                                                            console.error('Error recalculando:', e);
+                                                            toast.dismiss(recalcToast);
+                                                            setIsRecalculating(false);
+                                                            setRecalcLock(false); // 🔓 Desbloquear en error
+                                                        }
+                                                    }
+                                                }}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                    padding: '0.5rem 0.6rem',
+                                                    borderRadius: '8px',
+                                                    cursor: 'pointer',
+                                                    background: (formData?.householdSize || 1) === num
+                                                        ? 'linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)'
+                                                        : 'transparent',
+                                                    border: (formData?.householdSize || 1) === num ? '1px solid #DDD6FE' : '1px solid transparent',
+                                                    boxShadow: (formData?.householdSize || 1) === num ? '0 2px 8px rgba(139, 92, 246, 0.15)' : 'none',
+                                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                                                }}
+                                                onMouseEnter={e => {
+                                                    if ((formData?.householdSize || 1) !== num) {
+                                                        e.currentTarget.style.background = '#F8FAFC';
+                                                        e.currentTarget.style.transform = 'translateX(4px)';
+                                                    }
+                                                }}
+                                                onMouseLeave={e => {
+                                                    if ((formData?.householdSize || 1) !== num) {
+                                                        e.currentTarget.style.background = 'transparent';
+                                                        e.currentTarget.style.transform = 'translateX(0)';
+                                                    }
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
+                                                    <span style={{
+                                                        fontSize: '0.78rem', fontWeight: 800,
+                                                        color: (formData?.householdSize || 1) === num ? '#7C3AED' : '#334155',
+                                                        letterSpacing: '-0.01em'
+                                                    }}>
+                                                        {num} {num === 1 ? 'Persona' : 'Personas'}
+                                                    </span>
+                                                    <span style={{ fontSize: '0.65rem', color: '#64748B', fontWeight: 500 }}>
+                                                        {num === 1 ? 'Individual' : `Cantidades ×${num}`}
+                                                    </span>
+                                                </div>
+                                                {(formData?.householdSize || 1) === num && (
+                                                    <motion.div
+                                                        initial={{ scale: 0, opacity: 0 }}
+                                                        animate={{ scale: 1, opacity: 1 }}
+                                                        transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+                                                    >
+                                                        <CheckCircle size={14} color="#7C3AED" strokeWidth={2.5} />
+                                                    </motion.div>
+                                                )}
+                                            </div>
+                                        ))}
+                                        <div style={{ padding: '4px 10px 6px', marginTop: '2px', borderTop: '1px solid #F1F5F9' }}>
+                                            <span style={{ fontSize: '0.6rem', color: '#94A3B8', lineHeight: 1.3 }}>
+                                                💡 Al generar un nuevo plan, las cantidades se multiplicarán automáticamente.
+                                            </span>
+                                        </div>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -1690,15 +1985,16 @@ const Dashboard = () => {
 
                             <button
                                 onClick={handleDownloadShoppingList}
+                                disabled={isRecalculating}
                                 className="new-plan-btn"
                                 style={{
-                                    background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
-                                    color: '#334155',
-                                    border: '1.5px solid #CBD5E1',
-                                    '--hover-shadow': '0 15px 30px -5px rgba(0, 0, 0, 0.1), inset 0 0 0 1.5px #CBD5E1',
-                                    '--active-shadow': '0 5px 15px -5px rgba(0, 0, 0, 0.05), inset 0 0 0 1.5px #CBD5E1',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
-                                    cursor: 'pointer',
+                                    background: isRecalculating ? '#E2E8F0' : 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
+                                    color: isRecalculating ? '#94A3B8' : '#334155',
+                                    border: isRecalculating ? '1.5px solid #CBD5E1' : '1.5px solid #CBD5E1',
+                                    '--hover-shadow': isRecalculating ? 'none' : '0 15px 30px -5px rgba(0, 0, 0, 0.1), inset 0 0 0 1.5px #CBD5E1',
+                                    '--active-shadow': isRecalculating ? 'none' : '0 5px 15px -5px rgba(0, 0, 0, 0.05), inset 0 0 0 1.5px #CBD5E1',
+                                    boxShadow: isRecalculating ? 'none' : '0 2px 4px rgba(0,0,0,0.04)',
+                                    cursor: isRecalculating ? 'wait' : 'pointer',
                                     flex: '1 1 auto',
                                     width: 'auto',
                                     justifyContent: 'center',

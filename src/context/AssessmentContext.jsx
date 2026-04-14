@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../supabase';
 // --- BASE DE DATOS LOCAL DE RECETAS (FALLBACK) ---
@@ -128,7 +128,7 @@ export const AssessmentProvider = ({ children }) => {
         sleepHours: '', stressLevel: '', cookingTime: '', budget: '', scheduleType: '',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
         mainGoal: '', motivation: '', struggles: [], skipLunch: false,
-        includeSupplements: false, selectedSupplements: [], groceryDuration: 'weekly',
+        includeSupplements: false, selectedSupplements: [], groceryDuration: 'weekly', householdSize: 1,
         otherConditions: '',
     };
 
@@ -139,9 +139,26 @@ export const AssessmentProvider = ({ children }) => {
     const [planCount, setPlanCount] = useState(0);
     const PLAN_LIMIT = 15; // Límite del plan gratuito
 
+    // 🔒 Lock para evitar que restoreSessionData sobreescriba datos recalculados
+    const recalcLockRef = useRef(false);
+    const setRecalcLock = useCallback((val) => {
+        recalcLockRef.current = val;
+        // Auto-unlock después de 15s como seguridad (evita locks permanentes)
+        if (val) {
+            setTimeout(() => { recalcLockRef.current = false; }, 15000);
+        }
+    }, []);
+
     // --- FUNCIÓN PARA RESTAURAR SESIÓN DESDE DB ---
     const restoreSessionData = useCallback(async (userId) => {
         if (!userId) {
+            setLoadingData(false);
+            return;
+        }
+
+        // 🔒 Si hay un recálculo en progreso, no sobreescribir planData
+        if (recalcLockRef.current) {
+            console.log('🔒 [RESTORE] Bloqueado por recalcLock — omitiendo sincronización con la nube.');
             setLoadingData(false);
             return;
         }
@@ -394,7 +411,11 @@ export const AssessmentProvider = ({ children }) => {
                     filter: `id=eq.${userId}`
                 },
                 (payload) => {
-
+                    // 🔒 No sincronizar si hay un recálculo activo
+                    if (recalcLockRef.current) {
+                        console.log('🔒 [REALTIME] Bloqueado por recalcLock — ignorando actualización de perfil.');
+                        return;
+                    }
                     // Disparar sincronización mágica
                     refreshProfileAndPlan();
                 }
@@ -847,6 +868,7 @@ export const AssessmentProvider = ({ children }) => {
             formData,
             updateData,
             planData,
+            setPlanData,
             saveGeneratedPlan,
             likedMeals,
             toggleMealLike,
@@ -862,7 +884,8 @@ export const AssessmentProvider = ({ children }) => {
             upgradeUserPlan,
             restorePlan,
             refreshProfileAndPlan,
-            restoreSessionData
+            restoreSessionData,
+            setRecalcLock
         }}>
             {children}
         </AssessmentContext.Provider>
