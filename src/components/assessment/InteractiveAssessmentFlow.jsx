@@ -127,7 +127,8 @@ const InteractiveAssessmentFlow = () => {
     ];
 
     const currentStepConfig = steps[currentStep] || steps[0];
-    const canSkip = currentStep < maxReachedStep;
+    const hasCompletedBefore = !!formData?.gender && !!formData?.mainGoal;
+    const canSkip = (currentStep < maxReachedStep) || hasCompletedBefore;
 
     return (
         <InteractiveAssessmentLayout 
@@ -140,7 +141,7 @@ const InteractiveAssessmentFlow = () => {
                     {currentStepConfig.component}
                 </div>
                 
-                {canSkip && !currentStepConfig.hasInternalNext && (
+                {canSkip && (
                     <div style={{ 
                         marginTop: '2rem', 
                         display: 'flex', 
@@ -170,9 +171,9 @@ const InteractiveAssessmentFlow = () => {
                             </button>
                         )}
                         
-                        {maxReachedStep > currentStep && (
+                        {(maxReachedStep > currentStep || hasCompletedBefore) && currentStep < steps.length - 1 && (
                             <button 
-                                onClick={() => setCurrentStep(maxReachedStep)}
+                                onClick={() => setCurrentStep(hasCompletedBefore ? steps.length - 1 : maxReachedStep)}
                                 style={{ 
                                     padding: '1rem', 
                                     background: 'transparent', 
@@ -194,7 +195,7 @@ const InteractiveAssessmentFlow = () => {
                                     e.currentTarget.style.color = 'var(--text-secondary)';
                                 }}
                             >
-                                Saltar a donde estaba ⏭
+                                {hasCompletedBefore ? "Saltar a última pregunta ⏭" : "Saltar a donde estaba ⏭"}
                             </button>
                         )}
                     </div>

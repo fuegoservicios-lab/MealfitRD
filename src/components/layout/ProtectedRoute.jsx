@@ -17,13 +17,14 @@ const ProtectedRoute = ({ children }) => {
     }
 
     // Si el usuario está autenticado pero NO ha completado su evaluación,
-    // redirigirlo al formulario de assessment (excepto si ya está ahí)
+    // redirigirlo al formulario de assessment (excepto si ya está ahí o en la landing)
     const isOnAssessment = location.pathname === '/assessment';
     const isOnPlan = location.pathname === '/plan';
+    const isOnLanding = location.pathname === '/';
     const hasCompletedAssessment = userProfile?.health_profile 
         && Object.keys(userProfile.health_profile).length > 0;
 
-    if (!hasCompletedAssessment && !isOnAssessment && !isOnPlan) {
+    if (!hasCompletedAssessment && !isOnAssessment && !isOnPlan && !isOnLanding) {
         return <Navigate to="/assessment" replace />;
     }
 

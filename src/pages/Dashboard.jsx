@@ -6,7 +6,7 @@ import { requestNotificationPermission, subscribeToPushNotifications, isPushSupp
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
-    RefreshCw, ChefHat, Heart, Pill,
+    RefreshCw, ChefHat, Heart, Pill, Lock,
     Brain, Wallet, AlertCircle, Dumbbell, Wheat,
     Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, Trash2, ChevronDown
 } from 'lucide-react';
@@ -39,6 +39,7 @@ const Dashboard = () => {
 
     // Estado local para saber qué tarjeta se está regenerando (loading spinner específico)
     const [regeneratingId, setRegeneratingId] = useState(null);
+    const [sessionRestocked, setSessionRestocked] = useState(false);
     const [showDespensaDropdown, setShowDespensaDropdown] = useState(false);
     const despensaDropdownRef = useRef(null);
 
@@ -798,8 +799,8 @@ const Dashboard = () => {
 
         // 2. Validación Secundaria: Caché Local (UX Inmediata)
         // IMPORTANTE: Incluir user_id para que no se compartan keys entre cuentas en localhost
-        // Si no hay plan_id, saltamos el chequeo local y confiamos en la validación del servidor
-        const restockKey = planData?.id ? `mealfit_restock_${userProfile.id}_${planData.id}` : null;
+        // Usamos grocery_start_date porque planData desde el AssessmentContext a veces no trae 'id'
+        const restockKey = planData ? `mealfit_restock_cache_${userProfile?.id}_${planData.grocery_start_date || 'latest'}` : null;
         if (restockKey && localStorage.getItem(restockKey)) {
             console.log('🛒 [RESTOCK] BLOCKED: localStorage key exists:', restockKey);
             toast.info('Ya registraste las compras para este ciclo. Puedes editar cantidades directamente en la Nevera.', { icon: '📦' });
@@ -917,6 +918,7 @@ const Dashboard = () => {
             if (response.ok && data.success) {
                 if (restockKey) localStorage.setItem(restockKey, new Date().toISOString());
                 toast.success('¡Ingredientes ingresados a tu Nevera Virtual!', { icon: '📦' });
+                setSessionRestocked(true);
                 setShowRestockModal(false);
                 // Refrescar inventario real para sincronizar la Despensa del Dashboard
                 try {
@@ -1584,62 +1586,107 @@ const Dashboard = () => {
 
                         {/* BOTONES LADO A LADO */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', width: '100%' }}>
-                            <button
-                                onClick={handleNewPlan}
-                                disabled={isLimitReached}
-                                className="new-plan-btn"
-                                style={{
-                                    background: isLimitReached
-                                        ? '#E2E8F0'
-                                        : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
-                                    color: isLimitReached ? '#94A3B8' : 'white',
-                                    cursor: isLimitReached ? 'not-allowed' : 'pointer',
-                                    '--hover-shadow': '0 20px 40px -5px rgba(15, 23, 42, 0.45), inset 0 0 0 1px rgba(255,255,255,0.1)',
-                                    '--active-shadow': '0 5px 15px -5px rgba(15, 23, 42, 0.2)',
-                                    boxShadow: isLimitReached ? 'none' : '0 10px 20px -5px rgba(15, 23, 42, 0.35)',
-                                    flex: '1 1 auto',
-                                    width: 'auto',
-                                    justifyContent: 'center',
-                                    padding: '0.75rem 0.75rem',
-                                    border: 'none',
-                                    borderRadius: '1rem',
-                                    fontWeight: '700',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.4rem',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                {isLimitReached ? <AlertCircle size={18} /> : <Wand2 size={18} />}
-                                <span style={{ fontSize: '0.85rem' }}>{isLimitReached ? 'Límite' : (isPlanExpired ? 'Nuevo Plan' : 'Actualizar Platos')}</span>
-                            </button>
+                            {(() => {
+                                const isPremiumForRotation = ['plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase());
+                                const isAutoRotationActiveHeader = isPremiumForRotation && localStorage.getItem('mealfit_auto_rotate') === 'true';
 
-                            <button
-                                onClick={() => setShowRestockModal(true)}
-                                className="new-plan-btn"
-                                style={{
-                                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                                    color: 'white',
-                                    cursor: 'pointer',
-                                    '--hover-shadow': '0 20px 40px -5px rgba(16, 185, 129, 0.5), inset 0 0 0 1px rgba(255,255,255,0.2)',
-                                    '--active-shadow': '0 5px 15px -5px rgba(16, 185, 129, 0.2)',
-                                    boxShadow: '0 10px 20px -5px rgba(16, 185, 129, 0.4)',
-                                    flex: '1 1 auto',
-                                    width: 'auto',
-                                    justifyContent: 'center',
-                                    padding: '0.75rem 0.75rem',
-                                    border: 'none',
-                                    borderRadius: '1rem',
-                                    fontWeight: '700',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.4rem',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                <CheckCircle size={18} />
-                                <span style={{ fontSize: '0.85rem' }}>Registrar Compras</span>
-                            </button>
+                                if (isAutoRotationActiveHeader) {
+                                    return (
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                toast('Rotación Autónoma', {
+                                                    description: 'Tus platos se actualizan automáticamente todos los días.',
+                                                    icon: '🤖'
+                                                });
+                                            }}
+                                            className="new-plan-btn"
+                                            style={{
+                                                background: '#F8FAFC',
+                                                color: '#64748B', 
+                                                cursor: 'not-allowed',
+                                                boxShadow: 'none',
+                                                flex: '1 1 auto',
+                                                width: 'auto',
+                                                justifyContent: 'center',
+                                                padding: '0.75rem 0.75rem',
+                                                border: '1.5px dashed #CBD5E1',
+                                                borderRadius: '1rem',
+                                                fontWeight: '600',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem',
+                                                whiteSpace: 'nowrap',
+                                                opacity: 0.9
+                                            }}
+                                        >
+                                            <Lock size={16} color="#94A3B8" />
+                                            <span style={{ fontSize: '0.85rem' }}>Rotación Autónoma</span>
+                                        </button>
+                                    );
+                                }
+
+                                return (
+                                    <button
+                                        onClick={handleNewPlan}
+                                        disabled={isLimitReached}
+                                        className="new-plan-btn"
+                                        style={{
+                                            background: isLimitReached
+                                                ? '#E2E8F0'
+                                                : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
+                                            color: isLimitReached ? '#94A3B8' : 'white',
+                                            cursor: isLimitReached ? 'not-allowed' : 'pointer',
+                                            '--hover-shadow': '0 20px 40px -5px rgba(15, 23, 42, 0.45), inset 0 0 0 1px rgba(255,255,255,0.1)',
+                                            '--active-shadow': '0 5px 15px -5px rgba(15, 23, 42, 0.2)',
+                                            boxShadow: isLimitReached ? 'none' : '0 10px 20px -5px rgba(15, 23, 42, 0.35)',
+                                            flex: '1 1 auto',
+                                            width: 'auto',
+                                            justifyContent: 'center',
+                                            padding: '0.75rem 0.75rem',
+                                            border: 'none',
+                                            borderRadius: '1rem',
+                                            fontWeight: '700',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem',
+                                            whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        {isLimitReached ? <AlertCircle size={18} /> : <Wand2 size={18} />}
+                                        <span style={{ fontSize: '0.85rem' }}>{isLimitReached ? 'Límite' : (isPlanExpired ? 'Nuevo Plan' : 'Actualizar Platos')}</span>
+                                    </button>
+                                );
+                            })()}
+
+                            {(!sessionRestocked && !planData?.is_restocked && !(planData && localStorage.getItem(`mealfit_restock_cache_${userProfile?.id}_${planData.grocery_start_date || 'latest'}`))) && (
+                                <button
+                                    onClick={() => setShowRestockModal(true)}
+                                    className="new-plan-btn"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                                        color: 'white',
+                                        cursor: 'pointer',
+                                        '--hover-shadow': '0 20px 40px -5px rgba(16, 185, 129, 0.5), inset 0 0 0 1px rgba(255,255,255,0.2)',
+                                        '--active-shadow': '0 5px 15px -5px rgba(16, 185, 129, 0.2)',
+                                        boxShadow: '0 10px 20px -5px rgba(16, 185, 129, 0.4)',
+                                        flex: '1 1 auto',
+                                        width: 'auto',
+                                        justifyContent: 'center',
+                                        padding: '0.75rem 0.75rem',
+                                        border: 'none',
+                                        borderRadius: '1rem',
+                                        fontWeight: '700',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.4rem',
+                                        whiteSpace: 'nowrap'
+                                    }}
+                                >
+                                    <CheckCircle size={18} />
+                                    <span style={{ fontSize: '0.85rem' }}>Registrar Compras</span>
+                                </button>
+                            )}
 
                             <button
                                 onClick={handleDownloadShoppingList}
@@ -1747,6 +1794,9 @@ const Dashboard = () => {
                                     });
                                 }
                             }
+
+                            const hasPremiumForRotation = ['plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase());
+                            const isAutoRotationActive = hasPremiumForRotation && localStorage.getItem('mealfit_auto_rotate') === 'true';
 
                             return displayMeals.map((meal, index) => {
                                 const isSkippedLunch = meal.isSkipped;
@@ -1908,6 +1958,14 @@ const Dashboard = () => {
                                                 {/* REGENERATE BUTTON (AI SWAP) */}
                                                 <button
                                                     onClick={async () => {
+                                                        if (isAutoRotationActive) {
+                                                            toast('Rotación Autónoma Activa', {
+                                                                description: 'Tus platos se actualizan automáticamente todos los días.',
+                                                                icon: '🔄'
+                                                            });
+                                                            return;
+                                                        }
+
                                                         // 1. Evitar doble clic
                                                         if (regeneratingId === index) return;
 
@@ -1941,22 +1999,23 @@ const Dashboard = () => {
                                                             setRegeneratingId(null);
                                                         }
                                                     }}
-                                                    disabled={regeneratingId === index}
+                                                    disabled={regeneratingId === index || isAutoRotationActive}
                                                     style={{
-                                                        background: '#FFF7ED',
-                                                        border: '1.5px solid #FED7AA',
+                                                        background: isAutoRotationActive ? '#F8FAFC' : '#FFF7ED',
+                                                        border: isAutoRotationActive ? '1.5px solid #E2E8F0' : '1.5px solid #FED7AA',
                                                         borderRadius: '50%',
                                                         width: 44, height: 44,
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        cursor: regeneratingId === index ? 'wait' : 'pointer',
-                                                        transition: 'all 0.2s'
+                                                        cursor: isAutoRotationActive ? 'not-allowed' : (regeneratingId === index ? 'wait' : 'pointer'),
+                                                        transition: 'all 0.2s',
+                                                        opacity: isAutoRotationActive ? 0.6 : 1
                                                     }}
-                                                    title="No me gusta (Cambiar con IA)"
+                                                    title={isAutoRotationActive ? "Rotación Autónoma Activa" : "No me gusta (Cambiar con IA)"}
                                                 >
                                                     <RefreshCw
                                                         size={20}
-                                                        color="#EA580C"
-                                                        className={regeneratingId === index ? "spin-fast" : ""}
+                                                        color={isAutoRotationActive ? "#94A3B8" : "#EA580C"}
+                                                        className={regeneratingId === index && !isAutoRotationActive ? "spin-fast" : ""}
                                                     />
                                                 </button>
 
