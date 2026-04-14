@@ -85,10 +85,24 @@ const Dashboard = () => {
     const [showRestockModal, setShowRestockModal] = useState(false);
     const [isRestocking, setIsRestocking] = useState(false);
 
-    // Helper: Resetear estado de restock cuando cambian cantidades (personas/duración)
-    const resetRestockState = useCallback(() => {
+    // Helper: Resetear/restaurar estado de restock según la configuración
+    // Si el usuario vuelve a los mismos valores con los que registró compras,
+    // la nevera ya tiene esas cantidades → no mostrar botón de nuevo.
+    const resetRestockState = useCallback((newHouseholdSize, newGroceryDuration) => {
+        const savedConfigStr = userProfile?.id ? localStorage.getItem(`mealfit_restock_config_${userProfile.id}`) : null;
+        if (savedConfigStr) {
+            try {
+                const savedConfig = JSON.parse(savedConfigStr);
+                if (savedConfig.householdSize === newHouseholdSize && savedConfig.groceryDuration === newGroceryDuration) {
+                    // Los valores coinciden con los que se usaron al registrar compras
+                    // → la nevera ya tiene las cantidades correctas → ocultar botón
+                    setSessionRestocked(true);
+                    return;
+                }
+            } catch (e) { /* config corrupta, resetear */ }
+        }
+        // Valores diferentes → resetear para que aparezca el botón
         setSessionRestocked(false);
-        // Limpiar localStorage key del restock actual
         if (userProfile?.id && planData?.grocery_start_date) {
             localStorage.removeItem(`mealfit_restock_cache_${userProfile.id}_${planData.grocery_start_date}`);
         }
@@ -941,6 +955,13 @@ const Dashboard = () => {
                 if (restockKey) localStorage.setItem(restockKey, new Date().toISOString());
                 toast.success('¡Ingredientes ingresados a tu Nevera Virtual!', { icon: '📦' });
                 setSessionRestocked(true);
+                // Guardar la configuración con la que se registraron las compras
+                if (userProfile?.id) {
+                    localStorage.setItem(`mealfit_restock_config_${userProfile.id}`, JSON.stringify({
+                        householdSize: formData?.householdSize || 1,
+                        groceryDuration: formData?.groceryDuration || groceryDuration || 'weekly'
+                    }));
+                }
                 setShowRestockModal(false);
                 // Refrescar inventario real para sincronizar la Despensa del Dashboard
                 try {
@@ -1578,11 +1599,23 @@ const Dashboard = () => {
                                                                 })
                                                             }).then(res => res.json()).then(result => {
                                                                 if (result.success && result.plan_data) {
-                                                                    // Limpiar is_restocked porque las cantidades cambiaron
-                                                                    delete result.plan_data.is_restocked;
+                                                                    // Verificar si los valores coinciden con el último restock
+                                                                    const savedCfg = userProfile?.id ? localStorage.getItem(`mealfit_restock_config_${userProfile.id}`) : null;
+                                                                    let matchesSavedConfig = false;
+                                                                    if (savedCfg) {
+                                                                        try {
+                                                                            const cfg = JSON.parse(savedCfg);
+                                                                            matchesSavedConfig = cfg.householdSize === (formData?.householdSize || 1) && cfg.groceryDuration === opt.value;
+                                                                        } catch(e) {}
+                                                                    }
+                                                                    if (matchesSavedConfig) {
+                                                                        result.plan_data.is_restocked = true;
+                                                                    } else {
+                                                                        delete result.plan_data.is_restocked;
+                                                                    }
                                                                     localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
                                                                     setPlanData(result.plan_data);
-                                                                    resetRestockState();
+                                                                    resetRestockState(formData?.householdSize || 1, opt.value);
                                                                     toast.success('Lista actualizada', { id: recalcToast });
                                                                 } else {
                                                                     toast.dismiss(recalcToast);
@@ -1815,11 +1848,23 @@ const Dashboard = () => {
                                                                 newList.forEach(it => { if (kws.some(k => (it.name||'').toLowerCase().includes(k))) console.log('  NEW:', it.name, it.display_qty); });
                                                                 
                                                                 // Aplicar directamente los datos recalculados
-                                                                // Limpiar is_restocked porque las cantidades cambiaron
-                                                                delete result.plan_data.is_restocked;
+                                                                // Verificar si los valores coinciden con el último restock
+                                                                const savedCfg2 = userProfile?.id ? localStorage.getItem(`mealfit_restock_config_${userProfile.id}`) : null;
+                                                                let matchesSavedConfig2 = false;
+                                                                if (savedCfg2) {
+                                                                    try {
+                                                                        const cfg2 = JSON.parse(savedCfg2);
+                                                                        matchesSavedConfig2 = cfg2.householdSize === num && cfg2.groceryDuration === (formData?.groceryDuration || groceryDuration || 'weekly');
+                                                                    } catch(e) {}
+                                                                }
+                                                                if (matchesSavedConfig2) {
+                                                                    result.plan_data.is_restocked = true;
+                                                                } else {
+                                                                    delete result.plan_data.is_restocked;
+                                                                }
                                                                 localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
                                                                 setPlanData(result.plan_data);
-                                                                resetRestockState();
+                                                                resetRestockState(num, formData?.groceryDuration || groceryDuration || 'weekly');
                                                                 toast.success(`Lista actualizada para ${num} ${num === 1 ? 'persona' : 'personas'}`, { id: recalcToast, icon: '👥' });
                                                             } else if (result.success) {
                                                                 console.warn('⚠️ [RECALC] success=true but NO plan_data! Result:', result);
