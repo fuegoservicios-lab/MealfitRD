@@ -11,10 +11,10 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
     const nameStr = formData?.name || userProfile?.name || userProfile?.first_name || '';
     const nameParts = nameStr.split(' ');
     const firstName = nameParts[0] ? ' ' + nameParts[0] : '';
-    
+
     const now = new Date();
     const hour = now.getHours();
-    
+
     let timeGreeting = '¡Hola';
     if (hour >= 0 && hour < 5) timeGreeting = '¡Buenas madrugadas';
     else if (hour >= 5 && hour < 12) timeGreeting = '¡Buenos días';
@@ -22,7 +22,7 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
     else timeGreeting = '¡Buenas noches';
 
     let mealContext = '';
-    
+
     // Cycle and exact meal logic safely
     let rawStartDate = planData?.grocery_start_date || planData?.created_at;
     let cycleDayNum = 1;
@@ -33,19 +33,19 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
         // iOS Safari Safe Date Parsing replacing space with T
         const safeDateStr = typeof rawStartDate === 'string' ? rawStartDate.replace(' ', 'T') : rawStartDate;
         const startMidnight = new Date(safeDateStr);
-        
+
         if (!isNaN(startMidnight.getTime())) {
             startMidnight.setHours(0, 0, 0, 0);
             const todayMidnight = new Date();
             todayMidnight.setHours(0, 0, 0, 0);
             const diff = Math.round((todayMidnight - startMidnight) / (1000 * 60 * 60 * 24));
-            
+
             const groceryDuration = formData?.groceryDuration || 'weekly';
             let maxDays = 7;
             if (groceryDuration === 'weekly') maxDays = 7;
             else if (groceryDuration === 'biweekly') maxDays = 15;
             else if (groceryDuration === 'monthly') maxDays = 30;
-            
+
             if (diff >= maxDays) isPlanExpired = true;
             cycleDayNum = Math.min(Math.max(1, diff + 1), maxDays);
         }
@@ -65,7 +65,7 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
         if (planDays.length > 0 && !isNaN(cycleDayNum)) {
             const activeDayIndex = (cycleDayNum - 1) % planDays.length;
             const currentDayMeals = planDays[activeDayIndex]?.meals || [];
-            
+
             // Search by m.meal field (type: "Desayuno") NOT by m.name (dish: "Mangú con Huevo")
             let exactMeal = null;
             if (mealKeyword === 'desayuno') {
@@ -77,13 +77,13 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
             } else {
                 exactMeal = currentDayMeals.find(m => m?.meal?.toLowerCase().includes('snack') || m?.meal?.toLowerCase().includes('merienda'));
             }
-            
+
             if (exactMeal && exactMeal.name) {
                 exactMealName = exactMeal.name.trim();
             }
         }
     }
-    
+
     if (mealKeyword === 'madrugada') {
         const variants = [
             'Veo que sigues despierto, ¡recuerda que el buen descanso es clave para tu progreso! Si necesitas ayuda con algo, aquí estoy.',
@@ -148,13 +148,13 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
         else if (lowerGoal.includes('músculo') || lowerGoal.includes('masa') || lowerGoal.includes('ganar')) goalText = 'ganar masa muscular';
         else if (lowerGoal.includes('mantenimiento') || lowerGoal.includes('mantener')) goalText = 'mantenerte en forma';
         else if (lowerGoal.includes('recomp')) goalText = 'recomponer tu cuerpo';
-        
+
         if (goalText) {
             goalContext = `Seguimos enfocados en tu meta de ${goalText}. `;
         }
     }
 
-    const timeStr = now.toLocaleTimeString('es-DO', {hour: '2-digit', minute: '2-digit', hour12: true});
+    const timeStr = now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true });
     return `${timeGreeting}${firstName}! Son las ${timeStr}. ${goalContext}${mealContext}`;
 };
 
@@ -233,7 +233,7 @@ const AgentPage = () => {
         if (showNavMenu) document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showNavMenu]);
-    
+
     const [localSessionId, setLocalSessionId] = useState(() => {
         const saved = localStorage.getItem('mealfit_guest_session');
         if (saved) return saved;
@@ -257,7 +257,7 @@ const AgentPage = () => {
         localStorage.setItem('mealfit_guest_sessions_list', JSON.stringify(initialList));
         return initialList;
     });
-    
+
     const [currentSessionId, _setCurrentSessionId] = useState(() => {
         const newId = crypto.randomUUID();
         localStorage.setItem('mealfit_current_session', newId);
@@ -267,7 +267,7 @@ const AgentPage = () => {
         localStorage.setItem('mealfit_current_session', id);
         _setCurrentSessionId(id);
     };
-    
+
     // Escuchar el logout para limpiar el estado interno
     useEffect(() => {
         if (!session?.user?.id && !userProfile?.id) {
@@ -324,7 +324,7 @@ const AgentPage = () => {
     const recognitionRef = useRef(null);
     const originalInputRef = useRef('');
     const silenceTimerRef = useRef(null);
-    
+
     // Para Drag & Drop de Imágenes
     const [isDragging, setIsDragging] = useState(false);
 
@@ -335,16 +335,16 @@ const AgentPage = () => {
     }, [input]);
 
     const handleSendRef = useRef(null);
-    
+
     // --- Lógica de Modo Llamada (Voz Nativa) ---
     const [isCallModeActive, setIsCallModeActive] = useState(false);
     const callModeRef = useRef(false);
     useEffect(() => { callModeRef.current = isCallModeActive; }, [isCallModeActive]);
-    
+
     const [isSpeaking, setIsSpeaking] = useState(false);
     const isSpeakingRef = useRef(false);
     useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
-    
+
     const isLoadingRef = useRef(isLoading);
     useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
 
@@ -355,18 +355,18 @@ const AgentPage = () => {
 
     const processTTSQueue = async () => {
         if (isPlayingAudio.current || ttsQueue.current.length === 0) return;
-        
+
         // VOZ DESACTIVADA TEMPORALMENTE (Plan Gratuito ElevenLabs)
         // Vaciamos la cola para no reproducir ni llamar a la API
         ttsQueue.current = [];
         return;
-        
+
         isPlayingAudio.current = true;
         const textToSpeechChunk = ttsQueue.current.shift();
-        
+
         isSpeakingRef.current = true;
         setIsSpeaking(true);
-        
+
         try {
             const response = await fetchWithAuth('/api/chat/tts', {
                 method: 'POST',
@@ -378,21 +378,21 @@ const AgentPage = () => {
 
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
-            
+
             // Fix iOS mute constraint: ALWAYS reuse the pre-warmed audioPlayerRef attached to the DOM
             const audio = audioPlayerRef.current;
             if (!audio) throw new Error("Audio player DOM not found");
-            
+
             audio.playsInline = true;
             audio.volume = 1.0; // Restablecer el volumen al 100%
             audio.src = url;
             audio.load(); // Forzar la carga del nuevo src en iOS
-            
+
             // Usar onloadeddata o manejar la promesa de play directamente
             const handleEnded = () => {
                 URL.revokeObjectURL(url);
                 isPlayingAudio.current = false;
-                
+
                 audio.removeEventListener('ended', handleEnded);
 
                 if (ttsQueue.current.length === 0) {
@@ -400,7 +400,7 @@ const AgentPage = () => {
                     setIsSpeaking(false);
                     setTimeout(() => {
                         if (callModeRef.current && !isLoadingRef.current) {
-                            try { recognitionRef.current?.start(); } catch(e){}
+                            try { recognitionRef.current?.start(); } catch (e) { }
                         }
                     }, 50);
                 } else {
@@ -409,9 +409,9 @@ const AgentPage = () => {
             };
 
             audio.addEventListener('ended', handleEnded);
-            
+
             await audio.play();
-            
+
         } catch (error) {
             console.error("TTS Play Error", error);
             isPlayingAudio.current = false;
@@ -444,25 +444,25 @@ const AgentPage = () => {
             isSpeakingRef.current = false;
             setIsSpeaking(false);
             if (recognitionRef.current) {
-                try { recognitionRef.current.stop(); } catch(e){}
+                try { recognitionRef.current.stop(); } catch (e) { }
             }
         } else {
             setIsCallModeActive(true);
             callModeRef.current = true;
-            
+
             // Hack para iOS/Móvil: Desbloquear el player único para todo el ciclo de vida de la página
             try {
                 audioPlayerRef.current.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
                 audioPlayerRef.current.volume = 0.01;
-                audioPlayerRef.current.play().catch(()=>{});
-            } catch(e) {}
+                audioPlayerRef.current.play().catch(() => { });
+            } catch (e) { }
 
             if (!isListening) {
                 toggleDictation();
             }
         }
     };
-    
+
     // Función para manejar la interrupción táctil (Barge-In interactivo) para evitar la limitante de iOS
     const handleInterruptBargeIn = () => {
         if (audioPlayerRef.current) {
@@ -478,7 +478,7 @@ const AgentPage = () => {
         setStreamingStatus(null);
         setTimeout(() => {
             if (callModeRef.current) {
-                try { recognitionRef.current?.start(); } catch(e){}
+                try { recognitionRef.current?.start(); } catch (e) { }
             }
         }, 100);
     };
@@ -489,7 +489,7 @@ const AgentPage = () => {
             if (recognitionRef.current) {
                 try {
                     recognitionRef.current.stop();
-                } catch(e) {}
+                } catch (e) { }
             }
             setIsListening(false);
             return;
@@ -519,7 +519,7 @@ const AgentPage = () => {
         recognition.onresult = (event) => {
             let interimTranscript = '';
             let newTextChunk = '';
-            
+
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 const chunk = event.results[i][0].transcript;
                 newTextChunk += chunk;
@@ -529,11 +529,11 @@ const AgentPage = () => {
                     interimTranscript += chunk;
                 }
             }
-            
+
             // --- BARGE-IN (Interrupción por voz) ---
             const hasRealLetters = newTextChunk.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, '').length > 0;
             const isTTSActive = isSpeakingRef.current || ttsQueue.current.length > 0 || isPlayingAudio.current;
-            
+
             if (callModeRef.current && isTTSActive && hasRealLetters) {
                 // Si estábamos hablando y escuchamos al usuario decir una palabra real, callar IA y cancelar stream actual
                 if (audioPlayerRef.current) {
@@ -558,7 +558,7 @@ const AgentPage = () => {
                 silenceTimerRef.current = setTimeout(() => {
                     // Detenemos manualmente para forzar onend inmediatamente después de 3s de silencio
                     if (recognitionRef.current) {
-                        try { recognitionRef.current.stop(); } catch(e){}
+                        try { recognitionRef.current.stop(); } catch (e) { }
                     }
                 }, 3000);
             }
@@ -592,7 +592,7 @@ const AgentPage = () => {
                     // Mantenemos el ciclo activo para seguir escuchando interrupciones/nuevo texto
                     originalInputRef.current = latestInputRef.current;
                     setTimeout(() => {
-                        try { recognitionRef.current?.start(); } catch(e){}
+                        try { recognitionRef.current?.start(); } catch (e) { }
                     }, 50);
                 }
             }
@@ -600,10 +600,10 @@ const AgentPage = () => {
 
         recognitionRef.current = recognition;
         originalInputRef.current = latestInputRef.current;
-        
+
         try {
             recognition.start();
-        } catch(e) {
+        } catch (e) {
             console.error("Error starting mic", e);
             setIsListening(false);
         }
@@ -636,16 +636,16 @@ const AgentPage = () => {
             alert('Formato no soportado. Por favor sube una imagen válida.');
             return;
         }
-        
+
         // Generar preview local INMEDIATAMENTE para anular percepción de lag
         setPreviewUrl(prev => {
             if (prev) URL.revokeObjectURL(prev);
             return URL.createObjectURL(file);
         });
-        
+
         // Guardar original temporalmente
         setSelectedFile(file);
-        
+
         try {
             // Comprimir imagen asincrónicamente
             const compressedFile = await compressImageFile(file);
@@ -718,10 +718,10 @@ const AgentPage = () => {
         try {
             const userId = session?.user?.id || userProfile?.id || localSessionId;
             if (!userId) return;
-            
+
             const isGuest = !session?.user?.id && !userProfile?.id;
             let url = `/api/chat/sessions/${userId}`;
-            
+
             if (isGuest) {
                 // Para invitados, enviamos la lista de IDs guardada en localStorage
                 const savedListStr = localStorage.getItem('mealfit_guest_sessions_list');
@@ -730,7 +730,7 @@ const AgentPage = () => {
                 url += `?session_ids=${sessionIdsParam}`;
             }
             // Si no es guest, el backend buscará por user_id directamente en la BD (Multi-dispositivo)
-            
+
             const response = await fetchWithAuth(url);
             if (response.ok) {
                 const data = await response.json();
@@ -738,7 +738,7 @@ const AgentPage = () => {
                     const newSessions = data.sessions || [];
                     const generating = prev.filter(s => s.title === 'Generando título...');
                     const merged = [...newSessions];
-                    
+
                     generating.forEach(gen => {
                         const existingIdx = merged.findIndex(s => s.id === gen.id);
                         if (existingIdx === -1) {
@@ -781,7 +781,7 @@ const AgentPage = () => {
                         let content = m.content;
                         let isImage = false;
                         let imageUrl = null;
-                        
+
                         // Extract [IMAGE: url]
                         const imgMatch = content.match(/\[IMAGE:\s*(.+?)\]/);
                         if (imgMatch) {
@@ -789,12 +789,12 @@ const AgentPage = () => {
                             imageUrl = imgMatch[1];
                             content = content.replace(/\[IMAGE:\s*.+?\]\n?/, '');
                         }
-                        
+
                         // Limpiar prefijo de visión y contexto enriquecido del historial
                         if (m.role === 'user') {
                             // Limpiar hora del usuario
                             content = content.replace(/\[\(Hora actual del usuario:.*?\)\]\n?/gi, '');
-                            
+
                             if (content.includes('[El usuario subió una imagen.')) {
                                 const userMsgMatch = content.match(/Mensaje del usuario:\s*(.+)$/s);
                                 if (userMsgMatch) {
@@ -806,14 +806,14 @@ const AgentPage = () => {
                                 // En este caso NO HAY mensaje del usuario original, todo era un prompt de sistema
                                 content = '';
                             }
-                            
+
                             // Limpiar "Mensaje del usuario:" que inyecta el backend para darle contexto al LLM
                             content = content.replace(/Mensaje del usuario:\s*/gi, '');
-                            
+
                             // Remover la sección de <dietary_context>
                             content = content.replace(/<dietary_context>[\s\S]*?<\/dietary_context>/, '').trim();
                         }
-                        
+
                         // Si el bot genera el system title, lo ocultamos
                         if (m.role === 'model' && content.startsWith('[SYSTEM_TITLE]')) {
                             return null;
@@ -832,7 +832,7 @@ const AgentPage = () => {
             } else if (response.status === 403 || response.status === 401) {
                 // Reintentar un par de veces por si hay un retraso en la hidratación del token
                 if (retryCount < 2) {
-                    console.warn(`⏳ [fetchSessionMessages] Esperando autenticación para ${sessionId}... (intento ${retryCount+1})`);
+                    console.warn(`⏳ [fetchSessionMessages] Esperando autenticación para ${sessionId}... (intento ${retryCount + 1})`);
                     setTimeout(() => fetchSessionMessages(sessionId, retryCount + 1), 800);
                     return;
                 }
@@ -863,10 +863,10 @@ const AgentPage = () => {
             const response = await fetchWithAuth(`/api/chat/session/${sessionIdToDelete}`, {
                 method: 'DELETE'
             });
-            
+
             if (response.ok) {
                 setChatSessions(prev => prev.filter(s => s.id !== sessionIdToDelete));
-                
+
                 // Si borramos el chat actual activo, redirigimos a un chat nuevo
                 if (currentSessionId === sessionIdToDelete) {
                     const newId = crypto.randomUUID();
@@ -944,7 +944,7 @@ const AgentPage = () => {
             navigator.vibrate(40); // Haptic feedback on send
         }
         const textToSend = typeof overrideInput === 'string' ? overrideInput : input;
-        
+
         if ((!textToSend.trim() && !selectedFile && !options.overrideImageUrl) || isLoading) return;
 
         if (isListening) {
@@ -964,15 +964,15 @@ const AgentPage = () => {
         const userMsg = textToSend.trim();
         const currentFile = selectedFile;
         const currentPreview = previewUrl;
-        
+
         setInput('');
         clearSelectedFile();
         setIsLoading(true);
 
-        const newMessages = options.truncateIndex !== undefined 
-            ? messages.slice(0, options.truncateIndex) 
+        const newMessages = options.truncateIndex !== undefined
+            ? messages.slice(0, options.truncateIndex)
             : [...messages];
-        
+
         // Agregar mensaje visual si hay imagen
         if (currentFile) {
             newMessages.push({ role: 'user', content: userMsg || '', isImage: true, imageUrl: currentPreview });
@@ -981,13 +981,13 @@ const AgentPage = () => {
         } else {
             newMessages.push({ role: 'user', content: userMsg });
         }
-        
+
         setMessages(newMessages);
 
         try {
             let visionDescription = null;
             let uploadedImageUrl = null;
-            
+
             // Manejar subida de imagen si existe
             if (currentFile) {
                 const formData = new FormData();
@@ -996,19 +996,19 @@ const AgentPage = () => {
                 formData.append('session_id', currentSessionId);
                 const currentTzOffset = new Date().getTimezoneOffset();
                 formData.append('tz_offset_mins', currentTzOffset.toString());
-                
+
                 const uploadRes = await fetchWithAuth('/api/diary/upload', {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 const uploadData = await uploadRes.json();
-                
+
                 if (uploadData.success && uploadData.description) {
                     visionDescription = uploadData.description;
                     uploadedImageUrl = uploadData.image_url;
                 }
-                
+
                 // Update temporary local preview URL to actual server URL
                 setMessages(prev => {
                     const updated = [...prev];
@@ -1035,11 +1035,11 @@ const AgentPage = () => {
                 } else if (options.overrideImageUrl) {
                     promptToSend = `[IMAGE: ${options.overrideImageUrl}]\n${promptToSend}`;
                 }
-                
+
                 // Obtener hora actual local formateada
                 const currentTime = new Date().toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true });
                 const timeContext = `(Hora actual del usuario: ${currentTime})`;
-                
+
                 // Si hay una descripción de visión, enriquecer el prompt con contexto de tiempo
                 let enrichedPrompt = promptToSend;
                 if (!userMsg && currentFile) {
@@ -1049,9 +1049,9 @@ const AgentPage = () => {
                 } else {
                     enrichedPrompt = `[${timeContext}]\nMensaje del usuario: ${promptToSend}`;
                 }
-                
+
                 setStreamingStatus('Conectando...');
-                
+
                 // Limpiar mensaje de bienvenida si es el primero del usuario
                 if (newMessages.length > 0 && newMessages[0].isWelcome) {
                     newMessages.shift();
@@ -1064,14 +1064,14 @@ const AgentPage = () => {
                     }
                     return prev;
                 });
-                
+
                 const now = new Date();
                 const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-                
+
                 const controller = new AbortController();
                 setAbortController(controller);
                 abortControllerRef.current = controller;
-                
+
                 const response = await fetchWithAuth('/api/chat/stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1102,7 +1102,7 @@ const AgentPage = () => {
 
                         buffer += decoder.decode(value, { stream: true });
                         const lines = buffer.split('\n');
-                        
+
                         // Guardar la última línea incompleta en el buffer
                         buffer = lines.pop() || "";
 
@@ -1110,12 +1110,12 @@ const AgentPage = () => {
                             if (line.trim().startsWith('data: ')) {
                                 try {
                                     const dataObj = JSON.parse(line.trim().substring(6));
-                                    
+
                                     if (dataObj.type === 'progress') {
                                         setStreamingStatus(dataObj.message);
                                     } else if (dataObj.type === 'chunk') {
                                         fullText += dataObj.text;
-                                        
+
                                         let displayContent = fullText;
                                         // Detectar y procesar evento silencioso REFRESH_PLAN
                                         if (fullText.includes('[UI_ACTION: REFRESH_PLAN]')) {
@@ -1128,7 +1128,7 @@ const AgentPage = () => {
                                             // Ocultar fragmento incompleto del token temporalmente en la UI
                                             displayContent = fullText.replace(/\[UI_ACT[^\]]*$/g, '');
                                         }
-                                        
+
                                         // Extraer oraciones completas para TTS en Modo Llamada
                                         if (callModeRef.current) {
                                             const textSoFar = fullText.substring(lastSpokenIndex);
@@ -1160,7 +1160,7 @@ const AgentPage = () => {
                                         setIsLoading(false);
                                         setStreamingStatus(null);
                                         fullText = dataObj.response;
-                                        
+
                                         // Limpieza de seguridad al final por si el chunk llegó mal cortado
                                         if (fullText.includes('[UI_ACTION: REFRESH_PLAN]')) {
                                             fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_PLAN\]/g, '');
@@ -1168,7 +1168,7 @@ const AgentPage = () => {
                                                 restoreSessionData(session.user.id);
                                             }
                                         }
-                                        
+
                                         if (callModeRef.current) {
                                             const remainingText = fullText.substring(lastSpokenIndex).trim();
                                             if (remainingText) {
@@ -1205,12 +1205,12 @@ const AgentPage = () => {
                                         if (dataObj.new_plan) {
                                             saveGeneratedPlan(dataObj.new_plan);
                                         }
-                                        
+
                                         // Actualizar contador de créditos en tiempo real
                                         setTimeout(async () => {
                                             await checkPlanLimit(session?.user?.id || userProfile?.id || localSessionId);
                                         }, 1000);
-                                        
+
                                     } else if (dataObj.type === 'error') {
                                         setIsLoading(false);
                                         setStreamingStatus(null);
@@ -1224,7 +1224,7 @@ const AgentPage = () => {
                     }
                 } else {
                     let errData = {};
-                    try { errData = await response.json(); } catch(error){}
+                    try { errData = await response.json(); } catch (error) { }
                     setMessages(prev => [...prev, { role: 'model', content: `❌ Error al comunicarse con la IA: ${errData.detail || ''}` }]);
                 }
             }
@@ -1261,10 +1261,10 @@ const AgentPage = () => {
         if (targetMsg?.isWelcome) {
             setMessages(prev => {
                 const updated = [...prev];
-                updated[modelMsgIndex] = { 
-                    role: 'model', 
-                    content: generateIntelligentWelcome(userProfile, formData, planData), 
-                    isWelcome: true 
+                updated[modelMsgIndex] = {
+                    role: 'model',
+                    content: generateIntelligentWelcome(userProfile, formData, planData),
+                    isWelcome: true
                 };
                 return updated;
             });
@@ -1282,9 +1282,9 @@ const AgentPage = () => {
 
         if (lastUserMsgIdx !== -1) {
             const lastUserMsg = messagesRef.current[lastUserMsgIdx];
-            handleSend(lastUserMsg.content, { 
-                truncateIndex: lastUserMsgIdx, 
-                overrideImageUrl: lastUserMsg.imageUrl 
+            handleSend(lastUserMsg.content, {
+                truncateIndex: lastUserMsgIdx,
+                overrideImageUrl: lastUserMsg.imageUrl
             });
         }
     };
@@ -1299,12 +1299,11 @@ const AgentPage = () => {
     const renderInputArea = (isCentered = false) => (
         <div className="input-wrapper" style={{
             padding: isCentered ? '1.5rem 1.25rem 2.5rem 1.25rem' : '1.25rem 2rem',
-            background: isCentered ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.65)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
+            background: isCentered ? '#ffffff' : 'rgba(255, 255, 255, 0.9)',
+            backdropFilter: isCentered ? 'none' : 'blur(12px)',
             borderTopLeftRadius: isCentered ? '2rem' : '0',
             borderTopRightRadius: isCentered ? '2rem' : '0',
-            borderTop: isCentered ? 'none' : '1px solid rgba(226, 232, 240, 0.4)',
+            borderTop: isCentered ? 'none' : '1px solid rgba(226, 232, 240, 0.8)',
             boxShadow: isCentered ? '0 -2px 20px rgba(0,0,0,0.04)' : 'none',
             position: isCentered ? 'absolute' : 'sticky',
             bottom: 0,
@@ -1314,7 +1313,7 @@ const AgentPage = () => {
             zIndex: 10,
         }}>
             <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', position: 'relative' }}>
-                
+
                 {isSpeaking && (
                     <div style={{
                         position: 'absolute',
@@ -1341,14 +1340,14 @@ const AgentPage = () => {
                                 boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                             }}
                         >
-                            <span style={{ fontSize: '1.1rem' }}>✋</span> Detener 
+                            <span style={{ fontSize: '1.1rem' }}>✋</span> Detener
                         </button>
                     </div>
                 )}
 
                 {isCentered && (
-                    <div style={{ 
-                        display: 'none' 
+                    <div style={{
+                        display: 'none'
                     }}>
                         {/* Removido temporalmente para evitar redundancia con el placeholder */}
                     </div>
@@ -1356,13 +1355,11 @@ const AgentPage = () => {
                 <div style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    background: 'rgba(248, 250, 252, 0.4)',
-                    backdropFilter: 'blur(8px)',
-                    WebkitBackdropFilter: 'blur(8px)',
+                    background: isCentered ? '#f8fafc' : '#f8fafc',
                     borderRadius: isCentered ? '2rem' : (previewUrl ? '1rem' : '2rem'),
                     padding: isCentered ? '0.5rem 0.5rem 0.5rem 1rem' : (previewUrl ? '0.5rem' : '0.5rem 0.5rem 0.5rem 1rem'),
-                    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.8)',
-                    border: '1px solid rgba(226, 232, 240, 0.5)',
+                    boxShadow: 'none',
+                    border: isCentered ? '1px solid #e2e8f0' : '1px solid #e2e8f0',
                     transition: 'all 0.2s ease',
                 }}>
                     {/* Image Preview Area - Integrated inside the input container */}
@@ -1653,7 +1650,7 @@ const AgentPage = () => {
                     cursor: default;
                 }
             `}</style>
-            <div className="agent-container" 
+            <div className="agent-container"
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
@@ -1661,19 +1658,19 @@ const AgentPage = () => {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 style={{
-                display: 'flex',
-                flexDirection: 'row',
-                height: isMobile ? 'var(--app-height, 100dvh)' : 'var(--app-height, calc(100dvh - 4rem))',
-                background: '#ffffff',
-                borderRadius: isMobile ? '0' : '1.5rem',
-                boxShadow: isMobile ? 'none' : '0 10px 40px -10px rgba(0,0,0,0.08)',
-                border: isMobile ? 'none' : '1px solid rgba(226, 232, 240, 0.8)',
-                overflow: 'hidden',
-                margin: isMobile ? '0' : '2.25rem auto 0',
-                maxWidth: isMobile ? '100vw' : '1200px',
-                width: '100%',
-                position: 'relative'
-            }}>
+                    display: 'flex',
+                    flexDirection: 'row',
+                    height: isMobile ? 'var(--app-height, 100dvh)' : 'var(--app-height, calc(100dvh - 4rem))',
+                    background: '#ffffff',
+                    borderRadius: isMobile ? '0' : '1.5rem',
+                    boxShadow: isMobile ? 'none' : '0 10px 40px -10px rgba(0,0,0,0.08)',
+                    border: isMobile ? 'none' : '1px solid rgba(226, 232, 240, 0.8)',
+                    overflow: 'hidden',
+                    margin: isMobile ? '0' : '2.25rem auto 0',
+                    maxWidth: isMobile ? '100vw' : '1200px',
+                    width: '100%',
+                    position: 'relative'
+                }}>
                 {/* Overlay Drag & Drop */}
                 {isDragging && (
                     <div style={{
@@ -1754,7 +1751,7 @@ const AgentPage = () => {
 
                 {/* Overlay para móvil */}
                 {showSidebar && (
-                    <div 
+                    <div
                         className="sidebar-overlay"
                         onClick={() => setShowSidebar(false)}
                     />
@@ -1783,60 +1780,24 @@ const AgentPage = () => {
                     position: 'relative',
                     background: '#ffffff'
                 }}>
-                {/* Chat Header */}
-                <div className="mobile-chat-header" style={{
-                    padding: '0.75rem 1.25rem',
-                    paddingTop: isMobile ? 'calc(0.75rem + max(env(safe-area-inset-top), 24px))' : '0.75rem',
-                    background: messages.length === 0 ? '#f4f7fc' : 'rgba(255,255,255,0.85)',
-                    backdropFilter: messages.length === 0 ? 'none' : 'blur(8px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    position: 'absolute',
-                    top: 0,
-                    width: '100%',
-                    zIndex: 10,
-                    borderBottom: messages.length === 0 ? 'none' : '1px solid rgba(226, 232, 240, 0.6)'
-                }}>
-                    {/* Left: Menu */}
-                    <button 
-                        onClick={() => setShowSidebar(!showSidebar)}
-                        style={{ 
-                            background: 'transparent', 
-                            border: 'none', 
-                            cursor: 'pointer', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            color: '#1e293b',
-                            padding: '0.4rem',
-                            borderRadius: '50%',
-                            transition: 'all 0.15s',
-                            marginLeft: '-0.4rem'
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                    >
-                        <History size={24} strokeWidth={1.5} />
-                    </button>
-                    
-                    {/* Center: Title */}
-                    <span className="agent-header-title" style={{ 
-                        fontSize: '1.25rem', 
-                        fontWeight: 400, 
-                        color: '#0f172a', 
+                    {/* Chat Header */}
+                    <div className="mobile-chat-header" style={{
+                        padding: '0.75rem 1.25rem',
+                        paddingTop: isMobile ? 'calc(0.75rem + max(env(safe-area-inset-top), 24px))' : '0.75rem',
+                        background: messages.length === 0 ? '#f4f7fc' : 'rgba(255,255,255,0.85)',
+                        backdropFilter: messages.length === 0 ? 'none' : 'blur(8px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
                         position: 'absolute',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        letterSpacing: '-0.02em'
+                        top: 0,
+                        width: '100%',
+                        zIndex: 10,
+                        borderBottom: messages.length === 0 ? 'none' : '1px solid rgba(226, 232, 240, 0.6)'
                     }}>
-                        MealfitRD
-                    </span>
-
-                    {/* Right: 3-dot nav menu (mobile) */}
-                    <div ref={navMenuRef} className="nav-menu-wrapper" style={{ position: 'relative', marginRight: '-0.4rem' }}>
+                        {/* Left: Menu */}
                         <button
-                            onClick={() => setShowNavMenu(!showNavMenu)}
+                            onClick={() => setShowSidebar(!showSidebar)}
                             style={{
                                 background: 'transparent',
                                 border: 'none',
@@ -1847,228 +1808,264 @@ const AgentPage = () => {
                                 color: '#1e293b',
                                 padding: '0.4rem',
                                 borderRadius: '50%',
-                                transition: 'all 0.15s'
+                                transition: 'all 0.15s',
+                                marginLeft: '-0.4rem'
                             }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                         >
-                            <Menu size={24} strokeWidth={2} />
+                            <History size={24} strokeWidth={1.5} />
                         </button>
-                        {showNavMenu && (
-                            <div className="nav-dropdown" style={{
-                                position: 'absolute',
-                                top: '100%',
-                                right: 0,
-                                marginTop: '0.5rem',
-                                background: 'rgba(255,255,255,0.97)',
-                                backdropFilter: 'blur(20px)',
-                                WebkitBackdropFilter: 'blur(20px)',
-                                borderRadius: '1rem',
-                                boxShadow: '0 10px 40px -10px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.04)',
-                                padding: '0.5rem',
-                                minWidth: '200px',
-                                zIndex: 100,
-                                animation: 'fadeSlideDown 0.2s ease'
-                            }}>
-                                {[
-                                    { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
-                                    { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' },
 
-                                    { icon: Clock, label: 'Historial', path: '/history' },
-                                    { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' }
-                                ].map((item) => (
-                                    <button
-                                        key={item.path}
-                                        onClick={() => { navigate(item.path); setShowNavMenu(false); }}
-                                        className="nav-dropdown-item"
-                                        style={{
-                                            width: '100%',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.75rem',
-                                            padding: '0.75rem 1rem',
-                                            background: 'transparent',
-                                            border: 'none',
-                                            borderRadius: '0.65rem',
-                                            color: '#334155',
-                                            fontSize: '0.95rem',
-                                            fontWeight: 500,
-                                            cursor: 'pointer',
-                                            transition: 'all 0.15s ease',
-                                            textAlign: 'left'
-                                        }}
-                                        onTouchStart={e => e.currentTarget.style.background = '#f1f5f9'}
-                                        onTouchEnd={e => e.currentTarget.style.background = 'transparent'}
-                                        onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                    >
-                                        <item.icon size={20} strokeWidth={1.8} style={{ color: '#64748b' }} />
-                                        {item.label}
-                                    </button>
-                                ))}
+                        {/* Center: Title */}
+                        <span className="agent-header-title" style={{
+                            fontSize: '1.25rem',
+                            fontWeight: 400,
+                            color: '#0f172a',
+                            position: 'absolute',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            letterSpacing: '-0.02em'
+                        }}>
+                            MealfitRD
+                        </span>
+
+                        {/* Right: 3-dot nav menu (mobile) */}
+                        <div ref={navMenuRef} className="nav-menu-wrapper" style={{ position: 'relative', marginRight: '-0.4rem' }}>
+                            <button
+                                onClick={() => setShowNavMenu(!showNavMenu)}
+                                style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#1e293b',
+                                    padding: '0.4rem',
+                                    borderRadius: '50%',
+                                    transition: 'all 0.15s'
+                                }}
+                            >
+                                <Menu size={24} strokeWidth={2} />
+                            </button>
+                            {showNavMenu && (
+                                <div className="nav-dropdown" style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    right: 0,
+                                    marginTop: '0.5rem',
+                                    background: 'rgba(255,255,255,0.97)',
+                                    backdropFilter: 'blur(20px)',
+                                    WebkitBackdropFilter: 'blur(20px)',
+                                    borderRadius: '1rem',
+                                    boxShadow: '0 10px 40px -10px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.04)',
+                                    padding: '0.5rem',
+                                    minWidth: '200px',
+                                    zIndex: 100,
+                                    animation: 'fadeSlideDown 0.2s ease'
+                                }}>
+                                    {[
+                                        { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
+                                        { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' },
+
+                                        { icon: Clock, label: 'Historial', path: '/history' },
+                                        { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' }
+                                    ].map((item) => (
+                                        <button
+                                            key={item.path}
+                                            onClick={() => { navigate(item.path); setShowNavMenu(false); }}
+                                            className="nav-dropdown-item"
+                                            style={{
+                                                width: '100%',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.75rem',
+                                                padding: '0.75rem 1rem',
+                                                background: 'transparent',
+                                                border: 'none',
+                                                borderRadius: '0.65rem',
+                                                color: '#334155',
+                                                fontSize: '0.95rem',
+                                                fontWeight: 500,
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s ease',
+                                                textAlign: 'left'
+                                            }}
+                                            onTouchStart={e => e.currentTarget.style.background = '#f1f5f9'}
+                                            onTouchEnd={e => e.currentTarget.style.background = 'transparent'}
+                                            onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                            <item.icon size={20} strokeWidth={1.8} style={{ color: '#64748b' }} />
+                                            {item.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                    </div>
+
+                    {/* Mensajes o Pantalla Principal (Gemini Style) */}
+                    <div className="messages-container" style={{
+                        flex: 1,
+                        padding: messages.length === 0 ? 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 1.5rem 0 1.5rem' : 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 2rem 0.5rem 2rem',
+                        overflowY: 'auto',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'flex-start',
+                        alignItems: messages.length === 0 ? 'flex-start' : 'center',
+                        background: messages.length === 0 ? '#ffffff' : '#ffffff',
+                        scrollBehavior: 'smooth'
+                    }}>
+                        {messages.length === 0 && !isLoadingHistory ? (
+                            <div className="empty-state-wrapper" style={{ width: '100%', maxWidth: '850px', display: 'flex', flexDirection: 'column' }}>
+                                <div style={{
+                                    animation: 'fadeInUp 0.6s ease-out forwards',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.2rem',
+                                    marginBottom: '1.25rem',
+                                    marginTop: '1.5rem',
+                                    alignItems: 'flex-start'
+                                }}>
+                                    <h1 className="welcome-heading" style={{
+                                        fontSize: '2rem',
+                                        fontWeight: 500,
+                                        color: '#0f172a',
+                                        margin: 0,
+                                        letterSpacing: '-0.01em',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.6rem'
+                                    }}>
+                                        <span style={{ fontSize: '2.5rem', lineHeight: 1 }}>🤖</span>
+                                        Hola, {userProfile?.full_name?.split(' ')[0] || formData?.name || 'amigo'}
+                                    </h1>
+                                    <h2 className="welcome-sub" style={{
+                                        fontSize: '2.5rem',
+                                        fontWeight: 400,
+                                        color: '#64748b',
+                                        margin: 0,
+                                        letterSpacing: '-0.03em',
+                                        lineHeight: 1.2
+                                    }}>
+                                        ¿Por dónde empezamos?
+                                    </h2>
+                                </div>
+
+                                <div className="empty-state-pills" style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.6rem',
+                                    alignItems: 'flex-start',
+                                    marginTop: '0.5rem'
+                                }}>
+                                    {[
+                                        { icon: '🖼️', text: 'Analizar mi comida' },
+                                        { icon: '💪', text: 'Dieta para ganar volumen' },
+                                        { icon: '✨', text: 'Plan de pérdida de peso' },
+                                        { icon: '🍳', text: 'Receta alta en proteína' }
+                                    ].map((suggestion, idx) => (
+                                        <button
+                                            key={idx}
+                                            className="suggestion-pill"
+                                            onClick={() => setInput(suggestion.text)}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.6rem',
+                                                padding: '0.75rem 1.25rem',
+                                                background: '#ffffff',
+                                                border: '1px solid #e2e8f0',
+                                                borderRadius: '2rem',
+                                                color: '#334155',
+                                                fontSize: '0.95rem',
+                                                fontWeight: 400,
+                                                cursor: 'pointer',
+                                                boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                                                transition: 'all 0.2s ease',
+                                                width: 'fit-content'
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                                            onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
+                                        >
+                                            <span className="suggestion-pill-icon" style={{ fontSize: '1.2rem', lineHeight: 1 }}>{suggestion.icon}</span>
+                                            {suggestion.text}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{
+                                maxWidth: '800px',
+                                width: '100%',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '2rem',
+                                paddingBottom: '0.5rem'
+                            }}>
+                                {isLoadingHistory ? (
+                                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem', color: '#94A3B8', gap: '0.5rem' }}>
+                                        <Loader2 className="spin-fast" size={20} /> Cargando mensajes...
+                                    </div>
+                                ) : (
+                                    messages.map((msg, i) => (
+                                        <MemoizedMessageBubble
+                                            key={i}
+                                            msg={msg}
+                                            index={i}
+                                            currentSessionId={currentSessionId}
+                                            onRegenerate={handleRegenerate}
+                                        />
+                                    ))
+                                )}
+                                {isLoading && (
+                                    <div style={{
+                                        display: 'flex',
+                                        gap: '0.75rem',
+                                        alignItems: 'center',
+                                        color: '#475569',
+                                        padding: '0.5rem 0 0.5rem 1.5rem',
+                                        marginBottom: '3.5rem',
+                                        fontSize: '0.95rem',
+                                        fontWeight: 500,
+                                        animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                                    }}>
+                                        <div className="bot-avatar-mobile" style={{
+                                            width: 30, height: 30, borderRadius: '50%',
+                                            background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            color: 'white', flexShrink: 0, fontSize: '1.1rem'
+                                        }}>🤖</div>
+                                        <div className="typing-dots-container" style={{ display: 'none' }}>
+                                            <div className="typing-dot" style={{ animation: 'typingBounce 1.4s ease-in-out infinite' }} />
+                                            <div className="typing-dot" style={{ animation: 'typingBounce 1.4s ease-in-out 0.2s infinite' }} />
+                                            <div className="typing-dot" style={{ animation: 'typingBounce 1.4s ease-in-out 0.4s infinite' }} />
+                                        </div>
+                                        <span className="loading-text-desktop" style={{
+                                            background: 'linear-gradient(90deg, #475569 0%, #94a3b8 50%, #475569 100%)',
+                                            backgroundSize: '200% auto',
+                                            color: 'transparent',
+                                            WebkitBackgroundClip: 'text',
+                                            WebkitTextFillColor: 'transparent',
+                                            animation: 'shimmer 2s linear infinite',
+                                            transition: 'opacity 0.3s ease-in-out'
+                                        }}>{streamingStatus ? loadingPhrases[loadingPhraseIdx] : 'Pensando...'}</span>
+                                    </div>
+                                )}
+                                <div ref={messagesEndRef} />
                             </div>
                         )}
                     </div>
 
-                </div>
+                    {/* Area condicional para input */}
+                    {/* Input Area (Pinned to bottom if messages exist) */}
+                    {messages.length > 0 && renderInputArea(false)}
+                    {/* Overlay Input Area for Empty State */}
+                    {messages.length === 0 && renderInputArea(true)}
 
-                {/* Mensajes o Pantalla Principal (Gemini Style) */}
-                <div className="messages-container" style={{
-                    flex: 1,
-                    padding: messages.length === 0 ? 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 1.5rem 0 1.5rem' : 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 2rem 0.5rem 2rem', 
-                    overflowY: 'auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'flex-start',
-                    alignItems: messages.length === 0 ? 'flex-start' : 'center',
-                    background: messages.length === 0 ? '#ffffff' : '#ffffff',
-                    scrollBehavior: 'smooth'
-                }}>
-                    {messages.length === 0 && !isLoadingHistory ? (
-                        <div className="empty-state-wrapper" style={{ width: '100%', maxWidth: '850px', display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ 
-                                animation: 'fadeInUp 0.6s ease-out forwards',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '0.2rem',
-                                marginBottom: '1.25rem',
-                                marginTop: '1.5rem',
-                                alignItems: 'flex-start'
-                            }}>
-                                <h1 className="welcome-heading" style={{ 
-                                    fontSize: '2rem', 
-                                    fontWeight: 500, 
-                                    color: '#0f172a', 
-                                    margin: 0,
-                                    letterSpacing: '-0.01em',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.6rem'
-                                }}>
-                                    <span style={{ fontSize: '2.5rem', lineHeight: 1 }}>🤖</span>
-                                    Hola, {userProfile?.full_name?.split(' ')[0] || formData?.name || 'amigo'}
-                                </h1>
-                                <h2 className="welcome-sub" style={{ 
-                                    fontSize: '2.5rem', 
-                                    fontWeight: 400, 
-                                    color: '#64748b', 
-                                    margin: 0, 
-                                    letterSpacing: '-0.03em',
-                                    lineHeight: 1.2
-                                }}>
-                                    ¿Por dónde empezamos?
-                                </h2>
-                            </div>
-                            
-                            <div className="empty-state-pills" style={{ 
-                                display: 'flex', 
-                                flexDirection: 'column', 
-                                gap: '0.6rem', 
-                                alignItems: 'flex-start',
-                                marginTop: '0.5rem'
-                            }}>
-                                {[
-                                    { icon: '🖼️', text: 'Analizar mi comida' },
-                                    { icon: '💪', text: 'Dieta para ganar volumen' },
-                                    { icon: '✨', text: 'Plan de pérdida de peso' },
-                                    { icon: '🍳', text: 'Receta alta en proteína' }
-                                ].map((suggestion, idx) => (
-                                    <button
-                                        key={idx}
-                                        className="suggestion-pill"
-                                        onClick={() => setInput(suggestion.text)}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.6rem',
-                                            padding: '0.75rem 1.25rem',
-                                            background: '#ffffff',
-                                            border: '1px solid #e2e8f0',
-                                            borderRadius: '2rem',
-                                            color: '#334155',
-                                            fontSize: '0.95rem',
-                                            fontWeight: 400,
-                                            cursor: 'pointer',
-                                            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                                            transition: 'all 0.2s ease',
-                                            width: 'fit-content'
-                                        }}
-                                        onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                                        onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
-                                    >
-                                        <span className="suggestion-pill-icon" style={{ fontSize: '1.2rem', lineHeight: 1 }}>{suggestion.icon}</span> 
-                                        {suggestion.text}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    ) : (
-                        <div style={{
-                            maxWidth: '800px',
-                            width: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '2rem',
-                            paddingBottom: '0.5rem'
-                        }}>
-                            {isLoadingHistory ? (
-                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem', color: '#94A3B8', gap: '0.5rem' }}>
-                                    <Loader2 className="spin-fast" size={20} /> Cargando mensajes...
-                                </div>
-                            ) : (
-                                messages.map((msg, i) => (
-                                    <MemoizedMessageBubble 
-                                        key={i} 
-                                        msg={msg} 
-                                        index={i} 
-                                        currentSessionId={currentSessionId} 
-                                        onRegenerate={handleRegenerate} 
-                                    />
-                                ))
-                            )}
-                            {isLoading && (
-                                <div style={{ 
-                                    display: 'flex', 
-                                    gap: '0.75rem', 
-                                    alignItems: 'center',
-                                    color: '#475569',
-                                    padding: '0.5rem 0 0.5rem 1.5rem',
-                                    marginBottom: '3.5rem',
-                                    fontSize: '0.95rem',
-                                    fontWeight: 500,
-                                    animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-                                }}>
-                                    <div className="bot-avatar-mobile" style={{ 
-                                        width: 30, height: 30, borderRadius: '50%',
-                                        background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: 'white', flexShrink: 0, fontSize: '1.1rem'
-                                    }}>🤖</div>
-                                    <div className="typing-dots-container" style={{ display: 'none' }}>
-                                        <div className="typing-dot" style={{ animation: 'typingBounce 1.4s ease-in-out infinite' }} />
-                                        <div className="typing-dot" style={{ animation: 'typingBounce 1.4s ease-in-out 0.2s infinite' }} />
-                                        <div className="typing-dot" style={{ animation: 'typingBounce 1.4s ease-in-out 0.4s infinite' }} />
-                                    </div>
-                                    <span className="loading-text-desktop" style={{
-                                        background: 'linear-gradient(90deg, #475569 0%, #94a3b8 50%, #475569 100%)',
-                                        backgroundSize: '200% auto',
-                                        color: 'transparent',
-                                        WebkitBackgroundClip: 'text',
-                                        WebkitTextFillColor: 'transparent',
-                                        animation: 'shimmer 2s linear infinite',
-                                        transition: 'opacity 0.3s ease-in-out'
-                                    }}>{streamingStatus ? loadingPhrases[loadingPhraseIdx] : 'Pensando...'}</span>
-                                </div>
-                            )}
-                            <div ref={messagesEndRef} />
-                        </div>
-                    )}
-                </div>
-
-                {/* Area condicional para input */}
-                {/* Input Area (Pinned to bottom if messages exist) */}
-                {messages.length > 0 && renderInputArea(false)}
-                {/* Overlay Input Area for Empty State */}
-                {messages.length === 0 && renderInputArea(true)}
-                
                 </div> {/* End of Chat Area Container */}
             </div>
 

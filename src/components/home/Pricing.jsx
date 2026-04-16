@@ -128,7 +128,7 @@ const Pricing = () => {
     const disabledStyles = { opacity: 0.85, cursor: 'not-allowed', filter: 'grayscale(100%)' };
 
     return (
-        <section className={styles.pricing}>
+        <section className={styles.pricing} id="pricing">
 
             {/* --- MODAL DE PAGO --- */}
             <PaymentModal

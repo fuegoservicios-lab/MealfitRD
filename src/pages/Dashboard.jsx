@@ -2459,46 +2459,12 @@ const Dashboard = () => {
             </div>
 
             {/* --- DAILY TRACKER UI --- */}
-            {isPremium ? (
-                <TrackingProgress
-                    planData={planData}
-                    userId={userProfile?.id || formData?.session_id || 'guest'}
-                />
-            ) : (
-                <div style={{
-                    background: '#F8FAFC',
-                    border: '1px dashed #CBD5E1',
-                    borderRadius: '16px',
-                    padding: '2rem',
-                    textAlign: 'center',
-                    marginBottom: '2rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '1rem'
-                }}>
-                    <Lock size={32} color="#94A3B8" />
-                    <h3 style={{ margin: 0, color: '#334155', fontSize: '1.1rem' }}>Seguimiento de Progreso Interactivo</h3>
-                    <p style={{ margin: 0, color: '#64748B', maxWidth: '400px', fontSize: '0.9rem' }}>
-                        Actualiza a <strong>Básico</strong> o superior para registrar tu agua, pasos, peso y visualizar tu adherencia al plan con gráficas inteligentes.
-                    </p>
-                    <button 
-                        onClick={() => navigate('/pricing')}
-                        style={{
-                            background: 'white',
-                            border: '1px solid #CBD5E1',
-                            padding: '0.5rem 1.5rem',
-                            borderRadius: '8px',
-                            fontWeight: '600',
-                            color: '#0F172A',
-                            cursor: 'pointer',
-                            marginTop: '0.5rem'
-                        }}
-                    >
-                        Ver Planes
-                    </button>
-                </div>
-            )}
+            {/* --- DAILY TRACKER UI --- */}
+            <TrackingProgress
+                planData={planData}
+                userId={userProfile?.id || formData?.session_id || 'guest'}
+                isLocked={!isPremium}
+            />
 
             {/* --- MAIN CONTENT COLUMNS --- */}
             <div className="main-grid">

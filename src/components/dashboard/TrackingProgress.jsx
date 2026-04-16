@@ -1,17 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Flame, Dumbbell, Wheat, Droplet, Activity, Lock } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { useAssessment } from '../../context/AssessmentContext';
 import { fetchWithAuth } from '../../config/api';
 import styles from './TrackingProgress.module.css';
 
-const TrackingProgress = ({ planData, userId }) => {
+const TrackingProgress = ({ planData, userId, isLocked }) => {
     const { userProfile } = useAssessment();
-    const tierRank = (() => {
-        const tier = (userProfile?.plan_tier || '').toLowerCase();
-        const rankMap = { 'gratis': 1, 'basic': 2, 'plus': 3, 'ultra': 4, 'admin': 5 };
-        return rankMap[tier] || 1;
-    })();
+    const navigate = useNavigate();
 
     const [consumed, setConsumed] = useState({
         calories: 0,
@@ -85,21 +82,42 @@ const TrackingProgress = ({ planData, userId }) => {
 
     return (
         <div className={styles.card}>
-            {/* Overlay para Plan Gratis o Básico */}
-            {tierRank < 3 && (
+            {/* Overlay para Plan Gratis */}
+            {isLocked && (
                 <div className={styles.premiumOverlay}>
                     <div className={styles.premiumBox}>
-                        <div style={{
-                            background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 100%)', color: '#FFFFFF', height: 44, width: 44,
-                            borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            margin: '0 auto 1rem', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.35), inset 0 2px 4px rgba(255,255,255,0.3)'
-                        }}>
-                            <Lock size={20} strokeWidth={2.5} />
-                        </div>
-                        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#1E293B', marginBottom: '0.4rem', marginTop: 0 }}>Exclusivo Plus</h3>
-                        <p style={{ fontSize: '0.9rem', fontWeight: 500, color: '#475569', lineHeight: 1.5, margin: 0 }}>
-                            Desbloquea el análisis inteligente de macros en tiempo real.
+                        <Lock size={32} color="#94A3B8" style={{ marginBottom: '1rem' }} />
+                        <h3 style={{ margin: 0, color: '#334155', fontSize: '1.1rem', marginBottom: '0.5rem' }}>Seguimiento de Progreso Interactivo</h3>
+                        <p style={{ margin: 0, color: '#64748B', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                            Actualiza a <strong>Básico</strong> o superior para desbloquear el análisis inteligente de macros en tiempo real.
                         </p>
+                        <button 
+                            onClick={() => {
+                                navigate('/');
+                                setTimeout(() => {
+                                    const element = document.getElementById('pricing');
+                                    if (element) {
+                                        const yOffset = -20; 
+                                        const y = element.getBoundingClientRect().top + window.scrollY + yOffset;
+                                        window.scrollTo({ top: y, behavior: 'smooth' });
+                                    }
+                                }, 350);
+                            }}
+                            style={{
+                                background: 'white',
+                                border: '1px solid #CBD5E1',
+                                padding: '0.5rem 1.5rem',
+                                borderRadius: '8px',
+                                fontWeight: '600',
+                                color: '#0F172A',
+                                cursor: 'pointer',
+                                marginTop: '1rem',
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                            }}
+                        >
+                            Ver Planes
+                        </button>
                     </div>
                 </div>
             )}
