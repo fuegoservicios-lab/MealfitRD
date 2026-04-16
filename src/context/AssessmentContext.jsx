@@ -517,7 +517,7 @@ export const AssessmentProvider = ({ children }) => {
     };
 
     // --- REGENERACIÓN INTELIGENTE CON PERSISTENCIA DE DB ---
-    const regenerateSingleMeal = async (dayIndex, mealIndex, mealType, currentName) => {
+    const regenerateSingleMeal = async (dayIndex, mealIndex, mealType, currentName, swapReason = 'dislike') => {
         const planDays = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
         const currentMeals = planDays[dayIndex]?.meals || [];
         const targetCalories = currentMeals[mealIndex]?.cals || 400;
@@ -551,7 +551,9 @@ export const AssessmentProvider = ({ children }) => {
                 body: JSON.stringify({
                     user_id: userId || "guest",
                     session_id: sessionId,
-                    rejected_meal: currentName,
+                    // Solo enviar rejected_meal cuando es un rechazo real ("No me gusta")
+                    rejected_meal: swapReason === 'dislike' ? currentName : null,
+                    swap_reason: swapReason,
                     meal_type: mealType,
                     target_calories: targetCalories,
                     diet_type: userDietType,
@@ -600,11 +602,13 @@ export const AssessmentProvider = ({ children }) => {
             // recalcule desde los ingredientes actualizados del plan
             delete updatedPlan.aggregated_shopping_list;
 
-            // Add rejected meal to disliked list with current timestamp
-            setDislikedMeals(prev => ({
-                ...prev,
-                [currentName]: Date.now()
-            }));
+            // Solo agregar a la lista de rechazos locales si es un dislike real
+            if (swapReason === 'dislike') {
+                setDislikedMeals(prev => ({
+                    ...prev,
+                    [currentName]: Date.now()
+                }));
+            }
 
             // Actualizamos UI inmediatamente
             setPlanData(updatedPlan);

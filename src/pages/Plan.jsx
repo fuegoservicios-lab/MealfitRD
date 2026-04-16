@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
-import { CheckCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Loader2, Server, Activity, PieChart, Utensils, UtensilsCrossed, ChefHat, ShoppingCart, ShieldCheck } from 'lucide-react';
+
 import PropTypes from 'prop-types';
 
 import { supabase } from '../supabase';
@@ -32,44 +33,123 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
     }
 }
 
-// --- GENERACIÓN DE PLAN (CONEXIÓN CON IA) ---
+// --- GENERACIÓN DE PLAN CON STREAMING SSE ---
 let globalGenerationPromise = null;
 
-const generateAIPlan = async (formData) => {
+const generateAIPlanStream = async (formData, onProgress) => {
     if (globalGenerationPromise) {
         console.warn("⚠️ Reutilizando promesa de generación en curso (React StrictMode)...");
         return globalGenerationPromise;
     }
 
-    const API_URL = '/api/analyze';
-
+    const STREAM_URL = '/api/analyze/stream';
+    const FALLBACK_URL = '/api/analyze';
 
     globalGenerationPromise = (async () => {
         const controller = new AbortController();
-        // Timeout: 8 minutos para cubrir hasta 2 intentos del bucle médico
-        // (Intento 1: ~120s + Revisión: ~10s + Intento 2: ~120s + Revisión: ~10s + margen)
         const timeoutId = setTimeout(() => controller.abort(), 480000);
 
         try {
-            const response = await fetchWithRetry(API_URL, {
+            // Intentar endpoint SSE streaming
+            const response = await fetchWithRetry(STREAM_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),
                 signal: controller.signal
-            }, 2); // Solo 2 intentos (no 3) para evitar cascada de re-envíos
+            }, 1); // Solo 1 intento para SSE, fallback si falla
 
             clearTimeout(timeoutId);
-            const data = await response.json();
 
-            return (Array.isArray(data) && data.length > 0) ? data[0] : data;
+            // Si el servidor no soporta streaming, caer al endpoint síncrono
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('text/event-stream')) {
+                console.warn('⚠️ Servidor no soportó SSE, parseando como JSON...');
+                const data = await response.json();
+                return (Array.isArray(data) && data.length > 0) ? data[0] : data;
+            }
+
+            // Consumir el stream SSE
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let finalResult = null;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // Parsear líneas SSE completas
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // Mantener línea incompleta en buffer
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+
+                    try {
+                        const eventData = JSON.parse(line.slice(6));
+                        const eventType = eventData.event;
+
+                        if (eventType === 'heartbeat') continue;
+
+                        if (eventType === 'complete') {
+                            finalResult = eventData.data;
+                            if (onProgress) onProgress({ event: 'complete' });
+                            continue;
+                        }
+
+                        if (eventType === 'error') {
+                            console.error('❌ [SSE] Error del servidor:', eventData.data?.message);
+                            throw new Error(eventData.data?.message || 'Error del servidor');
+                        }
+
+                        // Emitir evento de progreso al componente
+                        if (onProgress) {
+                            onProgress(eventData);
+                        }
+                    } catch (parseErr) {
+                        if (parseErr.message?.includes('Error del servidor')) throw parseErr;
+                        // Error de parsing JSON, ignorar línea malformada
+                    }
+                }
+            }
+
+            if (finalResult) return finalResult;
+
+            // Si no recibió complete event, error
+            throw new Error('Stream cerrado sin resultado completo');
+
         } catch (error) {
+            clearTimeout(timeoutId);
+
             if (error.name === 'AbortError') {
                 console.error("⏳ Error Fatal: Timeout total excedido.");
             } else {
-                console.error("❌ Fallaron todos los intentos de conexión:", error);
+                console.warn(`⚠️ SSE falló (${error.message}), intentando endpoint síncrono...`);
+
+                // Fallback al endpoint síncrono
+                try {
+                    const controller2 = new AbortController();
+                    const timeoutId2 = setTimeout(() => controller2.abort(), 480000);
+
+                    const response2 = await fetchWithRetry(FALLBACK_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formData),
+                        signal: controller2.signal
+                    }, 2);
+
+                    clearTimeout(timeoutId2);
+                    const data = await response2.json();
+                    return (Array.isArray(data) && data.length > 0) ? data[0] : data;
+                } catch (fallbackErr) {
+                    console.error('❌ Fallback síncrono también falló:', fallbackErr);
+                }
             }
+
+            // Plan de respaldo offline
             console.warn("⚠️ Activando Plan de Respaldo (Modo Offline)...");
-            // Fallback plan básico
             return {
                 calories: 2000,
                 macros: { protein: "150g", carbs: "200g", fats: "60g" },
@@ -172,6 +252,8 @@ const Plan = () => {
     const { formData, saveGeneratedPlan, setCurrentStep } = useAssessment();
     const [status, setStatus] = useState('analyzing');
     const [planData, setPlanData] = useState(null);
+    const [streamPhase, setStreamPhase] = useState(null); // Fase actual del pipeline SSE
+    const [daysCompleted, setDaysCompleted] = useState([]); // Días ya generados [1, 2, 3]
     const navigate = useNavigate();
     const location = useLocation();
     const previousMeals = location.state?.previous_meals || location.state?.previousMeals || [];
@@ -182,8 +264,6 @@ const Plan = () => {
         // Validación de seguridad: Si no hay datos, no hacemos nada (el return de abajo redirige)
         if (!formData.age || !formData.mainGoal) return;
 
-        // --- BLOQUEO DE DOBLE EJECUCIÓN (INTENTO 2: Cleanup Flag) ---
-        // Esto protege contra el "StrictMode" en desarrollo que monta/desmonta/monta rápido
         let ignore = false;
 
         window.scrollTo(0, 0);
@@ -194,17 +274,14 @@ const Plan = () => {
 
                 // FASE 1: UI de "Analizando"
                 setStatus('analyzing');
-                // Pequeña espera para que el usuario vea la animación de inicio
                 await new Promise(r => setTimeout(r, 1500));
 
                 if (ignore) return;
 
-                // FASE 2: Llamada a la IA
+                // FASE 2: Llamada a la IA con Streaming SSE
                 setStatus('generating');
 
-                // --- INTEGRACIÓN DE MEMORIA (SUPABASE) ---
                 let userId = localStorage.getItem('mealfit_user_id');
-                // IMPORTANTE: Evitar cadena "guest" literal que rompe UUID en Postgres
                 if (userId === 'guest') userId = null;
 
                 let guestSessionId = localStorage.getItem('mealfit_guest_session_id');
@@ -213,42 +290,43 @@ const Plan = () => {
                     localStorage.setItem('mealfit_guest_session_id', guestSessionId);
                 }
 
-                // AQUÍ ESTÁ EL CAMBIO APLICADO: Agregamos session_id validos y previousMeals
                 const dataToSend = {
                     ...formData,
-                    user_id: userId, // Siempre es un UUID válido o null
-                    session_id: userId || guestSessionId, // Siempre es un UUID válido
+                    user_id: userId,
+                    session_id: userId || guestSessionId,
                     previous_meals: previousMeals,
                     current_pantry_ingredients: currentIngredients
                 };
 
+                // Callback de progreso SSE
+                const handleProgress = (eventData) => {
+                    if (ignore) return;
+                    const evType = eventData.event;
+                    const evData = eventData.data;
 
+                    if (evType === 'phase') {
+                        setStreamPhase(evData?.phase || null);
+                    } else if (evType === 'day_complete') {
+                        setDaysCompleted(prev => [...new Set([...prev, evData?.day])]);
+                    } else if (evType === 'day_started') {
+                        setStreamPhase(`day_${evData?.day}`);
+                    }
+                };
 
-                // Enviamos al backend (Nota: generateAIPlan YA NO inserta en DB automáticamente)
-                const generatedPlan = await generateAIPlan(dataToSend);
+                const generatedPlan = await generateAIPlanStream(dataToSend, handleProgress);
 
-                // SI EL COMPONENTE SE DESMONTÓ, DETENEMOS AQUÍ (NO GUARDAMOS EN DB)
-                if (ignore) {
-
-                    return;
-                }
+                if (ignore) return;
 
                 // Lógica de fechas para compras (Grocery Cycle)
                 const oldPlanStr = localStorage.getItem('mealfit_plan');
                 const oldPlan = oldPlanStr ? JSON.parse(oldPlanStr) : {};
-                
+
                 if (previousMeals && previousMeals.length > 0) {
-                    // Si estamos "Actualizando Platos" (menú rotativo), mantenemos la fecha original
                     generatedPlan.grocery_start_date = oldPlan.grocery_start_date || oldPlan.created_at || new Date().toISOString();
                 } else {
-                    // Si es un "Ciclo Renovado" (plan nuevo desde cero), empezamos a contar desde hoy
                     generatedPlan.grocery_start_date = new Date().toISOString();
                 }
 
-                // El backend ya guarda el plan en _save_plan_and_track_background (con título IA, frecuencias, etc.)
-                // NO guardamos aquí para evitar duplicados en el historial.
-
-                // Guardamos el resultado en el contexto global
                 saveGeneratedPlan(generatedPlan);
                 setPlanData(generatedPlan);
 
@@ -261,15 +339,12 @@ const Plan = () => {
 
             } catch (error) {
                 console.error("❌ Error generando el plan:", error);
-                // En caso de error, podríamos redirigir al dashboard con el plan offline (fallback)
-                // O mostrar un error. Por ahora asumimos que el fallback del servicio funciona.
                 if (!ignore) setStatus('ready');
             }
         };
 
         processPlan();
 
-        // CLEANUP FUNCTION: Se ejecuta si el componente se desmonta
         return () => {
             ignore = true;
         };
@@ -284,23 +359,24 @@ const Plan = () => {
     }
 
     // Pantalla de Carga (única vista del componente mientras se genera)
-    return <LoadingScreen status={status} />;
+    return <LoadingScreen status={status} streamPhase={streamPhase} daysCompleted={daysCompleted} />;
 };
 
-// --- PANTALLA DE CARGA PREMIUM ---
-const LoadingScreen = ({ status }) => {
+// --- PANTALLA DE CARGA PREMIUM CON PROGRESO REAL ---
+const LoadingScreen = ({ status, streamPhase, daysCompleted = [] }) => {
     const [progress, setProgress] = useState(0);
     const displayProgress = status === 'ready' ? 100 : progress;
     const [tipIndex, setTipIndex] = useState(0);
 
     const steps = [
-        { text: "Conectando con servidor seguro", icon: "🔐", pct: 5 },
-        { text: "Analizando tu metabolismo basal", icon: "🧬", pct: 18 },
-        { text: "Calculando distribución de macros", icon: "⚡", pct: 35 },
-        { text: "Seleccionando ingredientes locales", icon: "🥑", pct: 50 },
-        { text: "Generando recetas personalizadas", icon: "👨‍🍳", pct: 68 },
-        { text: "Optimizando tu plan semanal", icon: "📊", pct: 82 },
-        { text: "Finalizando estrategia", icon: "✨", pct: 93 },
+        { text: "Estableciendo conexión segura", icon: Server, pct: 5, phase: null },
+        { text: "Procesando perfil biométrico", icon: Activity, pct: 12, phase: 'analyzing' },
+        { text: "Estructurando esquema de macronutrientes", icon: PieChart, pct: 25, phase: 'skeleton' },
+        { text: "Formulando Alternativa Nutricional 1", icon: Utensils, pct: 45, phase: 'day_1', dayCheck: 1 },
+        { text: "Formulando Alternativa Nutricional 2", icon: UtensilsCrossed, pct: 60, phase: 'day_2', dayCheck: 2 },
+        { text: "Formulando Alternativa Nutricional 3", icon: ChefHat, pct: 75, phase: 'day_3', dayCheck: 3 },
+        { text: "Consolidando plan y lista de compras", icon: ShoppingCart, pct: 85, phase: 'assembly' },
+        { text: "Auditoría nutricional final", icon: ShieldCheck, pct: 93, phase: 'review' },
     ];
 
     const tips = [
@@ -311,39 +387,58 @@ const LoadingScreen = ({ status }) => {
         "💡 Una comida balanceada tiene proteína, carbohidrato y grasa saludable",
     ];
 
+    // Progreso basado en eventos SSE reales
     useEffect(() => {
-        if (status === 'ready') {
-            return;
+        if (status === 'ready') return;
+
+        // Mapear fases SSE a porcentaje mínimo de progreso
+        const phaseMinProgress = {
+            'analyzing': 12,
+            'skeleton': 25,
+            'day_1': 35,
+            'day_2': 50,
+            'day_3': 60,
+            'parallel_generation': 35,
+            'assembly': 82,
+            'review': 93,
+        };
+
+        if (streamPhase && phaseMinProgress[streamPhase]) {
+            setProgress(prev => Math.max(prev, phaseMinProgress[streamPhase]));
         }
 
-        // Intervalo de 500ms (2 actualizaciones por segundo)
+        // Cuando un día se completa, incrementar el progreso según qué día sea
+        if (daysCompleted.length > 0) {
+            const dayProgress = { 1: 50, 2: 65, 3: 78 };
+            const maxDayProgress = Math.max(...daysCompleted.map(d => dayProgress[d] || 0));
+            setProgress(prev => Math.max(prev, maxDayProgress));
+        }
+    }, [streamPhase, daysCompleted, status]);
+
+    useEffect(() => {
+        if (status === 'ready') return;
+
+        // Timer de respaldo: incrementa lentamente si SSE no envía eventos
         const timer = setInterval(() => {
             setProgress((old) => {
                 if (old >= 99) return 99;
-                
-                // La generación toma ~60 a 67 segundos.
-                // Escalamos los incrementos para que alcance el 95% en unos 60-65 segundos.
+
                 let diff;
                 if (old < 20) {
-                    // 0 a 20%: Primeros ~5 segundos (avg 2% por tick)
-                    diff = Math.random() * 2 + 1; // 1 a 3
+                    diff = Math.random() * 1.5 + 0.5;
                 } else if (old < 50) {
-                    // 20 a 50%: Siguientes ~15 segundos (avg 1% por tick)
-                    diff = Math.random() * 1 + 0.5; // 0.5 a 1.5
+                    diff = Math.random() * 0.8 + 0.2;
                 } else if (old < 80) {
-                    // 50 a 80%: Siguientes ~25 segundos (avg 0.6% por tick)
-                    diff = Math.random() * 0.8 + 0.2; // 0.2 a 1.0
+                    diff = Math.random() * 0.5 + 0.1;
                 } else if (old < 95) {
-                    // 80 a 95%: Siguientes ~20 segundos (avg 0.35% por tick)
-                    diff = Math.random() * 0.5 + 0.1; // 0.1 a 0.6
+                    diff = Math.random() * 0.3 + 0.05;
                 } else {
-                    // 95 a 99%: Súper lento si se demora más de 65s (avg 0.12% por tick)
-                    diff = Math.random() * 0.15 + 0.05; // 0.05 a 0.2
+                    diff = Math.random() * 0.1 + 0.02;
                 }
-                
+
                 return Math.min(old + diff, 99);
             });
-        }, 500);
+        }, 800);
         return () => clearInterval(timer);
     }, [status]);
 
@@ -354,8 +449,12 @@ const LoadingScreen = ({ status }) => {
         return () => clearInterval(tipTimer);
     }, [tips.length]);
 
-    // Determinar qué pasos ya se completaron
-    const activeStepIndex = steps.findIndex(s => displayProgress < s.pct);
+    // Determinar qué pasos ya se completaron (basado en progreso + días completados)
+    const activeStepIndex = steps.findIndex(s => {
+        // Si el step tiene dayCheck, verificar si ese día ya se completó
+        if (s.dayCheck && daysCompleted.includes(s.dayCheck)) return false; // ya completado
+        return displayProgress < s.pct;
+    });
     const currentStep = activeStepIndex === -1 ? steps.length - 1 : Math.max(0, activeStepIndex - 1);
 
     return (
@@ -426,15 +525,21 @@ const LoadingScreen = ({ status }) => {
                         fontSize: '1.5rem',
                     }}>
                         <AnimatePresence mode="wait">
-                            <motion.span
-                                key={steps[currentStep]?.icon}
+                            <motion.div
+                                key={steps[currentStep]?.text}
                                 initial={{ opacity: 0, scale: 0.5 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.5 }}
                                 transition={{ duration: 0.3 }}
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             >
-                                {steps[currentStep]?.icon || '🍎'}
-                            </motion.span>
+                                {steps[currentStep]?.icon && 
+                                  function() { 
+                                      const StepIcon = steps[currentStep].icon; 
+                                      return <StepIcon size={24} color="#ffffff" strokeWidth={1.5} />;
+                                  }()
+                                }
+                            </motion.div>
                         </AnimatePresence>
                     </div>
                 </div>
@@ -460,7 +565,7 @@ const LoadingScreen = ({ status }) => {
                     textAlign: 'left',
                 }}>
                     {steps.map((step, i) => {
-                        const isDone = displayProgress >= step.pct;
+                    const isDone = displayProgress >= step.pct || (step.dayCheck && daysCompleted.includes(step.dayCheck));
                         const isCurrent = i === currentStep && !isDone;
                         return (
                             <motion.div
@@ -576,6 +681,6 @@ const LoadingScreen = ({ status }) => {
     );
 };
 
-LoadingScreen.propTypes = { status: PropTypes.string };
+LoadingScreen.propTypes = { status: PropTypes.string, streamPhase: PropTypes.string, daysCompleted: PropTypes.array };
 
 export default Plan;

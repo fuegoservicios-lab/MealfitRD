@@ -16,6 +16,11 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
     const hour = now.getHours();
     
     let timeGreeting = '¡Hola';
+    if (hour >= 0 && hour < 5) timeGreeting = '¡Buenas madrugadas';
+    else if (hour >= 5 && hour < 12) timeGreeting = '¡Buenos días';
+    else if (hour >= 12 && hour < 19) timeGreeting = '¡Buenas tardes';
+    else timeGreeting = '¡Buenas noches';
+
     let mealContext = '';
     
     // Cycle and exact meal logic safely
@@ -48,13 +53,14 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
 
     // Explicit logical meal intervals
     let mealKeyword = '';
-    if (hour >= 4 && hour < 11) mealKeyword = 'desayuno';
+    if (hour >= 0 && hour < 5) mealKeyword = 'madrugada';
+    else if (hour >= 5 && hour < 11) mealKeyword = 'desayuno';
     else if (hour >= 11 && hour < 12) mealKeyword = 'snack';
     else if (hour >= 12 && hour < 15) mealKeyword = 'almuerzo';
     else if (hour >= 15 && hour < 19) mealKeyword = 'snack';
     else mealKeyword = 'cena';
 
-    if (planData && !isPlanExpired) {
+    if (planData && !isPlanExpired && mealKeyword !== 'madrugada') {
         const planDays = planData?.days || [{ day: 1, meals: planData?.meals || planData?.perfectDay || [] }];
         if (planDays.length > 0 && !isNaN(cycleDayNum)) {
             const activeDayIndex = (cycleDayNum - 1) % planDays.length;
@@ -78,8 +84,14 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
         }
     }
     
-    if (mealKeyword === 'desayuno') {
-        timeGreeting = '¡Buenos días';
+    if (mealKeyword === 'madrugada') {
+        const variants = [
+            'Veo que sigues despierto, ¡recuerda que el buen descanso es clave para tu progreso! Si necesitas ayuda con algo, aquí estoy.',
+            'A esta hora lo ideal es descansar, así que no te recomendaré comidas pesadas. ¡Cuéntame si puedo ayudarte en algo más!',
+            '¿Despierto hasta tarde? Si de verdad tienes hambre y necesitas algo súper ligero, pregúntame para no alterar tu meta.'
+        ];
+        mealContext = variants[Math.floor(Math.random() * variants.length)];
+    } else if (mealKeyword === 'desayuno') {
         const variants = exactMealName ? [
             `Según tu plan, hoy te toca **${exactMealName}** de desayuno, ¿tienes los ingredientes listos o armamos una alternativa rápida?`,
             `Para desayunar hoy tienes marcado **${exactMealName}**. ¡Cuéntame si ya lo preparaste o si quieres cambiar algo!`,
@@ -91,7 +103,6 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
         ];
         mealContext = variants[Math.floor(Math.random() * variants.length)];
     } else if (mealKeyword === 'almuerzo') {
-        timeGreeting = hour < 12 ? '¡Buenos días' : '¡Buenas tardes';
         const variants = exactMealName ? [
             `Hoy de almuerzo tienes marcado **${exactMealName}**. ¿Ya lo preparaste o necesitas cambiar algo con los ingredientes que tienes?`,
             `Es la hora del almuerzo y te toca **${exactMealName}**. ¿Te ayudo con la receta o tienes un plan distinto?`,
@@ -103,7 +114,6 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
         ];
         mealContext = variants[Math.floor(Math.random() * variants.length)];
     } else if (mealKeyword === 'cena') {
-        timeGreeting = hour < 18 ? '¡Buenas tardes' : '¡Buenas noches';
         const variants = exactMealName ? [
             `De cena para hoy tienes: **${exactMealName}**. ¿Quieres que te pase las instrucciones paso a paso o prefieres otra cosa?`,
             `Para cerrar el día, tu cena sugerida es **${exactMealName}**. ¿Qué te parece?`,
@@ -116,7 +126,6 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
         mealContext = variants[Math.floor(Math.random() * variants.length)];
     } else {
         // snack
-        timeGreeting = hour < 12 ? '¡Buenos días' : (hour < 18 ? '¡Buenas tardes' : '¡Buenas noches');
         const variants = exactMealName ? [
             `Es hora de tu snack o merienda: **${exactMealName}**. Si no lo tienes, dime qué hay en tu refri y lo resolvemos.`,
             `Para tu merienda te toca **${exactMealName}**. ¿Listo para disfrutarla?`,

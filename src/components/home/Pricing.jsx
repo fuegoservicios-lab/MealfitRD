@@ -125,7 +125,7 @@ const Pricing = () => {
         return targetRank < currentRank;
     };
 
-    const disabledStyles = { opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(100%)' };
+    const disabledStyles = { opacity: 0.85, cursor: 'not-allowed', filter: 'grayscale(100%)' };
 
     return (
         <section className={styles.pricing}>
@@ -212,14 +212,17 @@ const Pricing = () => {
                             </div>
 
                             <p className={styles.description}>
-                                Más créditos y un asistente IA con memoria que aprende de tus gustos.
+                                Todo el poder de la IA. Despensa inteligente, macros exactos y rotación autónoma de menús.
                             </p>
 
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>50 Créditos al mes</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Analizador de Macros</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Asistente IA con Visión</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Memoria a Largo Plazo</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Rotación de Platos</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Rotación Autónoma de Platos</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Despensa Inteligente</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Seguimiento de Progreso</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Historial de Planes</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Gratis</strong></li>
                             </ul>
@@ -247,15 +250,13 @@ const Pricing = () => {
                             </div>
 
                             <p className={styles.description}>
-                                Tu nutricionista virtual completo. Despensa inteligente, macros exactos y progreso real.
+                                Tu nutricionista en tiempo real. Consultas por voz las 24 horas y métricas de salud avanzadas.
                             </p>
 
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>200 Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Registro de Compras</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Seguimiento de Progreso</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Analizador de Macros</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Rotación Autónoma de Platos</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Llamadas de Voz con tu Nutricionista IA</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Integración con Apple Health/Fit</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Básico</strong></li>
                             </ul>
 

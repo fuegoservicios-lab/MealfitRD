@@ -11,7 +11,7 @@ import {
 import { toast } from 'sonner';
 
 const InteractiveAssessmentFlow = () => {
-    const { currentStep, setCurrentStep, nextStep, formData, saveGeneratedPlan, maxReachedStep } = useAssessment();
+    const { currentStep, setCurrentStep, nextStep, formData, saveGeneratedPlan, maxReachedStep, planData } = useAssessment();
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -127,7 +127,7 @@ const InteractiveAssessmentFlow = () => {
     ];
 
     const currentStepConfig = steps[currentStep] || steps[0];
-    const hasCompletedBefore = !!formData?.gender && !!formData?.mainGoal;
+    const hasCompletedBefore = !!planData;
     const canSkip = (currentStep < maxReachedStep) || hasCompletedBefore;
 
     return (

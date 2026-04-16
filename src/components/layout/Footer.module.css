@@ -1,12 +1,9 @@
 .footer {
     position: relative;
-    background: linear-gradient(120deg, #0F172A, #1E293B, #020617);
-    background-size: 200% 200%;
-    animation: darkBreathe 12s ease-in-out infinite alternate;
-    color: #cbd5e1;
+    background: var(--text-main);
+    color: var(--text-light);
     padding: 4rem 0 2rem;
     margin-top: auto;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
     overflow: hidden;
 }
 
@@ -17,23 +14,11 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-image: 
-        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-    background-size: 40px 40px;
-    animation: panGrid 20s linear infinite;
+    background: 
+        radial-gradient(circle at 80% 0%, rgba(79, 70, 229, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 20% 100%, rgba(79, 70, 229, 0.08) 0%, transparent 50%);
     pointer-events: none;
     z-index: 0;
-}
-
-@keyframes darkBreathe {
-    0% { background-position: 0% 50%; }
-    100% { background-position: 100% 50%; }
-}
-
-@keyframes panGrid {
-    0% { background-position: 0 0; }
-    100% { background-position: 40px 40px; }
 }
 
 .container {
@@ -47,49 +32,46 @@
     margin: 0 auto;
 }
 
-/* ... existing styles ... */
-
-
-
 .logo {
     font-family: var(--font-heading);
     font-size: 1.5rem;
-    font-weight: 700;
-    color: white;
+    font-weight: 800;
+    color: #FFFFFF;
     margin-bottom: 1.5rem;
     display: inline-block;
 }
 
 .highlight {
-    color: var(--primary);
+    color: var(--primary-light);
 }
 
 .desc {
-    color: var(--text-muted);
+    color: var(--text-light);
     max-width: 300px;
+    line-height: 1.6;
 }
 
 .col h4 {
     margin-bottom: 1.5rem;
-    color: white;
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
+    color: #FFFFFF;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
 }
 
 .col a {
     display: block;
-    color: #94a3b8;
+    color: var(--text-light);
     text-decoration: none;
     margin-bottom: 0.75rem;
     transition: all 0.2s;
     font-size: 0.95rem;
+    font-weight: 500;
 }
 
 .col a:hover {
-    color: white;
-    transform: translateX(4px);
     color: var(--primary-light);
+    transform: translateX(4px);
 }
 
 .socialLinks {
@@ -106,14 +88,16 @@
     height: 40px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.05);
-    color: #94a3b8;
-    transition: all 0.3s;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-light);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .socialIcon:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    transform: translateY(-2px);
+    background: var(--primary);
+    color: #FFFFFF;
+    border-color: var(--primary);
+    transform: translateY(-3px);
 }
 
 .bottom {
@@ -123,8 +107,9 @@
     margin-top: 3rem;
     padding-top: 2rem;
     text-align: center;
-    color: #94a3b8;
+    color: var(--text-light);
     font-size: 0.875rem;
+    font-weight: 500;
 }
 
 @media (max-width: 768px) {

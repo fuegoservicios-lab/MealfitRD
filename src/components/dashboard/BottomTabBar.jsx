@@ -40,8 +40,8 @@ const BottomTabBar = () => {
                         aria-label={tab.label}
                     >
                         <Icon
-                            size={22}
-                            strokeWidth={isActive ? 2.5 : 1.8}
+                            size={24}
+                            strokeWidth={isActive ? 2.5 : 2}
                             className={styles.tabIcon}
                         />
                         <span className={styles.tabLabel}>{tab.label}</span>

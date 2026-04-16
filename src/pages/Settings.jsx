@@ -25,9 +25,19 @@ const Settings = () => {
 
     // Estado para la Rotación Automática Diaria
     const [autoRotateMeals, setAutoRotateMeals] = useState(() => {
+        if (userProfile?.health_profile?.autoRotateMeals !== undefined) {
+            return userProfile.health_profile.autoRotateMeals;
+        }
         const saved = localStorage.getItem('mealfit_auto_rotate');
         return saved !== null ? saved === 'true' : false; // Desactivado por defecto (opcional)
     });
+
+    // Sincronizar desde la BD si cambia remotamente o al cargar
+    useEffect(() => {
+        if (userProfile?.health_profile?.autoRotateMeals !== undefined) {
+            setAutoRotateMeals(userProfile.health_profile.autoRotateMeals);
+        }
+    }, [userProfile?.health_profile?.autoRotateMeals]);
 
     // Estado para las Notificaciones Web Push (IA)
     const [pushEnabled, setPushEnabled] = useState(false);
@@ -616,7 +626,18 @@ const Settings = () => {
                                                 });
                                                 return;
                                             }
-                                            setAutoRotateMeals(!autoRotateMeals);
+                                            const newValue = !autoRotateMeals;
+                                            setAutoRotateMeals(newValue);
+                                            
+                                            if (userProfile) {
+                                                const currentHealthProfile = userProfile.health_profile || {};
+                                                updateUserProfile({
+                                                    health_profile: {
+                                                        ...currentHealthProfile,
+                                                        autoRotateMeals: newValue
+                                                    }
+                                                });
+                                            }
                                         }}
                                     />
                                     <span className={styles.toggleSlider}></span>

@@ -8,14 +8,15 @@ import {
     Zap, Droplet, Flame, ArrowRight, CheckCircle,
     RefreshCw, ChefHat, Heart, Pill, Lock,
     Brain, Wallet, AlertCircle, Dumbbell, Wheat,
-    Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, Trash2, ChevronDown, Users
+    Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, Trash2, ChevronDown, Users,
+    ThumbsDown, Shuffle, X, Utensils
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import TrackingProgress from '../components/dashboard/TrackingProgress';
 import { supabase } from '../supabase';
 import html2pdf from 'html2pdf.js';
-import { API_BASE } from '../config/api';
+import { API_BASE, fetchWithAuth } from '../config/api';
 const Dashboard = () => {
     // 1. Obtenemos estado y funciones del Contexto Global
     const {
@@ -37,13 +38,17 @@ const Dashboard = () => {
         restoreSessionData,
         setPlanData,
         setRecalcLock,
-        updateUserProfile
+        updateUserProfile,
+        saveGeneratedPlan,
+        checkPlanLimit
     } = useAssessment();
 
     const navigate = useNavigate();
 
     // Estado local para saber qué tarjeta se está regenerando (loading spinner específico)
     const [regeneratingId, setRegeneratingId] = useState(null);
+    // Estado para el modal de razón de cambio de plato
+    const [swapModal, setSwapModal] = useState(null); // { dayIndex, mealIndex, mealType, mealName }
     const [sessionRestocked, setSessionRestocked] = useState(false);
     const [showDespensaDropdown, setShowDespensaDropdown] = useState(false);
     const despensaDropdownRef = useRef(null);
@@ -89,27 +94,8 @@ const Dashboard = () => {
     // Si el usuario vuelve a los mismos valores con los que registró compras,
     // la nevera ya tiene esas cantidades → no mostrar botón de nuevo.
     const resetRestockState = useCallback((newHouseholdSize, newGroceryDuration) => {
-        const savedConfigStr = userProfile?.id ? localStorage.getItem(`mealfit_restock_config_${userProfile.id}`) : null;
-        if (savedConfigStr) {
-            try {
-                const savedConfig = JSON.parse(savedConfigStr);
-                if (savedConfig.householdSize === newHouseholdSize && savedConfig.groceryDuration === newGroceryDuration) {
-                    // Los valores coinciden con los que se usaron al registrar compras
-                    // → la nevera ya tiene las cantidades correctas → ocultar botón
-                    setSessionRestocked(true);
-                    return;
-                }
-            } catch (e) { /* config corrupta, resetear */ }
-        }
-        // Valores diferentes → resetear para que aparezca el botón
         setSessionRestocked(false);
-        if (userProfile?.id && planData?.grocery_start_date) {
-            localStorage.removeItem(`mealfit_restock_cache_${userProfile.id}_${planData.grocery_start_date}`);
-        }
-        if (userProfile?.id) {
-            localStorage.removeItem(`mealfit_restock_cache_${userProfile.id}_latest`);
-        }
-    }, [userProfile?.id, planData?.grocery_start_date]);
+    }, []);
 
     // Estado para el modal de Onboarding de Alertas Inteligentes
     const [showPushOnboarding, setShowPushOnboarding] = useState(false);
@@ -179,6 +165,34 @@ const Dashboard = () => {
                 }
             });
         return () => supabase.removeChannel(channel);
+    }, [userProfile?.id]);
+
+    // Fallback de sincronización: refrescar inventario cuando el usuario vuelve al tab
+    // (cubre el caso donde Realtime falla o el usuario navegó a Pantry y vació la nevera)
+    useEffect(() => {
+        if (!userProfile?.id) return;
+        const refreshInventoryOnFocus = async () => {
+            try {
+                const { data } = await supabase
+                    .from('user_inventory')
+                    .select('ingredient_name, quantity, unit, master_ingredients(name, category)')
+                    .eq('user_id', userProfile.id)
+                    .gt('quantity', 0)
+                    .order('ingredient_name', { ascending: true });
+                if (data) setLiveInventory(data);
+            } catch (e) { /* non-blocking */ }
+        };
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                refreshInventoryOnFocus();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', refreshInventoryOnFocus);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', refreshInventoryOnFocus);
+        };
     }, [userProfile?.id]);
 
     // 2. ESTADO DE CARGA: Si estamos recuperando datos de la DB, mostramos loader
@@ -356,6 +370,254 @@ const Dashboard = () => {
         });
     }, [liveInventory]);
 
+    // 🔄 DELTA SHOPPING: Lista de compras inteligente que resta lo que ya hay en la Nevera.
+    // Si el usuario tiene 5 lb de pollo en inventario, el PDF/restock no mostrará pollo (o mostrará la diferencia).
+    const buildDeltaShoppingList = (shoppingList, inventoryOverride = null) => {
+        if (!shoppingList || !Array.isArray(shoppingList) || shoppingList.length === 0) return shoppingList || [];
+        const inventoryToUse = inventoryOverride || liveInventory;
+        if (!inventoryToUse || !Array.isArray(inventoryToUse) || inventoryToUse.length === 0) return shoppingList;
+
+        // 🔄 ROTACIÓN POST-RESTOCK: Solo suprimir ítems parciales/nuevos cuando el usuario
+        // YA registró sus compras (is_restocked=true) y luego rotó platos.
+        // Para planes NUEVOS, is_restocked es undefined → delta normal con todos los faltantes.
+        const isPostRestockRotation = !!planData?.is_restocked;
+
+        const MASS_TO_G = { 'g': 1, 'gr': 1, 'gramos': 1, 'kg': 1000, 'lb': 453.592, 'lbs': 453.592, 'oz': 28.3495, 'onza': 28.3495, 'onzas': 28.3495 };
+        const VOL_TO_ML = { 'ml': 1, 'l': 1000, 'taza': 240, 'tazas': 240, 'cda': 15, 'cdta': 5 };
+
+        const toBaseUnit = (qty, unit) => {
+            let u = unit.toLowerCase().trim().replace(/\.$/, ''); // remove trailing dot from 'ud.'
+            if (MASS_TO_G[u]) return { value: qty * MASS_TO_G[u], type: 'mass', ratio: MASS_TO_G[u] };
+            if (VOL_TO_ML[u]) return { value: qty * VOL_TO_ML[u], type: 'volume', ratio: VOL_TO_ML[u] };
+            
+            // Map count units to a single type
+            if (['ud', 'unidad', 'unidades', 'pz', 'pza', 'pieza', 'piezas', 'cabeza', 'cabezas'].includes(u)) {
+                return { value: qty, type: 'unit', ratio: 1 };
+            }
+            // Map package units to a single type
+            if (['pq', 'paq', 'paquete', 'paquetes', 'funda', 'fundita', 'fundas', 'sobre', 'sobres'].includes(u)) {
+                return { value: qty, type: 'pkg', ratio: 1 };
+            }
+            if (['lata', 'latas'].includes(u)) {
+                return { value: qty, type: 'can', ratio: 1 };
+            }
+
+            return { value: qty, type: u, ratio: 1 }; // generic fallback
+        };
+
+        const normalizeName = (name) => {
+            if (!name) return '';
+            let n = name.toLowerCase().trim();
+            n = n.split('(')[0].trim();
+            n = n.split(',')[0].trim();
+            return n.split(/\s+/).map(w => {
+                 if (w.length <= 3) return w;
+                 if (w.endsWith('s') && !w.endsWith('is')) return w.slice(0, -1);
+                 return w;
+            }).join(' ');
+        };
+
+        const normalizeNameAlt = (name) => {
+            if (!name) return '';
+            let n = name.toLowerCase().trim();
+            n = n.split('(')[0].trim();
+            n = n.split(',')[0].trim();
+            
+            // Replicar el comportamiento del backend (db_inventory.py / shopping_calculator.py)
+            // para que "chuleta de cerdo" haga match con el master ingredient "cerdo" guardado.
+            n = n.replace(/^(pechuga|filete|muslo|trozo|chuleta|pieza|corte|ración|racion|porción|porcion|filetico|medallón|medallones|carne)s?\s+(de|del)\s+/i, '').trim();
+
+            // Stop words: réplica exacta del backend (shopping_calculator.py línea 103)
+            // Elimina descriptores que no forman parte del nombre base del ingrediente.
+            const stops = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada', 
+                'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada', 
+                'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados', 
+                'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones', 
+                'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada', 
+                'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
+                'horneado', 'grandes', 'firme'];
+            for (const s of stops) {
+                n = n.replace(new RegExp('\\b' + s + '\\b', 'gi'), '');
+            }
+            n = n.replace(/,/g, '').replace(/\s+/g, ' ').trim();
+
+            return n.split(/\s+/).map(w => {
+                 if (w.length <= 3) return w;
+                 if (w.endsWith('es') && !w.endsWith('res') && !w.endsWith('nes')) return w.slice(0, -2);
+                 if (w.endsWith('nes') && !w.endsWith('ones')) return w.slice(0, -2);
+                 if (w.endsWith('s') && !w.endsWith('is')) return w.slice(0, -1);
+                 return w;
+            }).join(' ');
+        };
+
+        const inventoryMap = new Map();
+        inventoryToUse.forEach(item => {
+            const name = (item.ingredient_name || '').toLowerCase().trim();
+            if (!name) return;
+            const normName1 = normalizeName(name);
+            const normName2 = normalizeNameAlt(name);
+            const qty = parseFloat(item.quantity) || 0;
+            const unit = (item.unit || 'unidad').toLowerCase().trim();
+
+            const existing = inventoryMap.get(normName1) || inventoryMap.get(normName2);
+            if (existing) {
+                // Si hay múltiples rows, unificar valores respetando las unidades reales
+                const existingBase = toBaseUnit(existing.quantity, existing.unit);
+                const newBase = toBaseUnit(qty, unit);
+                
+                if (existingBase.type === newBase.type) {
+                    const totalBaseValue = existingBase.value + newBase.value;
+                    const reverseRatio = toBaseUnit(1, existing.unit).ratio || 1;
+                    existing.quantity = totalBaseValue / reverseRatio;
+                }
+            } else {
+                const dataToStore = { quantity: qty, unit: unit, rawName: name };
+                inventoryMap.set(normName1, dataToStore);
+                if (normName1 !== normName2) {
+                    inventoryMap.set(normName2, dataToStore);
+                }
+            }
+        });
+
+        const deltaList = [];
+        let itemsRemoved = 0;
+
+        // 🔍 DEBUG: mostrar todas las claves en el mapa de inventario
+        console.log('🔍 [DELTA] inventoryMap keys:', [...inventoryMap.keys()]);
+        console.log('🔍 [DELTA] inventoryToUse count:', inventoryToUse.length);
+
+        shoppingList.forEach(item => {
+            if (typeof item !== 'object' || !item || !item.name) {
+                deltaList.push(item); // strings legacy: pasar sin filtrar
+                return;
+            }
+
+            const nameKey1 = normalizeName(item.name);
+            const nameKey2 = normalizeNameAlt(item.name);
+            const invItem = inventoryMap.get(nameKey1) || inventoryMap.get(nameKey2);
+
+            // 🔍 DEBUG: trazar matching de cada ingrediente
+            console.log(`🔍 [DELTA] "${item.name}" → norm1="${nameKey1}" | norm2="${nameKey2}" | matchFound=${!!invItem}`, invItem ? `(inv: ${invItem.quantity} ${invItem.unit})` : '(MISS)');
+
+            // ESCALADO POR DEGRADACIÓN (Opción 1)
+            // Degradamos la cantidad proyectada basándonos en cuánto tiempo le queda realmente al ciclo.
+            // Si va por el día 10 de 15, no le pedimos comprar comida para 15 días, solo para los 5 restantes.
+            const degradationRatio = maxDays > 0 ? Math.max(0.1, daysLeft / maxDays) : 1;
+            const rawShopQty = parseFloat(item.market_qty ?? item.quantity ?? item.display_qty ?? 0) || 0;
+            const shopUnit = (item.market_unit || item.unit || 'unidad').toLowerCase().trim();
+
+            if (rawShopQty <= 0) {
+                deltaList.push(item); // "Al gusto" items: pasar sin filtrar
+                return;
+            }
+
+            const shopQty = degradationRatio === 1 ? rawShopQty : (rawShopQty * degradationRatio);
+            
+            const formatQty = (q) => {
+                return q < 1 ? q.toFixed(2).replace(/0+$/, '').replace(/\.$/, '') : (Number.isInteger(q) ? String(q) : q.toFixed(1).replace(/\.0$/, ''));
+            };
+
+            const degradedQtyStr = formatQty(shopQty);
+
+            if (!invItem || invItem.quantity <= 0) {
+                // No está en la Nevera → incluir aplicando degradación
+                // PERO: si es una rotación post-restock, NO debería haber ingredientes nuevos
+                // que no estén en la nevera. Si aparece uno, es un error de la IA → ignorar.
+                if (isPostRestockRotation) {
+                    console.log(`🔄 [DELTA-ROTATION] Ignorando "${item.name}" - no existe en inventario post-restock`);
+                    itemsRemoved++;
+                    return;
+                }
+                deltaList.push({
+                    ...item,
+                    market_qty: shopQty,
+                    display_qty: item.display_qty ? `${degradedQtyStr} ${shopUnit}` : item.display_qty,
+                    display_string: item.display_string ? `${degradedQtyStr} ${shopUnit} de ${item.name}` : item.display_string
+                });
+                return;
+            }
+
+            const shopBase = toBaseUnit(shopQty, shopUnit);
+            const invBase = toBaseUnit(invItem.quantity, invItem.unit);
+
+            // Solo restar si las unidades son del mismo tipo (masa-masa, vol-vol, unidad-unidad)
+            if (shopBase.type !== invBase.type) {
+                // Unidades incompatibles: si es rotación post-restock, ignorar
+                if (isPostRestockRotation) {
+                    console.log(`🔄 [DELTA-ROTATION] Ignorando "${item.name}" - unidades incompatibles pero existente en inventario post-restock`);
+                    itemsRemoved++;
+                    return;
+                }
+                deltaList.push({
+                    ...item,
+                    market_qty: shopQty,
+                    display_qty: item.display_qty ? `${degradedQtyStr} ${shopUnit}` : item.display_qty,
+                    display_string: item.display_string ? `${degradedQtyStr} ${shopUnit} de ${item.name}` : item.display_string,
+                    _hasPartialInventory: true,
+                    _inventoryNote: `Ya tienes ${invItem.quantity} ${invItem.unit} en tu Nevera`
+                });
+                return;
+            }
+
+            const remaining = shopBase.value - invBase.value;
+
+            if (remaining <= 0) {
+                // El usuario ya tiene SUFICIENTE para los días que restan → excluir del shopping list
+                itemsRemoved++;
+                return;
+            }
+
+            // Tiene algo pero no suficiente
+            // Si es rotación post-restock: la IA debería haber respetado cantidades → ignorar el faltante
+            if (isPostRestockRotation) {
+                console.log(`🔄 [DELTA-ROTATION] Ignorando faltante de "${item.name}" - parcial en inventario post-restock`);
+                itemsRemoved++;
+                return;
+            }
+
+            // Tiene algo pero no suficiente → mostrar lo restante
+            const ratio = remaining / shopBase.value;
+            const adjustedQty = shopQty * ratio;
+            const displayAdjusted = formatQty(adjustedQty);
+
+            deltaList.push({
+                ...item,
+                market_qty: adjustedQty,
+                display_qty: item.display_qty ? `${displayAdjusted} ${shopUnit}` : item.display_qty,
+                display_string: item.display_string ? `${displayAdjusted} ${shopUnit} de ${item.name}` : item.display_string,
+                _adjustedFromInventory: true,
+                _inventoryNote: `Tienes ${invItem.quantity} ${invItem.unit} — comprar ${displayAdjusted} ${shopUnit}`
+            });
+        });
+
+        // Metadata para UI
+        deltaList._itemsRemoved = itemsRemoved;
+        deltaList._isAdjusted = itemsRemoved > 0 || deltaList.some(i => i?._adjustedFromInventory);
+
+        return deltaList;
+    };
+
+    // Calcular si la delta list de esta sesión actual todavia requiere compras
+    // GUARD: No calcular hasta que liveInventory se haya cargado (evita flash del botón).
+    let hasPendingShoppingItems = false;
+    if (liveInventory !== null && planData && (planData.aggregated_shopping_list || allPlanIngredients)) {
+        const duration = formData?.groceryDuration || 'weekly';
+        let sourceListKey = 'aggregated_shopping_list';
+        if (duration === 'weekly' && planData.aggregated_shopping_list_weekly) sourceListKey = 'aggregated_shopping_list_weekly';
+        else if (duration === 'biweekly' && planData.aggregated_shopping_list_biweekly) sourceListKey = 'aggregated_shopping_list_biweekly';
+        else if (duration === 'monthly' && planData.aggregated_shopping_list_monthly) sourceListKey = 'aggregated_shopping_list_monthly';
+        
+        const rawList = (planData[sourceListKey] && Array.isArray(planData[sourceListKey]) && planData[sourceListKey].length > 0) 
+            ? planData[sourceListKey] 
+            : (planData.aggregated_shopping_list && Array.isArray(planData.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0
+                ? planData.aggregated_shopping_list 
+                : (allPlanIngredients || []));
+                
+        const currentDelta = buildDeltaShoppingList(rawList);
+        hasPendingShoppingItems = currentDelta.length > 0;
+    }
+
+
     const handleNewPlan = () => {
         // Protección contra doble disparo (auto-rotación + clic manual simultáneo)
         if (isNavigatingRef.current) return;
@@ -435,51 +697,6 @@ const Dashboard = () => {
         }
     };
 
-    // --- NUEVO: ROTACIÓN AUTOMÁTICA DIARIA (LAZY) ---
-    useEffect(() => {
-        if (loadingData || !planData || !formData) return;
-
-        const autoRotateSaved = localStorage.getItem('mealfit_auto_rotate');
-        // Desactivado por defecto si no existe la clave para que sea puramente opcional
-        const autoRotateEnabled = autoRotateSaved !== null ? autoRotateSaved === 'true' : false;
-
-        const tier = (userProfile?.plan_tier || '').toLowerCase();
-        const isPlusOrHigher = ['plus', 'ultra', 'admin'].includes(tier);
-
-        if (autoRotateEnabled && !isPlusOrHigher) {
-            // Self-healing: Apagar rotación si el usuario ya no es premium (ej: expiró suscripción)
-            localStorage.setItem('mealfit_auto_rotate', 'false');
-            return;
-        }
-
-        if (autoRotateEnabled && isPlusOrHigher) {
-            const today = new Date().toLocaleDateString();
-            const lastRotation = localStorage.getItem('mealfit_last_auto_rotation');
-
-            if (!lastRotation) {
-                // Es la primera vez que entra con la función activa.
-                // Registramos el día para que comience a rotar a partir de MAÑANA,
-                // sin interrumpir la experiencia el día de hoy.
-                localStorage.setItem('mealfit_last_auto_rotation', today);
-            } else if (lastRotation !== today) {
-                // Guardamos el día actual para asegurar que no se cicle
-                localStorage.setItem('mealfit_last_auto_rotation', today);
-
-                toast('Rotación Autónoma 🌅', {
-                    description: 'Diseñando nuevos platos con tu despensa actual...',
-                    icon: '🔄',
-                    duration: 4000
-                });
-
-                // Disparamos la rotación de fondo como si el usuario diera a "Actualizar Platos/Plan"
-                setTimeout(() => {
-                    handleNewPlan();
-                }, 500); // Pequeño delay de 500ms para asegurar renderizado previo
-            }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [loadingData, planData, formData]);
-
     // --- NUEVO: ONBOARDING DE ALERTAS INTELIGENTES (WEB PUSH) ---
     useEffect(() => {
         if (!loadingData && userProfile && isPushSupported() && 'Notification' in window) {
@@ -548,16 +765,52 @@ const Dashboard = () => {
                 sourceListKey = 'aggregated_shopping_list_monthly';
             }
 
-            const sourceIngredients = (planData[sourceListKey] && Array.isArray(planData[sourceListKey]) && planData[sourceListKey].length > 0)
+            const rawSourceIngredients = (planData[sourceListKey] && Array.isArray(planData[sourceListKey]) && planData[sourceListKey].length > 0)
                 ? planData[sourceListKey]
                 : (planData.aggregated_shopping_list && Array.isArray(planData.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0)
                     ? planData.aggregated_shopping_list
                     : (allPlanIngredients || []);
 
+            // 🔄 Forzar refresco de inventario ANTES de calcular delta para el PDF
+            // Esto garantiza que incluso si liveInventory está desactualizado (ej: restock previo
+            // falló el response pero sí guardó en BD), el PDF siempre usa datos frescos.
+            let freshInventoryForPdf = liveInventory;
+            try {
+                const { data: freshInv } = await supabase
+                    .from('user_inventory')
+                    .select('ingredient_name, quantity, unit, master_ingredients(name, category)')
+                    .eq('user_id', userProfile.id)
+                    .gt('quantity', 0)
+                    .order('ingredient_name', { ascending: true });
+                if (freshInv) {
+                    freshInventoryForPdf = freshInv;
+                    setLiveInventory(freshInv); // Actualizar estado global también
+                    console.log('📋 [PDF] Fresh inventory fetched:', freshInv.length, 'items');
+                }
+            } catch (e) {
+                console.warn('📋 [PDF] Could not refresh inventory, using cached:', e);
+            }
+
+            // 🔄 Delta Shopping: restar lo que ya hay en la Nevera (con inventario FRESCO)
+            const sourceIngredients = buildDeltaShoppingList(rawSourceIngredients, freshInventoryForPdf);
+            const deltaItemsRemoved = sourceIngredients._itemsRemoved || 0;
+            const deltaIsAdjusted = sourceIngredients._isAdjusted || false;
+
+            let isEmptyList = false;
+            let emptyMessageTitle = '';
+            let emptyMessageDesc = '';
+
             if (sourceIngredients.length === 0) {
-                toast.dismiss(loadingToast);
-                toast.error('No se encontró una lista de despensa activa.');
-                return;
+                if (deltaItemsRemoved > 0) {
+                    isEmptyList = true;
+                    emptyMessageTitle = '¡Felicidades, Lista Vacía!';
+                    emptyMessageDesc = 'La Nevera Inteligente detectó que ya tienes en casa los ingredientes necesarios. Te has ahorrado hacer compras para este ciclo.';
+                    toast.success('¡Ya tienes todo en tu Nevera!', { icon: '✅' });
+                } else {
+                    toast.dismiss(loadingToast);
+                    toast.error('No se encontró una lista de despensa activa.');
+                    return;
+                }
             }
 
             const consData = {};
@@ -596,7 +849,8 @@ const Dashboard = () => {
                     display_name: name,
                     category: cat,
                     item_ref: item,
-                    qty_base: qtyStr || 'Al gusto'
+                    qty_base: qtyStr || 'Al gusto',
+                    _inventoryNote: item._inventoryNote || ''
                 };
             });
 
@@ -646,12 +900,16 @@ const Dashboard = () => {
 
             // Count total items to adjust density and keep the PDF on 1 page
             const totalItems = Object.values(consData).length;
-            const isDense = totalItems >= 26;
-            const rootPadding = isDense ? '12px' : '20px';
-            const headerPadding = isDense ? '12px 16px' : '16px 20px';
-            const headerMargin = isDense ? '12px' : '20px';
-            const gapMargin = isDense ? '6px' : '10px';  // grid gap
-            const listGap = isDense ? '8px' : '10px';
+            const isUltraDense = totalItems >= 38;
+            const isDense = totalItems >= 26 || isUltraDense;
+            
+            const rootPadding = isUltraDense ? '6px' : (isDense ? '10px' : '20px');
+            const headerPadding = isUltraDense ? '6px 10px' : (isDense ? '10px 14px' : '16px 20px');
+            const headerMargin = isUltraDense ? '6px' : (isDense ? '10px' : '20px');
+            const disclaimerPadding = isUltraDense ? '4px 8px' : '10px 14px';
+            const disclaimerMargin = isUltraDense ? '6px' : '12px';
+            const catMargin = isUltraDense ? '8px' : '16px';
+            const ulPadding = isUltraDense ? '2px 4px' : (isDense ? '4px 8px' : '6px 12px');
 
             // Obtener duración actual (ya declarada arriba)
             let durationText = '7 Días';
@@ -679,16 +937,38 @@ const Dashboard = () => {
 
                 
                 <!-- Disclaimer de Cantidades -->
-                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 3px solid #3b82f6; padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
-                    <svg style="flex-shrink: 0; width: 16px; height: 16px; color: #3b82f6; margin-top: 1px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 3px solid #3b82f6; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; align-items: flex-start; gap: 8px;">
+                    <svg style="flex-shrink: 0; width: 14px; height: 14px; color: #3b82f6; margin-top: 1px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p style="margin: 0; font-size: 11px; color: #334155; line-height: 1.4;">
-                        <strong>Smart Engine:</strong> Las cantidades listadas han sido <strong>calculadas de manera exacta</strong> según empaques del mercado local dominicano${(formData?.householdSize || 1) > 1 ? ` y <strong>multiplicadas para ${formData.householdSize} personas</strong>` : ''}. Ajusta según tu inventario actual en casa. <strong>Nota: "Ud." significa "Unidad" (pieza entera).</strong>
+                    <p style="margin: 0; font-size: ${isUltraDense ? '9px' : '11px'}; color: #334155; line-height: 1.3;">
+                        <strong>Smart Engine:</strong> Las cantidades han sido <strong>calculadas de manera exacta</strong> según empaques del mercado local${(formData?.householdSize || 1) > 1 ? ` y <strong>multiplicadas para ${formData.householdSize} personas</strong>` : ''}. Ajusta según tu inventario actual en casa. <strong>Nota: "Ud." significa "Unidad".</strong>
                     </p>
                 </div>
 
+                ${deltaIsAdjusted ? `
+                <!-- Delta Shopping Banner -->
+                <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-left: 3px solid #10b981; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; align-items: flex-start; gap: 8px;">
+                    <svg style="flex-shrink: 0; width: 14px; height: 14px; color: #10b981; margin-top: 1px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <p style="margin: 0; font-size: ${isUltraDense ? '9.5px' : '11px'}; color: #065f46; line-height: 1.3;">
+                        <strong>Nevera Inteligente:</strong> Esta lista fue ${deltaItemsRemoved > 0 ? `<strong>ajustada automáticamente</strong> — ${deltaItemsRemoved} ingrediente${deltaItemsRemoved > 1 ? 's' : ''} ya está${deltaItemsRemoved > 1 ? 'n' : ''} en tu Nevera y ${deltaItemsRemoved > 1 ? 'fueron excluidos' : 'fue excluido'}` : '<strong>ajustada</strong> según lo que ya tienes en tu Nevera'}.
+                    </p>
+                </div>
+                ` : ''}
+
             `;
+
+            if (isEmptyList) {
+                htmlContent += `
+                <div style="text-align: center; padding: 40px 20px; background-color: #f0fdf4; border: 2px dashed #4ade80; border-radius: 12px; margin: 30px 0;">
+                    <div style="font-size: 56px; margin-bottom: 12px;">🎉</div>
+                    <h2 style="color: #166534; font-size: 24px; margin: 0 0 12px 0; font-weight: 800; letter-spacing: -0.02em;">${emptyMessageTitle}</h2>
+                    <p style="color: #15803d; margin: 0; font-size: 14px; line-height: 1.5; font-weight: 500;">${emptyMessageDesc}</p>
+                </div>
+                `;
+            }
 
             const generateBlocks = (groupObj) => {
                 let innerHtml = '';
@@ -699,12 +979,12 @@ const Dashboard = () => {
                 });
 
                 sortedKeys.forEach(cat => {
-                    const icon = `<span style="background-color: #10b981; color: white; border-radius: 4px; padding: 4px; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px;"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></span>`;
+                    const icon = `<span style="background-color: #10b981; color: white; border-radius: 4px; padding: 3px; display: flex; align-items: center; justify-content: center; width: 14px; height: 14px;"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></span>`;
                     innerHtml += `
-                    <div style="background-color: #ffffff; border: 1px solid #f3f4f6; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); break-inside: avoid-column; page-break-inside: avoid; margin-bottom: 16px; display: table; width: 100%;">
-                        <div style="background-color: #f8fafc; padding: ${isDense ? '6px 10px' : '8px 12px'}; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 6px;">
+                    <div style="background-color: #ffffff; border: 1px solid #f3f4f6; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); break-inside: avoid-column; page-break-inside: avoid; margin-bottom: ${catMargin}; display: table; width: 100%;">
+                        <div style="background-color: #f8fafc; padding: ${isUltraDense ? '4px 8px' : (isDense ? '6px 10px' : '8px 12px')}; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 6px;">
                             ${icon}
-                            <h3 style="margin: 0; font-size: 11px; font-weight: 800; color: #1f2937; text-transform: uppercase; letter-spacing: 0.05em;">${cat}</h3>
+                            <h3 style="margin: 0; font-size: ${isUltraDense ? '9.5px' : '11px'}; font-weight: 800; color: #1f2937; text-transform: uppercase; letter-spacing: 0.05em;">${cat}</h3>
                         </div>
                         <ul style="list-style: none; padding: 0; margin: 0;">
                     `;
@@ -730,13 +1010,18 @@ const Dashboard = () => {
                         else if (conf >= 0.7) { tagBg = '#fff7ed'; tagColor = '#ea580c'; tagBorder = '#ea580c30'; }
                         else { tagBg = '#fef2f2'; tagColor = '#ef4444'; tagBorder = '#ef444430'; }
 
-                        const qtyStr = displayQty && String(displayQty).trim() !== 'None' ? `<span style="font-weight: 700; color: ${tagColor}; font-size: ${isDense ? '8.5px' : '9.5px'}; background-color: ${tagBg}; border: 1px solid ${tagBorder}; padding: 1.5px 4px; border-radius: 4px; margin-left: 6px; white-space: nowrap; align-self: flex-start;">${displayQty}</span>` : '';
+                        const qtyStr = displayQty && String(displayQty).trim() !== 'None' ? `<span style="font-weight: 700; color: ${tagColor}; font-size: ${isUltraDense ? '7.5px' : (isDense ? '8.5px' : '9.5px')}; background-color: ${tagBg}; border: 1px solid ${tagBorder}; padding: ${isUltraDense ? '1px 3px' : '1.5px 4px'}; border-radius: 4px; margin-left: 4px; white-space: nowrap; align-self: flex-start;">${displayQty}</span>` : '';
+
+                        const noteHTML = item._inventoryNote ? `<div style="font-size: ${isUltraDense ? '7.5px' : (isDense ? '8.5px' : '9.5px')}; color: #059669; margin-top: 1px; font-weight: 500; line-height: 1.1;">💡 ${item._inventoryNote}</div>` : '';
 
                         innerHtml += `
-                            <li style="display: flex; align-items: flex-start; padding: ${isDense ? '4px 8px' : '6px 12px'}; ${borderBottom} page-break-inside: avoid;">
-                                <div style="width: ${isDense ? '12px' : '14px'}; height: ${isDense ? '12px' : '14px'}; border: 1.5px solid #d1d5db; border-radius: ${isDense ? '3px' : '4px'}; margin-right: ${isDense ? '6px' : '10px'}; flex-shrink: 0; background-color: #ffffff; margin-top: 2px;"></div>
+                            <li style="display: flex; align-items: flex-start; padding: ${ulPadding}; ${borderBottom} page-break-inside: avoid;">
+                                <div style="width: ${isUltraDense ? '10px' : (isDense ? '12px' : '14px')}; height: ${isUltraDense ? '10px' : (isDense ? '12px' : '14px')}; border: 1.5px solid #d1d5db; border-radius: ${isDense ? '3px' : '4px'}; margin-right: ${isDense ? '6px' : '10px'}; flex-shrink: 0; background-color: #ffffff; margin-top: 2px;"></div>
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
-                                    <span style="font-size: ${isDense ? '10px' : '11px'}; font-weight: 600; color: #374151; line-height: 1.3;">${display}</span>
+                                    <div style="display: flex; flex-direction: column;">
+                                        <span style="font-size: ${isUltraDense ? '9px' : (isDense ? '10px' : '11px')}; font-weight: 600; color: #374151; line-height: 1.2;">${display}</span>
+                                        ${noteHTML}
+                                    </div>
                                     ${qtyStr}
                                 </div>
                             </li>
@@ -750,15 +1035,16 @@ const Dashboard = () => {
             if (Object.keys(perishables).length > 0) {
                 htmlContent += `
                 <!-- Prioridad Alta -->
-                <div style="background-color: #fef2f2; border: 1px solid #fca5a5; padding: 6px 12px; border-radius: 6px; margin-bottom: 12px; display: table;">
-                    <div style="display: table-cell; vertical-align: middle; padding-right: 6px; padding-top: 2px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <div style="background-color: #fef2f2; border: 1px solid #fca5a5; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <span style="font-size: ${isUltraDense ? '9.5px' : '11px'}; font-weight: 800; color: #991b1b; letter-spacing: 0.05em;">COMPRA INMEDIATA (PERECEDEROS 1-7 DÍAS)</span>
                     </div>
-                    <div style="display: table-cell; vertical-align: middle;">
-                        <span style="font-size: 11px; font-weight: 800; color: #991b1b; letter-spacing: 0.05em;">COMPRA INMEDIATA (PERECEDEROS 1-7 DÍAS)</span>
+                    <div style="font-size: ${isUltraDense ? '7.5px' : '9px'}; color: #b91c1c; padding-left: 18px; line-height: 1.2;">
+                        Carnes, lácteos, frutas y vegetales que deben refrigerarse o consumirse pronto para evitar que se dañen.
                     </div>
                 </div>
-                <div style="column-count: 3; column-gap: 16px;">
+                <div style="column-count: 3; column-gap: ${isUltraDense ? '12px' : '16px'};">
                 `;
                 htmlContent += generateBlocks(perishables);
                 htmlContent += `</div> <!-- End Columns -->`;
@@ -767,15 +1053,16 @@ const Dashboard = () => {
             if (Object.keys(stables).length > 0) {
                 htmlContent += `
                 <!-- Estables -->
-                <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 6px; margin-top: 4px; margin-bottom: 12px; display: table;">
-                    <div style="display: table-cell; vertical-align: middle; padding-right: 6px; padding-top: 2px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2.5"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></svg>
+                <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: ${disclaimerPadding}; border-radius: 6px; margin-top: 2px; margin-bottom: ${disclaimerMargin}; display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2.5"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></svg>
+                        <span style="font-size: ${isUltraDense ? '9.5px' : '11px'}; font-weight: 800; color: #166534; letter-spacing: 0.05em;">DESPENSA Y ESTABLES (+7 DÍAS)</span>
                     </div>
-                    <div style="display: table-cell; vertical-align: middle;">
-                        <span style="font-size: 11px; font-weight: 800; color: #166534; letter-spacing: 0.05em;">DESPENSA Y ESTABLES (+7 DÍAS)</span>
+                    <div style="font-size: ${isUltraDense ? '7.5px' : '9px'}; color: #15803d; padding-left: 18px; line-height: 1.2;">
+                       Granos, enlatados, especias y víveres secos. Tienen larga caducidad y puedes almacenarlos en la alacena.
                     </div>
                 </div>
-                <div style="column-count: 3; column-gap: 16px;">
+                <div style="column-count: 3; column-gap: ${isUltraDense ? '12px' : '16px'};">
                 `;
                 htmlContent += generateBlocks(stables);
                 htmlContent += `</div> <!-- End Columns -->`;
@@ -794,10 +1081,11 @@ const Dashboard = () => {
 
             // html2pdf opciones
             const opt = {
-                margin: [5, 0, 5, 0], // top, left, bottom, right (en mm)
+                margin: [4, 0, 0, 0], // Eliminar margen inferior para evitar páginas fantasma
                 filename: `Lista_de_compras_${durationText.replace(' ', '_')}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 800 },
+                pagebreak: { mode: ['avoid-all'] }, // Forzar que no haya saltos de página
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
@@ -825,21 +1113,10 @@ const Dashboard = () => {
             return;
         }
 
-        // 1. Validación Principal: Servidor (Impide duplicación entre dispositivos)
-        if (planData?.is_restocked) {
-            console.log('🛒 [RESTOCK] BLOCKED: Plan already restocked (server flag)');
-            toast.info('Ya registraste las compras para este ciclo (Verificado en Nube).', { icon: '📦' });
-            setShowRestockModal(false);
-            return;
-        }
-
-        // 2. Validación Secundaria: Caché Local (UX Inmediata)
-        // IMPORTANTE: Incluir user_id para que no se compartan keys entre cuentas en localhost
-        // Usamos grocery_start_date porque planData desde el AssessmentContext a veces no trae 'id'
-        const restockKey = planData ? `mealfit_restock_cache_${userProfile?.id}_${planData.grocery_start_date || 'latest'}` : null;
-        if (restockKey && localStorage.getItem(restockKey)) {
-            console.log('🛒 [RESTOCK] BLOCKED: localStorage key exists:', restockKey);
-            toast.info('Ya registraste las compras para este ciclo. Puedes editar cantidades directamente en la Nevera.', { icon: '📦' });
+        // Validación Unica: Si matemáticamente y en tiempo real faltan ingredientes, lo permitimos.
+        if (!hasPendingShoppingItems) {
+            console.log('🛒 [RESTOCK] BLOCKED: hasPendingShoppingItems is false (List is empty)');
+            toast.info('Ya tienes todos estos ingredientes en tu Nevera.', { icon: '📦' });
             setShowRestockModal(false);
             return;
         }
@@ -860,11 +1137,19 @@ const Dashboard = () => {
                 sourceListKey = 'aggregated_shopping_list_monthly';
             }
 
-            const activeShoppingList = (planData[sourceListKey] && Array.isArray(planData[sourceListKey]) && planData[sourceListKey].length > 0)
+            const rawActiveShoppingList = (planData[sourceListKey] && Array.isArray(planData[sourceListKey]) && planData[sourceListKey].length > 0)
                 ? planData[sourceListKey]
                 : (planData.aggregated_shopping_list && Array.isArray(planData.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0)
                     ? planData.aggregated_shopping_list
                     : (allPlanIngredients || []);
+
+            // 🔄 Delta Shopping: solo enviar lo que NO está ya en la Nevera
+            const activeShoppingList = buildDeltaShoppingList(rawActiveShoppingList);
+            console.log('🛒 [RESTOCK] Delta applied:', {
+                original: rawActiveShoppingList.length,
+                afterDelta: activeShoppingList.length,
+                removed: activeShoppingList._itemsRemoved || 0
+            });
 
             console.log('🛒 [RESTOCK] sourceListKey:', sourceListKey);
             console.log('🛒 [RESTOCK] activeShoppingList length:', activeShoppingList.length);
@@ -902,7 +1187,7 @@ const Dashboard = () => {
                         structured = {
                             name: ing.name,
                             quantity: mqNum,
-                            unit: ing.market_unit || 'unidad'
+                            unit: ing.market_unit || ing.unit || 'unidad'
                         };
                     }
                     raw = ing.display_string || ing.id_string || `${ing.display_qty || '1'} de ${ing.name || 'Ingrediente'}`;
@@ -952,9 +1237,16 @@ const Dashboard = () => {
             toast.dismiss(loadingToast);
 
             if (response.ok && data.success) {
-                if (restockKey) localStorage.setItem(restockKey, new Date().toISOString());
                 toast.success('¡Ingredientes ingresados a tu Nevera Virtual!', { icon: '📦' });
                 setSessionRestocked(true);
+
+                // ✅ Marcar planData como restocked para que el PDF delta suprima residuos
+                if (planData) {
+                    const updatedPlan = { ...planData, is_restocked: true };
+                    setPlanData(updatedPlan);
+                    localStorage.setItem('mealfit_plan', JSON.stringify(updatedPlan));
+                }
+
                 // Guardar la configuración con la que se registraron las compras
                 if (userProfile?.id) {
                     localStorage.setItem(`mealfit_restock_config_${userProfile.id}`, JSON.stringify({
@@ -1152,8 +1444,9 @@ const Dashboard = () => {
                     z-index: 1;
                 }
                 .main-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    display: flex;
+                    flex-direction: row;
+                    align-items: flex-start;
                     gap: 2.5rem;
                 }
                 .actions-group {
@@ -1293,7 +1586,7 @@ const Dashboard = () => {
                         text-align: left !important;
                     }
                     .main-grid {
-                        grid-template-columns: 1fr;
+                        flex-direction: column;
                         gap: 1.5rem;
                     }
                     .actions-group {
@@ -1599,16 +1892,9 @@ const Dashboard = () => {
                                                                 })
                                                             }).then(res => res.json()).then(result => {
                                                                 if (result.success && result.plan_data) {
-                                                                    // Verificar si los valores coinciden con el último restock
-                                                                    const savedCfg = userProfile?.id ? localStorage.getItem(`mealfit_restock_config_${userProfile.id}`) : null;
-                                                                    let matchesSavedConfig = false;
-                                                                    if (savedCfg) {
-                                                                        try {
-                                                                            const cfg = JSON.parse(savedCfg);
-                                                                            matchesSavedConfig = cfg.householdSize === (formData?.householdSize || 1) && cfg.groceryDuration === opt.value;
-                                                                        } catch(e) {}
-                                                                    }
-                                                                    if (matchesSavedConfig) {
+                                                                    const restockKeyLoc = result.plan_data ? `mealfit_restock_cache_${userProfile?.id}_${result.plan_data.grocery_start_date || 'latest'}_${formData?.householdSize || 1}_${opt.value}` : null;
+                                                                    const isCachedLoc = restockKeyLoc ? !!localStorage.getItem(restockKeyLoc) : false;
+                                                                    if (isCachedLoc) {
                                                                         result.plan_data.is_restocked = true;
                                                                     } else {
                                                                         delete result.plan_data.is_restocked;
@@ -1848,16 +2134,9 @@ const Dashboard = () => {
                                                                 newList.forEach(it => { if (kws.some(k => (it.name||'').toLowerCase().includes(k))) console.log('  NEW:', it.name, it.display_qty); });
                                                                 
                                                                 // Aplicar directamente los datos recalculados
-                                                                // Verificar si los valores coinciden con el último restock
-                                                                const savedCfg2 = userProfile?.id ? localStorage.getItem(`mealfit_restock_config_${userProfile.id}`) : null;
-                                                                let matchesSavedConfig2 = false;
-                                                                if (savedCfg2) {
-                                                                    try {
-                                                                        const cfg2 = JSON.parse(savedCfg2);
-                                                                        matchesSavedConfig2 = cfg2.householdSize === num && cfg2.groceryDuration === (formData?.groceryDuration || groceryDuration || 'weekly');
-                                                                    } catch(e) {}
-                                                                }
-                                                                if (matchesSavedConfig2) {
+                                                                const restockKeyLoc2 = result.plan_data ? `mealfit_restock_cache_${userProfile?.id}_${result.plan_data.grocery_start_date || 'latest'}_${num}_${formData?.groceryDuration || groceryDuration || 'weekly'}` : null;
+                                                                const isCachedLoc2 = restockKeyLoc2 ? !!localStorage.getItem(restockKeyLoc2) : false;
+                                                                if (isCachedLoc2) {
                                                                     result.plan_data.is_restocked = true;
                                                                 } else {
                                                                     delete result.plan_data.is_restocked;
@@ -1945,7 +2224,7 @@ const Dashboard = () => {
                         {/* BOTONES LADO A LADO */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', width: '100%' }}>
                             {(() => {
-                                const isPremiumForRotation = ['plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase());
+                                const isPremiumForRotation = ['basic', 'plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase());
                                 const isAutoRotationActiveHeader = isPremiumForRotation && localStorage.getItem('mealfit_auto_rotate') === 'true';
 
                                 if (isAutoRotationActiveHeader) {
@@ -1975,11 +2254,14 @@ const Dashboard = () => {
                                                 alignItems: 'center',
                                                 gap: '0.4rem',
                                                 whiteSpace: 'nowrap',
-                                                opacity: 0.9
+                                                opacity: 0.9,
+                                                transition: 'all 0.5s ease'
                                             }}
                                         >
-                                            <Lock size={16} color="#94A3B8" />
-                                            <span style={{ fontSize: '0.85rem' }}>Rotación Autónoma</span>
+                                            <>
+                                                <Lock size={16} color="#94A3B8" />
+                                                <span style={{ fontSize: '0.85rem' }}>Rotación Autónoma</span>
+                                            </>
                                         </button>
                                     );
                                 }
@@ -2017,7 +2299,7 @@ const Dashboard = () => {
                                 );
                             })()}
 
-                            {(!sessionRestocked && !planData?.is_restocked && !(planData && localStorage.getItem(`mealfit_restock_cache_${userProfile?.id}_${planData.grocery_start_date || 'latest'}`))) && (
+                            {hasPendingShoppingItems && (
                                 <button
                                     onClick={() => setShowRestockModal(true)}
                                     className="new-plan-btn"
@@ -2078,6 +2360,87 @@ const Dashboard = () => {
                 </div>
             </header>
 
+            {/* --- BANNER: ROTACIÓN NOCTURNA AUTOMÁTICA --- */}
+            {(() => {
+                // Detectar si el plan fue rotado automáticamente durante la noche
+                const rotationHistory = planData?.rotation_history;
+                if (!rotationHistory || !Array.isArray(rotationHistory) || rotationHistory.length === 0) return null;
+                
+                const lastRotation = rotationHistory[rotationHistory.length - 1];
+                if (!lastRotation?.date) return null;
+                
+                const rotationDate = new Date(lastRotation.date);
+                const now = new Date();
+                const hoursSince = (now - rotationDate) / (1000 * 60 * 60);
+                
+                // Solo mostrar si la rotación ocurrió en las últimas 24 horas
+                if (hoursSince > 24) return null;
+                
+                // No mostrar si el usuario ya lo dismisseó esta sesión
+                const dismissKey = `mealfit_rotation_banner_${rotationDate.toISOString().split('T')[0]}`;
+                if (localStorage.getItem(dismissKey)) return null;
+                
+                const mealsConsumed = lastRotation.meals_consumed || [];
+                const rotationTimeStr = rotationDate.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
+                
+                return (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10, height: 0 }}
+                        animate={{ opacity: 1, y: 0, height: 'auto' }}
+                        exit={{ opacity: 0, y: -10, height: 0 }}
+                        transition={{ duration: 0.4, ease: 'easeOut' }}
+                        id="rotation-banner"
+                        style={{
+                            background: 'linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 50%, #DBEAFE 100%)',
+                            border: '1.5px solid #93C5FD',
+                            borderRadius: '1rem',
+                            padding: '1rem 1.25rem',
+                            marginBottom: '1.5rem',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '0.75rem',
+                            position: 'relative',
+                            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.08)',
+                        }}
+                    >
+                        <div style={{
+                            width: 36, height: 36, minWidth: 36,
+                            background: 'linear-gradient(135deg, #3B82F6, #2563EB)',
+                            borderRadius: '0.75rem',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)'
+                        }}>
+                            <RefreshCw size={18} color="#FFFFFF" />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <p style={{ margin: 0, fontWeight: 700, fontSize: '0.85rem', color: '#1E40AF' }}>
+                                🤖 Tu plan fue actualizado anoche
+                            </p>
+                            <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: '#3B82F6', lineHeight: 1.4 }}>
+                                La IA rotó tus platos a las {rotationTimeStr} basándose en tu inventario y preferencias.
+                                {mealsConsumed.length > 0 && (
+                                    <> Se reemplazaron {mealsConsumed.length} comida{mealsConsumed.length > 1 ? 's' : ''} del día anterior.</>
+                                )}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => {
+                                localStorage.setItem(dismissKey, 'true');
+                                document.getElementById('rotation-banner')?.remove();
+                            }}
+                            style={{
+                                background: 'none', border: 'none', cursor: 'pointer',
+                                color: '#93C5FD', fontSize: '1.1rem', padding: '0.2rem',
+                                lineHeight: 1, fontWeight: 700
+                            }}
+                            aria-label="Cerrar banner de rotación"
+                        >
+                            ×
+                        </button>
+                    </motion.div>
+                );
+            })()}
+
             {/* --- MACROS & CALORIES SUMMARY ROW --- */}
             <div className="macros-card">
                 <h2 className="macros-card-header" style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A' }}>
@@ -2096,10 +2459,46 @@ const Dashboard = () => {
             </div>
 
             {/* --- DAILY TRACKER UI --- */}
-            <TrackingProgress
-                planData={planData}
-                userId={userProfile?.id || formData?.session_id || 'guest'}
-            />
+            {isPremium ? (
+                <TrackingProgress
+                    planData={planData}
+                    userId={userProfile?.id || formData?.session_id || 'guest'}
+                />
+            ) : (
+                <div style={{
+                    background: '#F8FAFC',
+                    border: '1px dashed #CBD5E1',
+                    borderRadius: '16px',
+                    padding: '2rem',
+                    textAlign: 'center',
+                    marginBottom: '2rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '1rem'
+                }}>
+                    <Lock size={32} color="#94A3B8" />
+                    <h3 style={{ margin: 0, color: '#334155', fontSize: '1.1rem' }}>Seguimiento de Progreso Interactivo</h3>
+                    <p style={{ margin: 0, color: '#64748B', maxWidth: '400px', fontSize: '0.9rem' }}>
+                        Actualiza a <strong>Básico</strong> o superior para registrar tu agua, pasos, peso y visualizar tu adherencia al plan con gráficas inteligentes.
+                    </p>
+                    <button 
+                        onClick={() => navigate('/pricing')}
+                        style={{
+                            background: 'white',
+                            border: '1px solid #CBD5E1',
+                            padding: '0.5rem 1.5rem',
+                            borderRadius: '8px',
+                            fontWeight: '600',
+                            color: '#0F172A',
+                            cursor: 'pointer',
+                            marginTop: '0.5rem'
+                        }}
+                    >
+                        Ver Planes
+                    </button>
+                </div>
+            )}
 
             {/* --- MAIN CONTENT COLUMNS --- */}
             <div className="main-grid">
@@ -2314,68 +2713,36 @@ const Dashboard = () => {
                                                     <BookOpen size={20} color="#3B82F6" />
                                                 </button>
 
-                                                {/* REGENERATE BUTTON (AI SWAP) */}
+                                                {/* REGENERATE BUTTON (AI SWAP) — Abre modal de razón */}
                                                 <button
-                                                    onClick={async () => {
-                                                        if (isAutoRotationActive) {
-                                                            toast('Rotación Autónoma Activa', {
-                                                                description: 'Tus platos se actualizan automáticamente todos los días.',
-                                                                icon: '🔄'
-                                                            });
-                                                            return;
-                                                        }
-
-                                                        // 1. Evitar doble clic
+                                                    onClick={() => {
                                                         if (regeneratingId === index) return;
-
-                                                        // 2. Estado Visual de Carga
-                                                        setRegeneratingId(index);
-
-                                                        // 3. Notificación Inicial (Toast de Carga)
-                                                        const toastId = toast.loading('Consultando al Chef IA...', {
-                                                            description: 'Buscando una alternativa deliciosa...',
-                                                        });
-
-                                                        try {
-                                                            // 4. Llamada ASYNC al modelo local
-                                                            const newName = await regenerateSingleMeal(activeDayIndex, index, meal.meal, meal.name);
-
-                                                            // 5. Éxito
-                                                            toast.dismiss(toastId);
-                                                            toast.success('¡Menú Actualizado!', {
-                                                                description: `Cambiado por: ${newName}`,
-                                                                icon: '👨‍🍳'
-                                                            });
-                                                        } catch (error) {
-                                                            console.error("Error al regenerar:", error);
-                                                            // 6. Error (probablemente usa el fallback)
-                                                            toast.dismiss(toastId);
-                                                            toast.error('No se pudo conectar con la IA', {
-                                                                description: 'Se usó una receta alternativa local.'
-                                                            });
-                                                        } finally {
-                                                            // 7. Liberar botón
-                                                            setRegeneratingId(null);
-                                                        }
+                                                        // Abrir el micro-prompt modal en vez de ejecutar directamente
+                                                        setSwapModal({ dayIndex: activeDayIndex, mealIndex: index, mealType: meal.meal, mealName: meal.name });
                                                     }}
-                                                    disabled={regeneratingId === index || isAutoRotationActive}
+                                                    disabled={regeneratingId === index}
                                                     style={{
-                                                        background: isAutoRotationActive ? '#F8FAFC' : '#FFF7ED',
-                                                        border: isAutoRotationActive ? '1.5px solid #E2E8F0' : '1.5px solid #FED7AA',
-                                                        borderRadius: '50%',
-                                                        width: 44, height: 44,
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        cursor: isAutoRotationActive ? 'not-allowed' : (regeneratingId === index ? 'wait' : 'pointer'),
+                                                        background: '#FFF7ED',
+                                                        border: '1.5px solid #FED7AA',
+                                                        borderRadius: '1rem',
+                                                        padding: '0 0.85rem',
+                                                        height: 44,
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                                                        cursor: regeneratingId === index ? 'wait' : 'pointer',
                                                         transition: 'all 0.2s',
-                                                        opacity: isAutoRotationActive ? 0.6 : 1
+                                                        opacity: 1,
+                                                        fontWeight: 650,
+                                                        fontSize: '0.8rem',
+                                                        color: "#EA580C"
                                                     }}
-                                                    title={isAutoRotationActive ? "Rotación Autónoma Activa" : "No me gusta (Cambiar con IA)"}
+                                                    title="Cambiar con IA"
                                                 >
                                                     <RefreshCw
-                                                        size={20}
-                                                        color={isAutoRotationActive ? "#94A3B8" : "#EA580C"}
-                                                        className={regeneratingId === index && !isAutoRotationActive ? "spin-fast" : ""}
+                                                        size={18}
+                                                        color="#EA580C"
+                                                        className={regeneratingId === index ? "spin-fast" : ""}
                                                     />
+                                                    <span style={{ whiteSpace: 'nowrap' }}>Cambiar Plato</span>
                                                 </button>
 
                                                 {/* LIKE BUTTON */}
@@ -2414,6 +2781,8 @@ const Dashboard = () => {
                                 );
                             })
                         })()}
+
+
                     </div>
 
                     {/* SUPPLEMENTS SECTION */}
@@ -2684,77 +3053,7 @@ const Dashboard = () => {
                         </div>
                     </div>
 
-                    {/* Recipe Preview */}
-                    <div style={{
-                        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.5) 100%)',
-                        backdropFilter: 'blur(12px)',
-                        padding: '1.75rem',
-                        borderRadius: '2rem',
-                        border: '1px solid white',
-                        boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.02)'
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h3 style={{
-                                fontSize: '1.2rem', fontWeight: 800, color: '#0F172A',
-                                display: 'flex', alignItems: 'center', gap: '0.75rem'
-                            }}>
-                                <div style={{ background: '#FFF7ED', padding: '0.4rem', borderRadius: '0.75rem', color: '#EA580C' }}>
-                                    <ChefHat size={22} strokeWidth={2.5} />
-                                </div>
-                                Recetas
-                            </h3>
-                        </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-                            {currentDayMeals.slice(0, 3).map((meal, i) => (
-                                <div key={i} style={{
-                                    display: 'flex', alignItems: 'center', gap: '1rem',
-                                    padding: '0.85rem', borderRadius: '1rem',
-                                    background: 'white', border: '1px solid #CBD5E1', /* Slightly darker border */
-                                    boxShadow: '0 8px 16px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.04)', /* Deeper, more noticeable shadow */
-                                    transition: 'all 0.2s ease', cursor: 'pointer'
-                                }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 24px -4px rgba(15, 23, 42, 0.12)'; }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 16px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.04)'; }}
-                                >
-                                    <div style={{
-                                        width: 40, height: 40, borderRadius: '0.75rem',
-                                        background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: '#64748B', flexShrink: 0
-                                    }}>
-                                        <ChefHat size={20} />
-                                    </div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {meal.name}
-                                        </h4>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#64748B', marginTop: '0.2rem' }}>
-                                            <Flame size={14} /> {meal.cals} kcal
-                                        </div>
-                                    </div>
-                                    <div style={{ color: '#CBD5E1' }}>
-                                        <ArrowRight size={18} />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <Link to="/dashboard/recipes"
-                            onClick={() => window.scrollTo(0, 0)}
-                            style={{
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                textDecoration: 'none', color: 'white',
-                                background: 'var(--text-main)',
-                                fontWeight: 600, padding: '1rem', borderRadius: '1rem',
-                                fontSize: '0.95rem', transition: 'all 0.2s',
-                                boxShadow: '0 4px 6px -1px rgba(15, 23, 42, 0.1)'
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(15, 23, 42, 0.15)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(15, 23, 42, 0.1)'; }}
-                        >
-                            Ver Todo <ArrowRight size={18} />
-                        </Link>
-                    </div>
 
                 </div>
             </div>
@@ -3042,6 +3341,150 @@ const Dashboard = () => {
                             </AnimatePresence>
                         </motion.div>
                     </div>
+                )}
+            </AnimatePresence>
+
+            {/* ═══════════ MODAL: ¿Por qué quieres cambiar? ═══════════ */}
+            <AnimatePresence>
+                {swapModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        onClick={() => setSwapModal(null)}
+                        style={{
+                            position: 'fixed', inset: 0, zIndex: 9999,
+                            background: 'rgba(0,0,0,0.45)',
+                            backdropFilter: 'blur(4px)',
+                            display: 'flex',
+                            alignItems: window.innerWidth > 640 ? 'center' : 'flex-end',
+                            justifyContent: 'center'
+                        }}
+                    >
+                        <motion.div
+                            initial={window.innerWidth > 640 ? { scale: 0.92, opacity: 0 } : { y: '100%', opacity: 0 }}
+                            animate={window.innerWidth > 640 ? { scale: 1, opacity: 1 } : { y: 0, opacity: 1 }}
+                            exit={window.innerWidth > 640 ? { scale: 0.92, opacity: 0 } : { y: '100%', opacity: 0 }}
+                            transition={{ type: 'spring', damping: 28, stiffness: 340 }}
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                                background: '#FFFFFF',
+                                borderRadius: window.innerWidth > 640 ? '1.5rem' : '1.5rem 1.5rem 0 0',
+                                width: '100%', maxWidth: '440px',
+                                padding: '1.5rem 1.25rem 2rem',
+                                boxShadow: window.innerWidth > 640
+                                    ? '0 25px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.05)'
+                                    : '0 -8px 30px rgba(0,0,0,0.12)'
+                            }}
+                        >
+                            {/* Drag handle — solo en móvil */}
+                            {window.innerWidth <= 640 && (
+                                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+                                    <div style={{ width: '40px', height: '4px', borderRadius: '99px', background: '#E2E8F0' }} />
+                                </div>
+                            )}
+
+                            {/* Header */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                                    ¿Por qué quieres cambiar?
+                                </h3>
+                                <button
+                                    onClick={() => setSwapModal(null)}
+                                    style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                >
+                                    <X size={18} color="#64748B" />
+                                </button>
+                            </div>
+                            <p style={{ fontSize: '0.85rem', color: '#64748B', margin: '0 0 1.15rem 0', fontWeight: 500 }}>
+                                Tu respuesta nos ayuda a mejorar tus futuros planes.
+                            </p>
+
+                            {/* Meal being swapped */}
+                            <div style={{
+                                background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '0.85rem',
+                                padding: '0.65rem 0.9rem', marginBottom: '1rem',
+                                display: 'flex', alignItems: 'center', gap: '0.5rem'
+                            }}>
+                                <RefreshCw size={15} color="#EA580C" />
+                                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#9A3412' }}>
+                                    {swapModal.mealName}
+                                </span>
+                            </div>
+
+                            {/* Options */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                                {[
+                                    { id: 'variety',  icon: Shuffle,    emoji: '🔄', label: 'Quiero variedad',          color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me gusta, pero hoy quiero algo diferente' },
+                                    { id: 'time',     icon: Clock,      emoji: '⏱️', label: 'No tengo tiempo hoy',      color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco algo más rápido de preparar' },
+                                    { id: 'dislike',  icon: ThumbsDown, emoji: '👎', label: 'No me gusta este plato',    color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'La IA evitará sugerirlo en el futuro' },
+                                    { id: 'similar',  icon: Utensils,   emoji: '🍽️', label: 'Ya comí algo similar',      color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A', desc: 'Hoy necesito algo completamente distinto' }
+                                ].map(option => (
+                                    <button
+                                        key={option.id}
+                                        onClick={async () => {
+                                            const { dayIndex, mealIndex, mealType, mealName } = swapModal;
+                                            setSwapModal(null);
+
+                                            // Estado de carga
+                                            setRegeneratingId(mealIndex);
+                                            const toastId = toast.loading(
+                                                option.id === 'dislike' ? '👎 Registrando preferencia...' : '🔄 Consultando al Chef IA...',
+                                                { description: 'Buscando una alternativa deliciosa...' }
+                                            );
+
+                                            try {
+                                                const newName = await regenerateSingleMeal(
+                                                    dayIndex, mealIndex, mealType, mealName,
+                                                    option.id // ← swap_reason
+                                                );
+
+                                                toast.dismiss(toastId);
+                                                toast.success('¡Menú Actualizado!', {
+                                                    description: `Cambiado por: ${newName}`,
+                                                    icon: '👨‍🍳'
+                                                });
+                                            } catch (error) {
+                                                console.error('Error al regenerar:', error);
+                                                toast.dismiss(toastId);
+                                                toast.error('No se pudo conectar con la IA', {
+                                                    description: 'Se usó una receta alternativa local.'
+                                                });
+                                            } finally {
+                                                setRegeneratingId(null);
+                                            }
+                                        }}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                            width: '100%', textAlign: 'left',
+                                            background: option.bg, border: `1.5px solid ${option.border}`,
+                                            borderRadius: '0.9rem', padding: '0.8rem 0.9rem',
+                                            cursor: 'pointer', transition: 'all 0.2s',
+                                        }}
+                                        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.015)'; e.currentTarget.style.boxShadow = `0 3px 12px ${option.border}60`; }}
+                                        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none'; }}
+                                    >
+                                        <div style={{
+                                            width: '38px', height: '38px', borderRadius: '0.7rem',
+                                            background: `${option.color}15`,
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                                        }}>
+                                            <option.icon size={19} color={option.color} />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#0F172A', letterSpacing: '-0.01em' }}>
+                                                {option.label}
+                                            </div>
+                                            <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 500, marginTop: '2px' }}>
+                                                {option.desc}
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
+                    </motion.div>
                 )}
             </AnimatePresence>
         </>

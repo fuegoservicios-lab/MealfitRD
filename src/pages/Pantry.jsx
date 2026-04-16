@@ -4,9 +4,10 @@ import { useAssessment } from '../context/AssessmentContext';
 import { supabase } from '../supabase';
 import { Search, Plus, Minus, Trash2, Archive, Loader2, Save, X, Search as SearchIcon, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { fetchWithAuth, API_BASE } from '../config/api';
 
 const Pantry = () => {
-    const { session, userProfile } = useAssessment();
+    const { session, userProfile, setPlanData } = useAssessment();
     const [inventory, setInventory] = useState([]);
     const [masterList, setMasterList] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -18,6 +19,7 @@ const Pantry = () => {
     const [addItemSearch, setAddItemSearch] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // Resetear focus activo al cambiar búsqueda o cerrar modal
     useEffect(() => {
@@ -292,6 +294,56 @@ const Pantry = () => {
         });
     };
 
+    const confirmDeleteAll = async () => {
+        setShowDeleteConfirm(false);
+        const loadingToast = toast.loading('Borrando todos los alimentos...');
+        try {
+            const { error } = await supabase.from('user_inventory').delete().eq('user_id', session.user.id);
+            if (error) throw error;
+            
+            setInventory([]);
+            toast.dismiss(loadingToast);
+            toast.success('Todos los alimentos han sido borrados');
+
+            // ── Recalcular lista de compras en background ──
+            // Al vaciar la nevera, el delta cambia: ahora se necesitan TODOS los ingredientes del plan.
+            try {
+                const savedPlan = localStorage.getItem('mealfit_plan');
+                if (savedPlan && session?.user?.id) {
+                    const planData = JSON.parse(savedPlan);
+                    const householdSize = planData?.calc_household_size || 1;
+                    const groceryDuration = planData?.calc_grocery_duration || 'weekly';
+
+                    const recalcRes = await fetchWithAuth(`${API_BASE}/api/recalculate-shopping-list`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            user_id: session.user.id,
+                            householdSize,
+                            groceryDuration
+                        })
+                    });
+                    const result = await recalcRes.json();
+                    if (result.success && result.plan_data) {
+                        // Limpiar flag de restocked — la despensa fue vaciada
+                        delete result.plan_data.is_restocked;
+                        localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
+                        // Sincronizar con el contexto global para que Dashboard se actualice al instante
+                        setPlanData(result.plan_data);
+                        toast.success('Lista de compras actualizada', { icon: '🛒', duration: 3000 });
+                    }
+                }
+            } catch (recalcErr) {
+                console.warn('⚠️ No se pudo recalcular la lista de compras:', recalcErr);
+                // No bloquear al usuario — el delete ya fue exitoso
+            }
+        } catch (error) {
+            console.error("Error deleting all:", error);
+            toast.dismiss(loadingToast);
+            toast.error('Error al borrar los alimentos');
+        }
+    };
+
     const handleAddNewItem = async (masterItem) => {
         setIsAdding(true);
         try {
@@ -512,6 +564,26 @@ const Pantry = () => {
                 .nevera-add-btn:active {
                     transform: scale(0.97);
                 }
+                .nevera-delete-all-btn {
+                    background: transparent;
+                    color: var(--danger, #ef4444);
+                    border: 1px solid var(--danger, #ef4444);
+                    padding: 0.8rem 1.5rem;
+                    border-radius: 99px;
+                    font-weight: 700;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .nevera-delete-all-btn:active:not(:disabled) {
+                    transform: scale(0.97);
+                }
+                .nevera-delete-all-btn:hover:not(:disabled) {
+                    background: rgba(239, 68, 68, 0.1);
+                }
                 @media (max-width: 640px) {
                     .nevera-header {
                         padding: 1.25rem 1rem;
@@ -562,12 +634,22 @@ const Pantry = () => {
                         </div>
                     </div>
 
-                    <button 
-                        onClick={() => setShowAddMenu(true)}
-                        className="nevera-add-btn"
-                    >
-                        <Plus strokeWidth={3} size={18} /> Añadir Alimento
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <button 
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="nevera-delete-all-btn"
+                            disabled={inventory.length === 0}
+                            style={{ opacity: inventory.length === 0 ? 0.5 : 1, cursor: inventory.length === 0 ? 'not-allowed' : 'pointer' }}
+                        >
+                            <Trash2 strokeWidth={2.5} size={18} /> Borrar Todos
+                        </button>
+                        <button 
+                            onClick={() => setShowAddMenu(true)}
+                            className="nevera-add-btn"
+                        >
+                            <Plus strokeWidth={3} size={18} /> Añadir Alimento
+                        </button>
+                    </div>
                 </div>
 
                 {/* Main Search */}
@@ -807,6 +889,52 @@ const Pantry = () => {
                                         No existe en el catálogo maestro todavía.
                                     </div>
                                 )}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* Modal de Confirmación Borrar Todos */}
+            <AnimatePresence>
+                {showDeleteConfirm && (
+                    <>
+                        <motion.div 
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            onClick={() => setShowDeleteConfirm(false)}
+                            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)', zIndex: 200 }}
+                        />
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95, y: '-50%', x: '-50%' }} animate={{ opacity: 1, scale: 1, y: '-50%', x: '-50%' }} exit={{ opacity: 0, scale: 0.95, y: '-50%', x: '-50%' }}
+                            style={{
+                                position: 'fixed', top: '50%', left: '50%',
+                                background: 'var(--bg-card)', borderRadius: '1.5rem', padding: '2rem', zIndex: 201,
+                                width: '90%', maxWidth: '400px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+                            }}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem', color: 'var(--danger, #ef4444)' }}>
+                                <AlertCircle size={56} strokeWidth={1.5} />
+                            </div>
+                            <h2 style={{ textAlign: 'center', margin: '0 0 1rem 0', fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)' }}>¿Vaciar la Nevera?</h2>
+                            <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '2rem', lineHeight: 1.5 }}>
+                                Estás a punto de borrar <strong>todos los alimentos</strong> de la despensa. Esta acción no se puede deshacer.
+                            </p>
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <button 
+                                    onClick={() => setShowDeleteConfirm(false)}
+                                    style={{ flex: 1, padding: '1rem', background: 'var(--bg-muted)', color: 'var(--text-main)', border: 'none', borderRadius: '1rem', fontWeight: 700, cursor: 'pointer', transition: 'background-color 0.2s' }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    onClick={confirmDeleteAll}
+                                    style={{ flex: 1, padding: '1rem', background: 'var(--danger, #ef4444)', color: 'white', border: 'none', borderRadius: '1rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(239, 68, 68, 0.3)', transition: 'transform 0.1s' }}
+                                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.96)'}
+                                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                >
+                                    <Trash2 size={18} strokeWidth={2.5}/> Sí, vaciar
+                                </button>
                             </div>
                         </motion.div>
                     </>

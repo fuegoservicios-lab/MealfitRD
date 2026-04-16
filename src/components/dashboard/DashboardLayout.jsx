@@ -10,7 +10,7 @@ import styles from './DashboardLayout.module.css';
 const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { resetApp, planData, userProfile, session } = useAssessment();
+    const { resetApp, planData, userProfile, session, isPremium } = useAssessment();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
 
@@ -27,7 +27,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
         { icon: Bot, label: 'Agente', path: '/dashboard/agent' },
         { icon: Archive, label: 'Nevera', path: '/dashboard/pantry' },
         { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' }, // Placeholder
-        { icon: Clock, label: 'Historial', path: '/history' },
+        { icon: Clock, label: 'Historial', path: '/history', locked: !isPremium },
         { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' }, // Placeholder
     ];
 
@@ -59,6 +59,25 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                     {menuItems.map((item) => {
                         const Icon = item.icon;
                         const isActive = location.pathname === item.path;
+                        
+                        // Si está bloqueado, hacemos que el Link navegue a pricing opcionalmente 
+                        // o solo mostramos el ícono de candado.
+                        if (item.locked) {
+                            return (
+                                <Link
+                                    to="/pricing"
+                                    key={item.path}
+                                    className={styles.navItem}
+                                    onClick={closeMenu}
+                                    style={{ color: '#94A3B8', opacity: 0.8 }}
+                                >
+                                    <Icon size={20} />
+                                    <span style={{ flex: 1 }}>{item.label}</span>
+                                    <span style={{ fontSize: '10px', background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>🔒 Básico</span>
+                                </Link>
+                            );
+                        }
+
                         return (
                             <Link
                                 to={item.path}
