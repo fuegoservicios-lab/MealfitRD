@@ -1299,11 +1299,12 @@ const AgentPage = () => {
     const renderInputArea = (isCentered = false) => (
         <div className="input-wrapper" style={{
             padding: isCentered ? '1.5rem 1.25rem 2.5rem 1.25rem' : '1.25rem 2rem',
-            background: isCentered ? '#ffffff' : 'rgba(255, 255, 255, 0.9)',
-            backdropFilter: isCentered ? 'none' : 'blur(12px)',
+            background: isCentered ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.65)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
             borderTopLeftRadius: isCentered ? '2rem' : '0',
             borderTopRightRadius: isCentered ? '2rem' : '0',
-            borderTop: isCentered ? 'none' : '1px solid rgba(226, 232, 240, 0.8)',
+            borderTop: isCentered ? 'none' : '1px solid rgba(226, 232, 240, 0.4)',
             boxShadow: isCentered ? '0 -2px 20px rgba(0,0,0,0.04)' : 'none',
             position: isCentered ? 'absolute' : 'sticky',
             bottom: 0,
@@ -1355,11 +1356,13 @@ const AgentPage = () => {
                 <div style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    background: isCentered ? '#f8fafc' : '#f8fafc',
+                    background: 'rgba(248, 250, 252, 0.4)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
                     borderRadius: isCentered ? '2rem' : (previewUrl ? '1rem' : '2rem'),
                     padding: isCentered ? '0.5rem 0.5rem 0.5rem 1rem' : (previewUrl ? '0.5rem' : '0.5rem 0.5rem 0.5rem 1rem'),
-                    boxShadow: 'none',
-                    border: isCentered ? '1px solid #e2e8f0' : '1px solid #e2e8f0',
+                    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.8)',
+                    border: '1px solid rgba(226, 232, 240, 0.5)',
                     transition: 'all 0.2s ease',
                 }}>
                     {/* Image Preview Area - Integrated inside the input container */}
