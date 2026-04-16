@@ -603,8 +603,8 @@ const Settings = () => {
                                                 letterSpacing: '0.5px',
                                                 textTransform: 'uppercase'
                                             }}>NUEVO</span>
-                                            {!['plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase()) && (
-                                                <span style={{ fontSize: '0.85rem', flexShrink: 0 }} title="Requiere Plan Plus o Ultra">🔒</span>
+                                            {!['basic', 'plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase()) && (
+                                                <span style={{ fontSize: '0.85rem', flexShrink: 0 }} title="Requiere Plan Básico o superior">🔒</span>
                                             )}
                                         </div>
                                         <div style={{ fontSize: '0.78rem', color: '#92400E', lineHeight: '1.45', marginTop: '0.25rem' }}>
@@ -615,13 +615,13 @@ const Settings = () => {
                                 <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
                                     <input
                                         type="checkbox"
-                                        checked={autoRotateMeals}
+                                        checked={autoRotateMeals && ['basic', 'plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase())}
                                         onChange={() => {
                                             const tier = (userProfile?.plan_tier || '').toLowerCase();
-                                            const isPlusOrHigher = ['plus', 'ultra', 'admin'].includes(tier);
-                                            if (!isPlusOrHigher) {
+                                            const isPremium = ['basic', 'plus', 'ultra', 'admin'].includes(tier);
+                                            if (!isPremium) {
                                                 toast.error("Función exclusiva de planes Premium", {
-                                                    description: "Mejora a Plus o Ultra para usar la Rotación Autónoma.",
+                                                    description: "Mejora a Básico o superior para usar la Rotación Autónoma.",
                                                     icon: "🔒"
                                                 });
                                                 return;

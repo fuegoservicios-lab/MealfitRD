@@ -188,6 +188,8 @@ const Pricing = () => {
                                 <li><Check size={18} className={styles.check} /> <strong>Recetas Paso a Paso</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Lista de Compras PDF</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Nevera Virtual (Despensa)</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Aprendizaje a Corto Plazo</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Historial de Planes</strong></li>
                             </ul>
 
                             <button
@@ -223,7 +225,6 @@ const Pricing = () => {
                                 <li><Check size={18} className={styles.check} /> <strong>Rotación Autónoma de Platos</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Despensa Inteligente</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Seguimiento de Progreso</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Historial de Planes</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Gratis</strong></li>
                             </ul>
 
@@ -256,6 +257,7 @@ const Pricing = () => {
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>200 Créditos al mes</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Llamadas de Voz con tu Nutricionista IA</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Memoria infinita</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Integración con Apple Health/Fit</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Básico</strong></li>
                             </ul>

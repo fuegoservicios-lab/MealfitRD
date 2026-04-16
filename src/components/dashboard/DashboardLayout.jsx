@@ -27,7 +27,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
         { icon: Bot, label: 'Agente', path: '/dashboard/agent' },
         { icon: Archive, label: 'Nevera', path: '/dashboard/pantry' },
         { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' }, // Placeholder
-        { icon: Clock, label: 'Historial', path: '/history', locked: !isPremium },
+        { icon: Clock, label: 'Historial', path: '/history' },
         { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' }, // Placeholder
     ];
 
