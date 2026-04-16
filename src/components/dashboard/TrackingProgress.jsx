@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Flame, Dumbbell, Wheat, Droplet, Activity, Lock } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -165,7 +165,9 @@ TrackingProgress.propTypes = {
 };
 
 // --- Componente Interno para Barra Individual ---
-const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gradient, large }) => {
+// ⚡ Bolt: Wrapped in React.memo to prevent unnecessary re-renders when parent component
+// (`TrackingProgress`) polls for updates every 15s. This reduces React reconciliation overhead.
+const ProgressBar = React.memo(({ label, consumed, goal, unit, perc, icon: Icon, color, gradient, large }) => {
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -208,7 +210,7 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
             </div>
         </div>
     );
-};
+});
 
 ProgressBar.propTypes = {
     label: PropTypes.string,
