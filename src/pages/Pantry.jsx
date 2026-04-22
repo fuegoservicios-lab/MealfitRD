@@ -28,6 +28,10 @@ const Pantry = () => {
 
     const [disabledIngredients, setDisabledIngredients] = useState([]);
 
+    // ⚡ Bolt Performance Optimization: Convert array to Set for O(1) lookups
+    // This prevents O(M*N) time complexity during renders when filtering/checking disabled ingredients
+    const disabledIngredientsSet = useMemo(() => new Set(disabledIngredients), [disabledIngredients]);
+
     useEffect(() => {
         const checkDisabled = () => {
             const saved = localStorage.getItem('mealfit_disabled_ingredients');
@@ -745,7 +749,7 @@ const Pantry = () => {
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
                                     {filteredInventory[category].map(item => {
                                         const normalizedName = item.ingredient_name.toLowerCase().trim();
-                                        const isDisabled = disabledIngredients.includes(normalizedName);
+                                        const isDisabled = disabledIngredientsSet.has(normalizedName);
 
                                         return (
                                         <motion.div 
