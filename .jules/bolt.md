@@ -1,0 +1,3 @@
+## 2024-04-22 - [O(1) Set Lookups in High-Frequency Renders]
+**Learning:** Found multiple instances where arrays of strings were checked using `.includes()` within `.filter()`, `.map()`, and `.sort()` calls during complex, heavy renders (`Dashboard.jsx`, `Pantry.jsx`). The O(N) array checks within array iterations result in O(M*N) time complexity, creating a performance bottleneck when working with large data sets like meal plans and pantry inventories.
+**Action:** Always convert lookup arrays (like `disabledIngredients`) to `Set` instances using `useMemo` when they are used for filtering or conditional logic within JSX rendering. This drops lookup time to O(1) and prevents CPU overhead during frequent re-renders.
