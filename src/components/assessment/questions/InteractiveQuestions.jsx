@@ -474,6 +474,147 @@ export const QMotivation = ({ onManualAdvance }) => {
     );
 };
 
+export const QHousehold = ({ onManualAdvance }) => {
+    const { formData, updateData } = useAssessment();
+    
+    // Initialize householdSize if not set so default visual "1" matches actual state
+    useEffect(() => {
+        if (!formData.householdSize) updateData('householdSize', 1);
+    }, []);
+
+    const handlePersonSelect = (num) => {
+        updateData('householdSize', num);
+    };
+
+    const handleDurationSelect = (val) => {
+        updateData('groceryDuration', val);
+    };
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* --- Personas --- */}
+            <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <Users size={18} color="#7C3AED" />
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#334155' }}>¿Cuántas personas comen?</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
+                    {[1, 2, 3, 4, 5, 6].map(num => {
+                        const isSelected = (formData.householdSize || 1) === num;
+                        return (
+                            <div
+                                key={num}
+                                onClick={() => handlePersonSelect(num)}
+                                style={{
+                                    cursor: 'pointer',
+                                    padding: '0.85rem 0.5rem',
+                                    borderRadius: '0.75rem',
+                                    border: isSelected ? '2px solid #7C3AED' : '1.5px solid #E2E8F0',
+                                    backgroundColor: isSelected ? '#F5F3FF' : 'white',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    transition: 'all 0.2s ease',
+                                    position: 'relative',
+                                    boxShadow: isSelected ? '0 4px 12px rgba(124, 58, 237, 0.12)' : '0 1px 3px rgba(0,0,0,0.04)'
+                                }}
+                            >
+                                <span style={{ fontSize: '1.3rem' }}>
+                                    {num === 1 ? '👤' : num <= 3 ? '👥' : '👨‍👩‍👧‍👦'}
+                                </span>
+                                <span style={{
+                                    fontWeight: 700,
+                                    fontSize: '0.85rem',
+                                    color: isSelected ? '#7C3AED' : '#334155'
+                                }}>
+                                    {num}
+                                </span>
+                                <span style={{ fontSize: '0.65rem', color: '#94A3B8', fontWeight: 500 }}>
+                                    {num === 1 ? 'Individual' : `×${num}`}
+                                </span>
+                                {isSelected && (
+                                    <div style={{ position: 'absolute', top: 6, right: 6, color: '#7C3AED' }}>
+                                        <Check size={14} />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* --- Ciclo de Despensa --- */}
+            <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <Clock size={18} color="#059669" />
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#334155' }}>¿Cada cuánto haces compras?</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
+                    {[
+                        { val: 'weekly', label: '7 Días', sub: 'Semanal', emoji: '📅' },
+                        { val: 'biweekly', label: '15 Días', sub: 'Quincenal', emoji: '📆' },
+                        { val: 'monthly', label: '1 Mes', sub: 'Mensual', emoji: '🗓️' }
+                    ].map(opt => {
+                        const isSelected = formData.groceryDuration === opt.val;
+                        return (
+                            <div
+                                key={opt.val}
+                                onClick={() => handleDurationSelect(opt.val)}
+                                style={{
+                                    cursor: 'pointer',
+                                    padding: '1rem 0.75rem',
+                                    borderRadius: '0.75rem',
+                                    border: isSelected ? '2px solid #10B981' : '1.5px solid #E2E8F0',
+                                    backgroundColor: isSelected ? '#ECFDF5' : 'white',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: '0.3rem',
+                                    transition: 'all 0.2s ease',
+                                    position: 'relative',
+                                    boxShadow: isSelected ? '0 4px 12px rgba(16, 185, 129, 0.12)' : '0 1px 3px rgba(0,0,0,0.04)'
+                                }}
+                            >
+                                <span style={{ fontSize: '1.3rem' }}>{opt.emoji}</span>
+                                <span style={{
+                                    fontWeight: 700,
+                                    fontSize: '0.88rem',
+                                    color: isSelected ? '#059669' : '#334155'
+                                }}>
+                                    {opt.label}
+                                </span>
+                                <span style={{ fontSize: '0.65rem', color: '#94A3B8', fontWeight: 500 }}>
+                                    {opt.sub}
+                                </span>
+                                {isSelected && (
+                                    <div style={{ position: 'absolute', top: 6, right: 6, color: '#10B981' }}>
+                                        <Check size={14} />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Nota informativa */}
+            <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                padding: '0.75rem 1rem', borderRadius: '0.75rem',
+                background: 'linear-gradient(135deg, #F8FAFC, #F1F5F9)',
+                border: '1px solid #E2E8F0'
+            }}>
+                <span style={{ fontSize: '0.85rem', flexShrink: 0 }}>💡</span>
+                <span style={{ fontSize: '0.75rem', color: '#64748B', lineHeight: 1.4 }}>
+                    Podrás ajustar esto rápidamente desde tu panel sin regenerar el plan.
+                </span>
+            </div>
+            <NextButton onClick={onManualAdvance} disabled={!formData.householdSize || !formData.groceryDuration} />
+        </div>
+    );
+};
+
 export const QSupplements = ({ onFinish, isSubmitting }) => {
     const { formData, updateData } = useAssessment();
 

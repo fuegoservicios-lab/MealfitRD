@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAssessment } from '../context/AssessmentContext';
+import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
 import { motion, AnimatePresence } from 'framer-motion';
 import { requestNotificationPermission, subscribeToPushNotifications, isPushSupported } from '../utils/pushNotifications';
 
@@ -9,14 +10,19 @@ import {
     RefreshCw, ChefHat, Heart, Pill, Lock,
     Brain, Wallet, AlertCircle, Dumbbell, Wheat,
     Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, Trash2, ChevronDown, Users,
-    ThumbsDown, Shuffle, X, Utensils
+    ThumbsDown, Shuffle, X, Utensils, Copy
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import TrackingProgress from '../components/dashboard/TrackingProgress';
+import Modal from '../components/common/Modal';
+import OptionPickerModal from '../components/common/OptionPickerModal';
 import { supabase } from '../supabase';
 import html2pdf from 'html2pdf.js';
 import { API_BASE, fetchWithAuth } from '../config/api';
+import { trackEvent } from '../utils/analytics';
+import { getActiveShoppingList, calculateAllPlanIngredients } from '../utils/shoppingHelpers';
+
 const Dashboard = () => {
     // 1. Obtenemos estado y funciones del Contexto Global
     const {
@@ -43,26 +49,29 @@ const Dashboard = () => {
         checkPlanLimit
     } = useAssessment();
 
+    const { regeneratePlan } = useRegeneratePlan();
+
     const navigate = useNavigate();
 
     // Estado local para saber qué tarjeta se está regenerando (loading spinner específico)
     const [regeneratingId, setRegeneratingId] = useState(null);
+    // Background Chunking: controlar visibilidad del banner de generación
+    const [showChunkBanner, setShowChunkBanner] = useState(
+        () => planData?.generation_status === 'partial'
+    );
     // Estado para el modal de razón de cambio de plato
     const [swapModal, setSwapModal] = useState(null); // { dayIndex, mealIndex, mealType, mealName }
+    const [showUpdatePlanModal, setShowUpdatePlanModal] = useState(false);
+    const [showAutoRotationOverrideModal, setShowAutoRotationOverrideModal] = useState(false);
     const [sessionRestocked, setSessionRestocked] = useState(false);
     const [showDespensaDropdown, setShowDespensaDropdown] = useState(false);
     const despensaDropdownRef = useRef(null);
-    const [showHouseholdDropdown, setShowHouseholdDropdown] = useState(false);
-    const householdDropdownRef = useRef(null);
 
     // Cierra los dropdowns custom si el usuario hace clic fuera de ellos
     useEffect(() => {
         function handleClickOutside(event) {
             if (despensaDropdownRef.current && !despensaDropdownRef.current.contains(event.target)) {
                 setShowDespensaDropdown(false);
-            }
-            if (householdDropdownRef.current && !householdDropdownRef.current.contains(event.target)) {
-                setShowHouseholdDropdown(false);
             }
         }
         document.addEventListener("mousedown", handleClickOutside);
@@ -90,25 +99,64 @@ const Dashboard = () => {
     const [showRestockModal, setShowRestockModal] = useState(false);
     const [isRestocking, setIsRestocking] = useState(false);
 
+    // Estados para GAP 8 (Bandas informativas de modales)
+    const [hoveredUpdateOption, setHoveredUpdateOption] = useState(null);
+    const [hoveredSwapOption, setHoveredSwapOption] = useState(null);
+
+    // Estados para GAP 9 (Carga inline tras el clic)
+    const [isNavigatingOption, setIsNavigatingOption] = useState(null);
+
     // Helper: Resetear/restaurar estado de restock según la configuración
     // Si el usuario vuelve a los mismos valores con los que registró compras,
     // la nevera ya tiene esas cantidades → no mostrar botón de nuevo.
-    const resetRestockState = useCallback((newHouseholdSize, newGroceryDuration) => {
-        setSessionRestocked(false);
-    }, []);
 
     // Estado para el modal de Onboarding de Alertas Inteligentes
     const [showPushOnboarding, setShowPushOnboarding] = useState(false);
     const [isPushEnabling, setIsPushEnabling] = useState(false);
 
     // Guard contra race condition: evita que la rotación automática dispare handleNewPlan()
-    // al mismo tiempo que una acción manual del usuario
-    const isNavigatingRef = useRef(false);
-
+    // al mismo tiempo que una acción manual del usuario (movido a useRegeneratePlan)
+    
+    // GAP 5: Helper asíncrono para validar créditos usando estado fresco del backend
+    const validateCreditsAsync = async () => {
+        try {
+            const now = Date.now();
+            let freshPlanCount = window.__cachedQuota || 0;
+            if (now - (window.__lastQuotaCheckTime || 0) > 5000) {
+                freshPlanCount = await checkPlanLimit(userProfile?.id);
+                window.__cachedQuota = freshPlanCount;
+                window.__lastQuotaCheckTime = now;
+            }
+            
+            if (typeof userPlanLimit === 'number' && freshPlanCount >= userPlanLimit) {
+                toast.error('Sin créditos', { description: 'No tienes créditos de regeneración disponibles.' });
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error("Error validating credits:", error);
+            return true; // Si hay error, dejamos pasar para que falle en el hook principal
+        }
+    };
+    
     // Inventario real (user_inventory en DB) — sincronizado con la Nevera física
     const [liveInventory, setLiveInventory] = useState(null);
+    const [isLoadingInventory, setIsLoadingInventory] = useState(true);
+    const restockLock = useRef(false);
+    const disabledSyncTimer = useRef(null);
+    const formDataRef = useRef(formData);
+    useEffect(() => { formDataRef.current = formData; }, [formData]);
 
-    // Sync disabledIngredients → localStorage en cada cambio
+    // Hydrate disabledIngredients from DB on first load (merges with localStorage)
+    useEffect(() => {
+        if (!userProfile?.id || !userProfile.health_profile) return;
+        const dbDisabled = userProfile.health_profile.disabled_ingredients;
+        if (Array.isArray(dbDisabled) && dbDisabled.length > 0) {
+            setDisabledIngredients(prev => [...new Set([...dbDisabled, ...prev])]);
+        }
+    }, [userProfile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Sync disabledIngredients → localStorage + Supabase (debounced) on every change
     useEffect(() => {
         try {
             if (disabledIngredients.length > 0) {
@@ -117,22 +165,34 @@ const Dashboard = () => {
                 localStorage.removeItem('mealfit_disabled_ingredients');
             }
         } catch (e) { /* quota exceeded or private mode */ }
-    }, [disabledIngredients]);
+
+        if (!userProfile?.id) return;
+        clearTimeout(disabledSyncTimer.current);
+        disabledSyncTimer.current = setTimeout(() => {
+            updateUserProfile({ health_profile: { ...formDataRef.current, disabled_ingredients: disabledIngredients } });
+        }, 800);
+    }, [disabledIngredients]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Fetch inventario real desde user_inventory (refleja consumos y ediciones de la Nevera)
     useEffect(() => {
-        if (!userProfile?.id) return;
+        if (!userProfile?.id) {
+            setIsLoadingInventory(false);
+            return;
+        }
         const fetchLiveInventory = async () => {
+            setIsLoadingInventory(true);
             try {
                 const { data, error } = await supabase
                     .from('user_inventory')
-                    .select('ingredient_name, quantity, unit, master_ingredients(name, category)')
+                    .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
                     .eq('user_id', userProfile.id)
                     .gt('quantity', 0)
                     .order('ingredient_name', { ascending: true });
                 if (!error && data) setLiveInventory(data);
             } catch (e) {
                 console.error('Error fetching live inventory:', e);
+            } finally {
+                setIsLoadingInventory(false);
             }
         };
         fetchLiveInventory();
@@ -152,7 +212,7 @@ const Dashboard = () => {
                 try {
                     const { data } = await supabase
                         .from('user_inventory')
-                        .select('ingredient_name, quantity, unit, master_ingredients(name, category)')
+                        .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
                         .eq('user_id', userProfile.id)
                         .gt('quantity', 0)
                         .order('ingredient_name', { ascending: true });
@@ -175,7 +235,7 @@ const Dashboard = () => {
             try {
                 const { data } = await supabase
                     .from('user_inventory')
-                    .select('ingredient_name, quantity, unit, master_ingredients(name, category)')
+                    .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
                     .eq('user_id', userProfile.id)
                     .gt('quantity', 0)
                     .order('ingredient_name', { ascending: true });
@@ -194,6 +254,53 @@ const Dashboard = () => {
             window.removeEventListener('focus', refreshInventoryOnFocus);
         };
     }, [userProfile?.id]);
+
+    // Background Chunking: mostrar/ocultar banner y hacer POLLING
+    // [GAP 7] Reconocer los 4 estados de generation_status:
+    //   'partial'          → generando en background, seguir polling
+    //   'complete'         → todo ok, ocultar banner
+    //   'complete_partial' → plan completo pero algunos dias via Smart Shuffle (degraded)
+    //   'failed'           → generacion abortada permanentemente
+    useEffect(() => {
+        const status = planData?.generation_status;
+        let pollInterval;
+
+        if (status === 'partial') {
+            setShowChunkBanner(true);
+            pollInterval = setInterval(() => {
+                refreshProfileAndPlan();
+            }, 30000);
+        } else if (status === 'complete' && showChunkBanner) {
+            setShowChunkBanner(false);
+            const totalDays = planData?.total_days_requested || planData?.days?.length || 0;
+            const groceryDur = formData?.groceryDuration || 'weekly';
+            const coverDays = groceryDur === 'monthly' ? 30 : groceryDur === 'biweekly' ? 15 : 7;
+            const repeats = totalDays > 0 && totalDays < coverDays;
+            toast.success(`¡Tu menú de ${totalDays} días ya está listo! 🎉`, {
+                description: repeats
+                    ? `Se repetirá automáticamente para cubrir tus ${coverDays} días de compras.`
+                    : 'Todas las semanas están listas en tu calendario.',
+                duration: 6000,
+            });
+        } else if (status === 'complete_partial' && showChunkBanner) {
+            setShowChunkBanner(false);
+            toast.warning('Tu plan está listo (con respaldo) ⚠️', {
+                description: 'Algunos días se completaron con comidas de tu perfil favorito porque la IA tuvo dificultades. Puedes regenerarlos cuando quieras.',
+                duration: 8000,
+            });
+        } else if (status === 'failed' && showChunkBanner) {
+            setShowChunkBanner(false);
+            toast.error('Hubo un problema generando las próximas semanas', {
+                description: 'Tus días actuales están intactos. Intenta generar un nuevo plan pronto.',
+                duration: 10000,
+            });
+        }
+
+        return () => {
+            if (pollInterval) clearInterval(pollInterval);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planData?.generation_status, refreshProfileAndPlan]);
 
     // 2. ESTADO DE CARGA: Si estamos recuperando datos de la DB, mostramos loader
     if (loadingData) {
@@ -241,107 +348,28 @@ const Dashboard = () => {
 
     let isPlanExpired = false;
     let maxDays = 7;
-    if (groceryDuration === 'weekly') { maxDays = 7; if (daysSinceCreation >= 7) isPlanExpired = true; }
-    if (groceryDuration === 'biweekly') { maxDays = 15; if (daysSinceCreation >= 15) isPlanExpired = true; }
-    if (groceryDuration === 'monthly') { maxDays = 30; if (daysSinceCreation >= 30) isPlanExpired = true; }
+    if (groceryDuration === 'weekly') { maxDays = 7; }
+    if (groceryDuration === 'biweekly') { maxDays = 15; }
+    if (groceryDuration === 'monthly') { maxDays = 30; }
 
-    const daysLeft = Math.max(0, maxDays - daysSinceCreation);
+    const generated_days = planData?.days?.length || 0;
+    
+    // GAP 8: Expiración de plan no considera tiempo de generación
+    // Fix: extender expiry por (requested_days - generated_days)
+    const expiryExtension = Math.max(0, maxDays - generated_days);
+    const totalAllowedDays = maxDays + expiryExtension;
+
+    if (daysSinceCreation >= totalAllowedDays) isPlanExpired = true;
+
+    // Se capa daysLeft al máximo real del plan para no afectar el ratio de compras
+    const daysLeft = Math.min(maxDays, Math.max(0, totalAllowedDays - daysSinceCreation));
 
 
 
     // Pre-calcular ingredientes de la despensa para mostrarlos en UI
     // Prioridad unificada: Mostrar una fusión (UNION) entre el Inventario Físico Real y la Lista de Compras del Ciclo.
     const allPlanIngredients = useMemo(() => {
-        if (!planData || isPlanExpired) return [];
-
-        const currentIngredientsMap = new Map();
-
-        // 1. Agregar Inventario Físico (user_inventory) - Lo que ya tiene en casa
-        if (liveInventory && Array.isArray(liveInventory) && liveInventory.length > 0) {
-            liveInventory.forEach(item => {
-                const qty = parseFloat(item.quantity) || 0;
-                const unit = item.unit || 'unidad';
-                const name = item.ingredient_name || item.master_ingredients?.name || 'Ingrediente';
-                const qtyStr = Number.isInteger(qty) ? String(qty) : qty.toFixed(1).replace(/\.0$/, '');
-
-                let displayQty = '';
-                if (qty > 0) {
-                    if (unit === 'unidad') {
-                        displayQty = qty === 1 ? '1 Ud.' : `${qtyStr} Uds.`;
-                    } else {
-                        displayQty = `${qtyStr} ${unit}`;
-                    }
-                }
-
-                // id_string compatible con backend _parse_quantity
-                const idString = unit === 'unidad'
-                    ? `${qtyStr} ${name}`
-                    : `${qtyStr} ${unit} de ${name}`;
-
-                currentIngredientsMap.set(name.toLowerCase().trim(), {
-                    id_string: idString,
-                    quantity: displayQty,
-                    name: name
-                });
-            });
-        }
-
-        // 2. Agregar Lista de Compras (lo nuevo) - Debe sobreescribir para reflejar cantidades escaladas
-        if (planData.aggregated_shopping_list && Array.isArray(planData.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0) {
-            planData.aggregated_shopping_list.forEach(ing => {
-                if (typeof ing === 'object' && ing !== null) {
-                    const idString = ing.display_string || ing.name || String(ing);
-                    const qty = ing.display_qty || '';
-                    const name = ing.name || ing.display_name || ing.display_string || 'Ingrediente';
-
-                    // Siempre sobreescribimos para asegurar que el UI refleje el nuevo tamaño del hogar
-                    currentIngredientsMap.set(name.toLowerCase().trim(), {
-                        id_string: idString,
-                        quantity: qty,
-                        name: name
-                    });
-                    
-                    return;
-                }
-
-                // Fallback directo sin Regex para strings legacy
-                const str_ing = String(ing).trim();
-                currentIngredientsMap.set(str_ing.toLowerCase(), {
-                    id_string: str_ing,
-                    quantity: 'Al gusto',
-                    name: str_ing
-                });
-            });
-        } else {
-            // 3. Fallback Legacy si no hay aggregated_shopping_list
-            const planDaysToCheck = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
-            planDaysToCheck.forEach(day => {
-                day.meals.forEach(meal => {
-                    if (meal && meal.ingredients && Array.isArray(meal.ingredients)) {
-                        meal.ingredients.forEach(ing => {
-                            let qty = 'Al gusto';
-                            let name = 'Desconocido';
-                            let id_string = '';
-
-                            if (typeof ing === 'object' && ing !== null) {
-                                name = ing.name || ing.display_name || ing.display_string || String(ing);
-                                qty = ing.display_qty || (ing.market_qty && ing.market_unit ? `${ing.market_qty} ${ing.market_unit}` : 'Al gusto');
-                                id_string = ing.display_string || name;
-                            } else {
-                                name = String(ing).trim();
-                                id_string = name;
-                            }
-
-                            if (name.length > 2 && !currentIngredientsMap.has(name.toLowerCase().trim())) {
-                                currentIngredientsMap.set(name.toLowerCase().trim(), { id_string: id_string, quantity: qty, name: name });
-                            }
-                        });
-                    }
-                });
-            });
-        }
-
-        return Array.from(currentIngredientsMap.values()).sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+        return calculateAllPlanIngredients(planData, isPlanExpired, liveInventory);
     }, [planData, isPlanExpired, liveInventory]);
 
     // Despensa puramente física, mapeada del user_inventory real
@@ -372,7 +400,7 @@ const Dashboard = () => {
 
     // 🔄 DELTA SHOPPING: Lista de compras inteligente que resta lo que ya hay en la Nevera.
     // Si el usuario tiene 5 lb de pollo en inventario, el PDF/restock no mostrará pollo (o mostrará la diferencia).
-    const buildDeltaShoppingList = (shoppingList, inventoryOverride = null) => {
+    const buildDeltaShoppingList = useCallback((shoppingList, inventoryOverride = null) => {
         if (!shoppingList || !Array.isArray(shoppingList) || shoppingList.length === 0) return shoppingList || [];
         const inventoryToUse = inventoryOverride || liveInventory;
         if (!inventoryToUse || !Array.isArray(inventoryToUse) || inventoryToUse.length === 0) return shoppingList;
@@ -442,7 +470,22 @@ const Dashboard = () => {
             n = n.replace(/,/g, '').replace(/\s+/g, ' ').trim();
 
             return n.split(/\s+/).map(w => {
-                 if (w.length <= 3) return w;
+                 const irregulars = {
+                     'nueces': 'nuez',
+                     'aves': 'ave',
+                     'maices': 'maiz',
+                     'arroces': 'arroz',
+                     'peces': 'pez',
+                     'carnes': 'carne',
+                     'tomates': 'tomate'
+                 };
+                 if (irregulars[w]) return irregulars[w];
+                 
+                 if (w.length <= 4) {
+                     if (w.endsWith('s') && !w.endsWith('es') && !w.endsWith('is')) return w.slice(0, -1);
+                     return w;
+                 }
+                 
                  if (w.endsWith('es') && !w.endsWith('res') && !w.endsWith('nes')) return w.slice(0, -2);
                  if (w.endsWith('nes') && !w.endsWith('ones')) return w.slice(0, -2);
                  if (w.endsWith('s') && !w.endsWith('is')) return w.slice(0, -1);
@@ -450,10 +493,42 @@ const Dashboard = () => {
             }).join(' ');
         };
 
+        const PANTRY_STAPLES_DELTA = new Set([
+            'sal y ajo en polvo', 'aceite de oliva', 'aceite de coco',
+            'aceite de sésamo o maní', 'salsa de soya', 'orégano',
+            'canela', 'pimienta', 'sal', 'vinagre', 'ajo en polvo'
+        ]);
+
+        const inferShelfLifeDays = (name, category) => {
+            const n = (name || '').toLowerCase();
+            const c = (category || '').toLowerCase();
+            const DRY_GOODS = ['arroz', 'pasta', 'fideo', 'espagueti', 'macarrón', 'macarron', 'lenteja', 'habichuela', 'frijol', 'garbanzo', 'gandul', 'moro', 'avena', 'quinoa', 'cuscús', 'cuscus', 'bulgur', 'cebada', 'harina', 'azúcar', 'azucar', 'sal', 'bicarbonato', 'levadura', 'cacao', 'café', 'cafe', 'infusión', 'especia', 'condimento', 'maíz seco', 'maiz seco', 'palomita', 'cereal'];
+            if (DRY_GOODS.some(k => n.includes(k))) return 180;
+            if (n.includes('congelado') || c.includes('congelad') || c.includes('frozen')) return 60;
+            if (c.includes('hoja') || n.includes('lechuga') || n.includes('espinaca') || n.includes('cilantro')) return 5;
+            if (c.includes('proteína') || c.includes('proteina') || c.includes('carne') || c.includes('pollo') || c.includes('pescado') || c.includes('mariscos')) return 5;
+            if (c.includes('fruta')) return 7;
+            if (c.includes('lácteo') || c.includes('lacteo') || c.includes('leche') || c.includes('queso') || c.includes('yogurt')) return 14;
+            if (c.includes('tubérculo') || c.includes('tuberculo') || n.includes('papa') || n.includes('batata') || n.includes('yuca') || n.includes('ñame')) return 21;
+            if (c.includes('vegetal') || c.includes('verdura')) return 10;
+            if (n.includes('huevo')) return 21;
+            if (n.includes('enlatado') || c.includes('enlatad') || c.includes('lata')) return 365;
+            return 14;
+        };
+
         const inventoryMap = new Map();
         inventoryToUse.forEach(item => {
             const name = (item.ingredient_name || '').toLowerCase().trim();
             if (!name) return;
+
+            // Exclude expired items so they don't suppress the shopping list delta
+            if (!PANTRY_STAPLES_DELTA.has(name) && item.created_at) {
+                const category = (item.master_ingredients?.category || '').toLowerCase();
+                const shelfLife = item.master_ingredients?.shelf_life_days || inferShelfLifeDays(name, category);
+                const daysOld = Math.floor((Date.now() - new Date(item.created_at).getTime()) / 86400000);
+                if (daysOld > shelfLife) return;
+            }
+
             const normName1 = normalizeName(name);
             const normName2 = normalizeNameAlt(name);
             const qty = parseFloat(item.quantity) || 0;
@@ -482,10 +557,6 @@ const Dashboard = () => {
         const deltaList = [];
         let itemsRemoved = 0;
 
-        // 🔍 DEBUG: mostrar todas las claves en el mapa de inventario
-        console.log('🔍 [DELTA] inventoryMap keys:', [...inventoryMap.keys()]);
-        console.log('🔍 [DELTA] inventoryToUse count:', inventoryToUse.length);
-
         shoppingList.forEach(item => {
             if (typeof item !== 'object' || !item || !item.name) {
                 deltaList.push(item); // strings legacy: pasar sin filtrar
@@ -496,13 +567,14 @@ const Dashboard = () => {
             const nameKey2 = normalizeNameAlt(item.name);
             const invItem = inventoryMap.get(nameKey1) || inventoryMap.get(nameKey2);
 
-            // 🔍 DEBUG: trazar matching de cada ingrediente
-            console.log(`🔍 [DELTA] "${item.name}" → norm1="${nameKey1}" | norm2="${nameKey2}" | matchFound=${!!invItem}`, invItem ? `(inv: ${invItem.quantity} ${invItem.unit})` : '(MISS)');
-
             // ESCALADO POR DEGRADACIÓN (Opción 1)
             // Degradamos la cantidad proyectada basándonos en cuánto tiempo le queda realmente al ciclo.
             // Si va por el día 10 de 15, no le pedimos comprar comida para 15 días, solo para los 5 restantes.
-            const degradationRatio = maxDays > 0 ? Math.max(0.1, daysLeft / maxDays) : 1;
+            // P0-3: Si queda la mitad o menos del ciclo, asumimos compras para el próximo ciclo completo.
+            let degradationRatio = 1;
+            if (maxDays > 0 && daysLeft > (maxDays * 0.5)) {
+                degradationRatio = Math.max(0.1, daysLeft / maxDays);
+            }
             const rawShopQty = parseFloat(item.market_qty ?? item.quantity ?? item.display_qty ?? 0) || 0;
             const shopUnit = (item.market_unit || item.unit || 'unidad').toLowerCase().trim();
 
@@ -524,15 +596,14 @@ const Dashboard = () => {
                 // PERO: si es una rotación post-restock, NO debería haber ingredientes nuevos
                 // que no estén en la nevera. Si aparece uno, es un error de la IA → ignorar.
                 if (isPostRestockRotation) {
-                    console.log(`🔄 [DELTA-ROTATION] Ignorando "${item.name}" - no existe en inventario post-restock`);
                     itemsRemoved++;
                     return;
                 }
                 deltaList.push({
                     ...item,
                     market_qty: shopQty,
-                    display_qty: item.display_qty ? `${degradedQtyStr} ${shopUnit}` : item.display_qty,
-                    display_string: item.display_string ? `${degradedQtyStr} ${shopUnit} de ${item.name}` : item.display_string
+                    display_qty: item.display_qty != null ? `${degradedQtyStr} ${shopUnit}` : undefined,
+                    display_string: item.display_string != null ? `${degradedQtyStr} ${shopUnit} de ${item.name}` : undefined
                 });
                 return;
             }
@@ -544,15 +615,14 @@ const Dashboard = () => {
             if (shopBase.type !== invBase.type) {
                 // Unidades incompatibles: si es rotación post-restock, ignorar
                 if (isPostRestockRotation) {
-                    console.log(`🔄 [DELTA-ROTATION] Ignorando "${item.name}" - unidades incompatibles pero existente en inventario post-restock`);
                     itemsRemoved++;
                     return;
                 }
                 deltaList.push({
                     ...item,
                     market_qty: shopQty,
-                    display_qty: item.display_qty ? `${degradedQtyStr} ${shopUnit}` : item.display_qty,
-                    display_string: item.display_string ? `${degradedQtyStr} ${shopUnit} de ${item.name}` : item.display_string,
+                    display_qty: item.display_qty != null ? `${degradedQtyStr} ${shopUnit}` : undefined,
+                    display_string: item.display_string != null ? `${degradedQtyStr} ${shopUnit} de ${item.name}` : undefined,
                     _hasPartialInventory: true,
                     _inventoryNote: `Ya tienes ${invItem.quantity} ${invItem.unit} en tu Nevera`
                 });
@@ -570,7 +640,6 @@ const Dashboard = () => {
             // Tiene algo pero no suficiente
             // Si es rotación post-restock: la IA debería haber respetado cantidades → ignorar el faltante
             if (isPostRestockRotation) {
-                console.log(`🔄 [DELTA-ROTATION] Ignorando faltante de "${item.name}" - parcial en inventario post-restock`);
                 itemsRemoved++;
                 return;
             }
@@ -583,8 +652,8 @@ const Dashboard = () => {
             deltaList.push({
                 ...item,
                 market_qty: adjustedQty,
-                display_qty: item.display_qty ? `${displayAdjusted} ${shopUnit}` : item.display_qty,
-                display_string: item.display_string ? `${displayAdjusted} ${shopUnit} de ${item.name}` : item.display_string,
+                display_qty: item.display_qty != null ? `${displayAdjusted} ${shopUnit}` : undefined,
+                display_string: item.display_string != null ? `${displayAdjusted} ${shopUnit} de ${item.name}` : undefined,
                 _adjustedFromInventory: true,
                 _inventoryNote: `Tienes ${invItem.quantity} ${invItem.unit} — comprar ${displayAdjusted} ${shopUnit}`
             });
@@ -595,106 +664,38 @@ const Dashboard = () => {
         deltaList._isAdjusted = itemsRemoved > 0 || deltaList.some(i => i?._adjustedFromInventory);
 
         return deltaList;
-    };
+    }, [liveInventory, planData]);
 
     // Calcular si la delta list de esta sesión actual todavia requiere compras
     // GUARD: No calcular hasta que liveInventory se haya cargado (evita flash del botón).
-    let hasPendingShoppingItems = false;
-    if (liveInventory !== null && planData && (planData.aggregated_shopping_list || allPlanIngredients)) {
-        const duration = formData?.groceryDuration || 'weekly';
-        let sourceListKey = 'aggregated_shopping_list';
-        if (duration === 'weekly' && planData.aggregated_shopping_list_weekly) sourceListKey = 'aggregated_shopping_list_weekly';
-        else if (duration === 'biweekly' && planData.aggregated_shopping_list_biweekly) sourceListKey = 'aggregated_shopping_list_biweekly';
-        else if (duration === 'monthly' && planData.aggregated_shopping_list_monthly) sourceListKey = 'aggregated_shopping_list_monthly';
-        
-        const rawList = (planData[sourceListKey] && Array.isArray(planData[sourceListKey]) && planData[sourceListKey].length > 0) 
-            ? planData[sourceListKey] 
-            : (planData.aggregated_shopping_list && Array.isArray(planData.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0
-                ? planData.aggregated_shopping_list 
-                : (allPlanIngredients || []));
-                
-        const currentDelta = buildDeltaShoppingList(rawList);
-        hasPendingShoppingItems = currentDelta.length > 0;
-    }
-
-
-    const handleNewPlan = () => {
-        // Protección contra doble disparo (auto-rotación + clic manual simultáneo)
-        if (isNavigatingRef.current) return;
-        isNavigatingRef.current = true;
-        // Auto-reset después de 3s por si la navegación falla
-        setTimeout(() => { isNavigatingRef.current = false; }, 3000);
-        if (formData && formData.age && formData.mainGoal) {
-            let previousMeals = [];
-            let currentIngredients = [];
-
-            // Si NO ha expirado el plan (Actualizar Platos), enviamos las comidas previas 
-            // para que la IA mantenga el plan de despensa y solo rote las preparaciones.
-            // Si SÍ expiró el plan (Actualizar Plan), enviamos el arreglo vacío para que
-            // la IA genere recomendaciones y una lista de compras totalmente nueva.
-            if (planData && !isPlanExpired) {
-                const planDaysToCheck = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
-
-                planDaysToCheck.forEach(day => {
-                    day.meals.forEach(meal => {
-                        if (meal && meal.name) previousMeals.push(meal.name);
-                    });
-                });
-
-                // Usamos allPlanIngredients menos los disabledIngredients
-                currentIngredients = allPlanIngredients
-                    .filter(ingObj => !disabledIngredients.includes(ingObj.name.toLowerCase().trim()))
-                    .map(ingObj => ingObj.id_string);
-
-                toast('Actualizando Platos', {
-                    description: 'Diseñando nuevos platos con tus ingredientes actuales...',
-                    icon: '🍲',
-                });
-            } else {
-                toast('Ciclo Renovado', {
-                    description: 'Generando nueva lista de compras y menú desde cero...',
-                    icon: '📦',
-                });
-            }
-
-            // --- DEUDA TÉCNICA: Eliminar Ingredientes Agotados Físicamente ---
-            if (disabledIngredients.length > 0 && liveInventory && liveInventory.length > 0) {
-                const itemsToConsume = liveInventory.filter(item => {
-                    const name = item.ingredient_name || item.master_ingredients?.name || 'Ingrediente';
-                    return disabledIngredients.includes(name.toLowerCase().trim());
-                }).map(item => item.ingredient_name || item.master_ingredients?.name);
-
-                if (itemsToConsume.length > 0) {
-                    supabase.auth.getSession().then(({ data }) => {
-                        if (data?.session?.access_token) {
-                            fetch(`${API_BASE}/api/inventory/consume`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${data.session.access_token}`
-                                },
-                                body: JSON.stringify({
-                                    user_id: userProfile.id,
-                                    ingredients: itemsToConsume
-                                })
-                            }).then(res => {
-                                if (!res.ok) throw new Error('Network response was not ok');
-                            }).catch(e => {
-                                console.error(e);
-                                toast.error('Error de conexión', {
-                                    description: 'Hubo un problema sincronizando tu despensa física.'
-                                });
-                            });
-                        }
-                    });
-                }
-            }
-
-            navigate('/plan', { state: { previous_meals: previousMeals, current_pantry_ingredients: typeof currentIngredients !== 'undefined' ? currentIngredients : [] } });
-        } else {
-            setCurrentStep(0);
-            navigate('/assessment');
+    const hasPendingShoppingItems = useMemo(() => {
+        if (liveInventory !== null && planData && (planData.aggregated_shopping_list || allPlanIngredients)) {
+            const duration = formData?.groceryDuration || 'weekly';
+            const rawList = getActiveShoppingList(planData, duration) || allPlanIngredients || [];
+                    
+            const currentDelta = buildDeltaShoppingList(rawList);
+            return currentDelta.length > 0;
         }
+        return false;
+    }, [liveInventory, planData, formData?.groceryDuration, allPlanIngredients, buildDeltaShoppingList]);
+
+
+    // Stale check: shopping quantities were calculated for a different household size
+    const isShoppingListStale = !!(
+        planData?.calc_household_size != null &&
+        planData.calc_household_size !== (formData?.householdSize || 1)
+    );
+
+    const handleNewPlan = async (reason = null, toastId = null, entry_point = 'dashboard_refresh') => {
+        await regeneratePlan({
+            reason,
+            liveInventory,
+            disabledIngredients,
+            allPlanIngredients,
+            isPlanExpired,
+            toastId,
+            entry_point
+        });
     };
 
     // --- NUEVO: ONBOARDING DE ALERTAS INTELIGENTES (WEB PUSH) ---
@@ -756,20 +757,7 @@ const Dashboard = () => {
             const duration = formData?.groceryDuration || 'weekly';
 
             // Usar la lista consolidada correcta según el ciclo seleccionado
-            let sourceListKey = 'aggregated_shopping_list';
-            if (duration === 'weekly' && planData.aggregated_shopping_list_weekly) {
-                sourceListKey = 'aggregated_shopping_list_weekly';
-            } else if (duration === 'biweekly' && planData.aggregated_shopping_list_biweekly) {
-                sourceListKey = 'aggregated_shopping_list_biweekly';
-            } else if (duration === 'monthly' && planData.aggregated_shopping_list_monthly) {
-                sourceListKey = 'aggregated_shopping_list_monthly';
-            }
-
-            const rawSourceIngredients = (planData[sourceListKey] && Array.isArray(planData[sourceListKey]) && planData[sourceListKey].length > 0)
-                ? planData[sourceListKey]
-                : (planData.aggregated_shopping_list && Array.isArray(planData.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0)
-                    ? planData.aggregated_shopping_list
-                    : (allPlanIngredients || []);
+            const rawSourceIngredients = getActiveShoppingList(planData, duration) || allPlanIngredients || [];
 
             // 🔄 Forzar refresco de inventario ANTES de calcular delta para el PDF
             // Esto garantiza que incluso si liveInventory está desactualizado (ej: restock previo
@@ -778,17 +766,17 @@ const Dashboard = () => {
             try {
                 const { data: freshInv } = await supabase
                     .from('user_inventory')
-                    .select('ingredient_name, quantity, unit, master_ingredients(name, category)')
+                    .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
                     .eq('user_id', userProfile.id)
                     .gt('quantity', 0)
                     .order('ingredient_name', { ascending: true });
                 if (freshInv) {
                     freshInventoryForPdf = freshInv;
                     setLiveInventory(freshInv); // Actualizar estado global también
-                    console.log('📋 [PDF] Fresh inventory fetched:', freshInv.length, 'items');
+                    // console.log('📋 [PDF] Fresh inventory fetched:', freshInv.length, 'items');
                 }
             } catch (e) {
-                console.warn('📋 [PDF] Could not refresh inventory, using cached:', e);
+                // console.warn('📋 [PDF] Could not refresh inventory, using cached:', e);
             }
 
             // 🔄 Delta Shopping: restar lo que ya hay en la Nevera (con inventario FRESCO)
@@ -913,9 +901,8 @@ const Dashboard = () => {
 
             // Obtener duración actual (ya declarada arriba)
             let durationText = '7 Días';
-            let qtyField = 'qty_7';
-            if (duration === 'biweekly') { durationText = '15 Días'; qtyField = 'qty_15'; }
-            if (duration === 'monthly') { durationText = '1 Mes'; qtyField = 'qty_30'; }
+            if (duration === 'biweekly') { durationText = '15 Días'; }
+            if (duration === 'monthly') { durationText = '1 Mes'; }
 
             // Generar contenido HTML estilizado para el PDF
             const element = document.createElement('div');
@@ -1102,22 +1089,20 @@ const Dashboard = () => {
     };
 
     const handleRestock = async () => {
-        console.log('🛒 [RESTOCK] handleRestock INVOKED');
-        console.log('🛒 [RESTOCK] userProfile:', userProfile);
-        console.log('🛒 [RESTOCK] planData?.id:', planData?.id);
-        console.log('🛒 [RESTOCK] planData?.is_restocked:', planData?.is_restocked);
-
         if (!userProfile?.id) {
-            console.log('🛒 [RESTOCK] BLOCKED: No user profile');
             toast.error('Debes iniciar sesión para usar esta función.');
             return;
         }
 
+        // [P0-2] Candado síncrono para evitar doble envío antes de que React actualice isRestocking
+        if (restockLock.current) return;
+        restockLock.current = true;
+
         // Validación Unica: Si matemáticamente y en tiempo real faltan ingredientes, lo permitimos.
         if (!hasPendingShoppingItems) {
-            console.log('🛒 [RESTOCK] BLOCKED: hasPendingShoppingItems is false (List is empty)');
             toast.info('Ya tienes todos estos ingredientes en tu Nevera.', { icon: '📦' });
             setShowRestockModal(false);
+            restockLock.current = false;
             return;
         }
 
@@ -1125,36 +1110,28 @@ const Dashboard = () => {
         const loadingToast = toast.loading('Guardando ingredientes en la despensa...', { position: 'top-center' });
 
         try {
+            // Refresco de inventario fresco antes de calcular delta (P0-2)
+            let freshInventoryForRestock = liveInventory;
+            try {
+                const { data: freshInv } = await supabase
+                    .from('user_inventory')
+                    .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
+                    .eq('user_id', userProfile.id)
+                    .gt('quantity', 0)
+                    .order('ingredient_name', { ascending: true });
+                if (freshInv) {
+                    freshInventoryForRestock = freshInv;
+                    setLiveInventory(freshInv);
+                }
+            } catch (e) { /* non-blocking */ }
+
             // Fuente Verdadera: Solo enviar a la BD lo que es estrictamente NUEVO de la Lista de Compras del Plan!
             // No enviar todo el 'allPlanIngredients' ya que duplicaría el liveInventory que el usuario ya poseía.
             const duration = formData?.groceryDuration || 'weekly';
-            let sourceListKey = 'aggregated_shopping_list';
-            if (duration === 'weekly' && planData.aggregated_shopping_list_weekly) {
-                sourceListKey = 'aggregated_shopping_list_weekly';
-            } else if (duration === 'biweekly' && planData.aggregated_shopping_list_biweekly) {
-                sourceListKey = 'aggregated_shopping_list_biweekly';
-            } else if (duration === 'monthly' && planData.aggregated_shopping_list_monthly) {
-                sourceListKey = 'aggregated_shopping_list_monthly';
-            }
-
-            const rawActiveShoppingList = (planData[sourceListKey] && Array.isArray(planData[sourceListKey]) && planData[sourceListKey].length > 0)
-                ? planData[sourceListKey]
-                : (planData.aggregated_shopping_list && Array.isArray(planData.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0)
-                    ? planData.aggregated_shopping_list
-                    : (allPlanIngredients || []);
+            const rawActiveShoppingList = getActiveShoppingList(planData, duration) || allPlanIngredients || [];
 
             // 🔄 Delta Shopping: solo enviar lo que NO está ya en la Nevera
-            const activeShoppingList = buildDeltaShoppingList(rawActiveShoppingList);
-            console.log('🛒 [RESTOCK] Delta applied:', {
-                original: rawActiveShoppingList.length,
-                afterDelta: activeShoppingList.length,
-                removed: activeShoppingList._itemsRemoved || 0
-            });
-
-            console.log('🛒 [RESTOCK] sourceListKey:', sourceListKey);
-            console.log('🛒 [RESTOCK] activeShoppingList length:', activeShoppingList.length);
-            console.log('🛒 [RESTOCK] activeShoppingList[0]:', activeShoppingList[0]);
-            console.log('🛒 [RESTOCK] disabledIngredients:', disabledIngredients);
+            const activeShoppingList = buildDeltaShoppingList(rawActiveShoppingList, freshInventoryForRestock);
 
             const sourceIngredients = activeShoppingList.map(ing => {
                 let name = '';
@@ -1201,28 +1178,19 @@ const Dashboard = () => {
             }).filter(item => !disabledIngredients.includes(item.normalized))
                 .map(item => item.structured || item.raw);
 
-            console.log('🛒 [RESTOCK] sourceIngredients count:', sourceIngredients.length);
-            console.log('🛒 [RESTOCK] sourceIngredients sample:', sourceIngredients.slice(0, 3));
-
             if (sourceIngredients.length === 0) {
-                console.log('🛒 [RESTOCK] BLOCKED: Zero ingredients after filtering');
                 toast.dismiss(loadingToast);
-                toast.error('No hay ingredientes para guardar.');
+                toast.info('Ya tienes todos estos ingredientes en tu Nevera.', { icon: '📦' });
                 setIsRestocking(false);
                 setShowRestockModal(false);
+                restockLock.current = false;
                 return;
             }
 
-            const sessionObj = await supabase.auth.getSession();
-            const token = sessionObj.data.session?.access_token;
-            console.log('🛒 [RESTOCK] Token exists:', !!token);
-            console.log('🛒 [RESTOCK] Sending to:', `${API_BASE}/api/restock`);
-
-            const response = await fetch(`${API_BASE}/api/restock`, {
+            const response = await fetchWithAuth('/api/plans/restock', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     user_id: userProfile.id,
@@ -1232,8 +1200,6 @@ const Dashboard = () => {
             });
 
             const data = await response.json();
-            console.log('🛒 [RESTOCK] Response status:', response.status);
-            console.log('🛒 [RESTOCK] Response data:', data);
             toast.dismiss(loadingToast);
 
             if (response.ok && data.success) {
@@ -1255,22 +1221,29 @@ const Dashboard = () => {
                     }));
                 }
                 setShowRestockModal(false);
-                // Refrescar inventario real para sincronizar la Despensa del Dashboard
+                
+                // P1-1: Obligar await estricto en la recarga del liveInventory post-compra ANTES del ruteo
+                // Removemos el setLiveInventory(null) que causaba destellos/crash
                 try {
                     const { data: freshInv } = await supabase
                         .from('user_inventory')
-                        .select('ingredient_name, quantity, unit, master_ingredients(name, category)')
+                        .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
                         .eq('user_id', userProfile.id)
                         .gt('quantity', 0)
                         .order('ingredient_name', { ascending: true });
-                    if (freshInv) setLiveInventory(freshInv);
-                    console.log('🛒 [RESTOCK] Fresh inventory count:', freshInv?.length);
+                    if (freshInv) {
+                        setLiveInventory(freshInv);
+                    }
                 } catch (e) { /* non-blocking */ }
+                
                 // Limpiar ingredientes deshabilitados ya que la despensa se actualizó
                 setDisabledIngredients([]);
-                navigate('/dashboard/pantry');
+                
+                // Retraso intencional de 100ms para asegurar propagación de estado React antes de montar Pantry
+                setTimeout(() => {
+                    navigate('/dashboard/pantry');
+                }, 100);
             } else {
-                console.log('🛒 [RESTOCK] FAILED:', data.message);
                 toast.error(data.message || 'Error al actualizar la despensa.');
             }
         } catch (error) {
@@ -1279,12 +1252,73 @@ const Dashboard = () => {
             toast.error('Hubo un error de conexión al registrar la compra.');
         } finally {
             setIsRestocking(false);
+            restockLock.current = false;
         }
     };
 
 
     // Retrocompatibilidad y extracción de días
     const planDays = planData?.days || [{ day: 1, meals: planData?.meals || planData?.perfectDay || [] }];
+    
+    // Rolling Window: calcular el índice del día de hoy dentro del plan
+    // daysSinceCreation ya está calculado arriba a partir de grocery_start_date
+    const todayPlanDayIndex = Math.max(0, Math.min(daysSinceCreation, planDays.length - 1));
+    
+    // Mostrar todos los d\u00edas pero marcar cu\u00e1les son pasados/hoy/futuros
+    // Si hay d\u00edas de retraso (el cron no corri\u00f3) o si faltan d\u00edas (plan roto), llamar a /shift-plan on-demand
+    useEffect(() => {
+        const triggerShift = async () => {
+            const requestedDays = Math.max(3, parseInt(planData?.total_days_requested) || 3);
+            const needsShift = daysSinceCreation > 0;
+            // Solo intentar rellenar días faltantes si el plan ya no se está generando en background por chunks
+            const needsFill = planDays.length < requestedDays && planData?.generation_status !== 'partial';
+            
+            if (!userProfile?.id || (!needsShift && !needsFill)) return;
+            
+            // Check if we already have the days (maybe backend shifted but grocery_start_date didn't update yet)
+            // Or just call the API, it's idempotent.
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/api/plans/shift-plan`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: userProfile.id,
+                        tzOffset: new Date().getTimezoneOffset()
+                    })
+                });
+                
+                if (response.ok) {
+                    const resData = await response.json();
+                    if (resData.success && resData.plan_data && !resData.message.includes("completo")) {
+                        // console.log('\ud83d\udd04 [ROLLING WINDOW] Shift/Fill completado on-demand:', resData.message);
+                        setPlanData(resData.plan_data);
+                    }
+                }
+            } catch (error) {
+                console.error('\u26a0\ufe0f [ROLLING WINDOW] Error en shift on-demand:', error);
+            }
+        };
+        
+        triggerShift();
+    }, [userProfile?.id, daysSinceCreation, planDays.length, planData?.total_days_requested]);
+
+    // Ventana de 3 días: mostrar solo el bloque de 3 días actual.
+    // Cada 3 días el bloque avanza automáticamente (aprendizaje continuo).
+    const chunkStart = Math.floor(todayPlanDayIndex / 3) * 3;
+    const visibleStartIndex = Math.min(chunkStart, Math.max(0, planDays.length - 1));
+    const visiblePlanDays = planDays.slice(visibleStartIndex, visibleStartIndex + 3);
+
+    // Auto-seleccionar el tab del día actual si queda fuera de la ventana visible
+    useEffect(() => {
+        if (!planData?.days || planData.days.length <= 1) return;
+        const windowEnd = visibleStartIndex + 3;
+        if (activeDayIndex < visibleStartIndex || activeDayIndex >= windowEnd) {
+            setActiveDayIndex(todayPlanDayIndex);
+        }
+    }, [planData?.days, todayPlanDayIndex, visibleStartIndex]);
+
     const currentDayMeals = planDays[activeDayIndex]?.meals || [];
     const currentDaySupplements = planDays[activeDayIndex]?.supplements || [];
 
@@ -1726,117 +1760,82 @@ const Dashboard = () => {
                     {/* REGENERACIÓN DE MENÚ Y EXPORTACIÓN */}
                     <div className="new-plan-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'stretch' }}>
 
-                        {/* SELECTOR DE CICLO DE DESPENSA */}
-                        {/* SELECTOR DE CICLO DE DESPENSA — Custom Dropdown */}
+                        {/* INDICADOR COMPACTO: Despensa + Personas (Híbrido) */}
                         <div ref={despensaDropdownRef} style={{ position: 'relative' }}>
+                            {/* Compact Trigger Row */}
                             <div
                                 onClick={() => setShowDespensaDropdown(!showDespensaDropdown)}
-                                onMouseEnter={(e) => {
-                                    if (!showDespensaDropdown) {
-                                        e.currentTarget.style.background = 'linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%)';
-                                    }
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (!showDespensaDropdown) {
-                                        e.currentTarget.style.background = 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)';
-                                    }
-                                }}
                                 style={{
                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                    gap: '0.75rem',
-                                    background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
-                                    padding: '0.5rem 0.75rem 0.5rem 1rem',
-                                    borderRadius: '12px',
-                                    border: `1.5px solid ${showDespensaDropdown ? '#10B981' : '#CBD5E1'}`,
+                                    gap: '0.5rem',
+                                    background: showDespensaDropdown
+                                        ? 'linear-gradient(135deg, #F1F5F9 0%, #E8EDF3 100%)'
+                                        : 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
+                                    padding: '0.45rem 0.75rem',
+                                    borderRadius: '10px',
+                                    border: `1.5px solid ${showDespensaDropdown ? '#94A3B8' : '#E2E8F0'}`,
                                     boxShadow: showDespensaDropdown
-                                        ? '0 0 0 3px rgba(16, 185, 129, 0.1), 0 2px 4px rgba(0,0,0,0.05)'
-                                        : '0 2px 5px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.8)',
-                                    minHeight: '42px',
+                                        ? '0 0 0 2px rgba(148, 163, 184, 0.1)'
+                                        : '0 1px 3px rgba(0,0,0,0.04)',
                                     cursor: 'pointer',
                                     transition: 'all 0.2s ease',
-                                    position: 'relative',
-                                    overflow: 'hidden',
-                                    userSelect: 'none'
+                                    userSelect: 'none',
+                                    minHeight: '36px'
                                 }}
                             >
-                                {/* Accent line */}
-                                <div style={{
-                                    position: 'absolute', left: 0, top: '20%', bottom: '20%', width: '3px',
-                                    borderRadius: '0 3px 3px 0',
-                                    background: 'linear-gradient(180deg, #10B981, #059669)'
-                                }} />
-
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <div style={{
-                                        width: '28px', height: '28px', borderRadius: '8px',
-                                        background: 'linear-gradient(135deg, #ECFDF5, #D1FAE5)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        flexShrink: 0
-                                    }}>
-                                        <Clock size={14} color="#059669" strokeWidth={2.5} />
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', lineHeight: '1' }}>
-                                        <span style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
-                                            Despensa
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.78rem' }}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                        {isRecalculating ? (
+                                            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ display: 'flex' }}>
+                                                <Loader2 size={13} color="#7C3AED" strokeWidth={2.5} />
+                                            </motion.div>
+                                        ) : (
+                                            <Users size={13} color="#7C3AED" strokeWidth={2.5} />
+                                        )}
+                                        <span style={{ fontWeight: 700, color: '#334155' }}>{formData?.householdSize || 1}</span>
+                                        <span style={{ color: '#94A3B8', fontWeight: 500 }}>{(formData?.householdSize || 1) === 1 ? 'persona' : 'personas'}</span>
+                                    </span>
+                                    <span style={{ color: '#CBD5E1' }}>·</span>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                        <Clock size={13} color="#059669" strokeWidth={2.5} />
+                                        <span style={{ fontWeight: 700, color: '#334155' }}>
+                                            {{ weekly: '7d', biweekly: '15d', monthly: '30d' }[groceryDuration] || '7d'}
                                         </span>
-                                        <span style={{ fontSize: '0.82rem', color: '#0F172A', fontWeight: 700 }}>
-                                            {{ weekly: '7\u00A0\u00A0Días', biweekly: '15\u00A0\u00A0Días', monthly: '1\u00A0\u00A0Mes' }[groceryDuration] || '7\u00A0\u00A0Días'}
+                                        <span style={{ color: '#94A3B8', fontWeight: 500 }}>
+                                            {{ weekly: 'semanal', biweekly: 'quincenal', monthly: 'mensual' }[groceryDuration] || 'semanal'}
                                         </span>
-                                    </div>
-                                    <motion.div
-                                        animate={{ rotate: showDespensaDropdown ? 180 : 0 }}
-                                        transition={{ duration: 0.2 }}
-                                    >
-                                        <ChevronDown size={14} color="#94A3B8" strokeWidth={2.5} />
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    {!isPlanExpired ? (
+                                        <div style={{
+                                            background: daysLeft <= 2 ? '#FEE2E2' : '#DBEAFE',
+                                            color: daysLeft <= 2 ? '#DC2626' : '#2563EB',
+                                            padding: '0.2rem 0.5rem',
+                                            borderRadius: '6px',
+                                            fontSize: '0.65rem',
+                                            fontWeight: 800,
+                                            display: 'flex', alignItems: 'center', gap: '0.2rem'
+                                        }}>
+                                            <div style={{ width: 4, height: 4, borderRadius: '50%', background: daysLeft <= 2 ? '#DC2626' : '#2563EB' }} />
+                                            {daysLeft}d
+                                        </div>
+                                    ) : (
+                                        <div style={{
+                                            background: '#FEE2E2', color: '#DC2626',
+                                            padding: '0.2rem 0.5rem', borderRadius: '6px',
+                                            fontSize: '0.65rem', fontWeight: 800
+                                        }}>
+                                            Exp.
+                                        </div>
+                                    )}
+                                    <motion.div animate={{ rotate: showDespensaDropdown ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                                        <ChevronDown size={13} color="#94A3B8" strokeWidth={2.5} />
                                     </motion.div>
                                 </div>
-
-                                {!isPlanExpired ? (
-                                    <div style={{
-                                        background: daysLeft <= 2
-                                            ? 'linear-gradient(135deg, #FEE2E2, #FECACA)'
-                                            : 'linear-gradient(135deg, #DBEAFE, #BFDBFE)',
-                                        color: daysLeft <= 2 ? '#DC2626' : '#2563EB',
-                                        padding: '0.3rem 0.7rem',
-                                        borderRadius: '8px',
-                                        fontSize: '0.72rem',
-                                        fontWeight: 800,
-                                        textTransform: 'uppercase',
-                                        letterSpacing: '0.03em',
-                                        display: 'flex', alignItems: 'center', gap: '0.3rem',
-                                        flexShrink: 0,
-                                        boxShadow: daysLeft <= 2
-                                            ? '0 2px 6px rgba(220, 38, 38, 0.15)'
-                                            : '0 2px 6px rgba(37, 99, 235, 0.1)'
-                                    }}>
-                                        <div style={{
-                                            width: '5px', height: '5px', borderRadius: '50%',
-                                            background: daysLeft <= 2 ? '#DC2626' : '#2563EB',
-                                            animation: daysLeft <= 2 ? 'pulseGlow 2s infinite' : 'none'
-                                        }} />
-                                        {daysLeft} {daysLeft === 1 ? 'día' : 'días'}
-                                    </div>
-                                ) : (
-                                    <div style={{
-                                        background: 'linear-gradient(135deg, #FEE2E2, #FECACA)',
-                                        color: '#DC2626',
-                                        padding: '0.3rem 0.7rem',
-                                        borderRadius: '8px',
-                                        fontSize: '0.72rem',
-                                        fontWeight: 800,
-                                        textTransform: 'uppercase',
-                                        letterSpacing: '0.03em',
-                                        display: 'flex', alignItems: 'center', gap: '0.3rem',
-                                        flexShrink: 0,
-                                        boxShadow: '0 2px 6px rgba(220, 38, 38, 0.15)'
-                                    }}>
-                                        <AlertCircle size={12} />
-                                        Expirada
-                                    </div>
-                                )}
                             </div>
 
-                            {/* Custom Dropdown Menu */}
+                            {/* Combined Popover */}
                             <AnimatePresence>
                                 {showDespensaDropdown && (
                                     <motion.div
@@ -1845,381 +1844,159 @@ const Dashboard = () => {
                                         exit={{ opacity: 0, y: -4, scale: 0.95 }}
                                         transition={{ type: 'spring', stiffness: 450, damping: 30, mass: 0.8 }}
                                         style={{
-                                            position: 'absolute', top: 'calc(100% + 8px)', left: '-4px', right: '-4px',
+                                            position: 'absolute', top: 'calc(100% + 6px)', left: '-4px', right: '-4px',
                                             zIndex: 9999,
-                                            background: 'rgba(255, 255, 255, 0.95)',
+                                            background: 'rgba(255, 255, 255, 0.97)',
                                             backdropFilter: 'blur(16px)',
                                             borderRadius: '12px',
                                             border: '1.5px solid #CBD5E1',
-                                            boxShadow: '0 20px 40px -10px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.5) inset',
+                                            boxShadow: '0 20px 40px -10px rgba(0,0,0,0.15)',
                                             overflow: 'hidden',
-                                            padding: '4px'
+                                            padding: '6px'
                                         }}
                                     >
+                                        {/* Despensa Section */}
+                                        <div style={{ padding: '4px 8px 2px' }}>
+                                            <span style={{ fontSize: '0.62rem', color: '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                <Clock size={10} /> Ciclo de Despensa
+                                            </span>
+                                        </div>
                                         {[
-                                            { value: 'weekly', label: '7\u00A0\u00A0Días', sub: 'Semanal' },
-                                            { value: 'biweekly', label: '15\u00A0\u00A0Días', sub: 'Quincenal' },
-                                            { value: 'monthly', label: '1\u00A0\u00A0Mes', sub: 'Mensual' }
+                                            { value: 'weekly', label: '7\u00A0Días', sub: 'Semanal' },
+                                            { value: 'biweekly', label: '15\u00A0Días', sub: 'Quincenal' },
+                                            { value: 'monthly', label: '1\u00A0Mes', sub: 'Mensual' }
                                         ].map((opt) => (
                                             <div
                                                 key={opt.value}
-                                                onClick={() => {
+                                                onClick={async () => {
                                                     updateData('groceryDuration', opt.value);
                                                     if (userProfile && typeof updateUserProfile === 'function') {
-                                                        updateUserProfile({
-                                                            health_profile: {
-                                                                ...formData,
-                                                                groceryDuration: opt.value
-                                                            }
-                                                        });
+                                                        updateUserProfile({ health_profile: { ...formData, groceryDuration: opt.value } });
                                                     }
-                                                    setShowDespensaDropdown(false);
-                                                    
-                                                    // Trigger recalculation on duration change as well to ensure UI sync
                                                     if (userProfile?.id && planData) {
                                                         setIsRecalculating(true);
-                                                        setRecalcLock(true); // 🔒 Bloquear restoreSessionData
+                                                        setRecalcLock(true);
                                                         const recalcToast = toast.loading('Calculando lista...', { position: 'top-center' });
-                                                        supabase.auth.getSession().then(({ data: { session } }) => {
-                                                            if (!session) { toast.error("Sesión expirada"); setIsRecalculating(false); return; }
-                                                            fetch(`${API_BASE}/api/recalculate-shopping-list`, {
-                                                                method: 'POST',
-                                                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-                                                                body: JSON.stringify({
-                                                                    user_id: userProfile.id,
-                                                                    householdSize: formData?.householdSize || 1,
-                                                                    groceryDuration: opt.value
-                                                                })
-                                                            }).then(res => res.json()).then(result => {
-                                                                if (result.success && result.plan_data) {
-                                                                    const restockKeyLoc = result.plan_data ? `mealfit_restock_cache_${userProfile?.id}_${result.plan_data.grocery_start_date || 'latest'}_${formData?.householdSize || 1}_${opt.value}` : null;
-                                                                    const isCachedLoc = restockKeyLoc ? !!localStorage.getItem(restockKeyLoc) : false;
-                                                                    if (isCachedLoc) {
-                                                                        result.plan_data.is_restocked = true;
-                                                                    } else {
-                                                                        delete result.plan_data.is_restocked;
-                                                                    }
-                                                                    localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
-                                                                    setPlanData(result.plan_data);
-                                                                    resetRestockState(formData?.householdSize || 1, opt.value);
-                                                                    toast.success('Lista actualizada', { id: recalcToast });
-                                                                } else {
-                                                                    toast.dismiss(recalcToast);
-                                                                }
-                                                                setIsRecalculating(false);
-                                                                setRecalcLock(false); // 🔓 Desbloquear
-                                                            }).catch(() => {
-                                                                toast.dismiss(recalcToast);
-                                                                setIsRecalculating(false);
-                                                                setRecalcLock(false); // 🔓 Desbloquear en error
-                                                            });
-                                                        });
-                                                    }
-                                                }}
-                                                style={{
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                    padding: '0.5rem 0.6rem',
-                                                    borderRadius: '8px',
-                                                    cursor: 'pointer',
-                                                    background: groceryDuration === opt.value
-                                                        ? 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)'
-                                                        : 'transparent',
-                                                    border: groceryDuration === opt.value ? '1px solid #BBF7D0' : '1px solid transparent',
-                                                    boxShadow: groceryDuration === opt.value ? '0 2px 8px rgba(16, 185, 129, 0.15)' : 'none',
-                                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-                                                }}
-                                                onMouseEnter={e => {
-                                                    if (groceryDuration !== opt.value) {
-                                                        e.currentTarget.style.background = '#F8FAFC';
-                                                        e.currentTarget.style.transform = 'translateX(4px)';
-                                                    }
-                                                }}
-                                                onMouseLeave={e => {
-                                                    if (groceryDuration !== opt.value) {
-                                                        e.currentTarget.style.background = 'transparent';
-                                                        e.currentTarget.style.transform = 'translateX(0)';
-                                                    }
-                                                }}
-                                            >
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
-                                                    <span style={{
-                                                        fontSize: '0.78rem', fontWeight: 800,
-                                                        color: groceryDuration === opt.value ? '#059669' : '#334155',
-                                                        letterSpacing: '-0.01em'
-                                                    }}>
-                                                        {opt.label}
-                                                    </span>
-                                                    <span style={{ fontSize: '0.65rem', color: '#64748B', fontWeight: 500 }}>
-                                                        {opt.sub}
-                                                    </span>
-                                                </div>
-                                                {groceryDuration === opt.value && (
-                                                    <motion.div
-                                                        initial={{ scale: 0, opacity: 0 }}
-                                                        animate={{ scale: 1, opacity: 1 }}
-                                                        transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-                                                    >
-                                                        <CheckCircle size={14} color="#059669" strokeWidth={2.5} />
-                                                    </motion.div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        {/* SELECTOR DE PERSONAS */}
-                        <div ref={householdDropdownRef} style={{ position: 'relative', width: '100%' }}>
-                            <div
-                                onClick={() => setShowHouseholdDropdown(!showHouseholdDropdown)}
-                                onMouseEnter={(e) => {
-                                    if (!showHouseholdDropdown) {
-                                        e.currentTarget.style.background = 'linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%)';
-                                    }
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (!showHouseholdDropdown) {
-                                        e.currentTarget.style.background = 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)';
-                                    }
-                                }}
-                                style={{
-                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                    gap: '0.75rem',
-                                    background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
-                                    padding: '0.5rem 0.75rem 0.5rem 1rem',
-                                    borderRadius: '12px',
-                                    border: `1.5px solid ${showHouseholdDropdown ? '#8B5CF6' : '#CBD5E1'}`,
-                                    boxShadow: showHouseholdDropdown
-                                        ? '0 0 0 3px rgba(139, 92, 246, 0.1), 0 2px 4px rgba(0,0,0,0.05)'
-                                        : '0 2px 5px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.8)',
-                                    minHeight: '42px',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s ease',
-                                    position: 'relative',
-                                    overflow: 'hidden',
-                                    userSelect: 'none'
-                                }}
-                            >
-                                {/* Accent line */}
-                                <div style={{
-                                    position: 'absolute', left: 0, top: '20%', bottom: '20%', width: '3px',
-                                    borderRadius: '0 3px 3px 0',
-                                    background: 'linear-gradient(180deg, #8B5CF6, #7C3AED)'
-                                }} />
-
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <div style={{
-                                        width: '28px', height: '28px', borderRadius: '8px',
-                                        background: 'linear-gradient(135deg, #F5F3FF, #EDE9FE)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        flexShrink: 0
-                                    }}>
-                                        <Users size={14} color="#7C3AED" strokeWidth={2.5} />
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', lineHeight: '1' }}>
-                                        <span style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
-                                            Personas
-                                        </span>
-                                        <span style={{ fontSize: '0.82rem', color: '#0F172A', fontWeight: 700 }}>
-                                            {formData?.householdSize || 1}
-                                        </span>
-                                    </div>
-                                    <motion.div
-                                        animate={{ rotate: showHouseholdDropdown ? 180 : 0 }}
-                                        transition={{ duration: 0.2 }}
-                                    >
-                                        <ChevronDown size={14} color="#94A3B8" strokeWidth={2.5} />
-                                    </motion.div>
-                                </div>
-
-                                {(formData?.householdSize || 1) > 1 && (
-                                    <div style={{
-                                        background: 'linear-gradient(135deg, #F5F3FF, #EDE9FE)',
-                                        color: '#7C3AED',
-                                        padding: '0.3rem 0.7rem',
-                                        borderRadius: '8px',
-                                        fontSize: '0.72rem',
-                                        fontWeight: 800,
-                                        textTransform: 'uppercase',
-                                        letterSpacing: '0.03em',
-                                        display: 'flex', alignItems: 'center', gap: '0.3rem',
-                                        flexShrink: 0,
-                                        boxShadow: '0 2px 6px rgba(139, 92, 246, 0.1)',
-                                        border: '1px solid #DDD6FE'
-                                    }}>
-                                        ×{formData?.householdSize || 1}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Household Dropdown Menu */}
-                            <AnimatePresence>
-                                {showHouseholdDropdown && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: -4, scale: 0.95 }}
-                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                        exit={{ opacity: 0, y: -4, scale: 0.95 }}
-                                        transition={{ type: 'spring', stiffness: 450, damping: 30, mass: 0.8 }}
-                                        style={{
-                                            position: 'absolute', top: 'calc(100% + 8px)', left: '-4px', right: '-4px',
-                                            zIndex: 9999,
-                                            background: 'rgba(255, 255, 255, 0.95)',
-                                            backdropFilter: 'blur(16px)',
-                                            borderRadius: '12px',
-                                            border: '1.5px solid #CBD5E1',
-                                            boxShadow: '0 20px 40px -10px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.5) inset',
-                                            overflow: 'hidden',
-                                            padding: '4px'
-                                        }}
-                                    >
-                                        <div style={{ padding: '6px 10px 4px', marginBottom: '2px' }}>
-                                            <span style={{ fontSize: '0.65rem', color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                                ¿Cuántas personas comen?
-                                            </span>
-                                        </div>
-                                        {[1, 2, 3, 4, 5, 6].map((num) => (
-                                            <div
-                                                key={num}
-                                                onClick={async () => {
-                                                    updateData('householdSize', num);
-                                                    if (userProfile && typeof updateUserProfile === 'function') {
-                                                        updateUserProfile({
-                                                            health_profile: {
-                                                                ...formData,
-                                                                householdSize: num
-                                                            }
-                                                        });
-                                                    }
-                                                    setShowHouseholdDropdown(false);
-                                                    
-                                                    // Recalcular lista de compras en tiempo real
-                                                    if (userProfile?.id && planData) {
-                                                        setIsRecalculating(true);
-                                                        setRecalcLock(true); // 🔒 Bloquear restoreSessionData
-                                                        const recalcToast = toast.loading('Recalculando lista de compras...', { position: 'top-center' });
                                                         try {
-                                                            const sessionObj = await supabase.auth.getSession();
-                                                            const token = sessionObj.data.session?.access_token;
-                                                            if (!token) {
-                                                                toast.error("Sesión expirada");
-                                                                setIsRecalculating(false);
-                                                                return;
-                                                            }
-                                                            const response = await fetch(`${API_BASE}/api/recalculate-shopping-list`, {
+                                                            const response = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
                                                                 method: 'POST',
-                                                                headers: {
-                                                                    'Content-Type': 'application/json',
-                                                                    'Authorization': `Bearer ${token}`
-                                                                },
-                                                                body: JSON.stringify({
-                                                                    user_id: userProfile.id,
-                                                                    householdSize: num,
-                                                                    groceryDuration: formData?.groceryDuration || 'weekly'
-                                                                })
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ user_id: userProfile.id, householdSize: formData?.householdSize || 1, groceryDuration: opt.value })
                                                             });
+                                                            if (!response.ok) throw new Error(`HTTP ${response.status}`);
                                                             const result = await response.json();
-                                                            console.log('🔍 [RECALC RESULT]', { success: result.success, has_plan_data: !!result.plan_data, message: result.message });
-                                                            if (result.plan_data?._debug_recalc) {
-                                                                console.log('🔍 [FINGERPRINT]', result.plan_data._debug_recalc);
-                                                            }
                                                             if (result.success && result.plan_data) {
-                                                                // DEBUG: Compare key items between old and new plan_data
-                                                                const oldList = planData?.aggregated_shopping_list_weekly || [];
-                                                                const newList = result.plan_data?.aggregated_shopping_list_weekly || [];
-                                                                console.log('🔍 [RECALC] OLD weekly list length:', oldList.length);
-                                                                console.log('🔍 [RECALC] NEW weekly list length:', newList.length);
-                                                                const kws = ['pechuga', 'yogurt', 'aguacate'];
-                                                                oldList.forEach(it => { if (kws.some(k => (it.name||'').toLowerCase().includes(k))) console.log('  OLD:', it.name, it.display_qty); });
-                                                                newList.forEach(it => { if (kws.some(k => (it.name||'').toLowerCase().includes(k))) console.log('  NEW:', it.name, it.display_qty); });
-                                                                
-                                                                // Aplicar directamente los datos recalculados
-                                                                const restockKeyLoc2 = result.plan_data ? `mealfit_restock_cache_${userProfile?.id}_${result.plan_data.grocery_start_date || 'latest'}_${num}_${formData?.groceryDuration || groceryDuration || 'weekly'}` : null;
-                                                                const isCachedLoc2 = restockKeyLoc2 ? !!localStorage.getItem(restockKeyLoc2) : false;
-                                                                if (isCachedLoc2) {
-                                                                    result.plan_data.is_restocked = true;
-                                                                } else {
-                                                                    delete result.plan_data.is_restocked;
-                                                                }
+                                                                const rk = `mealfit_restock_cache_${userProfile?.id}_${result.plan_data.grocery_start_date || 'latest'}_${formData?.householdSize || 1}_${opt.value}`;
+                                                                if (result.plan_data.is_restocked == null && localStorage.getItem(rk)) result.plan_data.is_restocked = true;
                                                                 localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
                                                                 setPlanData(result.plan_data);
-                                                                resetRestockState(num, formData?.groceryDuration || groceryDuration || 'weekly');
-                                                                toast.success(`Lista actualizada para ${num} ${num === 1 ? 'persona' : 'personas'}`, { id: recalcToast, icon: '👥' });
-                                                            } else if (result.success) {
-                                                                console.warn('⚠️ [RECALC] success=true but NO plan_data! Result:', result);
-                                                                await restoreSessionData(userProfile.id);
-                                                                toast.success(`Lista actualizada para ${num} ${num === 1 ? 'persona' : 'personas'}`, { id: recalcToast, icon: '👥' });
-                                                            } else {
-                                                                console.error('❌ [RECALC] Failed:', result);
-                                                                toast.dismiss(recalcToast);
-                                                            }
-                                                            setIsRecalculating(false);
-                                                            setRecalcLock(false); // 🔓 Desbloquear
-                                                        } catch (e) {
-                                                            console.error('Error recalculando:', e);
-                                                            toast.dismiss(recalcToast);
-                                                            setIsRecalculating(false);
-                                                            setRecalcLock(false); // 🔓 Desbloquear en error
+                                                                toast.success('Lista actualizada', { id: recalcToast });
+                                                            } else toast.dismiss(recalcToast);
+                                                            setIsRecalculating(false); setRecalcLock(false);
+                                                        } catch {
+                                                            toast.dismiss(recalcToast); setIsRecalculating(false); setRecalcLock(false);
                                                         }
                                                     }
+                                                    setShowDespensaDropdown(false);
                                                 }}
                                                 style={{
                                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                    padding: '0.5rem 0.6rem',
-                                                    borderRadius: '8px',
-                                                    cursor: 'pointer',
-                                                    background: (formData?.householdSize || 1) === num
-                                                        ? 'linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)'
-                                                        : 'transparent',
-                                                    border: (formData?.householdSize || 1) === num ? '1px solid #DDD6FE' : '1px solid transparent',
-                                                    boxShadow: (formData?.householdSize || 1) === num ? '0 2px 8px rgba(139, 92, 246, 0.15)' : 'none',
-                                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                                                    padding: '0.4rem 0.6rem', borderRadius: '7px', cursor: 'pointer',
+                                                    background: groceryDuration === opt.value ? 'linear-gradient(135deg, #F0FDF4, #DCFCE7)' : 'transparent',
+                                                    border: groceryDuration === opt.value ? '1px solid #BBF7D0' : '1px solid transparent',
+                                                    transition: 'all 0.15s ease', margin: '1px 0'
                                                 }}
-                                                onMouseEnter={e => {
-                                                    if ((formData?.householdSize || 1) !== num) {
-                                                        e.currentTarget.style.background = '#F8FAFC';
-                                                        e.currentTarget.style.transform = 'translateX(4px)';
-                                                    }
-                                                }}
-                                                onMouseLeave={e => {
-                                                    if ((formData?.householdSize || 1) !== num) {
-                                                        e.currentTarget.style.background = 'transparent';
-                                                        e.currentTarget.style.transform = 'translateX(0)';
-                                                    }
-                                                }}
+                                                onMouseEnter={e => { if (groceryDuration !== opt.value) e.currentTarget.style.background = '#F8FAFC'; }}
+                                                onMouseLeave={e => { if (groceryDuration !== opt.value) e.currentTarget.style.background = 'transparent'; }}
                                             >
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
-                                                    <span style={{
-                                                        fontSize: '0.78rem', fontWeight: 800,
-                                                        color: (formData?.householdSize || 1) === num ? '#7C3AED' : '#334155',
-                                                        letterSpacing: '-0.01em'
-                                                    }}>
-                                                        {num} {num === 1 ? 'Persona' : 'Personas'}
-                                                    </span>
-                                                    <span style={{ fontSize: '0.65rem', color: '#64748B', fontWeight: 500 }}>
-                                                        {num === 1 ? 'Individual' : `Cantidades ×${num}`}
-                                                    </span>
+                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: groceryDuration === opt.value ? '#059669' : '#334155' }}>{opt.label}</span>
+                                                    <span style={{ fontSize: '0.6rem', color: '#94A3B8' }}>{opt.sub}</span>
                                                 </div>
-                                                {(formData?.householdSize || 1) === num && (
-                                                    <motion.div
-                                                        initial={{ scale: 0, opacity: 0 }}
-                                                        animate={{ scale: 1, opacity: 1 }}
-                                                        transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-                                                    >
-                                                        <CheckCircle size={14} color="#7C3AED" strokeWidth={2.5} />
-                                                    </motion.div>
-                                                )}
+                                                {groceryDuration === opt.value && <CheckCircle size={13} color="#059669" strokeWidth={2.5} />}
                                             </div>
                                         ))}
-                                        <div style={{ padding: '4px 10px 6px', marginTop: '2px', borderTop: '1px solid #F1F5F9' }}>
-                                            <span style={{ fontSize: '0.6rem', color: '#94A3B8', lineHeight: 1.3 }}>
-                                                💡 Al generar un nuevo plan, las cantidades se multiplicarán automáticamente.
+
+                                        {/* Divider */}
+                                        <div style={{ height: '1px', background: '#F1F5F9', margin: '4px 6px' }} />
+
+                                        {/* Personas Section */}
+                                        <div style={{ padding: '4px 8px 2px' }}>
+                                            <span style={{ fontSize: '0.62rem', color: '#7C3AED', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                <Users size={10} /> Personas
+                                            </span>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '3px', padding: '2px 4px' }}>
+                                            {[1, 2, 3, 4, 5, 6].map((num) => {
+                                                const isActive = (formData?.householdSize || 1) === num;
+                                                return (
+                                                    <div
+                                                        key={num}
+                                                        onClick={async () => {
+                                                            if (isRecalculating) return;
+                                                            const prevHouseholdSize = formData?.householdSize || 1;
+                                                            updateData('householdSize', num);
+                                                            if (userProfile && typeof updateUserProfile === 'function') {
+                                                                updateUserProfile({ health_profile: { ...formData, householdSize: num } });
+                                                            }
+                                                            setShowDespensaDropdown(false);
+                                                            if (userProfile?.id && planData) {
+                                                                setIsRecalculating(true); setRecalcLock(true);
+                                                                const recalcToast = toast.loading('Recalculando...', { position: 'top-center' });
+                                                                try {
+                                                                    const response = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
+                                                                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                                                        body: JSON.stringify({ user_id: userProfile.id, householdSize: num, groceryDuration: groceryDuration })
+                                                                    });
+                                                                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                                                                    const result = await response.json();
+                                                                    if (result.success && result.plan_data) {
+                                                                        const rk = `mealfit_restock_cache_${userProfile?.id}_${result.plan_data.grocery_start_date || 'latest'}_${num}_${groceryDuration}`;
+                                                                        if (result.plan_data.is_restocked == null && localStorage.getItem(rk)) result.plan_data.is_restocked = true;
+                                                                        localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
+                                                                        setPlanData(result.plan_data);
+                                                                        toast.success(`${num} ${num === 1 ? 'persona' : 'personas'}`, { id: recalcToast, icon: '👥' });
+                                                                    } else toast.dismiss(recalcToast);
+                                                                    setIsRecalculating(false); setRecalcLock(false);
+                                                                } catch { 
+                                                                    toast.dismiss(recalcToast); 
+                                                                    toast.error('Error al actualizar personas');
+                                                                    updateData('householdSize', prevHouseholdSize);
+                                                                    if (userProfile && typeof updateUserProfile === 'function') {
+                                                                        updateUserProfile({ health_profile: { ...formData, householdSize: prevHouseholdSize } });
+                                                                    }
+                                                                    setIsRecalculating(false); setRecalcLock(false); 
+                                                                }
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            padding: '0.4rem 0', borderRadius: '6px', cursor: isRecalculating ? 'not-allowed' : 'pointer',
+                                                            background: isActive ? '#F5F3FF' : 'transparent',
+                                                            border: isActive ? '1.5px solid #DDD6FE' : '1.5px solid transparent',
+                                                            transition: 'all 0.15s ease',
+                                                            fontSize: '0.78rem', fontWeight: isActive ? 800 : 600,
+                                                            color: isActive ? '#7C3AED' : '#64748B',
+                                                            opacity: isRecalculating ? 0.5 : 1
+                                                        }}
+                                                        onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#F8FAFC'; }}
+                                                        onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+                                                    >
+                                                        {num}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div style={{ padding: '3px 8px 5px' }}>
+                                            <span style={{ fontSize: '0.58rem', color: '#94A3B8' }}>
+                                                💡 Las cantidades de la lista se ajustan automáticamente.
                                             </span>
                                         </div>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
                         </div>
+
 
                         {/* BOTONES LADO A LADO */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', width: '100%' }}>
@@ -2232,16 +2009,13 @@ const Dashboard = () => {
                                         <button
                                             onClick={(e) => {
                                                 e.preventDefault();
-                                                toast('Rotación Autónoma', {
-                                                    description: 'Tus platos se actualizan automáticamente todos los días.',
-                                                    icon: '🤖'
-                                                });
+                                                setShowAutoRotationOverrideModal(true);
                                             }}
                                             className="new-plan-btn"
                                             style={{
                                                 background: '#F8FAFC',
                                                 color: '#64748B', 
-                                                cursor: 'not-allowed',
+                                                cursor: 'pointer',
                                                 boxShadow: 'none',
                                                 flex: '1 1 auto',
                                                 width: 'auto',
@@ -2268,8 +2042,11 @@ const Dashboard = () => {
 
                                 return (
                                     <button
-                                        onClick={handleNewPlan}
-                                        disabled={isLimitReached}
+                                        onClick={async () => {
+                                            const hasCredits = await validateCreditsAsync();
+                                            if (!hasCredits) return;
+                                            setShowUpdatePlanModal(true);
+                                        }}
                                         className="new-plan-btn"
                                         style={{
                                             background: isLimitReached
@@ -2294,22 +2071,35 @@ const Dashboard = () => {
                                         }}
                                     >
                                         {isLimitReached ? <AlertCircle size={18} /> : <Wand2 size={18} />}
-                                        <span style={{ fontSize: '0.85rem' }}>{isLimitReached ? 'Límite' : (isPlanExpired ? 'Nuevo Plan' : 'Actualizar Platos')}</span>
+                                        <span style={{ fontSize: '0.85rem' }}>{isLimitReached ? 'Límite' : (isPlanExpired ? 'Nuevo Plan' : (daysLeft > 0 ? `Refrescar (${daysLeft}d restantes)` : 'Refrescar hoy'))}</span>
                                     </button>
                                 );
                             })()}
 
-                            {hasPendingShoppingItems && (
+                            {isShoppingListStale && (
+                                <div style={{
+                                    width: '100%', display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                    padding: '0.3rem 0.6rem', background: '#FFFBEB',
+                                    border: '1px solid #FCD34D', borderRadius: '0.5rem',
+                                    fontSize: '0.72rem', color: '#92400E', lineHeight: 1.3
+                                }}>
+                                    <AlertCircle size={12} style={{ flexShrink: 0 }} />
+                                    <span>Cantidades para {planData.calc_household_size}p. Recalcula si cambiaste el hogar.</span>
+                                </div>
+                            )}
+
+                            {(hasPendingShoppingItems || isLoadingInventory) && (
                                 <button
-                                    onClick={() => setShowRestockModal(true)}
+                                    onClick={() => !isLoadingInventory && setShowRestockModal(true)}
+                                    disabled={isLoadingInventory}
                                     className="new-plan-btn"
                                     style={{
-                                        background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                                        color: 'white',
-                                        cursor: 'pointer',
-                                        '--hover-shadow': '0 20px 40px -5px rgba(16, 185, 129, 0.5), inset 0 0 0 1px rgba(255,255,255,0.2)',
-                                        '--active-shadow': '0 5px 15px -5px rgba(16, 185, 129, 0.2)',
-                                        boxShadow: '0 10px 20px -5px rgba(16, 185, 129, 0.4)',
+                                        background: isLoadingInventory ? '#E2E8F0' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                                        color: isLoadingInventory ? '#94A3B8' : 'white',
+                                        cursor: isLoadingInventory ? 'wait' : 'pointer',
+                                        '--hover-shadow': isLoadingInventory ? 'none' : '0 20px 40px -5px rgba(16, 185, 129, 0.5), inset 0 0 0 1px rgba(255,255,255,0.2)',
+                                        '--active-shadow': isLoadingInventory ? 'none' : '0 5px 15px -5px rgba(16, 185, 129, 0.2)',
+                                        boxShadow: isLoadingInventory ? 'none' : '0 10px 20px -5px rgba(16, 185, 129, 0.4)',
                                         flex: '1 1 auto',
                                         width: 'auto',
                                         justifyContent: 'center',
@@ -2323,8 +2113,8 @@ const Dashboard = () => {
                                         whiteSpace: 'nowrap'
                                     }}
                                 >
-                                    <CheckCircle size={18} />
-                                    <span style={{ fontSize: '0.85rem' }}>Registrar Compras</span>
+                                    {isLoadingInventory ? <Loader2 className="spin-animation" size={18} /> : <CheckCircle size={18} />}
+                                    <span style={{ fontSize: '0.85rem' }}>{isLoadingInventory ? 'Calculando...' : 'Registrar Compras'}</span>
                                 </button>
                             )}
 
@@ -2359,6 +2149,60 @@ const Dashboard = () => {
                     </div>
                 </div>
             </header>
+
+            {/* --- BANNER: PLAN EXPIRADO --- */}
+            {isPlanExpired && planData?.generation_status !== 'partial' && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        background: 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)',
+                        border: '1.5px solid #FECACA',
+                        borderRadius: '1rem',
+                        padding: '1rem 1.25rem',
+                        marginBottom: '1.5rem',
+                        boxShadow: '0 4px 12px -2px rgba(220,38,38,0.12)',
+                        flexWrap: 'wrap'
+                    }}
+                >
+                    <AlertCircle size={22} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                        <span style={{ fontWeight: 700, color: '#991B1B', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
+                            ¡Tu ciclo ha terminado!
+                        </span>
+                        <span style={{ color: '#B91C1C', fontSize: '0.85rem' }}>
+                            Ya han pasado los días programados en tu plan actual. Genera uno nuevo para seguir recibiendo deliciosas recomendaciones y listas de compras frescas.
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => navigate('/assessment')}
+                        style={{
+                            background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                            color: 'white',
+                            border: 'none',
+                            padding: '0.6rem 1.2rem',
+                            borderRadius: '0.75rem',
+                            fontWeight: 700,
+                            fontSize: '0.85rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)',
+                            whiteSpace: 'nowrap'
+                        }}
+                    >
+                        <Wand2 size={16} />
+                        Generar Nuevo Plan
+                    </button>
+                </motion.div>
+            )}
+
+            {/* --- BANNER: GENERACIÓN EN BACKGROUND (Semanas 2-4) --- */}
+            {/* Banner de Chunking Background eliminado para alinearse con la experiencia visual "silenciosa" */}
 
             {/* --- BANNER: ROTACIÓN NOCTURNA AUTOMÁTICA --- */}
             {(() => {
@@ -2480,25 +2324,123 @@ const Dashboard = () => {
                         </span>
                     </div>
 
-                    {/* BOTONES NAVEGACIÓN DÍAS (OPCIONES) */}
-                    {planDays.length > 1 && (
-                        <div className="option-buttons">
-                            {planDays.map((_, idx) => (
-                                <button
-                                    key={idx}
-                                    onClick={() => setActiveDayIndex(idx)}
-                                    className="option-btn"
-                                    style={{
-                                        border: activeDayIndex === idx ? 'none' : '1px solid #CBD5E1',
-                                        background: activeDayIndex === idx ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' : 'white',
-                                        color: activeDayIndex === idx ? 'white' : '#475569',
-                                        boxShadow: activeDayIndex === idx ? '0 10px 15px -3px rgba(59, 130, 246, 0.3)' : '0 1px 2px rgba(0,0,0,0.05)',
-                                        transform: activeDayIndex === idx ? 'translateY(-2px)' : 'translateY(0)'
-                                    }}
-                                >
-                                    Opción {String.fromCharCode(65 + idx)}
-                                </button>
-                            ))}
+                    {/* Estado: generando próximos 3 días con IA */}
+                    {planData?.generation_status === 'generating_next' && visiblePlanDays.length < 3 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: '#EFF6FF', borderRadius: '10px', marginBottom: '16px', color: '#2563EB', fontSize: '0.9rem' }}>
+                            <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span>
+                            Generando tus próximos platos personalizados…
+                        </div>
+                    )}
+
+                    {/* BOTONES NAVEGACIÓN DÍAS (AGRUPADOS POR SEMANA) — Rolling Window */}
+                    {visiblePlanDays.length > 1 && (
+                        <div className="days-navigation-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+                            {Array.from({ length: Math.ceil(visiblePlanDays.length / 7) }).map((_, weekIdx) => {
+                                const weekDays = visiblePlanDays.slice(weekIdx * 7, (weekIdx + 1) * 7);
+                                return (
+                                    <div key={`week-${weekIdx}`} className="week-group">
+                                        {visiblePlanDays.length > 7 && (
+                                            <h4 style={{ fontSize: '0.8rem', color: '#64748B', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                Semana {weekIdx + 1}
+                                            </h4>
+                                        )}
+                                        <div 
+                                            className="option-buttons"
+                                            style={{ 
+                                                display: 'flex', 
+                                                overflowX: 'auto', 
+                                                gap: '10px', 
+                                                paddingBottom: '16px', // Espacio incrementado para separar los botones de la línea punteada
+                                                WebkitOverflowScrolling: 'touch',
+                                                scrollbarWidth: 'none', /* Firefox */
+                                                msOverflowStyle: 'none' /* IE/Edge */
+                                            }}
+                                        >
+                                            <style>{`.option-buttons::-webkit-scrollbar { display: none; }`}</style>
+                                            {weekDays.map((day, localIdx) => {
+                                                // globalIdx is absolute index in original planData.days
+                                                const visibleIdx = weekIdx * 7 + localIdx;
+                                                const globalIdx = visibleStartIndex + visibleIdx;
+                                                // [GAP 7] Dias generados por Smart Shuffle en modo degradado
+                                                const isDegraded = !!day?._is_degraded_shuffle;
+                                                const isEmergencyRepeat = !!day?._is_emergency_repeat;
+                                                const isActive = activeDayIndex === globalIdx;
+                                                // Marcar el d\u00eda de hoy y d\u00edas pasados
+                                                const isToday = globalIdx === todayPlanDayIndex;
+                                                const isPastDay = globalIdx < todayPlanDayIndex;
+                                                return (
+                                                    <button
+                                                        key={globalIdx}
+                                                        onClick={() => setActiveDayIndex(globalIdx)}
+                                                        className="option-btn"
+                                                        title={
+                                                            isPastDay ? 'Este día ya pasó'
+                                                            : isEmergencyRepeat ? 'Día de respaldo (repetido porque no hubo variedad disponible)'
+                                                            : isDegraded ? 'Día de respaldo generado desde tu perfil favorito'
+                                                            : isToday ? 'Hoy'
+                                                            : undefined
+                                                        }
+                                                        style={{
+                                                            flexShrink: 0,
+                                                            minWidth: 'fit-content',
+                                                            whiteSpace: 'nowrap',
+                                                            padding: '8px 16px',
+                                                            borderRadius: '8px',
+                                                            fontWeight: isToday ? '700' : '500',
+                                                            fontSize: '0.9rem',
+                                                            transition: 'all 0.2s',
+                                                            border: isActive ? 'none'
+                                                                : isPastDay ? '1px solid #E2E8F0'
+                                                                : isDegraded ? '1px dashed #F59E0B'
+                                                                : '1px solid #CBD5E1',
+                                                            background: isActive
+                                                                ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'
+                                                                : isPastDay ? '#F1F5F9' : 'white',
+                                                            color: isActive ? 'white'
+                                                                : isPastDay ? '#94A3B8'
+                                                                : isDegraded ? '#B45309' : '#475569',
+                                                            boxShadow: isActive ? '0 10px 15px -3px rgba(59, 130, 246, 0.3)' : '0 1px 2px rgba(0,0,0,0.05)',
+                                                            transform: isActive ? 'translateY(-2px)' : 'translateY(0)',
+                                                            opacity: isPastDay && !isActive ? 0.55 : 1,
+                                                            textDecoration: isPastDay && !isActive ? 'line-through' : 'none',
+                                                            display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                                                        }}
+                                                    >
+                                                        {(() => {
+                                                            // Compute day name dynamically from today + visible index
+                                                            const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                                                            const d = new Date();
+                                                            d.setDate(d.getDate() + visibleIdx);
+                                                            return diasSemana[d.getDay()];
+                                                        })()}
+                                                        {isToday && !isActive && (
+                                                            <span style={{
+                                                                width: 6, height: 6, borderRadius: '50%',
+                                                                background: '#3B82F6', display: 'inline-block',
+                                                            }} />
+                                                        )}
+                                                        {isDegraded && (
+                                                            <span style={{
+                                                                fontSize: '0.65rem',
+                                                                fontWeight: 700,
+                                                                padding: '1px 6px',
+                                                                borderRadius: '6px',
+                                                                background: isActive ? 'rgba(255,255,255,0.25)' : '#FEF3C7',
+                                                                color: isActive ? 'white' : '#92400E',
+                                                                letterSpacing: '0.02em',
+                                                            }}>
+                                                                {isEmergencyRepeat ? 'REPETIDO' : 'RESPALDO'}
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                            
+                                            {/* Los días en background se irán agregando silenciosamente por el CRON, sin indicadores que den ansiedad */}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
 
@@ -2519,7 +2461,7 @@ const Dashboard = () => {
                                 }
                             }
 
-                            const hasPremiumForRotation = ['plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase());
+                            const hasPremiumForRotation = true; // Habilitado para todos los planes, incluyendo gratuitos
                             const isAutoRotationActive = hasPremiumForRotation && localStorage.getItem('mealfit_auto_rotate') === 'true';
 
                             return displayMeals.map((meal, index) => {
@@ -2681,8 +2623,10 @@ const Dashboard = () => {
 
                                                 {/* REGENERATE BUTTON (AI SWAP) — Abre modal de razón */}
                                                 <button
-                                                    onClick={() => {
+                                                    onClick={async () => {
                                                         if (regeneratingId === index) return;
+                                                        const hasCredits = await validateCreditsAsync();
+                                                        if (!hasCredits) return;
                                                         // Abrir el micro-prompt modal en vez de ejecutar directamente
                                                         setSwapModal({ dayIndex: activeDayIndex, mealIndex: index, mealType: meal.meal, mealName: meal.name });
                                                     }}
@@ -3160,20 +3104,36 @@ const Dashboard = () => {
                                         <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.75rem' }}>
                                             ¿Confirmar Compra?
                                         </h2>
-                                        <p style={{ color: '#64748B', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '2rem' }}>
+                                        <p style={{ color: '#64748B', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: isShoppingListStale ? '1rem' : '2rem' }}>
                                             Esto agregará todos los ingredientes de la lista de compras directamente a tu Nevera Virtual.
                                         </p>
+
+                                        {isShoppingListStale && (
+                                            <div style={{
+                                                display: 'flex', alignItems: 'flex-start', gap: '0.4rem',
+                                                padding: '0.5rem 0.75rem', marginBottom: '1rem',
+                                                background: '#FFFBEB', border: '1px solid #FCD34D',
+                                                borderRadius: '0.75rem', textAlign: 'left'
+                                            }}>
+                                                <AlertCircle size={14} color="#D97706" style={{ flexShrink: 0, marginTop: '1px' }} />
+                                                <span style={{ fontSize: '0.8rem', color: '#92400E', lineHeight: 1.4 }}>
+                                                    Las cantidades están calculadas para <strong>{planData.calc_household_size} personas</strong>. Si cambiaste el tamaño del hogar, recalcula primero.
+                                                </span>
+                                            </div>
+                                        )}
 
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                             <button
                                                 onClick={handleRestock}
+                                                disabled={isRestocking}
                                                 style={{
                                                     background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                                                     color: '#FFFFFF', border: 'none', padding: '1rem', borderRadius: '1rem',
-                                                    fontWeight: 700, fontSize: '1rem', cursor: 'pointer',
+                                                    fontWeight: 700, fontSize: '1rem', cursor: isRestocking ? 'wait' : 'pointer',
                                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
                                                     boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
-                                                    transition: 'all 0.2s', transform: 'scale(1)'
+                                                    transition: 'all 0.2s', transform: 'scale(1)',
+                                                    opacity: isRestocking ? 0.7 : 1
                                                 }}
                                                 onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
                                                 onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
@@ -3311,63 +3271,16 @@ const Dashboard = () => {
             </AnimatePresence>
 
             {/* ═══════════ MODAL: ¿Por qué quieres cambiar? ═══════════ */}
-            <AnimatePresence>
-                {swapModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        onClick={() => setSwapModal(null)}
-                        style={{
-                            position: 'fixed', inset: 0, zIndex: 9999,
-                            background: 'rgba(0,0,0,0.45)',
-                            backdropFilter: 'blur(4px)',
-                            display: 'flex',
-                            alignItems: window.innerWidth > 640 ? 'center' : 'flex-end',
-                            justifyContent: 'center'
-                        }}
-                    >
-                        <motion.div
-                            initial={window.innerWidth > 640 ? { scale: 0.92, opacity: 0 } : { y: '100%', opacity: 0 }}
-                            animate={window.innerWidth > 640 ? { scale: 1, opacity: 1 } : { y: 0, opacity: 1 }}
-                            exit={window.innerWidth > 640 ? { scale: 0.92, opacity: 0 } : { y: '100%', opacity: 0 }}
-                            transition={{ type: 'spring', damping: 28, stiffness: 340 }}
-                            onClick={e => e.stopPropagation()}
-                            style={{
-                                background: '#FFFFFF',
-                                borderRadius: window.innerWidth > 640 ? '1.5rem' : '1.5rem 1.5rem 0 0',
-                                width: '100%', maxWidth: '440px',
-                                padding: '1.5rem 1.25rem 2rem',
-                                boxShadow: window.innerWidth > 640
-                                    ? '0 25px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.05)'
-                                    : '0 -8px 30px rgba(0,0,0,0.12)'
-                            }}
-                        >
-                            {/* Drag handle — solo en móvil */}
-                            {window.innerWidth <= 640 && (
-                                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-                                    <div style={{ width: '40px', height: '4px', borderRadius: '99px', background: '#E2E8F0' }} />
-                                </div>
-                            )}
-
-                            {/* Header */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
-                                    ¿Por qué quieres cambiar?
-                                </h3>
-                                <button
-                                    onClick={() => setSwapModal(null)}
-                                    style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                                >
-                                    <X size={18} color="#64748B" />
-                                </button>
-                            </div>
-                            <p style={{ fontSize: '0.85rem', color: '#64748B', margin: '0 0 1.15rem 0', fontWeight: 500 }}>
+            <OptionPickerModal
+                isOpen={!!swapModal}
+                onClose={() => setSwapModal(null)}
+                title="¿Por qué quieres cambiar?"
+                subtitle={
+                    swapModal && (
+                        <>
+                            <p style={{ margin: '0 0 1.15rem 0' }}>
                                 Tu respuesta nos ayuda a mejorar tus futuros planes.
                             </p>
-
-                            {/* Meal being swapped */}
                             <div style={{
                                 background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '0.85rem',
                                 padding: '0.65rem 0.9rem', marginBottom: '1rem',
@@ -3378,81 +3291,196 @@ const Dashboard = () => {
                                     {swapModal.mealName}
                                 </span>
                             </div>
+                        </>
+                    )
+                }
+                options={[
+                    { id: 'variety',  icon: Shuffle,    label: 'Quiero variedad',          color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me gusta, pero quiero algo diferente' },
+                    { id: 'time',     icon: Clock,      label: 'No tengo tiempo hoy',      color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco algo más rápido de preparar' },
+                    { id: 'budget',   icon: Wallet,     label: 'Opciones económicas',      color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', desc: 'Ingredientes de bajo costo' },
+                    { id: 'pantry_first', icon: ShoppingCart, label: 'Usar lo que tengo', color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A', desc: 'Maximizar el inventario actual' },
+                    { id: 'cravings', icon: Heart,      label: 'Tengo un antojo',          color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Algo indulgente pero saludable' },
+                    { id: 'weekend',  icon: Zap,        label: 'Fin de semana especial',   color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: [0, 5, 6].includes(new Date().getDay()) ? 'Platos más elaborados y premium (Sáb-Dom)' : 'Plato más elaborado — aplica al plato de hoy' },
+                    { id: 'similar',  icon: Copy,       label: 'Ya comí algo similar',     color: '#F97316', bg: '#FFF7ED', border: '#FED7AA', desc: 'Hoy ya tuve un plato parecido' },
+                    { id: 'dislike',  icon: ThumbsDown, label: 'No me gusta este plato',    color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'La IA evitará sugerirlo en el futuro' }
+                ]}
+                onOptionClick={async (optionId) => {
+                    if (!swapModal) return;
+                    const { dayIndex, mealIndex, mealType, mealName } = swapModal;
+                    setSwapModal(null);
 
-                            {/* Options */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
-                                {[
-                                    { id: 'variety',  icon: Shuffle,    emoji: '🔄', label: 'Quiero variedad',          color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me gusta, pero hoy quiero algo diferente' },
-                                    { id: 'time',     icon: Clock,      emoji: '⏱️', label: 'No tengo tiempo hoy',      color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco algo más rápido de preparar' },
-                                    { id: 'dislike',  icon: ThumbsDown, emoji: '👎', label: 'No me gusta este plato',    color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'La IA evitará sugerirlo en el futuro' },
-                                    { id: 'similar',  icon: Utensils,   emoji: '🍽️', label: 'Ya comí algo similar',      color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A', desc: 'Hoy necesito algo completamente distinto' }
-                                ].map(option => (
-                                    <button
-                                        key={option.id}
-                                        onClick={async () => {
-                                            const { dayIndex, mealIndex, mealType, mealName } = swapModal;
-                                            setSwapModal(null);
+                    // Estado de carga
+                    setRegeneratingId(mealIndex);
+                    const toastId = toast.loading(
+                        optionId === 'dislike' ? '👎 Registrando preferencia...' : '🔄 Consultando al Chef IA...',
+                        { description: 'Buscando una alternativa deliciosa...' }
+                    );
 
-                                            // Estado de carga
-                                            setRegeneratingId(mealIndex);
-                                            const toastId = toast.loading(
-                                                option.id === 'dislike' ? '👎 Registrando preferencia...' : '🔄 Consultando al Chef IA...',
-                                                { description: 'Buscando una alternativa deliciosa...' }
-                                            );
+                    try {
+                        const newName = await regenerateSingleMeal(
+                            dayIndex, mealIndex, mealType, mealName,
+                            optionId // ← swap_reason
+                        );
 
-                                            try {
-                                                const newName = await regenerateSingleMeal(
-                                                    dayIndex, mealIndex, mealType, mealName,
-                                                    option.id // ← swap_reason
-                                                );
+                        trackEvent('plan_regeneration_triggered', {
+                            reason: optionId,
+                            source: 'dashboard',
+                            is_expired: isPlanExpired,
+                            has_pantry: liveInventory && liveInventory.length > 0,
+                            type: 'single_meal'
+                        });
 
-                                                toast.dismiss(toastId);
-                                                toast.success('¡Menú Actualizado!', {
-                                                    description: `Cambiado por: ${newName}`,
-                                                    icon: '👨‍🍳'
-                                                });
-                                            } catch (error) {
-                                                console.error('Error al regenerar:', error);
-                                                toast.dismiss(toastId);
-                                                toast.error('No se pudo conectar con la IA', {
-                                                    description: 'Se usó una receta alternativa local.'
-                                                });
-                                            } finally {
-                                                setRegeneratingId(null);
-                                            }
-                                        }}
-                                        style={{
-                                            display: 'flex', alignItems: 'center', gap: '0.75rem',
-                                            width: '100%', textAlign: 'left',
-                                            background: option.bg, border: `1.5px solid ${option.border}`,
-                                            borderRadius: '0.9rem', padding: '0.8rem 0.9rem',
-                                            cursor: 'pointer', transition: 'all 0.2s',
-                                        }}
-                                        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.015)'; e.currentTarget.style.boxShadow = `0 3px 12px ${option.border}60`; }}
-                                        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none'; }}
-                                    >
-                                        <div style={{
-                                            width: '38px', height: '38px', borderRadius: '0.7rem',
-                                            background: `${option.color}15`,
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                                        }}>
-                                            <option.icon size={19} color={option.color} />
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#0F172A', letterSpacing: '-0.01em' }}>
-                                                {option.label}
-                                            </div>
-                                            <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 500, marginTop: '2px' }}>
-                                                {option.desc}
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        </motion.div>
-                    </motion.div>
+                        toast.dismiss(toastId);
+                        toast.success('¡Menú Actualizado!', {
+                            description: `Cambiado por: ${newName}`,
+                            icon: '👨‍🍳'
+                        });
+                    } catch (error) {
+                        console.error('Error al regenerar:', error);
+                        toast.dismiss(toastId);
+                        toast.error('No se pudo conectar con la IA', {
+                            description: 'Se usó una receta alternativa local.'
+                        });
+                    } finally {
+                        setRegeneratingId(null);
+                    }
+                }}
+                infoBandRenderer={(hoveredOption) => (
+                    <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: '#F8FAFC', borderRadius: '0.8rem', border: '1px solid #E2E8F0', fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                        <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: '#64748B' }} />
+                        <div>
+                            {hoveredOption === 'dislike' ? (
+                                <><strong>Se evitará:</strong> {swapModal?.mealName}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~4s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}. ⚠️ Este plato se excluirá permanentemente de futuros planes.</span></>
+                            ) : hoveredOption ? (
+                                <><strong>Regenerando:</strong> 1 plato ({swapModal?.mealType === 'snack' ? 'Snack' : 'Comida principal'}).<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~4s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                            ) : (
+                                isPremium ? (
+                                    <>Plan <strong>Premium</strong>: Regeneraciones ilimitadas activas.</>
+                                ) : (
+                                    <>Te quedan <strong>{typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : 'ilimitadas'}</strong> regeneraciones este mes.</>
+                                )
+                            )}
+                        </div>
+                    </div>
                 )}
-            </AnimatePresence>
+            />
+
+            {/* ═══════════ MODAL: ¿Por qué quieres actualizar los platos de hoy? ═══════════ */}
+            <OptionPickerModal
+                isOpen={showUpdatePlanModal}
+                onClose={() => setShowUpdatePlanModal(false)}
+                title={isPlanExpired ? "Nuevo Ciclo de Compras" : "¿Por qué quieres actualizar?"}
+                subtitle={
+                    <p style={{ margin: '0 0 1.15rem 0' }}>
+                        {isPlanExpired
+                            ? "Ciclo de compras cerrado. ¿Qué priorizamos esta semana?"
+                            : "Ayuda al sistema a entender qué platos prefieres."}
+                    </p>
+                }
+                options={isPlanExpired ? [
+                    { id: 'variety',  icon: Shuffle,    label: 'Quiero variedad',       color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me apetecen platos distintos esta semana' },
+                    { id: 'time',     icon: Clock,      label: 'Semana ocupada',       color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco preparaciones más rápidas' },
+                    { id: 'budget',   icon: Wallet,     label: 'Opciones económicas',   color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', desc: 'Priorizar ingredientes de bajo costo' },
+                    { id: 'pantry_first', icon: ShoppingCart, label: 'Usar lo que tengo',  color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A', desc: 'Maximizar el inventario actual' },
+                    { id: 'cravings', icon: Heart,      label: 'Tengo un antojo',       color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Algo indulgente pero saludable para esta semana' },
+                    { id: 'weekend',  icon: Zap,        label: 'Fin de semana especial', color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)' },
+                    { id: 'similar',  icon: Copy,       label: 'Se parece al ciclo anterior', color: '#F97316', bg: '#FFF7ED', border: '#FED7AA', desc: 'Evitar sugerencias muy parecidas a la semana pasada' },
+                    { id: 'dislike',  icon: ThumbsDown, label: 'No me gustó el ciclo anterior', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'Evitar ingredientes y estilos similares en el futuro' }
+                ] : [
+                    { id: 'variety',  icon: Shuffle,    label: 'Quiero más variedad',       color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me apetecen platos distintos hoy' },
+                    { id: 'time',     icon: Clock,      label: 'No tengo tiempo hoy',       color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco algo más rápido de preparar' },
+                    { id: 'budget',   icon: Wallet,     label: 'Opciones más económicas',   color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', desc: 'Ingredientes de bajo costo' },
+                    { id: 'pantry_first', icon: ShoppingCart, label: 'Usar lo que tengo',  color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A', desc: 'Maximizar el inventario actual' },
+                    { id: 'cravings', icon: Heart,      label: 'Tengo un antojo distinto',  color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Algo indulgente pero saludable' },
+                    { id: 'weekend',  icon: Zap,        label: 'Fin de semana especial',    color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)' },
+                    { id: 'dislike',  icon: ThumbsDown, label: 'No me gustan estos platos', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'Evitar sugerencias similares en el futuro' }
+                ]}
+                isNavigatingOption={isNavigatingOption}
+                onOptionClick={async (optionId) => {
+                    if (isLimitReached || isNavigatingOption) return;
+                    setIsNavigatingOption(optionId);
+                    
+                    const toastId = toast.loading(
+                        isPlanExpired ? 'Preparando nuevo ciclo...' : 'Actualizando platos...',
+                        { description: 'Analizando opciones con IA...' }
+                    );
+
+                    await handleNewPlan(optionId, toastId, 'dashboard_refresh');
+                    setIsNavigatingOption(null);
+                    setShowUpdatePlanModal(false);
+                }}
+                infoBandRenderer={(hoveredOption) => (
+                    <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: '#F8FAFC', borderRadius: '0.8rem', border: '1px solid #E2E8F0', fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                        <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: '#64748B' }} />
+                        <div>
+                            {hoveredOption === 'dislike' ? (
+                                <><strong>Se evitarán:</strong> {currentDayMeals.length > 0 ? currentDayMeals.map(m => m.name).join(', ') : 'los platos actuales'}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                            ) : hoveredOption ? (
+                                <><strong>Regenerando:</strong> el menú completo del ciclo actual.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                            ) : (
+                                isPremium ? (
+                                    <>Plan <strong>Premium</strong>: Regeneraciones ilimitadas activas.</>
+                                ) : (
+                                    <>Te quedan <strong>{typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : 'ilimitadas'}</strong> regeneraciones este mes.</>
+                                )
+                            )}
+                        </div>
+                    </div>
+                )}
+            />
+            <OptionPickerModal
+                isOpen={showAutoRotationOverrideModal}
+                onClose={() => setShowAutoRotationOverrideModal(false)}
+                title="Gestión de Rotación"
+                subtitle="Tu plan está configurado para actualizarse automáticamente."
+                options={[
+                    {
+                        id: 'wait',
+                        label: 'Esperar rotación automática',
+                        desc: 'Tus platos se actualizarán hoy a las 2:00 AM (sin costo adicional).',
+                        icon: Clock,
+                        color: '#10B981',
+                        bg: '#ECFDF5',
+                        border: '#A7F3D0'
+                    },
+                    {
+                        id: 'override',
+                        label: 'Refrescar ahora manualmente',
+                        desc: `Generar nuevos platos inmediatamente${isPremium ? '' : ' (consume 1 regeneración)'}.`,
+                        icon: Zap,
+                        color: '#F59E0B',
+                        bg: '#FFFBEB',
+                        border: '#FDE68A'
+                    }
+                ]}
+                onOptionClick={async (optionId) => {
+                    setShowAutoRotationOverrideModal(false);
+                    if (optionId === 'override') {
+                        const hasCredits = await validateCreditsAsync();
+                        if (!hasCredits) return;
+                        setShowUpdatePlanModal(true);
+                    }
+                }}
+                infoBandRenderer={(hoveredOption) => (
+                    <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: '#F8FAFC', borderRadius: '0.8rem', border: '1px solid #E2E8F0', fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                        <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: '#64748B' }} />
+                        <div>
+                            {hoveredOption === 'override' ? (
+                                <><strong>Refresco Manual:</strong> Regenerarás el día completo al instante.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                            ) : hoveredOption === 'wait' ? (
+                                <><strong>Rotación Automática:</strong> El sistema actualizará los platos gratis esta madrugada.</>
+                            ) : (
+                                isPremium ? (
+                                    <>Plan <strong>Premium</strong>: Regeneraciones ilimitadas activas.</>
+                                ) : (
+                                    <>Te quedan <strong>{typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : 'ilimitadas'}</strong> regeneraciones este mes.</>
+                                )
+                            )}
+                        </div>
+                    </div>
+                )}
+            />
+
         </>
     );
 };

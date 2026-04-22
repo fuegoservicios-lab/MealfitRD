@@ -179,7 +179,7 @@ const Pricing = () => {
                                 <span className={styles.amount}>0</span>
                             </div>
                             <p className={styles.description}>
-                                Descubre el poder de la IA. Plan personalizado, recetas y lista de compras incluidos.
+                                Descubre el poder de la IA. Plan personalizado, recetas y rotación autónoma de menús.
                             </p>
 
                             <ul className={styles.features}>
@@ -187,6 +187,7 @@ const Pricing = () => {
                                 <li><Check size={18} className={styles.check} /> <strong>Plan de Comidas con IA</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Recetas Paso a Paso</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Lista de Compras PDF</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Rotación Autónoma de Platos</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Nevera Virtual (Despensa)</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Aprendizaje a Corto Plazo</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Historial de Planes</strong></li>
@@ -214,7 +215,7 @@ const Pricing = () => {
                             </div>
 
                             <p className={styles.description}>
-                                Todo el poder de la IA. Despensa inteligente, macros exactos y rotación autónoma de menús.
+                                Todo el poder de la IA. Despensa inteligente, macros exactos para optimizar tu salud.
                             </p>
 
                             <ul className={styles.features}>
@@ -222,7 +223,6 @@ const Pricing = () => {
                                 <li><Check size={18} className={styles.check} /> <strong>Analizador de Macros</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Asistente IA con Visión</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Memoria a Largo Plazo</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Rotación Autónoma de Platos</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Despensa Inteligente</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Seguimiento de Progreso</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Gratis</strong></li>

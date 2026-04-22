@@ -4,8 +4,8 @@ import { useState } from 'react';
 import InteractiveAssessmentLayout from './InteractiveAssessmentLayout';
 import { 
     QGender, QMeasurements, QActivityLevel, QSchedule, 
-    QSleep, QStress, QCookingTime, QBudget, QDietType, 
-    QAllergies, QMedical, QMainGoal, QStruggles, 
+    QSleep, QStress, QCookingTime, QBudget, QHousehold,
+    QDietType, QAllergies, QMedical, QMainGoal, QStruggles, 
     QMotivation, QSupplements 
 } from './questions/InteractiveQuestions';
 import { toast } from 'sonner';
@@ -64,6 +64,12 @@ const InteractiveAssessmentFlow = () => {
             title: <>Tu presupuesto para compras&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Ajustaremos los ingredientes para no afectar tu bolsillo.",
             component: <QBudget onAutoAdvance={handleAutoAdvance} />
+        },
+        {
+            title: <>Tu Hogar y Despensa&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: "Esto personaliza tu lista de compras y las cantidades.",
+            hasInternalNext: true,
+            component: <QHousehold onManualAdvance={nextStep} />
         },
         {
             title: <>¿Qué tipo de dieta prefieres?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
@@ -171,9 +177,9 @@ const InteractiveAssessmentFlow = () => {
                             </button>
                         )}
                         
-                        {(maxReachedStep > currentStep || hasCompletedBefore) && currentStep < steps.length - 1 && (
+                        {currentStep === 0 && hasCompletedBefore && (
                             <button 
-                                onClick={() => setCurrentStep(hasCompletedBefore ? steps.length - 1 : maxReachedStep)}
+                                onClick={() => setCurrentStep(steps.length - 1)}
                                 style={{ 
                                     padding: '1rem', 
                                     background: 'transparent', 
@@ -195,7 +201,7 @@ const InteractiveAssessmentFlow = () => {
                                     e.currentTarget.style.color = 'var(--text-secondary)';
                                 }}
                             >
-                                {hasCompletedBefore ? "Saltar a última pregunta ⏭" : "Saltar a donde estaba ⏭"}
+                                Saltar a la última pregunta ⏭
                             </button>
                         )}
                     </div>

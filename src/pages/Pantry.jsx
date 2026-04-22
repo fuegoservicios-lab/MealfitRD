@@ -20,6 +20,7 @@ const Pantry = () => {
     const [isAdding, setIsAdding] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDeletingAll, setIsDeletingAll] = useState(false);
 
     // Resetear focus activo al cambiar búsqueda o cerrar modal
     useEffect(() => {
@@ -102,13 +103,9 @@ const Pantry = () => {
                         item.id === payload.new.id ? { ...item, ...payload.new } : item
                     ));
                 } else if (payload.eventType === 'INSERT') {
-                    setInventory(prev => {
-                        // Si no lo tenemos por UI optimista, lo traemos
-                        if (!prev.some(item => item.id === payload.new.id)) {
-                            fetchAndAddSingleItem(payload.new.id);
-                        }
-                        return prev;
-                    });
+                    if (!inventoryRef.current.some(item => item.id === payload.new.id)) {
+                        fetchAndAddSingleItem(payload.new.id);
+                    }
                 }
             })
             .subscribe();
@@ -295,6 +292,8 @@ const Pantry = () => {
     };
 
     const confirmDeleteAll = async () => {
+        if (isDeletingAll) return;
+        setIsDeletingAll(true);
         setShowDeleteConfirm(false);
         const loadingToast = toast.loading('Borrando todos los alimentos...');
         try {
@@ -314,7 +313,7 @@ const Pantry = () => {
                     const householdSize = planData?.calc_household_size || 1;
                     const groceryDuration = planData?.calc_grocery_duration || 'weekly';
 
-                    const recalcRes = await fetchWithAuth(`${API_BASE}/api/recalculate-shopping-list`, {
+                    const recalcRes = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -341,6 +340,8 @@ const Pantry = () => {
             console.error("Error deleting all:", error);
             toast.dismiss(loadingToast);
             toast.error('Error al borrar los alimentos');
+        } finally {
+            setIsDeletingAll(false);
         }
     };
 
@@ -372,7 +373,7 @@ const Pantry = () => {
             const { data, error } = await supabase
                 .from('user_inventory')
                 .upsert([newItem], { onConflict: 'user_id,master_ingredient_id' })
-                .select('*, master_ingredients(name, category)')
+                .select('*, master_ingredients(name, category, default_unit)')
                 .single();
 
             if (error) throw error;

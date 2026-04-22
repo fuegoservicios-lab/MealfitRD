@@ -1,22 +1,38 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     User, Bell, Shield, ChevronRight,
-    LogOut, Save, Trash2, Database, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle
+    LogOut, Save, Trash2, Database, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Users, Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAssessment } from '../context/AssessmentContext';
 import { useNavigate } from 'react-router-dom';
+import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
 import styles from './Settings.module.css';
 import { fetchWithAuth } from '../config/api';
 import { requestNotificationPermission, subscribeToPushNotifications, unsubscribeFromPushNotifications, isPushSupported } from '../utils/pushNotifications';
+import { trackEvent } from '../utils/analytics';
+import Modal from '../components/common/Modal';
+import OptionPickerModal from '../components/common/OptionPickerModal';
 
 const Settings = () => {
     // Obtenemos userProfile y updateUserProfile del contexto global
-    const { planData, formData, resetApp, userProfile, updateUserProfile, setCurrentStep } = useAssessment();
+    const { planData, formData, resetApp, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit } = useAssessment();
     const navigate = useNavigate();
+    const { regeneratePlan } = useRegeneratePlan();
+
+    // Estados GAP 8
+    const [hoveredEvaluateOption, setHoveredEvaluateOption] = useState(null);
+    
+    // Estados GAP 9
+    const [isNavigatingOption, setIsNavigatingOption] = useState(null);
+    
+    // GAP 4: Ref para prevenir doble-disparo
+    const isNavigatingRef = useRef(false);
+    const [showAutoRotationOverrideModal, setShowAutoRotationOverrideModal] = useState(false);
 
     // --- ESTADOS LOCALES ---
+    const isLimitReached = typeof userPlanLimit === 'number' && planCount >= userPlanLimit;
     
     // Estado para las notificaciones (Avisos de comidas)
     const [notifications, setNotifications] = useState(() => {
@@ -85,6 +101,7 @@ const Settings = () => {
     );
 
     const [isSaving, setIsSaving] = useState(false);
+    const [isRecalculating, setIsRecalculating] = useState(false);
     const [saveStatus, setSaveStatus] = useState(''); // '', 'success', 'error'
     const [nameError, setNameError] = useState('');
     const [confirmReset, setConfirmReset] = useState(false);
@@ -97,6 +114,10 @@ const Settings = () => {
     // --- ESTADOS DE PAGO ---
     const [isCancelling, setIsCancelling] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
+
+    // --- ESTADOS DE EVALUACIÓN ---
+    const [showEvaluateModal, setShowEvaluateModal] = useState(false);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
 
     // --- EFECTOS ---
 
@@ -295,44 +316,13 @@ const Settings = () => {
     return (
         <>
             <div className={styles.wrapper}>
-                <AnimatePresence>
-                    {showCancelModal && (
-                        <div style={{
-                            position: 'fixed', inset: 0, zIndex: 9999, display: 'flex',
-                            alignItems: 'center', justifyContent: 'center', padding: '1.25rem'
-                        }}>
-                            {/* Backdrop */}
-                            <motion.div 
-                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                onClick={() => !isCancelling && setShowCancelModal(false)}
-                                style={{
-                                    position: 'absolute', inset: 0, 
-                                    background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)'
-                                }}
-                            />
-
-                            {/* Modal Content */}
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                style={{
-                                    background: '#FFFFFF', borderRadius: '1.25rem', padding: '2rem',
-                                    width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1,
-                                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
-                                }}
-                            >
-                                <button 
-                                    onClick={() => !isCancelling && setShowCancelModal(false)}
-                                    disabled={isCancelling}
-                                    style={{
-                                        position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none',
-                                        color: '#64748B', cursor: isCancelling ? 'not-allowed' : 'pointer', display: 'flex', padding: '0.25rem',
-                                        borderRadius: '0.5rem', transition: 'background 0.2s', opacity: isCancelling ? 0.5 : 1
-                                    }}
-                                    onMouseOver={(e) => { if (!isCancelling) e.currentTarget.style.background = '#F1F5F9'; }}
-                                    onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                                >
-                                    <X size={20} />
-                                </button>
+                <Modal 
+                    isOpen={showCancelModal} 
+                    onClose={() => !isCancelling && setShowCancelModal(false)} 
+                    titleId="cancel-modal-title" 
+                    maxWidth="420px"
+                    disableClose={isCancelling}
+                >
                                 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
                                     <div style={{ background: '#FEF2F2', color: '#EF4444', padding: '0.75rem', borderRadius: '50%' }}>
@@ -379,10 +369,169 @@ const Settings = () => {
                                         {isCancelling ? 'Cancelando...' : 'Sí, Cancelar'}
                                     </button>
                                 </div>
-                            </motion.div>
-                        </div>
-                    )}
-                </AnimatePresence>
+                </Modal>
+
+                {/* MODAL Evaluar de Nuevo */}
+            <AnimatePresence>
+                {showEvaluateModal && (
+                    showResetConfirm ? (
+                        <Modal
+                            isOpen={true}
+                            onClose={() => { setShowEvaluateModal(false); setShowResetConfirm(false); }}
+                            titleId="reset-confirm-modal"
+                            maxWidth="440px"
+                            isBottomSheetOnMobile={true}
+                            disableClose={isNavigatingRef.current}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                                <div style={{ background: '#FEE2E2', color: '#EF4444', padding: '0.75rem', borderRadius: '50%' }}>
+                                    <AlertTriangle size={24} strokeWidth={2.5} />
+                                </div>
+                                <h3 id="reset-confirm-modal" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0F172A' }}>
+                                    ¿Empezar desde cero?
+                                </h3>
+                            </div>
+                            
+                            <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '2rem' }}>
+                                Esto reemplazará tu plan actual y <strong>borrará todas tus preferencias</strong>, incluyendo los platos que no te gustan. Esta acción es irreversible y consumirá 1 crédito.
+                            </p>
+                            
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <button 
+                                    onClick={async (e) => {
+                                        if (isNavigatingRef.current) return;
+                                        isNavigatingRef.current = true;
+                                        
+                                        const toastId = toast.loading('Borrando preferencias...', { description: 'Preparando tu cuenta para un nuevo inicio.' });
+
+                                        try {
+                                            // GAP 6: Invocar el endpoint para resetear preferencias en el backend
+                                            await fetchWithAuth('/api/account/reset-preferences', {
+                                                method: 'POST'
+                                            });
+
+                                            // Limpiar LocalStorage para asegurar que el UI refleje el reseteo
+                                            localStorage.removeItem('mealfit_disabled_ingredients');
+                                            localStorage.removeItem('mealfit_plan');
+                                            localStorage.removeItem('mealfit_likes');
+                                            localStorage.removeItem('mealfit_dislikes');
+
+                                            toast.dismiss(toastId);
+                                            toast.success('Cuenta reseteada', { description: 'Empecemos de nuevo.' });
+                                            
+                                            // GAP 13: Analítica explícita para la intención de empezar de cero
+                                            trackEvent('plan_regeneration_triggered', {
+                                                reason: 'account_reset',
+                                                source: 'settings_reset',
+                                                is_expired: false,
+                                                has_pantry: false,
+                                                type: 'full_reset'
+                                            });
+
+                                            setShowEvaluateModal(false);
+                                            setShowResetConfirm(false);
+                                            
+                                            // Ir al form desde cero
+                                            setCurrentStep(0);
+                                            navigate('/assessment');
+                                        } catch (error) {
+                                            console.error("Error reseteando preferencias:", error);
+                                            toast.dismiss(toastId);
+                                            toast.error('Error', { description: 'Hubo un problema al borrar tus preferencias.' });
+                                        } finally {
+                                            setTimeout(() => { isNavigatingRef.current = false; }, 1000);
+                                        }
+                                    }}
+                                    style={{
+                                        padding: '1.25rem', borderRadius: '1rem', border: 'none',
+                                        background: '#EF4444', color: 'white', cursor: 'pointer', transition: 'all 0.2s',
+                                        fontWeight: 700, fontSize: '1.05rem', textAlign: 'center'
+                                    }}
+                                    onMouseOver={(e) => e.currentTarget.style.background = '#DC2626'}
+                                    onMouseOut={(e) => e.currentTarget.style.background = '#EF4444'}
+                                >
+                                    Sí, empezar desde cero
+                                </button>
+
+                                <button 
+                                    onClick={() => setShowResetConfirm(false)}
+                                    style={{
+                                        padding: '1.25rem', borderRadius: '1rem', border: '2px solid #E2E8F0',
+                                        background: 'transparent', color: '#475569', cursor: 'pointer', transition: 'all 0.2s',
+                                        fontWeight: 600, fontSize: '1.05rem', textAlign: 'center'
+                                    }}
+                                    onMouseOver={(e) => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
+                                    onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        </Modal>
+                    ) : (
+                        <OptionPickerModal
+                            isOpen={true}
+                            onClose={() => setShowEvaluateModal(false)}
+                            title="Evaluar de Nuevo"
+                            subtitle="Elige cómo quieres generar tu nuevo plan. ¿Quieres mantener tus datos actuales o empezar desde cero?"
+                            headerIcon={{ icon: <Database size={24} strokeWidth={2.5} />, bg: '#DCFCE7', color: '#16A34A' }}
+                            options={[
+                                { 
+                                    id: 'renovar', 
+                                    label: 'Renovar Plan Actual', 
+                                    desc: 'Genera un plan totalmente nuevo para variar los alimentos, tomando en cuenta los datos que ya configuraste.',
+                                    hoverBg: '#EFF6FF',
+                                    hoverBorder: '#3B82F6',
+                                    labelColor: '#1E3A8A'
+                                },
+                                { 
+                                    id: 'cero', 
+                                    label: 'Empezar Desde Cero', 
+                                    desc: 'Elimina todo tu progreso y te lleva al formulario inicial.',
+                                    hoverBg: '#F0FDF4',
+                                    hoverBorder: '#10B981',
+                                    labelColor: '#065F46'
+                                }
+                            ]}
+                            isNavigatingOption={isNavigatingOption}
+                            onOptionClick={async (optionId) => {
+                                if (optionId === 'renovar') {
+                                    // GAP 11: Mini-confirm inline si se están agotando los créditos
+                                    if (typeof userPlanLimit === 'number' && userPlanLimit > 0) {
+                                        if (planCount / userPlanLimit > 0.7) {
+                                            const remaining = Math.max(0, userPlanLimit - planCount);
+                                            const confirmed = window.confirm(`¿Consumir 1 regeneración? Quedan ${remaining}.`);
+                                            if (!confirmed) return;
+                                        }
+                                    }
+
+                                    if (isNavigatingRef.current) return;
+                                    setIsNavigatingOption('renovar');
+                                    const toastId = toast.loading('Preparando renovación...', { description: 'Iniciando Chef IA...' });
+                                    await regeneratePlan({ reason: 'variety', isPlanExpired: false, toastId, entry_point: 'settings_renovar' });
+                                    setIsNavigatingOption(null);
+                                    setShowEvaluateModal(false);
+                                } else if (optionId === 'cero') {
+                                    setShowResetConfirm(true);
+                                }
+                            }}
+                            infoBandRenderer={(hoveredOption) => (
+                                <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: '#F8FAFC', borderRadius: '0.8rem', border: '1px solid #E2E8F0', fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                                    <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: '#64748B' }} />
+                                    <div>
+                                        {hoveredOption === 'cero' ? (
+                                            <><strong>Empezar de cero:</strong> Limpiará tus datos y generará un plan totalmente nuevo.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~30s. Consumirá 1 regeneración.</span></>
+                                        ) : hoveredOption === 'renovar' ? (
+                                            <><strong>Renovar:</strong> Mantendrá tus alergias y generará nuevos platos.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~30s. Consumirá 1 regeneración.</span></>
+                                        ) : (
+                                            <>Te quedan <strong>{typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : 'ilimitadas'}</strong> regeneraciones de planes este mes.</>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        />
+                    )
+                )}
+            </AnimatePresence>
 
                 {/* --- HEADER --- */}
                 <header className={styles.header}>
@@ -470,6 +619,102 @@ const Settings = () => {
                                     <div className={styles.emailBadge}>
                                         <Shield size={14} /> Protegido
                                     </div>
+                                </div>
+
+                                {/* Número de Personas */}
+                                <div style={{ width: '100%', marginTop: '0.5rem' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.75rem' }}>
+                                        {isRecalculating ? (
+                                            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ display: 'flex' }}>
+                                                <Loader2 size={16} color="#7C3AED" />
+                                            </motion.div>
+                                        ) : (
+                                            <Users size={16} color="#7C3AED" />
+                                        )}
+                                        ¿Para cuántas personas cocinas?
+                                    </label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.5rem' }}>
+                                        {[1, 2, 3, 4, 5, 6].map((num) => {
+                                            const isActive = (formData?.householdSize || 1) === num;
+                                            return (
+                                                <button
+                                                    key={num}
+                                                    disabled={isRecalculating}
+                                                    onClick={async () => {
+                                                        if (isRecalculating || isActive) return;
+                                                        const prevHouseholdSize = formData?.householdSize || 1;
+                                                        
+                                                        // Update optimistically
+                                                        updateData('householdSize', num);
+                                                        if (userProfile && typeof updateUserProfile === 'function') {
+                                                            updateUserProfile({ health_profile: { ...formData, householdSize: num } });
+                                                        }
+                                                        
+                                                        if (userProfile?.id && planData) {
+                                                            setIsRecalculating(true);
+                                                            const recalcToast = toast.loading('Recalculando...', { position: 'top-center' });
+                                                            try {
+                                                                const response = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
+                                                                    method: 'POST',
+                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                    body: JSON.stringify({ 
+                                                                        user_id: userProfile.id, 
+                                                                        householdSize: num, 
+                                                                        groceryDuration: formData?.groceryDuration || 'weekly' 
+                                                                    })
+                                                                });
+                                                                
+                                                                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                                                                const result = await response.json();
+                                                                
+                                                                if (result.success && result.plan_data) {
+                                                                    const rk = `mealfit_restock_cache_${userProfile?.id}_${result.plan_data.grocery_start_date || 'latest'}_${num}_${formData?.groceryDuration || 'weekly'}`;
+                                                                    if (result.plan_data.is_restocked == null && localStorage.getItem(rk)) result.plan_data.is_restocked = true;
+                                                                    
+                                                                    localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
+                                                                    setPlanData(result.plan_data);
+                                                                    toast.success(`${num} ${num === 1 ? 'persona' : 'personas'}`, { id: recalcToast, icon: '👥' });
+                                                                } else {
+                                                                    toast.dismiss(recalcToast);
+                                                                }
+                                                                setIsRecalculating(false);
+                                                            } catch {
+                                                                toast.dismiss(recalcToast);
+                                                                toast.error('Error al actualizar personas');
+                                                                updateData('householdSize', prevHouseholdSize);
+                                                                if (userProfile && typeof updateUserProfile === 'function') {
+                                                                    updateUserProfile({ health_profile: { ...formData, householdSize: prevHouseholdSize } });
+                                                                }
+                                                                setIsRecalculating(false);
+                                                            }
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        padding: '0.75rem 0',
+                                                        borderRadius: '0.75rem',
+                                                        border: isActive ? '2px solid #7C3AED' : '1px solid #E2E8F0',
+                                                        background: isActive ? '#F5F3FF' : 'white',
+                                                        color: isActive ? '#7C3AED' : '#64748B',
+                                                        fontWeight: isActive ? 700 : 500,
+                                                        cursor: isRecalculating ? 'not-allowed' : 'pointer',
+                                                        transition: 'all 0.2s ease',
+                                                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem',
+                                                        opacity: isRecalculating && !isActive ? 0.5 : 1,
+                                                        boxShadow: isActive ? '0 4px 12px rgba(124, 58, 237, 0.15)' : 'none'
+                                                    }}
+                                                >
+                                                    <span style={{ fontSize: '1.2rem' }}>
+                                                        {num === 1 ? '👤' : num <= 3 ? '👥' : '👨‍👩‍👧‍👦'}
+                                                    </span>
+                                                    <span>{num}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <p style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                        <AlertCircle size={12} />
+                                        La lista de compras se recalculará automáticamente.
+                                    </p>
                                 </div>
                             </div>
 
@@ -603,9 +848,6 @@ const Settings = () => {
                                                 letterSpacing: '0.5px',
                                                 textTransform: 'uppercase'
                                             }}>NUEVO</span>
-                                            {!['basic', 'plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase()) && (
-                                                <span style={{ fontSize: '0.85rem', flexShrink: 0 }} title="Requiere Plan Básico o superior">🔒</span>
-                                            )}
                                         </div>
                                         <div style={{ fontSize: '0.78rem', color: '#92400E', lineHeight: '1.45', marginTop: '0.25rem' }}>
                                             Renovar tus platos diarios tomando en cuenta tus nuevos gustos.
@@ -615,17 +857,8 @@ const Settings = () => {
                                 <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
                                     <input
                                         type="checkbox"
-                                        checked={autoRotateMeals && ['basic', 'plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase())}
+                                        checked={autoRotateMeals}
                                         onChange={() => {
-                                            const tier = (userProfile?.plan_tier || '').toLowerCase();
-                                            const isPremium = ['basic', 'plus', 'ultra', 'admin'].includes(tier);
-                                            if (!isPremium) {
-                                                toast.error("Función exclusiva de planes Premium", {
-                                                    description: "Mejora a Básico o superior para usar la Rotación Autónoma.",
-                                                    icon: "🔒"
-                                                });
-                                                return;
-                                            }
                                             const newValue = !autoRotateMeals;
                                             setAutoRotateMeals(newValue);
                                             
@@ -674,36 +907,57 @@ const Settings = () => {
                                     </div>
                                 </div>
 
-                                <button
-                                    onClick={() => {
-                                        setCurrentStep(0);
-                                        navigate('/assessment');
-                                    }}
-                                    className={styles.actionBtn}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.75rem',
-                                        border: '1px solid rgba(255, 255, 255, 0.4)',
-                                        borderRadius: '0.75rem',
-                                        background: 'rgba(255, 255, 255, 0.15)',
-                                        color: 'white',
-                                        fontWeight: 600,
-                                        cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                        backdropFilter: 'blur(10px)',
-                                        marginTop: '0.5rem'
-                                    }}
-                                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)'}
-                                    onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
-                                >
-                                    Evaluar de Nuevo <ChevronRight size={18} />
-                                </button>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                    <>
+                                        <button
+                                            onClick={() => {
+                                                if (!isLimitReached) {
+                                                    setShowEvaluateModal(true);
+                                                }
+                                            }}
+                                            className={styles.actionBtn}
+                                            disabled={isLimitReached}
+                                            style={{
+                                                width: '100%',
+                                                padding: '0.75rem',
+                                                border: '1px solid rgba(255, 255, 255, 0.4)',
+                                                borderRadius: '0.75rem',
+                                                background: isLimitReached ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.15)',
+                                                color: isLimitReached ? 'rgba(255, 255, 255, 0.5)' : 'white',
+                                                fontWeight: 600,
+                                                cursor: isLimitReached ? 'not-allowed' : 'pointer',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                                backdropFilter: 'blur(10px)',
+                                                opacity: isLimitReached ? 0.7 : 1
+                                            }}
+                                            onMouseOver={(e) => { if (!isLimitReached) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)' }}
+                                            onMouseOut={(e) => { if (!isLimitReached) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)' }}
+                                        >
+                                            {isLimitReached ? 'Límite de Plan Alcanzado' : 'Evaluar de Nuevo'} { !isLimitReached && <ChevronRight size={18} /> }
+                                        </button>
+                                        
+                                        {isLimitReached && (
+                                            <div style={{ textAlign: 'center' }}>
+                                                <a 
+                                                    href="#subscription" 
+                                                    style={{ color: '#E0E7FF', fontSize: '0.85rem', textDecoration: 'underline', cursor: 'pointer' }}
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        document.querySelector('#subscription')?.scrollIntoView({ behavior: 'smooth' });
+                                                    }}
+                                                >
+                                                    Actualiza tu suscripción para continuar
+                                                </a>
+                                            </div>
+                                        )}
+                                    </>
+                                </div>
                             </div>
                         </section>
                     </div>
 
                     {/* SECCIÓN NUEVA: SUSCRIPCIÓN */}
-                    <section className={styles.section}>
+                    <section className={styles.section} id="subscription">
                         <h2 className={styles.sectionTitle} style={{ marginBottom: '1rem' }}>
                             <div style={{ background: '#E0E7FF', padding: '0.5rem', borderRadius: '0.5rem', color: '#4F46E5' }}>
                                 <CreditCard size={20} />
@@ -902,6 +1156,43 @@ const Settings = () => {
                     </section>
                 </div>
             </div>
+            <OptionPickerModal
+                isOpen={showAutoRotationOverrideModal}
+                onClose={() => setShowAutoRotationOverrideModal(false)}
+                title="Gestión de Rotación"
+                subtitle="Tu plan está configurado para actualizarse automáticamente."
+                options={[
+                    {
+                        id: 'wait',
+                        label: 'Esperar rotación automática',
+                        desc: 'Tus platos se actualizarán hoy a las 2:00 AM (sin costo adicional).',
+                        icon: Clock,
+                        color: '#10B981',
+                        bg: '#ECFDF5',
+                        border: '#A7F3D0'
+                    },
+                    {
+                        id: 'override',
+                        label: 'Refrescar ahora manualmente',
+                        desc: 'Generar nuevos platos inmediatamente (consume 1 crédito).',
+                        icon: Zap,
+                        color: '#F59E0B',
+                        bg: '#FFFBEB',
+                        border: '#FDE68A'
+                    }
+                ]}
+                onOptionClick={(optionId) => {
+                    setShowAutoRotationOverrideModal(false);
+                    if (optionId === 'override') {
+                        if (isLimitReached) {
+                            toast.error('Límite alcanzado', { description: 'No tienes créditos de regeneración disponibles.' });
+                            return;
+                        }
+                        setShowEvaluateModal(true);
+                    }
+                }}
+            />
+
         </>
     );
 };

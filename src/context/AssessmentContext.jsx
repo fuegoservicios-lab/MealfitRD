@@ -346,11 +346,19 @@ export const AssessmentProvider = ({ children }) => {
                 }
                 localStorage.setItem('mealfit_last_form_owner', userId);
 
-                // Ejecutamos todo en paralelo
-                await Promise.all([
+                // Ejecutamos todo en paralelo, con un timeout de 5s para evitar bloqueo total
+                const loadPromises = Promise.all([
                     fetchProfile(userId),
                     checkPlanLimit(userId),
                     restoreSessionData(userId)
+                ]);
+                
+                await Promise.race([
+                    loadPromises,
+                    new Promise((resolve) => setTimeout(() => {
+                        console.warn("⚠️ Timeout cargando datos del usuario, forzando renderizado...");
+                        resolve();
+                    }, 5000))
                 ]);
             } else {
                 // Logout / No sesión
@@ -364,6 +372,7 @@ export const AssessmentProvider = ({ children }) => {
                 setLoadingData(false);
             }
             setLoadingAuth(false);
+            setLoadingData(false); // Forzar a false para destrabar la UI
             
             // 🚀 Desvanecer Splash Screen nativo una vez React esté listo con la sesión
             setTimeout(() => {
@@ -375,9 +384,22 @@ export const AssessmentProvider = ({ children }) => {
             }, 100); // Darle un mini-delay para que React pinte el ProtectedRoute o Dashboard
         };
 
-        // Obtener sesión inicial
-        supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+        // Obtener sesión inicial con Timeout
+        const getSessionWithTimeout = () => {
+            return Promise.race([
+                supabase.auth.getSession(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout obteniendo sesión")), 5000))
+            ]);
+        };
+
+        getSessionWithTimeout().then(({ data: { session: initialSession } }) => {
             handleAuthChange(initialSession);
+        }).catch((err) => {
+            console.warn("⚠️ Advertencia: No se pudo verificar la sesión de Supabase (posible fallo de red o DNS). Iniciando en modo offline/guest.");
+            setLoadingAuth(false);
+            setLoadingData(false);
+            // Si falla la red, asumimos que no hay sesión temporalmente para no bloquear la app entera
+            handleAuthChange(null);
         });
 
         // Escuchar cambios en tiempo real
@@ -399,7 +421,7 @@ export const AssessmentProvider = ({ children }) => {
         if (!userId) return;
 
 
-        
+
         const profileSubscription = supabase
             .channel('public:user_profiles')
             .on(
@@ -427,6 +449,49 @@ export const AssessmentProvider = ({ children }) => {
             supabase.removeChannel(profileSubscription);
         };
     }, [session, refreshProfileAndPlan]);
+
+    // --- ESCUCHA REALTIME: Nuevas semanas del plan (Background Chunking) ---
+    useEffect(() => {
+        const userId = session?.user?.id;
+        if (!userId) return;
+
+        const planChunkSubscription = supabase
+            .channel('meal-plan-chunk-updates')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'meal_plans',
+                    filter: `user_id=eq.${userId}`
+                },
+                (payload) => {
+                    const newPlanData = payload.new?.plan_data;
+                    if (!newPlanData) return;
+
+                    const incomingStatus = newPlanData.generation_status;
+                    // Solo reaccionar si el plan tiene semanas siendo generadas
+                    if (incomingStatus !== 'partial' && incomingStatus !== 'complete') return;
+
+                    setPlanData(prev => {
+                        if (!prev) return newPlanData;
+                        // Mezclar: preservar campos locales (grocery_start_date, is_restocked, etc.)
+                        // pero actualizar los días con el valor más reciente del servidor
+                        const merged = {
+                            ...prev,
+                            days: newPlanData.days,
+                            generation_status: incomingStatus,
+                            total_days_requested: newPlanData.total_days_requested ?? prev.total_days_requested,
+                        };
+                        localStorage.setItem('mealfit_plan', JSON.stringify(merged));
+                        return merged;
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => supabase.removeChannel(planChunkSubscription);
+    }, [session]);
 
     // --- FUNCIÓN PARA ACTUALIZAR PERFIL EN DB ---
     const updateUserProfile = async (updates) => {
@@ -490,7 +555,7 @@ export const AssessmentProvider = ({ children }) => {
                 return;
             }
 
-            const API_URL = '/api/like';
+            const API_URL = '/api/plans/like';
 
             const response = await fetchWithAuth(API_URL, {
                 method: 'POST',
@@ -543,7 +608,7 @@ export const AssessmentProvider = ({ children }) => {
 
         try {
             // 1. LLAMADA A LA IA
-            const API_SWAP_URL = '/api/swap-meal';
+            const API_SWAP_URL = '/api/plans/swap-meal';
             const sessionId = localStorage.getItem('mealfit_user_id') || 'guest_session';
             const response = await fetchWithAuth(API_SWAP_URL, {
                 method: 'POST',
@@ -551,8 +616,8 @@ export const AssessmentProvider = ({ children }) => {
                 body: JSON.stringify({
                     user_id: userId || "guest",
                     session_id: sessionId,
-                    // Solo enviar rejected_meal cuando es un rechazo real ("No me gusta")
-                    rejected_meal: swapReason === 'dislike' ? currentName : null,
+                    // Siempre enviar el plato rechazado para dar contexto al LLM sobre qué plato reemplazar
+                    rejected_meal: currentName,
                     swap_reason: swapReason,
                     meal_type: mealType,
                     target_calories: targetCalories,
@@ -639,7 +704,30 @@ export const AssessmentProvider = ({ children }) => {
                             console.error("❌ Error Supabase UPDATE:", updateError);
                             toast.error("Error de sincronización", { description: "El cambio es solo local." });
                         } else {
-
+                            // GAP 3: Recalcular la lista de compras como un Delta Matemático
+                            try {
+                                const recalcResponse = await fetchWithAuth('/api/plans/recalculate-shopping-list', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        user_id: userId,
+                                        householdSize: updatedPlan.calc_household_size || formData.householdSize || 1,
+                                        groceryDuration: updatedPlan.calc_grocery_duration || formData.groceryDuration || 'weekly',
+                                        is_new_plan: false
+                                    })
+                                });
+                                
+                                if (recalcResponse.ok) {
+                                    const recalcData = await recalcResponse.json();
+                                    if (recalcData.success && recalcData.plan_data) {
+                                        setPlanData(recalcData.plan_data);
+                                        localStorage.setItem('mealfit_plan', JSON.stringify(recalcData.plan_data));
+                                        console.log("✅ [GAP 3] Lista de compras recalculada vía Delta Matemático tras modificar plato.");
+                                    }
+                                }
+                            } catch (recalcErr) {
+                                console.error("⚠️ Error recalculando lista de compras post-swap:", recalcErr);
+                            }
                         }
                     }
                 } catch (dbError) {

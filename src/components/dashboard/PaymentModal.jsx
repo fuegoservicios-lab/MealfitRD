@@ -11,7 +11,6 @@ const PLAN_FEATURES = {
         { icon: "⚡", text: "50 Créditos de IA al mes" },
         { icon: "👁️", text: "Asistente IA con Visión" },
         { icon: "🧠", text: "Memoria a Largo Plazo" },
-        { icon: "🔄", text: "Rotación de Platos" },
         { icon: "📋", text: "Historial de Planes" },
     ],
     plus: [
@@ -19,7 +18,6 @@ const PLAN_FEATURES = {
         { icon: "🛒", text: "Registro de Compras Inteligente" },
         { icon: "📊", text: "Seguimiento de Progreso" },
         { icon: "🎯", text: "Analizador de Macros" },
-        { icon: "🔄", text: "Rotación Autónoma de Platos" },
     ],
     ultra: [
         { icon: "∞", text: "Créditos Ilimitados" },

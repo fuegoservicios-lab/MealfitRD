@@ -306,7 +306,7 @@ const Recipes = () => {
 
         try {
             const userId = formData?.id !== "guest" ? formData?.id : "guest";
-            const response = await fetchWithAuth('/api/recipe/expand', {
+            const response = await fetchWithAuth('/api/plans/recipe/expand', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...meal, user_id: userId })

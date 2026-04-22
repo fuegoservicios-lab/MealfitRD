@@ -31,3 +31,6 @@ export const fetchWithAuth = async (url, options = {}) => {
         headers
     });
 };
+
+export const getPlanChunkStatus = (planId) => fetchWithAuth(`/api/plans/${planId}/chunk-status`);
+export const retryPlanChunk = (planId, chunkId) => fetchWithAuth(`/api/plans/${planId}/retry-chunk/${chunkId}`, { method: 'POST' });

@@ -7,7 +7,8 @@ import PropTypes from 'prop-types';
 
 import { supabase } from '../supabase';
 import { useAssessment } from '../context/AssessmentContext';
-import { fetchWithAuth } from '../config/api';
+import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api';
+import { trackEvent } from '../utils/analytics';
 
 // --- FUNCIÓN HELPER: RETRY LOGIC ---
 async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
@@ -35,6 +36,14 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
 
 // --- GENERACIÓN DE PLAN CON STREAMING SSE ---
 let globalGenerationPromise = null;
+let globalAbortController = null;
+
+export const cancelGeneration = () => {
+    if (globalAbortController) {
+        globalAbortController.abort("UserCancelled");
+        globalAbortController = null;
+    }
+};
 
 const generateAIPlanStream = async (formData, onProgress) => {
     if (globalGenerationPromise) {
@@ -42,12 +51,14 @@ const generateAIPlanStream = async (formData, onProgress) => {
         return globalGenerationPromise;
     }
 
-    const STREAM_URL = '/api/analyze/stream';
-    const FALLBACK_URL = '/api/analyze';
+    const STREAM_URL = '/api/plans/analyze/stream';
+    const FALLBACK_URL = '/api/plans/analyze';
 
     globalGenerationPromise = (async () => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 480000);
+        globalAbortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+            if (globalAbortController) globalAbortController.abort();
+        }, 480000);
 
         try {
             // Intentar endpoint SSE streaming
@@ -55,7 +66,7 @@ const generateAIPlanStream = async (formData, onProgress) => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),
-                signal: controller.signal
+                signal: globalAbortController.signal
             }, 1); // Solo 1 intento para SSE, fallback si falla
 
             clearTimeout(timeoutId);
@@ -123,7 +134,11 @@ const generateAIPlanStream = async (formData, onProgress) => {
         } catch (error) {
             clearTimeout(timeoutId);
 
-            if (error.name === 'AbortError') {
+            if (error.name === 'AbortError' || error === 'UserCancelled') {
+                if (globalAbortController && globalAbortController.signal.reason === 'UserCancelled') {
+                    console.warn("🚫 Generación cancelada por el usuario.");
+                    throw new Error("UserCancelled"); // Salir inmediatamente sin fallback
+                }
                 console.error("⏳ Error Fatal: Timeout total excedido.");
             } else {
                 console.warn(`⚠️ SSE falló (${error.message}), intentando endpoint síncrono...`);
@@ -189,6 +204,7 @@ const generateAIPlanStream = async (formData, onProgress) => {
             };
         } finally {
             globalGenerationPromise = null;
+            globalAbortController = null;
         }
     })();
 
@@ -247,17 +263,30 @@ const savePlanToHistory = async (finalPlan) => {
     }
 };
 
+// Duración total del plan según frecuencia de compras del hogar.
+// El backend genera solo 3 días iniciales (PLAN_CHUNK_SIZE) y encola los demás
+// con delay just-in-time para que la IA aprenda de cada bloque anterior.
+function getTotalDaysByGroceryDuration(groceryDuration) {
+    if (groceryDuration === 'monthly')   return 30;
+    if (groceryDuration === 'biweekly')  return 15;
+    return 7; // weekly (default)
+}
+
 const Plan = () => {
     // 1. HOOKS
-    const { formData, saveGeneratedPlan, setCurrentStep } = useAssessment();
-    const [status, setStatus] = useState('analyzing');
+    const { formData, saveGeneratedPlan, restorePlan, setCurrentStep, userProfile } = useAssessment();
+    const [status, setStatus] = useState('analyzing'); // analyzing, generating, preview, ready
     const [planData, setPlanData] = useState(null);
+    const [tempPlan, setTempPlan] = useState(null); // Nuevo estado para GAP 14
+    const [oldPlan, setOldPlan] = useState(null); // Estado para el plan viejo
     const [streamPhase, setStreamPhase] = useState(null); // Fase actual del pipeline SSE
     const [daysCompleted, setDaysCompleted] = useState([]); // Días ya generados [1, 2, 3]
+    const [streamingText, setStreamingText] = useState({}); // Text streaming de los LLM
     const navigate = useNavigate();
     const location = useLocation();
     const previousMeals = location.state?.previous_meals || location.state?.previousMeals || [];
     const currentIngredients = location.state?.current_pantry_ingredients || location.state?.currentIngredients || [];
+    const updateReason = location.state?.update_reason || null;
 
     // 2. USEEFFECT
     useEffect(() => {
@@ -267,6 +296,12 @@ const Plan = () => {
         let ignore = false;
 
         window.scrollTo(0, 0);
+
+        // Pre-cargar el plan antiguo para el Preview
+        const oldPlanStr = localStorage.getItem('mealfit_plan');
+        if (oldPlanStr) {
+            try { setOldPlan(JSON.parse(oldPlanStr)); } catch (e) { }
+        }
 
         const processPlan = async () => {
             try {
@@ -290,12 +325,17 @@ const Plan = () => {
                     localStorage.setItem('mealfit_guest_session_id', guestSessionId);
                 }
 
+                const totalDays = getTotalDaysByGroceryDuration(formData?.groceryDuration);
                 const dataToSend = {
                     ...formData,
                     user_id: userId,
                     session_id: userId || guestSessionId,
                     previous_meals: previousMeals,
-                    current_pantry_ingredients: currentIngredients
+                    current_pantry_ingredients: currentIngredients,
+                    update_reason: updateReason,
+                    totalDays,
+                    tzOffset: new Date().getTimezoneOffset(),
+                    is_plan_expired: location.state?.is_plan_expired || location.state?.isPlanExpired || false,
                 };
 
                 // Callback de progreso SSE
@@ -310,6 +350,26 @@ const Plan = () => {
                         setDaysCompleted(prev => [...new Set([...prev, evData?.day])]);
                     } else if (evType === 'day_started') {
                         setStreamPhase(`day_${evData?.day}`);
+                    } else if (evType === 'token') {
+                        if (evData?.day && evData?.chunk) {
+                            setStreamingText(prev => {
+                                const currentText = (prev[evData.day] || '') + evData.chunk;
+                                return {
+                                    ...prev,
+                                    [evData.day]: currentText.slice(-300) // Solo mantenemos la cola
+                                };
+                            });
+                        }
+                    } else if (evType === 'tool_call') {
+                        if (evData?.day && evData?.tool) {
+                            setStreamingText(prev => {
+                                const currentText = (prev[evData.day] || '') + `\n\n[SISTEMA]: Activando red neuronal '${evData.tool}' para verificación de macros...\n\n`;
+                                return {
+                                    ...prev,
+                                    [evData.day]: currentText.slice(-300)
+                                };
+                            });
+                        }
                     }
                 };
 
@@ -327,19 +387,32 @@ const Plan = () => {
                     generatedPlan.grocery_start_date = new Date().toISOString();
                 }
 
-                saveGeneratedPlan(generatedPlan);
-                setPlanData(generatedPlan);
+                // --- Analítica enviada en éxito del endpoint ---
+                trackEvent('plan_regeneration_triggered', {
+                    reason: updateReason || 'manual_refresh',
+                    source: location.state?.entry_point || 'dashboard',
+                    is_expired: location.state?.is_plan_expired || false,
+                    has_pantry: currentIngredients && currentIngredients.length > 0,
+                    type: 'full_plan'
+                });
 
-                // FASE 3: Éxito, llenado de barra al 100% y Redirección al Dashboard
-                setStatus('ready');
-                setTimeout(() => {
-                    setCurrentStep(0);
-                    navigate('/dashboard', { replace: true });
-                }, 800);
+                // FASE 3: GAP 14 - Vista Previa en vez de autoguardar
+                setTempPlan(generatedPlan);
+                setStatus('preview');
 
             } catch (error) {
+                if (error.message === 'UserCancelled') {
+                    console.log("Generación cancelada. Volviendo al dashboard...");
+                    navigate('/dashboard', { replace: true });
+                    return;
+                }
                 console.error("❌ Error generando el plan:", error);
-                if (!ignore) setStatus('ready');
+                if (!ignore) {
+                    import('sonner').then(({ toast }) => {
+                        toast.error("Error al generar el plan", { description: "Por favor, intenta nuevamente más tarde." });
+                    });
+                    navigate('/dashboard', { replace: true });
+                }
             }
         };
 
@@ -358,25 +431,237 @@ const Plan = () => {
         return <Navigate to="/assessment" />;
     }
 
+    if (status === 'preview') {
+        return (
+            <PreviewScreen 
+                oldPlan={oldPlan} 
+                newPlan={tempPlan} 
+                onAccept={() => {
+                    saveGeneratedPlan(tempPlan);
+                    setCurrentStep(0);
+                    navigate('/dashboard', { replace: true });
+                }}
+                onReject={async () => {
+                    if (oldPlan) {
+                        await restorePlan(oldPlan);
+                    }
+                    navigate('/dashboard', { replace: true });
+                }}
+            />
+        );
+    }
+
     // Pantalla de Carga (única vista del componente mientras se genera)
-    return <LoadingScreen status={status} streamPhase={streamPhase} daysCompleted={daysCompleted} />;
+    return <LoadingScreen 
+        status={status} 
+        streamPhase={streamPhase} 
+        daysCompleted={daysCompleted} 
+        streamingText={streamingText} 
+        onCancel={cancelGeneration}
+    />;
 };
 
+// --- GAP 14: PANTALLA DE VISTA PREVIA (COMPARACIÓN) ---
+const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject }) => {
+    const [failedChunks, setFailedChunks] = useState([]);
+    const [isRetrying, setIsRetrying] = useState(false);
+
+    useEffect(() => {
+        if (!newPlan?.id || newPlan?.generation_status !== 'partial') return;
+
+        let previousDays = newPlan?.days?.length || 0;
+
+        const intervalId = setInterval(async () => {
+            try {
+                const res = await getPlanChunkStatus(newPlan.id);
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                if (data.failed_chunks && data.failed_chunks.length > 0) {
+                    setFailedChunks(data.failed_chunks);
+                }
+
+                if (data.days_generated > previousDays) {
+                    const newWeeks = Math.floor(data.days_generated / 7);
+                    const oldWeeks = Math.floor(previousDays / 7);
+                    if (newWeeks > oldWeeks) {
+                        import('sonner').then(({ toast }) => {
+                            toast.success(`¡Semana ${newWeeks} completada en background! 🚀`, {
+                                description: 'Tus nuevas comidas ya están listas.'
+                            });
+                        });
+                    }
+                    previousDays = data.days_generated;
+                }
+
+                if (data.status === 'complete') {
+                    import('sonner').then(({ toast }) => {
+                        toast.success('¡Todas las semanas han sido generadas exitosamente! 🎉');
+                    });
+                    clearInterval(intervalId);
+                } else if (data.status === 'failed') {
+                    import('sonner').then(({ toast }) => {
+                        toast.error('Hubo un problema generando las próximas semanas.');
+                    });
+                    clearInterval(intervalId);
+                }
+            } catch (error) {
+                console.error('Error polling chunk status:', error);
+            }
+        }, 5000);
+
+        return () => clearInterval(intervalId);
+    }, [newPlan?.id, newPlan?.generation_status, isRetrying]);
+
+    const handleRetry = async (chunkId) => {
+        setIsRetrying(true);
+        try {
+            const res = await retryPlanChunk(newPlan.id, chunkId);
+            if (res.ok) {
+                import('sonner').then(({ toast }) => {
+                    toast.success('Reintento iniciado', { description: 'Generando la semana nuevamente...' });
+                });
+                setFailedChunks(prev => prev.filter(c => c.id !== chunkId));
+                // Refrescar página o reactivar polling
+                window.location.reload();
+            } else {
+                import('sonner').then(({ toast }) => toast.error('Error al iniciar el reintento'));
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsRetrying(false);
+        }
+    };
+
+    return (
+        <div style={{
+            minHeight: 'calc(100dvh - 70px)',
+            display: 'flex', flexDirection: 'column',
+            padding: '2rem 1.5rem',
+            background: 'linear-gradient(135deg, #0f0c29 0%, #1a1a3e 40%, #24243e 100%)',
+            color: 'white',
+        }}>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+                <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '0.5rem', textAlign: 'center' }}>
+                    ¡Plan Generado!
+                </h2>
+                <p style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginBottom: '2rem' }}>
+                    Compara los cambios antes de aplicar tu nueva estrategia nutricional.
+                </p>
+
+                <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column', marginBottom: '2rem' }}>
+                    {oldPlan && (
+                        <div style={{ background: 'rgba(255,255,255,0.05)', padding: '1.5rem', borderRadius: '1rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'rgba(255,255,255,0.5)' }}>Plan Anterior</h3>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                                <span>Calorías Diarias:</span>
+                                <strong>{oldPlan.calories || oldPlan.estimated_calories} kcal</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                                <span>Días Programados:</span>
+                                <strong>{oldPlan.total_days_requested || (oldPlan.days ? oldPlan.days.length : 0)} días</strong>
+                            </div>
+                            {oldPlan.macros && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                    <span>Macros (P/C/G):</span>
+                                    <strong>{oldPlan.macros.protein} / {oldPlan.macros.carbs} / {oldPlan.macros.fats}</strong>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    
+                    <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1.5rem', borderRadius: '1rem', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                        <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#10B981' }}>Nuevo Plan</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                            <span>Calorías Diarias:</span>
+                            <strong style={{ color: '#10B981' }}>{newPlan.calories || newPlan.estimated_calories} kcal</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                            <span>Días Programados:</span>
+                            <strong style={{ color: '#10B981' }}>{newPlan.total_days_requested || (newPlan.days ? newPlan.days.length : 0)} días</strong>
+                        </div>
+                        {newPlan.macros && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                <span>Macros (P/C/G):</span>
+                                <strong style={{ color: '#10B981' }}>{newPlan.macros.protein} / {newPlan.macros.carbs} / {newPlan.macros.fats}</strong>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}>
+                    <button 
+                        onClick={onAccept}
+                        style={{
+                            padding: '1rem', background: '#10B981', color: 'white', borderRadius: '0.75rem',
+                            border: 'none', fontWeight: 600, fontSize: '1rem', cursor: 'pointer',
+                            boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)'
+                        }}
+                    >
+                        Aceptar y Aplicar Nuevo Plan
+                    </button>
+                    {oldPlan && (
+                        <button 
+                            onClick={onReject}
+                            style={{
+                                padding: '1rem', background: 'transparent', color: 'rgba(255,255,255,0.7)', 
+                                borderRadius: '0.75rem', border: '1px solid rgba(255,255,255,0.2)', 
+                                fontWeight: 600, fontSize: '1rem', cursor: 'pointer'
+                            }}
+                        >
+                            Mantener Plan Anterior
+                        </button>
+                    )}
+                </div>
+
+                {failedChunks.length > 0 && (
+                    <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '1rem', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                        <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Activity size={20} /> Problema al generar más semanas
+                        </h3>
+                        <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)', marginBottom: '1rem' }}>
+                            No te preocupes, tus primeros días ya están listos. Sin embargo, nuestro agente encontró problemas generando algunas semanas futuras de tu plan.
+                        </p>
+                        {failedChunks.map(chunk => (
+                            <div key={chunk.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '0.75rem 1rem', borderRadius: '0.5rem', marginBottom: '0.5rem' }}>
+                                <span>Semana {chunk.week_number}</span>
+                                <button 
+                                    onClick={() => handleRetry(chunk.id)}
+                                    disabled={isRetrying}
+                                    style={{
+                                        padding: '0.5rem 1rem', background: '#EF4444', color: 'white', borderRadius: '0.5rem',
+                                        border: 'none', fontWeight: 600, fontSize: '0.9rem', cursor: isRetrying ? 'not-allowed' : 'pointer',
+                                        opacity: isRetrying ? 0.7 : 1
+                                    }}
+                                >
+                                    {isRetrying ? <Loader2 size={16} className="animate-spin" /> : 'Reintentar Semana'}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </motion.div>
+        </div>
+    );
+};
+PreviewScreen.propTypes = { oldPlan: PropTypes.object, newPlan: PropTypes.object, onAccept: PropTypes.func, onReject: PropTypes.func };
+
 // --- PANTALLA DE CARGA PREMIUM CON PROGRESO REAL ---
-const LoadingScreen = ({ status, streamPhase, daysCompleted = [] }) => {
+const LoadingScreen = ({ status, streamPhase, daysCompleted = [], streamingText = {}, onCancel }) => {
     const [progress, setProgress] = useState(0);
     const displayProgress = status === 'ready' ? 100 : progress;
     const [tipIndex, setTipIndex] = useState(0);
 
     const steps = [
-        { text: "Estableciendo conexión segura", icon: Server, pct: 5, phase: null },
-        { text: "Procesando perfil biométrico", icon: Activity, pct: 12, phase: 'analyzing' },
-        { text: "Estructurando esquema de macronutrientes", icon: PieChart, pct: 25, phase: 'skeleton' },
-        { text: "Formulando Alternativa Nutricional 1", icon: Utensils, pct: 45, phase: 'day_1', dayCheck: 1 },
-        { text: "Formulando Alternativa Nutricional 2", icon: UtensilsCrossed, pct: 60, phase: 'day_2', dayCheck: 2 },
-        { text: "Formulando Alternativa Nutricional 3", icon: ChefHat, pct: 75, phase: 'day_3', dayCheck: 3 },
-        { text: "Consolidando plan y lista de compras", icon: ShoppingCart, pct: 85, phase: 'assembly' },
-        { text: "Auditoría nutricional final", icon: ShieldCheck, pct: 93, phase: 'review' },
+        { text: "Iniciando motor de Inteligencia Artificial", icon: Server, pct: 5, phase: null },
+        { text: "Analizando perfil biométrico y metabólico", icon: Activity, pct: 12, phase: 'analyzing' },
+        { text: "Calculando arquitectura de macronutrientes", icon: PieChart, pct: 25, phase: 'skeleton' },
+        { text: "Seleccionando ingredientes de alta biodisponibilidad", icon: Utensils, pct: 45, phase: 'day_1', dayCheck: 1 },
+        { text: "Optimizando sinergias metabólicas", icon: UtensilsCrossed, pct: 60, phase: 'day_2', dayCheck: 2 },
+        { text: "Estructurando patrones de alimentación", icon: ChefHat, pct: 75, phase: 'day_3', dayCheck: 3 },
+        { text: "Consolidando despensa y optimizando compras", icon: ShoppingCart, pct: 85, phase: 'assembly' },
+        { text: "Auditoría médica y calibración final", icon: ShieldCheck, pct: 93, phase: 'review' },
     ];
 
     const tips = [
@@ -624,6 +909,43 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [] }) => {
                     })}
                 </div>
 
+                {/* === LIVE PREVIEW (SSE STREAMING) === */}
+                {Object.keys(streamingText).length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        transition={{ duration: 0.3 }}
+                        style={{
+                            background: '#0d1117',
+                            borderRadius: '0.75rem',
+                            padding: '0.75rem',
+                            marginBottom: '1.5rem',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            textAlign: 'left',
+                            fontSize: '0.65rem',
+                            fontFamily: 'monospace',
+                            color: '#10B981',
+                            maxHeight: '120px',
+                            overflow: 'hidden',
+                            position: 'relative'
+                        }}
+                    >
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '24px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', padding: '0 0.5rem', color: '#818cf8', fontWeight: 'bold' }}>
+                            <Activity size={12} style={{ marginRight: '6px' }}/> IA Neural Feed
+                        </div>
+                        <div style={{ marginTop: '20px', display: 'flex', gap: '0.75rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all', opacity: 0.8 }}>
+                            {Object.entries(streamingText).map(([day, text]) => (
+                                <div key={day} style={{ flex: 1, minWidth: 0, borderRight: day !== Object.keys(streamingText).pop() ? '1px solid rgba(255,255,255,0.1)' : 'none', paddingRight: '0.5rem' }}>
+                                    <div style={{ color: '#fff', fontSize: '0.6rem', marginBottom: '4px', opacity: 0.5 }}>WORKER DÍA {day}</div>
+                                    <div>{text}</div>
+                                </div>
+                            ))}
+                        </div>
+                        {/* Gradient overlay to fade bottom text */}
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '30px', background: 'linear-gradient(transparent, #0d1117)' }} />
+                    </motion.div>
+                )}
+
                 {/* === PROGRESS BAR === */}
                 <div style={{
                     width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)',
@@ -676,11 +998,45 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [] }) => {
                     </AnimatePresence>
                 </div>
 
+                {/* === CANCEL BUTTON === */}
+                {onCancel && status !== 'ready' && status !== 'preview' && (
+                    <div style={{ marginTop: '1.5rem' }}>
+                        <button 
+                            onClick={() => {
+                                if (window.confirm("¿Seguro que deseas cancelar la generación?")) {
+                                    onCancel();
+                                }
+                            }}
+                            style={{
+                                background: 'transparent',
+                                border: '1px solid rgba(239, 68, 68, 0.4)',
+                                color: 'rgba(239, 68, 68, 0.8)',
+                                padding: '0.6rem 1.5rem',
+                                borderRadius: '2rem',
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseOver={(e) => {
+                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                                e.currentTarget.style.color = '#ef4444';
+                            }}
+                            onMouseOut={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = 'rgba(239, 68, 68, 0.8)';
+                            }}
+                        >
+                            Cancelar Generación
+                        </button>
+                    </div>
+                )}
+
             </motion.div>
         </div>
     );
 };
 
-LoadingScreen.propTypes = { status: PropTypes.string, streamPhase: PropTypes.string, daysCompleted: PropTypes.array };
+LoadingScreen.propTypes = { status: PropTypes.string, streamPhase: PropTypes.string, daysCompleted: PropTypes.array, streamingText: PropTypes.object, onCancel: PropTypes.func };
 
 export default Plan;
