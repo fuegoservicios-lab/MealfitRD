@@ -1,0 +1,3 @@
+## 2025-04-23 - [Hoist and Precompile RegExps in Dashboard.jsx]
+**Learning:** Re-instantiating multiple `RegExp` objects (in this case 39 dynamically constructed ones from strings using `new RegExp()`) inside frequently-called functions like `normalizeNameAlt` causes substantial overhead due to unnecessary memory allocations, garbage collection pressure, and CPU compilation cost. The cost is compounded when these functions are used during list processing on render.
+**Action:** Always hoist arrays or dictionaries that remain static and use them to construct precompiled `RegExp` objects at the module scope level (outside the component and inner function bodies) to shift the O(N) allocation cost entirely to startup.
