@@ -310,10 +310,10 @@ const History = () => {
                                                     }}
                                                     className={styles.editInput}
                                                 />
-                                                <button onClick={(e) => handleEditSave(e, plan)} className={styles.editButton}>
+                                                <button onClick={(e) => handleEditSave(e, plan)} className={styles.editButton} aria-label="Guardar nombre">
                                                     <Check size={16} />
                                                 </button>
-                                                <button onClick={(e) => handleEditCancel(e)} className={styles.cancelButton}>
+                                                <button onClick={(e) => handleEditCancel(e)} className={styles.cancelButton} aria-label="Cancelar edición">
                                                     <X size={16} />
                                                 </button>
                                             </div>
@@ -326,6 +326,7 @@ const History = () => {
                                                     onClick={(e) => handleEditStart(e, plan)}
                                                     className={styles.renameButton}
                                                     title="Renombrar"
+                                                    aria-label="Renombrar plan"
                                                 >
                                                     <Edit2 size={15} />
                                                 </button>
@@ -366,6 +367,7 @@ const History = () => {
                                         className={styles.deleteButton}
                                         onClick={(e) => handleDeleteRequest(e, plan)}
                                         title="Eliminar plan"
+                                        aria-label="Eliminar plan"
                                     >
                                         <Trash2 size={16} />
                                     </button>
@@ -409,7 +411,7 @@ const History = () => {
                                         })}
                                     </span>
                                 </div>
-                                <button onClick={() => setSelectedPlan(null)} className={styles.closeButton}>
+                                <button onClick={() => setSelectedPlan(null)} className={styles.closeButton} aria-label="Cerrar detalles del plan">
                                     <X size={24} color="#64748B" />
                                 </button>
                             </div>
