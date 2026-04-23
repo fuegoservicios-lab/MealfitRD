@@ -30,6 +30,14 @@ const useMediaQuery = (query) => {
 const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disableClose = false, isBottomSheetOnMobile = false }) => {
     const modalRef = useRef(null);
     const triggerRef = useRef(null);
+    const [isCloseShaking, setIsCloseShaking] = useState(false);
+
+    const handleCloseAttempt = () => {
+        if (!disableClose) { onClose(); return; }
+        if (isCloseShaking) return;
+        setIsCloseShaking(true);
+        setTimeout(() => setIsCloseShaking(false), 400);
+    };
     
     // Para responsividad
     const isDesktop = useMediaQuery('(min-width: 641px)');
@@ -165,22 +173,26 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                             </div>
                         )}
 
-                        {!disableClose && (
-                            <button 
-                                onClick={onClose}
-                                aria-label="Cerrar ventana modal"
-                                style={{
-                                    position: 'absolute', top: isMobile ? '1.25rem' : '1rem', right: isMobile ? '1.25rem' : '1rem', 
-                                    background: isMobile ? '#F1F5F9' : 'none', border: 'none',
-                                    color: '#64748B', cursor: 'pointer', display: 'flex', padding: '0.25rem',
-                                    borderRadius: '0.5rem', transition: 'background 0.2s'
-                                }}
-                                onMouseOver={(e) => e.currentTarget.style.background = '#F1F5F9'}
-                                onMouseOut={(e) => e.currentTarget.style.background = isMobile ? '#F1F5F9' : 'none'}
-                            >
-                                <X size={isMobile ? 18 : 20} />
-                            </button>
-                        )}
+                        <motion.button
+                            onClick={handleCloseAttempt}
+                            animate={isCloseShaking ? { x: [0, -6, 6, -4, 4, 0] } : { x: 0 }}
+                            transition={{ duration: 0.35 }}
+                            aria-label="Cerrar ventana modal"
+                            aria-disabled={disableClose}
+                            style={{
+                                position: 'absolute', top: isMobile ? '1.25rem' : '1rem', right: isMobile ? '1.25rem' : '1rem',
+                                background: isMobile ? '#F1F5F9' : 'none', border: 'none',
+                                color: disableClose ? '#CBD5E1' : '#64748B',
+                                cursor: disableClose ? 'not-allowed' : 'pointer',
+                                opacity: disableClose ? 0.5 : 1,
+                                display: 'flex', padding: '0.25rem',
+                                borderRadius: '0.5rem', transition: 'background 0.2s, color 0.2s, opacity 0.2s'
+                            }}
+                            onMouseOver={(e) => { if (!disableClose) e.currentTarget.style.background = '#F1F5F9'; }}
+                            onMouseOut={(e) => { if (!disableClose) e.currentTarget.style.background = isMobile ? '#F1F5F9' : 'none'; }}
+                        >
+                            <X size={isMobile ? 18 : 20} />
+                        </motion.button>
 
                         {children}
                     </motion.div>

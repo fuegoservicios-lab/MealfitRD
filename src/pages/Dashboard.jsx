@@ -62,6 +62,7 @@ const Dashboard = () => {
     // Estado para el modal de razón de cambio de plato
     const [swapModal, setSwapModal] = useState(null); // { dayIndex, mealIndex, mealType, mealName }
     const [showUpdatePlanModal, setShowUpdatePlanModal] = useState(false);
+    const [showDislikeConfirmModal, setShowDislikeConfirmModal] = useState(false);
     const [showAutoRotationOverrideModal, setShowAutoRotationOverrideModal] = useState(false);
     const [sessionRestocked, setSessionRestocked] = useState(false);
     const [showDespensaDropdown, setShowDespensaDropdown] = useState(false);
@@ -2043,6 +2044,10 @@ const Dashboard = () => {
                                 return (
                                     <button
                                         onClick={async () => {
+                                            if (isPlanExpired) {
+                                                navigate('/assessment');
+                                                return;
+                                            }
                                             const hasCredits = await validateCreditsAsync();
                                             if (!hasCredits) return;
                                             setShowUpdatePlanModal(true);
@@ -2051,12 +2056,20 @@ const Dashboard = () => {
                                         style={{
                                             background: isLimitReached
                                                 ? '#E2E8F0'
-                                                : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
+                                                : isPlanExpired
+                                                    ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)'
+                                                    : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
                                             color: isLimitReached ? '#94A3B8' : 'white',
                                             cursor: isLimitReached ? 'not-allowed' : 'pointer',
-                                            '--hover-shadow': '0 20px 40px -5px rgba(15, 23, 42, 0.45), inset 0 0 0 1px rgba(255,255,255,0.1)',
-                                            '--active-shadow': '0 5px 15px -5px rgba(15, 23, 42, 0.2)',
-                                            boxShadow: isLimitReached ? 'none' : '0 10px 20px -5px rgba(15, 23, 42, 0.35)',
+                                            '--hover-shadow': isPlanExpired
+                                                ? '0 20px 40px -5px rgba(239, 68, 68, 0.5), inset 0 0 0 1px rgba(255,255,255,0.1)'
+                                                : '0 20px 40px -5px rgba(15, 23, 42, 0.45), inset 0 0 0 1px rgba(255,255,255,0.1)',
+                                            '--active-shadow': isPlanExpired
+                                                ? '0 5px 15px -5px rgba(239, 68, 68, 0.2)'
+                                                : '0 5px 15px -5px rgba(15, 23, 42, 0.2)',
+                                            boxShadow: isLimitReached ? 'none' : isPlanExpired
+                                                ? '0 10px 20px -5px rgba(239, 68, 68, 0.4)'
+                                                : '0 10px 20px -5px rgba(15, 23, 42, 0.35)',
                                             flex: '1 1 auto',
                                             width: 'auto',
                                             justifyContent: 'center',
@@ -2070,8 +2083,8 @@ const Dashboard = () => {
                                             whiteSpace: 'nowrap'
                                         }}
                                     >
-                                        {isLimitReached ? <AlertCircle size={18} /> : <Wand2 size={18} />}
-                                        <span style={{ fontSize: '0.85rem' }}>{isLimitReached ? 'Límite' : (isPlanExpired ? 'Nuevo Plan' : (daysLeft > 0 ? `Refrescar (${daysLeft}d restantes)` : 'Refrescar hoy'))}</span>
+                                        {isLimitReached ? <AlertCircle size={18} /> : isPlanExpired ? <RefreshCw size={18} /> : <Wand2 size={18} />}
+                                        <span style={{ fontSize: '0.85rem' }}>{isLimitReached ? 'Límite' : (isPlanExpired ? 'Evaluar de Nuevo' : 'Actualizar platos')}</span>
                                     </button>
                                 );
                             })()}
@@ -3370,51 +3383,71 @@ const Dashboard = () => {
                 isOpen={showUpdatePlanModal}
                 onClose={() => setShowUpdatePlanModal(false)}
                 title={isPlanExpired ? "Nuevo Ciclo de Compras" : "¿Por qué quieres actualizar?"}
-                subtitle={
-                    <p style={{ margin: '0 0 1.15rem 0' }}>
-                        {isPlanExpired
-                            ? "Ciclo de compras cerrado. ¿Qué priorizamos esta semana?"
-                            : "Ayuda al sistema a entender qué platos prefieres."}
-                    </p>
+                subtitle={isPlanExpired
+                    ? "Ciclo de compras cerrado. ¿Qué priorizamos esta semana?"
+                    : "Ayuda al sistema a entender qué platos prefieres."
                 }
-                options={isPlanExpired ? [
-                    { id: 'variety',  icon: Shuffle,    label: 'Quiero variedad',       color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me apetecen platos distintos esta semana' },
-                    { id: 'time',     icon: Clock,      label: 'Semana ocupada',       color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco preparaciones más rápidas' },
-                    { id: 'budget',   icon: Wallet,     label: 'Opciones económicas',   color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', desc: 'Priorizar ingredientes de bajo costo' },
-                    { id: 'pantry_first', icon: ShoppingCart, label: 'Usar lo que tengo',  color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A', desc: 'Maximizar el inventario actual' },
-                    { id: 'cravings', icon: Heart,      label: 'Tengo un antojo',       color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Algo indulgente pero saludable para esta semana' },
-                    { id: 'weekend',  icon: Zap,        label: 'Fin de semana especial', color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)' },
-                    { id: 'similar',  icon: Copy,       label: 'Se parece al ciclo anterior', color: '#F97316', bg: '#FFF7ED', border: '#FED7AA', desc: 'Evitar sugerencias muy parecidas a la semana pasada' },
-                    { id: 'dislike',  icon: ThumbsDown, label: 'No me gustó el ciclo anterior', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'Evitar ingredientes y estilos similares en el futuro' }
-                ] : [
-                    { id: 'variety',  icon: Shuffle,    label: 'Quiero más variedad',       color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me apetecen platos distintos hoy' },
-                    { id: 'time',     icon: Clock,      label: 'No tengo tiempo hoy',       color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco algo más rápido de preparar' },
-                    { id: 'budget',   icon: Wallet,     label: 'Opciones más económicas',   color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', desc: 'Ingredientes de bajo costo' },
-                    { id: 'pantry_first', icon: ShoppingCart, label: 'Usar lo que tengo',  color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A', desc: 'Maximizar el inventario actual' },
-                    { id: 'cravings', icon: Heart,      label: 'Tengo un antojo distinto',  color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Algo indulgente pero saludable' },
-                    { id: 'weekend',  icon: Zap,        label: 'Fin de semana especial',    color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)' },
-                    { id: 'dislike',  icon: ThumbsDown, label: 'No me gustan estos platos', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'Evitar sugerencias similares en el futuro' }
-                ]}
+                options={(() => {
+                    const todayDow = new Date().getDay(); // 0=Dom, 6=Sáb
+                    const isWeekend = todayDow === 0 || todayDow === 6;
+                    const weekendOption = isWeekend
+                        ? { id: 'weekend', icon: Zap, label: 'Fin de semana especial', color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)' }
+                        : { id: 'weekend', icon: Zap, label: 'Fin de semana especial', color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)', disabled: true, disabledDesc: (() => { const d = 6 - todayDow; return `Disponible en ${d} ${d === 1 ? 'día' : 'días'} (sábado)`; })() };
+                    return isPlanExpired ? [
+                        { id: 'variety',  icon: Shuffle,    label: 'Quiero variedad',       color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me apetecen platos distintos esta semana' },
+                        { id: 'time',     icon: Clock,      label: 'Semana ocupada',       color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco preparaciones más rápidas' },
+                        { id: 'budget',   icon: Wallet,     label: 'Opciones económicas',   color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', desc: 'Priorizar ingredientes de bajo costo' },
+                        { id: 'cravings', icon: Heart,      label: 'Tengo un antojo',       color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Algo indulgente pero saludable para esta semana' },
+                        weekendOption,
+                        { id: 'similar',  icon: Copy,       label: 'Se parece al ciclo anterior', color: '#F97316', bg: '#FFF7ED', border: '#FED7AA', desc: 'Evitar sugerencias muy parecidas a la semana pasada' },
+                        { id: 'dislike',  icon: ThumbsDown, label: 'No me gustó el ciclo anterior', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'Evitar ingredientes y estilos similares en el futuro' }
+                    ] : [
+                        { id: 'variety',  icon: Shuffle,    label: 'Quiero más variedad',       color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me apetecen platos distintos hoy' },
+                        { id: 'time',     icon: Clock,      label: 'No tengo tiempo hoy',       color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco algo más rápido de preparar' },
+                        { id: 'budget',   icon: Wallet,     label: 'Opciones más económicas',   color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', desc: 'Ingredientes de bajo costo' },
+                        { id: 'cravings', icon: Heart,      label: 'Tengo un antojo distinto',  color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Algo indulgente pero saludable' },
+                        weekendOption,
+                        { id: 'dislike',  icon: ThumbsDown, label: 'No me gustan estos platos', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'Evitar sugerencias similares en el futuro' }
+                    ];
+                })()}
                 isNavigatingOption={isNavigatingOption}
                 onOptionClick={async (optionId) => {
                     if (isLimitReached || isNavigatingOption) return;
+                    if (optionId === 'dislike') {
+                        setShowUpdatePlanModal(false);
+                        setShowDislikeConfirmModal(true);
+                        return;
+                    }
                     setIsNavigatingOption(optionId);
-                    
+
                     const toastId = toast.loading(
                         isPlanExpired ? 'Preparando nuevo ciclo...' : 'Actualizando platos...',
                         { description: 'Analizando opciones con IA...' }
                     );
 
-                    await handleNewPlan(optionId, toastId, 'dashboard_refresh');
-                    setIsNavigatingOption(null);
-                    setShowUpdatePlanModal(false);
+                    try {
+                        await handleNewPlan(optionId, toastId, 'dashboard_refresh');
+                        setShowUpdatePlanModal(false);
+                    } finally {
+                        setIsNavigatingOption(null);
+                    }
                 }}
                 infoBandRenderer={(hoveredOption) => (
-                    <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: '#F8FAFC', borderRadius: '0.8rem', border: '1px solid #E2E8F0', fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                    <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: '#F8FAFC', borderRadius: '0.8rem', border: '1px solid #E2E8F0', fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', minHeight: '56px' }}>
                         <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: '#64748B' }} />
                         <div>
                             {hoveredOption === 'dislike' ? (
                                 <><strong>Se evitarán:</strong> {currentDayMeals.length > 0 ? currentDayMeals.map(m => m.name).join(', ') : 'los platos actuales'}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                            ) : hoveredOption === 'variety' ? (
+                                <><strong>Variedad:</strong> platos de diferentes cocinas y perfiles de sabor.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                            ) : hoveredOption === 'time' ? (
+                                <><strong>Rapidez:</strong> platos con ≤20 min de preparación aproximada.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                            ) : hoveredOption === 'budget' ? (
+                                <><strong>Económico:</strong> ingredientes accesibles sin salir de tus macros.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                            ) : hoveredOption === 'cravings' ? (
+                                <><strong>Antojo:</strong> opciones más indulgentes dentro de tus objetivos.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                            ) : hoveredOption === 'weekend' ? (
+                                <><strong>Fin de semana:</strong> platos más elaborados y experiencias premium.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
                             ) : hoveredOption ? (
                                 <><strong>Regenerando:</strong> el menú completo del ciclo actual.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
                             ) : (
@@ -3428,6 +3461,51 @@ const Dashboard = () => {
                     </div>
                 )}
             />
+            {/* ═══════════ MODAL: Confirmación permanente de "No me gustan estos platos" ═══════════ */}
+            <OptionPickerModal
+                isOpen={showDislikeConfirmModal}
+                onClose={() => { setShowDislikeConfirmModal(false); setShowUpdatePlanModal(true); }}
+                title="¿Bloquear estos platos?"
+                subtitle={
+                    <div style={{ margin: '0 0 1.15rem 0', fontSize: '0.85rem', color: '#64748B' }}>
+                        <p style={{ margin: '0 0 0.5rem 0' }}>
+                            Los siguientes platos quedarán <strong style={{ color: '#EF4444' }}>bloqueados permanentemente</strong> y no volverán a aparecer en futuros planes:
+                        </p>
+                        {currentDayMeals.length > 0 && (
+                            <ul style={{ margin: '0.35rem 0 0 0', padding: '0 0 0 1.1rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                {currentDayMeals.map((m, i) => (
+                                    <li key={i} style={{ fontWeight: 600, color: '#0F172A', fontSize: '0.82rem' }}>{m.name}</li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                }
+                options={[
+                    { id: 'confirm_dislike', icon: ThumbsDown, label: 'Sí, bloquear y actualizar', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'Se evitarán estos platos en todos los ciclos futuros' },
+                    { id: 'cancel_dislike',  icon: Shuffle,    label: 'Cancelar',                  color: '#64748B', bg: '#F8FAFC', border: '#E2E8F0', desc: 'Volver al menú de opciones sin cambios' }
+                ]}
+                isNavigatingOption={isNavigatingOption}
+                onOptionClick={async (optionId) => {
+                    if (optionId === 'cancel_dislike') {
+                        setShowDislikeConfirmModal(false);
+                        setShowUpdatePlanModal(true);
+                        return;
+                    }
+                    if (isLimitReached || isNavigatingOption) return;
+                    setIsNavigatingOption('confirm_dislike');
+                    const toastId = toast.loading(
+                        isPlanExpired ? 'Preparando nuevo ciclo...' : 'Actualizando platos...',
+                        { description: 'Analizando opciones con IA...' }
+                    );
+                    try {
+                        await handleNewPlan('dislike', toastId, 'dashboard_refresh');
+                        setShowDislikeConfirmModal(false);
+                    } finally {
+                        setIsNavigatingOption(null);
+                    }
+                }}
+            />
+
             <OptionPickerModal
                 isOpen={showAutoRotationOverrideModal}
                 onClose={() => setShowAutoRotationOverrideModal(false)}

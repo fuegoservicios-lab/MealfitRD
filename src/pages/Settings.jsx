@@ -58,11 +58,18 @@ const Settings = () => {
     // Estado para las Notificaciones Web Push (IA)
     const [pushEnabled, setPushEnabled] = useState(false);
     const [isPushLoading, setIsPushLoading] = useState(false);
+    const [isPushBlocked, setIsPushBlocked] = useState(false);
+    const [pushSubscribeError, setPushSubscribeError] = useState(null);
 
     useEffect(() => {
         const checkSubscription = async () => {
             if (isPushSupported() && 'Notification' in window) {
                 // Si el permiso está denegado o por defecto, sabemos que es falso
+                if (Notification.permission === 'denied') {
+                    setPushEnabled(false);
+                    setIsPushBlocked(true);
+                    return;
+                }
                 if (Notification.permission !== 'granted') {
                     setPushEnabled(false);
                     return;
@@ -172,6 +179,20 @@ const Settings = () => {
 
     // --- MANEJADORES (HANDLERS) ---
     
+    const getNotificationBlockedMessage = async () => {
+        const ua = navigator.userAgent;
+        const isBrave = (typeof navigator.brave !== 'undefined') || ua.includes('Brave');
+        const isFirefox = ua.includes('Firefox');
+        const isEdge = ua.includes('Edg/');
+        const isSafari = ua.includes('Safari') && !ua.includes('Chrome');
+
+        if (isBrave) return "Brave bloquea notificaciones por defecto. Haz clic en el escudo 🛡 de la barra de direcciones → Permisos del sitio → Notificaciones → Permitir.";
+        if (isFirefox) return "Permisos bloqueados en Firefox. Haz clic en el ícono de candado 🔒 en la barra de direcciones → Más información → Permisos → Notificaciones → Permitir.";
+        if (isSafari) return "Permisos bloqueados en Safari. Ve a Safari → Configuración para este sitio web → Notificaciones → Permitir.";
+        if (isEdge) return "Permisos bloqueados en Edge. Haz clic en el candado 🔒 en la barra de direcciones → Permisos para este sitio → Notificaciones → Permitir.";
+        return "Permisos bloqueados en el navegador. Haz clic en el candado 🔒 en la barra de direcciones → Permisos del sitio → Notificaciones → Permitir.";
+    };
+
     const handleTogglePush = async () => {
         try {
             if (!isPushSupported()) {
@@ -194,7 +215,8 @@ const Settings = () => {
                 // Suscribir
                 const permissionGranted = await requestNotificationPermission();
                 if (!permissionGranted) {
-                    toast.error("Debes permitir las notificaciones en los ajustes de Brave. Haz clic en el candado 🔒 de la barra de direcciones.");
+                    const msg = await getNotificationBlockedMessage();
+                    toast.error(msg, { duration: 7000 });
                     setIsPushLoading(false);
                     return;
                 }
@@ -202,15 +224,20 @@ const Settings = () => {
                 const result = await subscribeToPushNotifications();
                 if (result && result.success) {
                     setPushEnabled(true);
+                    setPushSubscribeError(null);
                     toast.success("¡Notificaciones de la IA activadas con éxito!");
                 } else {
-                    toast.error(`Fallo: ${result?.error || 'Error desconocido'}`);
+                    const errMsg = result?.error || 'Error desconocido al suscribirse.';
+                    setPushSubscribeError(errMsg);
+                    toast.error(errMsg, { duration: 6000 });
                 }
             }
             setIsPushLoading(false);
         } catch (err) {
             console.error("handleTogglePush error:", err);
-            toast.error(`Error inesperado: ${err.message}`);
+            const errMsg = err.message || 'Error inesperado.';
+            setPushSubscribeError(errMsg);
+            toast.error(`Error inesperado: ${errMsg}`);
             setIsPushLoading(false);
         }
     };
@@ -786,13 +813,13 @@ const Settings = () => {
                                     <div style={{ flex: 1 }}>
                                         <div style={{ fontWeight: 700, color: 'var(--text-main)', display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.95rem' }}>
                                             Alertas Inteligentes
-                                            <span style={{ 
-                                                fontSize: '0.55rem', 
-                                                background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', 
-                                                color: '#FFFFFF', 
-                                                padding: '0.2rem 0.5rem', 
-                                                borderRadius: '1rem', 
-                                                fontWeight: 700, 
+                                            <span style={{
+                                                fontSize: '0.6rem',
+                                                background: 'linear-gradient(135deg, #8B5CF6, #6366F1)',
+                                                color: '#FFFFFF',
+                                                padding: '0.2rem 0.5rem',
+                                                borderRadius: '1rem',
+                                                fontWeight: 700,
                                                 letterSpacing: '0.5px',
                                                 textTransform: 'uppercase'
                                             }}>Beta</span>
@@ -802,16 +829,56 @@ const Settings = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
+                                <label className={styles.toggleSwitch} style={{ flexShrink: 0, opacity: isPushBlocked ? 0.4 : 1 }}>
                                     <input
                                         type="checkbox"
                                         checked={pushEnabled}
                                         onChange={handleTogglePush}
-                                        disabled={isPushLoading}
+                                        disabled={isPushLoading || isPushBlocked}
                                     />
                                     <span className={styles.toggleSlider} style={{ opacity: isPushLoading ? 0.5 : 1 }}></span>
                                 </label>
                             </div>
+
+                            {isPushBlocked && (
+                                <div
+                                    role="alert"
+                                    onClick={async () => { const msg = await getNotificationBlockedMessage(); toast.error(msg, { duration: 7000 }); }}
+                                    style={{
+                                        display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                                        marginTop: '0.65rem', padding: '0.6rem 0.85rem',
+                                        background: '#FFF7ED', border: '1px solid #FED7AA',
+                                        borderRadius: '0.65rem', cursor: 'pointer',
+                                        fontSize: '0.78rem', color: '#92400E', lineHeight: 1.4,
+                                    }}
+                                >
+                                    <Lock size={13} style={{ marginTop: '2px', flexShrink: 0, color: '#D97706' }} />
+                                    <span>Permiso bloqueado en el navegador. <strong>Toca aquí para ver cómo reactivarlo.</strong></span>
+                                </div>
+                            )}
+
+                            {!isPushBlocked && pushSubscribeError && (
+                                <div
+                                    role="alert"
+                                    style={{
+                                        display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                                        marginTop: '0.65rem', padding: '0.6rem 0.85rem',
+                                        background: '#FFF1F2', border: '1px solid #FECDD3',
+                                        borderRadius: '0.65rem',
+                                        fontSize: '0.78rem', color: '#9F1239', lineHeight: 1.4,
+                                    }}
+                                >
+                                    <AlertTriangle size={13} style={{ marginTop: '2px', flexShrink: 0, color: '#E11D48' }} />
+                                    <span>
+                                        {pushSubscribeError.includes('Brave') || pushSubscribeError.includes('push service')
+                                            ? <>Notificaciones bloqueadas por Brave. Habilita la mensajería push en <strong>brave://settings/privacy</strong>.</>
+                                            : pushSubscribeError.includes('Service Worker') || pushSubscribeError.includes('timeout')
+                                                ? <>Servicio no disponible. Recarga la página e intenta de nuevo.</>
+                                                : <>No se pudo activar. Recarga la página e intenta de nuevo.</>
+                                        }
+                                    </span>
+                                </div>
+                            )}
 
                             {/* Nuevo Módulo de Rotación Automática */}
                             <div style={{ 

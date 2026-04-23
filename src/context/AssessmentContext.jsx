@@ -98,22 +98,19 @@ export const AssessmentProvider = ({ children }) => {
     // Estado de Likes Persistente { "NombrePlato": true }
     const [likedMeals, setLikedMeals] = useState(savedLikes ? JSON.parse(savedLikes) : {});
 
-    // Estado de Dislikes Persistente con expiración de 7 días
+    // Estado de Dislikes Persistente (permanente — sin expiración)
     const savedDislikes = localStorage.getItem('mealfit_dislikes');
     const [dislikedMeals, setDislikedMeals] = useState(() => {
         if (!savedDislikes) return {};
         try {
             const parsed = JSON.parse(savedDislikes);
             const now = Date.now();
-            const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
             const valid = {};
             for (const meal in parsed) {
-                // Si es un número (timestamp) y no ha expirado
-                if (typeof parsed[meal] === 'number' && (now - parsed[meal] < sevenDaysMs)) {
+                if (typeof parsed[meal] === 'number') {
                     valid[meal] = parsed[meal];
-                } 
-                // Retrocompatibilidad: Si antes era 'true', asumimos que es de ahora
-                else if (parsed[meal] === true) {
+                } else if (parsed[meal] === true) {
+                    // Migración de formato legacy (boolean → timestamp)
                     valid[meal] = now;
                 }
             }
