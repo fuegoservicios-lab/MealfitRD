@@ -775,6 +775,7 @@ const Pantry = () => {
                                                     <button 
                                                         onClick={() => handleUpdateQuantity(item.id, 0)} 
                                                         style={{ border:'none', background:'none', padding:'0.5rem', color:'var(--danger)', cursor:'pointer', touchAction: 'manipulation' }}
+                                                        aria-label={`Eliminar ${item.name}`}
                                                     >
                                                         {savingItem === item.id ? <Loader2 size={16} className="spin-fast" /> : <Trash2 size={16} strokeWidth={2.5}/>}
                                                     </button>
@@ -785,12 +786,16 @@ const Pantry = () => {
                                                         onPointerLeave={(e) => stopHolding(e, item.id)}
                                                         onContextMenu={(e) => e.preventDefault()}
                                                         style={{ border:'none', background:'none', padding:'0.5rem', color:'var(--text-muted)', cursor:'pointer', userSelect: 'none', touchAction: 'manipulation' }}
+                                                        aria-label={`Disminuir cantidad de ${item.name}`}
                                                     >
                                                         <Minus size={16} strokeWidth={2.5}/>
                                                     </button>
                                                 )}
                                                 
-                                                <span style={{ width: '2.5rem', textAlign: 'center', fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', fontVariantNumeric: 'tabular-nums' }}>
+                                                <span
+                                                    style={{ width: '2.5rem', textAlign: 'center', fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', fontVariantNumeric: 'tabular-nums' }}
+                                                    aria-live="polite"
+                                                >
                                                     {item.quantity}
                                                 </span>
 
@@ -800,6 +805,7 @@ const Pantry = () => {
                                                     onPointerLeave={(e) => stopHolding(e, item.id)}
                                                     onContextMenu={(e) => e.preventDefault()}
                                                     style={{ border:'none', background:'var(--secondary)', color:'white', borderRadius:'99px', padding:'0.5rem', cursor:'pointer', boxShadow:'var(--shadow-glow-secondary)', userSelect: 'none', touchAction: 'manipulation' }}
+                                                    aria-label={`Aumentar cantidad de ${item.name}`}
                                                 >
                                                     <Plus size={16} strokeWidth={3}/>
                                                 </button>
