@@ -29,8 +29,6 @@ const Settings = () => {
     
     // GAP 4: Ref para prevenir doble-disparo
     const isNavigatingRef = useRef(false);
-    const [showAutoRotationOverrideModal, setShowAutoRotationOverrideModal] = useState(false);
-
     // --- ESTADOS LOCALES ---
     const isLimitReached = typeof userPlanLimit === 'number' && planCount >= userPlanLimit;
     
@@ -38,22 +36,6 @@ const Settings = () => {
     const [notifications, setNotifications] = useState(() => {
         return localStorage.getItem('mealfit_notifications') === 'true';
     });
-
-    // Estado para la Rotación Automática Diaria
-    const [autoRotateMeals, setAutoRotateMeals] = useState(() => {
-        if (userProfile?.health_profile?.autoRotateMeals !== undefined) {
-            return userProfile.health_profile.autoRotateMeals;
-        }
-        const saved = localStorage.getItem('mealfit_auto_rotate');
-        return saved !== null ? saved === 'true' : false; // Desactivado por defecto (opcional)
-    });
-
-    // Sincronizar desde la BD si cambia remotamente o al cargar
-    useEffect(() => {
-        if (userProfile?.health_profile?.autoRotateMeals !== undefined) {
-            setAutoRotateMeals(userProfile.health_profile.autoRotateMeals);
-        }
-    }, [userProfile?.health_profile?.autoRotateMeals]);
 
     // Estado para las Notificaciones Web Push (IA)
     const [pushEnabled, setPushEnabled] = useState(false);
@@ -147,11 +129,6 @@ const Settings = () => {
     useEffect(() => {
         localStorage.setItem('mealfit_notifications', notifications);
     }, [notifications]);
-
-    // Persistir preferencia de rotación automática
-    useEffect(() => {
-        localStorage.setItem('mealfit_auto_rotate', autoRotateMeals);
-    }, [autoRotateMeals]);
 
     // Cargar los "hechos" del Cerebro de la IA
     useEffect(() => {
@@ -880,69 +857,6 @@ const Settings = () => {
                                 </div>
                             )}
 
-                            {/* Nuevo Módulo de Rotación Automática */}
-                            <div style={{ 
-                                background: 'linear-gradient(135deg, #FFF9EB 0%, #FEF3C7 50%, #FEF08A 100%)', 
-                                borderRadius: '1rem', 
-                                padding: '1.25rem', 
-                                border: '1px solid #FDE68A',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: '1rem',
-                                marginTop: '1rem'
-                            }}>
-                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1, minWidth: 0 }}>
-                                    <div style={{ 
-                                        background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', 
-                                        padding: '0.75rem', 
-                                        borderRadius: '0.75rem', 
-                                        flexShrink: 0,
-                                        boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
-                                    }}>
-                                        <Brain size={20} color="#FFFFFF" />
-                                    </div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontWeight: 700, color: 'var(--text-main)', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', fontSize: '0.95rem' }}>
-                                            <span>Rotación Autónoma</span>
-                                            <span style={{ 
-                                                fontSize: '0.55rem', 
-                                                background: 'linear-gradient(135deg, #F59E0B, #D97706)', 
-                                                color: '#FFFFFF', 
-                                                padding: '0.2rem 0.5rem', 
-                                                borderRadius: '1rem', 
-                                                fontWeight: 700, 
-                                                letterSpacing: '0.5px',
-                                                textTransform: 'uppercase'
-                                            }}>NUEVO</span>
-                                        </div>
-                                        <div style={{ fontSize: '0.78rem', color: '#92400E', lineHeight: '1.45', marginTop: '0.25rem' }}>
-                                            Renovar tus platos diarios tomando en cuenta tus nuevos gustos.
-                                        </div>
-                                    </div>
-                                </div>
-                                <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={autoRotateMeals}
-                                        onChange={() => {
-                                            const newValue = !autoRotateMeals;
-                                            setAutoRotateMeals(newValue);
-                                            
-                                            if (userProfile) {
-                                                const currentHealthProfile = userProfile.health_profile || {};
-                                                updateUserProfile({
-                                                    health_profile: {
-                                                        ...currentHealthProfile,
-                                                        autoRotateMeals: newValue
-                                                    }
-                                                });
-                                            }
-                                        }}
-                                    />
-                                    <span className={styles.toggleSlider}></span>
-                                </label>
-                            </div>
                         </section>
 
                         {/* INFO DEL PLAN */}
@@ -1223,43 +1137,6 @@ const Settings = () => {
                     </section>
                 </div>
             </div>
-            <OptionPickerModal
-                isOpen={showAutoRotationOverrideModal}
-                onClose={() => setShowAutoRotationOverrideModal(false)}
-                title="Gestión de Rotación"
-                subtitle="Tu plan está configurado para actualizarse automáticamente."
-                options={[
-                    {
-                        id: 'wait',
-                        label: 'Esperar rotación automática',
-                        desc: 'Tus platos se actualizarán hoy a las 2:00 AM (sin costo adicional).',
-                        icon: Clock,
-                        color: '#10B981',
-                        bg: '#ECFDF5',
-                        border: '#A7F3D0'
-                    },
-                    {
-                        id: 'override',
-                        label: 'Refrescar ahora manualmente',
-                        desc: 'Generar nuevos platos inmediatamente (consume 1 crédito).',
-                        icon: Zap,
-                        color: '#F59E0B',
-                        bg: '#FFFBEB',
-                        border: '#FDE68A'
-                    }
-                ]}
-                onOptionClick={(optionId) => {
-                    setShowAutoRotationOverrideModal(false);
-                    if (optionId === 'override') {
-                        if (isLimitReached) {
-                            toast.error('Límite alcanzado', { description: 'No tienes créditos de regeneración disponibles.' });
-                            return;
-                        }
-                        setShowEvaluateModal(true);
-                    }
-                }}
-            />
-
         </>
     );
 };

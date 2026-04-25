@@ -61,9 +61,9 @@ const Dashboard = () => {
     );
     // Estado para el modal de razón de cambio de plato
     const [swapModal, setSwapModal] = useState(null); // { dayIndex, mealIndex, mealType, mealName }
+    const [swapDislikeConfirm, setSwapDislikeConfirm] = useState(null); // { dayIndex, mealIndex, mealType, mealName }
     const [showUpdatePlanModal, setShowUpdatePlanModal] = useState(false);
     const [showDislikeConfirmModal, setShowDislikeConfirmModal] = useState(false);
-    const [showAutoRotationOverrideModal, setShowAutoRotationOverrideModal] = useState(false);
     const [sessionRestocked, setSessionRestocked] = useState(false);
     const [showDespensaDropdown, setShowDespensaDropdown] = useState(false);
     const despensaDropdownRef = useRef(null);
@@ -143,6 +143,28 @@ const Dashboard = () => {
     // Inventario real (user_inventory en DB) — sincronizado con la Nevera física
     const [liveInventory, setLiveInventory] = useState(null);
     const [isLoadingInventory, setIsLoadingInventory] = useState(true);
+
+    // Tick que se actualiza a medianoche para que daysLeft y daysSinceCreation se recalculen
+    const [todayDate, setTodayDate] = useState(() => {
+        const d = new Date(); d.setHours(0, 0, 0, 0); return d;
+    });
+    useEffect(() => {
+        const scheduleNextMidnight = () => {
+            const now = new Date();
+            const nextMidnight = new Date(now);
+            nextMidnight.setDate(nextMidnight.getDate() + 1);
+            nextMidnight.setHours(0, 0, 0, 0);
+            const msUntilMidnight = nextMidnight - now;
+            return setTimeout(() => {
+                const d = new Date(); d.setHours(0, 0, 0, 0);
+                setTodayDate(d);
+                scheduleNextMidnight();
+            }, msUntilMidnight);
+        };
+        const timer = scheduleNextMidnight();
+        return () => clearTimeout(timer);
+    }, []);
+
     const restockLock = useRef(false);
     const disabledSyncTimer = useRef(null);
     const formDataRef = useRef(formData);
@@ -337,9 +359,8 @@ const Dashboard = () => {
     // Calcular si el periodo de compras expiró para sugerir "Actualizar Plan" en lugar de "Platos"
     const groceryDuration = formData?.groceryDuration || 'weekly';
 
-    // Normalizar fechas a medianoche para calcular días calendario transcurridos correctamente
-    const todayMidnight = new Date();
-    todayMidnight.setHours(0, 0, 0, 0);
+    // Normalizar fechas a medianoche — usa todayDate (state) para que se recalcule automáticamente a las 12AM
+    const todayMidnight = todayDate;
 
     const rawStartDate = planData?.grocery_start_date || planData?.created_at;
     const startMidnight = rawStartDate ? new Date(rawStartDate) : new Date();
@@ -2002,45 +2023,6 @@ const Dashboard = () => {
                         {/* BOTONES LADO A LADO */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', width: '100%' }}>
                             {(() => {
-                                const isPremiumForRotation = ['basic', 'plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase());
-                                const isAutoRotationActiveHeader = isPremiumForRotation && localStorage.getItem('mealfit_auto_rotate') === 'true';
-
-                                if (isAutoRotationActiveHeader) {
-                                    return (
-                                        <button
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                setShowAutoRotationOverrideModal(true);
-                                            }}
-                                            className="new-plan-btn"
-                                            style={{
-                                                background: '#F8FAFC',
-                                                color: '#64748B', 
-                                                cursor: 'pointer',
-                                                boxShadow: 'none',
-                                                flex: '1 1 auto',
-                                                width: 'auto',
-                                                justifyContent: 'center',
-                                                padding: '0.75rem 0.75rem',
-                                                border: '1.5px dashed #CBD5E1',
-                                                borderRadius: '1rem',
-                                                fontWeight: '600',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.4rem',
-                                                whiteSpace: 'nowrap',
-                                                opacity: 0.9,
-                                                transition: 'all 0.5s ease'
-                                            }}
-                                        >
-                                            <>
-                                                <Lock size={16} color="#94A3B8" />
-                                                <span style={{ fontSize: '0.85rem' }}>Rotación Autónoma</span>
-                                            </>
-                                        </button>
-                                    );
-                                }
-
                                 return (
                                     <button
                                         onClick={async () => {
@@ -2217,87 +2199,6 @@ const Dashboard = () => {
             {/* --- BANNER: GENERACIÓN EN BACKGROUND (Semanas 2-4) --- */}
             {/* Banner de Chunking Background eliminado para alinearse con la experiencia visual "silenciosa" */}
 
-            {/* --- BANNER: ROTACIÓN NOCTURNA AUTOMÁTICA --- */}
-            {(() => {
-                // Detectar si el plan fue rotado automáticamente durante la noche
-                const rotationHistory = planData?.rotation_history;
-                if (!rotationHistory || !Array.isArray(rotationHistory) || rotationHistory.length === 0) return null;
-                
-                const lastRotation = rotationHistory[rotationHistory.length - 1];
-                if (!lastRotation?.date) return null;
-                
-                const rotationDate = new Date(lastRotation.date);
-                const now = new Date();
-                const hoursSince = (now - rotationDate) / (1000 * 60 * 60);
-                
-                // Solo mostrar si la rotación ocurrió en las últimas 24 horas
-                if (hoursSince > 24) return null;
-                
-                // No mostrar si el usuario ya lo dismisseó esta sesión
-                const dismissKey = `mealfit_rotation_banner_${rotationDate.toISOString().split('T')[0]}`;
-                if (localStorage.getItem(dismissKey)) return null;
-                
-                const mealsConsumed = lastRotation.meals_consumed || [];
-                const rotationTimeStr = rotationDate.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
-                
-                return (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10, height: 0 }}
-                        animate={{ opacity: 1, y: 0, height: 'auto' }}
-                        exit={{ opacity: 0, y: -10, height: 0 }}
-                        transition={{ duration: 0.4, ease: 'easeOut' }}
-                        id="rotation-banner"
-                        style={{
-                            background: 'linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 50%, #DBEAFE 100%)',
-                            border: '1.5px solid #93C5FD',
-                            borderRadius: '1rem',
-                            padding: '1rem 1.25rem',
-                            marginBottom: '1.5rem',
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: '0.75rem',
-                            position: 'relative',
-                            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.08)',
-                        }}
-                    >
-                        <div style={{
-                            width: 36, height: 36, minWidth: 36,
-                            background: 'linear-gradient(135deg, #3B82F6, #2563EB)',
-                            borderRadius: '0.75rem',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)'
-                        }}>
-                            <RefreshCw size={18} color="#FFFFFF" />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <p style={{ margin: 0, fontWeight: 700, fontSize: '0.85rem', color: '#1E40AF' }}>
-                                🤖 Tu plan fue actualizado anoche
-                            </p>
-                            <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: '#3B82F6', lineHeight: 1.4 }}>
-                                La IA rotó tus platos a las {rotationTimeStr} basándose en tu inventario y preferencias.
-                                {mealsConsumed.length > 0 && (
-                                    <> Se reemplazaron {mealsConsumed.length} comida{mealsConsumed.length > 1 ? 's' : ''} del día anterior.</>
-                                )}
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => {
-                                localStorage.setItem(dismissKey, 'true');
-                                document.getElementById('rotation-banner')?.remove();
-                            }}
-                            style={{
-                                background: 'none', border: 'none', cursor: 'pointer',
-                                color: '#93C5FD', fontSize: '1.1rem', padding: '0.2rem',
-                                lineHeight: 1, fontWeight: 700
-                            }}
-                            aria-label="Cerrar banner de rotación"
-                        >
-                            ×
-                        </button>
-                    </motion.div>
-                );
-            })()}
-
             {/* --- MACROS & CALORIES SUMMARY ROW --- */}
             <div className="macros-card">
                 <h2 className="macros-card-header" style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A' }}>
@@ -2329,9 +2230,11 @@ const Dashboard = () => {
                 {/* Left Column: MEALS TIMELINE */}
                 <div className="meals-container" style={{ flex: 2, alignSelf: 'start' }}>
                     <div className="menu-section-header">
-                        <h2 className="menu-section-title">
-                            Platos de Hoy
-                        </h2>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <h2 className="menu-section-title">
+                                Platos de Hoy
+                            </h2>
+                        </div>
                         <span className="menu-section-count">
                             {/* Número de comidas oculto según petición */}
                         </span>
@@ -2346,7 +2249,7 @@ const Dashboard = () => {
                     )}
 
                     {/* BOTONES NAVEGACIÓN DÍAS (AGRUPADOS POR SEMANA) — Rolling Window */}
-                    {visiblePlanDays.length > 1 && (
+                    {visiblePlanDays.length >= 1 && (
                         <div className="days-navigation-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
                             {Array.from({ length: Math.ceil(visiblePlanDays.length / 7) }).map((_, weekIdx) => {
                                 const weekDays = visiblePlanDays.slice(weekIdx * 7, (weekIdx + 1) * 7);
@@ -2396,6 +2299,7 @@ const Dashboard = () => {
                                                         style={{
                                                             flexShrink: 0,
                                                             minWidth: 'fit-content',
+                                                            justifyContent: 'center',
                                                             whiteSpace: 'nowrap',
                                                             padding: '8px 16px',
                                                             borderRadius: '8px',
@@ -2473,9 +2377,6 @@ const Dashboard = () => {
                                     });
                                 }
                             }
-
-                            const hasPremiumForRotation = true; // Habilitado para todos los planes, incluyendo gratuitos
-                            const isAutoRotationActive = hasPremiumForRotation && localStorage.getItem('mealfit_auto_rotate') === 'true';
 
                             return displayMeals.map((meal, index) => {
                                 const isSkippedLunch = meal.isSkipped;
@@ -3307,32 +3208,43 @@ const Dashboard = () => {
                         </>
                     )
                 }
-                options={[
-                    { id: 'variety',  icon: Shuffle,    label: 'Quiero variedad',          color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me gusta, pero quiero algo diferente' },
-                    { id: 'time',     icon: Clock,      label: 'No tengo tiempo hoy',      color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco algo más rápido de preparar' },
-                    { id: 'budget',   icon: Wallet,     label: 'Opciones económicas',      color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', desc: 'Ingredientes de bajo costo' },
-                    { id: 'pantry_first', icon: ShoppingCart, label: 'Usar lo que tengo', color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A', desc: 'Maximizar el inventario actual' },
-                    { id: 'cravings', icon: Heart,      label: 'Tengo un antojo',          color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Algo indulgente pero saludable' },
-                    { id: 'weekend',  icon: Zap,        label: 'Fin de semana especial',   color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: [0, 5, 6].includes(new Date().getDay()) ? 'Platos más elaborados y premium (Sáb-Dom)' : 'Plato más elaborado — aplica al plato de hoy' },
-                    { id: 'similar',  icon: Copy,       label: 'Ya comí algo similar',     color: '#F97316', bg: '#FFF7ED', border: '#FED7AA', desc: 'Hoy ya tuve un plato parecido' },
-                    { id: 'dislike',  icon: ThumbsDown, label: 'No me gusta este plato',    color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'La IA evitará sugerirlo en el futuro' }
-                ]}
+                options={(() => {
+                    const todayDow = new Date().getDay(); // 0=Dom, 6=Sáb
+                    const isWeekend = todayDow === 0 || todayDow === 6;
+                    const daysUntilSat = 6 - todayDow;
+                    const weekendOpt = isWeekend
+                        ? { id: 'weekend', icon: Zap, label: 'Fin de semana especial', color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)' }
+                        : { id: 'weekend', icon: Zap, label: 'Fin de semana especial', color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)', disabled: true, disabledDesc: `Disponible en ${daysUntilSat} ${daysUntilSat === 1 ? 'día' : 'días'} (sábado)` };
+                    return [
+                        { id: 'variety',      icon: Shuffle,      label: 'Quiero variedad',        color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me gusta, pero quiero algo diferente' },
+                        { id: 'time',         icon: Clock,        label: 'No tengo tiempo hoy',    color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco algo más rápido de preparar' },
+                        { id: 'budget',       icon: Wallet,       label: 'Opciones económicas',    color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', desc: 'Ingredientes de bajo costo' },
+                        { id: 'cravings',     icon: Heart,        label: 'Tengo un antojo',        color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Un capricho que encaja en tu plan' },
+                        weekendOpt,
+                        { id: 'similar',      icon: Copy,         label: 'Ya comí algo similar',   color: '#F97316', bg: '#FFF7ED', border: '#FED7AA', desc: 'Hoy ya tuve un plato parecido' },
+                        { id: 'dislike',      icon: ThumbsDown,   label: 'No me gusta este plato', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'La IA evitará sugerirlo en el futuro' }
+                    ];
+                })()}
                 onOptionClick={async (optionId) => {
                     if (!swapModal) return;
                     const { dayIndex, mealIndex, mealType, mealName } = swapModal;
                     setSwapModal(null);
 
+                    // Dislike requiere confirmación explícita antes de ejecutar el bloqueo permanente
+                    if (optionId === 'dislike') {
+                        setSwapDislikeConfirm({ dayIndex, mealIndex, mealType, mealName });
+                        return;
+                    }
+
                     // Estado de carga
                     setRegeneratingId(mealIndex);
-                    const toastId = toast.loading(
-                        optionId === 'dislike' ? '👎 Registrando preferencia...' : '🔄 Consultando al Chef IA...',
-                        { description: 'Buscando una alternativa deliciosa...' }
-                    );
+                    const toastId = toast.loading('🔄 Consultando al Chef IA...', { description: 'Buscando una alternativa deliciosa...' });
 
                     try {
                         const newName = await regenerateSingleMeal(
                             dayIndex, mealIndex, mealType, mealName,
-                            optionId // ← swap_reason
+                            optionId, // ← swap_reason
+                            liveInventory // ← [P0-1] para detectar ingredientes nuevos post-restock
                         );
 
                         trackEvent('plan_regeneration_triggered', {
@@ -3365,7 +3277,7 @@ const Dashboard = () => {
                             {hoveredOption === 'dislike' ? (
                                 <><strong>Se evitará:</strong> {swapModal?.mealName}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~4s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}. ⚠️ Este plato se excluirá permanentemente de futuros planes.</span></>
                             ) : hoveredOption ? (
-                                <><strong>Regenerando:</strong> 1 plato ({swapModal?.mealType === 'snack' ? 'Snack' : 'Comida principal'}).<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~4s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                                <><strong>Regenerando:</strong> 1 plato ({swapModal?.mealType || 'Comida'}).<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~4s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
                             ) : (
                                 isPremium ? (
                                     <>Plan <strong>Premium</strong>: Regeneraciones ilimitadas activas.</>
@@ -3397,7 +3309,7 @@ const Dashboard = () => {
                         { id: 'variety',  icon: Shuffle,    label: 'Quiero variedad',       color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me apetecen platos distintos esta semana' },
                         { id: 'time',     icon: Clock,      label: 'Semana ocupada',       color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco preparaciones más rápidas' },
                         { id: 'budget',   icon: Wallet,     label: 'Opciones económicas',   color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', desc: 'Priorizar ingredientes de bajo costo' },
-                        { id: 'cravings', icon: Heart,      label: 'Tengo un antojo',       color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Algo indulgente pero saludable para esta semana' },
+                        { id: 'cravings', icon: Heart,      label: 'Tengo un antojo',       color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Un capricho que encaja en tu plan semanal' },
                         weekendOption,
                         { id: 'similar',  icon: Copy,       label: 'Se parece al ciclo anterior', color: '#F97316', bg: '#FFF7ED', border: '#FED7AA', desc: 'Evitar sugerencias muy parecidas a la semana pasada' },
                         { id: 'dislike',  icon: ThumbsDown, label: 'No me gustó el ciclo anterior', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'Evitar ingredientes y estilos similares en el futuro' }
@@ -3405,7 +3317,7 @@ const Dashboard = () => {
                         { id: 'variety',  icon: Shuffle,    label: 'Quiero más variedad',       color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me apetecen platos distintos hoy' },
                         { id: 'time',     icon: Clock,      label: 'No tengo tiempo hoy',       color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco algo más rápido de preparar' },
                         { id: 'budget',   icon: Wallet,     label: 'Opciones más económicas',   color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', desc: 'Ingredientes de bajo costo' },
-                        { id: 'cravings', icon: Heart,      label: 'Tengo un antojo distinto',  color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Algo indulgente pero saludable' },
+                        { id: 'cravings', icon: Heart,      label: 'Tengo un antojo distinto',  color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Un capricho que encaja en tu plan' },
                         weekendOption,
                         { id: 'dislike',  icon: ThumbsDown, label: 'No me gustan estos platos', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'Evitar sugerencias similares en el futuro' }
                     ];
@@ -3461,6 +3373,70 @@ const Dashboard = () => {
                     </div>
                 )}
             />
+            {/* ═══════════ MODAL: Confirmación bloqueo permanente de un plato individual ═══════════ */}
+            <OptionPickerModal
+                isOpen={!!swapDislikeConfirm}
+                onClose={() => setSwapDislikeConfirm(null)}
+                title="¿Bloquear este plato?"
+                subtitle={
+                    swapDislikeConfirm && (
+                        <div style={{ margin: '0 0 1.15rem 0', fontSize: '0.85rem', color: '#64748B' }}>
+                            <p style={{ margin: '0 0 0.75rem 0' }}>
+                                Este plato quedará <strong style={{ color: '#EF4444' }}>bloqueado permanentemente</strong> y la IA no volverá a sugerirlo en futuros planes:
+                            </p>
+                            <div style={{
+                                background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '0.75rem',
+                                padding: '0.6rem 0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem'
+                            }}>
+                                <ThumbsDown size={14} color="#EF4444" />
+                                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#991B1B' }}>
+                                    {swapDislikeConfirm.mealName}
+                                </span>
+                            </div>
+                        </div>
+                    )
+                }
+                options={[
+                    { id: 'confirm', icon: ThumbsDown, label: 'Sí, bloquear y cambiar', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'La IA no volverá a sugerir este plato' },
+                    { id: 'cancel',  icon: Shuffle,    label: 'Cancelar',               color: '#64748B', bg: '#F8FAFC', border: '#E2E8F0', desc: 'Volver sin hacer cambios' }
+                ]}
+                onOptionClick={async (optionId) => {
+                    if (optionId === 'cancel') {
+                        setSwapDislikeConfirm(null);
+                        return;
+                    }
+                    const { dayIndex, mealIndex, mealType, mealName } = swapDislikeConfirm;
+                    setSwapDislikeConfirm(null);
+
+                    setRegeneratingId(mealIndex);
+                    const toastId = toast.loading('👎 Registrando preferencia...', { description: 'Buscando una alternativa deliciosa...' });
+
+                    try {
+                        const newName = await regenerateSingleMeal(
+                            dayIndex, mealIndex, mealType, mealName,
+                            'dislike',
+                            liveInventory // ← [P0-1] para detectar ingredientes nuevos post-restock
+                        );
+
+                        trackEvent('plan_regeneration_triggered', {
+                            reason: 'dislike',
+                            source: 'dashboard',
+                            is_expired: isPlanExpired,
+                            has_pantry: liveInventory && liveInventory.length > 0,
+                            type: 'single_meal'
+                        });
+
+                        toast.dismiss(toastId);
+                        toast.success('¡Menú Actualizado!', { description: `Cambiado por: ${newName}`, icon: '👨‍🍳' });
+                    } catch (error) {
+                        console.error('Error al regenerar:', error);
+                        toast.dismiss(toastId);
+                        toast.error('No se pudo conectar con la IA', { description: 'Se usó una receta alternativa local.' });
+                    } finally {
+                        setRegeneratingId(null);
+                    }
+                }}
+            />
             {/* ═══════════ MODAL: Confirmación permanente de "No me gustan estos platos" ═══════════ */}
             <OptionPickerModal
                 isOpen={showDislikeConfirmModal}
@@ -3504,59 +3480,6 @@ const Dashboard = () => {
                         setIsNavigatingOption(null);
                     }
                 }}
-            />
-
-            <OptionPickerModal
-                isOpen={showAutoRotationOverrideModal}
-                onClose={() => setShowAutoRotationOverrideModal(false)}
-                title="Gestión de Rotación"
-                subtitle="Tu plan está configurado para actualizarse automáticamente."
-                options={[
-                    {
-                        id: 'wait',
-                        label: 'Esperar rotación automática',
-                        desc: 'Tus platos se actualizarán hoy a las 2:00 AM (sin costo adicional).',
-                        icon: Clock,
-                        color: '#10B981',
-                        bg: '#ECFDF5',
-                        border: '#A7F3D0'
-                    },
-                    {
-                        id: 'override',
-                        label: 'Refrescar ahora manualmente',
-                        desc: `Generar nuevos platos inmediatamente${isPremium ? '' : ' (consume 1 regeneración)'}.`,
-                        icon: Zap,
-                        color: '#F59E0B',
-                        bg: '#FFFBEB',
-                        border: '#FDE68A'
-                    }
-                ]}
-                onOptionClick={async (optionId) => {
-                    setShowAutoRotationOverrideModal(false);
-                    if (optionId === 'override') {
-                        const hasCredits = await validateCreditsAsync();
-                        if (!hasCredits) return;
-                        setShowUpdatePlanModal(true);
-                    }
-                }}
-                infoBandRenderer={(hoveredOption) => (
-                    <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: '#F8FAFC', borderRadius: '0.8rem', border: '1px solid #E2E8F0', fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                        <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: '#64748B' }} />
-                        <div>
-                            {hoveredOption === 'override' ? (
-                                <><strong>Refresco Manual:</strong> Regenerarás el día completo al instante.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
-                            ) : hoveredOption === 'wait' ? (
-                                <><strong>Rotación Automática:</strong> El sistema actualizará los platos gratis esta madrugada.</>
-                            ) : (
-                                isPremium ? (
-                                    <>Plan <strong>Premium</strong>: Regeneraciones ilimitadas activas.</>
-                                ) : (
-                                    <>Te quedan <strong>{typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : 'ilimitadas'}</strong> regeneraciones este mes.</>
-                                )
-                            )}
-                        </div>
-                    </div>
-                )}
             />
 
         </>

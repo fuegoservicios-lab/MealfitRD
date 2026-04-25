@@ -179,7 +179,7 @@ const Pricing = () => {
                                 <span className={styles.amount}>0</span>
                             </div>
                             <p className={styles.description}>
-                                Descubre el poder de la IA. Plan personalizado, recetas y rotación autónoma de menús.
+                                Descubre el poder de la IA. Plan personalizado con aprendizaje continuo y recetas paso a paso.
                             </p>
 
                             <ul className={styles.features}>
@@ -187,7 +187,6 @@ const Pricing = () => {
                                 <li><Check size={18} className={styles.check} /> <strong>Plan de Comidas con IA</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Recetas Paso a Paso</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Lista de Compras PDF</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Rotación Autónoma de Platos</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Nevera Virtual (Despensa)</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Aprendizaje a Corto Plazo</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Historial de Planes</strong></li>

@@ -579,7 +579,7 @@ export const AssessmentProvider = ({ children }) => {
     };
 
     // --- REGENERACIÓN INTELIGENTE CON PERSISTENCIA DE DB ---
-    const regenerateSingleMeal = async (dayIndex, mealIndex, mealType, currentName, swapReason = 'dislike') => {
+    const regenerateSingleMeal = async (dayIndex, mealIndex, mealType, currentName, swapReason = 'dislike', liveInventory = null) => {
         const planDays = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
         const currentMeals = planDays[dayIndex]?.meals || [];
         const targetCalories = currentMeals[mealIndex]?.cals || 400;
@@ -663,6 +663,41 @@ export const AssessmentProvider = ({ children }) => {
             // Invalidar la lista pre-calculada para que el memo allPlanIngredients
             // recalcule desde los ingredientes actualizados del plan
             delete updatedPlan.aggregated_shopping_list;
+
+            // [P0-1 FIX] "Punto ciego en Swaps Post-Restock":
+            // Si el usuario ya registró sus compras (is_restocked=true) y luego rota un plato,
+            // el nuevo plato puede requerir ingredientes que NO están en su nevera.
+            // buildDeltaShoppingList suprime agresivamente esos ítems bajo isPostRestockRotation,
+            // por lo que el usuario nunca sabría que le faltan. Aquí detectamos ese caso y
+            // reseteamos is_restocked=false para que la lista de compras reaparezca solo
+            // para los ingredientes verdaderamente nuevos.
+            if (updatedPlan.is_restocked && liveInventory && Array.isArray(liveInventory)) {
+                const newIngredients = newMealData.ingredients || [];
+                if (newIngredients.length > 0) {
+                    // Normalizar nombres del inventario a lower-case para comparación rápida
+                    const inventoryNames = new Set(
+                        liveInventory
+                            .filter(item => (parseFloat(item.quantity) || 0) > 0)
+                            .map(item => (item.ingredient_name || '').toLowerCase().trim())
+                    );
+
+                    // Verificar si algún ingrediente del nuevo plato NO está en inventario
+                    const hasUncoveredIngredient = newIngredients.some(ing => {
+                        const ingName = (typeof ing === 'string' ? ing : (ing?.display_name || ing?.name || '')).toLowerCase().trim();
+                        if (!ingName || ingName.length < 3) return false;
+                        // Verificación simple de substring: si alguna llave del inventario contiene el ingrediente
+                        return ![...inventoryNames].some(invName =>
+                            invName.includes(ingName) || ingName.includes(invName)
+                        );
+                    });
+
+                    if (hasUncoveredIngredient) {
+                        // Resetear bandera para que la lista de compras muestre el delta faltante
+                        updatedPlan.is_restocked = false;
+                        console.log('[P0-1] Swap post-restock introdujo ingredientes nuevos — is_restocked reseteado a false.');
+                    }
+                }
+            }
 
             // Solo agregar a la lista de rechazos locales si es un dislike real
             if (swapReason === 'dislike') {
