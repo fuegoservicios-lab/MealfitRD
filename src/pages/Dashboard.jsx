@@ -383,8 +383,10 @@ const Dashboard = () => {
 
     if (daysSinceCreation >= totalAllowedDays) isPlanExpired = true;
 
-    // Se capa daysLeft al máximo real del plan para no afectar el ratio de compras
-    const daysLeft = Math.min(maxDays, Math.max(0, totalAllowedDays - daysSinceCreation));
+    // daysLeft: días reales restantes del plan (siempre basado en maxDays, no en totalAllowedDays).
+    // totalAllowedDays solo extiende la ventana de expiración para planes aún generándose,
+    // pero no debe inflar el contador visible al usuario.
+    const daysLeft = Math.max(0, maxDays - daysSinceCreation);
 
 
 
