@@ -383,8 +383,11 @@ const Plan = () => {
 
                 if (previousMeals && previousMeals.length > 0) {
                     generatedPlan.grocery_start_date = oldPlan.grocery_start_date || oldPlan.created_at || new Date().toISOString();
+                    generatedPlan.cycle_start_date = oldPlan.cycle_start_date || generatedPlan.grocery_start_date;
                 } else {
-                    generatedPlan.grocery_start_date = new Date().toISOString();
+                    const now = new Date().toISOString();
+                    generatedPlan.grocery_start_date = now;
+                    generatedPlan.cycle_start_date = now;
                 }
 
                 // --- Analítica enviada en éxito del endpoint ---

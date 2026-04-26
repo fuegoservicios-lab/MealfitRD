@@ -190,10 +190,27 @@ export const AssessmentProvider = ({ children }) => {
                             localGroceryStartDate = parsed.grocery_start_date;
                         } catch(e) {}
                     }
-                    
+
                     // Si el plan vino de la IA/Chat, no trae esta fecha.
                     // Priorizamos mantener la local, si no existe usamos la de creación.
                     latestPlan.grocery_start_date = localGroceryStartDate || planCreatedAt;
+                    didInjectGroceryDate = true;
+                }
+
+                // cycle_start_date: fecha inmutable para el contador de daysLeft del Dashboard.
+                // grocery_start_date la rota el backend (rolling window de menús), por lo que
+                // no sirve para medir cuántos días lleva activo el ciclo. Backfill para planes
+                // existentes con la fecha de creación de la fila DB.
+                if (!latestPlan.cycle_start_date) {
+                    const localSaved = localStorage.getItem('mealfit_plan');
+                    let localCycleStartDate = null;
+                    if (localSaved) {
+                        try {
+                            const parsed = JSON.parse(localSaved);
+                            localCycleStartDate = parsed.cycle_start_date;
+                        } catch(e) {}
+                    }
+                    latestPlan.cycle_start_date = localCycleStartDate || planCreatedAt;
                     didInjectGroceryDate = true;
                 }
 

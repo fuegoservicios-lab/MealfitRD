@@ -368,6 +368,15 @@ const Dashboard = () => {
 
     const daysSinceCreation = Math.round((todayMidnight - startMidnight) / (1000 * 60 * 60 * 24));
 
+    // cycle_start_date: fecha inmutable de inicio del ciclo (no la rota el backend).
+    // Se usa solo para el contador "daysLeft" del badge; daysSinceCreation se mantiene
+    // basado en grocery_start_date porque el resto del Dashboard (rolling window, índice
+    // de día actual en planDays, etc.) depende de ese desplazamiento.
+    const rawCycleStart = planData?.cycle_start_date || rawStartDate;
+    const cycleStartMidnight = rawCycleStart ? new Date(rawCycleStart) : new Date();
+    cycleStartMidnight.setHours(0, 0, 0, 0);
+    const daysSinceCycleStart = Math.round((todayMidnight - cycleStartMidnight) / (1000 * 60 * 60 * 24));
+
     let isPlanExpired = false;
     let maxDays = 7;
     if (groceryDuration === 'weekly') { maxDays = 7; }
@@ -381,12 +390,15 @@ const Dashboard = () => {
     const expiryExtension = Math.max(0, maxDays - generated_days);
     const totalAllowedDays = maxDays + expiryExtension;
 
-    if (daysSinceCreation >= totalAllowedDays) isPlanExpired = true;
+    // Expiración basada en el ciclo inmutable (cycle_start_date), no en el rolling
+    // grocery_start_date — sino el plan nunca expira.
+    if (daysSinceCycleStart >= totalAllowedDays) isPlanExpired = true;
 
-    // daysLeft: días reales restantes del plan (siempre basado en maxDays, no en totalAllowedDays).
-    // totalAllowedDays solo extiende la ventana de expiración para planes aún generándose,
-    // pero no debe inflar el contador visible al usuario.
-    const daysLeft = Math.max(0, maxDays - daysSinceCreation);
+    // daysLeft: días reales restantes del ciclo, calculado contra cycle_start_date
+    // (inmutable) para que decremente naturalmente sin importar los rollings del backend
+    // sobre grocery_start_date. totalAllowedDays solo extiende la ventana de expiración
+    // para planes aún generándose, pero no debe inflar el contador visible al usuario.
+    const daysLeft = Math.max(0, maxDays - daysSinceCycleStart);
 
 
 
