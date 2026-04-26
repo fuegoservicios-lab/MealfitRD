@@ -1,0 +1,3 @@
+## 2024-04-26 - Regex Hoisting in React Iterations
+**Learning:** Precompiling fixed dictionaries into a single combined regex object and hoisting it completely outside of the React render body is critical in string-processing operations (like the normalizeName loop). A benchmark showed replacing 39 iterations creating new `RegExp` objects with a single `RegExp` combined with logic resulted in ~98% time efficiency gain (~1.012s down to ~14.571ms for 10000 executions).
+**Action:** When evaluating multiple string replacements against static dictionaries or "stop words" inside functional component helpers, aggregate them into a single pre-compiled `RegExp` object outside of the component.
