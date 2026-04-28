@@ -1,0 +1,3 @@
+## 2024-04-27 - Hoist RegExp and Object Allocations Outside React Component Render Loop
+**Learning:** React components that perform heavy string manipulation during render (such as compiling RegEx and generating replacement arrays for multiple sequential replacements) can face unnecessary CPU overhead and garbage collection pressure, particularly when invoked inside loops (e.g., `buildDeltaShoppingList` which processes an entire list per render).
+**Action:** Always extract static mapping objects (`const IRREGULARS_MAP = {...}`) and compile regular expressions outside of the component. Use `.join("|")` with a single compiled RegExp `new RegExp("\\b(" + WORDS.join("|") + ")\\b", "gi")` instead of O(N) regex replace loops.
