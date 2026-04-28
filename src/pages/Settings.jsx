@@ -1127,6 +1127,7 @@ const Settings = () => {
                                             onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'}
                                             onMouseOut={(e) => e.currentTarget.style.background = 'none'}
                                             title="Olvidar Dato"
+                                            aria-label="Olvidar Dato"
                                         >
                                             <Trash2 size={18} />
                                         </button>
