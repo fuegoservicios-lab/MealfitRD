@@ -23,6 +23,28 @@ import { API_BASE, fetchWithAuth } from '../config/api';
 import { trackEvent } from '../utils/analytics';
 import { getActiveShoppingList, calculateAllPlanIngredients } from '../utils/shoppingHelpers';
 
+const MASS_TO_G = { 'g': 1, 'gr': 1, 'gramos': 1, 'kg': 1000, 'lb': 453.592, 'lbs': 453.592, 'oz': 28.3495, 'onza': 28.3495, 'onzas': 28.3495 };
+const VOL_TO_ML = { 'ml': 1, 'l': 1000, 'taza': 240, 'tazas': 240, 'cda': 15, 'cdta': 5 };
+
+const PANTRY_STAPLES_DELTA = new Set([
+    'sal y ajo en polvo', 'aceite de oliva', 'aceite de coco',
+    'aceite de sésamo o maní', 'salsa de soya', 'orégano',
+    'canela', 'pimienta', 'sal', 'vinagre', 'ajo en polvo'
+]);
+
+const STOPS_REGEX = new RegExp('\\b(' + [
+    'picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada',
+    'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada',
+    'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados',
+    'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones',
+    'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada',
+    'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
+    'horneado', 'grandes', 'firme'
+].join('|') + ')\\b', 'gi');
+
+const PREFIX_REGEX = /^(pechuga|filete|muslo|trozo|chuleta|pieza|corte|ración|racion|porción|porcion|filetico|medallón|medallones|carne)s?\s+(de|del)\s+/i;
+
+
 const Dashboard = () => {
     // 1. Obtenemos estado y funciones del Contexto Global
     const {
@@ -446,9 +468,6 @@ const Dashboard = () => {
         // Para planes NUEVOS, is_restocked es undefined → delta normal con todos los faltantes.
         const isPostRestockRotation = !!planData?.is_restocked;
 
-        const MASS_TO_G = { 'g': 1, 'gr': 1, 'gramos': 1, 'kg': 1000, 'lb': 453.592, 'lbs': 453.592, 'oz': 28.3495, 'onza': 28.3495, 'onzas': 28.3495 };
-        const VOL_TO_ML = { 'ml': 1, 'l': 1000, 'taza': 240, 'tazas': 240, 'cda': 15, 'cdta': 5 };
-
         const toBaseUnit = (qty, unit) => {
             let u = unit.toLowerCase().trim().replace(/\.$/, ''); // remove trailing dot from 'ud.'
             if (MASS_TO_G[u]) return { value: qty * MASS_TO_G[u], type: 'mass', ratio: MASS_TO_G[u] };
@@ -489,20 +508,11 @@ const Dashboard = () => {
             
             // Replicar el comportamiento del backend (db_inventory.py / shopping_calculator.py)
             // para que "chuleta de cerdo" haga match con el master ingredient "cerdo" guardado.
-            n = n.replace(/^(pechuga|filete|muslo|trozo|chuleta|pieza|corte|ración|racion|porción|porcion|filetico|medallón|medallones|carne)s?\s+(de|del)\s+/i, '').trim();
+            n = n.replace(PREFIX_REGEX, '').trim();
 
             // Stop words: réplica exacta del backend (shopping_calculator.py línea 103)
             // Elimina descriptores que no forman parte del nombre base del ingrediente.
-            const stops = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada', 
-                'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada', 
-                'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados', 
-                'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones', 
-                'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada', 
-                'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
-                'horneado', 'grandes', 'firme'];
-            for (const s of stops) {
-                n = n.replace(new RegExp('\\b' + s + '\\b', 'gi'), '');
-            }
+            n = n.replace(STOPS_REGEX, '');
             n = n.replace(/,/g, '').replace(/\s+/g, ' ').trim();
 
             return n.split(/\s+/).map(w => {
@@ -528,12 +538,6 @@ const Dashboard = () => {
                  return w;
             }).join(' ');
         };
-
-        const PANTRY_STAPLES_DELTA = new Set([
-            'sal y ajo en polvo', 'aceite de oliva', 'aceite de coco',
-            'aceite de sésamo o maní', 'salsa de soya', 'orégano',
-            'canela', 'pimienta', 'sal', 'vinagre', 'ajo en polvo'
-        ]);
 
         const inferShelfLifeDays = (name, category) => {
             const n = (name || '').toLowerCase();
