@@ -2545,6 +2545,7 @@ const Dashboard = () => {
                                                         transition: 'all 0.2s'
                                                     }}
                                                     title="Ver paso a paso"
+                                                    aria-label="Ver paso a paso"
                                                 >
                                                     <BookOpen size={20} color="#3B82F6" />
                                                 </button>
@@ -2605,6 +2606,7 @@ const Dashboard = () => {
                                                         boxShadow: isLiked ? '0 2px 5px rgba(239, 68, 68, 0.2)' : 'none'
                                                     }}
                                                     title="Me gusta"
+                                                    aria-label={isLiked ? "Quitar me gusta" : "Me gusta"}
                                                 >
                                                     <Heart size={20} color={isLiked ? '#EF4444' : '#EC4899'} fill={isLiked ? '#EF4444' : 'none'} />
                                                 </button>
