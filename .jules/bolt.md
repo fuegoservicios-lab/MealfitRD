@@ -1,0 +1,3 @@
+## 2025-02-14 - Replace Sequential `RegExp` with Hoisted Aggregated `RegExp`
+**Learning:** In dynamic React components, precompile `RegExp` objects outside the component body (hoist them) and avoid creating them within a loop. Instantiating a new `RegExp` for each iteration causes excessive object instantiation, garbage collection pressure, and CPU overhead.
+**Action:** When evaluating multiple sequential string replacements against static dictionaries or "stop words" (e.g., using `join('|')`), aggregate them into a single pre-compiled `RegExp` object outside of the React component to optimize execution time and reduce instantiation overhead from O(N) to O(1).
