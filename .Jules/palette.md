@@ -1,0 +1,3 @@
+## 2025-02-12 - Accessibility in ChatWidget
+**Learning:** Found multiple icon-only buttons in `src/components/dashboard/ChatWidget.jsx` (Volver al chat, Ver Historial, Nuevo Chat, Enviar mensaje, and Abrir/Cerrar chat) that were lacking `aria-label`s, rendering them inaccessible to screen readers. Adding localized (Spanish) `aria-label`s significantly improves the accessibility of the chat interface for visually impaired users.
+**Action:** Always ensure icon-only interactive elements in components have descriptive, localized `aria-label` attributes. Use `aria-label` conditionally if the button's action toggles (e.g., `isOpen ? "Cerrar" : "Abrir"`).
