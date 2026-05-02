@@ -23,6 +23,22 @@ import { API_BASE, fetchWithAuth } from '../config/api';
 import { trackEvent } from '../utils/analytics';
 import { getActiveShoppingList, calculateAllPlanIngredients } from '../utils/shoppingHelpers';
 
+// Hoist static definitions to prevent re-creation on every render
+const STOP_WORDS = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada',
+    'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada',
+    'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados',
+    'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones',
+    'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada',
+    'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
+    'horneado', 'grandes', 'firme'];
+const STOP_WORDS_REGEX = new RegExp('\\b(' + STOP_WORDS.join('|') + ')\\b', 'gi');
+
+const PANTRY_STAPLES_DELTA = new Set([
+    'sal y ajo en polvo', 'aceite de oliva', 'aceite de coco',
+    'aceite de sésamo o maní', 'salsa de soya', 'orégano',
+    'canela', 'pimienta', 'sal', 'vinagre', 'ajo en polvo'
+]);
+
 const Dashboard = () => {
     // 1. Obtenemos estado y funciones del Contexto Global
     const {
@@ -493,17 +509,7 @@ const Dashboard = () => {
 
             // Stop words: réplica exacta del backend (shopping_calculator.py línea 103)
             // Elimina descriptores que no forman parte del nombre base del ingrediente.
-            const stops = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada', 
-                'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada', 
-                'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados', 
-                'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones', 
-                'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada', 
-                'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
-                'horneado', 'grandes', 'firme'];
-            for (const s of stops) {
-                n = n.replace(new RegExp('\\b' + s + '\\b', 'gi'), '');
-            }
-            n = n.replace(/,/g, '').replace(/\s+/g, ' ').trim();
+            n = n.replace(STOP_WORDS_REGEX, '').replace(/,/g, '').replace(/\s+/g, ' ').trim();
 
             return n.split(/\s+/).map(w => {
                  const irregulars = {
@@ -528,12 +534,6 @@ const Dashboard = () => {
                  return w;
             }).join(' ');
         };
-
-        const PANTRY_STAPLES_DELTA = new Set([
-            'sal y ajo en polvo', 'aceite de oliva', 'aceite de coco',
-            'aceite de sésamo o maní', 'salsa de soya', 'orégano',
-            'canela', 'pimienta', 'sal', 'vinagre', 'ajo en polvo'
-        ]);
 
         const inferShelfLifeDays = (name, category) => {
             const n = (name || '').toLowerCase();
