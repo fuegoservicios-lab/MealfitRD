@@ -144,7 +144,8 @@ const Register = () => {
                                         type="button"
                                         className={styles.passwordToggle}
                                         onClick={() => setShowPassword(!showPassword)}
-                                        tabIndex="-1"
+                                        aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                        aria-pressed={showPassword}
                                     >
                                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
@@ -170,7 +171,8 @@ const Register = () => {
                                         type="button"
                                         className={styles.passwordToggle}
                                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                        tabIndex="-1"
+                                        aria-label={showConfirmPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                        aria-pressed={showConfirmPassword}
                                     >
                                         {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
