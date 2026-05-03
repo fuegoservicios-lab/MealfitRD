@@ -1,0 +1,3 @@
+## 2024-05-03 - RegExp Optimization in Data Processing Hooks
+**Learning:** In React components that iterate over multiple string replacements against static dictionaries or "stop words" (e.g., `normalizeNameAlt` inside loops of `buildDeltaShoppingList`), creating `new RegExp` objects dynamically within loops causes significant CPU overhead and garbage collection pressure, scaling O(N).
+**Action:** Always pre-compile these arrays into a single, aggregated RegExp object using `.join('|')` *outside* of the React component's body. This optimizes execution time by changing the instantiation overhead from O(N) to O(1) and making it performant.
