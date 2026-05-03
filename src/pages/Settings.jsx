@@ -43,6 +43,55 @@ const Settings = () => {
     const [isPushBlocked, setIsPushBlocked] = useState(false);
     const [pushSubscribeError, setPushSubscribeError] = useState(null);
 
+    // [P1-4] Preferencia de logging: 'manual' (default) o 'auto_proxy'.
+    // En auto_proxy el sistema NO pausa los chunks aunque el usuario deje de loguear comidas.
+    const [loggingPreference, setLoggingPreference] = useState('manual');
+    const [isLoggingPrefLoading, setIsLoggingPrefLoading] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetchWithAuth('/api/diary/preferences/logging');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!cancelled && data?.logging_preference) {
+                    setLoggingPreference(data.logging_preference);
+                }
+            } catch (e) {
+                // No bloqueante: si falla, queda en 'manual' por default.
+                console.debug('No se pudo cargar logging_preference:', e);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
+    const handleToggleLoggingPreference = async () => {
+        const next = loggingPreference === 'auto_proxy' ? 'manual' : 'auto_proxy';
+        setIsLoggingPrefLoading(true);
+        const prev = loggingPreference;
+        setLoggingPreference(next); // optimistic
+        try {
+            const res = await fetchWithAuth('/api/diary/preferences/logging', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ logging_preference: next }),
+            });
+            if (!res.ok) throw new Error('PUT failed');
+            toast.success(
+                next === 'auto_proxy'
+                    ? 'Modo auto activado: ya no pausaremos tu plan por falta de logs.'
+                    : 'Modo manual activado: pausaremos tu plan si dejas de loguear comidas.',
+            );
+        } catch (e) {
+            console.error('handleToggleLoggingPreference error:', e);
+            setLoggingPreference(prev);
+            toast.error('No se pudo actualizar la preferencia. Inténtalo de nuevo.');
+        } finally {
+            setIsLoggingPrefLoading(false);
+        }
+    };
+
     useEffect(() => {
         const checkSubscription = async () => {
             if (isPushSupported() && 'Notification' in window) {
@@ -856,6 +905,48 @@ const Settings = () => {
                                     </span>
                                 </div>
                             )}
+
+                            {/* [P1-4] Toggle de modo de logging */}
+                            <div style={{
+                                background: 'linear-gradient(135deg, #F8F7FF 0%, #F0EEFF 50%, #EEF2FF 100%)',
+                                borderRadius: '1rem',
+                                padding: '1.25rem',
+                                border: '1px solid #E0E7FF',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '1rem',
+                                marginTop: '0.75rem'
+                            }}>
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
+                                    <div style={{
+                                        background: 'linear-gradient(135deg, #F59E0B 0%, #F97316 100%)',
+                                        padding: '0.75rem',
+                                        borderRadius: '0.75rem',
+                                        flexShrink: 0,
+                                        boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)'
+                                    }}>
+                                        <Zap size={20} color="#FFFFFF" />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem' }}>
+                                            Modo automático
+                                        </div>
+                                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.45', marginTop: '0.25rem' }}>
+                                            Si confías en el plan y prefieres no loguear cada comida, actívalo. No pausaremos tu plan aunque dejes de registrar comidas.
+                                        </div>
+                                    </div>
+                                </div>
+                                <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={loggingPreference === 'auto_proxy'}
+                                        onChange={handleToggleLoggingPreference}
+                                        disabled={isLoggingPrefLoading}
+                                    />
+                                    <span className={styles.toggleSlider} style={{ opacity: isLoggingPrefLoading ? 0.5 : 1 }}></span>
+                                </label>
+                            </div>
 
                         </section>
 

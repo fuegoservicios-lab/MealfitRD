@@ -1,6 +1,8 @@
 /* TrackingProgress Card */
 .card {
-    background: white;
+    background:
+        radial-gradient(circle at top right, rgba(99, 102, 241, 0.04) 0%, transparent 45%),
+        white;
     padding: 2rem;
     border-radius: 1.25rem;
     border: 1px solid #E2E8F0;
@@ -36,7 +38,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #FFFFFF;
+    color: #FB7185;
     box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
     flex-shrink: 0;
 }
@@ -112,17 +114,41 @@
 }
 
 /* Progress Bar */
-.barRow {
+.barLarge,
+.barSmall {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.barHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.75rem;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.barLabelGroup {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.barIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
 }
 
 .barLabel {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
+    font-weight: 700;
+    color: #334155;
+    letter-spacing: -0.01em;
 }
 
 .barValues {
@@ -130,6 +156,48 @@
     display: flex;
     align-items: baseline;
     gap: 4px;
+}
+
+.barConsumed {
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    transition: color 0.3s ease;
+    font-variant-numeric: tabular-nums;
+}
+
+.barGoal {
+    font-weight: 700;
+    color: #475569;
+    font-variant-numeric: tabular-nums;
+}
+
+.track {
+    width: 100%;
+    border-radius: 99px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid #E2E8F0;
+}
+
+.fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+}
+
+.percRow {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: -0.15rem;
+}
+
+.percChip {
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 0.15rem 0.5rem;
+    border-radius: 99px;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
 }
 
 /* ====== MOBILE RESPONSIVE ====== */
@@ -168,6 +236,18 @@
         display: grid;
         grid-template-columns: 1fr;
         gap: 1.25rem;
+    }
+
+    .barHeader {
+        gap: 0.75rem;
+    }
+
+    .barLabel {
+        font-size: 0.9rem !important;
+    }
+
+    .barConsumed {
+        font-size: 1.15rem !important;
     }
 
     .guestBadge {

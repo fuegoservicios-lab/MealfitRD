@@ -366,14 +366,17 @@ export const AssessmentProvider = ({ children }) => {
                     checkPlanLimit(userId),
                     restoreSessionData(userId)
                 ]);
-                
-                await Promise.race([
-                    loadPromises,
-                    new Promise((resolve) => setTimeout(() => {
+
+                let timeoutId;
+                const timeoutPromise = new Promise((resolve) => {
+                    timeoutId = setTimeout(() => {
                         console.warn("⚠️ Timeout cargando datos del usuario, forzando renderizado...");
                         resolve();
-                    }, 5000))
-                ]);
+                    }, 5000);
+                });
+
+                await Promise.race([loadPromises, timeoutPromise]);
+                clearTimeout(timeoutId);
             } else {
                 // Logout / No sesión
                 setUserProfile(null);

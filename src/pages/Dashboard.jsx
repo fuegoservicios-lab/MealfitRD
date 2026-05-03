@@ -6,13 +6,12 @@ import { requestNotificationPermission, subscribeToPushNotifications, isPushSupp
 
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import {
-    Zap, Droplet, Flame, ArrowRight, CheckCircle,
+    Zap, Flame, ArrowRight, CheckCircle,
     RefreshCw, ChefHat, Heart, Pill, Lock,
-    Brain, Wallet, AlertCircle, Dumbbell, Wheat,
+    Brain, Wallet, AlertCircle, Dumbbell,
     Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, Trash2, ChevronDown, Users,
-    ThumbsDown, Shuffle, X, Utensils, Copy
+    ThumbsDown, Shuffle, X, Utensils, Copy, Infinity as InfinityIcon
 } from 'lucide-react';
-import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import TrackingProgress from '../components/dashboard/TrackingProgress';
 import Modal from '../components/common/Modal';
@@ -1748,7 +1747,7 @@ const Dashboard = () => {
                         </span>
                     </h1>
                     <p className="dashboard-subtitle">
-                        Aquí tienes tu estrategia nutricional de hoy.
+                        Aquí tienes tu estrategia nutricional.
                     </p>
                 </div>
 
@@ -1788,7 +1787,10 @@ const Dashboard = () => {
                                 gap: '3px',
                                 whiteSpace: 'nowrap'
                             }}>
-                                {remainingCredits} {userPlanLimit !== 'Ilimitado' && <span style={{ color: '#94A3B8', fontSize: '0.85rem', fontWeight: 600 }}>/ {userPlanLimit}</span>}
+                                {remainingCredits === '∞'
+                                    ? <InfinityIcon size={20} strokeWidth={2.5} style={{ color: 'var(--text-main)' }} />
+                                    : remainingCredits}
+                                {userPlanLimit !== 'Ilimitado' && <span style={{ color: '#94A3B8', fontSize: '0.85rem', fontWeight: 600 }}>/ {userPlanLimit}</span>}
                             </div>
                         </div>
                     </div>
@@ -2213,25 +2215,7 @@ const Dashboard = () => {
             {/* --- BANNER: GENERACIÓN EN BACKGROUND (Semanas 2-4) --- */}
             {/* Banner de Chunking Background eliminado para alinearse con la experiencia visual "silenciosa" */}
 
-            {/* --- MACROS & CALORIES SUMMARY ROW --- */}
-            <div className="macros-card">
-                <h2 className="macros-card-header" style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A' }}>
-                    <div style={{ background: '#EFF6FF', color: '#3B82F6', padding: '0.4rem', borderRadius: '0.5rem', display: 'flex' }}>
-                        <Target size={20} strokeWidth={2.5} />
-                    </div>
-                    Objetivo del Día
-                </h2>
-
-                <div className="macros-grid">
-                    <StatItem label="Calorías Totales" value={planData.calories} unit="kcal" icon={Flame} color="#F59E0B" bgColor="#FFFBEB" isFirst={true} />
-                    <StatItem label="Proteína" value={planData.macros?.protein || "0g"} unit="" icon={Dumbbell} color="#3B82F6" bgColor="#EFF6FF" />
-                    <StatItem label="Carbohidratos" value={planData.macros?.carbs || "0g"} unit="" icon={Wheat} color="#10B981" bgColor="#ECFDF5" />
-                    <StatItem label="Grasas" value={planData.macros?.fats || "0g"} unit="" icon={Droplet} color="#EC4899" bgColor="#FDF2F8" />
-                </div>
-            </div>
-
-            {/* --- DAILY TRACKER UI --- */}
-            {/* --- DAILY TRACKER UI --- */}
+            {/* --- DAILY TRACKER UI (incluye objetivo + progreso fusionados) --- */}
             <TrackingProgress
                 planData={planData}
                 userId={userProfile?.id || formData?.session_id || 'guest'}
@@ -2246,7 +2230,7 @@ const Dashboard = () => {
                     <div className="menu-section-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <h2 className="menu-section-title">
-                                Platos de Hoy
+                                Tu Menú
                             </h2>
                         </div>
                         <span className="menu-section-count">
@@ -2500,6 +2484,26 @@ const Dashboard = () => {
                                             <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
                                                 {meal.name}
                                             </h3>
+
+                                            {/* PANTRY UNSAFE BADGE */}
+                                            {meal._pantry_unsafe_after_flexible && (
+                                                <div style={{
+                                                    display: 'flex', flexDirection: 'column', gap: '0.25rem',
+                                                    fontSize: '0.75rem', color: '#EF4444', background: 'rgba(239, 68, 68, 0.1)',
+                                                    padding: '0.4rem 0.6rem', borderRadius: '0.5rem', marginBottom: '0.5rem',
+                                                    fontWeight: 600, border: '1px solid rgba(239, 68, 68, 0.2)'
+                                                }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                        <AlertCircle size={14} />
+                                                        <span>⚠ Compra Urgente Requerida</span>
+                                                    </div>
+                                                    {meal._missing_ingredients && Array.isArray(meal._missing_ingredients) && meal._missing_ingredients.length > 0 && (
+                                                        <div style={{ paddingLeft: '1.2rem', color: '#B91C1C', fontSize: '0.7rem' }}>
+                                                            Faltan: {meal._missing_ingredients.join(', ')}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
 
                                             {/* TIEMPO DE PREPARACIÓN */}
                                             {meal.prep_time && (
@@ -3498,52 +3502,6 @@ const Dashboard = () => {
 
         </>
     );
-};
-
-// --- Componente interno para las métricas (Items del KPI Board) ---
-const StatItem = ({ label, value, unit, icon, color, bgColor, isFirst }) => {
-    const Icon = icon;
-
-    return (
-        <div className="stat-item">
-            <div className="stat-icon" style={{
-                width: 48, height: 48,
-                borderRadius: '12px',
-                background: bgColor,
-                color: color,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-                boxShadow: `0 8px 16px -6px ${color}40, inset 0 2px 4px rgba(255,255,255,0.7)`
-            }}>
-                <Icon size={24} strokeWidth={2.5} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                    <div className="stat-value" style={{ fontSize: '1.55rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em' }}>
-                        {value}
-                    </div>
-                    {unit && (
-                        <div style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 600, paddingLeft: '5px' }}>
-                            {unit}
-                        </div>
-                    )}
-                </div>
-                <div className="stat-label" style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    {label}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-StatItem.propTypes = {
-    label: PropTypes.string,
-    value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    unit: PropTypes.string,
-    icon: PropTypes.elementType,
-    color: PropTypes.string,
-    bgColor: PropTypes.string,
-    isFirst: PropTypes.bool
 };
 
 export default Dashboard;
