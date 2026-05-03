@@ -1,11 +1,11 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Bot, Utensils, Settings, Archive } from 'lucide-react';
+import { LayoutDashboard, Bot, Utensils, Settings, Refrigerator } from 'lucide-react';
 import styles from './BottomTabBar.module.css';
 
 const tabs = [
     { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
     { icon: Bot, label: 'Agente', path: '/dashboard/agent' },
-    { icon: Archive, label: 'Nevera', path: '/dashboard/pantry' },
+    { icon: Refrigerator, label: 'Nevera', path: '/dashboard/pantry', iconStroke: 2.25 },
     { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' },
     { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' },
 ];
@@ -41,7 +41,7 @@ const BottomTabBar = () => {
                     >
                         <Icon
                             size={24}
-                            strokeWidth={isActive ? 2.5 : 2}
+                            strokeWidth={isActive ? (tab.iconStroke ?? 2) + 0.5 : (tab.iconStroke ?? 2)}
                             className={styles.tabIcon}
                         />
                         <span className={styles.tabLabel}>{tab.label}</span>

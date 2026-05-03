@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Utensils, Settings, LogOut, User, Menu, X, Clock, Bot, Archive } from 'lucide-react';
+import { LayoutDashboard, Utensils, Settings, LogOut, User, Menu, X, Clock, Bot, Refrigerator } from 'lucide-react';
 import { useAssessment } from '../../context/AssessmentContext';
 import LogoutConfirmModal from './LogoutConfirmModal';
 import BottomTabBar from './BottomTabBar';
@@ -25,7 +25,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const menuItems = [
         { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
         { icon: Bot, label: 'Agente', path: '/dashboard/agent' },
-        { icon: Archive, label: 'Nevera', path: '/dashboard/pantry' },
+        { icon: Refrigerator, label: 'Nevera', path: '/dashboard/pantry', iconStroke: 2.25 },
         { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' }, // Placeholder
         { icon: Clock, label: 'Historial', path: '/history' },
         { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' }, // Placeholder
@@ -71,7 +71,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                     onClick={closeMenu}
                                     style={{ color: '#94A3B8', opacity: 0.8 }}
                                 >
-                                    <Icon size={20} />
+                                    <Icon size={20} strokeWidth={item.iconStroke ?? 2} />
                                     <span style={{ flex: 1 }}>{item.label}</span>
                                     <span style={{ fontSize: '10px', background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>🔒 Básico</span>
                                 </Link>
@@ -85,7 +85,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
                                 onClick={closeMenu}
                             >
-                                <Icon size={20} />
+                                <Icon size={20} strokeWidth={item.iconStroke ?? 2} />
                                 {item.label}
                             </Link>
                         );

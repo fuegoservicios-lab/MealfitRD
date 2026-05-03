@@ -2,9 +2,57 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAssessment } from '../context/AssessmentContext';
 import { supabase } from '../supabase';
-import { Search, Plus, Minus, Trash2, Archive, Loader2, Save, X, Search as SearchIcon, AlertCircle } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth, API_BASE } from '../config/api';
+
+const CATEGORY_ICONS = {
+    'PROTEÍNAS': Beef,
+    'PROTEINAS': Beef,
+    'CARNES': Beef,
+    'CARNES ROJAS': Beef,
+    'POLLO': Drumstick,
+    'AVES': Drumstick,
+    'PESCADO': Fish,
+    'PESCADOS': Fish,
+    'PESCADOS Y MARISCOS': Fish,
+    'MARISCOS': Fish,
+    'HUEVOS': Egg,
+    'VEGETALES': Salad,
+    'VERDURAS': Salad,
+    'HORTALIZAS': Carrot,
+    'FRUTAS': Apple,
+    'LÁCTEOS': Milk,
+    'LACTEOS': Milk,
+    'QUESOS': Milk,
+    'CEREALES Y GRANOS': Wheat,
+    'CEREALES': Wheat,
+    'GRANOS': Wheat,
+    'DESPENSA Y GRANOS': Wheat,
+    'DESPENSA': Package,
+    'LEGUMBRES': Wheat,
+    'VÍVERES': ShoppingBasket,
+    'VIVERES': ShoppingBasket,
+    'ESPECIAS': Flame,
+    'CONDIMENTOS': Flame,
+    'HIERBAS': Leaf,
+    'GRASAS': Droplets,
+    'ACEITES': Droplets,
+    'BEBIDAS': GlassWater,
+    'PANADERIA': Croissant,
+    'PANADERÍA': Croissant,
+    'PANES': Croissant,
+    'DULCES': Cookie,
+    'AZÚCARES': Cookie,
+    'AZUCARES': Cookie,
+    'FRUTOS SECOS': Nut,
+    'OTROS': Package,
+};
+
+const getCategoryIcon = (cat) => {
+    if (!cat) return Package;
+    return CATEGORY_ICONS[cat.toUpperCase().trim()] || Package;
+};
 
 const Pantry = () => {
     const { session, userProfile, setPlanData } = useAssessment();
@@ -520,38 +568,146 @@ const Pantry = () => {
     }
 
     return (
-        <div style={{ padding: '0px', paddingBottom: '100px', backgroundColor: 'var(--bg-page)', minHeight: '100vh', transition: 'background-color 0.3s' }}>
-            
+        <div className="nevera-page-frame" style={{ padding: '0px', paddingBottom: '100px', backgroundColor: 'var(--bg-page)', minHeight: '100vh', position: 'relative', transition: 'background-color 0.3s' }}>
+            <div className="nevera-overlay" />
+
             <style>{`
+                /* === FRIDGE ENCLOSURE FRAME === */
+                .nevera-page-frame {
+                    border: 2.5px solid rgba(125, 211, 252, 0.75);
+                    border-top: 3px solid rgba(186, 230, 253, 0.95);
+                    border-bottom: 3px solid rgba(56, 189, 248, 0.65);
+                    border-radius: 1.6rem;
+                    box-shadow:
+                        inset 0 2px 0 rgba(255,255,255,1),
+                        inset 0 -2px 0 rgba(255,255,255,0.6),
+                        inset 0 0 0 1px rgba(255,255,255,0.65),
+                        inset 2px 0 6px -3px rgba(125, 211, 252, 0.35),
+                        inset -2px 0 6px -3px rgba(125, 211, 252, 0.35),
+                        0 14px 36px -10px rgba(14, 165, 233, 0.25),
+                        0 4px 10px -2px rgba(14, 165, 233, 0.12);
+                }
+
+                /* === ARCTIC OVERLAY (interior light from above) === */
+                .nevera-overlay {
+                    position: absolute;
+                    inset: 0;
+                    pointer-events: none;
+                    z-index: 0;
+                    border-radius: 1.6rem;
+                    background:
+                        radial-gradient(ellipse 80% 35% at 50% 0%, rgba(186, 230, 253, 0.32) 0%, transparent 65%),
+                        radial-gradient(circle at 0% 0%, rgba(165, 243, 252, 0.18) 0%, transparent 40%),
+                        radial-gradient(circle at 100% 0%, rgba(186, 230, 253, 0.18) 0%, transparent 40%);
+                }
+
+                /* === HEADER — frosted glass arctic === */
                 .nevera-header {
                     padding: 2rem;
-                    background: var(--bg-glass);
-                    backdrop-filter: blur(12px);
-                    border-bottom: 1px solid var(--border-light);
-                    box-shadow: var(--shadow-sm);
+                    background: linear-gradient(135deg, rgba(255,255,255,0.72) 0%, rgba(240, 249, 255, 0.55) 100%);
+                    backdrop-filter: blur(20px) saturate(140%);
+                    -webkit-backdrop-filter: blur(20px) saturate(140%);
+                    border-bottom: 2.5px solid rgba(125, 211, 252, 0.7);
+                    border-radius: 1.45rem 1.45rem 0 0;
+                    box-shadow:
+                        inset 0 1px 0 rgba(255,255,255,0.95),
+                        0 4px 24px -8px rgba(14, 165, 233, 0.15);
                     margin-bottom: 1.5rem;
                     position: sticky;
                     top: 0;
                     z-index: 40;
-                    transition: background-color 0.3s, border-color 0.3s;
+                    overflow: hidden;
                 }
+                .nevera-header::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -2.5px;
+                    left: 0;
+                    right: 0;
+                    height: 1.5px;
+                    background: rgba(255,255,255,0.95);
+                    pointer-events: none;
+                }
+                .nevera-header::before {
+                    content: '';
+                    position: absolute;
+                    top: -40px;
+                    right: -30px;
+                    width: 220px;
+                    height: 220px;
+                    background:
+                        radial-gradient(circle, rgba(125, 211, 252, 0.18) 0%, transparent 60%);
+                    pointer-events: none;
+                    filter: blur(8px);
+                }
+
                 .nevera-top {
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
                     flex-wrap: wrap;
                     gap: 1rem;
+                    position: relative;
                 }
                 .nevera-title-wrapper {
                     display: flex;
                     align-items: center;
                     gap: 1rem;
                 }
+                .nevera-title-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.7rem;
+                }
+                .nevera-title {
+                    margin: 0;
+                    font-size: 2.4rem;
+                    font-weight: 900;
+                    letter-spacing: -0.04em;
+                    line-height: 1.1;
+                    background: linear-gradient(135deg, #0F172A 0%, #0369A1 100%);
+                    -webkit-background-clip: text;
+                    background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    color: transparent;
+                }
+                .nevera-snowflake-icon {
+                    color: #0EA5E9;
+                    filter: drop-shadow(0 0 10px rgba(14, 165, 233, 0.45));
+                    animation: nevera-frost-rotate 6s ease-in-out infinite;
+                    flex-shrink: 0;
+                }
+                @keyframes nevera-frost-rotate {
+                    0%, 100% { transform: rotate(0deg); opacity: 0.9; }
+                    50% { transform: rotate(40deg); opacity: 1; }
+                }
+
+                .nevera-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.4rem;
+                    margin: 0.5rem 0 0 0;
+                    background: linear-gradient(135deg, rgba(186, 230, 253, 0.45) 0%, rgba(207, 250, 254, 0.35) 100%);
+                    border: 1px solid rgba(125, 211, 252, 0.5);
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 99px;
+                    backdrop-filter: blur(8px);
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.65);
+                }
+                .nevera-badge-text {
+                    color: #075985;
+                    font-weight: 600;
+                    font-size: 0.85rem;
+                }
+
+                /* === BUTTONS — fridge control panel feel === */
                 .nevera-add-btn {
-                    background: var(--text-main);
-                    color: var(--bg-card);
-                    border: none;
-                    padding: 0.8rem 1.5rem;
+                    background: linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%);
+                    color: #FFFFFF;
+                    border: 2px solid rgba(125, 211, 252, 0.5);
+                    border-top-color: rgba(186, 230, 253, 0.85);
+                    border-bottom-color: rgba(3, 105, 161, 0.7);
+                    padding: 0.75rem 1.4rem;
                     border-radius: 99px;
                     font-weight: 700;
                     display: flex;
@@ -559,17 +715,34 @@ const Pantry = () => {
                     justify-content: center;
                     gap: 0.5rem;
                     cursor: pointer;
-                    box-shadow: var(--shadow-sm);
-                    transition: transform 0.1s;
+                    position: relative;
+                    overflow: hidden;
+                    box-shadow:
+                        inset 0 1.5px 0 rgba(255,255,255,0.4),
+                        inset 0 -2px 4px -1px rgba(3, 105, 161, 0.4),
+                        0 8px 20px -4px rgba(14, 165, 233, 0.5),
+                        0 2px 5px rgba(14, 165, 233, 0.18);
+                    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
                 }
-                .nevera-add-btn:active {
-                    transform: scale(0.97);
+                .nevera-add-btn:hover {
+                    transform: translateY(-1px);
+                    border-color: rgba(56, 189, 248, 0.8);
+                    border-top-color: rgba(186, 230, 253, 1);
+                    box-shadow:
+                        inset 0 1.5px 0 rgba(255,255,255,0.5),
+                        inset 0 -2px 4px -1px rgba(3, 105, 161, 0.45),
+                        0 12px 26px -4px rgba(14, 165, 233, 0.55),
+                        0 3px 6px rgba(14, 165, 233, 0.22);
                 }
+                .nevera-add-btn:active { transform: scale(0.97); }
+
                 .nevera-delete-all-btn {
-                    background: transparent;
-                    color: var(--danger, #ef4444);
-                    border: 1px solid var(--danger, #ef4444);
-                    padding: 0.8rem 1.5rem;
+                    background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(254, 242, 242, 0.85) 100%);
+                    color: #DC2626;
+                    border: 2px solid rgba(252, 165, 165, 0.6);
+                    border-top-color: rgba(254, 202, 202, 0.95);
+                    border-bottom-color: rgba(239, 68, 68, 0.45);
+                    padding: 0.75rem 1.4rem;
                     border-radius: 99px;
                     font-weight: 700;
                     display: flex;
@@ -577,14 +750,394 @@ const Pantry = () => {
                     justify-content: center;
                     gap: 0.5rem;
                     cursor: pointer;
+                    backdrop-filter: blur(10px);
+                    -webkit-backdrop-filter: blur(10px);
+                    box-shadow:
+                        inset 0 1.5px 0 rgba(255,255,255,1),
+                        inset 0 -2px 4px -1px rgba(252, 165, 165, 0.3),
+                        0 4px 12px -2px rgba(220, 38, 38, 0.12),
+                        0 1px 3px rgba(0, 0, 0, 0.03);
                     transition: all 0.2s;
                 }
-                .nevera-delete-all-btn:active:not(:disabled) {
-                    transform: scale(0.97);
-                }
                 .nevera-delete-all-btn:hover:not(:disabled) {
-                    background: rgba(239, 68, 68, 0.1);
+                    background: linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(254, 226, 226, 0.95) 100%);
+                    border-color: rgba(248, 113, 113, 0.75);
+                    border-top-color: rgba(254, 202, 202, 1);
+                    box-shadow:
+                        inset 0 1.5px 0 rgba(255,255,255,1),
+                        inset 0 -2px 4px -1px rgba(248, 113, 113, 0.4),
+                        0 8px 18px -3px rgba(220, 38, 38, 0.2),
+                        0 2px 4px rgba(0, 0, 0, 0.04);
                 }
+                .nevera-delete-all-btn:active:not(:disabled) { transform: scale(0.97); }
+
+                /* === SEARCH === */
+                .nevera-search-wrap {
+                    position: relative;
+                    margin-top: 1.5rem;
+                }
+                .nevera-search-icon {
+                    position: absolute;
+                    left: 1.1rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    color: #0EA5E9;
+                    filter: drop-shadow(0 0 6px rgba(14, 165, 233, 0.3));
+                    pointer-events: none;
+                    z-index: 2;
+                }
+                .nevera-search-input {
+                    width: 100%;
+                    padding: 1rem 1rem 1rem 3rem;
+                    border-radius: 1rem;
+                    border: 2px solid rgba(125, 211, 252, 0.7);
+                    border-top-color: rgba(186, 230, 253, 0.95);
+                    border-bottom-color: rgba(56, 189, 248, 0.55);
+                    outline: none;
+                    font-size: 1rem;
+                    font-weight: 500;
+                    color: var(--text-main);
+                    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 249, 255, 0.85) 100%);
+                    backdrop-filter: blur(12px);
+                    -webkit-backdrop-filter: blur(12px);
+                    box-shadow:
+                        inset 0 1.5px 0 rgba(255,255,255,1),
+                        inset 0 -2px 4px -1px rgba(125, 211, 252, 0.2),
+                        0 4px 12px -3px rgba(14, 165, 233, 0.12);
+                    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+                }
+                .nevera-search-input::placeholder {
+                    color: rgba(100, 116, 139, 0.85);
+                    font-weight: 500;
+                }
+                .nevera-search-input:focus {
+                    border-color: #0EA5E9;
+                    border-top-color: rgba(186, 230, 253, 1);
+                    border-bottom-color: #0369A1;
+                    background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(240, 249, 255, 0.95) 100%);
+                    box-shadow:
+                        inset 0 1.5px 0 rgba(255,255,255,1),
+                        inset 0 -2px 4px -1px rgba(125, 211, 252, 0.25),
+                        0 0 0 4px rgba(14, 165, 233, 0.15),
+                        0 6px 16px -4px rgba(14, 165, 233, 0.2);
+                }
+
+                /* === CATEGORY "SHELF" === */
+                .nevera-shelf {
+                    margin-bottom: 2.5rem;
+                    position: relative;
+                    padding-top: 1.5rem;
+                }
+                .nevera-shelf::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 2px;
+                    border-radius: 2px;
+                    background: linear-gradient(90deg,
+                        transparent 0%,
+                        rgba(186, 230, 253, 0.5) 15%,
+                        rgba(125, 211, 252, 0.7) 50%,
+                        rgba(186, 230, 253, 0.5) 85%,
+                        transparent 100%);
+                }
+                .nevera-shelf::after {
+                    content: '';
+                    position: absolute;
+                    top: 2px;
+                    left: 0;
+                    right: 0;
+                    height: 1px;
+                    background: linear-gradient(90deg,
+                        transparent 0%,
+                        rgba(255, 255, 255, 0.85) 50%,
+                        transparent 100%);
+                }
+                .nevera-shelf:first-of-type {
+                    padding-top: 0;
+                }
+                .nevera-shelf:first-of-type::before,
+                .nevera-shelf:first-of-type::after {
+                    display: none;
+                }
+                .nevera-shelf-header {
+                    font-size: 1.1rem;
+                    font-weight: 800;
+                    color: var(--text-main);
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin: 0 0 1rem 0;
+                }
+                .nevera-shelf-count {
+                    font-size: 0.75rem;
+                    background: linear-gradient(135deg, rgba(186, 230, 253, 0.55) 0%, rgba(207, 250, 254, 0.45) 100%);
+                    border: 1px solid rgba(125, 211, 252, 0.45);
+                    color: #075985;
+                    padding: 0.15rem 0.6rem;
+                    border-radius: 99px;
+                    font-weight: 800;
+                    font-variant-numeric: tabular-nums;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+                }
+
+                /* === ITEM CARDS — fridge bin / drawer look === */
+                .nevera-item-card {
+                    background: linear-gradient(180deg,
+                        rgba(255, 255, 255, 0.96) 0%,
+                        rgba(240, 249, 255, 0.88) 50%,
+                        rgba(224, 242, 254, 0.82) 100%);
+                    backdrop-filter: blur(12px);
+                    -webkit-backdrop-filter: blur(12px);
+                    border: 2px solid rgba(125, 211, 252, 0.75);
+                    border-top-color: rgba(186, 230, 253, 0.95);
+                    border-bottom-color: rgba(56, 189, 248, 0.55);
+                    border-radius: 1rem;
+                    padding: 1.2rem;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    position: relative;
+                    overflow: hidden;
+                    box-shadow:
+                        inset 0 1.5px 0 rgba(255,255,255,1),
+                        inset 0 -3px 8px -2px rgba(125, 211, 252, 0.28),
+                        0 6px 18px -4px rgba(14, 165, 233, 0.2),
+                        0 2px 4px rgba(0,0,0,0.03);
+                    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+                }
+                /* Frost shimmer on top (cold surface highlight) */
+                .nevera-item-card::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 35%;
+                    background: linear-gradient(180deg,
+                        rgba(255, 255, 255, 0.55) 0%,
+                        rgba(255, 255, 255, 0) 100%);
+                    pointer-events: none;
+                    border-radius: 0.85rem 0.85rem 0 0;
+                }
+                .nevera-item-card > * { position: relative; z-index: 1; }
+                .nevera-item-card:hover {
+                    transform: translateY(-2px);
+                    border-color: rgba(56, 189, 248, 0.85);
+                    border-top-color: rgba(186, 230, 253, 1);
+                    border-bottom-color: rgba(14, 165, 233, 0.65);
+                    box-shadow:
+                        inset 0 1.5px 0 rgba(255,255,255,1),
+                        inset 0 -3px 10px -2px rgba(125, 211, 252, 0.4),
+                        0 12px 28px -6px rgba(14, 165, 233, 0.28),
+                        0 3px 6px rgba(0,0,0,0.04);
+                }
+                .nevera-item-unit-tag {
+                    font-size: 0.78rem;
+                    color: #075985;
+                    background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(224, 242, 254, 0.9) 100%);
+                    border: 1px solid rgba(125, 211, 252, 0.6);
+                    padding: 0.18rem 0.6rem;
+                    border-radius: 0.4rem;
+                    font-weight: 600;
+                    box-shadow:
+                        inset 0 1px 0 rgba(255,255,255,0.85),
+                        0 1px 2px rgba(14, 165, 233, 0.08);
+                }
+                .nevera-item-counter {
+                    display: flex;
+                    align-items: center;
+                    background: rgba(240, 249, 255, 0.85);
+                    backdrop-filter: blur(6px);
+                    border-radius: 99px;
+                    border: 1px solid rgba(186, 230, 253, 0.65);
+                    padding: 0.25rem;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+                }
+
+                /* === EMPTY STATE — the card IS a fridge === */
+                .nevera-empty-wrapper {
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: calc(100vh - 260px);
+                    width: 100%;
+                    padding: 2rem 1rem;
+                }
+                .nevera-empty-fridge {
+                    width: 100%;
+                    max-width: 340px;
+                    min-height: 440px;
+                    background: linear-gradient(180deg, #FFFFFF 0%, #F0F9FF 100%);
+                    border: 2px solid #BAE6FD;
+                    border-radius: 1.5rem;
+                    position: relative;
+                    box-shadow:
+                        0 24px 60px -12px rgba(14, 165, 233, 0.32),
+                        0 8px 16px -4px rgba(14, 165, 233, 0.12),
+                        inset 0 2px 0 rgba(255,255,255,0.95),
+                        inset 0 0 0 1px rgba(255,255,255,0.7);
+                    overflow: hidden;
+                }
+
+                /* Top freezer compartment */
+                .nevera-fridge-freezer {
+                    height: 22%;
+                    min-height: 90px;
+                    background: linear-gradient(180deg, #FAFCFF 0%, #DBEAFE 100%);
+                    border-bottom: 2.5px solid #7DD3FC;
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.7rem;
+                }
+                .nevera-fridge-freezer::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -4px;
+                    left: 0;
+                    right: 0;
+                    height: 1.5px;
+                    background: rgba(255,255,255,0.95);
+                }
+                .nevera-fridge-snowflake-icon {
+                    color: #0EA5E9;
+                    filter: drop-shadow(0 0 10px rgba(14, 165, 233, 0.55));
+                    animation: nevera-frost-rotate 6s ease-in-out infinite;
+                }
+                .nevera-fridge-led {
+                    background: #0F172A;
+                    color: #10B981;
+                    font-family: 'Courier New', 'Menlo', monospace;
+                    font-size: 0.7rem;
+                    padding: 0.22rem 0.6rem;
+                    border-radius: 4px;
+                    letter-spacing: 0.12em;
+                    font-weight: 700;
+                    box-shadow:
+                        inset 0 1px 2px rgba(0,0,0,0.5),
+                        0 0 10px rgba(16, 185, 129, 0.35);
+                }
+
+                /* Right-side door handle */
+                .nevera-fridge-handle {
+                    position: absolute;
+                    right: 16px;
+                    top: 34%;
+                    width: 5px;
+                    height: 38%;
+                    background: linear-gradient(180deg, #38BDF8 0%, #0369A1 100%);
+                    border-radius: 5px;
+                    box-shadow:
+                        0 0 12px rgba(14, 165, 233, 0.45),
+                        inset 0 1px 0 rgba(255,255,255,0.4);
+                    z-index: 2;
+                }
+
+                /* Door seam (vertical line in fridge section) */
+                .nevera-fridge-seam {
+                    position: absolute;
+                    top: 22%;
+                    bottom: 0;
+                    left: 50%;
+                    width: 1px;
+                    background: linear-gradient(180deg, rgba(125, 211, 252, 0.4) 0%, rgba(125, 211, 252, 0.15) 100%);
+                    pointer-events: none;
+                }
+
+                /* Interior */
+                .nevera-fridge-interior {
+                    height: 78%;
+                    padding: 1.75rem 1.5rem;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    text-align: center;
+                    position: relative;
+                }
+                .nevera-fridge-interior::before {
+                    content: '';
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    width: 280px;
+                    height: 280px;
+                    background: radial-gradient(circle, rgba(254, 240, 138, 0.5) 0%, rgba(254, 215, 170, 0.2) 45%, transparent 75%);
+                    pointer-events: none;
+                    filter: blur(12px);
+                    z-index: 0;
+                }
+
+                /* Decorative shelves */
+                .nevera-fridge-shelf {
+                    position: absolute;
+                    left: 7%;
+                    right: 16%;
+                    height: 1.5px;
+                    background: linear-gradient(90deg, transparent, rgba(125, 211, 252, 0.65), transparent);
+                    border-radius: 2px;
+                    pointer-events: none;
+                    z-index: 0;
+                }
+                .nevera-fridge-shelf::after {
+                    content: '';
+                    position: absolute;
+                    top: 1.5px;
+                    left: 0;
+                    right: 0;
+                    height: 1px;
+                    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
+                }
+                .nevera-fridge-shelf-1 { top: 26%; }
+                .nevera-fridge-shelf-2 { top: 72%; }
+
+                .nevera-fridge-message {
+                    position: relative;
+                    z-index: 1;
+                    max-width: 280px;
+                }
+                .nevera-fridge-message h3 {
+                    color: #0F172A;
+                    font-size: 1.2rem;
+                    font-weight: 800;
+                    margin: 0 0 0.5rem 0;
+                    letter-spacing: -0.01em;
+                }
+                .nevera-fridge-message p {
+                    color: #475569;
+                    font-size: 0.88rem;
+                    line-height: 1.5;
+                    margin: 0;
+                }
+
+                /* Subtle floor shadow under the fridge */
+                .nevera-empty-fridge::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -22px;
+                    left: 10%;
+                    right: 10%;
+                    height: 18px;
+                    background: radial-gradient(ellipse at center, rgba(14, 165, 233, 0.25) 0%, transparent 70%);
+                    filter: blur(8px);
+                    pointer-events: none;
+                    z-index: -1;
+                }
+
+                /* === DESKTOP — hide redundant title (sidebar already shows "Nevera") === */
+                @media (min-width: 641px) {
+                    .nevera-title-row {
+                        display: none;
+                    }
+                }
+
+                /* === MOBILE === */
                 @media (max-width: 640px) {
                     .nevera-header {
                         padding: 1.25rem 1rem;
@@ -597,7 +1150,7 @@ const Pantry = () => {
                     .nevera-title-wrapper {
                         gap: 0.75rem;
                     }
-                    .nevera-title-wrapper h1 {
+                    .nevera-title {
                         font-size: 2rem !important;
                     }
                     .nevera-badge-text {
@@ -605,7 +1158,7 @@ const Pantry = () => {
                         white-space: nowrap;
                     }
                     .nevera-add-btn {
-                        width: 100%;
+                        flex: 1;
                     }
                 }
             `}</style>
@@ -614,22 +1167,13 @@ const Pantry = () => {
             <header className="nevera-header">
                 <div className="nevera-top">
                     <div className="nevera-title-wrapper">
-                        <div style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.25) 100%)', 
-                            padding: '1rem', 
-                            borderRadius: '1.2rem', 
-                            border: '1px solid rgba(59, 130, 246, 0.3)',
-                            boxShadow: 'inset 0 2px 10px rgba(255,255,255,0.2), 0 4px 15px rgba(59, 130, 246, 0.15)',
-                            color: '#2563EB',
-                            flexShrink: 0
-                        }}>
-                            <Archive size={32} strokeWidth={2.5} />
-                        </div>
                         <div>
-                            <h1 style={{ margin: 0, fontSize: '2.4rem', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.04em', lineHeight: 1.1 }}>Nevera</h1>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: '0.4rem 0 0 0', background: 'var(--bg-muted)', padding: '0.25rem 0.75rem', borderRadius: '99px', border: '1px solid var(--border-light)' }}>
-                                <span className="nevera-badge-text" style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.85rem' }}>Inventario Físico Restrictivo</span>
+                            <div className="nevera-title-row">
+                                <Snowflake size={30} strokeWidth={2.25} className="nevera-snowflake-icon" />
+                                <h1 className="nevera-title">Nevera</h1>
+                            </div>
+                            <div className="nevera-badge">
+                                <span className="nevera-badge-text">Solo lo que tienes</span>
                                 <span style={{ fontSize: '0.85rem' }}>🔒</span>
                             </div>
                         </div>
@@ -654,18 +1198,14 @@ const Pantry = () => {
                 </div>
 
                 {/* Main Search */}
-                <div style={{ position: 'relative', marginTop: '1.5rem' }}>
-                    <Search color="var(--text-light)" size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
-                    <input 
-                        type="text" 
-                        placeholder="Buscar en tu nevera..." 
+                <div className="nevera-search-wrap">
+                    <Search size={20} strokeWidth={2.25} className="nevera-search-icon" />
+                    <input
+                        type="text"
+                        placeholder="Buscar ingrediente..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{
-                            width: '100%', padding: '1rem 1rem 1rem 3rem', borderRadius: '1rem', border: '2px solid var(--border)',
-                            outline: 'none', fontSize: '1rem', fontWeight: 500, color: 'var(--text-main)', backgroundColor: 'var(--bg-card)',
-                            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)', transition: 'border-color 0.2s, background-color 0.3s, color 0.3s'
-                        }}
+                        className="nevera-search-input"
                     />
                 </div>
             </header>
@@ -674,73 +1214,52 @@ const Pantry = () => {
             <div style={{ padding: '0 1.5rem' }}>
                 
                 {Object.keys(filteredInventory).length === 0 ? (
-                     <motion.div 
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
+                  <div className="nevera-empty-wrapper">
+                     <motion.div
+                        className="nevera-empty-fridge"
+                        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
                         transition={{ duration: 0.5, ease: "easeOut" }}
-                        style={{
-                            textAlign: 'center',
-                            padding: '4rem 2rem',
-                            background: 'var(--bg-glass)',
-                            borderRadius: '2rem',
-                            border: '1px solid var(--border-light)',
-                            boxShadow: 'var(--shadow-lg)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '1.5rem',
-                            position: 'relative',
-                            overflow: 'hidden'
-                        }}
                     >
-                        {/* Decorative background glow */}
-                        <div style={{
-                            position: 'absolute',
-                            width: '300px', height: '300px',
-                            background: 'radial-gradient(circle, rgba(16,185,129,0.05) 0%, rgba(255,255,255,0) 70%)',
-                            top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                            zIndex: 0, pointerEvents: 'none'
-                        }} />
+                        {/* Top freezer compartment with snowflake + LED display */}
+                        <div className="nevera-fridge-freezer">
+                            <Snowflake size={22} strokeWidth={2.5} className="nevera-fridge-snowflake-icon" />
+                            <span className="nevera-fridge-led">-- 4°C</span>
+                        </div>
 
-                        <motion.div
-                            animate={{ y: [0, -10, 0] }}
-                            transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
-                            style={{
-                                background: 'var(--bg-card)',
-                                border: '1px solid var(--border)',
-                                padding: '1.5rem',
-                                borderRadius: '50%',
-                                color: 'var(--secondary)',
-                                boxShadow: 'var(--shadow-glow-secondary)',
-                                zIndex: 1
-                            }}
-                        >
-                            <Archive size={48} strokeWidth={1.5} />
-                        </motion.div>
+                        {/* Right-side handle */}
+                        <div className="nevera-fridge-handle" />
 
-                        <div style={{ zIndex: 1, maxWidth: '400px' }}>
-                            <h3 style={{ 
-                                color: 'var(--text-main)', fontSize: '1.5rem', fontWeight: 800, margin: '0 0 0.5rem 0',
-                                letterSpacing: '-0.02em'
-                            }}>
-                                Tu Nevera está vacía
-                            </h3>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.5, margin: 0 }}>
-                                El corazón de tu plan está esperando. Registra tus compras recientes o añade tus primeros ingredientes a mano.
-                            </p>
+                        {/* Vertical seam between doors */}
+                        <div className="nevera-fridge-seam" />
+
+                        {/* Interior */}
+                        <div className="nevera-fridge-interior">
+                            {/* Decorative shelves */}
+                            <div className="nevera-fridge-shelf nevera-fridge-shelf-1" />
+                            <div className="nevera-fridge-shelf nevera-fridge-shelf-2" />
+
+                            <div className="nevera-fridge-message">
+                                <h3>Tu Nevera está vacía</h3>
+                                <p>El corazón de tu plan está esperando. Registra tus compras recientes o añade tus primeros ingredientes a mano.</p>
+                            </div>
                         </div>
                      </motion.div>
+                  </div>
                 ) : (
                     <AnimatePresence>
-                        {Object.keys(filteredInventory).sort().map(category => (
-                            <motion.div 
+                        {Object.keys(filteredInventory).sort().map(category => {
+                            const CategoryIcon = getCategoryIcon(category);
+                            return (
+                            <motion.div
                                 key={category}
+                                className="nevera-shelf"
                                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                                style={{ marginBottom: '2rem' }}
                             >
-                                <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                                    {({'PROTEÍNAS':'🥩','VEGETALES':'🥗','FRUTAS':'🍎','LÁCTEOS':'🥛','CEREALES Y GRANOS':'🌾','ESPECIAS':'🧂','GRASAS':'🫒','OTROS':'📦'}[category] || '🛒')} {category}
-                                    <span style={{ fontSize: '0.8rem', background: 'var(--border)', color: 'var(--text-muted)', padding: '0.1rem 0.5rem', borderRadius: '99px' }}>{filteredInventory[category].length}</span>
+                                <h2 className="nevera-shelf-header">
+                                    <CategoryIcon size={20} strokeWidth={2.25} style={{ color: '#0EA5E9', flexShrink: 0 }} />
+                                    {category}
+                                    <span className="nevera-shelf-count">{filteredInventory[category].length}</span>
                                 </h2>
 
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
@@ -749,28 +1268,26 @@ const Pantry = () => {
                                         const isDisabled = disabledIngredients.includes(normalizedName);
 
                                         return (
-                                        <motion.div 
+                                        <motion.div
                                             key={item.id}
+                                            className="nevera-item-card"
                                             layout
                                             exit={{ opacity: 0, scale: 0.9 }}
                                             style={{
-                                                background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '1.2rem', padding: '1.2rem',
-                                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                                boxShadow: 'var(--shadow-sm)',
                                                 opacity: isDisabled ? 0.5 : 1,
                                                 filter: isDisabled ? 'grayscale(100%)' : 'none'
                                             }}
                                         >
                                             <div style={{ flex: 1, marginRight: '1rem', textDecoration: isDisabled ? 'line-through' : 'none' }}>
                                                 <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: isDisabled ? 'var(--danger)' : 'var(--text-main)', lineHeight: 1.2 }}>{item.ingredient_name}</h3>
-                                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', alignItems: 'center' }}>
-                                                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', background: 'var(--bg-muted)', padding: '0.15rem 0.6rem', borderRadius: '0.5rem', fontWeight: 600 }}>Unidad base: {item.unit}</span>
+                                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                    <span className="nevera-item-unit-tag">Unidad base: {item.unit}</span>
                                                     {isDisabled && <span style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Trash2 size={12}/> Pendiente de eliminación</span>}
                                                 </div>
                                             </div>
 
                                             {/* Controlador Inteligente */}
-                                            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-page)', borderRadius: '99px', border: '1px solid var(--border)', padding: '0.25rem' }}>
+                                            <div className="nevera-item-counter">
                                                 {item.quantity <= 1 ? (
                                                     <button 
                                                         onClick={() => handleUpdateQuantity(item.id, 0)} 
@@ -794,12 +1311,12 @@ const Pantry = () => {
                                                     {item.quantity}
                                                 </span>
 
-                                                <button 
+                                                <button
                                                     onPointerDown={(e) => startHolding(e, item.id, 1)}
                                                     onPointerUp={(e) => stopHolding(e, item.id)}
                                                     onPointerLeave={(e) => stopHolding(e, item.id)}
                                                     onContextMenu={(e) => e.preventDefault()}
-                                                    style={{ border:'none', background:'var(--secondary)', color:'white', borderRadius:'99px', padding:'0.5rem', cursor:'pointer', boxShadow:'var(--shadow-glow-secondary)', userSelect: 'none', touchAction: 'manipulation' }}
+                                                    style={{ border:'none', background:'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)', color:'white', borderRadius:'99px', padding:'0.5rem', cursor:'pointer', boxShadow:'0 4px 12px -2px rgba(14, 165, 233, 0.45), inset 0 1px 0 rgba(255,255,255,0.2)', userSelect: 'none', touchAction: 'manipulation' }}
                                                 >
                                                     <Plus size={16} strokeWidth={3}/>
                                                 </button>
@@ -809,7 +1326,8 @@ const Pantry = () => {
                                     })}
                                 </div>
                             </motion.div>
-                        ))}
+                            );
+                        })}
                     </AnimatePresence>
                 )}
             </div>

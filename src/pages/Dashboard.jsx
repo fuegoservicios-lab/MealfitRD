@@ -2087,18 +2087,6 @@ const Dashboard = () => {
                                 );
                             })()}
 
-                            {isShoppingListStale && (
-                                <div style={{
-                                    width: '100%', display: 'flex', alignItems: 'center', gap: '0.35rem',
-                                    padding: '0.3rem 0.6rem', background: '#FFFBEB',
-                                    border: '1px solid #FCD34D', borderRadius: '0.5rem',
-                                    fontSize: '0.72rem', color: '#92400E', lineHeight: 1.3
-                                }}>
-                                    <AlertCircle size={12} style={{ flexShrink: 0 }} />
-                                    <span>Cantidades para {planData.calc_household_size}p. Recalcula si cambiaste el hogar.</span>
-                                </div>
-                            )}
-
                             {(hasPendingShoppingItems || isLoadingInventory) && (
                                 <button
                                     onClick={() => !isLoadingInventory && setShowRestockModal(true)}
@@ -2125,7 +2113,7 @@ const Dashboard = () => {
                                     }}
                                 >
                                     {isLoadingInventory ? <Loader2 className="spin-animation" size={18} /> : <CheckCircle size={18} />}
-                                    <span style={{ fontSize: '0.85rem' }}>{isLoadingInventory ? 'Calculando...' : 'Registrar Compras'}</span>
+                                    <span style={{ fontSize: '0.85rem' }}>{isLoadingInventory ? 'Calculando...' : 'Ya compré todo'}</span>
                                 </button>
                             )}
 
@@ -2160,6 +2148,7 @@ const Dashboard = () => {
                     </div>
                 </div>
             </header>
+
 
             {/* --- BANNER: PLAN EXPIRADO --- */}
             {isPlanExpired && planData?.generation_status !== 'partial' && (
