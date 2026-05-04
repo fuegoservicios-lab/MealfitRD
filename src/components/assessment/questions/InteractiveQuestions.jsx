@@ -1,12 +1,31 @@
 import { useEffect, useState } from 'react';
 import { useAssessment } from '../../../context/AssessmentContext';
 import { RadioCard, Input, Label } from '../../common/FormUI';
-import { 
-    User, UserCircle, Sun, Moon, RefreshCw, 
-    Battery, Target, Clock, CheckCircle, ChefHat, 
-    Wallet, Banknote, Landmark, Infinity, Utensils, 
-    Leaf, Salad, TrendingUp, Zap, Shield, 
-    AlertTriangle, Frown, Users, XCircle, HelpCircle, 
+// [P1-3] Rangos biométricos compartidos con el backend (`_BIO_RANGES` en
+// `backend/routers/plans.py`). Backend es source of truth; este import es
+// solo para gating UX inmediato — bloquea "Siguiente" y aplica `min`/`max`
+// nativo a los inputs.
+// [P1-FORM-8] `DIET_TYPES` es el SSOT del enum de tipos de dieta — espejo de
+// `_DIET_TYPE_ENUM` en `backend/routers/plans.py`. QDietType consume esta
+// lista para renderizar los chips, evitando hardcodear los strings en cada
+// `<DietOption val=...>`. Una invariant runtime más abajo verifica que la
+// metadata UI (`DIET_TYPE_META`) cubre exactamente la misma lista — si un
+// futuro PR añade un tipo a `DIET_TYPES` sin actualizar la metadata, el
+// componente avisa explícitamente en consola.
+import { BIO_RANGES, DIET_TYPES, isBiometricInRange } from '../../../config/formValidation';
+// [P1-FORM-2] SSOT de sentinels exclusivos. Antes cada Q* declaraba su
+// `const SENTINEL = "Ninguna"` o `"Ninguno"` localmente; cambiar el copy en
+// uno y olvidar los demás rompía la detección de exclusividad y la
+// contradicción reaparecía en backend (P0-FORM-1). Ver
+// `frontend/src/config/sentinels.js` para el contrato con backend
+// (`_SENTINEL_NONE_VALUES` en `graph_orchestrator.py`).
+import { SENTINELS } from '../../../config/sentinels';
+import {
+    User, UserCircle, Sun, Moon, RefreshCw,
+    Battery, Target, Clock, CheckCircle, ChefHat,
+    Wallet, Banknote, Landmark, Infinity, Utensils, UtensilsCrossed,
+    Leaf, Salad, TrendingUp, Zap, Shield,
+    AlertTriangle, Frown, Users, XCircle, HelpCircle,
     Check, Pill, ArrowRight, Ban, Milk, Wheat, Egg, Fish, Nut, Activity, Heart, AlertCircle, Timer
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -97,6 +116,36 @@ const GoalCard = ({ val, label, icon: Icon, color, isSelected, onSelect }) => (
     </div>
 );
 
+// --- [P0-B1] Helper de toggle para multi-select con valor sentinel exclusivo ---
+//
+// Antes, `QAllergies`, `QMedical` y `QStruggles` cada uno tenía su propio
+// `handleCheckboxChange` (toggle simple) más un `onToggle` inline para el chip
+// "Ninguna"/"Ninguno". Cuando el usuario hacía:
+//   1. Marcar "Ninguna" (lista pasa a `["Ninguna"]`)
+//   2. Marcar "Lácteos" después
+// el handler de Lácteos llamaba `handleCheckboxChange('allergies', 'Lácteos')`,
+// que NO filtraba "Ninguna" — la lista quedaba `["Ninguna", "Lácteos"]`.
+// El backend / RAG entonces inyectaba al prompt LITERAL "ALERGIA: Ninguna" Y
+// "ALERGIA: Lácteos" simultáneamente — contradicción visible al revisor médico
+// y ruido para el LLM.
+//
+// Este helper centraliza la regla:
+//   - Item ya en la lista → toggle off (quita).
+//   - Sentinel agregado → reemplaza la lista entera por `[sentinel]`.
+//   - Item real agregado → push + filtra el sentinel si estaba.
+// Resultado: marcar Ninguna → marcar Lácteos da exactamente `["Lácteos"]`.
+const toggleArrayWithExclusiveSentinel = (currentArr, value, sentinel) => {
+    const arr = Array.isArray(currentArr) ? currentArr : [];
+    if (arr.includes(value)) {
+        return arr.filter(item => item !== value);
+    }
+    if (value === sentinel) {
+        return [sentinel];
+    }
+    return [...arr.filter(item => item !== sentinel), value];
+};
+
+
 // --- PREGUNTAS INDIVIDUALES ---
 
 export const QGender = ({ onAutoAdvance }) => {
@@ -147,17 +196,41 @@ export const QMeasurements = ({ onManualAdvance }) => {
     };
 
     const handleWeightUnitChange = (newUnit) => {
-        setWeightUnit(newUnit); updateData('weightUnit', newUnit); updateData('weight', '');
+        // [P1-FORM-3] Marca el toggle como tocado explícitamente.
+        // `_weightUnitTouched` persiste a localStorage junto con `weightUnit`,
+        // y el useEffect mount-only en AssessmentContext re-arma editedFieldsRef
+        // para que la hidratación async post-login (fetchProfile,
+        // secureLoadFormData) NO sobreescriba la elección del usuario con un
+        // valor stale del DB. Patrón análogo al P0-FORM-2 (`_skipLunchTouched`).
+        setWeightUnit(newUnit);
+        updateData('weightUnit', newUnit);
+        updateData('_weightUnitTouched', true);
+        updateData('weight', '');
     };
 
-    const isFormValid = formData.age && formData.weight && formData.height;
+    // [P1-3] Validación de rangos biométricos antes de habilitar "Siguiente".
+    // Espejo de `_validate_form_data_ranges` en `backend/routers/plans.py`. La
+    // altura se almacena SIEMPRE en cm (la UI ft/in convierte localmente vía
+    // `handleFtChange`), así que validamos contra `heightCm` aunque el usuario
+    // esté tipeando en ft/in. El peso se valida en su unidad seleccionada.
+    const weightRange = weightUnit === 'kg' ? BIO_RANGES.weightKg : BIO_RANGES.weightLb;
+    const ageOK = isBiometricInRange(formData.age, BIO_RANGES.age);
+    const heightOK = isBiometricInRange(formData.height, BIO_RANGES.heightCm);
+    const weightOK = isBiometricInRange(formData.weight, weightRange);
+    // bodyFat es opcional — si está vacío, OK; si está, debe estar en rango.
+    const bodyFatOK = isBiometricInRange(formData.bodyFat, BIO_RANGES.bodyFat, { optional: true });
+    const isFormValid = ageOK && heightOK && weightOK && bodyFatOK;
 
     return (
         <div style={{ display: 'grid', gap: '1.5rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
                 <div>
                     <Label htmlFor="age">Edad (años)&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
-                    <Input id="age" type="number" placeholder="Ej. 28" value={formData.age} onChange={e => updateData('age', e.target.value)} />
+                    <Input
+                        id="age" type="number" placeholder="Ej. 28"
+                        min={BIO_RANGES.age.min} max={BIO_RANGES.age.max} step={BIO_RANGES.age.step}
+                        value={formData.age} onChange={e => updateData('age', e.target.value)}
+                    />
                 </div>
                 <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
@@ -168,11 +241,23 @@ export const QMeasurements = ({ onManualAdvance }) => {
                         </div>
                     </div>
                     {unit === 'cm' ? (
-                        <Input id="height" type="number" placeholder="Ej. 170" value={formData.height} onChange={e => updateData('height', e.target.value)} />
+                        <Input
+                            id="height" type="number" placeholder="Ej. 170"
+                            min={BIO_RANGES.heightCm.min} max={BIO_RANGES.heightCm.max} step={BIO_RANGES.heightCm.step}
+                            value={formData.height} onChange={e => updateData('height', e.target.value)}
+                        />
                     ) : (
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <Input type="number" placeholder="Pies" value={feet} onChange={(e) => handleFtChange(e.target.value, inches)} />
-                            <Input type="number" placeholder="Pulg" value={inches} onChange={(e) => handleFtChange(feet, e.target.value)} />
+                            <Input
+                                type="number" placeholder="Pies"
+                                min={BIO_RANGES.heightFt.min} max={BIO_RANGES.heightFt.max} step={BIO_RANGES.heightFt.step}
+                                value={feet} onChange={(e) => handleFtChange(e.target.value, inches)}
+                            />
+                            <Input
+                                type="number" placeholder="Pulg"
+                                min={BIO_RANGES.heightIn.min} max={BIO_RANGES.heightIn.max} step={BIO_RANGES.heightIn.step}
+                                value={inches} onChange={(e) => handleFtChange(feet, e.target.value)}
+                            />
                         </div>
                     )}
                 </div>
@@ -182,19 +267,54 @@ export const QMeasurements = ({ onManualAdvance }) => {
                 <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <Label htmlFor="weight" style={{ margin: 0 }}>Peso&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
-                        <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '0.5rem', padding: '3px' }}>
+                        {/* [P1-FORM-3] Border ámbar destacado cuando el usuario aún no
+                            confirmó la unidad explícitamente. Antes el toggle pasaba
+                            desapercibido y usuarios métricos tipeaban "70" como kg
+                            pero se almacenaba como lb (≈31.7 kg) → BMR completamente
+                            errado. El border desaparece cuando el usuario tapea
+                            cualquiera de los dos botones (LB o KG), confirmando su
+                            intención. El default ahora es locale-based en
+                            AssessmentContext, así que para 99% de usuarios el border
+                            es un confirm-prompt; el otro 1% lo usa para corregir. */}
+                        <div style={{
+                            display: 'flex',
+                            background: '#F1F5F9',
+                            borderRadius: '0.5rem',
+                            padding: '3px',
+                            border: formData._weightUnitTouched ? 'none' : '2px solid #F59E0B',
+                            boxShadow: formData._weightUnitTouched ? 'none' : '0 0 0 3px rgba(245, 158, 11, 0.15)',
+                            transition: 'all 0.2s ease',
+                        }}>
                             <button onClick={() => handleWeightUnitChange('lb')} style={{ border: 'none', background: weightUnit === 'lb' ? 'white' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: weightUnit === 'lb' ? 'var(--primary)' : '#64748B' }}>LB</button>
                             <button onClick={() => handleWeightUnitChange('kg')} style={{ border: 'none', background: weightUnit === 'kg' ? 'white' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: weightUnit === 'kg' ? 'var(--primary)' : '#64748B' }}>KG</button>
                         </div>
                     </div>
-                    <Input id="weight" type="number" placeholder={weightUnit === 'lb' ? 'Ej. 150' : 'Ej. 70'} value={formData.weight} onChange={e => updateData('weight', e.target.value)} />
+                    <Input
+                        id="weight" type="number" placeholder={weightUnit === 'lb' ? 'Ej. 150' : 'Ej. 70'}
+                        min={weightRange.min} max={weightRange.max} step={weightRange.step}
+                        value={formData.weight} onChange={e => updateData('weight', e.target.value)}
+                    />
+                    {!formData._weightUnitTouched && (
+                        <div style={{
+                            fontSize: '0.7rem',
+                            color: '#B45309',
+                            marginTop: '0.35rem',
+                            fontWeight: 500,
+                        }}>
+                            ⚠️ Confirma tu unidad de peso ({weightUnit.toUpperCase()} por defecto). Toca LB o KG para confirmar.
+                        </div>
+                    )}
                 </div>
                 <div>
                     <Label htmlFor="bodyFat">% Grasa (Opcional)</Label>
-                    <Input id="bodyFat" type="number" placeholder="Ej. 20" value={formData.bodyFat} onChange={e => updateData('bodyFat', e.target.value)} />
+                    <Input
+                        id="bodyFat" type="number" placeholder="Ej. 20"
+                        min={BIO_RANGES.bodyFat.min} max={BIO_RANGES.bodyFat.max} step={BIO_RANGES.bodyFat.step}
+                        value={formData.bodyFat} onChange={e => updateData('bodyFat', e.target.value)}
+                    />
                 </div>
             </div>
-            
+
             <NextButton onClick={onManualAdvance} disabled={!isFormValid} />
         </div>
     );
@@ -310,23 +430,73 @@ export const QBudget = ({ onAutoAdvance }) => {
     );
 };
 
+// [P1-FORM-8] Metadata UI por cada tipo de dieta. Las claves DEBEN coincidir
+// EXACTAMENTE con `DIET_TYPES` (SSOT de validación). El check de invariante
+// debajo del componente avisa si hay drift.
+const DIET_TYPE_META = {
+    balanced:   { label: 'Balanceada',   icon: Utensils, desc: 'De todo un poco' },
+    vegetarian: { label: 'Vegetariana',  icon: Leaf,     desc: 'Sin carne' },
+    vegan:      { label: 'Vegana',       icon: Salad,    desc: '100% vegetal' },
+};
+
+// [P1-FORM-8] Invariante de desarrollo: `DIET_TYPE_META` debe cubrir
+// exactamente las mismas claves que `DIET_TYPES`. Si un PR futuro añade
+// "keto" al SSOT pero olvida la metadata UI, este aviso lo detecta en el
+// primer mount durante dev. En prod (`import.meta.env.MODE !== 'development'`)
+// el chequeo se omite — el render igual fallaría visualmente pero sin spam de
+// consola. Vite reemplaza `import.meta.env.MODE` en build time, así que el
+// bloque se elimina por dead-code elimination en producción.
+if (import.meta.env?.MODE === 'development') {
+    const metaKeys = Object.keys(DIET_TYPE_META);
+    const missingMeta = DIET_TYPES.filter((t) => !metaKeys.includes(t));
+    const extraMeta = metaKeys.filter((k) => !DIET_TYPES.includes(k));
+    if (missingMeta.length || extraMeta.length) {
+        console.warn(
+            '[P1-FORM-8] DIET_TYPE_META drift vs DIET_TYPES:',
+            { missingMeta, extraMeta }
+        );
+    }
+}
+
 export const QDietType = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
     return (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
-            <DietOption val="balanced" label="Balanceada" icon={Utensils} desc="De todo un poco" isSelected={formData.dietType === "balanced"} onSelect={(val) => { updateData('dietType', val); onAutoAdvance(); }} />
-            <DietOption val="vegetarian" label="Vegetariana" icon={Leaf} desc="Sin carne" isSelected={formData.dietType === "vegetarian"} onSelect={(val) => { updateData('dietType', val); onAutoAdvance(); }} />
-            <DietOption val="vegan" label="Vegana" icon={Salad} desc="100% vegetal" isSelected={formData.dietType === "vegan"} onSelect={(val) => { updateData('dietType', val); onAutoAdvance(); }} />
+            {DIET_TYPES.map((diet) => {
+                const meta = DIET_TYPE_META[diet];
+                if (!meta) return null;  // safety net — el invariante de arriba ya avisó
+                return (
+                    <DietOption
+                        key={diet}
+                        val={diet}
+                        label={meta.label}
+                        icon={meta.icon}
+                        desc={meta.desc}
+                        isSelected={formData.dietType === diet}
+                        onSelect={(val) => { updateData('dietType', val); onAutoAdvance(); }}
+                    />
+                );
+            })}
         </div>
     );
 };
 
 export const QAllergies = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
-    const handleCheckboxChange = (field, value) => {
-        const current = formData[field] || [];
-        const updated = current.includes(value) ? current.filter(item => item !== value) : [...current, value];
-        updateData(field, updated);
+    // [P0-B1] sentinel mutuamente exclusivo con cualquier alergia real.
+    // [P1-FORM-2] valor desde SSOT (sentinels.js).
+    const SENTINEL = SENTINELS.allergies;
+    const handleToggle = (value) => {
+        const next = toggleArrayWithExclusiveSentinel(formData.allergies, value, SENTINEL);
+        updateData('allergies', next);
+        // [P0-FORM-1] Si el usuario acaba de activar el sentinel, limpia el textbox
+        // libre `otherAllergies`. Sin esto, escribir "Maní" y luego marcar "Ninguna"
+        // dejaba ambos campos en el payload — el backend mergeaba a
+        // `["Ninguna","Maní"]` (contradicción de seguridad médica). El backend
+        // tiene defensa en profundidad pero la fuente de verdad debe ser el form.
+        if (next.length === 1 && next[0] === SENTINEL && (formData.otherAllergies || '').trim()) {
+            updateData('otherAllergies', '');
+        }
     };
 
     return (
@@ -340,52 +510,178 @@ export const QAllergies = ({ onManualAdvance }) => {
                     { val: "Frutos Secos", label: "Nueces", icon: Nut },
                     { val: "Soya", label: "Soya", icon: Leaf },
                 ].map(opt => (
-                    <ChipOption key={opt.val} val={opt.val} label={opt.label} icon={opt.icon} isSelected={formData.allergies.includes(opt.val)} onToggle={(val) => handleCheckboxChange('allergies', val)} />
+                    <ChipOption key={opt.val} val={opt.val} label={opt.label} icon={opt.icon} isSelected={formData.allergies.includes(opt.val)} onToggle={handleToggle} />
                 ))}
-                <ChipOption 
-                    val="Ninguna" label="Ninguna" icon={Ban} isSelected={formData.allergies.includes("Ninguna")} 
-                    onToggle={() => {
-                        if (formData.allergies.includes("Ninguna")) handleCheckboxChange('allergies', "Ninguna");
-                        else updateData('allergies', ["Ninguna"]);
-                    }} 
+                <ChipOption
+                    val={SENTINEL} label={SENTINEL} icon={Ban}
+                    isSelected={formData.allergies.includes(SENTINEL)}
+                    onToggle={handleToggle}
                 />
             </div>
-            <Input 
-                type="text" placeholder="Otra (Ej. Maní, Fresa...)" value={formData.otherAllergies || ''} 
-                onChange={(e) => updateData('otherAllergies', e.target.value)} 
+            <Input
+                type="text" placeholder="Otra (Ej. Maní, Fresa...)" value={formData.otherAllergies || ''}
+                onChange={(e) => updateData('otherAllergies', e.target.value)}
             />
-            <NextButton onClick={onManualAdvance} />
+            {/* [P1-2] Mismo patrón de enforcement explícito que QDislikes
+                (P0-FORM-4), QMedical y QStruggles (P1-FORM-7). ANTES este
+                NextButton no tenía `disabled`, así que el usuario podía
+                avanzar con `allergies=[]` Y `otherAllergies=''` aún teniendo
+                el title con asterisco rojo. El backend interpretaba `[]`
+                como "sin alergias declaradas" → el LLM podía incluir maní /
+                gluten / mariscos en el plan a un usuario que en realidad
+                nunca respondió. ESTE es el chip más sensible de los cuatro
+                porque el riesgo es de SAFETY MÉDICA directa, no de UX.
+                Forzar señal explícita ("Ninguna" si no aplica) convierte la
+                ambigüedad en consentimiento informado. */}
+            <NextButton
+                onClick={onManualAdvance}
+                disabled={
+                    (formData.allergies || []).length === 0 &&
+                    (formData.otherAllergies || '').trim() === ''
+                }
+            />
+        </div>
+    );
+};
+
+// [P1-B5] Step nuevo para `dislikes` — campo que el backend ya consume:
+//   - Filtra catálogos de ingredientes (`constants._get_fast_filtered_catalogs`).
+//   - Va al RAG dynamic_query (`graph_orchestrator.arun_plan_pipeline`).
+//   - Se inyecta al prompt principal del LLM.
+//   - Valida invalidación de cache semántico (P1-Q4).
+//   - Considera al hacer swap-meal (`agent.py`).
+// Antes el campo siempre llegaba como `[]` porque el formulario no lo capturaba —
+// el backend operaba sin esta señal de alta calidad. Mismo patrón que QAllergies
+// y QStruggles: chip multi-select con sentinel "Ninguno" exclusivo + free-text
+// para casos no listados.
+export const QDislikes = ({ onManualAdvance }) => {
+    const { formData, updateData } = useAssessment();
+    // [P1-FORM-2] valor desde SSOT (sentinels.js).
+    const SENTINEL = SENTINELS.dislikes;
+    const handleToggle = (value) => {
+        const next = toggleArrayWithExclusiveSentinel(formData.dislikes || [], value, SENTINEL);
+        updateData('dislikes', next);
+        // [P0-FORM-1] ver QAllergies. dislikes alimenta el filtro de catálogo
+        // y el cache semántico — un texto stale tras marcar "Ninguno" causaba
+        // cache miss falso o inclusión de un alimento que el usuario rechazó.
+        if (next.length === 1 && next[0] === SENTINEL && (formData.otherDislikes || '').trim()) {
+            updateData('otherDislikes', '');
+        }
+    };
+
+    // Lista de alimentos comúnmente rechazados en el contexto dominicano.
+    // No exhaustiva: el input free-text de abajo captura el resto.
+    const COMMON_DISLIKES = [
+        { val: "Cilantro", label: "Cilantro", icon: Leaf },
+        { val: "Hígado", label: "Hígado", icon: AlertTriangle },
+        { val: "Berenjena", label: "Berenjena", icon: Salad },
+        { val: "Pescado", label: "Pescado", icon: Fish },
+        { val: "Mariscos", label: "Mariscos", icon: Fish },
+        { val: "Brócoli", label: "Brócoli", icon: Salad },
+        { val: "Coliflor", label: "Coliflor", icon: Salad },
+        { val: "Hongos", label: "Hongos", icon: Salad },
+        { val: "Cebolla", label: "Cebolla", icon: Salad },
+        { val: "Aguacate", label: "Aguacate", icon: Salad },
+    ];
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                {COMMON_DISLIKES.map(opt => (
+                    <ChipOption
+                        key={opt.val} val={opt.val} label={opt.label} icon={opt.icon}
+                        isSelected={(formData.dislikes || []).includes(opt.val)}
+                        onToggle={handleToggle}
+                    />
+                ))}
+                <ChipOption
+                    val={SENTINEL} label={SENTINEL} icon={Ban}
+                    isSelected={(formData.dislikes || []).includes(SENTINEL)}
+                    onToggle={handleToggle}
+                />
+            </div>
+            <Input
+                type="text" placeholder="Otros (Ej. Apio, Curry, Picante...)"
+                value={formData.otherDislikes || ''}
+                onChange={(e) => updateData('otherDislikes', e.target.value)}
+            />
+            {/* [P0-FORM-4] Requiere señal explícita: chip seleccionado, "Ninguno",
+                o free-text con contenido. Antes el botón siempre estaba habilitado
+                y el usuario podía avanzar con `dislikes=[]` + `otherDislikes=''` →
+                el backend no podía distinguir "el usuario no tiene rechazos" de
+                "el dato se perdió en la hidratación / cliente legacy". Resultado:
+                ingredientes culturalmente sensibles (cilantro, hígado) colaban en
+                el plan porque el RAG / catálogo / cache semántico los procesaban
+                como `dislikes=[]` (no-op). Ahora forzamos al usuario a marcar
+                "Ninguno" si genuinamente no rechaza nada — convierte la
+                ambigüedad en señal explícita. `dislikes` alimenta:
+                  - `constants._get_fast_filtered_catalogs` (filtro de catálogo)
+                  - `graph_orchestrator.arun_plan_pipeline` (RAG dynamic_query)
+                  - prompt LLM principal
+                  - validación de cache semántico (P1-Q4)
+                  - `agent.py` swap-meal */}
+            <NextButton
+                onClick={onManualAdvance}
+                disabled={
+                    (formData.dislikes || []).length === 0 &&
+                    (formData.otherDislikes || '').trim() === ''
+                }
+            />
         </div>
     );
 };
 
 export const QMedical = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
-    const handleCheckboxChange = (field, value) => {
-        const current = formData[field] || [];
-        const updated = current.includes(value) ? current.filter(item => item !== value) : [...current, value];
-        updateData(field, updated);
+    // [P0-B1] sentinel exclusivo con cualquier condición médica real.
+    // [P1-FORM-2] valor desde SSOT (sentinels.js).
+    const SENTINEL = SENTINELS.medicalConditions;
+    const handleToggle = (value) => {
+        const next = toggleArrayWithExclusiveSentinel(formData.medicalConditions, value, SENTINEL);
+        updateData('medicalConditions', next);
+        // [P0-FORM-1] ver QAllergies. Mismo patrón: contradicción "Ninguna" +
+        // texto libre con condición real es un riesgo médico (hipertensión,
+        // diabetes); el LLM podría descartar la condición real al ver el sentinel.
+        if (next.length === 1 && next[0] === SENTINEL && (formData.otherConditions || '').trim()) {
+            updateData('otherConditions', '');
+        }
     };
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
                 {['Diabetes T2', 'Hipertensión', 'Colesterol Alto', 'Gastritis', 'SOP (PCOS)', 'Hipotiroidismo'].map(opt => (
-                    <ChipOption key={opt} val={opt} label={opt} icon={opt === 'Hipertensión' ? Heart : (opt === 'Colesterol Alto' ? AlertCircle : Activity)} isSelected={formData.medicalConditions.includes(opt)} onToggle={(val) => handleCheckboxChange('medicalConditions', val)} />
+                    <ChipOption key={opt} val={opt} label={opt} icon={opt === 'Hipertensión' ? Heart : (opt === 'Colesterol Alto' ? AlertCircle : Activity)} isSelected={formData.medicalConditions.includes(opt)} onToggle={handleToggle} />
                 ))}
-                <ChipOption 
-                    val="Ninguna" label="Ninguna" icon={Ban} isSelected={formData.medicalConditions.includes("Ninguna")} 
-                    onToggle={() => {
-                        if (formData.medicalConditions.includes("Ninguna")) handleCheckboxChange('medicalConditions', "Ninguna");
-                        else updateData('medicalConditions', ["Ninguna"]);
-                    }} 
+                <ChipOption
+                    val={SENTINEL} label={SENTINEL} icon={Ban}
+                    isSelected={formData.medicalConditions.includes(SENTINEL)}
+                    onToggle={handleToggle}
                 />
             </div>
-            <Input 
-                type="text" placeholder="Otra condición médica..." value={formData.otherConditions || ''} 
-                onChange={(e) => updateData('otherConditions', e.target.value)} 
+            <Input
+                type="text" placeholder="Otra condición médica..." value={formData.otherConditions || ''}
+                onChange={(e) => updateData('otherConditions', e.target.value)}
             />
-            <NextButton onClick={onManualAdvance} />
+            {/* [P1-FORM-7] Mismo patrón que QDislikes (P0-FORM-4): requiere
+                señal explícita (chip / "Ninguna" / free-text) antes de
+                avanzar. ANTES, el step se titulaba "Condiciones Médicas
+                (Opcional)" y el botón siempre estaba habilitado. Usuarios
+                con hipertensión / diabetes podían avanzar sin marcar nada
+                (asumiendo que era opcional) → LLM no recibía esa señal de
+                seguridad → plan podía incluir comidas inadecuadas para su
+                condición. Convertir la ambigüedad en señal explícita: si
+                no tienen condición, marcan "Ninguna" — un click cuesta
+                menos que un mal plan médico. `medicalConditions` alimenta
+                el reviewer médico (`graph_orchestrator.review_node`),
+                el filtro de catálogo, y el prompt LLM principal. */}
+            <NextButton
+                onClick={onManualAdvance}
+                disabled={
+                    (formData.medicalConditions || []).length === 0 &&
+                    (formData.otherConditions || '').trim() === ''
+                }
+            />
         </div>
     );
 };
@@ -412,10 +708,19 @@ export const QMainGoal = ({ onAutoAdvance }) => {
 
 export const QStruggles = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
-    const handleCheckboxChange = (field, value) => {
-        const current = formData[field] || [];
-        const updated = current.includes(value) ? current.filter(item => item !== value) : [...current, value];
-        updateData(field, updated);
+    // [P0-B1] sentinel exclusivo con cualquier struggle real (masculino,
+    // distinto de QAllergies/QMedical que usan femenino).
+    // [P1-FORM-2] valor desde SSOT (sentinels.js).
+    const SENTINEL = SENTINELS.struggles;
+    const handleToggle = (value) => {
+        const next = toggleArrayWithExclusiveSentinel(formData.struggles, value, SENTINEL);
+        updateData('struggles', next);
+        // [P0-FORM-1] ver QAllergies. Aunque struggles es UX/calidad, no safety,
+        // mantener el patrón consistente evita drift y deja el contrato de
+        // exclusividad uniforme en los 4 multi-select con sentinel.
+        if (next.length === 1 && next[0] === SENTINEL && (formData.otherStruggles || '').trim()) {
+            updateData('otherStruggles', '');
+        }
     };
 
     return (
@@ -429,22 +734,35 @@ export const QStruggles = ({ onManualAdvance }) => {
                     { val: "No sé cocinar", label: "No sé cocinar", icon: XCircle },
                     { val: "Me aburro rápido", label: "Me aburro rápido", icon: HelpCircle }
                 ].map(opt => (
-                    <ChipOption key={opt.val} val={opt.val} label={opt.label} icon={opt.icon} isSelected={formData.struggles.includes(opt.val)} onToggle={(val) => handleCheckboxChange('struggles', val)} />
+                    <ChipOption key={opt.val} val={opt.val} label={opt.label} icon={opt.icon} isSelected={formData.struggles.includes(opt.val)} onToggle={handleToggle} />
                 ))}
-                
-                <ChipOption 
-                    val="Ninguno" label="Ninguno" icon={Ban} isSelected={formData.struggles.includes("Ninguno")} 
-                    onToggle={() => {
-                        if (formData.struggles.includes("Ninguno")) handleCheckboxChange('struggles', "Ninguno");
-                        else updateData('struggles', ["Ninguno"]);
-                    }} 
+
+                <ChipOption
+                    val={SENTINEL} label={SENTINEL} icon={Ban}
+                    isSelected={formData.struggles.includes(SENTINEL)}
+                    onToggle={handleToggle}
                 />
             </div>
-            <Input 
-                type="text" placeholder="Ej. Viajes frecuentes..." value={formData.otherStruggles || ''} 
-                onChange={(e) => updateData('otherStruggles', e.target.value)} 
+            <Input
+                type="text" placeholder="Ej. Viajes frecuentes..." value={formData.otherStruggles || ''}
+                onChange={(e) => updateData('otherStruggles', e.target.value)}
             />
-            <NextButton onClick={onManualAdvance} />
+            {/* [P1-FORM-7] Mismo patrón que QDislikes/QMedical: requiere
+                señal explícita antes de avanzar. ANTES, "Mayores Obstáculos"
+                permitía avanzar con `struggles=[]` y `otherStruggles=''` —
+                LLM no recibía contexto de coaching personalizado. Si el
+                usuario no tiene obstáculos, marca "Ninguno" (1 click) y
+                el LLM sabe que el contexto está confirmado vacío, no
+                "no respondió". `struggles` alimenta el RAG dynamic_query
+                (graph_orchestrator.py:8662) y el prompt JSON dump del
+                planner. */}
+            <NextButton
+                onClick={onManualAdvance}
+                disabled={
+                    (formData.struggles || []).length === 0 &&
+                    (formData.otherStruggles || '').trim() === ''
+                }
+            />
         </div>
     );
 };
@@ -469,7 +787,17 @@ export const QMotivation = ({ onManualAdvance }) => {
                     <Battery size={20} />
                 </div>
             </div>
-            <NextButton onClick={onManualAdvance} disabled={!formData.motivation} />
+            {/* [P0-FORM-3] `disabled` ahora trim-aware. Antes `!formData.motivation`
+                trataba "   " (whitespace) como truthy → el usuario podía teclear
+                espacios y avanzar. Backend ahora también rechaza con 422 vía
+                `value.strip() == ""` en `_validate_form_data_min`, pero el gate
+                frontend evita quemar quota y entrega feedback inmediato.
+                `motivation` es consumido por `build_motivation_context` →
+                planner + day generator del LLM. */}
+            <NextButton
+                onClick={onManualAdvance}
+                disabled={!formData.motivation || formData.motivation.trim() === ''}
+            />
         </div>
     );
 };
@@ -595,6 +923,57 @@ export const QHousehold = ({ onManualAdvance }) => {
                             </div>
                         );
                     })}
+                </div>
+            </div>
+
+            {/* [P1-B5] Toggle `skipLunch` — el backend ya consume este campo para
+                redistribuir macros (ai_helpers.py:282-286), saltar validación de
+                legumbre y cambiar comportamiento del agente. Antes el campo siempre
+                llegaba como `false` porque el formulario no lo capturaba.
+                Ubicado dentro de QHousehold porque la decisión de saltar almuerzo
+                afecta directamente las cantidades de la lista de compras. */}
+            <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <UtensilsCrossed size={18} color="#EA580C" />
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#334155' }}>¿Sueles saltarte el almuerzo?</span>
+                </div>
+                <div
+                    onClick={() => {
+                        // [P0-FORM-2] Marca el toggle como tocado explícitamente.
+                        // `_skipLunchTouched` persiste a localStorage junto con
+                        // `skipLunch`, y un useEffect mount-only en
+                        // `AssessmentContext` re-arma `editedFieldsRef` para que
+                        // la hidratación async post-login (fetchProfile,
+                        // secureLoadFormData) NO sobreescriba la decisión del
+                        // usuario con un valor stale del DB. Sin esto, un usuario
+                        // que toggleaba `skipLunch=true` perdía la decisión tras
+                        // refresh → backend generaba 4 comidas en vez de 3 →
+                        // distribución de macros rota.
+                        updateData('skipLunch', !formData.skipLunch);
+                        updateData('_skipLunchTouched', true);
+                    }}
+                    style={{
+                        cursor: 'pointer',
+                        padding: '1rem 1.25rem',
+                        borderRadius: '0.75rem',
+                        border: formData.skipLunch ? '2px solid #EA580C' : '1.5px solid #E2E8F0',
+                        backgroundColor: formData.skipLunch ? '#FFF7ED' : 'white',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
+                        transition: 'all 0.2s ease',
+                    }}
+                >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.88rem', color: formData.skipLunch ? '#C2410C' : '#334155' }}>
+                            {formData.skipLunch ? 'Sí, suelo saltarlo' : 'No, almuerzo siempre'}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: '#94A3B8', lineHeight: 1.3 }}>
+                            Adaptaremos la distribución de macros y la lista de compras.
+                        </span>
+                    </div>
+                    {/* Toggle UI */}
+                    <div style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: formData.skipLunch ? '#EA580C' : '#CBD5E1', position: 'relative', flexShrink: 0 }}>
+                        <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: 3, left: formData.skipLunch ? 23 : 3, transition: 'all 0.2s' }} />
+                    </div>
                 </div>
             </div>
 

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { supabase } from '../supabase';
 import { API_BASE } from '../config/api';
 import { useAssessment } from '../context/AssessmentContext';
+import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation';
 
 import { calculateAllPlanIngredients } from '../utils/shoppingHelpers';
 
@@ -54,7 +55,13 @@ export const useRegeneratePlan = () => {
         }
 
         try {
-            if (formData && formData.age && formData.mainGoal) {
+            // [P1-B6] Validar TODOS los campos requeridos por el backend antes
+            // de regenerar. Antes este check era `formData.age && formData.mainGoal`
+            // (2 de 6) y permitía disparar regenerate con `gender=""` o
+            // `weight=""`, llevando al usuario a `/plan` que después rebotaba
+            // a `/assessment` con 422 — UX rota tras gastar tiempo de "preparar".
+            const missingField = findFirstIncompleteField(formData);
+            if (!missingField) {
 
             // GAP 5: Validación de límite fresco (server-side) con caché de 5s
             const now = Date.now();
@@ -197,7 +204,17 @@ export const useRegeneratePlan = () => {
             if (toastId) toast.dismiss(toastId);
             navigate('/plan', { state: { previous_meals: previousMeals, current_pantry_ingredients: typeof currentIngredients !== 'undefined' ? currentIngredients : [], update_reason: reason, is_plan_expired: actualIsPlanExpired, entry_point, disliked_meals: Object.keys(dislikedMeals || {}) } });
         } else {
+            // [P1-B6] Falta algún campo requerido. Toast informativo + redirect
+            // a /assessment (antes el redirect era silencioso y el usuario no
+            // sabía qué llenar). Reseteamos `isNavigatingRef` para que un
+            // segundo intento (tras completar el campo) no quede bloqueado.
+            isNavigatingRef.current = false;
             if (toastId) toast.dismiss(toastId);
+            const label = FIELD_LABELS[missingField] || missingField;
+            toast.info(`Antes de regenerar, completa: ${label}`, {
+                description: 'Te llevamos al cuestionario.',
+                duration: 4000,
+            });
             setCurrentStep(0);
             navigate('/assessment');
         }

@@ -1,19 +1,51 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
-import { CheckCircle, Loader2, Server, Activity, PieChart, Utensils, UtensilsCrossed, ChefHat, ShoppingCart, ShieldCheck } from 'lucide-react';
+import { CheckCircle, Loader2, Server, Activity, PieChart, Utensils, UtensilsCrossed, ChefHat, ShoppingCart, ShieldCheck, AlertTriangle, RefreshCw } from 'lucide-react';
 
 import PropTypes from 'prop-types';
 
 import { supabase } from '../supabase';
 import { useAssessment } from '../context/AssessmentContext';
 import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api';
+import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation';
 import { trackEvent } from '../utils/analytics';
+
+// [P1-B10] Default conservador para countdown de 429 cuando el backend no
+// envía `Retry-After`. El RateLimiter del backend usa period=60s con
+// max_calls=3 por usuario/IP, así que 60s es la peor cota antes de que la
+// ventana se libere por completo.
+const DEFAULT_RATE_LIMIT_RETRY_AFTER_S = 60;
+
+const _parseRetryAfter = (response) => {
+    // El header `Retry-After` puede ser un número de segundos o una HTTP-date.
+    // Aceptamos solo el formato numérico (más común para rate limits API).
+    const raw = response.headers?.get?.('Retry-After');
+    const parsed = parseInt(raw, 10);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    return DEFAULT_RATE_LIMIT_RETRY_AFTER_S;
+};
 
 // --- FUNCIÓN HELPER: RETRY LOGIC ---
 async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
     try {
         const response = await fetchWithAuth(url, options);
+        // [P1-B10] 429 NO se reintenta: el backend nos pidió explícitamente
+        // backoff y reintentar inmediatamente solo agrava el rate limit.
+        // Propagamos el error con `code='rate_limited'` y el retry_after en
+        // segundos para que el caller muestre countdown al usuario.
+        if (response.status === 429) {
+            const retryAfter = _parseRetryAfter(response);
+            let detail = '';
+            try {
+                const body = await response.json();
+                detail = body?.detail || '';
+            } catch { /* el body puede no ser JSON */ }
+            const err = new Error(detail || 'Demasiadas solicitudes. Intenta de nuevo más tarde.');
+            err.code = 'rate_limited';
+            err.retryAfter = retryAfter;
+            throw err;
+        }
         if (response.status >= 500) throw new Error(`Server Error ${response.status}`);
         if (!response.ok) {
             const txt = await response.text();
@@ -23,7 +55,9 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
     } catch (err) {
         // NUNCA reintentar si fue un abort (timeout) — reenviaría todo el pipeline
         if (err.name === 'AbortError') throw err;
-        
+        // [P1-B10] No reintentar 429 — backoff lo maneja el caller con countdown.
+        if (err.code === 'rate_limited') throw err;
+
         if (retries > 1) {
             console.warn(`⚠️ Intento fallido. Reintentando en ${backoff / 1000}s... (${retries - 1} intentos restantes)`);
             await new Promise(r => setTimeout(r, backoff));
@@ -33,6 +67,20 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
         }
     }
 }
+
+// [P0-3] Timeout sincronizado con el servidor.
+// El backend tiene `MEALFIT_GLOBAL_PIPELINE_TIMEOUT_S` (default 600s) +
+// validación pantry post-pipeline (~60s en peor caso, P0-2) + persistencia
+// + RTT SSE. Antes el cliente abortaba a 480s y el servidor seguía hasta
+// 600s+, persistiendo un plan que el usuario nunca veía → "plan duplicado"
+// en la próxima sesión + costo LLM perdido. Ahora el cliente espera
+// `server_timeout + 90s` por defecto. Override vía `VITE_PIPELINE_TIMEOUT_MS`
+// si el deploy aumenta `MEALFIT_GLOBAL_PIPELINE_TIMEOUT_S`.
+const PIPELINE_TIMEOUT_MS = (() => {
+    const raw = import.meta.env.VITE_PIPELINE_TIMEOUT_MS;
+    const parsed = parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 690000;
+})();
 
 // --- GENERACIÓN DE PLAN CON STREAMING SSE ---
 let globalGenerationPromise = null;
@@ -58,7 +106,7 @@ const generateAIPlanStream = async (formData, onProgress) => {
         globalAbortController = new AbortController();
         const timeoutId = setTimeout(() => {
             if (globalAbortController) globalAbortController.abort();
-        }, 480000);
+        }, PIPELINE_TIMEOUT_MS);
 
         try {
             // Intentar endpoint SSE streaming
@@ -112,7 +160,12 @@ const generateAIPlanStream = async (formData, onProgress) => {
 
                         if (eventType === 'error') {
                             console.error('❌ [SSE] Error del servidor:', eventData.data?.message);
-                            throw new Error(eventData.data?.message || 'Error del servidor');
+                            const err = new Error(eventData.data?.message || 'Error del servidor');
+                            // Propagar el código del backend para que el caller pueda
+                            // distinguir errores transitorios de IA (mostrar Retry) vs
+                            // errores genéricos (navegar a dashboard).
+                            if (eventData.data?.code) err.code = eventData.data.code;
+                            throw err;
                         }
 
                         // Emitir evento de progreso al componente
@@ -140,13 +193,27 @@ const generateAIPlanStream = async (formData, onProgress) => {
                     throw new Error("UserCancelled"); // Salir inmediatamente sin fallback
                 }
                 console.error("⏳ Error Fatal: Timeout total excedido.");
+            } else if (error.code === 'llm_unavailable') {
+                // El backend YA decidió que la IA no está disponible (504 de Gemini,
+                // circuit breaker abierto, etc.). El endpoint síncrono devolverá el
+                // mismo 503 — saltarlo y propagar al caller para mostrar Retry.
+                console.warn("🚨 IA upstream no disponible — propagando para retry manual.");
+                throw error;
+            } else if (error.code === 'rate_limited') {
+                // [P1-B10] El backend nos pidió backoff. NO intentamos el endpoint
+                // síncrono — el mismo limiter cubre ambas rutas (`/analyze` y
+                // `/analyze/stream` comparten `_PLAN_GEN_LIMITER`), así que
+                // seguro recibiríamos otro 429. Propagamos al caller para que
+                // muestre countdown.
+                console.warn(`⏳ Rate limited — propagando para countdown UX (retry_after=${error.retryAfter}s).`);
+                throw error;
             } else {
                 console.warn(`⚠️ SSE falló (${error.message}), intentando endpoint síncrono...`);
 
                 // Fallback al endpoint síncrono
                 try {
                     const controller2 = new AbortController();
-                    const timeoutId2 = setTimeout(() => controller2.abort(), 480000);
+                    const timeoutId2 = setTimeout(() => controller2.abort(), PIPELINE_TIMEOUT_MS);
 
                     const response2 = await fetchWithRetry(FALLBACK_URL, {
                         method: 'POST',
@@ -156,10 +223,21 @@ const generateAIPlanStream = async (formData, onProgress) => {
                     }, 2);
 
                     clearTimeout(timeoutId2);
+                    // 503 explícito del backend (LLM no disponible) → propagar para Retry.
+                    if (response2.status === 503) {
+                        const body = await response2.json().catch(() => ({}));
+                        const e503 = new Error(body?.detail || 'La IA no está disponible.');
+                        e503.code = 'llm_unavailable';
+                        throw e503;
+                    }
                     const data = await response2.json();
                     return (Array.isArray(data) && data.length > 0) ? data[0] : data;
                 } catch (fallbackErr) {
                     console.error('❌ Fallback síncrono también falló:', fallbackErr);
+                    // Si fue 503 de LLM, propagar el code para el caller
+                    if (fallbackErr.code === 'llm_unavailable') throw fallbackErr;
+                    // [P1-B10] 429 desde el fallback síncrono también propaga.
+                    if (fallbackErr.code === 'rate_limited') throw fallbackErr;
                 }
             }
 
@@ -281,7 +359,6 @@ const Plan = () => {
     const [oldPlan, setOldPlan] = useState(null); // Estado para el plan viejo
     const [streamPhase, setStreamPhase] = useState(null); // Fase actual del pipeline SSE
     const [daysCompleted, setDaysCompleted] = useState([]); // Días ya generados [1, 2, 3]
-    const [streamingText, setStreamingText] = useState({}); // Text streaming de los LLM
     const navigate = useNavigate();
     const location = useLocation();
     const previousMeals = location.state?.previous_meals || location.state?.previousMeals || [];
@@ -290,8 +367,13 @@ const Plan = () => {
 
     // 2. USEEFFECT
     useEffect(() => {
-        // Validación de seguridad: Si no hay datos, no hacemos nada (el return de abajo redirige)
-        if (!formData.age || !formData.mainGoal) return;
+        // [P1-B6] Validación pre-fetch alineada con el backend. Antes este
+        // check solo verificaba `age && mainGoal` (2 de 6 requeridos), así que
+        // un usuario con `gender=""` o `weight=""` quemaba el check de cuota
+        // y recibía un 422 genérico tras 1.5s de "Analizando...". Ahora
+        // detectamos cualquier campo faltante antes y dejamos que el render
+        // condicional de abajo redirija a /assessment.
+        if (findFirstIncompleteField(formData)) return;
 
         let ignore = false;
 
@@ -350,26 +432,6 @@ const Plan = () => {
                         setDaysCompleted(prev => [...new Set([...prev, evData?.day])]);
                     } else if (evType === 'day_started') {
                         setStreamPhase(`day_${evData?.day}`);
-                    } else if (evType === 'token') {
-                        if (evData?.day && evData?.chunk) {
-                            setStreamingText(prev => {
-                                const currentText = (prev[evData.day] || '') + evData.chunk;
-                                return {
-                                    ...prev,
-                                    [evData.day]: currentText.slice(-300) // Solo mantenemos la cola
-                                };
-                            });
-                        }
-                    } else if (evType === 'tool_call') {
-                        if (evData?.day && evData?.tool) {
-                            setStreamingText(prev => {
-                                const currentText = (prev[evData.day] || '') + `\n\n[SISTEMA]: Activando red neuronal '${evData.tool}' para verificación de macros...\n\n`;
-                                return {
-                                    ...prev,
-                                    [evData.day]: currentText.slice(-300)
-                                };
-                            });
-                        }
                     }
                 };
 
@@ -411,6 +473,68 @@ const Plan = () => {
                 }
                 console.error("❌ Error generando el plan:", error);
                 if (!ignore) {
+                    // IA upstream caída (504 Gemini / circuit breaker): no navegar al
+                    // dashboard, mostrar toast con Reintentar para que el usuario
+                    // pueda volver a disparar el plan sin perder el contexto.
+                    if (error.code === 'llm_unavailable') {
+                        import('sonner').then(({ toast }) => {
+                            toast.error("La IA está saturada", {
+                                description: error.message || "Intenta de nuevo en 1-2 minutos.",
+                                duration: Infinity,
+                                action: {
+                                    label: "Reintentar",
+                                    onClick: () => { processPlan(); },
+                                },
+                            });
+                        });
+                        return;
+                    }
+                    // [P1-B10] Rate limit del backend (`_PLAN_GEN_LIMITER`,
+                    // 3/60s per user|ip): toast con countdown que actualiza
+                    // cada segundo y habilita el botón "Reintentar" cuando
+                    // expira la ventana. Antes el usuario veía "Error al
+                    // generar el plan" sin saber que era cool-down ni cuánto
+                    // esperar — confundía con "IA caída" y reintentaba en
+                    // bucle (agravando el rate limit).
+                    if (error.code === 'rate_limited') {
+                        import('sonner').then(({ toast }) => {
+                            const toastId = 'rate-limit-toast';
+                            const startedAt = Date.now();
+                            const totalSeconds = Math.max(1, Number(error.retryAfter) || DEFAULT_RATE_LIMIT_RETRY_AFTER_S);
+                            const showWithCountdown = (remaining) => {
+                                if (remaining > 0) {
+                                    toast.error('Demasiadas solicitudes', {
+                                        id: toastId,
+                                        description: `Espera ${remaining}s antes de regenerar — el sistema te limitó por seguridad.`,
+                                        duration: Infinity,
+                                    });
+                                } else {
+                                    toast.error('Listo para reintentar', {
+                                        id: toastId,
+                                        description: 'La ventana de espera terminó. Puedes regenerar.',
+                                        duration: Infinity,
+                                        action: {
+                                            label: 'Reintentar',
+                                            onClick: () => { toast.dismiss(toastId); processPlan(); },
+                                        },
+                                    });
+                                }
+                            };
+                            showWithCountdown(totalSeconds);
+                            const intervalId = setInterval(() => {
+                                if (ignore) {
+                                    clearInterval(intervalId);
+                                    toast.dismiss(toastId);
+                                    return;
+                                }
+                                const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+                                const remaining = Math.max(0, totalSeconds - elapsed);
+                                showWithCountdown(remaining);
+                                if (remaining <= 0) clearInterval(intervalId);
+                            }, 1000);
+                        });
+                        return;
+                    }
                     import('sonner').then(({ toast }) => {
                         toast.error("Error al generar el plan", { description: "Por favor, intenta nuevamente más tarde." });
                     });
@@ -429,16 +553,33 @@ const Plan = () => {
 
     // 3. RENDERIZADO CONDICIONAL
 
-    // Si el usuario intenta entrar directo sin llenar el formulario
-    if (!formData.age || !formData.mainGoal) {
-        return <Navigate to="/assessment" />;
+    // [P1-B6] Si falta cualquier campo requerido por el backend, redirigir a
+    // /assessment con un toast accionable que explica qué falta — antes este
+    // check solo cubría `age && mainGoal` y un usuario podía colarse al fetch
+    // con `gender`/`weight`/`height`/`activityLevel` vacíos y recibir 422.
+    {
+        const missing = findFirstIncompleteField(formData);
+        if (missing) {
+            const label = FIELD_LABELS[missing] || missing;
+            // Toast diferido para que se muestre tras la navegación (Navigate
+            // remonta /assessment inmediatamente; sonner sobrevive al unmount).
+            setTimeout(() => {
+                import('sonner').then(({ toast }) => {
+                    toast.info(`Falta completar: ${label}`, {
+                        description: 'Te llevamos al cuestionario.',
+                        duration: 4000,
+                    });
+                });
+            }, 0);
+            return <Navigate to="/assessment" />;
+        }
     }
 
     if (status === 'preview') {
         return (
-            <PreviewScreen 
-                oldPlan={oldPlan} 
-                newPlan={tempPlan} 
+            <PreviewScreen
+                oldPlan={oldPlan}
+                newPlan={tempPlan}
                 onAccept={() => {
                     saveGeneratedPlan(tempPlan);
                     setCurrentStep(0);
@@ -450,6 +591,15 @@ const Plan = () => {
                     }
                     navigate('/dashboard', { replace: true });
                 }}
+                // [P1-3] Regenerar = re-disparar el flujo de generación con la
+                // misma `formData`. Hacemos `window.location.reload()` (mismo
+                // patrón que `handleRetry` en el manejo de chunks fallidos:
+                // línea ~557): conserva localStorage + re-monta `Plan.jsx`,
+                // así `useEffect(() => processPlan())` se re-dispara con los
+                // mismos inputs. El plan rechazado nunca se persistió porque
+                // el usuario no clicó "Aceptar" — `oldPlan` permanece intacto
+                // en localStorage.
+                onRegenerate={() => { window.location.reload(); }}
             />
         );
     }
@@ -459,15 +609,40 @@ const Plan = () => {
         status={status} 
         streamPhase={streamPhase} 
         daysCompleted={daysCompleted} 
-        streamingText={streamingText} 
-        onCancel={cancelGeneration}
+                onCancel={cancelGeneration}
     />;
 };
 
 // --- GAP 14: PANTALLA DE VISTA PREVIA (COMPARACIÓN) ---
-const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject }) => {
+const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) => {
     const [failedChunks, setFailedChunks] = useState([]);
     const [isRetrying, setIsRetrying] = useState(false);
+
+    // [P1-3] Flags de transparencia que el orquestador adjunta al plan cuando
+    // detecta degradación parcial. El sync ya los exponía vía body + headers
+    // HTTP; el SSE los expone ahora vía `_pantry_degraded_summary` (P1-2). El
+    // frontend antes IGNORABA estos flags — el usuario aceptaba un plan sin
+    // saber que tenía ingredientes fuera de su nevera o que no había superado
+    // la verificación médica. Aquí leemos cada flag y renderizamos un banner
+    // claramente visible con CTA de regeneración.
+    //
+    // Nota: NO mostramos banner para `_is_fallback` plain — ese caso ya se
+    // intercepta en `generateAIPlanStream` con un toast de "IA saturada" + CTA
+    // de retry (línea ~417). Aquí solo cubrimos planes que SÍ se entregaron al
+    // cliente pero con disclaimers de calidad.
+    const pantrySummary = newPlan?._pantry_degraded_summary;
+    const showPantryBanner = !!(
+        pantrySummary?.degraded
+        || newPlan?._initial_chunk_pantry_degraded
+    );
+    // El orquestador descarta planes con rechazo CRÍTICO (alergias / condiciones
+    // médicas) entregando fallback matemático con `_critical_rejection=true`.
+    // En severidad no-crítica, entrega el plan marcado con
+    // `_review_failed_but_delivered=true` para que el cliente decida regenerar.
+    const showReviewCriticalBanner = !!newPlan?._critical_rejection;
+    const showReviewWarningBanner = !!(
+        newPlan?._review_failed_but_delivered && !showReviewCriticalBanner
+    );
 
     useEffect(() => {
         if (!newPlan?.id || newPlan?.generation_status !== 'partial') return;
@@ -546,7 +721,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject }) => {
             color: 'white',
         }}>
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '0.5rem', textAlign: 'center' }}>
+                <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '0.5rem', textAlign: 'center', color: 'white' }}>
                     ¡Plan Generado!
                 </h2>
                 <p style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginBottom: '2rem' }}>
@@ -618,6 +793,112 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject }) => {
                     )}
                 </div>
 
+                {/* [P1-3] Banner: rechazo médico CRÍTICO (alergia/condición comprometida).
+                    El plan fue reemplazado por fallback matemático del orquestador para
+                    proteger al usuario. Severidad alta — usar tono rojo. */}
+                {showReviewCriticalBanner && (
+                    <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(239, 68, 68, 0.12)', borderRadius: '1rem', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+                        <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <AlertTriangle size={20} /> Plan reemplazado por seguridad
+                        </h3>
+                        <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)', marginBottom: '1rem', lineHeight: 1.5 }}>
+                            {newPlan?._review_disclaimer
+                                || 'El plan generado violaba alguna restricción crítica (alergia o condición médica declarada). Por seguridad, te servimos un plan de contingencia matemático. Regenera para intentar de nuevo o revisa tus restricciones en el formulario.'}
+                        </p>
+                        <button
+                            onClick={onRegenerate}
+                            style={{
+                                width: '100%', padding: '0.75rem 1rem', background: '#EF4444', color: 'white', borderRadius: '0.5rem',
+                                border: 'none', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
+                            }}
+                        >
+                            <RefreshCw size={16} /> Regenerar plan
+                        </button>
+                    </div>
+                )}
+
+                {/* [P1-3] Banner: revisión médica fallida pero NO crítica.
+                    El plan se entrega marcado para visibilidad. Tono ámbar. */}
+                {showReviewWarningBanner && (
+                    <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(245, 158, 11, 0.12)', borderRadius: '1rem', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
+                        <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem', color: '#F59E0B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <ShieldCheck size={20} /> Verificación médica con observaciones
+                        </h3>
+                        <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+                            {newPlan?._review_disclaimer
+                                || 'Este plan no superó completamente la verificación médica automática. Las observaciones encontradas son no-críticas, pero te recomendamos regenerarlo o revisarlo con tu nutricionista.'}
+                        </p>
+                        {Array.isArray(newPlan?._review_issues) && newPlan._review_issues.length > 0 && (
+                            <ul style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: '1rem', paddingLeft: '1.25rem' }}>
+                                {newPlan._review_issues.slice(0, 4).map((issue, idx) => (
+                                    <li key={idx} style={{ marginBottom: '0.25rem' }}>{String(issue)}</li>
+                                ))}
+                            </ul>
+                        )}
+                        <button
+                            onClick={onRegenerate}
+                            style={{
+                                width: '100%', padding: '0.75rem 1rem', background: '#F59E0B', color: 'white', borderRadius: '0.5rem',
+                                border: 'none', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
+                            }}
+                        >
+                            <RefreshCw size={16} /> Regenerar plan
+                        </button>
+                    </div>
+                )}
+
+                {/* [P1-3] Banner: pantry degradada (ingredientes generados que el usuario
+                    no tiene en nevera). Tono ámbar — no es crítico, pero rompe la promesa
+                    central del producto. CTA dual: actualizar nevera (ruta más útil) o
+                    regenerar directo. */}
+                {showPantryBanner && (
+                    <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(245, 158, 11, 0.12)', borderRadius: '1rem', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
+                        <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem', color: '#F59E0B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <ShoppingCart size={20} /> Algunos ingredientes no están en tu nevera
+                        </h3>
+                        <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+                            Detectamos platos con ingredientes fuera de tu inventario actual. Puedes
+                            actualizar tu nevera para que el próximo plan los considere, o regenerar
+                            ahora con lo que tienes.
+                        </p>
+                        {Array.isArray(pantrySummary?.degraded_days) && pantrySummary.degraded_days.length > 0 && (
+                            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.75rem' }}>
+                                Días afectados: {pantrySummary.degraded_days.map(d => `Día ${d}`).join(', ')}
+                            </p>
+                        )}
+                        {newPlan?._initial_chunk_pantry_violation && (
+                            <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.55)', fontStyle: 'italic', marginBottom: '1rem' }}>
+                                {String(newPlan._initial_chunk_pantry_violation).slice(0, 240)}
+                            </p>
+                        )}
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <a
+                                href="/pantry"
+                                style={{
+                                    flex: '1 1 140px', padding: '0.75rem 1rem', background: 'transparent', color: '#F59E0B',
+                                    borderRadius: '0.5rem', border: '1px solid rgba(245, 158, 11, 0.5)', fontWeight: 600,
+                                    fontSize: '0.9rem', textAlign: 'center', textDecoration: 'none',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
+                                }}
+                            >
+                                <ShoppingCart size={16} /> Actualizar nevera
+                            </a>
+                            <button
+                                onClick={onRegenerate}
+                                style={{
+                                    flex: '1 1 140px', padding: '0.75rem 1rem', background: '#F59E0B', color: 'white', borderRadius: '0.5rem',
+                                    border: 'none', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
+                                }}
+                            >
+                                <RefreshCw size={16} /> Regenerar
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {failedChunks.length > 0 && (
                     <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '1rem', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
                         <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -648,10 +929,10 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject }) => {
         </div>
     );
 };
-PreviewScreen.propTypes = { oldPlan: PropTypes.object, newPlan: PropTypes.object, onAccept: PropTypes.func, onReject: PropTypes.func };
+PreviewScreen.propTypes = { oldPlan: PropTypes.object, newPlan: PropTypes.object, onAccept: PropTypes.func, onReject: PropTypes.func, onRegenerate: PropTypes.func };
 
 // --- PANTALLA DE CARGA PREMIUM CON PROGRESO REAL ---
-const LoadingScreen = ({ status, streamPhase, daysCompleted = [], streamingText = {}, onCancel }) => {
+const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) => {
     const [progress, setProgress] = useState(0);
     const displayProgress = status === 'ready' ? 100 : progress;
     const [tipIndex, setTipIndex] = useState(0);
@@ -663,6 +944,12 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], streamingText 
         { text: "Seleccionando ingredientes de alta biodisponibilidad", icon: Utensils, pct: 45, phase: 'day_1', dayCheck: 1 },
         { text: "Optimizando sinergias metabólicas", icon: UtensilsCrossed, pct: 60, phase: 'day_2', dayCheck: 2 },
         { text: "Estructurando patrones de alimentación", icon: ChefHat, pct: 75, phase: 'day_3', dayCheck: 3 },
+        // P1-B: el orquestador emite `phase=adversarial_judging` y `phase=critique`
+        // entre la generación paralela y `assembly`. Sin estas dos entradas, la
+        // barra se queda pegada en ~78% durante 30–90 s y el usuario percibe el
+        // app como colgado.
+        { text: "Comparando candidatos y eligiendo el mejor plan", icon: Activity, pct: 79, phase: 'adversarial_judging' },
+        { text: "Refinando coherencia y diversidad de platos", icon: ChefHat, pct: 81, phase: 'critique' },
         { text: "Consolidando despensa y optimizando compras", icon: ShoppingCart, pct: 85, phase: 'assembly' },
         { text: "Auditoría médica y calibración final", icon: ShieldCheck, pct: 93, phase: 'review' },
     ];
@@ -680,6 +967,10 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], streamingText 
         if (status === 'ready') return;
 
         // Mapear fases SSE a porcentaje mínimo de progreso
+        // P1-B: añadidas `adversarial_judging` y `critique` — el orquestador
+        // las emite entre `parallel_generation` (35%) y `assembly` (82%) y sin
+        // ellas la barra parecía congelada por la duración combinada de ambos
+        // nodos (típicamente 30–90 s).
         const phaseMinProgress = {
             'analyzing': 12,
             'skeleton': 25,
@@ -687,6 +978,8 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], streamingText 
             'day_2': 50,
             'day_3': 60,
             'parallel_generation': 35,
+            'adversarial_judging': 79,
+            'critique': 81,
             'assembly': 82,
             'review': 93,
         };
@@ -912,43 +1205,6 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], streamingText 
                     })}
                 </div>
 
-                {/* === LIVE PREVIEW (SSE STREAMING) === */}
-                {Object.keys(streamingText).length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        transition={{ duration: 0.3 }}
-                        style={{
-                            background: '#0d1117',
-                            borderRadius: '0.75rem',
-                            padding: '0.75rem',
-                            marginBottom: '1.5rem',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            textAlign: 'left',
-                            fontSize: '0.65rem',
-                            fontFamily: 'monospace',
-                            color: '#10B981',
-                            maxHeight: '120px',
-                            overflow: 'hidden',
-                            position: 'relative'
-                        }}
-                    >
-                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '24px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', padding: '0 0.5rem', color: '#818cf8', fontWeight: 'bold' }}>
-                            <Activity size={12} style={{ marginRight: '6px' }}/> IA Neural Feed
-                        </div>
-                        <div style={{ marginTop: '20px', display: 'flex', gap: '0.75rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all', opacity: 0.8 }}>
-                            {Object.entries(streamingText).map(([day, text]) => (
-                                <div key={day} style={{ flex: 1, minWidth: 0, borderRight: day !== Object.keys(streamingText).pop() ? '1px solid rgba(255,255,255,0.1)' : 'none', paddingRight: '0.5rem' }}>
-                                    <div style={{ color: '#fff', fontSize: '0.6rem', marginBottom: '4px', opacity: 0.5 }}>WORKER DÍA {day}</div>
-                                    <div>{text}</div>
-                                </div>
-                            ))}
-                        </div>
-                        {/* Gradient overlay to fade bottom text */}
-                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '30px', background: 'linear-gradient(transparent, #0d1117)' }} />
-                    </motion.div>
-                )}
-
                 {/* === PROGRESS BAR === */}
                 <div style={{
                     width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)',
@@ -1040,6 +1296,6 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], streamingText 
     );
 };
 
-LoadingScreen.propTypes = { status: PropTypes.string, streamPhase: PropTypes.string, daysCompleted: PropTypes.array, streamingText: PropTypes.object, onCancel: PropTypes.func };
+LoadingScreen.propTypes = { status: PropTypes.string, streamPhase: PropTypes.string, daysCompleted: PropTypes.array, onCancel: PropTypes.func };
 
 export default Plan;

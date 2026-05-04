@@ -66,12 +66,26 @@ const getAlternativeMeal = (mealType, currentMealName, targetCalories, userDietT
 };
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../config/api';
+// [P1-B7] Storage seguro para datos sensibles del formulario.
+import {
+    saveFormData as secureSaveFormData,
+    loadFormData as secureLoadFormData,
+    migrateLegacyFormStorage,
+    clearFormStorage,
+} from '../config/secureFormStorage';
 
 const AssessmentContext = createContext();
 
 export const AssessmentProvider = ({ children }) => {
     // 1. CARGAR DATOS PERSISTENTES (LocalStorage)
     const savedPlan = localStorage.getItem('mealfit_plan');
+    // [P1-B7] Migración legacy ANTES de leer `mealfit_form`. Si el storage tenía
+    // sensitive mezclado con public (formato pre-fix), `migrateLegacyFormStorage`
+    // separa: deja public en `mealfit_form` (lo que leeremos abajo) y nos
+    // devuelve sensitive en memoria. La persistencia cifrada del sensitive
+    // ocurrirá en el primer `useEffect` cuando haya session disponible.
+    const _legacyMigration = migrateLegacyFormStorage();
+    const _legacySensitive = _legacyMigration?.sensitiveData || null;
     const savedForm = localStorage.getItem('mealfit_form');
     const savedLikes = localStorage.getItem('mealfit_likes');
 
@@ -120,31 +134,208 @@ export const AssessmentProvider = ({ children }) => {
         }
     });
 
+    // [P1-FORM-3] Default `weightUnit` basado en locale del browser. ANTES era
+    // hardcoded 'lb'; ~95% de usuarios (todo el mundo no-US) son métricos y
+    // tipear "70" pensando en kg pero almacenando como lb daba un cálculo
+    // nutricional ~32% menor (70 lb = 31.7 kg) sin disparar el chequeo de
+    // rango (31.7 > 30 kg mínimo). Países con sistema imperial para peso
+    // corporal: US, Liberia, Myanmar. Resto → kg. Para MealfitRD (DR, locale
+    // típico es-DO), esto cambia el default de "lb (incorrecto para 99% de
+    // usuarios)" a "kg (correcto para 99% de usuarios)". El touched-tracking
+    // (`_weightUnitTouched`, ver abajo) cubre los edge cases.
+    const _getDefaultWeightUnit = () => {
+        if (typeof navigator === 'undefined') return 'lb';
+        const lang = (navigator.language || '').toLowerCase();
+        if (lang.startsWith('en-us') || lang.startsWith('en-lr') || lang.startsWith('my')) {
+            return 'lb';
+        }
+        return 'kg';
+    };
+
     const initialFormData = {
-        age: '', gender: '', height: '', weight: '', weightUnit: 'lb', bodyFat: '', activityLevel: '',
+        age: '', gender: '', height: '', weight: '', weightUnit: _getDefaultWeightUnit(), bodyFat: '', activityLevel: '',
         sleepHours: '', stressLevel: '', cookingTime: '', budget: '', scheduleType: '',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
         mainGoal: '', motivation: '', struggles: [], skipLunch: false,
+        // [P0-FORM-2] Persiste si el usuario ya tomó la decisión EXPLÍCITA sobre
+        // skipLunch (toggle clickeado en QHousehold). Antes, `editedFieldsRef`
+        // protegía la edición solo dentro de UNA sesión (in-memory). Tras
+        // refresh/remount, un usuario que toggleó skipLunch=true en sesión 1
+        // perdía la protección y la hidratación post-login desde DB
+        // (`fetchProfile`, `secureLoadFormData`) podía sobreescribir con el
+        // valor stale del DB → backend generaba 4 comidas en vez de 3 →
+        // distribución de macros rota. Este flag persiste a localStorage junto
+        // con skipLunch; un useEffect al mount re-puebla `editedFieldsRef`
+        // con 'skipLunch' si está true, garantizando que la decisión sobreviva
+        // remounts, refreshes, y hidratación async post-login.
+        _skipLunchTouched: false,
+        // [P1-FORM-3] Mismo patrón que `_skipLunchTouched` para `weightUnit`.
+        // Si el usuario explícitamente tocó el toggle LB/KG en QMeasurements,
+        // `_weightUnitTouched=true` persiste y el useEffect mount-only protege
+        // `weightUnit` de ser sobreescrito por hidratación stale del DB. Sin
+        // esto, un usuario europeo que cambió a 'kg' podía perder esa decisión
+        // tras refresh y volver al default → sus 70 kg se interpretarían como
+        // 70 lb (≈31.7 kg) → BMR/macros completamente errados. El default
+        // ahora es locale-based (ver `_getDefaultWeightUnit` arriba), pero
+        // este flag cubre el edge case de US-expat-en-DR (locale es-DO →
+        // default 'kg' incorrecto para él) o cualquier mismatch locale↔intent.
+        _weightUnitTouched: false,
         includeSupplements: false, selectedSupplements: [], groceryDuration: 'weekly', householdSize: 1,
         otherConditions: '',
+        // [P1-B5] otherDislikes captura el free-text del step QDislikes (alimentos
+        // no listados en los chips comunes, ej. "Apio, Curry, Picante").
+        otherDislikes: '',
+        // [P1-C] otherStruggles ya lo escribe QStruggles vía updateData y lo
+        // mergea el backend en `_OTHER_TEXT_FIELD_MAP`. Declararlo aquí cierra
+        // la inconsistencia de SSOT con los demás `other*` y evita warnings de
+        // "controlled to uncontrolled" en el primer render del input.
+        otherStruggles: '',
     };
 
-    // Datos del Formulario de Evaluación
-    const [formData, setFormData] = useState(savedForm ? JSON.parse(savedForm) : initialFormData);
+    // [P1-B7] State inicial del formData. Composición:
+    //   - `initialFormData` como base (defaults).
+    //   - `savedForm` plain de `mealfit_form` (solo public ahora; sensitive
+    //     fue removido por la migración legacy si existía).
+    //   - `_legacySensitive` recuperado de la migración (si había sensitive
+    //     en formato viejo, vive en memoria; se cifrará y persistirá cuando
+    //     llegue la session).
+    //
+    // El sensitive cifrado de `mealfit_form_secure` se hidrata async en un
+    // `useEffect` aparte cuando session está disponible — mientras tanto los
+    // campos sensitive arrancan con sus valores default. Ese flicker es el
+    // costo aceptable de no leer plain de localStorage.
+    const _parsedSavedForm = (() => {
+        if (!savedForm) return null;
+        try { return JSON.parse(savedForm); } catch { return null; }
+    })();
+    const [formData, setFormData] = useState({
+        ...initialFormData,
+        ...(_parsedSavedForm || {}),
+        ...(_legacySensitive || {}),
+    });
 
     // --- ESTADO PARA LOS CRÉDITOS ---
     const [planCount, setPlanCount] = useState(0);
     const PLAN_LIMIT = 15; // Límite del plan gratuito
 
-    // 🔒 Lock para evitar que restoreSessionData sobreescriba datos recalculados
+    // 🔒 [P0-B2] Lock para evitar que `restoreSessionData` (cloud sync) o el
+    // canal Realtime sobreescriban planData mientras una operación local de
+    // recalc está en vuelo.
+    //
+    // Antes, `setRecalcLock(true)` programaba un `setTimeout(15s)` que jamás se
+    // cancelaba aunque el caller llamara `setRecalcLock(false)` antes. Si la
+    // operación terminaba en 200ms, el ref pasaba a false correctamente, pero
+    // 15s después el timer todavía fired y forzaba `false` otra vez — sin
+    // efecto en el happy path, pero en el escenario:
+    //   1. Recalc A inicia → setRecalcLock(true), timer A schedulado 15s.
+    //   2. Recalc A termina en 1s → setRecalcLock(false). Timer A sigue vivo.
+    //   3. 5s después, recalc B inicia → setRecalcLock(true), timer B schedulado.
+    //   4. A los 15s del PASO 1: timer A fires, setea ref=false PESE A que B
+    //      está activo. B queda sin lock; cloud sync puede pisar su resultado.
+    //
+    // Además, ningún call site garantizaba `setRecalcLock(false)` en finally:
+    // si la async fn lanzaba en un punto entre los `try { ... } catch`, el lock
+    // dependía de que el catch también llamara explícitamente — riesgo de leak.
+    //
+    // Ahora:
+    //   - `recalcSafetyTimerRef` guarda el handle del timer activo. Cada
+    //     `setRecalcLock(true)` clearea el timer anterior antes de crear uno
+    //     nuevo, evitando que un timer huérfano libere el lock de otra ejecución.
+    //   - `setRecalcLock(false)` también clearea el timer (release explícito).
+    //   - `withRecalcLock(asyncFn)` envuelve toda la operación en try/finally,
+    //     garantizando release aunque la fn lance, sea cancelada, o el componente
+    //     se desmonte mid-flight.
     const recalcLockRef = useRef(false);
+    const recalcSafetyTimerRef = useRef(null);
+
+    // [P0-FORM-2 + P0-FORM-3] Tracking de TODOS los campos editados por el
+    // usuario desde que este provider montó. Contramedida contra dos races
+    // distintas que escribían sobre `formData` ASYNC mientras el usuario
+    // editaba el wizard:
+    //
+    //   - [P0-FORM-2] Descifrado de `mealfit_form_secure` post-login / token
+    //     refresh (~50-200ms). Solo afecta los campos sensibles definidos en
+    //     `SENSITIVE_FIELDS` de `secureFormStorage.js`. El `useEffect` de
+    //     hidratación filtraba con `{...prev, ...sensitiveData}` — sensitiveData
+    //     GANABA sobre prev → pérdida silenciosa de la edición in-flight.
+    //
+    //   - [P0-FORM-3] Fetch de `user_profiles.health_profile` desde Supabase
+    //     en `fetchProfile` (~100-500ms). Afecta CUALQUIER campo del formData.
+    //     Mismo patrón de spread invertida — el snapshot del DB ganaba sobre
+    //     la edición in-flight, sobreescribiendo lo que el usuario acababa de
+    //     teclear con el valor anterior almacenado en DB.
+    //
+    // Fix unificado: cada `updateData(field, ...)` registra el field en este Set.
+    // Ambos consumidores async (hidratación cifrada + fetchProfile) filtran
+    // su payload excluyendo cualquier key que el usuario ya tocó.
+    //
+    // Comportamiento neto:
+    //   - Sin ediciones previas → fetch/hidratación poblan todos los campos
+    //     (intent "post-login mostrar datos del usuario").
+    //   - Edición previa → solo los campos NO tocados se hidratan/sincronizan
+    //     desde storage o DB. Los tocados se preservan tal cual el usuario los dejó.
+    //   - Token refresh durante edición concurrente → idem.
+    //
+    // No reseteamos el set: para la vida del provider, una key tocada nunca
+    // debe ser sobrescrita por storage o DB. Reload re-monta el provider y
+    // el set arranca vacío, que es el comportamiento deseado.
+    const editedFieldsRef = useRef(new Set());
+
+    // [P0-FORM-2 + P1-FORM-3] Re-arma la protección de campos con touched-flag
+    // persistido tras remount/refresh. `editedFieldsRef` arranca vacío en cada
+    // mount (es in-memory). Si el usuario tomó decisiones explícitas en una
+    // sesión previa (persistido en `_xxxTouched=true` dentro de `mealfit_form`),
+    // este effect re-añade los fields correspondientes al set para que
+    // `fetchProfile` y `secureLoadFormData` los excluyan del overlay → las
+    // decisiones del usuario sobreviven a la hidratación async post-login con
+    // valores potencialmente stale del DB. Mount-only (deps vacías) — leemos
+    // los flags UNA vez al arranque del provider; ediciones posteriores ya
+    // pasan por `updateData` que añade el field al ref directamente.
+    //
+    // Patrón: `_xxxTouched=true` (persistido) → re-armar 'xxx' en el ref.
+    // Cubre actualmente: skipLunch (P0-FORM-2), weightUnit (P1-FORM-3).
+    useEffect(() => {
+        if (formData?._skipLunchTouched === true) {
+            editedFieldsRef.current.add('skipLunch');
+        }
+        if (formData?._weightUnitTouched === true) {
+            editedFieldsRef.current.add('weightUnit');
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const setRecalcLock = useCallback((val) => {
-        recalcLockRef.current = val;
-        // Auto-unlock después de 15s como seguridad (evita locks permanentes)
+        // Siempre cancelar el timer pendiente: evita que un timer huérfano
+        // libere prematuramente un lock futuro.
+        if (recalcSafetyTimerRef.current) {
+            clearTimeout(recalcSafetyTimerRef.current);
+            recalcSafetyTimerRef.current = null;
+        }
+        recalcLockRef.current = !!val;
         if (val) {
-            setTimeout(() => { recalcLockRef.current = false; }, 15000);
+            // Safety net: si por alguna razón el caller no libera el lock
+            // (excepción no atrapada, unmount, etc.), 15s después se libera
+            // automáticamente. `withRecalcLock` debería ser el camino normal —
+            // este timer solo cubre fallos del path manual.
+            recalcSafetyTimerRef.current = setTimeout(() => {
+                recalcLockRef.current = false;
+                recalcSafetyTimerRef.current = null;
+                console.warn('🔒 [RECALC LOCK] Safety timer (15s) liberó el lock — el caller olvidó setRecalcLock(false). Migrar a withRecalcLock.');
+            }, 15000);
         }
     }, []);
+    // [P0-B2] Wrapper recomendado para envolver operaciones de recalc:
+    // `await withRecalcLock(async () => { ... })`. Garantiza release en finally
+    // — incluido si la fn lanza, retorna early, o termina con success. Devuelve
+    // el valor que retorne `asyncFn` para componer con el caller.
+    const withRecalcLock = useCallback(async (asyncFn) => {
+        setRecalcLock(true);
+        try {
+            return await asyncFn();
+        } finally {
+            setRecalcLock(false);
+        }
+    }, [setRecalcLock]);
 
     // --- FUNCIÓN PARA RESTAURAR SESIÓN DESDE DB ---
     const restoreSessionData = useCallback(async (userId) => {
@@ -289,10 +480,22 @@ export const AssessmentProvider = ({ children }) => {
                 setUserProfile(data);
                 // Sincronizar UI form data con health_profile (si existe y tiene datos)
                 if (data.health_profile && Object.keys(data.health_profile).length > 0) {
-                    setFormData(prev => ({
-                        ...prev,
-                        ...data.health_profile
-                    }));
+                    // [P0-FORM-3] Filtra campos que el usuario ya editó desde el
+                    // mount del provider (registrados en `editedFieldsRef` por
+                    // `updateData`). Antes el spread `{...prev, ...health_profile}`
+                    // hacía que el snapshot del DB GANARA sobre la edición
+                    // in-flight: si el usuario tipeó age=30, abrió otra pestaña,
+                    // y volvió, la siguiente pasada del wizard mostraba age=25
+                    // (valor anterior persistido en DB). Ahora los campos
+                    // tocados se preservan; los no tocados sí se hidratan.
+                    const edited = editedFieldsRef.current;
+                    const filtered = {};
+                    for (const [k, v] of Object.entries(data.health_profile)) {
+                        if (!edited.has(k)) filtered[k] = v;
+                    }
+                    if (Object.keys(filtered).length > 0) {
+                        setFormData(prev => ({ ...prev, ...filtered }));
+                    }
                 }
             }
         } catch (error) {
@@ -312,37 +515,56 @@ export const AssessmentProvider = ({ children }) => {
 
                 if (data) {
                     setUserProfile(data);
-                    
-                    let latestFormData = { ...formData };
+
                     if (data.health_profile && Object.keys(data.health_profile).length > 0) {
-                        setFormData(prev => {
-                            latestFormData = { ...prev, ...data.health_profile };
-                            return latestFormData;
-                        });
-                        
-                        // toast.info("Actualizando tu plan basado en tus nuevos datos...", { duration: 4000 });
-                        // 
-                        // // Generar nuevo plan con los datos sincronizados
-                        // const newPlan = await generateAIPlan(latestFormData);
-                        // if (newPlan) {
-                        //     setPlanData(newPlan);
-                        //     localStorage.setItem('mealfit_plan', JSON.stringify(newPlan));
-                        //     await savePlanToHistory(newPlan);
-                        //     toast.success("¡Plan sincronizado exitosamente!");
-                        // }
+                        // [P0-FORM-3] Mismo filtro que `fetchProfile`. Este path
+                        // corre desde el canal Realtime de `user_profiles` (línea
+                        // ~692) y desde `upgradeUserPlan` tras pagos. Sin este
+                        // filtro, un UPDATE Realtime que llega mientras el
+                        // usuario edita el wizard hacía que el snapshot del DB
+                        // GANARA sobre la edición in-flight (regresión silenciosa
+                        // de P0-FORM-3 que solo se había aplicado en
+                        // `fetchProfile`). `recalcLockRef` solo cubre recálculo
+                        // de plan, no edición de wizard, así que no protege esta
+                        // ventana. Los campos tocados se preservan; los no
+                        // tocados sí se hidratan.
+                        const edited = editedFieldsRef.current;
+                        const filtered = {};
+                        for (const [k, v] of Object.entries(data.health_profile)) {
+                            if (!edited.has(k)) filtered[k] = v;
+                        }
+                        if (Object.keys(filtered).length > 0) {
+                            setFormData(prev => ({ ...prev, ...filtered }));
+                        }
                     }
                 }
             } catch (error) {
                 console.error("Error refreshing profile or plan:", error);
             }
         }
-    }, [session, formData]);
+    }, [session]);
+
+    // [P1-B9] Mantener `sessionRef.current` sincronizado con `session` permite
+    // que el `useEffect` grande de abajo lea la sesión vigente sin tener que
+    // declarar `session` como dependencia. Antes, el array de deps incluía
+    // `session` y cada `setSession(currentSession)` retriggeaba el effect entero
+    // — desuscribiendo + resuscribiendo `onAuthStateChange` y haciendo otro
+    // round trip a `getSessionWithTimeout` cada vez. El guard de "session
+    // idéntica" cubría la mayoría pero hay window de race en transiciones
+    // (login → token refresh → logout) donde el chequeo pasa y dispara
+    // `fetchProfile + checkPlanLimit + restoreSessionData` doblemente.
+    const sessionRef = useRef(null);
+    useEffect(() => {
+        sessionRef.current = session;
+    }, [session]);
 
     useEffect(() => {
         const handleAuthChange = async (currentSession) => {
-            // Evitar actualizaciones innecesarias si la sesión es idéntica
-            // Usamos JSON.stringify para comparar objetos de forma segura
-            if (session?.user?.id && currentSession?.user?.id && session.user.id === currentSession.user.id) {
+            // Evitar actualizaciones innecesarias si la sesión es idéntica.
+            // [P1-B9] Leemos del ref en vez de cerrar sobre `session` para
+            // poder remover `session` del array de deps de este effect.
+            const prevSession = sessionRef.current;
+            if (prevSession?.user?.id && currentSession?.user?.id && prevSession.user.id === currentSession.user.id) {
                 return;
             }
 
@@ -355,7 +577,12 @@ export const AssessmentProvider = ({ children }) => {
                 const lastOwner = localStorage.getItem('mealfit_last_form_owner');
                 if (lastOwner && lastOwner !== 'guest' && lastOwner !== userId) {
                     // Los datos pertenecen a un usuario diferente, por lo que limpiamos para el usuario nuevo/diferente
-                    localStorage.removeItem('mealfit_form');
+                    // [P1-B7] limpiar AMBAS keys (public plain + secure cifrado).
+                    // Sin esto, el secure cifrado del owner anterior sobreviviría
+                    // y se intentaría descifrar con el access_token del nuevo
+                    // usuario — fallaría al descifrar (clave HKDF distinta) pero
+                    // ocupa storage y confunde la migración futura.
+                    clearFormStorage();
                     setFormData(initialFormData);
                 }
                 localStorage.setItem('mealfit_last_form_owner', userId);
@@ -385,7 +612,12 @@ export const AssessmentProvider = ({ children }) => {
                 localStorage.removeItem('mealfit_user_id');
                 localStorage.removeItem('mealfit_plan');
                 localStorage.removeItem('mealfit_guest_session');
-                // Al cerrar sesión NO limpiamos mealfit_form para que un guest pueda seguir usándolo
+                // [P1-B7] Al cerrar sesión, borrar el secure storage cifrado:
+                // sin access_token ya no podremos descifrarlo, así que dejarlo
+                // ahí solo ocupa espacio. El public en `mealfit_form` se mantiene
+                // por compat (un guest puede seguir usando los campos no
+                // sensibles que llenó antes de cerrar sesión).
+                try { localStorage.removeItem('mealfit_form_secure'); } catch { /* noop */ }
                 setLoadingData(false);
             }
             setLoadingAuth(false);
@@ -428,9 +660,13 @@ export const AssessmentProvider = ({ children }) => {
 
         return () => subscription.unsubscribe();
 
-        // Agregamos 'session' a las dependencias para cumplir con el Linter
-        // La lógica dentro de handleAuthChange previene bucles infinitos
-    }, [checkPlanLimit, restoreSessionData, session]);
+        // [P1-B9] `session` ya NO está en deps — leemos su valor vigente vía
+        // `sessionRef.current` (sincronizado por un effect ligero arriba). Esto
+        // asegura que el effect se monte UNA VEZ por proceso y la subscription
+        // a `onAuthStateChange` viva todo el lifetime del provider, en lugar de
+        // re-suscribirse cada vez que `setSession` se llamaba.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [checkPlanLimit, restoreSessionData]);
 
     // --- ESCUCHA DE SUPABASE REALTIME (Actualizaciones de la IA) ---
     useEffect(() => {
@@ -511,16 +747,61 @@ export const AssessmentProvider = ({ children }) => {
     }, [session]);
 
     // --- FUNCIÓN PARA ACTUALIZAR PERFIL EN DB ---
+    // [P1-FORM-9] Si el caller pasa `health_profile`, lo enrutamos por la RPC
+    // `update_health_profile_merge` (definida en
+    // `supabase/migrations/p1_form_9_health_profile_jsonb_merge.sql`) que
+    // aplica un MERGE jsonb (`||`) en lugar de reemplazo total. Esto es la
+    // segunda línea de defensa contra el race de hidratación cifrada — la
+    // primera la pone `buildHealthProfilePayload` en el frontend.
+    //
+    // Otros campos (full_name, plan_tier, etc.) siguen el camino tradicional
+    // `.update()` porque no son JSONB y reemplazar es el comportamiento
+    // correcto para columnas escalares.
+    //
+    // Si la RPC no está disponible (migración no desplegada todavía o
+    // ambiente que la elimina), caemos al `.update()` tradicional con
+    // warning — preservamos disponibilidad funcional aunque perdamos la
+    // garantía de merge. Operadores ven el warning y saben que falta
+    // aplicar la migración.
     const updateUserProfile = async (updates) => {
         try {
             if (!session?.user) throw new Error('No hay sesión activa');
 
-            const { error } = await supabase
-                .from('user_profiles')
-                .update(updates)
-                .eq('id', session.user.id);
+            const { health_profile: healthProfilePatch, ...rest } = updates || {};
 
-            if (error) throw error;
+            // [P1-FORM-9] Path 1: health_profile via RPC (jsonb merge).
+            if (healthProfilePatch && typeof healthProfilePatch === 'object') {
+                const { error: rpcError } = await supabase.rpc(
+                    'update_health_profile_merge',
+                    { patch: healthProfilePatch }
+                );
+                if (rpcError) {
+                    // Fallback: la migración aún no se aplicó o la RPC fue
+                    // dropeada. Caemos al patrón antiguo con warning visible
+                    // para que el equipo de ops detecte la falla en producción
+                    // y aplique la migración pendiente.
+                    console.warn(
+                        '[P1-FORM-9] RPC update_health_profile_merge falló — '
+                        + 'cayendo a UPDATE tradicional (sin merge garantizado). '
+                        + 'Verificar que la migración esté aplicada. Error:',
+                        rpcError
+                    );
+                    const { error: fallbackError } = await supabase
+                        .from('user_profiles')
+                        .update({ health_profile: healthProfilePatch })
+                        .eq('id', session.user.id);
+                    if (fallbackError) throw fallbackError;
+                }
+            }
+
+            // [P1-FORM-9] Path 2: campos escalares (full_name, etc.) via update tradicional.
+            if (Object.keys(rest).length > 0) {
+                const { error } = await supabase
+                    .from('user_profiles')
+                    .update(rest)
+                    .eq('id', session.user.id);
+                if (error) throw error;
+            }
 
             setUserProfile((prev) => ({ ...prev, ...updates }));
             return { success: true };
@@ -531,9 +812,49 @@ export const AssessmentProvider = ({ children }) => {
     };
 
     // --- EFECTOS DE PERSISTENCIA LOCAL ---
+    // [P1-B7] Persistencia segura: public en `mealfit_form` plain, sensitive
+    // cifrado AES-GCM en `mealfit_form_secure` con clave HKDF derivada del
+    // access_token. Para guests, sensitive solo en memoria. Async — fire-and-
+    // forget; errores se loguean a consola dentro de `secureSaveFormData`.
     useEffect(() => {
-        if (formData) localStorage.setItem('mealfit_form', JSON.stringify(formData));
-    }, [formData]);
+        if (formData) {
+            secureSaveFormData(formData, session).catch(() => { /* logged dentro */ });
+        }
+    }, [formData, session]);
+
+    // [P1-B7] Hidratación del sensitive cifrado al recibir session. Al login
+    // (o page reload con sesión activa), descifra `mealfit_form_secure` y mergea
+    // los campos sensibles al state actual. Sin session, no hace nada — el
+    // sensitive queda con los defaults o lo que la migración legacy haya dejado.
+    //
+    // [P0-FORM-2] El descifrado es async (~50-200ms). Si el usuario edita un
+    // campo sensible ANTES de que termine la hidratación, su edición se debe
+    // preservar. La spread previa (`{...prev, ...sensitiveData}`) hacía que
+    // `sensitiveData` ganara → bug de pérdida silenciosa de datos médicos.
+    // Ahora filtramos `sensitiveData` excluyendo cualquier key que el usuario
+    // tocó (registrada en `editedFieldsRef` desde `updateData`). Las
+    // keys no tocadas se hidratan normalmente; las tocadas se preservan.
+    useEffect(() => {
+        if (!session?.user) return;
+        let cancelled = false;
+        (async () => {
+            const { sensitiveData } = await secureLoadFormData(session);
+            if (cancelled || !sensitiveData) return;
+            const hasSensitive = Object.keys(sensitiveData).length > 0;
+            if (!hasSensitive) return;
+            // [P0-FORM-2] Filtra keys que el usuario ya editó in-flight.
+            // El ref se lee aquí (después del await) — captura cualquier edit
+            // que ocurrió DURANTE el descifrado. Compartido con P0-FORM-3.
+            const edited = editedFieldsRef.current;
+            const filtered = {};
+            for (const [k, v] of Object.entries(sensitiveData)) {
+                if (!edited.has(k)) filtered[k] = v;
+            }
+            if (Object.keys(filtered).length === 0) return;
+            setFormData(prev => ({ ...prev, ...filtered }));
+        })();
+        return () => { cancelled = true; };
+    }, [session?.user?.id, session?.access_token]);
 
     useEffect(() => {
         if (planData) localStorage.setItem('mealfit_plan', JSON.stringify(planData));
@@ -832,12 +1153,33 @@ export const AssessmentProvider = ({ children }) => {
     const updateData = (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
         localStorage.setItem('mealfit_last_form_owner', session?.user?.id || 'guest');
+        // [P0-FORM-2 + P0-FORM-3] Marca el campo como tocado para que ningún
+        // writer async lo sobrescriba con valor stale. Cubre TRES consumidores:
+        //   1. Hidratación cifrada de `mealfit_form_secure` (post-login).
+        //   2. `fetchProfile` desde Supabase (carga inicial del perfil).
+        //   3. `refreshProfileAndPlan` disparado por el canal Realtime de
+        //      `user_profiles` (ediciones desde otra pestaña, cron, admin).
+        // Tracking universal — los campos public también pueden ser pisados
+        // por `fetchProfile`/`refreshProfileAndPlan` ya que el spread
+        // `{...prev, ...health_profile}` los incluía sin filtro.
+        editedFieldsRef.current.add(field);
     };
 
     const saveGeneratedPlan = async (data) => {
         setPlanData(data);
-        setLikedMeals({});
-        
+        // [P1-B8] NO limpiar likedMeals al aceptar un plan nuevo. Los likes son
+        // meta-state user-level que se construye con el tiempo y persiste server-side
+        // (vía `/api/plans/like`). Antes este `setLikedMeals({})` provocaba:
+        //   - Flicker visible: corazones vacíos en el dashboard hasta que
+        //     `restoreSessionData` rehidrataba desde Supabase.
+        //   - Race con clicks tempranos: si el usuario hacía like inmediatamente
+        //     tras aceptar, se escribía sobre el state vacío y se perdían
+        //     likes históricos cargados después.
+        // Si un like anterior corresponde a un plato que ya no aparece en el
+        // plan actual, la UI simplemente no lo renderiza (no se ven likes
+        // huérfanos), pero el like permanece para futuros planes que reusen
+        // el nombre del plato — comportamiento user-friendly.
+
         // NOTA: NO guardamos en Supabase aquí.
         // El backend ya lo hace en _save_plan_and_track_background() con datos más completos
         // (meal_names, ingredients, techniques, frequency tracking).
@@ -853,9 +1195,13 @@ export const AssessmentProvider = ({ children }) => {
 
         // 1. Actualizar estado local inmediatamente
         setPlanData(pastPlanData);
-        setLikedMeals({});
+        // [P1-B8] NO limpiar likedMeals al restaurar un plan del historial.
+        // Mismo razonamiento que `saveGeneratedPlan`: los likes son user-level
+        // y persisten server-side. Restaurar un plan viejo no debería resetear
+        // los gustos acumulados del usuario; si el plato del like no existe en
+        // el plan restaurado, la UI simplemente no lo muestra (sin perder el
+        // dato para planes futuros).
         localStorage.setItem('mealfit_plan', JSON.stringify(pastPlanData));
-        localStorage.setItem('mealfit_likes', JSON.stringify({}));
 
         // 2. Sincronizar con Supabase para que cloud sync no lo revierta
         const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
@@ -904,8 +1250,12 @@ export const AssessmentProvider = ({ children }) => {
     const prevStep = () => { setDirection(-1); setCurrentStep((prev) => Math.max(0, prev - 1)); };
 
     const resetApp = async () => {
-        // NO limpiamos mealfit_form para que tras cerrar sesión, 
-        // los datos sigan presentes para invitados, pero sí se limpiarán al entrar con otra cuenta.
+        // NO limpiamos mealfit_form para que tras cerrar sesión,
+        // los datos no sensibles sigan presentes para invitados, pero sí se
+        // limpiarán al entrar con otra cuenta.
+        // [P1-B7] Sí limpiamos el secure storage cifrado: sin access_token ya
+        // no podremos descifrarlo, así que se descarta para no ocupar espacio.
+        try { localStorage.removeItem('mealfit_form_secure'); } catch { /* noop */ }
         localStorage.removeItem('mealfit_plan');
         localStorage.removeItem('mealfit_likes');
         localStorage.removeItem('mealfit_user_id');
@@ -1029,7 +1379,8 @@ export const AssessmentProvider = ({ children }) => {
             restorePlan,
             refreshProfileAndPlan,
             restoreSessionData,
-            setRecalcLock
+            setRecalcLock,
+            withRecalcLock
         }}>
             {children}
         </AssessmentContext.Provider>

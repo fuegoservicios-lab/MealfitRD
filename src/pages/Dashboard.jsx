@@ -21,6 +21,12 @@ import html2pdf from 'html2pdf.js';
 import { API_BASE, fetchWithAuth } from '../config/api';
 import { trackEvent } from '../utils/analytics';
 import { getActiveShoppingList, calculateAllPlanIngredients } from '../utils/shoppingHelpers';
+// [P1-FORM-9] Helper que filtra flags internos `_*` y bloquea cuando la
+// hidratación cifrada del formData (post-login) parece estar en curso —
+// evita que el spread `{...formData}` envíe campos sensibles vacíos a DB,
+// pisando datos médicos previos. Ver `secureFormStorage.js` para el
+// rationale completo.
+import { buildHealthProfilePayload } from '../config/secureFormStorage';
 
 const Dashboard = () => {
     // 1. Obtenemos estado y funciones del Contexto Global
@@ -43,9 +49,14 @@ const Dashboard = () => {
         restoreSessionData,
         setPlanData,
         setRecalcLock,
+        withRecalcLock,
         updateUserProfile,
         saveGeneratedPlan,
-        checkPlanLimit
+        checkPlanLimit,
+        // [P1-FORM-9] `session` requerido por `buildHealthProfilePayload` para
+        // detectar race de hidratación cifrada. Si está ausente (guest), el
+        // helper desactiva el gate y deja pasar el update.
+        session
     } = useAssessment();
 
     const { regeneratePlan } = useRegeneratePlan();
@@ -169,6 +180,35 @@ const Dashboard = () => {
     const formDataRef = useRef(formData);
     useEffect(() => { formDataRef.current = formData; }, [formData]);
 
+    // [P1-FORM-9] Wrapper que centraliza el patrón seguro de actualización de
+    // `health_profile`. Reemplaza los 4 spread directos `{...formData}` que
+    // existían (ver call-sites más abajo). Beneficios:
+    //   1. Filtra flags internos `_*` (`_skipLunchTouched`, `_weightUnitTouched`,
+    //      cualquier `_keyOtra`) — espejo del strip backend, evita ruido en DB.
+    //   2. Detecta race de hidratación cifrada post-login: si el blob existe
+    //      pero los arrays sensibles requeridos están vacíos, asume que la
+    //      decodificación está in-flight, aborta el update y avisa al usuario.
+    //      Sin este guard, un click muy rápido tras login podía sobrescribir
+    //      `medicalConditions`/`allergies` con `[]` en DB, perdiendo datos
+    //      médicos previos.
+    //   3. Usa `formDataRef.current` para que el setTimeout debouncado de
+    //      `disabledIngredients` (línea ~210) lea el snapshot MÁS RECIENTE
+    //      cuando dispara, no el del momento en que se programó el timer.
+    const safeUpdateHealthProfile = useCallback((overrides) => {
+        if (!userProfile || typeof updateUserProfile !== 'function') return false;
+        const payload = buildHealthProfilePayload(formDataRef.current, overrides, session);
+        if (!payload) {
+            toast.warning('Tu perfil aún se está cargando. Inténtalo en un momento.', {
+                duration: 3500,
+            });
+            return false;
+        }
+        updateUserProfile({ health_profile: payload });
+        return true;
+    // formDataRef.current se lee desde el ref (siempre latest) → sin dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [updateUserProfile, userProfile, session]);
+
     // Hydrate disabledIngredients from DB on first load (merges with localStorage)
     useEffect(() => {
         if (!userProfile?.id || !userProfile.health_profile) return;
@@ -191,7 +231,9 @@ const Dashboard = () => {
         if (!userProfile?.id) return;
         clearTimeout(disabledSyncTimer.current);
         disabledSyncTimer.current = setTimeout(() => {
-            updateUserProfile({ health_profile: { ...formDataRef.current, disabled_ingredients: disabledIngredients } });
+            // [P1-FORM-9] safeUpdateHealthProfile lee `formDataRef.current` →
+            // siempre snapshot más reciente, equivalente al spread anterior.
+            safeUpdateHealthProfile({ disabled_ingredients: disabledIngredients });
         }, 800);
     }, [disabledIngredients]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1908,31 +1950,36 @@ const Dashboard = () => {
                                                 key={opt.value}
                                                 onClick={async () => {
                                                     updateData('groceryDuration', opt.value);
-                                                    if (userProfile && typeof updateUserProfile === 'function') {
-                                                        updateUserProfile({ health_profile: { ...formData, groceryDuration: opt.value } });
-                                                    }
+                                                    // [P1-FORM-9] Reemplaza spread `{...formData, groceryDuration}`.
+                                                    safeUpdateHealthProfile({ groceryDuration: opt.value });
                                                     if (userProfile?.id && planData) {
                                                         setIsRecalculating(true);
-                                                        setRecalcLock(true);
                                                         const recalcToast = toast.loading('Calculando lista...', { position: 'top-center' });
                                                         try {
-                                                            const response = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
-                                                                method: 'POST',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify({ user_id: userProfile.id, householdSize: formData?.householdSize || 1, groceryDuration: opt.value })
+                                                            // [P0-B2] withRecalcLock garantiza release del lock en
+                                                            // finally — antes el lock dependía de calls explícitos en
+                                                            // happy + catch (riesgo de leak si una excepción caía entre
+                                                            // medio o si el componente se desmontaba mid-flight).
+                                                            await withRecalcLock(async () => {
+                                                                const response = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
+                                                                    method: 'POST',
+                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                    body: JSON.stringify({ user_id: userProfile.id, householdSize: formData?.householdSize || 1, groceryDuration: opt.value })
+                                                                });
+                                                                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                                                                const result = await response.json();
+                                                                if (result.success && result.plan_data) {
+                                                                    const rk = `mealfit_restock_cache_${userProfile?.id}_${result.plan_data.grocery_start_date || 'latest'}_${formData?.householdSize || 1}_${opt.value}`;
+                                                                    if (result.plan_data.is_restocked == null && localStorage.getItem(rk)) result.plan_data.is_restocked = true;
+                                                                    localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
+                                                                    setPlanData(result.plan_data);
+                                                                    toast.success('Lista actualizada', { id: recalcToast });
+                                                                } else toast.dismiss(recalcToast);
                                                             });
-                                                            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                                                            const result = await response.json();
-                                                            if (result.success && result.plan_data) {
-                                                                const rk = `mealfit_restock_cache_${userProfile?.id}_${result.plan_data.grocery_start_date || 'latest'}_${formData?.householdSize || 1}_${opt.value}`;
-                                                                if (result.plan_data.is_restocked == null && localStorage.getItem(rk)) result.plan_data.is_restocked = true;
-                                                                localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
-                                                                setPlanData(result.plan_data);
-                                                                toast.success('Lista actualizada', { id: recalcToast });
-                                                            } else toast.dismiss(recalcToast);
-                                                            setIsRecalculating(false); setRecalcLock(false);
                                                         } catch {
-                                                            toast.dismiss(recalcToast); setIsRecalculating(false); setRecalcLock(false);
+                                                            toast.dismiss(recalcToast);
+                                                        } finally {
+                                                            setIsRecalculating(false);
                                                         }
                                                     }
                                                     setShowDespensaDropdown(false);
@@ -1974,36 +2021,39 @@ const Dashboard = () => {
                                                             if (isRecalculating) return;
                                                             const prevHouseholdSize = formData?.householdSize || 1;
                                                             updateData('householdSize', num);
-                                                            if (userProfile && typeof updateUserProfile === 'function') {
-                                                                updateUserProfile({ health_profile: { ...formData, householdSize: num } });
-                                                            }
+                                                            // [P1-FORM-9] Reemplaza spread `{...formData, householdSize}`.
+                                                            safeUpdateHealthProfile({ householdSize: num });
                                                             setShowDespensaDropdown(false);
                                                             if (userProfile?.id && planData) {
-                                                                setIsRecalculating(true); setRecalcLock(true);
+                                                                setIsRecalculating(true);
                                                                 const recalcToast = toast.loading('Recalculando...', { position: 'top-center' });
                                                                 try {
-                                                                    const response = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
-                                                                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                                                        body: JSON.stringify({ user_id: userProfile.id, householdSize: num, groceryDuration: groceryDuration })
+                                                                    // [P0-B2] withRecalcLock garantiza release en finally;
+                                                                    // el revert de householdSize en error vive en el catch
+                                                                    // externo (depende de UI state, no del lock).
+                                                                    await withRecalcLock(async () => {
+                                                                        const response = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
+                                                                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                                                            body: JSON.stringify({ user_id: userProfile.id, householdSize: num, groceryDuration: groceryDuration })
+                                                                        });
+                                                                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                                                                        const result = await response.json();
+                                                                        if (result.success && result.plan_data) {
+                                                                            const rk = `mealfit_restock_cache_${userProfile?.id}_${result.plan_data.grocery_start_date || 'latest'}_${num}_${groceryDuration}`;
+                                                                            if (result.plan_data.is_restocked == null && localStorage.getItem(rk)) result.plan_data.is_restocked = true;
+                                                                            localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
+                                                                            setPlanData(result.plan_data);
+                                                                            toast.success(`${num} ${num === 1 ? 'persona' : 'personas'}`, { id: recalcToast, icon: '👥' });
+                                                                        } else toast.dismiss(recalcToast);
                                                                     });
-                                                                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                                                                    const result = await response.json();
-                                                                    if (result.success && result.plan_data) {
-                                                                        const rk = `mealfit_restock_cache_${userProfile?.id}_${result.plan_data.grocery_start_date || 'latest'}_${num}_${groceryDuration}`;
-                                                                        if (result.plan_data.is_restocked == null && localStorage.getItem(rk)) result.plan_data.is_restocked = true;
-                                                                        localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
-                                                                        setPlanData(result.plan_data);
-                                                                        toast.success(`${num} ${num === 1 ? 'persona' : 'personas'}`, { id: recalcToast, icon: '👥' });
-                                                                    } else toast.dismiss(recalcToast);
-                                                                    setIsRecalculating(false); setRecalcLock(false);
-                                                                } catch { 
-                                                                    toast.dismiss(recalcToast); 
+                                                                } catch {
+                                                                    toast.dismiss(recalcToast);
                                                                     toast.error('Error al actualizar personas');
                                                                     updateData('householdSize', prevHouseholdSize);
-                                                                    if (userProfile && typeof updateUserProfile === 'function') {
-                                                                        updateUserProfile({ health_profile: { ...formData, householdSize: prevHouseholdSize } });
-                                                                    }
-                                                                    setIsRecalculating(false); setRecalcLock(false); 
+                                                                    // [P1-FORM-9] Rollback con guard de hidratación.
+                                                                    safeUpdateHealthProfile({ householdSize: prevHouseholdSize });
+                                                                } finally {
+                                                                    setIsRecalculating(false);
                                                                 }
                                                             }
                                                         }}

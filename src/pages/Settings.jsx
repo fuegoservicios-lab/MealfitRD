@@ -14,10 +14,32 @@ import { requestNotificationPermission, subscribeToPushNotifications, unsubscrib
 import { trackEvent } from '../utils/analytics';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
+// [P1-FORM-9] Helper para construir el payload de health_profile sin filtrar
+// flags `_*` y con guard contra race de hidratación cifrada. Ver
+// `secureFormStorage.js` para el rationale completo.
+import { buildHealthProfilePayload } from '../config/secureFormStorage';
 
 const Settings = () => {
     // Obtenemos userProfile y updateUserProfile del contexto global
-    const { planData, formData, resetApp, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit } = useAssessment();
+    // [P1-FORM-9] `session` necesario para el guard de hidratación cifrada en
+    // `buildHealthProfilePayload`.
+    const { planData, formData, resetApp, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session } = useAssessment();
+
+    // [P1-FORM-9] Wrapper análogo al de Dashboard.jsx: filtra flags `_*` y
+    // bloquea si la hidratación cifrada del formData parece estar in-flight.
+    // Ver comentario completo en Dashboard.jsx (mismo código, mismo rationale).
+    const safeUpdateHealthProfile = (overrides) => {
+        if (!userProfile || typeof updateUserProfile !== 'function') return false;
+        const payload = buildHealthProfilePayload(formData, overrides, session);
+        if (!payload) {
+            toast.warning('Tu perfil aún se está cargando. Inténtalo en un momento.', {
+                duration: 3500,
+            });
+            return false;
+        }
+        updateUserProfile({ health_profile: payload });
+        return true;
+    };
     const navigate = useNavigate();
     const { regeneratePlan } = useRegeneratePlan();
 
@@ -699,9 +721,8 @@ const Settings = () => {
                                                         
                                                         // Update optimistically
                                                         updateData('householdSize', num);
-                                                        if (userProfile && typeof updateUserProfile === 'function') {
-                                                            updateUserProfile({ health_profile: { ...formData, householdSize: num } });
-                                                        }
+                                                        // [P1-FORM-9] Reemplaza spread `{...formData, householdSize}`.
+                                                        safeUpdateHealthProfile({ householdSize: num });
                                                         
                                                         if (userProfile?.id && planData) {
                                                             setIsRecalculating(true);
@@ -735,9 +756,8 @@ const Settings = () => {
                                                                 toast.dismiss(recalcToast);
                                                                 toast.error('Error al actualizar personas');
                                                                 updateData('householdSize', prevHouseholdSize);
-                                                                if (userProfile && typeof updateUserProfile === 'function') {
-                                                                    updateUserProfile({ health_profile: { ...formData, householdSize: prevHouseholdSize } });
-                                                                }
+                                                                // [P1-FORM-9] Rollback con guard de hidratación.
+                                                                safeUpdateHealthProfile({ householdSize: prevHouseholdSize });
                                                                 setIsRecalculating(false);
                                                             }
                                                         }
