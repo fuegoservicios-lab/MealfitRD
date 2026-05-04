@@ -22,6 +22,15 @@ import { API_BASE, fetchWithAuth } from '../config/api';
 import { trackEvent } from '../utils/analytics';
 import { getActiveShoppingList, calculateAllPlanIngredients } from '../utils/shoppingHelpers';
 
+const INGREDIENT_STOP_WORDS = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada',
+    'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada',
+    'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados',
+    'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones',
+    'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada',
+    'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
+    'horneado', 'grandes', 'firme'];
+const STOP_WORDS_REGEX = new RegExp('\\b(' + INGREDIENT_STOP_WORDS.join('|') + ')\\b', 'gi');
+
 const Dashboard = () => {
     // 1. Obtenemos estado y funciones del Contexto Global
     const {
@@ -492,16 +501,8 @@ const Dashboard = () => {
 
             // Stop words: réplica exacta del backend (shopping_calculator.py línea 103)
             // Elimina descriptores que no forman parte del nombre base del ingrediente.
-            const stops = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada', 
-                'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada', 
-                'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados', 
-                'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones', 
-                'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada', 
-                'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
-                'horneado', 'grandes', 'firme'];
-            for (const s of stops) {
-                n = n.replace(new RegExp('\\b' + s + '\\b', 'gi'), '');
-            }
+            // ⚡ Bolt Optimization: Uses precompiled STOP_WORDS_REGEX to prevent O(N) RegExp instantiations
+            n = n.replace(STOP_WORDS_REGEX, '');
             n = n.replace(/,/g, '').replace(/\s+/g, ' ').trim();
 
             return n.split(/\s+/).map(w => {
