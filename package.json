@@ -40,6 +40,7 @@
     "jsdom": "^29.0.2",
     "vite": "^7.2.4",
     "vite-plugin-pwa": "^1.2.0",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.4",
+    "workbox-window": "^7.4.1"
   }
 }
