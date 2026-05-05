@@ -362,6 +362,7 @@ const ChatWidget = () => {
                         {showHistory ? (
                             <button 
                                 onClick={() => setShowHistory(false)}
+                                aria-label="Volver al chat"
                                 style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', padding: '4px', borderRadius: '4px' }}
                                 onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
                                 onMouseOut={e => e.currentTarget.style.background = 'none'}
@@ -397,6 +398,7 @@ const ChatWidget = () => {
                             <button 
                                 onClick={() => { setShowHistory(true); fetchChatSessions(); }}
                                 title="Ver Historial"
+                                aria-label="Ver Historial"
                                 style={{
                                     background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '0.5rem', borderRadius: '0.5rem', cursor: 'pointer', display: 'flex'
                                 }}
@@ -407,6 +409,7 @@ const ChatWidget = () => {
                         <button 
                             onClick={handleNewChat}
                             title="Nuevo Chat"
+                            aria-label="Nuevo Chat"
                             style={{
                                 background: '#3B82F6', border: 'none', color: 'white', padding: '0.5rem', borderRadius: '0.5rem', cursor: 'pointer', display: 'flex'
                             }}
@@ -591,6 +594,7 @@ const ChatWidget = () => {
                                 />
                                 <button
                                     onClick={handleSend}
+                                    aria-label="Enviar mensaje"
                                     disabled={!input.trim() || isLoading}
                                     style={{
                                         background: input.trim() && !isLoading ? '#3B82F6' : '#CBD5E1',
@@ -620,6 +624,7 @@ const ChatWidget = () => {
             {/* Fab Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
+                aria-label={isOpen ? "Cerrar chat" : "Abrir chat"}
                 style={{
                     width: '3.5rem',
                     height: '3.5rem',
