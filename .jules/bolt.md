@@ -1,0 +1,3 @@
+## 2025-02-12 - [RegExp Pre-compilation for Stop Words]
+**Learning:** In heavily utilized data normalization pipelines (e.g. ingredient list formatting), recreating RegExp objects via loops dynamically inside component functions causes massive CPU overhead and performance drops as object instantiation is $O(N)$ with stop words amount times operations amount.
+**Action:** When evaluating multiple sequential string replacements against static dictionaries or "stop words" inside a component body, aggregate them into a single pre-compiled `RegExp` object (using `join('|')`) outside of the React component's body. This optimizes execution time by eliminating regex generation overhead and minimizing memory allocations during renders.
