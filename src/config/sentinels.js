@@ -22,6 +22,16 @@
 // - Convención: usar la misma forma gramatical que el sustantivo del campo.
 //   Femenino → "Ninguna" (alergia, condición). Masculino → "Ninguno"
 //   (rechazo/dislike, obstáculo/struggle).
+//
+// [P1-FORM-13] GATE DE DRIFT EN CI:
+// `backend/test_p1_form_13_sentinel_drift.py` parsea este archivo en
+// runtime, extrae los valores de SENTINELS, y verifica que cada uno
+// (lowercased) esté en `_SENTINEL_NONE_VALUES`. Si renombras un sentinel
+// aquí (ej. "Ninguna" → "Sin alergia") sin actualizar el backend, el
+// test falla con un mensaje accionable que indica EXACTAMENTE qué
+// añadir al frozenset Python. Sin este test, la divergencia rompía
+// silenciosamente la detección de exclusividad y reaparecía la
+// contradicción de seguridad médica de P0-FORM-1.
 // ============================================================
 
 /**

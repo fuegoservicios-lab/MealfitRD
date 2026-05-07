@@ -180,7 +180,39 @@ export const AssessmentProvider = ({ children }) => {
         // este flag cubre el edge case de US-expat-en-DR (locale es-DO →
         // default 'kg' incorrecto para él) o cualquier mismatch locale↔intent.
         _weightUnitTouched: false,
-        includeSupplements: false, selectedSupplements: [], groceryDuration: 'weekly', householdSize: 1,
+        // [P1-12] Touched-flags para householdSize y groceryDuration. Mismo
+        // patrón que `_skipLunchTouched` (P0-FORM-2) y `_weightUnitTouched`
+        // (P1-FORM-3). Sin estos, una edición explícita del usuario (ej.
+        // cambiar de 4 a 2 personas en mudanza) podía revertirse al siguiente
+        // Realtime UPDATE de `user_profiles` (admin tooling, otra pestaña,
+        // sync cloud) o tras `fetchProfile` post-login con valores stale del
+        // DB. El useEffect mount-only en este mismo provider re-arma
+        // `editedFieldsRef` con 'householdSize'/'groceryDuration' cuando los
+        // flags están a `true`, garantizando que la decisión del usuario
+        // sobreviva remounts, refreshes, y hidratación async.
+        _householdSizeTouched: false,
+        _groceryDurationTouched: false,
+        // [P1-13] Unidad seleccionada en QMeasurements para el INPUT de altura
+        // (cm vs ft+inches). Antes vivía como `useState` local, perdiéndose al
+        // remount del componente (caso típico: usuario tipea "5 ft 10 in",
+        // avanza a QActivityLevel, vuelve con prevStep — `unit` arrancaba 'cm'
+        // por default y mostraba la altura en cm sin contexto). Persistirlo
+        // como `_heightInputUnit` en formData garantiza que prevStep recupere
+        // la decisión visual del usuario. NO se hidrata desde DB (prefijo `_`
+        // lo trata como interno via stripInternalFlags / SENSITIVE_FIELDS),
+        // solo desde localStorage.
+        _heightInputUnit: 'cm',
+        // [P0-12] `householdSize` y `groceryDuration` SIN default explícito.
+        // ANTES: `householdSize: 1, groceryDuration: 'weekly'` evadía el guard
+        // de `findFirstIncompleteField` (que solo flaggea null/undefined/empty
+        // string/empty array) — el botón "Siguiente" del step QHousehold
+        // quedaba habilitado desde el primer render aunque el usuario no
+        // hubiera tocado nada. Una familia de 4 con compras quincenales
+        // recibía un plan escalado para 1 persona/semanal → lista de compras
+        // subdimensionada (faltante crítico de comida) y macros para 1
+        // plato cuando hay 4 comensales. AHORA arrancan en `null`/`''` y el
+        // gating del wizard fuerza al usuario a elegir explícitamente.
+        includeSupplements: false, selectedSupplements: [], groceryDuration: '', householdSize: null,
         otherConditions: '',
         // [P1-B5] otherDislikes captura el free-text del step QDislikes (alimentos
         // no listados en los chips comunes, ej. "Apio, Curry, Picante").
@@ -212,6 +244,76 @@ export const AssessmentProvider = ({ children }) => {
         ...initialFormData,
         ...(_parsedSavedForm || {}),
         ...(_legacySensitive || {}),
+    });
+
+    // [P1-3] Flag de hidratación pendiente del sensitive cifrado.
+    // ----------------------------------------------------------------
+    // El descifrado de `mealfit_form_secure` (AES-GCM con clave HKDF derivada
+    // del access_token) se hace en un useEffect aparte cuando llega `session`
+    // — toma 50-200ms en hardware típico. Durante esa ventana, los campos
+    // sensibles (allergies, medicalConditions, dislikes, struggles, motivation,
+    // bodyFat, otherAllergies/Conditions/Dislikes/Struggles) están en sus
+    // valores default vacíos (a menos que `_legacySensitive` los haya repuesto
+    // desde la migración legacy).
+    //
+    // Antes esto era documentado como "flicker aceptable", pero si el usuario
+    // navegaba a `/plan` o disparaba regenerate en esos 50-200ms post-login
+    // (deep link, caché abierta del Dashboard), `findFirstIncompleteField`
+    // evaluaba con allergies=[] / motivation="" / bodyFat="" → toast "Falta
+    // completar Edad" (o cualquier sensitive) y redirect a `/assessment` ←
+    // pero el dato SÍ estaba en storage cifrado. UX rota silenciosamente.
+    //
+    // Ahora: arrancamos `true` SI hay session activa O si vamos a tener una
+    // (Supabase auth pendiente: hay token en localStorage). En el useEffect
+    // que descifra, bajamos a `false` cuando terminó (éxito, sin sensitive,
+    // o error). Sin session → bajamos a `false` inmediatamente en el primer
+    // render via useEffect deps (no hay nada que descifrar).
+    //
+    // Consumers (Plan.jsx, useRegeneratePlan, InteractiveAssessmentFlow):
+    // gatear `findFirstIncompleteField` con `if (loadingSensitive) return;`
+    // y mostrar UI de carga en su lugar.
+    //
+    // Heurística inicial: `true` si existe la key `mealfit_form_secure` en
+    // localStorage (significa que hubo session previa que cifró sensitive).
+    // Si no existe esa key, sensitive nunca fue persistido → no hay nada que
+    // hidratar → arrancamos `false` y los consumers no esperan.
+    const [loadingSensitive, setLoadingSensitive] = useState(() => {
+        try {
+            return typeof localStorage !== 'undefined' && !!localStorage.getItem('mealfit_form_secure');
+        } catch {
+            return false;
+        }
+    });
+
+    // [P1-10] Hidratación pendiente del PROFILE (DB → formData) además del
+    // sensitive cifrado. ANTES, `loadingSensitive` SOLO chequeaba la
+    // existencia de `mealfit_form_secure`. Para usuarios en su PRIMER login
+    // en otro dispositivo (sin ese key), `loadingSensitive=false` desde el
+    // primer render aunque `fetchProfile` estuviera en vuelo desde Supabase
+    // (~100-500ms). Plan.jsx y useRegeneratePlan evaluaban
+    // `findFirstIncompleteField` antes de que `fetchProfile` completara →
+    // toast engañoso "Falta completar X" + redirect a /assessment con datos
+    // que SÍ existían en DB pero aún no llegaban al state.
+    //
+    // Heurística inicial: arrancar `true` si hay user_id en localStorage
+    // (fuerte señal de session previa que iba a cargarse). Sin user_id → no
+    // hay nada que hidratar desde DB → `false`. El handler de auth-change
+    // lo sube a `true` antes del Promise.all([fetchProfile, ...]) y lo baja
+    // a `false` después del Promise.race con el timeout de 5s.
+    //
+    // El `loadingSensitive` exportado al context combina ambos flags
+    // (`loadingSensitive || loadingProfile`) para que los 4 consumers
+    // existentes (Plan.jsx, useRegeneratePlan, InteractiveAssessmentFlow,
+    // ...) NO necesiten cambiar — siguen leyendo `loadingSensitive` y
+    // automáticamente esperan a la hidratación COMPLETA del formData.
+    const [loadingProfile, setLoadingProfile] = useState(() => {
+        try {
+            return typeof localStorage !== 'undefined'
+                && !!localStorage.getItem('mealfit_user_id')
+                && localStorage.getItem('mealfit_user_id') !== 'guest';
+        } catch {
+            return false;
+        }
     });
 
     // --- ESTADO PARA LOS CRÉDITOS ---
@@ -293,13 +395,23 @@ export const AssessmentProvider = ({ children }) => {
     // pasan por `updateData` que añade el field al ref directamente.
     //
     // Patrón: `_xxxTouched=true` (persistido) → re-armar 'xxx' en el ref.
-    // Cubre actualmente: skipLunch (P0-FORM-2), weightUnit (P1-FORM-3).
+    // Cubre actualmente: skipLunch (P0-FORM-2), weightUnit (P1-FORM-3),
+    // householdSize y groceryDuration (P1-12).
     useEffect(() => {
         if (formData?._skipLunchTouched === true) {
             editedFieldsRef.current.add('skipLunch');
         }
         if (formData?._weightUnitTouched === true) {
             editedFieldsRef.current.add('weightUnit');
+        }
+        // [P1-12] Re-armar householdSize y groceryDuration desde flags
+        // persistidos. Sin esto, la edición de hogar del usuario podía
+        // ser revertida por Realtime UPDATE / fetchProfile post-refresh.
+        if (formData?._householdSizeTouched === true) {
+            editedFieldsRef.current.add('householdSize');
+        }
+        if (formData?._groceryDurationTouched === true) {
+            editedFieldsRef.current.add('groceryDuration');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -587,6 +699,13 @@ export const AssessmentProvider = ({ children }) => {
                 }
                 localStorage.setItem('mealfit_last_form_owner', userId);
 
+                // [P1-10] Marcamos profile como en-vuelo ANTES de los fetches.
+                // El Promise.race + timeout de 5s garantiza que el flag baje
+                // siempre, aunque alguno de los fetches cuelgue. Sin esto los
+                // consumers (Plan.jsx vía `loadingSensitive`) podrían evaluar
+                // `findFirstIncompleteField` con state hidratado a medias.
+                setLoadingProfile(true);
+
                 // Ejecutamos todo en paralelo, con un timeout de 5s para evitar bloqueo total
                 const loadPromises = Promise.all([
                     fetchProfile(userId),
@@ -602,8 +721,14 @@ export const AssessmentProvider = ({ children }) => {
                     }, 5000);
                 });
 
-                await Promise.race([loadPromises, timeoutPromise]);
-                clearTimeout(timeoutId);
+                try {
+                    await Promise.race([loadPromises, timeoutPromise]);
+                } finally {
+                    clearTimeout(timeoutId);
+                    // [P1-10] Liberamos siempre, sea por éxito, timeout, o
+                    // excepción de cualquiera de los 3 fetches.
+                    setLoadingProfile(false);
+                }
             } else {
                 // Logout / No sesión
                 setUserProfile(null);
@@ -619,6 +744,8 @@ export const AssessmentProvider = ({ children }) => {
                 // sensibles que llenó antes de cerrar sesión).
                 try { localStorage.removeItem('mealfit_form_secure'); } catch { /* noop */ }
                 setLoadingData(false);
+                // [P1-10] Sin session no hay profile que hidratar.
+                setLoadingProfile(false);
             }
             setLoadingAuth(false);
             setLoadingData(false); // Forzar a false para destrabar la UI
@@ -647,6 +774,10 @@ export const AssessmentProvider = ({ children }) => {
             console.warn("⚠️ Advertencia: No se pudo verificar la sesión de Supabase (posible fallo de red o DNS). Iniciando en modo offline/guest.");
             setLoadingAuth(false);
             setLoadingData(false);
+            // [P1-10] Sin session verificable → NO hay profile que hidratar.
+            // Sin esto, el flag arrancado heurísticamente como `true` (por
+            // user_id en localStorage) quedaría colgado bloqueando consumers.
+            setLoadingProfile(false);
             // Si falla la red, asumimos que no hay sesión temporalmente para no bloquear la app entera
             handleAuthChange(null);
         });
@@ -835,23 +966,44 @@ export const AssessmentProvider = ({ children }) => {
     // tocó (registrada en `editedFieldsRef` desde `updateData`). Las
     // keys no tocadas se hidratan normalmente; las tocadas se preservan.
     useEffect(() => {
-        if (!session?.user) return;
+        // [P1-3] Sin session → no hay sensitive cifrado que descifrar. Bajamos
+        // el flag inmediatamente para que los consumers (Plan.jsx,
+        // useRegeneratePlan, InteractiveAssessmentFlow) no se queden esperando
+        // una hidratación que nunca va a ocurrir. Cubre: usuarios guest,
+        // usuarios que aún no han logged-in, sesiones expiradas tras token
+        // refresh fallido.
+        if (!session?.user) {
+            setLoadingSensitive(false);
+            return;
+        }
         let cancelled = false;
         (async () => {
-            const { sensitiveData } = await secureLoadFormData(session);
-            if (cancelled || !sensitiveData) return;
-            const hasSensitive = Object.keys(sensitiveData).length > 0;
-            if (!hasSensitive) return;
-            // [P0-FORM-2] Filtra keys que el usuario ya editó in-flight.
-            // El ref se lee aquí (después del await) — captura cualquier edit
-            // que ocurrió DURANTE el descifrado. Compartido con P0-FORM-3.
-            const edited = editedFieldsRef.current;
-            const filtered = {};
-            for (const [k, v] of Object.entries(sensitiveData)) {
-                if (!edited.has(k)) filtered[k] = v;
+            try {
+                const { sensitiveData } = await secureLoadFormData(session);
+                if (cancelled) return;
+                if (!sensitiveData) return;
+                const hasSensitive = Object.keys(sensitiveData).length > 0;
+                if (!hasSensitive) return;
+                // [P0-FORM-2] Filtra keys que el usuario ya editó in-flight.
+                // El ref se lee aquí (después del await) — captura cualquier edit
+                // que ocurrió DURANTE el descifrado. Compartido con P0-FORM-3.
+                const edited = editedFieldsRef.current;
+                const filtered = {};
+                for (const [k, v] of Object.entries(sensitiveData)) {
+                    if (!edited.has(k)) filtered[k] = v;
+                }
+                if (Object.keys(filtered).length === 0) return;
+                setFormData(prev => ({ ...prev, ...filtered }));
+            } finally {
+                // [P1-3] Bajamos el flag SIEMPRE al terminar, sin importar el
+                // outcome (éxito, sin sensitive, error de descifrado, token
+                // rotado). El finally garantiza que un fallo silencioso de
+                // `secureLoadFormData` no deje a los consumers atascados en
+                // estado de carga indefinido. Si quedó cancelled (re-mount o
+                // session change), no hace daño actualizar el state — el
+                // próximo run del effect lo subirá de nuevo si hace falta.
+                if (!cancelled) setLoadingSensitive(false);
             }
-            if (Object.keys(filtered).length === 0) return;
-            setFormData(prev => ({ ...prev, ...filtered }));
         })();
         return () => { cancelled = true; };
     }, [session?.user?.id, session?.access_token]);
@@ -1350,6 +1502,21 @@ export const AssessmentProvider = ({ children }) => {
             session,
             loadingAuth,
             loadingData,
+            // [P1-3 + P1-10] Hidratación pendiente del formData post-login.
+            // Combina dos sources de hidratación async:
+            //   - `loadingSensitive`: descifrado de `mealfit_form_secure`
+            //     (sensitive cifrado con clave HKDF derivada del access_token,
+            //     50-200ms).
+            //   - `loadingProfile`: fetch de `user_profiles.health_profile`
+            //     desde Supabase + restoreSessionData + checkPlanLimit
+            //     (100-500ms en primer login en otro dispositivo).
+            // Consumers (Plan.jsx, useRegeneratePlan, InteractiveAssessmentFlow)
+            // deben gatear con `if (loadingSensitive) return;` antes de llamar a
+            // `findFirstIncompleteField` o renderizar Navigate. Sin gate, la
+            // ventana post-login produce falsos positivos ("Falta completar X")
+            // con datos que SÍ están en storage cifrado o en DB pero aún no
+            // llegaron al state.
+            loadingSensitive: loadingSensitive || loadingProfile,
             userProfile,
             updateUserProfile,
             currentStep,

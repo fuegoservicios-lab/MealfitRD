@@ -19,8 +19,18 @@ export const Select = ({ children, ...props }) => (
     </div>
 );
 
-export const RadioCard = ({ name, value, checked, onChange, label, icon: Icon, desc }) => (
-    <label className={`${styles.radioCard} ${checked ? styles.checked : ''}`}>
+// [P6-FORM-RADIO-CLICK-FIX] `onClick` opcional para usos que necesitan
+// disparar acción (ej. auto-advance) en CADA click, no solo cuando el
+// `value` cambia. Bug observable: si `formData.gender` ya está pre-seteado
+// (sesión anterior, default, hidratación), `onChange` no fire al re-clickear
+// la misma opción → usuario stuck sin botón "Siguiente". Permitir `onClick`
+// en el `<label>` (que envuelve el radio) garantiza el callback en cada
+// interacción independiente del estado React previo.
+export const RadioCard = ({ name, value, checked, onChange, onClick, label, icon: Icon, desc }) => (
+    <label
+        className={`${styles.radioCard} ${checked ? styles.checked : ''}`}
+        onClick={onClick}
+    >
         <input
             type="radio"
             name={name}
@@ -68,6 +78,7 @@ RadioCard.propTypes = {
     value: PropTypes.string,
     checked: PropTypes.bool,
     onChange: PropTypes.func,
+    onClick: PropTypes.func,
     label: PropTypes.string,
     icon: PropTypes.elementType
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate, Navigate, useLocation } from 'react-router-dom';
-import { CheckCircle, Loader2, Server, Activity, PieChart, Utensils, UtensilsCrossed, ChefHat, ShoppingCart, ShieldCheck, AlertTriangle, RefreshCw } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { CheckCircle, Loader2, Server, Activity, PieChart, Utensils, UtensilsCrossed, ChefHat, ShoppingCart, ShieldCheck, AlertTriangle, RefreshCw, X } from 'lucide-react';
 
 import PropTypes from 'prop-types';
 
@@ -9,6 +9,7 @@ import { supabase } from '../supabase';
 import { useAssessment } from '../context/AssessmentContext';
 import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api';
 import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation';
+import { stripInternalFlags } from '../config/secureFormStorage';
 import { trackEvent } from '../utils/analytics';
 
 // [P1-B10] Default conservador para countdown de 429 cuando el backend no
@@ -85,15 +86,46 @@ const PIPELINE_TIMEOUT_MS = (() => {
 // --- GENERACIÓN DE PLAN CON STREAMING SSE ---
 let globalGenerationPromise = null;
 let globalAbortController = null;
+// [P1-16] Session_id de la generación en vuelo. `cancelGeneration` lo lee
+// para enviar el POST a `/api/plans/cancel?session_id=X` y propagar el
+// cancel al backend. Sin esto, el SSE se aborta del lado cliente pero el
+// pipeline LLM seguía corriendo hasta terminar el día actual y persistía
+// el plan en DB; el usuario veía el plan aparecer 30s después vía
+// Realtime UPDATE (cuota de LLM consumida + UX confuso).
+let globalCancelSessionId = null;
 
 export const cancelGeneration = () => {
+    // [P1-16] Best-effort POST al backend ANTES de abortar el SSE local.
+    // Si la red está lenta o el endpoint no responde, NO bloqueamos el
+    // abort del SSE — el cancel cooperativo del backend es bonus, no
+    // requerido. Usamos `fetch` directo (no `fetchWithAuth`) porque el
+    // endpoint es público (key por session_id, no requiere auth) y
+    // queremos cancelar antes de que el backend procese cualquier auth.
+    const sessionToCancel = globalCancelSessionId;
+    if (sessionToCancel) {
+        try {
+            fetch('/api/plans/cancel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionToCancel }),
+                // No esperamos la respuesta; fire-and-forget.
+                keepalive: true,
+            }).catch(() => { /* fire-and-forget; el abort SSE local cubre el peor caso */ });
+        } catch {
+            /* defensivo: nunca bloquear el cancel local por fallos del POST */
+        }
+    }
     if (globalAbortController) {
         globalAbortController.abort("UserCancelled");
         globalAbortController = null;
     }
+    globalCancelSessionId = null;
 };
 
-const generateAIPlanStream = async (formData, onProgress) => {
+// Exportada para tests de regresión (P0-1): verificar que cuando SSE y el
+// endpoint síncrono fallan, la función rechaza con `code='offline_unavailable'`
+// en lugar de retornar un plan hardcoded con alérgenos comunes.
+export const generateAIPlanStream = async (formData, onProgress) => {
     if (globalGenerationPromise) {
         console.warn("⚠️ Reutilizando promesa de generación en curso (React StrictMode)...");
         return globalGenerationPromise;
@@ -104,6 +136,13 @@ const generateAIPlanStream = async (formData, onProgress) => {
 
     globalGenerationPromise = (async () => {
         globalAbortController = new AbortController();
+        // [P6-CANCEL-CTRL-CAPTURE] Captura local del controller. `cancelGeneration`
+        // setea `globalAbortController = null` INMEDIATAMENTE tras `.abort()` —
+        // si el catch chequea `globalAbortController.signal.reason` después del
+        // cancel, el ref ya es null → check falla → cae al fallback síncrono
+        // → user ve "No pudimos conectarnos con la IA" cuando en realidad
+        // CANCELÓ. Mantener referencia local sobrevive al null del global.
+        const localAbortController = globalAbortController;
         const timeoutId = setTimeout(() => {
             if (globalAbortController) globalAbortController.abort();
         }, PIPELINE_TIMEOUT_MS);
@@ -173,8 +212,21 @@ const generateAIPlanStream = async (formData, onProgress) => {
                             onProgress(eventData);
                         }
                     } catch (parseErr) {
-                        if (parseErr.message?.includes('Error del servidor')) throw parseErr;
-                        // Error de parsing JSON, ignorar línea malformada
+                        // [SSE-ERROR-PROPAGATION] Solo silenciar errores de parsing
+                        // JSON (líneas SSE malformadas). Cualquier otro error — incluyendo
+                        // los `throw err` con code='llm_unavailable'/'cancelled' del
+                        // bloque eventType==='error' arriba — DEBE propagar al catch
+                        // externo. Antes el filtro `message?.includes('Error del
+                        // servidor')` solo capturaba el default genérico; el mensaje
+                        // del backend "La IA está temporalmente saturada..." NO lo
+                        // incluía → quedaba silenciado → reader continuaba hasta
+                        // EOF → lanzaba "Stream cerrado sin resultado completo" →
+                        // fallback síncrono → 503 → cascada de errores.
+                        if (parseErr instanceof SyntaxError) {
+                            // JSON.parse falló: línea SSE malformada, ignorar.
+                            continue;
+                        }
+                        throw parseErr;
                     }
                 }
             }
@@ -187,12 +239,51 @@ const generateAIPlanStream = async (formData, onProgress) => {
         } catch (error) {
             clearTimeout(timeoutId);
 
+            // [P6-CANCEL-SIGNAL-CHECK] FIRST PRIORITY: si el signal está
+            // abortado por el usuario, NO importa qué error se haya levantado
+            // (AbortError, "Stream cerrado sin resultado completo", etc.).
+            // Bug observable corrida 01:00: SSE se cerró por cancel → reader
+            // throwed `Error("Stream cerrado sin resultado completo")` (NO
+            // AbortError) → catch caía al `else` → disparó fallback al
+            // endpoint síncrono → backend inició OTRO pipeline completo (Día
+            // 2 generó 85s) que después también fue cancelado. Resultado:
+            // 1.5 min de cuota LLM gastada por una generación que el user
+            // canceló. Fix: chequear signal.aborted ANTES de cualquier otra
+            // rama; si está abortado por user, salir sin fallback.
+            if (
+                localAbortController &&
+                localAbortController.signal.aborted &&
+                localAbortController.signal.reason === 'UserCancelled'
+            ) {
+                console.warn("🚫 Generación cancelada por el usuario (signal abortado).");
+                throw new Error("UserCancelled");
+            }
+
             if (error.name === 'AbortError' || error === 'UserCancelled') {
-                if (globalAbortController && globalAbortController.signal.reason === 'UserCancelled') {
+                // [P6-CANCEL-CTRL-CAPTURE] Usar `localAbortController` (capturado
+                // al inicio) en vez de `globalAbortController` (que `cancelGeneration`
+                // ya seteó a null). El signal del local sigue teniendo `reason`.
+                if (localAbortController && localAbortController.signal.reason === 'UserCancelled') {
                     console.warn("🚫 Generación cancelada por el usuario.");
                     throw new Error("UserCancelled"); // Salir inmediatamente sin fallback
                 }
                 console.error("⏳ Error Fatal: Timeout total excedido.");
+            } else if (
+                // [P6-CANCEL-SSE-FIX] El backend puede emitir SSE event=error
+                // con `message="Generación cancelada por el usuario"` ANTES
+                // de que llegue el AbortError local (race condition: el cancel
+                // POST llega al backend, el backend cierra la stream con
+                // mensaje, frontend recibe el mensaje antes que el abort
+                // local dispare). Sin esta rama, el catch caía al fallback
+                // síncrono que también fallaba → user veía "No pudimos
+                // conectarnos con la IA" cuando en realidad CANCELÓ. Ahora
+                // detectamos el mensaje O el code del backend y propagamos
+                // limpio como UserCancelled.
+                error.code === 'cancelled' ||
+                /cancelad[oa] por el usuario/i.test(error.message || '')
+            ) {
+                console.warn("🚫 Generación cancelada por el usuario (vía SSE).");
+                throw new Error("UserCancelled");
             } else if (error.code === 'llm_unavailable') {
                 // El backend YA decidió que la IA no está disponible (504 de Gemini,
                 // circuit breaker abierto, etc.). El endpoint síncrono devolverá el
@@ -241,48 +332,29 @@ const generateAIPlanStream = async (formData, onProgress) => {
                 }
             }
 
-            // Plan de respaldo offline
-            console.warn("⚠️ Activando Plan de Respaldo (Modo Offline)...");
-            return {
-                calories: 2000,
-                macros: { protein: "150g", carbs: "200g", fats: "60g" },
-                insights: [
-                    "⚠️ MODO OFFLINE: El servidor de IA no respondió.",
-                    "Este es un plan generado localmente con 3 opciones para que no pierdas el ritmo."
-                ],
-                days: [
-                    {
-                        day: 1,
-                        meals: [
-                            { meal: "Desayuno", time: "8:00 AM", name: "Mangú con Huevo", desc: "Puré de plátano verde con huevo hervido.", cals: 450 },
-                            { meal: "Almuerzo", time: "1:00 PM", name: "La Bandera (Versión Fit)", desc: "Arroz, habichuelas y pollo guisado.", cals: 600 },
-                            { meal: "Merienda", time: "4:00 PM", name: "Guineo Maduro", desc: "Una unidad mediana.", cals: 200 },
-                            { meal: "Cena", time: "8:00 PM", name: "Pescado al Papillote", desc: "Filete de pescado con vegetales.", cals: 450 }
-                        ]
-                    },
-                    {
-                        day: 2,
-                        meals: [
-                            { meal: "Desayuno", time: "8:00 AM", name: "Avena con Frutas", desc: "Avena cocida con leche de almendras y frutas frescas.", cals: 400 },
-                            { meal: "Almuerzo", time: "1:00 PM", name: "Pechuga a la Plancha", desc: "Pechuga macerada con limón, acompañada de ensalada y batata.", cals: 550 },
-                            { meal: "Merienda", time: "4:00 PM", name: "Yogur Griego", desc: "Yogur sin azúcar con nueces.", cals: 250 },
-                            { meal: "Cena", time: "8:00 PM", name: "Ensalada de Atún", desc: "Atún en agua con lechuga, tomate y aguacate.", cals: 400 }
-                        ]
-                    },
-                    {
-                        day: 3,
-                        meals: [
-                            { meal: "Desayuno", time: "8:00 AM", name: "Huevos Revueltos con Espinaca", desc: "Huevos revueltos acompañados de espinaca y tostada integral.", cals: 380 },
-                            { meal: "Almuerzo", time: "1:00 PM", name: "Sancocho Ligero", desc: "Sancocho con viandas y pollo, bajo en grasa.", cals: 650 },
-                            { meal: "Merienda", time: "4:00 PM", name: "Manzana con Mantequilla de Maní", desc: "Rodajas de manzana fresca con una cucharada de mantequilla de maní.", cals: 250 },
-                            { meal: "Cena", time: "8:00 PM", name: "Pollo Desmenuzado", desc: "Pechuga de pollo desmenuzada con pimientos y cebolla.", cals: 420 }
-                        ]
-                    }
-                ]
-            };
+            // [P0-1] Antes este path retornaba un plan hardcoded con maní,
+            // pescado, lácteos, gluten y arroz/habichuelas. Si el usuario era
+            // alérgico/vegano/celíaco/diabético, el plan de respaldo offline
+            // no consultaba `formData.allergies`/`dietType`/`medicalConditions`
+            // y entregaba comida contraindicada — luego `setTempPlan` lo
+            // mostraba en preview y `saveGeneratedPlan` lo persistía si el
+            // usuario clicaba "Aceptar". Riesgo de safety médica directa que
+            // invalidaba toda la cadena de validación P0-FORM-1/P1-1 upstream.
+            //
+            // Ahora propagamos un error con `code='offline_unavailable'`
+            // (mismo patrón que `llm_unavailable`/`rate_limited`); el caller
+            // muestra toast con botón "Reintentar" sin navegar al dashboard.
+            console.warn("⚠️ SSE y endpoint síncrono fallaron — propagando offline_unavailable.");
+            const offlineErr = new Error("No pudimos conectarnos con la IA. Por favor, verifica tu conexión y reintenta.");
+            offlineErr.code = 'offline_unavailable';
+            throw offlineErr;
         } finally {
             globalGenerationPromise = null;
             globalAbortController = null;
+            // [P1-16] Limpiar session_id de cancelación al completar
+            // (success/error). Sin esto, un cancelGeneration posterior
+            // intentaría cancelar una session ya completada.
+            globalCancelSessionId = null;
         }
     })();
 
@@ -352,13 +424,20 @@ function getTotalDaysByGroceryDuration(groceryDuration) {
 
 const Plan = () => {
     // 1. HOOKS
-    const { formData, saveGeneratedPlan, restorePlan, setCurrentStep, userProfile } = useAssessment();
+    const { formData, saveGeneratedPlan, restorePlan, setCurrentStep, userProfile, loadingSensitive } = useAssessment();
     const [status, setStatus] = useState('analyzing'); // analyzing, generating, preview, ready
     const [planData, setPlanData] = useState(null);
     const [tempPlan, setTempPlan] = useState(null); // Nuevo estado para GAP 14
     const [oldPlan, setOldPlan] = useState(null); // Estado para el plan viejo
     const [streamPhase, setStreamPhase] = useState(null); // Fase actual del pipeline SSE
     const [daysCompleted, setDaysCompleted] = useState([]); // Días ya generados [1, 2, 3]
+    // [P0-13] Dedupea el toast "Falta completar X" para que NO se emita más
+    // de una vez por mount, incluso bajo StrictMode o re-renders provocados
+    // por cambios de `loadingSensitive`/`formData`. Antes el side-effect vivía
+    // en render con `setTimeout(0) + <Navigate>`, lo cual programaba toasts
+    // múltiples y rebote `/plan↔/assessment` cuando `loadingSensitive`
+    // flickeaba durante la hidratación post-login.
+    const incompleteToastShownRef = useRef(false);
     const navigate = useNavigate();
     const location = useLocation();
     const previousMeals = location.state?.previous_meals || location.state?.previousMeals || [];
@@ -367,6 +446,16 @@ const Plan = () => {
 
     // 2. USEEFFECT
     useEffect(() => {
+        // [P1-3] Si el descifrado del sensitive cifrado todavía está en
+        // vuelo (50-200ms post-login), NO disparamos `processPlan` — campos
+        // sensibles vacíos (allergies=[], motivation="") sesgarían
+        // `findFirstIncompleteField` hacia un falso positivo y el render
+        // condicional de abajo nos rebotaría a /assessment con un toast
+        // engañoso. Esperamos a que `loadingSensitive` baje a false; la
+        // dependencia explícita en el deps array re-dispara el effect en ese
+        // momento.
+        if (loadingSensitive) return;
+
         // [P1-B6] Validación pre-fetch alineada con el backend. Antes este
         // check solo verificaba `age && mainGoal` (2 de 6 requeridos), así que
         // un usuario con `gender=""` o `weight=""` quemaba el check de cuota
@@ -408,16 +497,47 @@ const Plan = () => {
                 }
 
                 const totalDays = getTotalDaysByGroceryDuration(formData?.groceryDuration);
+                // [P1-8] Filtrar las keys internas del wizard (`_skipLunchTouched`,
+                // `_weightUnitTouched`, cualquier futura `_*`) ANTES del spread.
+                // Sin este filtro, el endpoint `/api/plans/analyze/stream` recibía
+                // los flags de UI; el backend los strippea con `_strip_untrusted_internal_keys`,
+                // pero el JSON dump del prompt al LLM podía incluirlas como ruido
+                // informacional. Centralizado en `stripInternalFlags` para que el
+                // invariante sea testeable y consistente con
+                // `buildHealthProfilePayload` (persistencia DB).
+                const _safeForm = stripInternalFlags(formData);
+                // [P1-16] Registrar el session_id activo para que
+                // `cancelGeneration` pueda hacer POST al backend si el
+                // usuario clickea "Cancelar". Reset a null en el `finally`
+                // del wrapper de generateAIPlanStream o cuando termine
+                // exitosamente.
+                const _activeSessionId = userId || guestSessionId;
+                globalCancelSessionId = _activeSessionId;
                 const dataToSend = {
-                    ...formData,
+                    ..._safeForm,
                     user_id: userId,
-                    session_id: userId || guestSessionId,
+                    session_id: _activeSessionId,
                     previous_meals: previousMeals,
                     current_pantry_ingredients: currentIngredients,
                     update_reason: updateReason,
                     totalDays,
                     tzOffset: new Date().getTimezoneOffset(),
                     is_plan_expired: location.state?.is_plan_expired || location.state?.isPlanExpired || false,
+                    // [P1-11] Defensa contra drift frontend↔backend: el frontend
+                    // gatea `dietType` como required (`REQUIRED_FORM_FIELDS` en
+                    // `formValidation.js`), pero el backend lo deja OUT de
+                    // `_REQUIRED_FORM_FIELDS` deliberadamente para preservar
+                    // rehidratación de perfiles legacy con variantes ES
+                    // ("Omnívora"/"vegetariana"). Si el frontend gating se
+                    // evade (cliente no oficial, hidratación rota, plan saved
+                    // donde el legacy `dietTypes:[]` viene del schema en lugar
+                    // de `dietType: ''`), el backend defaultea internamente a
+                    // catálogo completo "balanced" — un usuario vegano podría
+                    // recibir un plan balanced silenciosamente. Aquí
+                    // explicitamos el default a "balanced" para que el contrato
+                    // sea auditable end-to-end y NO se propague `''` al backend
+                    // ni al LLM.
+                    dietType: _safeForm.dietType || 'balanced',
                 };
 
                 // Callback de progreso SSE
@@ -443,12 +563,22 @@ const Plan = () => {
                 const oldPlanStr = localStorage.getItem('mealfit_plan');
                 const oldPlan = oldPlanStr ? JSON.parse(oldPlanStr) : {};
 
+                // [GROCERY-START-DATE-FIX 2026-05-06] grocery_start_date SIEMPRE es ahora.
+                // Antes, en flujos con `previousMeals` (renewal/regeneración con historial)
+                // heredábamos `oldPlan.grocery_start_date` para "preservar el ciclo". Bug
+                // observado: si el oldPlan era de ayer (e.g. plan creado mar 5-may 16:00)
+                // y el usuario regeneraba hoy (mié), el nuevo plan llevaba la fecha de
+                // ayer → Dashboard calculaba `daysSinceCreation=1` → disparaba shift-plan
+                // → recortaba el día 1 del plan recién generado, dejándolo con 2 días en
+                // vez de 3. Resultado: el viernes "desaparecía" sin que el usuario hiciera
+                // nada. `grocery_start_date` debe reflejar **cuándo se generó este plan**.
+                // `cycle_start_date` sí preservamos del oldPlan en renewal porque marca
+                // el inicio del ciclo de 30 días (no se resetea por regeneración intra-ciclo).
+                const now = new Date().toISOString();
+                generatedPlan.grocery_start_date = now;
                 if (previousMeals && previousMeals.length > 0) {
-                    generatedPlan.grocery_start_date = oldPlan.grocery_start_date || oldPlan.created_at || new Date().toISOString();
-                    generatedPlan.cycle_start_date = oldPlan.cycle_start_date || generatedPlan.grocery_start_date;
+                    generatedPlan.cycle_start_date = oldPlan.cycle_start_date || now;
                 } else {
-                    const now = new Date().toISOString();
-                    generatedPlan.grocery_start_date = now;
                     generatedPlan.cycle_start_date = now;
                 }
 
@@ -480,6 +610,25 @@ const Plan = () => {
                         import('sonner').then(({ toast }) => {
                             toast.error("La IA está saturada", {
                                 description: error.message || "Intenta de nuevo en 1-2 minutos.",
+                                duration: Infinity,
+                                action: {
+                                    label: "Reintentar",
+                                    onClick: () => { processPlan(); },
+                                },
+                            });
+                        });
+                        return;
+                    }
+                    // [P0-1] SSE + endpoint síncrono ambos fallaron (red caída,
+                    // backend inalcanzable, DNS, etc.). Antes retornábamos un
+                    // plan hardcoded con alérgenos comunes — riesgo médico.
+                    // Ahora mostramos toast con Reintentar (NO navegamos al
+                    // dashboard) para que el usuario pueda recuperar conexión
+                    // y disparar el flujo de nuevo sin perder contexto.
+                    if (error.code === 'offline_unavailable') {
+                        import('sonner').then(({ toast }) => {
+                            toast.error("Sin conexión con la IA", {
+                                description: error.message || "Verifica tu conexión y reintenta.",
                                 duration: Infinity,
                                 action: {
                                     label: "Reintentar",
@@ -548,31 +697,61 @@ const Plan = () => {
         return () => {
             ignore = true;
         };
+        // [P1-3] `loadingSensitive` en deps para re-disparar el effect cuando
+        // termine la hidratación post-login. Las demás capturas (formData,
+        // location, etc.) siguen siendo stale-by-design — el effect solo debe
+        // correr una vez por mount efectivo, no por cada keystroke del form.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [loadingSensitive]);
+
+    // [P0-13] Side-effect de "campo faltante → toast + navigate a /assessment".
+    // ANTES vivía inline en render con `setTimeout(0)` + `<Navigate>`, lo cual:
+    //   1. Programaba toasts múltiples bajo StrictMode (que invoca render 2x).
+    //   2. En cualquier re-render mientras `missing` siguiera truthy
+    //      (loadingSensitive flickeando true→false→true durante token refresh
+    //      o hidratación), schedulaba otro toast.
+    //   3. Renderizaba `<Navigate>` durante el primer render incluso si los
+    //      datos sensibles estaban a punto de hidratarse → rebote
+    //      `/plan ↔ /assessment` con toasts duplicados.
+    // AHORA es un useEffect que:
+    //   - Solo evalúa cuando `loadingSensitive=false` (hidratación terminada).
+    //   - Dedupea el toast vía `incompleteToastShownRef` (1 por mount).
+    //   - Navega vía `navigate(replace:true)` (no `<Navigate>` en render).
+    //
+    // El render de abajo retorna `<LoadingScreen>` mientras el effect
+    // ejecuta el navigate — UX equivalente al estado "analyzing" inicial.
+    useEffect(() => {
+        if (loadingSensitive) return;
+        const missing = findFirstIncompleteField(formData);
+        if (!missing) return;
+        if (!incompleteToastShownRef.current) {
+            incompleteToastShownRef.current = true;
+            const label = FIELD_LABELS[missing] || missing;
+            import('sonner').then(({ toast }) => {
+                toast.info(`Falta completar: ${label}`, {
+                    description: 'Te llevamos al cuestionario.',
+                    duration: 4000,
+                });
+            });
+        }
+        navigate('/assessment', { replace: true });
+    }, [loadingSensitive, formData, navigate]);
 
     // 3. RENDERIZADO CONDICIONAL
 
-    // [P1-B6] Si falta cualquier campo requerido por el backend, redirigir a
-    // /assessment con un toast accionable que explica qué falta — antes este
-    // check solo cubría `age && mainGoal` y un usuario podía colarse al fetch
-    // con `gender`/`weight`/`height`/`activityLevel` vacíos y recibir 422.
-    {
-        const missing = findFirstIncompleteField(formData);
-        if (missing) {
-            const label = FIELD_LABELS[missing] || missing;
-            // Toast diferido para que se muestre tras la navegación (Navigate
-            // remonta /assessment inmediatamente; sonner sobrevive al unmount).
-            setTimeout(() => {
-                import('sonner').then(({ toast }) => {
-                    toast.info(`Falta completar: ${label}`, {
-                        description: 'Te llevamos al cuestionario.',
-                        duration: 4000,
-                    });
-                });
-            }, 0);
-            return <Navigate to="/assessment" />;
-        }
+    // [P0-13] Si falta un campo requerido y la hidratación terminó, el effect
+    // arriba dispara la navegación; mientras el navigate se efectúa,
+    // mostramos LoadingScreen para evitar el flicker del Plan completo.
+    // Mientras `loadingSensitive=true`, también caemos al LoadingScreen
+    // (UX equivalente al estado "analyzing" inicial; sin riesgo de rebote
+    // porque NO disparamos navigate hasta que la hidratación complete).
+    if (!loadingSensitive && findFirstIncompleteField(formData)) {
+        return <LoadingScreen
+            status={status}
+            streamPhase={streamPhase}
+            daysCompleted={daysCompleted}
+            onCancel={cancelGeneration}
+        />;
     }
 
     if (status === 'preview') {
@@ -936,6 +1115,9 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     const [progress, setProgress] = useState(0);
     const displayProgress = status === 'ready' ? 100 : progress;
     const [tipIndex, setTipIndex] = useState(0);
+    // [P6-CANCEL-MODAL] State para confirm inline (reemplaza window.confirm
+    // nativo que se ve fuera de tema y rompe la UX dark del loading screen).
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
     const steps = [
         { text: "Iniciando motor de Inteligencia Artificial", icon: Server, pct: 5, phase: null },
@@ -1257,37 +1439,143 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                     </AnimatePresence>
                 </div>
 
-                {/* === CANCEL BUTTON === */}
+                {/* === CANCEL BUTTON / CONFIRM MODAL === */}
+                {/* [P6-CANCEL-MODAL] Reemplaza `window.confirm()` (modal nativo
+                 * blanco que rompe el tema dark) con un confirm inline animado.
+                 * Patrón "click → expand inline confirm" — más bajo riesgo
+                 * que un modal flotante (no sobreposiciona, no atrapa focus,
+                 * no rompe scroll del loading screen). */}
                 {onCancel && status !== 'ready' && status !== 'preview' && (
-                    <div style={{ marginTop: '1.5rem' }}>
-                        <button 
-                            onClick={() => {
-                                if (window.confirm("¿Seguro que deseas cancelar la generación?")) {
-                                    onCancel();
-                                }
-                            }}
-                            style={{
-                                background: 'transparent',
-                                border: '1px solid rgba(239, 68, 68, 0.4)',
-                                color: 'rgba(239, 68, 68, 0.8)',
-                                padding: '0.6rem 1.5rem',
-                                borderRadius: '2rem',
-                                fontSize: '0.8rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                            }}
-                            onMouseOver={(e) => {
-                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                                e.currentTarget.style.color = '#ef4444';
-                            }}
-                            onMouseOut={(e) => {
-                                e.currentTarget.style.background = 'transparent';
-                                e.currentTarget.style.color = 'rgba(239, 68, 68, 0.8)';
-                            }}
-                        >
-                            Cancelar Generación
-                        </button>
+                    <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'center' }}>
+                        <AnimatePresence mode="wait">
+                            {!showCancelConfirm ? (
+                                <motion.button
+                                    key="cancel-trigger"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    transition={{ duration: 0.15 }}
+                                    onClick={() => setShowCancelConfirm(true)}
+                                    style={{
+                                        background: 'transparent',
+                                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                                        color: 'rgba(239, 68, 68, 0.85)',
+                                        padding: '0.6rem 1.5rem',
+                                        borderRadius: '2rem',
+                                        fontSize: '0.8rem',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                    }}
+                                    onMouseOver={(e) => {
+                                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                                        e.currentTarget.style.color = '#ef4444';
+                                        e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.7)';
+                                    }}
+                                    onMouseOut={(e) => {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = 'rgba(239, 68, 68, 0.85)';
+                                        e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                                    }}
+                                >
+                                    <X size={14} strokeWidth={2.5} />
+                                    Cancelar Generación
+                                </motion.button>
+                            ) : (
+                                <motion.div
+                                    key="cancel-confirm"
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    transition={{ duration: 0.2 }}
+                                    style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '0.75rem',
+                                        padding: '1rem 1.25rem',
+                                        background: 'rgba(20, 20, 25, 0.85)',
+                                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                                        borderRadius: '0.75rem',
+                                        backdropFilter: 'blur(8px)',
+                                        maxWidth: '320px',
+                                    }}
+                                >
+                                    <div style={{
+                                        color: 'rgba(255,255,255,0.9)',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 500,
+                                        textAlign: 'center',
+                                        lineHeight: '1.4',
+                                    }}>
+                                        ¿Cancelar la generación?
+                                    </div>
+                                    <div style={{
+                                        color: 'rgba(255,255,255,0.5)',
+                                        fontSize: '0.7rem',
+                                        textAlign: 'center',
+                                        lineHeight: '1.4',
+                                    }}>
+                                        Perderás el progreso actual.
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                                        <button
+                                            onClick={() => setShowCancelConfirm(false)}
+                                            style={{
+                                                flex: 1,
+                                                background: 'transparent',
+                                                border: '1px solid rgba(255,255,255,0.2)',
+                                                color: 'rgba(255,255,255,0.85)',
+                                                padding: '0.5rem 1rem',
+                                                borderRadius: '0.5rem',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 600,
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s',
+                                            }}
+                                            onMouseOver={(e) => {
+                                                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)';
+                                            }}
+                                            onMouseOut={(e) => {
+                                                e.currentTarget.style.background = 'transparent';
+                                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                                            }}
+                                        >
+                                            Continuar
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setShowCancelConfirm(false);
+                                                onCancel();
+                                            }}
+                                            style={{
+                                                flex: 1,
+                                                background: 'rgba(239, 68, 68, 0.85)',
+                                                border: '1px solid rgba(239, 68, 68, 0.85)',
+                                                color: 'white',
+                                                padding: '0.5rem 1rem',
+                                                borderRadius: '0.5rem',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 600,
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s',
+                                            }}
+                                            onMouseOver={(e) => {
+                                                e.currentTarget.style.background = '#ef4444';
+                                            }}
+                                            onMouseOut={(e) => {
+                                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.85)';
+                                            }}
+                                        >
+                                            Sí, cancelar
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 )}
 

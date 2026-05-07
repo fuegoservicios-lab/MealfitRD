@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { buildFieldToStepIndex, FIELD_LABELS, findFirstIncompleteField } from '../../config/formValidation';
 
 const InteractiveAssessmentFlow = () => {
-    const { currentStep, setCurrentStep, nextStep, formData, saveGeneratedPlan, maxReachedStep, planData } = useAssessment();
+    const { currentStep, setCurrentStep, nextStep, formData, saveGeneratedPlan, maxReachedStep, planData, loadingSensitive } = useAssessment();
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -61,12 +61,31 @@ const InteractiveAssessmentFlow = () => {
         };
     }, []);
 
+    // [P6-FORM-FLASH-FIX] Flag transitorio que suprime el botón "Siguiente"
+    // durante los 300ms del setTimeout de auto-advance. Sin esto, post-fix
+    // P6-FORM-MANUAL-EXIT, el flujo era:
+    //   1. user click "Sedentario" → `formData.activityLevel = 'sedentary'`
+    //   2. React re-render → `stepFieldsFilled = true` → botón aparece (visible ~300ms)
+    //   3. setTimeout dispara nextStep() → step cambia → botón desaparece
+    // El flash visual es mala UX. Con `isAutoAdvancing=true` durante el
+    // delay, el botón queda oculto hasta que el step cambie naturalmente.
+    const [isAutoAdvancing, setIsAutoAdvancing] = useState(false);
+
     // Auto advance helper with a slight delay for better UX
     const handleAutoAdvance = () => {
+        setIsAutoAdvancing(true);
         setTimeout(() => {
             nextStep();
+            setIsAutoAdvancing(false);
         }, 300);
     };
+
+    // [P6-FORM-FLASH-FIX] Reset defensivo: si el usuario navega manualmente
+    // (prevStep, jump, etc.) durante el setTimeout, el flag debe limpiarse
+    // al cambiar de step para no esconder el botón en el siguiente.
+    useEffect(() => {
+        setIsAutoAdvancing(false);
+    }, [currentStep]);
 
     // The sequence of steps
     // [P1-FORM-1] Cada step que captura campos `REQUIRED_FORM_FIELDS` declara
@@ -209,6 +228,22 @@ const InteractiveAssessmentFlow = () => {
                     // ref se reinició pero el state aún muestra el botón
                     // disabled (transición de unmount→remount).
                     if (submittingRef.current || isSubmitting) return;
+
+                    // [P1-3] Si el descifrado del sensitive cifrado todavía
+                    // está en vuelo (caso raro: usuario que loggea en otro
+                    // tab mientras este wizard corre, o token refresh
+                    // disparado durante el flow), no validamos contra campos
+                    // sensibles potencialmente vacíos. Toast neutral y NO
+                    // tocamos `submittingRef` — el usuario puede reintentar
+                    // en <1s una vez termine la hidratación.
+                    if (loadingSensitive) {
+                        toast.info('Cargando tus datos…', {
+                            description: 'Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.',
+                            duration: 3000,
+                        });
+                        return;
+                    }
+
                     // CRITICAL: setear el ref ANTES de cualquier validación
                     // o async. Si el segundo click llega después de este
                     // punto pero antes de setIsSubmitting (varios ms de
@@ -274,6 +309,21 @@ const InteractiveAssessmentFlow = () => {
     const hasCompletedBefore = !!planData;
     const canSkip = (currentStep < maxReachedStep) || hasCompletedBefore;
 
+    // [P6-FORM-MANUAL-EXIT] Si los campos del step actual están llenos
+    // (sea por click fresh, sea por hidratación de sesión anterior), el
+    // usuario puede avanzar manualmente. Cubre el caso donde auto-advance
+    // no se disparó (valor pre-existente, doble-click, etc.) — antes el
+    // botón "Siguiente" solo aparecía si `canSkip` y el usuario quedaba
+    // atrapado en step 0 con valor pre-seteado.
+    const stepFieldsFilled = Array.isArray(currentStepConfig.fields)
+        && currentStepConfig.fields.length > 0
+        && currentStepConfig.fields.every((f) => {
+            const v = formData[f];
+            if (v === undefined || v === null || v === '') return false;
+            if (Array.isArray(v) && v.length === 0) return false;
+            return true;
+        });
+
     // [P1-B4] Handler para "Saltar a la última pregunta". Antes el onClick
     // hacía `setCurrentStep(steps.length - 1)` directo: si el usuario había
     // completado el flow antes (`hasCompletedBefore`) pero después manipuló
@@ -283,6 +333,23 @@ const InteractiveAssessmentFlow = () => {
     // sin contexto). Ahora: si falta algún `_REQUIRED_FORM_FIELDS`, llevamos
     // al usuario al primer step incompleto en lugar de al final.
     const handleSkipToLastStep = () => {
+        // [P1-14] Guard contra race con la hidratación del sensitive cifrado
+        // (`mealfit_form_secure`) y/o `fetchProfile` desde DB. Sin este
+        // guard, un click rápido durante la ventana de descifrado (50-200ms)
+        // o el fetch del profile (100-500ms en primer login en otro
+        // dispositivo) hacía que `findFirstIncompleteField` leyera
+        // `allergies=[]` / `motivation=''` / etc. (defaults vacíos) → el
+        // toast "Antes de saltar, completa: Alergias" + redirect aparecía
+        // PESE A QUE los datos SÍ están en storage cifrado o en DB.
+        // Mismo patrón aplicado a `onFinish` de QSupplements (P1-3) y a
+        // `Plan.jsx` (P0-13). Aquí cerramos el último call site afectado.
+        if (loadingSensitive) {
+            toast.info('Cargando tus datos…', {
+                description: 'Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.',
+                duration: 3000,
+            });
+            return;
+        }
         const missing = findFirstIncompleteField(formData);
         if (missing) {
             const stepIdx = fieldToStepIndex[missing];
@@ -310,13 +377,13 @@ const InteractiveAssessmentFlow = () => {
                     {currentStepConfig.component}
                 </div>
                 
-                {canSkip && (
-                    <div style={{ 
-                        marginTop: '2rem', 
-                        display: 'flex', 
+                {(canSkip || stepFieldsFilled) && !isAutoAdvancing && (
+                    <div style={{
+                        marginTop: '2rem',
+                        display: 'flex',
                         flexDirection: 'column',
-                        gap: '0.75rem', 
-                        animation: 'fadeIn 0.3s ease-in-out' 
+                        gap: '0.75rem',
+                        animation: 'fadeIn 0.3s ease-in-out'
                     }}>
                         {!currentStepConfig.hasInternalNext && (
                             <button 
@@ -340,7 +407,18 @@ const InteractiveAssessmentFlow = () => {
                             </button>
                         )}
                         
-                        {currentStep === 0 && hasCompletedBefore && (
+                        {/* [P6-FORM-SKIP-ALWAYS] Pre-fix: solo aparecía si
+                         * `hasCompletedBefore` (planData existente). Eso
+                         * dejaba a usuarios first-time sin opción de skip
+                         * aunque tuvieran data parcialmente cargada (ej.
+                         * desde un perfil otra ruta). El handler
+                         * `handleSkipToLastStep` YA valida defensivamente:
+                         * si falta algún `_REQUIRED_FORM_FIELDS`, redirige
+                         * al primer step incompleto con toast informativo.
+                         * Por eso es seguro mostrar el botón siempre en
+                         * step 0 — peor caso es 1 click → toast → primer
+                         * step incompleto. */}
+                        {currentStep === 0 && (
                             <button
                                 onClick={handleSkipToLastStep}
                                 style={{ 

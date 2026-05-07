@@ -199,11 +199,16 @@ export const saveFormData = async (formData, session) => {
             // confunda al próximo load.
             try { localStorage.removeItem(SECURE_KEY); } catch { /* noop */ }
         }
-    } else {
-        // Guest o sin crypto: NO persistir sensitive en absoluto. Borrar cualquier
-        // blob anterior (ej. el usuario cerró sesión y queremos limpiar).
-        try { localStorage.removeItem(SECURE_KEY); } catch { /* noop */ }
     }
+    // Sin session: NO tocamos `mealfit_form_secure`. Antes borrábamos aquí, pero
+    // al refrescar la página hay una ventana de 50-200ms donde el provider monta
+    // con `session=null` (auth aún no hidratada) y este effect dispara con
+    // sensitive vacío + session null → la rama "guest" borraba el blob cifrado
+    // ANTES de que el effect de hidratación pudiera leerlo, perdiendo todos los
+    // campos sensibles (allergies, medicalConditions, dislikes, motivation, etc.).
+    // El borrado al logout está cubierto explícitamente por `clearFormStorage()`
+    // y los `localStorage.removeItem(SECURE_KEY)` en AssessmentContext (handlers
+    // de signOut). No necesitamos borrar acá.
 };
 
 /**
@@ -410,14 +415,35 @@ export const buildHealthProfilePayload = (formData, overrides = {}, session = nu
         // Caller decide cómo notificar — devolvemos null para fallar explícito.
         return null;
     }
+    return { ...stripInternalFlags(formData), ...(overrides || {}) };
+};
+
+
+/**
+ * [P1-8] Filtra cualquier key con prefijo `_` del objeto formData.
+ *
+ * Usado por `buildHealthProfilePayload` (persistencia DB) y por
+ * `Plan.jsx → generateAIPlanStream` (payload al backend `/api/plans/analyze/stream`).
+ * Antes el spread `{ ...formData, ... }` enviaba claves internas como
+ * `_skipLunchTouched`/`_weightUnitTouched` al endpoint y, transitivamente,
+ * al prompt del LLM (que dumpea `form_data` como contexto). Drift de
+ * contrato + leak menor de estado UI al modelo. El helper centraliza el
+ * filtro en un único lugar para que el invariante sea testeable y el
+ * patrón sea reutilizable por nuevos call sites.
+ *
+ * @param {object|null|undefined} formData — state del wizard (o subset).
+ * @returns {object} copia con solo las keys que NO empiezan con `_`.
+ */
+export const stripInternalFlags = (formData) => {
     const safe = {};
     if (formData && typeof formData === 'object') {
         for (const [k, v] of Object.entries(formData)) {
             // Mismo invariante que el backend: TODA key con prefijo `_` se
-            // considera flag interno y NO se persiste a `health_profile`.
+            // considera flag interno y NO se persiste/transmite a sistemas
+            // downstream.
             if (typeof k === 'string' && k.startsWith('_')) continue;
             safe[k] = v;
         }
     }
-    return { ...safe, ...(overrides || {}) };
+    return safe;
 };

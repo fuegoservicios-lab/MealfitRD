@@ -1,7 +1,8 @@
 .wrapper {
-    max-width: 800px;
+    max-width: 920px;
     margin: 0 auto;
-    padding: 0 1rem;
+    padding: 1.5rem 1rem 4rem;
+    position: relative;
 }
 
 .header {
@@ -21,34 +22,95 @@
     color: var(--text-muted);
 }
 
-.section {
-    background: white;
-    border-radius: 1.5rem;
-    padding: 2rem;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
-    border: 1px solid rgba(226, 232, 240, 1);
+/* --- UNIFIED PREMIUM SURFACE --- */
+.grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(252, 252, 255, 0.92) 100%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: 1.75rem;
+    border: 1px solid rgba(226, 232, 240, 0.75);
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
+        0 1px 2px rgba(15, 23, 42, 0.04),
+        0 24px 48px -16px rgba(15, 23, 42, 0.10),
+        0 8px 16px -8px rgba(79, 70, 229, 0.06);
+    overflow: hidden;
+    position: relative;
 }
 
+.grid::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg,
+        rgba(79, 70, 229, 0) 0%,
+        rgba(79, 70, 229, 0.85) 30%,
+        rgba(129, 140, 248, 0.95) 50%,
+        rgba(79, 70, 229, 0.85) 70%,
+        rgba(79, 70, 229, 0) 100%);
+    pointer-events: none;
+}
 
+.grid::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 60% 40% at 0% 0%, rgba(79, 70, 229, 0.06), transparent 60%),
+        radial-gradient(ellipse 50% 35% at 100% 100%, rgba(129, 140, 248, 0.05), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Sections become rows on the unified surface, no individual cards */
+.section {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 2.25rem 2.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.section + .section,
+.preferencesGrid + .section,
+.section + .preferencesGrid {
+    border-top: 1px solid rgba(226, 232, 240, 0.7);
+}
 
 .sectionTitle {
-    font-size: 1.25rem;
-    font-weight: 700;
+    font-size: 1.2rem;
+    font-weight: 800;
     margin-bottom: 1.5rem;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.85rem;
+    letter-spacing: -0.015em;
+    color: var(--text-main);
 }
 
-.grid {
-    display: grid;
-    gap: 2rem;
-}
-
+/* Two-column inner grid (notifications + IA prefs) — visually divided by a vertical line */
 .preferencesGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    position: relative;
+    z-index: 1;
+}
+
+.preferencesGrid > .section {
+    padding: 2.25rem 2rem;
+}
+
+.preferencesGrid > .section + .section {
+    border-top: none;
+    border-left: 1px solid rgba(226, 232, 240, 0.7);
 }
 
 .profileFlex {
@@ -62,37 +124,48 @@
     align-items: center;
     gap: 1.5rem;
     flex-wrap: wrap;
+    justify-content: center;
 }
 
 .avatar {
-    width: 80px; 
-    height: 80px;
-    background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+    width: 88px;
+    height: 88px;
+    background: linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%);
     border-radius: 50%;
     display: flex;
-    align-items: center; 
+    align-items: center;
     justify-content: center;
-    color: white; 
-    font-size: 2.25rem; 
-    font-weight: 700;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.35),
+        0 8px 24px rgba(79, 70, 229, 0.35),
+        0 0 0 4px rgba(255, 255, 255, 0.7),
+        0 0 0 5px rgba(79, 70, 229, 0.15);
     flex-shrink: 0;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .avatar:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.6);
+    transform: scale(1.04);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.35),
+        0 12px 32px rgba(79, 70, 229, 0.45),
+        0 0 0 4px rgba(255, 255, 255, 0.7),
+        0 0 0 5px rgba(79, 70, 229, 0.25);
 }
 
 .emailContainer {
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 0.75rem 1rem;
-    background: #F1F5F9;
-    border-radius: 0.75rem;
-    border: 1px solid var(--border);
+    padding: 0.85rem 1.1rem;
+    background: rgba(248, 250, 252, 0.7);
+    border-radius: 0.85rem;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    backdrop-filter: blur(8px);
 }
 
 .emailInfo {
@@ -119,6 +192,21 @@
     justify-content: flex-end;
 }
 
+/* Selector de tamaño del hogar — 6 cols en desktop, 3×2 en mobile pequeño.
+ * En 390px el grid de 6 deja ~50px por botón y los emojis de familia
+ * (👨‍👩‍👧‍👦) quedan apretados con el número. 3 columnas en 480px o menos
+ * dan ~110px por botón y respiran bien. */
+.householdGrid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.5rem;
+}
+
+/* "Protegido" como label + ícono en desktop; ícono solo en mobile pequeño. */
+.emailBadgeText {
+    display: inline;
+}
+
 .planHeader {
     display: flex;
     justify-content: space-between;
@@ -130,19 +218,23 @@
     flex-shrink: 0;
 }
 
-
-
 /* AI Facts Styles */
 .factItem {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem;
-    background: #F8FAFC;
-    border-radius: 0.75rem;
-    border: 1px solid var(--border);
-    transition: opacity 0.2s;
+    padding: 1rem 1.1rem;
+    background: rgba(248, 250, 252, 0.6);
+    border-radius: 0.85rem;
+    border: 1px solid rgba(226, 232, 240, 0.7);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     gap: 1rem;
+}
+
+.factItem:hover {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(199, 210, 254, 0.9);
+    box-shadow: 0 4px 12px -4px rgba(79, 70, 229, 0.12);
 }
 
 .factContent {
@@ -208,8 +300,8 @@
 }
 
 .toggleSwitch input:checked + .toggleSlider {
-    background-color: #10B981; /* Green color for active */
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1), 0 0 8px rgba(16, 185, 129, 0.4);
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1), 0 0 10px rgba(16, 185, 129, 0.4);
 }
 
 .toggleSwitch input:checked + .toggleSlider:before {
@@ -222,7 +314,7 @@
 }
 .actionBtn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+    box-shadow: 0 6px 15px rgba(79, 70, 229, 0.18);
 }
 .actionBtn:active {
     transform: translateY(0);
@@ -232,9 +324,9 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .wrapper {
-        padding: 0 0.5rem;
+        padding: 1rem 0.75rem 3rem;
     }
-    
+
     .header {
         margin-top: 1.5rem;
         margin-bottom: 1.5rem;
@@ -246,26 +338,29 @@
     }
 
     .grid {
-        gap: 1rem;
-        max-width: 100%;
+        border-radius: 1.25rem;
     }
 
     .preferencesGrid {
         grid-template-columns: 1fr;
-        gap: 1rem;
-        max-width: 100%;
+    }
+
+    .preferencesGrid > .section + .section {
+        border-left: none;
+        border-top: 1px solid rgba(226, 232, 240, 0.7);
     }
 
     .section {
-        border-radius: 1rem;
-        padding: 1.25rem;
-        max-width: 100%;
-        overflow: hidden;
+        padding: 1.5rem 1.25rem;
+    }
+
+    .preferencesGrid > .section {
+        padding: 1.5rem 1.25rem;
     }
 
     .sectionTitle {
         margin-bottom: 1.25rem;
-        font-size: 1.15rem;
+        font-size: 1.1rem;
         word-break: break-word;
     }
 
@@ -278,16 +373,16 @@
     }
 
     .avatar {
-        width: 60px;
-        height: 60px;
-        font-size: 1.5rem;
+        width: 68px;
+        height: 68px;
+        font-size: 1.75rem;
     }
 
     .emailContainer {
-        flex-direction: row; /* Force inline even on mobile */
+        flex-direction: row;
         align-items: center;
         gap: 0.75rem;
-        flex-wrap: wrap; /* allow text wrapping if small */
+        flex-wrap: wrap;
         overflow: hidden;
         word-break: break-all;
     }
@@ -300,7 +395,7 @@
     .saveBtnContainer {
         justify-content: stretch;
     }
-    
+
     .saveBtnContainer button {
         width: 100%;
         justify-content: center;
@@ -317,8 +412,6 @@
         justify-content: center;
     }
 
-
-
     .factItem {
         flex-direction: column;
         align-items: flex-start;
@@ -327,5 +420,55 @@
 
     .factItem button {
         align-self: flex-end;
+    }
+}
+
+/* Mobile pequeño (≤480px, p.ej. iPhone 12 Pro 390px). Más compacto:
+ * recupera scroll vertical y arregla el cramping del selector de hogar. */
+@media (max-width: 480px) {
+    .wrapper {
+        padding: 0.75rem 0.625rem 3rem;
+    }
+
+    .section {
+        padding: 1.25rem 1rem;
+    }
+
+    .preferencesGrid > .section {
+        padding: 1.25rem 1rem;
+    }
+
+    .sectionTitle {
+        font-size: 1.05rem;
+        margin-bottom: 1rem;
+    }
+
+    .profileFlex {
+        gap: 1.25rem;
+    }
+
+    .avatar {
+        width: 56px;
+        height: 56px;
+        font-size: 1.5rem;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.35),
+            0 4px 12px rgba(79, 70, 229, 0.3),
+            0 0 0 3px rgba(255, 255, 255, 0.7),
+            0 0 0 4px rgba(79, 70, 229, 0.15);
+    }
+
+    /* 3×2 layout: cada botón ~110px, los emojis de familia respiran. */
+    .householdGrid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    /* Solo ícono en el badge — el shield ya comunica "protegido". */
+    .emailBadgeText {
+        display: none;
+    }
+
+    .emailBadge {
+        gap: 0;
     }
 }

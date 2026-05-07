@@ -575,24 +575,6 @@ const Recipes = () => {
                         boxSizing: 'border-box'
                     }}>
 
-                        {/* Hero Section */}
-                        <motion.div
-                            data-html2canvas-ignore="true"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            style={{ textAlign: 'center', position: 'relative', zIndex: 2, marginBottom: isMobile ? '0' : '-0.5rem' }}
-                        >
-                            <h1 style={{
-                                fontSize: isMobile ? '1.5rem' : '3.5rem', fontWeight: 900, color: 'var(--text-main)',
-                                marginBottom: '0.25rem', letterSpacing: '-0.04em', lineHeight: 1.1, wordBreak: 'break-word'
-                            }}>
-                                Recetas
-                            </h1>
-                            <p style={{ color: 'var(--text-muted)', fontSize: isMobile ? '0.85rem' : '1.25rem', maxWidth: '600px', margin: '0 auto', lineHeight: 1.5, padding: '0' }}>
-                                Tu plan nutricional personalizado, plato por plato.
-                            </p>
-                        </motion.div>
-
                         <style>{`
                             .meal-hover-card {
                                 transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -633,7 +615,12 @@ const Recipes = () => {
                                             transform: activeDayIndex === idx ? 'translateY(-1px)' : 'translateY(0)',
                                         }}
                                     >
-                                        {String.fromCharCode(65 + idx)}
+                                        {(() => {
+                                            const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                                            const d = new Date();
+                                            d.setDate(d.getDate() + idx);
+                                            return diasSemana[d.getDay()];
+                                        })()}
                                     </button>
                                 ))}
                             </div>
@@ -819,7 +806,7 @@ const Recipes = () => {
                                                         onClick={() => handleDownloadPDF(activeMeal)}
                                                         style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.8rem 1.5rem', background: 'var(--bg-page)', borderRadius: '99px', border: '1px solid var(--border)', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', cursor: 'pointer', transition: 'all 0.2s' }}
                                                     >
-                                                        <Download size={18} strokeWidth={2.5} /> Receta PDF
+                                                        <Download size={18} strokeWidth={2.5} /> PDF
                                                     </button>
                                                 </div>
 

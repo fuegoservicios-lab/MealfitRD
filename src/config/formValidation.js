@@ -71,11 +71,20 @@
 // usuario al step más temprano que necesita atención (mejor UX que saltar
 // al último).
 //
-// Defense-in-depth backend: solo `allergies` y `medicalConditions` se
-// añadieron a `_REQUIRED_FORM_FIELDS` en `routers/plans.py` (riesgo de
-// safety). El resto se gatea solo en frontend porque el backend tiene
-// defaults seguros (`balanced`, etc.) y rechazarlos rompería clientes
-// legacy sin beneficio de safety.
+// [P0-FORM-6] Defense-in-depth backend: el array de abajo está SINCRONIZADO
+// con `_REQUIRED_FORM_FIELDS` en `backend/routers/plans.py`. Antes existía
+// drift: el frontend gateaba 19 campos pero el backend solo validaba ~12,
+// así que un cliente legacy / hidratación rota / scraper saltaba el wizard
+// y entraba al pipeline con señales vacías de timing/conducta → plan
+// degradado sin alerta. Hoy ambos lados validan el mismo set excepto
+// `dietType`, que queda fuera del backend por compat con perfiles legacy
+// (variantes ES en `health_profile.dietType`: "Omnívora", "vegetariana",
+// etc.); para ese campo el wizard sigue siendo el único gate, y downstream
+// el catálogo balanced cubre el caso ausente sin riesgo.
+//
+// Si se añade un nuevo campo aquí, agregarlo también a
+// `_REQUIRED_FORM_FIELDS` del backend o el test
+// `backend/test_p0_form_6_required_fields_sync.py` falla intencionalmente.
 export const REQUIRED_FORM_FIELDS = [
     'gender', 'age', 'height', 'weight', 'weightUnit', 'activityLevel',
     'scheduleType', 'sleepHours', 'stressLevel', 'cookingTime', 'budget',
@@ -316,4 +325,61 @@ export const isValidActivityLevel = (value) => {
 export const isValidMainGoal = (value) => {
     if (typeof value !== 'string') return false;
     return MAIN_GOALS.includes(value.trim().toLowerCase());
+};
+
+// ============================================================
+// [P1-FORM-14] Enum de `selectedSupplements` — SSOT con backend
+// ------------------------------------------------------------
+// Espejo de `_SUPPLEMENT_ENUM` en `backend/routers/plans.py` y de
+// `SUPPLEMENT_NAMES.keys()` en `backend/constants.py`. El backend valida
+// en API boundary (`/api/plans/generate` recibe el array y rechaza con 422
+// si CUALQUIER entrada está fuera del enum); ANTES, el componente
+// `QSupplements` (`InteractiveQuestions.jsx`) hardcodeaba los mismos 12
+// strings literalmente — un rename en el backend (`vegan_protein` →
+// `plant_protein`) sin actualizar el frontend producía rechazo silencioso
+// del array entero al usuario al final del wizard sin explicación útil.
+//
+// `QSupplements` ahora importa esta lista, deriva el catálogo de chips de
+// `SUPPLEMENT_META` (declarado en InteractiveQuestions.jsx) y corre un
+// invariante runtime en dev-mode para detectar drift entre la lista y la
+// metadata UI (mismo patrón que `DIET_TYPES`/`DIET_TYPE_META` de P1-FORM-8).
+//
+// Si se añade un nuevo suplemento (ej. "ashwagandha"), DEBE actualizarse en:
+//   1. Este array (frontend SSOT).
+//   2. `_SUPPLEMENT_ENUM` en `backend/routers/plans.py`.
+//   3. `SUPPLEMENT_NAMES` en `backend/constants.py` con su nombre legible.
+//   4. `SUPPLEMENT_META` en `InteractiveQuestions.jsx` con `{label, emoji}`.
+//
+// El test `backend/test_p1_form_14_supplements_sync.py` parsea ambos lados y
+// falla en CI si detecta drift entre cualquiera de los 4 sites.
+//
+// Convención: lower_case + snake_case canónico. Backend rechaza variantes
+// con mayúsculas para forzar consistencia (ver comentario en `_SUPPLEMENT_ENUM`).
+// ============================================================
+export const SUPPLEMENTS = Object.freeze([
+    'whey_protein',
+    'vegan_protein',
+    'creatine',
+    'bcaa',
+    'pre_workout',
+    'fat_burner',
+    'collagen',
+    'multivitamin',
+    'omega3',
+    'magnesium',
+    'probiotics',
+    'electrolytes',
+]);
+
+/**
+ * [P1-FORM-14] Validación case-sensitive de un valor contra el enum
+ * `SUPPLEMENTS`. El backend hace match estricto (no aplica `.lower()`),
+ * así que el frontend debe alinear: comparación literal.
+ *
+ * @param {string|null|undefined} value
+ * @returns {boolean}
+ */
+export const isValidSupplement = (value) => {
+    if (typeof value !== 'string') return false;
+    return SUPPLEMENTS.includes(value);
 };

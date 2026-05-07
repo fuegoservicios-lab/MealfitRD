@@ -11,7 +11,7 @@ import { calculateAllPlanIngredients } from '../utils/shoppingHelpers';
 import { trackEvent } from '../utils/analytics';
 
 export const useRegeneratePlan = () => {
-    const { formData, planData, userProfile, setCurrentStep, checkPlanLimit, userPlanLimit, dislikedMeals } = useAssessment();
+    const { formData, planData, userProfile, setCurrentStep, checkPlanLimit, userPlanLimit, dislikedMeals, loadingSensitive } = useAssessment();
     const navigate = useNavigate();
     const isNavigatingRef = useRef(false);
 
@@ -26,6 +26,22 @@ export const useRegeneratePlan = () => {
     } = {}) => {
         // Protección contra doble disparo (auto-rotación + clic manual simultáneo)
         if (isNavigatingRef.current) return;
+
+        // [P1-3] Si el descifrado del sensitive cifrado todavía está en vuelo
+        // (50-200ms post-login), abortamos sin tocar `isNavigatingRef`. Sin
+        // este gate, `findFirstIncompleteField` (~30 líneas abajo) evaluaría
+        // con allergies=[] / motivation="" / bodyFat="" → toast "Antes de
+        // regenerar, completa: Motivación" + redirect a /assessment ← pero el
+        // dato SÍ está en `mealfit_form_secure`. Mostramos un toast suave en
+        // su lugar; el usuario puede reintentar tras la hidratación (típicamente
+        // <1s tras el login). NO disparamos navegación.
+        if (loadingSensitive) {
+            toast.info('Cargando tus datos…', {
+                description: 'Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.',
+                duration: 3000,
+            });
+            return;
+        }
         isNavigatingRef.current = true;
 
         // GAP 12: Derivación segura de isPlanExpired para evitar desincronización

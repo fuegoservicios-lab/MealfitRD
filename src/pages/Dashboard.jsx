@@ -20,7 +20,7 @@ import { supabase } from '../supabase';
 import html2pdf from 'html2pdf.js';
 import { API_BASE, fetchWithAuth } from '../config/api';
 import { trackEvent } from '../utils/analytics';
-import { getActiveShoppingList, calculateAllPlanIngredients } from '../utils/shoppingHelpers';
+import { getActiveShoppingList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
 // [P1-FORM-9] Helper que filtra flags internos `_*` y bloquea cuando la
 // hidratación cifrada del formData (post-login) parece estar en curso —
 // evita que el spread `{...formData}` envíe campos sensibles vacíos a DB,
@@ -153,6 +153,25 @@ const Dashboard = () => {
     // Inventario real (user_inventory en DB) — sincronizado con la Nevera física
     const [liveInventory, setLiveInventory] = useState(null);
     const [isLoadingInventory, setIsLoadingInventory] = useState(true);
+    // [P1-5] Indicador persistente de "Nevera potencialmente desactualizada".
+    // Antes este estado solo vivía como variable local dentro de
+    // `handleDownloadShoppingList` y era visible solo DENTRO del PDF generado.
+    // Si el usuario nunca generaba PDF (workflow rápido en móvil → click directo
+    // en Restock), la advertencia "verifica antes de comprar" jamás llegaba.
+    //
+    // Ahora el flag es estado del Dashboard, alimentado por:
+    //   - Initial mount fetch (`fetchFreshInventoryWithTimeout`) — true si timeout/error.
+    //   - Visibility/focus refresh — idem.
+    //   - Realtime postgres_changes callback — false al recibir push del server
+    //     (la data acaba de venir directo desde Supabase, es fresca por definición).
+    //   - `handleDownloadShoppingList` (PDF) — actualiza tras el fresh fetch.
+    //   - `handleRestock` (P1-1) — actualiza tras el fresh fetch.
+    //
+    // Render: chip ámbar encima de la fila de botones (Update/Restock/PDF) cuando
+    // está activo. Cierra el gap UX donde el usuario actuaba con caché stale sin
+    // saberlo. El banner del PDF (P1-PDF-1) sigue existiendo como segunda capa
+    // dentro del documento — el chip in-app es la primera línea.
+    const [inventoryStale, setInventoryStale] = useState(false);
 
     // Tick que se actualiza a medianoche para que daysLeft y daysSinceCreation se recalculen
     const [todayDate, setTodayDate] = useState(() => {
@@ -176,6 +195,14 @@ const Dashboard = () => {
     }, []);
 
     const restockLock = useRef(false);
+    // [P1-6] Candado síncrono para `handleDownloadShoppingList`. Mismo patrón
+    // que `restockLock`: previene doble-disparo cuando el usuario hace
+    // doble-click en el botón PDF antes de que `isRecalculating`/loading
+    // toast estabilicen su estado en React. Sin este lock, dos llamadas
+    // concurrentes a `fetchFreshInventoryWithTimeout` competían por
+    // `setLiveInventory`/`setInventoryStale` y se descargaban dos PDFs
+    // idénticos con telemetría duplicada (`pdf_stale_inventory_fallback`).
+    const pdfLock = useRef(false);
     const disabledSyncTimer = useRef(null);
     const formDataRef = useRef(formData);
     useEffect(() => { formDataRef.current = formData; }, [formData]);
@@ -238,6 +265,11 @@ const Dashboard = () => {
     }, [disabledIngredients]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Fetch inventario real desde user_inventory (refleja consumos y ediciones de la Nevera)
+    // [P1-5] Usa `fetchFreshInventoryWithTimeout` (cap 2000ms) y alimenta
+    // `inventoryStale`. Si Supabase tarda o falla en el mount inicial, el
+    // Dashboard arranca con `inventoryStale=true` y el chip ámbar se muestra
+    // sobre los botones — el usuario sabe ANTES de actuar que su Nevera puede
+    // estar desactualizada. Si la fetch funciona, baja el flag a false.
     useEffect(() => {
         if (!userProfile?.id) {
             setIsLoadingInventory(false);
@@ -245,19 +277,29 @@ const Dashboard = () => {
         }
         const fetchLiveInventory = async () => {
             setIsLoadingInventory(true);
-            try {
-                const { data, error } = await supabase
+            const result = await fetchFreshInventoryWithTimeout(
+                () => supabase
                     .from('user_inventory')
                     .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
                     .eq('user_id', userProfile.id)
                     .gt('quantity', 0)
-                    .order('ingredient_name', { ascending: true });
-                if (!error && data) setLiveInventory(data);
-            } catch (e) {
-                console.error('Error fetching live inventory:', e);
-            } finally {
-                setIsLoadingInventory(false);
+                    .order('ingredient_name', { ascending: true }),
+                2000,
+            );
+            if (!result.stale) {
+                setLiveInventory(result.data);
+                setInventoryStale(false);
+            } else {
+                // Timeout/error/empty_response: no sobreescribimos liveInventory
+                // (puede ser null en mount inicial; el delta degrada graceful con
+                // null y el chip avisa al usuario).
+                setInventoryStale(true);
+                trackEvent('dashboard_initial_inventory_stale', {
+                    reason: result.reason,
+                    user_id: userProfile?.id,
+                });
             }
+            setIsLoadingInventory(false);
         };
         fetchLiveInventory();
     }, [userProfile?.id, planData]);
@@ -280,7 +322,14 @@ const Dashboard = () => {
                         .eq('user_id', userProfile.id)
                         .gt('quantity', 0)
                         .order('ingredient_name', { ascending: true });
-                    if (data) setLiveInventory(data);
+                    if (data) {
+                        setLiveInventory(data);
+                        // [P1-5] El callback de postgres_changes solo dispara cuando
+                        // Supabase pusheó un cambio: la siguiente lectura es fresca
+                        // por definición. Bajamos el flag stale aunque hubiéramos
+                        // arrancado en true por timeout del mount inicial.
+                        setInventoryStale(false);
+                    }
                 } catch (e) { /* non-blocking */ }
             })
             .subscribe((status) => {
@@ -293,18 +342,27 @@ const Dashboard = () => {
 
     // Fallback de sincronización: refrescar inventario cuando el usuario vuelve al tab
     // (cubre el caso donde Realtime falla o el usuario navegó a Pantry y vació la nevera)
+    // [P1-5] Usa `fetchFreshInventoryWithTimeout` y mantiene `inventoryStale` en sync:
+    // si el refresh-on-focus falla/timeoutea, el chip se enciende para avisar.
+    // Si succeed, lo bajamos.
     useEffect(() => {
         if (!userProfile?.id) return;
         const refreshInventoryOnFocus = async () => {
-            try {
-                const { data } = await supabase
+            const result = await fetchFreshInventoryWithTimeout(
+                () => supabase
                     .from('user_inventory')
                     .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
                     .eq('user_id', userProfile.id)
                     .gt('quantity', 0)
-                    .order('ingredient_name', { ascending: true });
-                if (data) setLiveInventory(data);
-            } catch (e) { /* non-blocking */ }
+                    .order('ingredient_name', { ascending: true }),
+                2000,
+            );
+            if (!result.stale) {
+                setLiveInventory(result.data);
+                setInventoryStale(false);
+            } else {
+                setInventoryStale(true);
+            }
         };
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
@@ -403,9 +461,31 @@ const Dashboard = () => {
     // Normalizar fechas a medianoche — usa todayDate (state) para que se recalcule automáticamente a las 12AM
     const todayMidnight = todayDate;
 
+    // [GROCERY-START-DATE-LOCAL-PARSE 2026-05-06] Parser local-aware.
+    //
+    // Bug: el backend persiste `grocery_start_date` como "YYYY-MM-DD" (date-only,
+    // sin TZ — ver `_ensure_grocery_start_date` en `db_plans.py`). JavaScript
+    // interpreta `new Date("2026-05-06")` como UTC midnight → en TZ -4 cae
+    // en local 2026-05-05T20:00 → setHours(0,0,0,0) → local 5-may 00:00.
+    // Si hoy es local 6-may, daysSinceCreation = 1 → shift-plan dispara →
+    // pierde el primer día del plan recién generado.
+    //
+    // Fix: si la fecha es solo "YYYY-MM-DD", parsear como local midnight
+    // directamente. Si es ISO timestamp completo, mantener parse + setHours
+    // (el setHours convierte el timestamp local a local midnight, OK).
+    const _parseStartLocal = (raw) => {
+        if (!raw) return new Date();
+        if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+            const [y, m, d] = raw.split('-').map(Number);
+            return new Date(y, m - 1, d); // Local midnight
+        }
+        const dt = new Date(raw);
+        dt.setHours(0, 0, 0, 0);
+        return dt;
+    };
+
     const rawStartDate = planData?.grocery_start_date || planData?.created_at;
-    const startMidnight = rawStartDate ? new Date(rawStartDate) : new Date();
-    startMidnight.setHours(0, 0, 0, 0);
+    const startMidnight = _parseStartLocal(rawStartDate);
 
     const daysSinceCreation = Math.round((todayMidnight - startMidnight) / (1000 * 60 * 60 * 24));
 
@@ -414,8 +494,7 @@ const Dashboard = () => {
     // basado en grocery_start_date porque el resto del Dashboard (rolling window, índice
     // de día actual en planDays, etc.) depende de ese desplazamiento.
     const rawCycleStart = planData?.cycle_start_date || rawStartDate;
-    const cycleStartMidnight = rawCycleStart ? new Date(rawCycleStart) : new Date();
-    cycleStartMidnight.setHours(0, 0, 0, 0);
+    const cycleStartMidnight = _parseStartLocal(rawCycleStart);
     const daysSinceCycleStart = Math.round((todayMidnight - cycleStartMidnight) / (1000 * 60 * 60 * 24));
 
     let isPlanExpired = false;
@@ -652,7 +731,12 @@ const Dashboard = () => {
             if (maxDays > 0 && daysLeft > (maxDays * 0.5)) {
                 degradationRatio = Math.max(0.1, daysLeft / maxDays);
             }
-            const rawShopQty = parseFloat(item.market_qty ?? item.quantity ?? item.display_qty ?? 0) || 0;
+            // [P0-2] Antes: `parseFloat(item.market_qty)` truncaba "1 1/2"→1
+            // y "1/2"→0, subdimensionando el delta lista↔nevera. El helper
+            // `resolveShopQty` prefiere `market_qty_numeric` (poblado siempre
+            // por backend ahora) y cae a un parser fraccional para items
+            // legacy persistidos antes del fix.
+            const rawShopQty = resolveShopQty(item);
             const shopUnit = (item.market_unit || item.unit || 'unidad').toLowerCase().trim();
 
             if (rawShopQty <= 0) {
@@ -827,6 +911,12 @@ const Dashboard = () => {
     };
 
     const handleDownloadShoppingList = async () => {
+        // [P1-6] Early return si ya hay una descarga en vuelo. `disabled` del
+        // botón depende de `isRecalculating` que no cubre el periodo del
+        // handler PDF (fetch fresh inventory + html2pdf render); este ref
+        // sí. Mismo patrón que `restockLock`.
+        if (pdfLock.current) return;
+        pdfLock.current = true;
         try {
             const loadingToast = toast.loading('Generando lista de compras...', { position: 'top-center' });
 
@@ -836,24 +926,46 @@ const Dashboard = () => {
             // Usar la lista consolidada correcta según el ciclo seleccionado
             const rawSourceIngredients = getActiveShoppingList(planData, duration) || allPlanIngredients || [];
 
-            // 🔄 Forzar refresco de inventario ANTES de calcular delta para el PDF
-            // Esto garantiza que incluso si liveInventory está desactualizado (ej: restock previo
-            // falló el response pero sí guardó en BD), el PDF siempre usa datos frescos.
+            // [P1-PDF-1] Fetch de inventario fresco con timeout + degradación
+            // visible. Antes el bloque era un `try/catch` silencioso: si Supabase
+            // tardaba o fallaba, `liveInventory` (potencialmente stale tras un
+            // restock cuyo response falló pero sí persistió en BD) se usaba sin
+            // alerta → items que ya están en la nevera reaparecían en el PDF →
+            // usuario compraba duplicado. Ahora:
+            //   1. `fetchFreshInventoryWithTimeout` carrera contra 2000ms.
+            //   2. Si timeout/error/empty_response: usa `liveInventory` cacheado
+            //      Y se sella `freshInventoryStale=true` para que el banner del
+            //      PDF avise al usuario "verifica tu Nevera antes de comprar".
+            //   3. trackEvent emite `pdf_stale_inventory_fallback` con el reason
+            //      → operadores pueden medir frecuencia y escalar a P0 si crece.
             let freshInventoryForPdf = liveInventory;
-            try {
-                const { data: freshInv } = await supabase
+            let freshInventoryStale = false;
+            const _freshFetchResult = await fetchFreshInventoryWithTimeout(
+                () => supabase
                     .from('user_inventory')
                     .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
                     .eq('user_id', userProfile.id)
                     .gt('quantity', 0)
-                    .order('ingredient_name', { ascending: true });
-                if (freshInv) {
-                    freshInventoryForPdf = freshInv;
-                    setLiveInventory(freshInv); // Actualizar estado global también
-                    // console.log('📋 [PDF] Fresh inventory fetched:', freshInv.length, 'items');
-                }
-            } catch (e) {
-                // console.warn('📋 [PDF] Could not refresh inventory, using cached:', e);
+                    .order('ingredient_name', { ascending: true }),
+                2000,
+            );
+            if (!_freshFetchResult.stale) {
+                freshInventoryForPdf = _freshFetchResult.data;
+                setLiveInventory(_freshFetchResult.data); // Actualizar estado global también
+                // [P1-5] El fetch fresco confirmó datos vivos → bajamos el chip
+                // ámbar in-app si estaba activo desde el mount o focus anterior.
+                setInventoryStale(false);
+            } else {
+                freshInventoryStale = true;
+                // [P1-5] Promovemos la señal al estado global del Dashboard:
+                // el chip ámbar permanecerá visible hasta que un fetch fresco
+                // (mount, focus, Realtime, otra acción) confirme datos vivos.
+                setInventoryStale(true);
+                trackEvent('pdf_stale_inventory_fallback', {
+                    reason: _freshFetchResult.reason,
+                    user_id: userProfile?.id,
+                    fallback_inventory_size: Array.isArray(liveInventory) ? liveInventory.length : 0,
+                });
             }
 
             // 🔄 Delta Shopping: restar lo que ya hay en la Nevera (con inventario FRESCO)
@@ -919,23 +1031,31 @@ const Dashboard = () => {
                 };
             });
 
+            // [P1-PDF-2] SSOT del backend: cada item en `aggregated_shopping_list`
+            // ahora trae `is_perishable: bool` calculado en `shopping_calculator.is_perishable_category`.
+            // El frontend prefiere ese flag y deja la heurística de substring SOLO
+            // como fallback defensivo para planes legacy persistidos antes del fix
+            // (ver `backend/shopping_calculator.py:PERISHABLE_CATEGORY_PREFIXES`).
+            const PERISHABLE_PREFIXES = ['proteína', 'lácteo', 'vegetal', 'fruta', 'urgente'];
+            const inferIsPerishable = (item) => {
+                // Prioridad 1: flag SSOT del backend (post P1-PDF-2).
+                const refFlag = item.item_ref?.is_perishable;
+                if (typeof refFlag === 'boolean') return refFlag;
+                // Prioridad 2: shelf_life_days (mismo umbral que backend).
+                const shelfLife = item.item_ref?.shelf_life_days;
+                if (shelfLife !== undefined && shelfLife !== null) {
+                    return Number(shelfLife) <= 7;
+                }
+                // Fallback legacy: substring match contra la categoría.
+                const cat = (item.category || '').toLowerCase();
+                return PERISHABLE_PREFIXES.some(p => cat.includes(p));
+            };
+
             const perishables = {};
             const stables = {};
             Object.values(consData).forEach(item => {
-                let cat = item.category;
-                const shelfLife = item.item_ref?.shelf_life_days;
-
-                let isPerishable = false;
-                if (shelfLife !== undefined && shelfLife !== null) {
-                    isPerishable = shelfLife <= 7;
-                } else {
-                    const lowerCat = cat.toLowerCase();
-                    if (lowerCat.includes('proteína') || lowerCat.includes('lácteo') || lowerCat.includes('vegetal') || lowerCat.includes('fruta')) {
-                        isPerishable = true;
-                    }
-                }
-
-                if (isPerishable) {
+                const cat = item.category;
+                if (inferIsPerishable(item)) {
                     if (!perishables[cat]) perishables[cat] = [];
                     perishables[cat].push(item);
                 } else {
@@ -945,36 +1065,71 @@ const Dashboard = () => {
             });
 
             // ── Dedup: Consolidar categorías duplicadas entre secciones ──
-            // Si una categoría aparece en AMBAS secciones, mover TODOS sus items
-            // a la sección donde esa categoría pertenece por naturaleza.
-            const PERISHABLE_CATS = ['proteína', 'vegetal', 'fruta', 'lácteo'];
+            // Si una categoría aparece en AMBAS secciones, hay 2 posibles causas:
+            //   (a) Items legacy sin `is_perishable` flag — entonces el fallback
+            //       de substring decide y conviene consolidar a un lado.
+            //   (b) Items NUEVOS donde DENTRO de una misma categoría conviven
+            //       perecederos y estables legítimamente (caso real: "Proteínas"
+            //       con pollo+tofu perecederos + huevo estable [shelf_life=14d]).
+            //
+            // [2026-05-06 fix] Solo consolidamos si TODOS los items duplicados
+            // son legacy (sin flag SSOT). Si AL MENOS UNO tiene el flag del
+            // backend, respetamos la separación — es la información autoritativa.
+            // Antes la consolidación arrastraba el huevo (estable) a perecederos
+            // por el substring "proteína", invalidando el cap shelf_life backend.
             const duplicatedCats = Object.keys(perishables).filter(c => stables[c]);
             duplicatedCats.forEach(cat => {
-                const lowerCat = cat.toLowerCase();
-                const belongsToPerishable = PERISHABLE_CATS.some(p => lowerCat.includes(p));
+                const allItemsInCat = [...perishables[cat], ...stables[cat]];
+                const anyHasBackendFlag = allItemsInCat.some(
+                    it => typeof it.item_ref?.is_perishable === 'boolean'
+                );
+                if (anyHasBackendFlag) {
+                    // Caso (b): backend ya clasificó. NO consolidar — respetar SSOT.
+                    return;
+                }
+                // Caso (a): solo legacy → consolidar por substring de categoría.
+                const lowerCat = (cat || '').toLowerCase();
+                const belongsToPerishable = PERISHABLE_PREFIXES.some(p => lowerCat.includes(p));
                 if (belongsToPerishable) {
-                    // Mover items estables de esta categoría → perecederos
                     perishables[cat] = [...perishables[cat], ...stables[cat]];
                     delete stables[cat];
                 } else {
-                    // Mover items perecederos de esta categoría → estables
                     stables[cat] = [...stables[cat], ...perishables[cat]];
                     delete perishables[cat];
                 }
             });
 
-            // Count total items to adjust density and keep the PDF on 1 page
+            // [P1-PDF-3] Decisión centralizada de densidad y paginación.
+            // El helper devuelve `isHyperDense` (≥60 items) y `multiPage` (≥80
+            // items), añadidos por encima de los niveles existentes
+            // `isDense`/`isUltraDense`. La función pura permite tests unitarios
+            // de la decisión sin renderizar HTML real.
             const totalItems = Object.values(consData).length;
-            const isUltraDense = totalItems >= 38;
-            const isDense = totalItems >= 26 || isUltraDense;
-            
-            const rootPadding = isUltraDense ? '6px' : (isDense ? '10px' : '20px');
-            const headerPadding = isUltraDense ? '6px 10px' : (isDense ? '10px 14px' : '16px 20px');
-            const headerMargin = isUltraDense ? '6px' : (isDense ? '10px' : '20px');
-            const disclaimerPadding = isUltraDense ? '4px 8px' : '10px 14px';
-            const disclaimerMargin = isUltraDense ? '6px' : '12px';
-            const catMargin = isUltraDense ? '8px' : '16px';
-            const ulPadding = isUltraDense ? '2px 4px' : (isDense ? '4px 8px' : '6px 12px');
+            const layout = computePdfLayoutDensity(totalItems);
+            const { isDense, isUltraDense, isHyperDense, multiPage, columnCount, showInventoryNotes } = layout;
+
+            // [P1-PDF-3] Telemetría operacional: el sweet-spot de la heurística
+            // es 1 página hasta ~38, 1 página comprimido hasta ~75, multipage
+            // 80+. Si vemos muchos hits con `multiPage=true` en producción,
+            // hay que considerar un modo "página resumen" o paginar por
+            // categoría. Solo logueamos si el usuario realmente cae en
+            // hyper-dense (>=60) — debajo de eso es ruido.
+            if (totalItems >= PDF_LAYOUT_THRESHOLDS.HYPER_DENSE) {
+                console.info('[PDF density]', {
+                    totalItems,
+                    density: layout.density,
+                    columnCount,
+                    multiPage,
+                });
+            }
+
+            const rootPadding = isHyperDense ? '4px' : isUltraDense ? '6px' : (isDense ? '10px' : '20px');
+            const headerPadding = isHyperDense ? '4px 8px' : isUltraDense ? '6px 10px' : (isDense ? '10px 14px' : '16px 20px');
+            const headerMargin = isHyperDense ? '4px' : isUltraDense ? '6px' : (isDense ? '10px' : '20px');
+            const disclaimerPadding = isHyperDense ? '3px 6px' : isUltraDense ? '4px 8px' : '10px 14px';
+            const disclaimerMargin = isHyperDense ? '4px' : isUltraDense ? '6px' : '12px';
+            const catMargin = isHyperDense ? '5px' : isUltraDense ? '8px' : '16px';
+            const ulPadding = isHyperDense ? '1px 3px' : isUltraDense ? '2px 4px' : (isDense ? '4px 8px' : '6px 12px');
 
             // Obtener duración actual (ya declarada arriba)
             let durationText = '7 Días';
@@ -991,9 +1146,9 @@ const Dashboard = () => {
                     <div>
                         <h1 style="margin: 0 0 8px 0; color: #111827; font-size: 20px; font-weight: 800; letter-spacing: -0.025em;">Lista de Compras</h1>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <span style="background-color: #ecfdf5; color: #065f46; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #10b98140;">Ciclo: ${durationText}</span>
-                            ${(formData?.householdSize || 1) > 1 ? `<span style="background-color: #f5f3ff; color: #6d28d9; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #ddd6fe;">👥 ${formData.householdSize} Personas</span>` : ''}
-                            <span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">Generado: ${new Date().toLocaleDateString('es-DO')}</span>
+                            <span style="background-color: #ecfdf5; color: #065f46; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #10b98140;">Ciclo: ${escapeHtml(durationText)}</span>
+                            ${(formData?.householdSize || 1) > 1 ? `<span style="background-color: #f5f3ff; color: #6d28d9; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #ddd6fe;">👥 ${escapeHtml(formData.householdSize)} Personas</span>` : ''}
+                            <span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">Generado: ${escapeHtml(new Date().toLocaleDateString('es-DO'))}</span>
                         </div>
                     </div>
                     <img src="/favicon-transparent.png" alt="MealfitRD Logo" style="height: 40px;" />
@@ -1006,9 +1161,23 @@ const Dashboard = () => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <p style="margin: 0; font-size: ${isUltraDense ? '9px' : '11px'}; color: #334155; line-height: 1.3;">
-                        <strong>Smart Engine:</strong> Las cantidades han sido <strong>calculadas de manera exacta</strong> según empaques del mercado local${(formData?.householdSize || 1) > 1 ? ` y <strong>multiplicadas para ${formData.householdSize} personas</strong>` : ''}. Ajusta según tu inventario actual en casa. <strong>Nota: "Ud." significa "Unidad".</strong>
+                        <strong>Smart Engine:</strong> Las cantidades han sido <strong>calculadas de manera exacta</strong> según empaques del mercado local${(formData?.householdSize || 1) > 1 ? ` y <strong>multiplicadas para ${escapeHtml(formData.householdSize)} personas</strong>` : ''}. Ajusta según tu inventario actual en casa. <strong>Nota: "Ud." significa "Unidad".</strong>
                     </p>
                 </div>
+
+                ${freshInventoryStale ? `
+                <!-- [P1-PDF-1] Stale Inventory Banner: el fetch fresco falló o
+                     timeoutó; usamos liveInventory cacheado y avisamos al usuario.
+                     Color amber/warning (no rojo) para diferenciarlo de error duro. -->
+                <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-left: 3px solid #f59e0b; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; align-items: flex-start; gap: 8px;">
+                    <svg style="flex-shrink: 0; width: 14px; height: 14px; color: #f59e0b; margin-top: 1px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <p style="margin: 0; font-size: ${isUltraDense ? '9.5px' : '11px'}; color: #78350f; line-height: 1.3;">
+                        <strong>Aviso:</strong> Esta lista usa datos en caché de tu Nevera (no pudimos validar el inventario en vivo). <strong>Verifica antes de comprar</strong> para evitar duplicados.
+                    </p>
+                </div>
+                ` : ''}
 
                 ${deltaIsAdjusted ? `
                 <!-- Delta Shopping Banner -->
@@ -1017,7 +1186,7 @@ const Dashboard = () => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
                     <p style="margin: 0; font-size: ${isUltraDense ? '9.5px' : '11px'}; color: #065f46; line-height: 1.3;">
-                        <strong>Nevera Inteligente:</strong> Esta lista fue ${deltaItemsRemoved > 0 ? `<strong>ajustada automáticamente</strong> — ${deltaItemsRemoved} ingrediente${deltaItemsRemoved > 1 ? 's' : ''} ya está${deltaItemsRemoved > 1 ? 'n' : ''} en tu Nevera y ${deltaItemsRemoved > 1 ? 'fueron excluidos' : 'fue excluido'}` : '<strong>ajustada</strong> según lo que ya tienes en tu Nevera'}.
+                        <strong>Nevera Inteligente:</strong> Esta lista fue ${deltaItemsRemoved > 0 ? `<strong>ajustada automáticamente</strong> — ${escapeHtml(deltaItemsRemoved)} ingrediente${deltaItemsRemoved > 1 ? 's' : ''} ya está${deltaItemsRemoved > 1 ? 'n' : ''} en tu Nevera y ${deltaItemsRemoved > 1 ? 'fueron excluidos' : 'fue excluido'}` : '<strong>ajustada</strong> según lo que ya tienes en tu Nevera'}.
                     </p>
                 </div>
                 ` : ''}
@@ -1028,13 +1197,13 @@ const Dashboard = () => {
                 htmlContent += `
                 <div style="text-align: center; padding: 40px 20px; background-color: #f0fdf4; border: 2px dashed #4ade80; border-radius: 12px; margin: 30px 0;">
                     <div style="font-size: 56px; margin-bottom: 12px;">🎉</div>
-                    <h2 style="color: #166534; font-size: 24px; margin: 0 0 12px 0; font-weight: 800; letter-spacing: -0.02em;">${emptyMessageTitle}</h2>
-                    <p style="color: #15803d; margin: 0; font-size: 14px; line-height: 1.5; font-weight: 500;">${emptyMessageDesc}</p>
+                    <h2 style="color: #166534; font-size: 24px; margin: 0 0 12px 0; font-weight: 800; letter-spacing: -0.02em;">${escapeHtml(emptyMessageTitle)}</h2>
+                    <p style="color: #15803d; margin: 0; font-size: 14px; line-height: 1.5; font-weight: 500;">${escapeHtml(emptyMessageDesc)}</p>
                 </div>
                 `;
             }
 
-            const generateBlocks = (groupObj) => {
+            const generateBlocks = (groupObj, isPerishable) => {
                 let innerHtml = '';
                 const sortedKeys = Object.keys(groupObj).sort((a, b) => {
                     if (a.includes('ESTIMADO TOTAL')) return 1;
@@ -1044,11 +1213,14 @@ const Dashboard = () => {
 
                 sortedKeys.forEach(cat => {
                     const icon = `<span style="background-color: #10b981; color: white; border-radius: 4px; padding: 3px; display: flex; align-items: center; justify-content: center; width: 14px; height: 14px;"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></span>`;
+                    // [P1-PDF-3] Padding del header de cada tarjeta de categoría.
+                    const catHeaderPadding = isHyperDense ? '3px 6px' : isUltraDense ? '4px 8px' : (isDense ? '6px 10px' : '8px 12px');
+                    const catTitleFont = isHyperDense ? '8px' : isUltraDense ? '9.5px' : '11px';
                     innerHtml += `
                     <div style="background-color: #ffffff; border: 1px solid #f3f4f6; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); break-inside: avoid-column; page-break-inside: avoid; margin-bottom: ${catMargin}; display: table; width: 100%;">
-                        <div style="background-color: #f8fafc; padding: ${isUltraDense ? '4px 8px' : (isDense ? '6px 10px' : '8px 12px')}; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 6px;">
+                        <div style="background-color: #f8fafc; padding: ${catHeaderPadding}; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 6px;">
                             ${icon}
-                            <h3 style="margin: 0; font-size: ${isUltraDense ? '9.5px' : '11px'}; font-weight: 800; color: #1f2937; text-transform: uppercase; letter-spacing: 0.05em;">${cat}</h3>
+                            <h3 style="margin: 0; font-size: ${catTitleFont}; font-weight: 800; color: #1f2937; text-transform: uppercase; letter-spacing: 0.05em;">${escapeHtml(cat)}</h3>
                         </div>
                         <ul style="list-style: none; padding: 0; margin: 0;">
                     `;
@@ -1068,22 +1240,52 @@ const Dashboard = () => {
                             display = display.display_name || display.name || display.item_name || JSON.stringify(display);
                         }
 
+                        // Color del chip alineado con la durabilidad real del item:
+                        // verde = dura el ciclo completo (estables), ámbar = consumir
+                        // en ~7-14 días (perecederos). Antes el color codificaba la
+                        // confianza del match al catálogo (dato técnico interno) — info
+                        // que el usuario no puede accionar. Ahora el chip refuerza la
+                        // misma señal que la sección donde aparece.
                         const conf = (item.item_ref && item.item_ref.confidence_score) ? item.item_ref.confidence_score : 1.0;
-                        let tagBg = '#ecfdf5'; let tagColor = '#059669'; let tagBorder = '#10b98130';
-                        if (conf >= 0.9) { tagBg = '#ecfdf5'; tagColor = '#059669'; tagBorder = '#10b98130'; }
-                        else if (conf >= 0.7) { tagBg = '#fff7ed'; tagColor = '#ea580c'; tagBorder = '#ea580c30'; }
-                        else { tagBg = '#fef2f2'; tagColor = '#ef4444'; tagBorder = '#ef444430'; }
+                        const tagBg = isPerishable ? '#fff7ed' : '#ecfdf5';
+                        const tagColor = isPerishable ? '#ea580c' : '#059669';
+                        const tagBorder = isPerishable ? '#ea580c30' : '#10b98130';
+                        // La señal de "match débil al catálogo" se preserva como
+                        // ⚠️ inline junto al nombre cuando conf<0.7. Es un evento
+                        // raro en producción, no merece slot de color principal.
+                        const lowConfWarn = conf < 0.7
+                            ? `<span title="Match al catálogo dudoso — verifica el ingrediente" style="margin-left: 4px; font-size: ${isHyperDense ? '7px' : '9px'}; cursor: help;">⚠️</span>`
+                            : '';
 
-                        const qtyStr = displayQty && String(displayQty).trim() !== 'None' ? `<span style="font-weight: 700; color: ${tagColor}; font-size: ${isUltraDense ? '7.5px' : (isDense ? '8.5px' : '9.5px')}; background-color: ${tagBg}; border: 1px solid ${tagBorder}; padding: ${isUltraDense ? '1px 3px' : '1.5px 4px'}; border-radius: 4px; margin-left: 4px; white-space: nowrap; align-self: flex-start;">${displayQty}</span>` : '';
+                        // [P1-PDF-3] Font size escalado: 6.5px en hyper-dense
+                        // sigue legible en print pero abre paso a 4 columnas + 60+ items.
+                        const qtyFont = isHyperDense ? '6.5px' : isUltraDense ? '7.5px' : (isDense ? '8.5px' : '9.5px');
+                        const qtyPad = isHyperDense ? '0px 2px' : isUltraDense ? '1px 3px' : '1.5px 4px';
+                        const itemFont = isHyperDense ? '7.5px' : isUltraDense ? '9px' : (isDense ? '10px' : '11px');
+                        const checkboxSize = isHyperDense ? '8px' : isUltraDense ? '10px' : (isDense ? '12px' : '14px');
+                        const checkboxMarginRight = isHyperDense ? '4px' : isDense ? '6px' : '10px';
 
-                        const noteHTML = item._inventoryNote ? `<div style="font-size: ${isUltraDense ? '7.5px' : (isDense ? '8.5px' : '9.5px')}; color: #059669; margin-top: 1px; font-weight: 500; line-height: 1.1;">💡 ${item._inventoryNote}</div>` : '';
+                        // [P1-1] `displayQty`, `display`, `_inventoryNote` vienen
+                        // del LLM, del user_inventory de Supabase o del formulario.
+                        // Escapamos los 5 metacaracteres HTML antes de interpolar
+                        // para evitar markup roto en el PDF (categorías duplicadas,
+                        // listado truncado, descarga malformada).
+                        const qtyStr = displayQty && String(displayQty).trim() !== 'None' ? `<span style="font-weight: 700; color: ${tagColor}; font-size: ${qtyFont}; background-color: ${tagBg}; border: 1px solid ${tagBorder}; padding: ${qtyPad}; border-radius: 4px; margin-left: 4px; white-space: nowrap; align-self: flex-start;">${escapeHtml(displayQty)}</span>` : '';
+
+                        // [P1-PDF-3] En hyper-dense, ocultamos `_inventoryNote`
+                        // (libera ~10-12px verticales por item). El info no se
+                        // pierde — sigue visible en la UI del Dashboard y en el
+                        // banner global del PDF.
+                        const noteHTML = (showInventoryNotes && item._inventoryNote)
+                            ? `<div style="font-size: ${isUltraDense ? '7.5px' : (isDense ? '8.5px' : '9.5px')}; color: #059669; margin-top: 1px; font-weight: 500; line-height: 1.1;">💡 ${escapeHtml(item._inventoryNote)}</div>`
+                            : '';
 
                         innerHtml += `
                             <li style="display: flex; align-items: flex-start; padding: ${ulPadding}; ${borderBottom} page-break-inside: avoid;">
-                                <div style="width: ${isUltraDense ? '10px' : (isDense ? '12px' : '14px')}; height: ${isUltraDense ? '10px' : (isDense ? '12px' : '14px')}; border: 1.5px solid #d1d5db; border-radius: ${isDense ? '3px' : '4px'}; margin-right: ${isDense ? '6px' : '10px'}; flex-shrink: 0; background-color: #ffffff; margin-top: 2px;"></div>
+                                <div style="width: ${checkboxSize}; height: ${checkboxSize}; border: 1.5px solid #d1d5db; border-radius: ${isDense ? '3px' : '4px'}; margin-right: ${checkboxMarginRight}; flex-shrink: 0; background-color: #ffffff; margin-top: 2px;"></div>
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
                                     <div style="display: flex; flex-direction: column;">
-                                        <span style="font-size: ${isUltraDense ? '9px' : (isDense ? '10px' : '11px')}; font-weight: 600; color: #374151; line-height: 1.2;">${display}</span>
+                                        <span style="font-size: ${itemFont}; font-weight: 600; color: #374151; line-height: 1.2;">${escapeHtml(display)}${lowConfWarn}</span>
                                         ${noteHTML}
                                     </div>
                                     ${qtyStr}
@@ -1096,21 +1298,48 @@ const Dashboard = () => {
                 return innerHtml;
             };
 
+            // [P1-PDF-3] `columnCount` viene del helper: 3 columnas hasta
+            // ultra-dense, 4 en hyper-dense (≥60 items) para empacar más sin
+            // perder legibilidad. column-gap también se reduce en hyper-dense.
+            const columnGap = isHyperDense ? '8px' : isUltraDense ? '12px' : '16px';
+            const sectionLabelFont = isHyperDense ? '8.5px' : isUltraDense ? '9.5px' : '11px';
+            const sectionDescFont = isHyperDense ? '7px' : isUltraDense ? '7.5px' : '9px';
+
+            // [VISIÓN-C] Etiquetas dinámicas según duración seleccionada.
+            // El backend en `_build_hybrid_shopping_list` ya recortó las cantidades:
+            //   - Perecederos: cantidad para 1 semana (compra recurrente).
+            //   - Estables: cantidad para todo el periodo (compra única).
+            const isWeekly = duration === 'weekly';
+            const perishableLabel = isWeekly
+                ? 'COMPRA ESTA SEMANA — PERECEDEROS'
+                : 'COMPRA ESTA SEMANA — PERECEDEROS (REPITE CADA 7 DÍAS)';
+            const perishableDesc = isWeekly
+                ? 'Carnes, lácteos, frutas y vegetales frescos. Consume o refrigera pronto.'
+                : 'Estos se dañan rápido, por eso aparecen solo para 7 días aunque tu plan sea más largo. Vuelve a comprar cada semana.';
+            const stableLabel = duration === 'monthly'
+                ? 'DESPENSA DEL MES — ESTABLES (COMPRA UNA SOLA VEZ)'
+                : duration === 'biweekly'
+                    ? 'DESPENSA PARA 15 DÍAS — ESTABLES (COMPRA UNA SOLA VEZ)'
+                    : 'DESPENSA — ESTABLES (+7 DÍAS)';
+            const stableDesc = isWeekly
+                ? 'Granos, enlatados, especias y víveres secos. Tienen larga caducidad.'
+                : 'Granos, enlatados, especias y víveres secos. Cantidad calculada para todo el periodo: cómpralos una sola vez.';
+
             if (Object.keys(perishables).length > 0) {
                 htmlContent += `
                 <!-- Prioridad Alta -->
                 <div style="background-color: #fef2f2; border: 1px solid #fca5a5; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; flex-direction: column; gap: 4px;">
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        <span style="font-size: ${isUltraDense ? '9.5px' : '11px'}; font-weight: 800; color: #991b1b; letter-spacing: 0.05em;">COMPRA INMEDIATA (PERECEDEROS 1-7 DÍAS)</span>
+                        <span style="font-size: ${sectionLabelFont}; font-weight: 800; color: #991b1b; letter-spacing: 0.05em;">${perishableLabel}</span>
                     </div>
-                    <div style="font-size: ${isUltraDense ? '7.5px' : '9px'}; color: #b91c1c; padding-left: 18px; line-height: 1.2;">
-                        Carnes, lácteos, frutas y vegetales que deben refrigerarse o consumirse pronto para evitar que se dañen.
+                    <div style="font-size: ${sectionDescFont}; color: #b91c1c; padding-left: 18px; line-height: 1.2;">
+                        ${perishableDesc}
                     </div>
                 </div>
-                <div style="column-count: 3; column-gap: ${isUltraDense ? '12px' : '16px'};">
+                <div style="column-count: ${columnCount}; column-gap: ${columnGap};">
                 `;
-                htmlContent += generateBlocks(perishables);
+                htmlContent += generateBlocks(perishables, true);
                 htmlContent += `</div> <!-- End Columns -->`;
             }
 
@@ -1120,15 +1349,15 @@ const Dashboard = () => {
                 <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: ${disclaimerPadding}; border-radius: 6px; margin-top: 2px; margin-bottom: ${disclaimerMargin}; display: flex; flex-direction: column; gap: 4px;">
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2.5"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></svg>
-                        <span style="font-size: ${isUltraDense ? '9.5px' : '11px'}; font-weight: 800; color: #166534; letter-spacing: 0.05em;">DESPENSA Y ESTABLES (+7 DÍAS)</span>
+                        <span style="font-size: ${sectionLabelFont}; font-weight: 800; color: #166534; letter-spacing: 0.05em;">${stableLabel}</span>
                     </div>
-                    <div style="font-size: ${isUltraDense ? '7.5px' : '9px'}; color: #15803d; padding-left: 18px; line-height: 1.2;">
-                       Granos, enlatados, especias y víveres secos. Tienen larga caducidad y puedes almacenarlos en la alacena.
+                    <div style="font-size: ${sectionDescFont}; color: #15803d; padding-left: 18px; line-height: 1.2;">
+                       ${stableDesc}
                     </div>
                 </div>
-                <div style="column-count: 3; column-gap: ${isUltraDense ? '12px' : '16px'};">
+                <div style="column-count: ${columnCount}; column-gap: ${columnGap};">
                 `;
-                htmlContent += generateBlocks(stables);
+                htmlContent += generateBlocks(stables, false);
                 htmlContent += `</div> <!-- End Columns -->`;
             }
 
@@ -1143,13 +1372,20 @@ const Dashboard = () => {
 
             element.innerHTML = htmlContent;
 
-            // html2pdf opciones
+            // [P1-PDF-3] Configuración de paginación según densidad.
+            // - 1 página (default): `avoid-all` evita cortes dentro de tarjetas
+            //   pero también dentro del bloque entero — comprime cuando hay
+            //   espacio suficiente.
+            // - multi-página (≥80 items): cambia a estrategia CSS+legacy que
+            //   respeta `page-break-inside: avoid` por elemento individual,
+            //   permitiendo que html2pdf paginee formalmente sin truncar.
+            const pagebreakMode = multiPage ? ['css', 'legacy'] : ['avoid-all'];
             const opt = {
-                margin: [4, 0, 0, 0], // Eliminar margen inferior para evitar páginas fantasma
-                filename: `Lista_de_compras_${durationText.replace(' ', '_')}.pdf`,
+                margin: multiPage ? [6, 4, 8, 4] : [4, 0, 0, 0],
+                filename: `Lista_de_compras_${durationText.replace(/ /g, '_')}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, windowWidth: 800 },
-                pagebreak: { mode: ['avoid-all'] }, // Forzar que no haya saltos de página
+                pagebreak: { mode: pagebreakMode },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
@@ -1162,6 +1398,12 @@ const Dashboard = () => {
             console.error('Error downloading supply list:', error);
             toast.dismiss();
             toast.error('Error al generar la lista de compras.');
+        } finally {
+            // [P1-6] Liberar SIEMPRE el lock, aunque el render del PDF
+            // o el fetch fresh fallaran. Sin este finally, un fallo
+            // silencioso dejaría el lock activo permanente y el usuario
+            // no podría descargar el PDF hasta refrescar la página.
+            pdfLock.current = false;
         }
     };
 
@@ -1187,20 +1429,54 @@ const Dashboard = () => {
         const loadingToast = toast.loading('Guardando ingredientes en la despensa...', { position: 'top-center' });
 
         try {
-            // Refresco de inventario fresco antes de calcular delta (P0-2)
+            // [P1-1] Refresco de inventario fresco con timeout + degradación
+            // visible. Antes el bloque era un `try/catch` silencioso (raw
+            // `await supabase.from(...)`): si Supabase tardaba o fallaba,
+            // `liveInventory` (potencialmente stale tras un restock cuyo
+            // response falló pero sí persistió en BD) se usaba sin alerta →
+            // el delta se calculaba contra caché vieja y el restock duplicaba
+            // items en la despensa. Asimétrico con `handleDownloadShoppingList`
+            // (PDF) que ya estaba hardenizado por P1-PDF-1.
+            //
+            // Ahora:
+            //   1. `fetchFreshInventoryWithTimeout` carrera contra 2000ms.
+            //   2. Si timeout/error/empty_response: usa `liveInventory` cacheado,
+            //      muestra toast.warning visible al usuario ANTES del POST, y
+            //      emite `restock_stale_inventory_fallback` para telemetría.
+            //   3. NUNCA bloquea indefinidamente — si Supabase cuelga el helper
+            //      retorna a los 2s y procedemos con caché en lugar de dejar
+            //      al usuario congelado en "Guardando ingredientes...".
             let freshInventoryForRestock = liveInventory;
-            try {
-                const { data: freshInv } = await supabase
+            const _restockFreshFetch = await fetchFreshInventoryWithTimeout(
+                () => supabase
                     .from('user_inventory')
                     .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
                     .eq('user_id', userProfile.id)
                     .gt('quantity', 0)
-                    .order('ingredient_name', { ascending: true });
-                if (freshInv) {
-                    freshInventoryForRestock = freshInv;
-                    setLiveInventory(freshInv);
-                }
-            } catch (e) { /* non-blocking */ }
+                    .order('ingredient_name', { ascending: true }),
+                2000,
+            );
+            if (!_restockFreshFetch.stale) {
+                freshInventoryForRestock = _restockFreshFetch.data;
+                setLiveInventory(_restockFreshFetch.data);
+                // [P1-5] Restock validado contra datos vivos → bajamos el chip
+                // ámbar persistente in-app si estaba activo.
+                setInventoryStale(false);
+            } else {
+                // [P1-5] Mantener el chip in-app encendido tras la advertencia
+                // transiente del toast: el toast desaparece a los 6s pero el
+                // chip permanece hasta que un fetch fresco confirme datos vivos.
+                setInventoryStale(true);
+                toast.warning('Tu Nevera puede estar desactualizada', {
+                    description: 'No pudimos validar tu inventario en vivo; usando datos en caché. Verifica antes de confirmar para evitar duplicados.',
+                    duration: 6000,
+                });
+                trackEvent('restock_stale_inventory_fallback', {
+                    reason: _restockFreshFetch.reason,
+                    user_id: userProfile?.id,
+                    fallback_inventory_size: Array.isArray(liveInventory) ? liveInventory.length : 0,
+                });
+            }
 
             // Fuente Verdadera: Solo enviar a la BD lo que es estrictamente NUEVO de la Lista de Compras del Plan!
             // No enviar todo el 'allPlanIngredients' ya que duplicaría el liveInventory que el usuario ya poseía.
@@ -1218,25 +1494,15 @@ const Dashboard = () => {
                     name = ing.name || ing.display_name || ing.display_string || String(ing);
                     // Send structured data directly to bypass display_string re-parsing
                     // (display_string contains Unicode fractions like ½ that _parse_quantity can't handle)
-                    if (ing.name && (ing.market_qty !== undefined || ing.display_qty)) {
-                        const mqRaw = ing.market_qty ?? ing.display_qty ?? 1;
-                        let mqNum = 0;
-                        if (typeof mqRaw === 'number') {
-                            mqNum = mqRaw;
-                        } else if (typeof mqRaw === 'string') {
-                            // Parse fractional strings like "1/2", "1 1/2", "3/4"
-                            const parts = mqRaw.trim().split(/\s+/);
-                            try {
-                                if (parts.length === 2 && parts[1].includes('/')) {
-                                    const [n, d] = parts[1].split('/');
-                                    mqNum = parseFloat(parts[0]) + parseFloat(n) / parseFloat(d);
-                                } else if (parts.length === 1 && parts[0].includes('/')) {
-                                    const [n, d] = parts[0].split('/');
-                                    mqNum = parseFloat(n) / parseFloat(d);
-                                } else {
-                                    mqNum = parseFloat(mqRaw) || 0;
-                                }
-                            } catch { mqNum = parseFloat(mqRaw) || 0; }
+                    if (ing.name && (ing.market_qty !== undefined || ing.market_qty_numeric !== undefined || ing.display_qty)) {
+                        // [P0-2] Antes había parser fraccional inline duplicado
+                        // aquí; ahora usamos `resolveShopQty` (que prefiere
+                        // `market_qty_numeric` cuando existe) → semántica
+                        // unificada con el delta de la línea 705.
+                        let mqNum = resolveShopQty(ing);
+                        if (mqNum === 0) {
+                            // Fallback al display_qty si tampoco hay market_qty parseable.
+                            mqNum = parseMarketQty(ing.display_qty) || 1;
                         }
                         structured = {
                             name: ing.name,
@@ -2085,6 +2351,40 @@ const Dashboard = () => {
                             </AnimatePresence>
                         </div>
 
+
+                        {/* [P1-5] Chip ámbar persistente: avisa al usuario que el
+                            inventario en uso puede ser caché stale. Aparece encima
+                            de la fila de acciones (Update / "Ya compré todo" / PDF)
+                            para que la advertencia llegue ANTES de cualquier acción
+                            que dependa del inventario, no solo cuando ya descargó
+                            el PDF. Se baja automáticamente cuando un fetch fresco
+                            (mount, focus, Realtime, PDF, Restock) confirma datos vivos. */}
+                        {inventoryStale && (
+                            <div
+                                role="status"
+                                aria-live="polite"
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    gap: '0.5rem',
+                                    padding: '0.5rem 0.75rem',
+                                    marginBottom: '0.5rem',
+                                    background: '#FFFBEB',
+                                    border: '1px solid #FDE68A',
+                                    borderLeft: '3px solid #F59E0B',
+                                    borderRadius: '0.5rem',
+                                    width: '100%',
+                                    fontSize: '0.78rem',
+                                    color: '#78350F',
+                                    lineHeight: 1.3,
+                                }}
+                            >
+                                <AlertCircle size={14} color="#F59E0B" style={{ flexShrink: 0, marginTop: '1px' }} />
+                                <span>
+                                    <strong>Tu Nevera puede estar desactualizada.</strong> Estamos usando datos en caché. Verifica antes de comprar para evitar duplicados.
+                                </span>
+                            </div>
+                        )}
 
                         {/* BOTONES LADO A LADO */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', width: '100%' }}>

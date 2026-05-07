@@ -468,7 +468,7 @@ const Settings = () => {
                             </div>
                             
                             <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '2rem' }}>
-                                Esto reemplazará tu plan actual y <strong>borrará todas tus preferencias</strong>, incluyendo los platos que no te gustan. Esta acción es irreversible y consumirá 1 crédito.
+                                Esto borrará <strong>todo tu progreso</strong>: perfil de salud, alergias, inventario de la nevera, platos que te gustan/no te gustan y la memoria que el sistema ha aprendido sobre ti. Tendrás que llenar el formulario inicial otra vez. Esta acción es irreversible y consumirá 1 crédito al generar el nuevo plan tras completar el formulario.
                             </p>
                             
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -586,6 +586,13 @@ const Settings = () => {
                                     setIsNavigatingOption(null);
                                     setShowEvaluateModal(false);
                                 } else if (optionId === 'cero') {
+                                    if (typeof userPlanLimit === 'number' && userPlanLimit > 0) {
+                                        if (planCount / userPlanLimit > 0.7) {
+                                            const remaining = Math.max(0, userPlanLimit - planCount);
+                                            const confirmed = window.confirm(`Empezar de cero consumirá 1 regeneración al generar el nuevo plan. Quedan ${remaining}. ¿Continuar?`);
+                                            if (!confirmed) return;
+                                        }
+                                    }
                                     setShowResetConfirm(true);
                                 }
                             }}
@@ -594,7 +601,7 @@ const Settings = () => {
                                     <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: '#64748B' }} />
                                     <div>
                                         {hoveredOption === 'cero' ? (
-                                            <><strong>Empezar de cero:</strong> Limpiará tus datos y generará un plan totalmente nuevo.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~30s. Consumirá 1 regeneración.</span></>
+                                            <><strong>Empezar de cero:</strong> Borra todo tu progreso y te lleva al formulario inicial.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~3-5 min completando el formulario. Consumirá 1 regeneración al generar el plan.</span></>
                                         ) : hoveredOption === 'renovar' ? (
                                             <><strong>Renovar:</strong> Mantendrá tus alergias y generará nuevos platos.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~30s. Consumirá 1 regeneración.</span></>
                                         ) : (
@@ -607,16 +614,6 @@ const Settings = () => {
                     )
                 )}
             </AnimatePresence>
-
-                {/* --- HEADER --- */}
-                <header className={styles.header}>
-                    <h1 className={styles.headerTitle}>
-                        Ajustes
-                    </h1>
-                    <p className={styles.headerSubtitle}>
-                        Gestiona tu perfil, preferencias y datos de la aplicación.
-                    </p>
-                </header>
 
                 <div className={styles.grid}>
 
@@ -631,8 +628,8 @@ const Settings = () => {
 
                         <div className={styles.profileFlex}>
                             
-                            {/* Avatar Centrado */}
-                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+                            {/* Avatar Centrado — sin marginBottom: profileFlex ya tiene gap. */}
+                            <div style={{ display: 'flex', justifyContent: 'center' }}>
                                 <div className={styles.avatar}>
                                     {userName ? userName.charAt(0).toUpperCase() : 'U'}
                                 </div>
@@ -692,7 +689,7 @@ const Settings = () => {
                                         <span style={{ color: '#334155', fontSize: '0.95rem', fontWeight: 500, wordBreak: 'break-all' }}>{displayEmail}</span>
                                     </div>
                                     <div className={styles.emailBadge}>
-                                        <Shield size={14} /> Protegido
+                                        <Shield size={14} /> <span className={styles.emailBadgeText}>Protegido</span>
                                     </div>
                                 </div>
 
@@ -708,7 +705,7 @@ const Settings = () => {
                                         )}
                                         ¿Para cuántas personas cocinas?
                                     </label>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.5rem' }}>
+                                    <div className={styles.householdGrid}>
                                         {[1, 2, 3, 4, 5, 6].map((num) => {
                                             const isActive = (formData?.householdSize || 1) === num;
                                             return (

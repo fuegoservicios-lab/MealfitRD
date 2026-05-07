@@ -12,7 +12,7 @@ import { RadioCard, Input, Label } from '../../common/FormUI';
 // metadata UI (`DIET_TYPE_META`) cubre exactamente la misma lista — si un
 // futuro PR añade un tipo a `DIET_TYPES` sin actualizar la metadata, el
 // componente avisa explícitamente en consola.
-import { BIO_RANGES, DIET_TYPES, isBiometricInRange } from '../../../config/formValidation';
+import { BIO_RANGES, DIET_TYPES, SUPPLEMENTS, isBiometricInRange } from '../../../config/formValidation';
 // [P1-FORM-2] SSOT de sentinels exclusivos. Antes cada Q* declaraba su
 // `const SENTINEL = "Ninguna"` o `"Ninguno"` localmente; cambiar el copy en
 // uno y olvidar los demás rompía la detección de exclusividad y la
@@ -150,17 +150,24 @@ const toggleArrayWithExclusiveSentinel = (currentArr, value, sentinel) => {
 
 export const QGender = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
+    // [P6-FORM-RADIO-CLICK-FIX] Híbrido: `onChange` mantiene la persistencia
+    // del valor en formData (necesario para back-navigation), `onClick`
+    // SOLO dispara auto-advance cuando el valor YA estaba seleccionado
+    // (caso donde onChange no fire por no haber cambio). Si los dos
+    // dispararían advance, daría doble-trigger en cambio de opción.
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <RadioCard
                 name="gender" value="female" label="Mujer" icon={UserCircle}
                 checked={formData.gender === 'female'}
                 onChange={(e) => { updateData('gender', e.target.value); onAutoAdvance(); }}
+                onClick={() => { if (formData.gender === 'female') onAutoAdvance(); }}
             />
             <RadioCard
                 name="gender" value="male" label="Hombre" icon={User}
                 checked={formData.gender === 'male'}
                 onChange={(e) => { updateData('gender', e.target.value); onAutoAdvance(); }}
+                onClick={() => { if (formData.gender === 'male') onAutoAdvance(); }}
             />
         </div>
     );
@@ -168,10 +175,38 @@ export const QGender = ({ onAutoAdvance }) => {
 
 export const QMeasurements = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
-    const [unit, setUnit] = useState('cm'); 
+    // [P1-13] `unit` derivado de formData (no `useState` local) para que
+    // sobreviva al remount del componente cuando el usuario navega con
+    // prevStep entre QMeasurements y QActivityLevel. ANTES, `useState('cm')`
+    // re-arrancaba 'cm' por default al remontar, perdiendo la elección
+    // explícita del usuario que había tipeado en ft/in. AHORA persiste a
+    // localStorage vía `_heightInputUnit` en `initialFormData`.
+    const unit = formData._heightInputUnit || 'cm';
+    const setUnit = (newUnit) => updateData('_heightInputUnit', newUnit);
     const [feet, setFeet] = useState('');
     const [inches, setInches] = useState('');
     const [weightUnit, setWeightUnit] = useState(formData.weightUnit || 'lb');
+
+    // [P1-9] Normaliza coma decimal a punto antes de persistir el valor.
+    // En locales `es-DO`/`es-ES` los usuarios tipean "70,5" naturalmente,
+    // y el navegador puede aceptarlo en `<input type="number">`. Sin esta
+    // normalización, el state guardaba `"70,5"`:
+    //   - `isBiometricInRange` (validation.js) sí lo normaliza para gating
+    //     local, pero el envío al backend mandaba `weight: "70,5"`.
+    //   - `_coerce_numeric` en backend `plans.py` también lo normaliza —
+    //     entonces el plan se genera correctamente.
+    //   - PERO la persistencia en `health_profile` y `mealfit_form` quedaba
+    //     con la coma literal. Comparaciones de igualdad en
+    //     `update_user_health_profile` (`old_w = float(...)`) podían fallar
+    //     o producir drift entre sesiones (refresh → "70,5" stale en DB →
+    //     re-hidrata distinto a lo que el usuario tipeó esta sesión).
+    // Fix: normalizar AQUÍ, en el límite de persistencia (onChange),
+    // garantizando que el state SIEMPRE tenga `.` decimal. Idempotente para
+    // valores que ya tienen `.` o no son numéricos.
+    const _normalizeDecimal = (raw) => {
+        if (typeof raw !== 'string') return raw;
+        return raw.replace(',', '.');
+    };
 
     useEffect(() => {
         // Solo sincronizamos ft/in desde cm cuando el usuario cambia DE cm A ft
@@ -184,10 +219,13 @@ export const QMeasurements = ({ onManualAdvance }) => {
     }, [unit]); // Removed formData.height from dependency array so it doesn't overwrite while typing
 
     const handleFtChange = (ft, inc) => {
-        setFeet(ft); 
-        setInches(inc);
-        const f = parseFloat(ft) || 0; 
-        const i = parseFloat(inc) || 0;
+        // [P1-9] Normalizar coma decimal antes de persistir local + propagar.
+        const ftN = _normalizeDecimal(ft);
+        const incN = _normalizeDecimal(inc);
+        setFeet(ftN);
+        setInches(incN);
+        const f = parseFloat(ftN) || 0;
+        const i = parseFloat(incN) || 0;
         if (f > 0 || i > 0) {
             updateData('height', Math.round((f * 30.48) + (i * 2.54)).toString());
         } else {
@@ -242,9 +280,9 @@ export const QMeasurements = ({ onManualAdvance }) => {
                     </div>
                     {unit === 'cm' ? (
                         <Input
-                            id="height" type="number" placeholder="Ej. 170"
+                            id="height" type="number" inputMode="decimal" placeholder="Ej. 170"
                             min={BIO_RANGES.heightCm.min} max={BIO_RANGES.heightCm.max} step={BIO_RANGES.heightCm.step}
-                            value={formData.height} onChange={e => updateData('height', e.target.value)}
+                            value={formData.height} onChange={e => updateData('height', _normalizeDecimal(e.target.value))}
                         />
                     ) : (
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -290,9 +328,9 @@ export const QMeasurements = ({ onManualAdvance }) => {
                         </div>
                     </div>
                     <Input
-                        id="weight" type="number" placeholder={weightUnit === 'lb' ? 'Ej. 150' : 'Ej. 70'}
+                        id="weight" type="number" inputMode="decimal" placeholder={weightUnit === 'lb' ? 'Ej. 150' : 'Ej. 70'}
                         min={weightRange.min} max={weightRange.max} step={weightRange.step}
-                        value={formData.weight} onChange={e => updateData('weight', e.target.value)}
+                        value={formData.weight} onChange={e => updateData('weight', _normalizeDecimal(e.target.value))}
                     />
                     {!formData._weightUnitTouched && (
                         <div style={{
@@ -308,9 +346,9 @@ export const QMeasurements = ({ onManualAdvance }) => {
                 <div>
                     <Label htmlFor="bodyFat">% Grasa (Opcional)</Label>
                     <Input
-                        id="bodyFat" type="number" placeholder="Ej. 20"
+                        id="bodyFat" type="number" inputMode="decimal" placeholder="Ej. 20"
                         min={BIO_RANGES.bodyFat.min} max={BIO_RANGES.bodyFat.max} step={BIO_RANGES.bodyFat.step}
-                        value={formData.bodyFat} onChange={e => updateData('bodyFat', e.target.value)}
+                        value={formData.bodyFat} onChange={e => updateData('bodyFat', _normalizeDecimal(e.target.value))}
                     />
                 </div>
             </div>
@@ -335,6 +373,7 @@ export const QActivityLevel = ({ onAutoAdvance }) => {
                     key={opt.val} name="activityLevel" value={opt.val} label={opt.label} desc={opt.desc} icon={opt.icon}
                     checked={formData.activityLevel === opt.val}
                     onChange={(e) => { updateData('activityLevel', e.target.value); onAutoAdvance(); }}
+                    onClick={() => { if (formData.activityLevel === opt.val) onAutoAdvance(); }}
                 />
             ))}
         </div>
@@ -354,6 +393,7 @@ export const QSchedule = ({ onAutoAdvance }) => {
                     key={opt.val} name="scheduleType" value={opt.val} label={opt.label} desc={opt.desc} icon={opt.icon}
                     checked={formData.scheduleType === opt.val}
                     onChange={(e) => { updateData('scheduleType', e.target.value); onAutoAdvance(); }}
+                    onClick={() => { if (formData.scheduleType === opt.val) onAutoAdvance(); }}
                 />
             ))}
         </div>
@@ -365,10 +405,11 @@ export const QSleep = ({ onAutoAdvance }) => {
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             {['< 6 horas', '6-7 horas', '7-8 horas', '> 8 horas'].map(opt => (
-                <RadioCard 
-                    key={opt} name="sleepHours" value={opt} label={opt} icon={Moon} 
-                    checked={formData.sleepHours === opt} 
-                    onChange={(e) => { updateData('sleepHours', e.target.value); onAutoAdvance(); }} 
+                <RadioCard
+                    key={opt} name="sleepHours" value={opt} label={opt} icon={Moon}
+                    checked={formData.sleepHours === opt}
+                    onChange={(e) => { updateData('sleepHours', e.target.value); onAutoAdvance(); }}
+                    onClick={() => { if (formData.sleepHours === opt) onAutoAdvance(); }}
                 />
             ))}
         </div>
@@ -380,10 +421,11 @@ export const QStress = ({ onAutoAdvance }) => {
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             {['Bajo', 'Moderado', 'Alto', 'Muy Alto'].map(opt => (
-                <RadioCard 
-                    key={opt} name="stressLevel" value={opt} label={opt} icon={Battery} 
-                    checked={formData.stressLevel === opt} 
-                    onChange={(e) => { updateData('stressLevel', e.target.value); onAutoAdvance(); }} 
+                <RadioCard
+                    key={opt} name="stressLevel" value={opt} label={opt} icon={Battery}
+                    checked={formData.stressLevel === opt}
+                    onChange={(e) => { updateData('stressLevel', e.target.value); onAutoAdvance(); }}
+                    onClick={() => { if (formData.stressLevel === opt) onAutoAdvance(); }}
                 />
             ))}
         </div>
@@ -404,6 +446,7 @@ export const QCookingTime = ({ onAutoAdvance }) => {
                     key={opt.val} name="cookingTime" value={opt.val} label={opt.label} desc={opt.desc} icon={opt.icon}
                     checked={formData.cookingTime === opt.val}
                     onChange={(e) => { updateData('cookingTime', e.target.value); onAutoAdvance(); }}
+                    onClick={() => { if (formData.cookingTime === opt.val) onAutoAdvance(); }}
                 />
             ))}
         </div>
@@ -424,6 +467,7 @@ export const QBudget = ({ onAutoAdvance }) => {
                     key={opt.val} name="budget" value={opt.val} label={opt.label} desc={opt.desc} icon={opt.icon}
                     checked={formData.budget === opt.val}
                     onChange={(e) => { updateData('budget', e.target.value); onAutoAdvance(); }}
+                    onClick={() => { if (formData.budget === opt.val) onAutoAdvance(); }}
                 />
             ))}
         </div>
@@ -804,18 +848,39 @@ export const QMotivation = ({ onManualAdvance }) => {
 
 export const QHousehold = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
-    
-    // Initialize householdSize if not set so default visual "1" matches actual state
-    useEffect(() => {
-        if (!formData.householdSize) updateData('householdSize', 1);
-    }, []);
+
+    // [P0-12] ANTES había un `useEffect` mount-only que seteaba
+    // `householdSize=1` si llegaba falsy, sincronizando el "default visual 1"
+    // con el state real. Eso EVADÍA el gating de `findFirstIncompleteField`:
+    // el step quedaba "completado" sin que el usuario tocara nada, el botón
+    // "Siguiente" quedaba habilitado, y un usuario que avanzaba pasivo
+    // generaba un plan escalado para 1 persona/semanal aunque su hogar
+    // fuera de 4 personas con compras quincenales. AHORA el state arranca
+    // en `null` (desde `initialFormData`) y el botón "Siguiente" queda
+    // disabled hasta que el usuario clique explícitamente un chip de
+    // personas Y un chip de duración. El chip "1" ya no aparece
+    // pre-seleccionado en el primer render.
 
     const handlePersonSelect = (num) => {
         updateData('householdSize', num);
+        // [P1-12] Marcar como tocado explícitamente. `_householdSizeTouched`
+        // persiste a localStorage junto con `householdSize`, y el useEffect
+        // mount-only en `AssessmentContext` re-arma `editedFieldsRef` para
+        // que la hidratación async post-login (fetchProfile,
+        // secureLoadFormData) y los Realtime UPDATEs de `user_profiles`
+        // (admin tooling, otra pestaña, sync cloud) NO sobreescriban la
+        // decisión del usuario con un valor stale del DB. Mismo patrón
+        // que P0-FORM-2 (`_skipLunchTouched`) y P1-FORM-3 (`_weightUnitTouched`).
+        updateData('_householdSizeTouched', true);
     };
 
     const handleDurationSelect = (val) => {
         updateData('groceryDuration', val);
+        // [P1-12] Mismo patrón: el ciclo de compras es safety-relevante para
+        // el escalado de la lista de compras (×2 quincenal, ×4 mensual).
+        // Sin este flag, una mudanza/cambio de horario que el usuario tipea
+        // en una pestaña podía ser revertida por sync de otra sesión.
+        updateData('_groceryDurationTouched', true);
     };
 
     return (
@@ -828,7 +893,9 @@ export const QHousehold = ({ onManualAdvance }) => {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
                     {[1, 2, 3, 4, 5, 6].map(num => {
-                        const isSelected = (formData.householdSize || 1) === num;
+                        // [P0-12] Sin fallback `|| 1`: si el usuario aún no
+                        // eligió, NINGÚN chip aparece pre-seleccionado.
+                        const isSelected = formData.householdSize === num;
                         return (
                             <div
                                 key={num}
@@ -994,6 +1061,45 @@ export const QHousehold = ({ onManualAdvance }) => {
     );
 };
 
+// [P1-FORM-14] Metadata UI por suplemento. Las claves DEBEN coincidir EXACTAMENTE
+// con `SUPPLEMENTS` (SSOT en formValidation.js). El check de invariante debajo
+// avisa en dev si hay drift. Mismo patrón que `DIET_TYPE_META` de P1-FORM-8.
+const SUPPLEMENT_META = {
+    whey_protein:  { label: 'Proteína Whey', emoji: '🥛' },
+    vegan_protein: { label: 'Prot. Vegana',  emoji: '🌱' },
+    creatine:      { label: 'Creatina',      emoji: '⚡' },
+    bcaa:          { label: 'BCAA / EAA',    emoji: '💪' },
+    pre_workout:   { label: 'Pre-Entreno',   emoji: '🔥' },
+    fat_burner:    { label: 'Quemador Grasa', emoji: '🌶️' },
+    collagen:      { label: 'Colágeno',      emoji: '✨' },
+    multivitamin:  { label: 'Multivitamínico', emoji: '💊' },
+    omega3:        { label: 'Omega-3',       emoji: '🐟' },
+    magnesium:     { label: 'Magnesio',      emoji: '🌙' },
+    probiotics:    { label: 'Probióticos',   emoji: '🦠' },
+    electrolytes:  { label: 'Electrolitos',  emoji: '💧' },
+};
+
+// [P1-FORM-14] Invariante de desarrollo: `SUPPLEMENT_META` debe cubrir
+// exactamente las mismas claves que `SUPPLEMENTS`. Si un PR futuro añade
+// "ashwagandha" al SSOT pero olvida la metadata UI, este aviso lo detecta en
+// el primer mount durante dev. En prod (`import.meta.env.MODE !== 'development'`)
+// el chequeo se omite — el render igual fallaría visualmente con un chip
+// vacío, pero sin spam de consola. Vite reemplaza `import.meta.env.MODE` en
+// build time, así que el bloque se elimina por dead-code elimination en
+// producción. El test `backend/test_p1_form_14_supplements_sync.py` cierra
+// el drift cross-language en CI.
+if (import.meta.env?.MODE === 'development') {
+    const metaKeys = Object.keys(SUPPLEMENT_META);
+    const missingMeta = SUPPLEMENTS.filter((s) => !metaKeys.includes(s));
+    const extraMeta = metaKeys.filter((k) => !SUPPLEMENTS.includes(k));
+    if (missingMeta.length || extraMeta.length) {
+        console.warn(
+            '[P1-FORM-14] SUPPLEMENT_META drift vs SUPPLEMENTS:',
+            { missingMeta, extraMeta }
+        );
+    }
+}
+
 export const QSupplements = ({ onFinish, isSubmitting }) => {
     const { formData, updateData } = useAssessment();
 
@@ -1016,7 +1122,7 @@ export const QSupplements = ({ onFinish, isSubmitting }) => {
                 <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, color: formData.includeSupplements ? '#8b5cf6' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                         <Pill size={20} color={formData.includeSupplements ? '#8b5cf6' : 'var(--text-muted)'} />
-                        Incluir Suplementos 
+                        Incluir Suplementos
                     </div>
                 </div>
                 {/* Toggle UI */}
@@ -1031,28 +1137,17 @@ export const QSupplements = ({ onFinish, isSubmitting }) => {
                         * Si no marcas ninguno, la IA sugerirá los más adecuados para tu meta.
                     </p>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '0.75rem' }}>
-                        {[
-                            { val: 'whey_protein', label: 'Proteína Whey', emoji: '🥛' },
-                            { val: 'vegan_protein', label: 'Prot. Vegana', emoji: '🌱' },
-                            { val: 'creatine', label: 'Creatina', emoji: '⚡' },
-                            { val: 'bcaa', label: 'BCAA / EAA', emoji: '💪' },
-                            { val: 'pre_workout', label: 'Pre-Entreno', emoji: '🔥' },
-                            { val: 'fat_burner', label: 'Quemador Grasa', emoji: '🌶️' },
-                            { val: 'collagen', label: 'Colágeno', emoji: '✨' },
-                            { val: 'multivitamin', label: 'Multivitamínico', emoji: '💊' },
-                            { val: 'omega3', label: 'Omega-3', emoji: '🐟' },
-                            { val: 'magnesium', label: 'Magnesio', emoji: '🌙' },
-                            { val: 'probiotics', label: 'Probióticos', emoji: '🦠' },
-                            { val: 'electrolytes', label: 'Electrolitos', emoji: '💧' },
-                        ].map(supp => {
-                            const isSelected = (formData.selectedSupplements || []).includes(supp.val);
+                        {SUPPLEMENTS.map((val) => {
+                            const meta = SUPPLEMENT_META[val];
+                            if (!meta) return null;  // safety net — el invariante de arriba ya avisó
+                            const isSelected = (formData.selectedSupplements || []).includes(val);
                             return (
                                 <div
-                                    key={supp.val}
+                                    key={val}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         const current = formData.selectedSupplements || [];
-                                        const updated = current.includes(supp.val) ? current.filter(s => s !== supp.val) : [...current, supp.val];
+                                        const updated = current.includes(val) ? current.filter(s => s !== val) : [...current, val];
                                         updateData('selectedSupplements', updated);
                                     }}
                                     style={{
@@ -1061,8 +1156,8 @@ export const QSupplements = ({ onFinish, isSubmitting }) => {
                                         backgroundColor: isSelected ? 'white' : 'white', display: 'flex', alignItems: 'center', gap: '0.5rem'
                                     }}
                                 >
-                                    <span>{supp.emoji}</span>
-                                    <span style={{ fontSize: '0.85rem', fontWeight: isSelected ? 600 : 500, color: isSelected ? '#7c3aed' : 'var(--text-main)' }}>{supp.label}</span>
+                                    <span>{meta.emoji}</span>
+                                    <span style={{ fontSize: '0.85rem', fontWeight: isSelected ? 600 : 500, color: isSelected ? '#7c3aed' : 'var(--text-main)' }}>{meta.label}</span>
                                     {isSelected && <Check size={14} color="#8b5cf6" style={{ marginLeft: 'auto' }} />}
                                 </div>
                             );
@@ -1070,7 +1165,7 @@ export const QSupplements = ({ onFinish, isSubmitting }) => {
                     </div>
                 </div>
             )}
-            
+
             <NextButton onClick={onFinish} disabled={isSubmitting} label={isSubmitting ? "Generando Plan..." : "Finalizar y Generar"} icon={Zap} />
         </div>
     );
