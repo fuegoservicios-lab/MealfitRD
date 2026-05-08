@@ -34,3 +34,8 @@ export const fetchWithAuth = async (url, options = {}) => {
 
 export const getPlanChunkStatus = (planId) => fetchWithAuth(`/api/plans/${planId}/chunk-status`);
 export const retryPlanChunk = (planId, chunkId) => fetchWithAuth(`/api/plans/${planId}/retry-chunk/${chunkId}`, { method: 'POST' });
+// [P1-ζ] Re-encola un chunk dead-lettered forzando flexible_mode + advisory_only.
+// Cubre el último escalón cuando la cascada de recovery agotó sus reintentos
+// automáticos y el banner del frontend ofrece "Generar versión simplificada".
+export const regenerateChunkSimplified = (planId, chunkId) =>
+    fetchWithAuth(`/api/plans/${planId}/chunks/${chunkId}/regenerate-simplified`, { method: 'POST' });

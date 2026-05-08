@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
     User, Bell, Shield, ChevronRight,
-    LogOut, Save, Trash2, Database, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Users, Check
+    LogOut, Save, Trash2, Database, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, Sparkles, RefreshCw, ChefHat
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -60,15 +60,36 @@ const Settings = () => {
     });
 
     // Estado para las Notificaciones Web Push (IA)
-    const [pushEnabled, setPushEnabled] = useState(false);
+    // Lazy init desde localStorage + Notification.permission para evitar flash off→on al refrescar.
+    const [pushEnabled, setPushEnabled] = useState(() => {
+        try {
+            if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
+            return localStorage.getItem('mealfit_push_enabled') === 'true';
+        } catch { return false; }
+    });
     const [isPushLoading, setIsPushLoading] = useState(false);
     const [isPushBlocked, setIsPushBlocked] = useState(false);
     const [pushSubscribeError, setPushSubscribeError] = useState(null);
 
+    // Persistir el último valor confirmado para hidratación instantánea en el próximo mount.
+    useEffect(() => {
+        try { localStorage.setItem('mealfit_push_enabled', String(pushEnabled)); } catch {}
+    }, [pushEnabled]);
+
     // [P1-4] Preferencia de logging: 'manual' (default) o 'auto_proxy'.
     // En auto_proxy el sistema NO pausa los chunks aunque el usuario deje de loguear comidas.
-    const [loggingPreference, setLoggingPreference] = useState('manual');
+    // Lazy init desde localStorage para evitar flash 'manual'→'auto_proxy' tras refresh.
+    const [loggingPreference, setLoggingPreference] = useState(() => {
+        try {
+            const cached = localStorage.getItem('mealfit_logging_preference');
+            return cached === 'auto_proxy' || cached === 'manual' ? cached : 'manual';
+        } catch { return 'manual'; }
+    });
     const [isLoggingPrefLoading, setIsLoggingPrefLoading] = useState(false);
+
+    useEffect(() => {
+        try { localStorage.setItem('mealfit_logging_preference', loggingPreference); } catch {}
+    }, [loggingPreference]);
 
     useEffect(() => {
         let cancelled = false;
@@ -81,7 +102,7 @@ const Settings = () => {
                     setLoggingPreference(data.logging_preference);
                 }
             } catch (e) {
-                // No bloqueante: si falla, queda en 'manual' por default.
+                // No bloqueante: si falla, queda en el valor cacheado/default.
                 console.debug('No se pudo cargar logging_preference:', e);
             }
         })();
@@ -154,6 +175,40 @@ const Settings = () => {
         checkSubscription();
     }, []);
 
+    // Detecta cuando el usuario revoca el permiso de notificaciones desde fuera de la app
+    // (chrome://settings, otra pestaña). Sin esto el toggle quedaba ON pero ningún push llegaba.
+    useEffect(() => {
+        if (typeof navigator === 'undefined' || !navigator.permissions?.query) return;
+        let permStatus;
+        let cancelled = false;
+
+        const sync = () => {
+            if (!permStatus) return;
+            if (permStatus.state === 'denied') {
+                setPushEnabled(false);
+                setIsPushBlocked(true);
+            } else {
+                setIsPushBlocked(false);
+            }
+        };
+
+        (async () => {
+            try {
+                permStatus = await navigator.permissions.query({ name: 'notifications' });
+                if (cancelled) return;
+                permStatus.addEventListener('change', sync);
+                sync();
+            } catch (e) {
+                console.debug('permissions.query no disponible:', e);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+            if (permStatus) permStatus.removeEventListener('change', sync);
+        };
+    }, []);
+
     // CORRECCIÓN: Inicialización Lazy para evitar conflictos de renderizado
     // Si ya tenemos el dato en el contexto, lo usamos inmediatamente al crear el componente.
     const [userName, setUserName] = useState(
@@ -161,7 +216,6 @@ const Settings = () => {
     );
 
     const [isSaving, setIsSaving] = useState(false);
-    const [isRecalculating, setIsRecalculating] = useState(false);
     const [saveStatus, setSaveStatus] = useState(''); // '', 'success', 'error'
     const [nameError, setNameError] = useState('');
     const [confirmReset, setConfirmReset] = useState(false);
@@ -458,20 +512,75 @@ const Settings = () => {
                             isBottomSheetOnMobile={true}
                             disableClose={isNavigatingRef.current}
                         >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-                                <div style={{ background: '#FEE2E2', color: '#EF4444', padding: '0.75rem', borderRadius: '50%' }}>
-                                    <AlertTriangle size={24} strokeWidth={2.5} />
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '1.75rem' }}>
+                                <div style={{ background: '#FEE2E2', color: '#EF4444', padding: '1rem', borderRadius: '50%', marginBottom: '1.25rem', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)' }}>
+                                    <AlertTriangle size={28} strokeWidth={2.5} />
                                 </div>
-                                <h3 id="reset-confirm-modal" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0F172A' }}>
+                                <h3 id="reset-confirm-modal" style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
                                     ¿Empezar desde cero?
                                 </h3>
+                                <p style={{ margin: '0.5rem 0 0 0', color: '#64748B', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                                    Esta acción borrará <strong style={{ color: '#0F172A' }}>todo tu progreso</strong>.
+                                </p>
                             </div>
-                            
-                            <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '2rem' }}>
-                                Esto borrará <strong>todo tu progreso</strong>: perfil de salud, alergias, inventario de la nevera, platos que te gustan/no te gustan y la memoria que el sistema ha aprendido sobre ti. Tendrás que llenar el formulario inicial otra vez. Esta acción es irreversible y consumirá 1 crédito al generar el nuevo plan tras completar el formulario.
-                            </p>
-                            
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                            <div style={{
+                                background: '#F8FAFC',
+                                border: '1px solid #E2E8F0',
+                                borderRadius: '0.875rem',
+                                padding: '1.125rem 1.25rem',
+                                marginBottom: '1.25rem'
+                            }}>
+                                <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Se borrará:
+                                </p>
+                                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                                    {[
+                                        'Perfil de salud y objetivos',
+                                        'Alergias y condiciones médicas',
+                                        'Inventario de tu nevera',
+                                        'Platos que te gustan / no te gustan',
+                                        'Memoria que el sistema aprendió sobre ti',
+                                    ].map((item, idx) => (
+                                        <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', fontSize: '0.9rem', color: '#334155', lineHeight: 1.4 }}>
+                                            <span style={{ color: '#EF4444', fontWeight: 700, flexShrink: 0, marginTop: '0.05rem' }}>•</span>
+                                            <span>{item}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            <div style={{
+                                background: '#FFFBEB',
+                                border: '1px solid #FDE68A',
+                                borderRadius: '0.75rem',
+                                padding: '1rem 1.125rem',
+                                marginBottom: '1.75rem'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.625rem' }}>
+                                    <span style={{ fontSize: '1rem', lineHeight: 1 }}>⚠️</span>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#78350F', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                        Antes de continuar
+                                    </span>
+                                </div>
+                                <ul style={{ margin: 0, paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <li style={{ fontSize: '0.875rem', color: '#78350F', lineHeight: 1.55 }}>
+                                        Volverás a llenar el formulario inicial.
+                                    </li>
+                                    <li style={{ fontSize: '0.875rem', color: '#78350F', lineHeight: 1.55 }}>
+                                        Esta acción es <strong>irreversible</strong>.
+                                    </li>
+                                    <li style={{ fontSize: '0.875rem', color: '#78350F', lineHeight: 1.55 }}>
+                                        Generar el nuevo plan consumirá
+                                        <span style={{ display: 'inline-block', whiteSpace: 'nowrap', marginLeft: '0.4em' }}>
+                                            <strong style={{ marginRight: '0.35em' }}>1</strong>
+                                            <strong>crédito</strong>.
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 <button 
                                     onClick={async (e) => {
                                         if (isNavigatingRef.current) return;
@@ -518,27 +627,15 @@ const Settings = () => {
                                         }
                                     }}
                                     style={{
-                                        padding: '1.25rem', borderRadius: '1rem', border: 'none',
+                                        padding: '1rem 1.25rem', borderRadius: '0.875rem', border: 'none',
                                         background: '#EF4444', color: 'white', cursor: 'pointer', transition: 'all 0.2s',
-                                        fontWeight: 700, fontSize: '1.05rem', textAlign: 'center'
+                                        fontWeight: 700, fontSize: '1rem', textAlign: 'center',
+                                        boxShadow: '0 4px 14px rgba(239, 68, 68, 0.28)'
                                     }}
-                                    onMouseOver={(e) => e.currentTarget.style.background = '#DC2626'}
-                                    onMouseOut={(e) => e.currentTarget.style.background = '#EF4444'}
+                                    onMouseOver={(e) => { e.currentTarget.style.background = '#DC2626'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                                    onMouseOut={(e) => { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.transform = 'translateY(0)'; }}
                                 >
                                     Sí, empezar desde cero
-                                </button>
-
-                                <button 
-                                    onClick={() => setShowResetConfirm(false)}
-                                    style={{
-                                        padding: '1.25rem', borderRadius: '1rem', border: '2px solid #E2E8F0',
-                                        background: 'transparent', color: '#475569', cursor: 'pointer', transition: 'all 0.2s',
-                                        fontWeight: 600, fontSize: '1.05rem', textAlign: 'center'
-                                    }}
-                                    onMouseOver={(e) => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
-                                    onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
-                                >
-                                    Cancelar
                                 </button>
                             </div>
                         </Modal>
@@ -548,7 +645,7 @@ const Settings = () => {
                             onClose={() => setShowEvaluateModal(false)}
                             title="Evaluar de Nuevo"
                             subtitle="Elige cómo quieres generar tu nuevo plan. ¿Quieres mantener tus datos actuales o empezar desde cero?"
-                            headerIcon={{ icon: <Database size={24} strokeWidth={2.5} />, bg: '#DCFCE7', color: '#16A34A' }}
+                            headerIcon={{ icon: <ChefHat size={24} strokeWidth={2.5} />, bg: '#DCFCE7', color: '#16A34A' }}
                             options={[
                                 { 
                                     id: 'renovar', 
@@ -596,20 +693,76 @@ const Settings = () => {
                                     setShowResetConfirm(true);
                                 }
                             }}
-                            infoBandRenderer={(hoveredOption) => (
-                                <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: '#F8FAFC', borderRadius: '0.8rem', border: '1px solid #E2E8F0', fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                                    <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: '#64748B' }} />
-                                    <div>
-                                        {hoveredOption === 'cero' ? (
-                                            <><strong>Empezar de cero:</strong> Borra todo tu progreso y te lleva al formulario inicial.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~3-5 min completando el formulario. Consumirá 1 regeneración al generar el plan.</span></>
-                                        ) : hoveredOption === 'renovar' ? (
-                                            <><strong>Renovar:</strong> Mantendrá tus alergias y generará nuevos platos.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~30s. Consumirá 1 regeneración.</span></>
-                                        ) : (
-                                            <>Te quedan <strong>{typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : 'ilimitadas'}</strong> regeneraciones de planes este mes.</>
-                                        )}
+                            infoBandRenderer={(hoveredOption) => {
+                                const remaining = typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : null;
+                                const renderOption = (title, desc, meta) => (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                                        <div style={{ fontSize: '0.9rem', color: '#334155', lineHeight: 1.5 }}>
+                                            <strong style={{ color: '#0F172A', fontWeight: 700 }}>{title}:</strong>
+                                            <span style={{ marginLeft: '0.4em' }}>{desc}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.78rem', color: '#64748B' }}>
+                                            {meta.map((m, i) => (
+                                                <span key={i} style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: '0.35em',
+                                                    padding: '0.25rem 0.625rem',
+                                                    background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '999px',
+                                                    fontWeight: 500
+                                                }}>
+                                                    {m}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                                return (
+                                    <div style={{
+                                        marginTop: '1.25rem', padding: '1rem 1.125rem',
+                                        background: '#F8FAFC', borderRadius: '0.875rem',
+                                        border: '1px solid #E2E8F0',
+                                        display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
+                                        // [FIX 2026-05-07] Altura mínima estable para evitar flicker en
+                                        // hover. Antes el infoBand crecía/encogía entre estados (hover vs
+                                        // default) → modal recentraba verticalmente → botón se desplazaba
+                                        // → cursor salía de la zona hover → re-entraba → loop. Reservar
+                                        // la altura del estado "hover" hace que cambiar de variante no
+                                        // mueva el resto de elementos.
+                                        minHeight: '96px',
+                                        boxSizing: 'border-box',
+                                    }}>
+                                        <AlertCircle size={18} style={{ marginTop: '1px', flexShrink: 0, color: '#3B82F6' }} />
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            {hoveredOption === 'cero' ? (
+                                                renderOption(
+                                                    'Empezar de cero',
+                                                    'Borra todo tu progreso y te lleva al formulario inicial.',
+                                                    [
+                                                        <>⏱️ ~3–5&nbsp;min llenando el formulario</>,
+                                                        <>🔁 Consume<span style={{ display: 'inline-block', whiteSpace: 'nowrap', marginLeft: '0.4em' }}><strong style={{ color: '#0F172A', marginRight: '0.35em' }}>1</strong><strong style={{ color: '#0F172A' }}>regeneración</strong></span></>,
+                                                    ]
+                                                )
+                                            ) : hoveredOption === 'renovar' ? (
+                                                renderOption(
+                                                    'Renovar',
+                                                    'Mantendrá tus alergias y generará nuevos platos.',
+                                                    [
+                                                        <>⏱️ ~30&nbsp;s</>,
+                                                        <>🔁 Consume<span style={{ display: 'inline-block', whiteSpace: 'nowrap', marginLeft: '0.4em' }}><strong style={{ color: '#0F172A', marginRight: '0.35em' }}>1</strong><strong style={{ color: '#0F172A' }}>regeneración</strong></span></>,
+                                                    ]
+                                                )
+                                            ) : (
+                                                <div style={{ fontSize: '0.9rem', color: '#334155', lineHeight: 1.5 }}>
+                                                    Te quedan{' '}
+                                                    <strong style={{ color: '#0F172A' }}>
+                                                        {remaining !== null ? remaining : 'ilimitadas'}
+                                                    </strong>
+                                                    {' '}regeneraciones de planes este mes.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            }}
                         />
                     )
                 )}
@@ -693,99 +846,6 @@ const Settings = () => {
                                     </div>
                                 </div>
 
-                                {/* Número de Personas */}
-                                <div style={{ width: '100%', marginTop: '0.5rem' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.75rem' }}>
-                                        {isRecalculating ? (
-                                            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ display: 'flex' }}>
-                                                <Loader2 size={16} color="#7C3AED" />
-                                            </motion.div>
-                                        ) : (
-                                            <Users size={16} color="#7C3AED" />
-                                        )}
-                                        ¿Para cuántas personas cocinas?
-                                    </label>
-                                    <div className={styles.householdGrid}>
-                                        {[1, 2, 3, 4, 5, 6].map((num) => {
-                                            const isActive = (formData?.householdSize || 1) === num;
-                                            return (
-                                                <button
-                                                    key={num}
-                                                    disabled={isRecalculating}
-                                                    onClick={async () => {
-                                                        if (isRecalculating || isActive) return;
-                                                        const prevHouseholdSize = formData?.householdSize || 1;
-                                                        
-                                                        // Update optimistically
-                                                        updateData('householdSize', num);
-                                                        // [P1-FORM-9] Reemplaza spread `{...formData, householdSize}`.
-                                                        safeUpdateHealthProfile({ householdSize: num });
-                                                        
-                                                        if (userProfile?.id && planData) {
-                                                            setIsRecalculating(true);
-                                                            const recalcToast = toast.loading('Recalculando...', { position: 'top-center' });
-                                                            try {
-                                                                const response = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
-                                                                    method: 'POST',
-                                                                    headers: { 'Content-Type': 'application/json' },
-                                                                    body: JSON.stringify({ 
-                                                                        user_id: userProfile.id, 
-                                                                        householdSize: num, 
-                                                                        groceryDuration: formData?.groceryDuration || 'weekly' 
-                                                                    })
-                                                                });
-                                                                
-                                                                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                                                                const result = await response.json();
-                                                                
-                                                                if (result.success && result.plan_data) {
-                                                                    const rk = `mealfit_restock_cache_${userProfile?.id}_${result.plan_data.grocery_start_date || 'latest'}_${num}_${formData?.groceryDuration || 'weekly'}`;
-                                                                    if (result.plan_data.is_restocked == null && localStorage.getItem(rk)) result.plan_data.is_restocked = true;
-                                                                    
-                                                                    localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
-                                                                    setPlanData(result.plan_data);
-                                                                    toast.success(`${num} ${num === 1 ? 'persona' : 'personas'}`, { id: recalcToast, icon: '👥' });
-                                                                } else {
-                                                                    toast.dismiss(recalcToast);
-                                                                }
-                                                                setIsRecalculating(false);
-                                                            } catch {
-                                                                toast.dismiss(recalcToast);
-                                                                toast.error('Error al actualizar personas');
-                                                                updateData('householdSize', prevHouseholdSize);
-                                                                // [P1-FORM-9] Rollback con guard de hidratación.
-                                                                safeUpdateHealthProfile({ householdSize: prevHouseholdSize });
-                                                                setIsRecalculating(false);
-                                                            }
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        padding: '0.75rem 0',
-                                                        borderRadius: '0.75rem',
-                                                        border: isActive ? '2px solid #7C3AED' : '1px solid #E2E8F0',
-                                                        background: isActive ? '#F5F3FF' : 'white',
-                                                        color: isActive ? '#7C3AED' : '#64748B',
-                                                        fontWeight: isActive ? 700 : 500,
-                                                        cursor: isRecalculating ? 'not-allowed' : 'pointer',
-                                                        transition: 'all 0.2s ease',
-                                                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem',
-                                                        opacity: isRecalculating && !isActive ? 0.5 : 1,
-                                                        boxShadow: isActive ? '0 4px 12px rgba(124, 58, 237, 0.15)' : 'none'
-                                                    }}
-                                                >
-                                                    <span style={{ fontSize: '1.2rem' }}>
-                                                        {num === 1 ? '👤' : num <= 3 ? '👥' : '👨‍👩‍👧‍👦'}
-                                                    </span>
-                                                    <span>{num}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    <p style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                        <AlertCircle size={12} />
-                                        La lista de compras se recalculará automáticamente.
-                                    </p>
-                                </div>
                             </div>
 
                             {/* Botón Guardar */}

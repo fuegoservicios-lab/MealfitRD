@@ -212,7 +212,7 @@ export const AssessmentProvider = ({ children }) => {
         // subdimensionada (faltante crítico de comida) y macros para 1
         // plato cuando hay 4 comensales. AHORA arrancan en `null`/`''` y el
         // gating del wizard fuerza al usuario a elegir explícitamente.
-        includeSupplements: false, selectedSupplements: [], groceryDuration: '', householdSize: null,
+        includeSupplements: false, selectedSupplements: [], groceryDuration: '', householdSize: 1,
         otherConditions: '',
         // [P1-B5] otherDislikes captura el free-text del step QDislikes (alimentos
         // no listados en los chips comunes, ej. "Apio, Curry, Picante").

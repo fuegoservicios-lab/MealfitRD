@@ -796,6 +796,13 @@ const Plan = () => {
 const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) => {
     const [failedChunks, setFailedChunks] = useState([]);
     const [isRetrying, setIsRetrying] = useState(false);
+    // [P1-ζ] Banner persistente cuando un chunk dead-letearó. El backend expone
+    // `user_action_required` (payload preformateado) y `recovery_exhausted_chunks`
+    // (lista de chunks afectados) vía /chunk-status. Mostramos el banner mientras
+    // el usuario no haya forzado la regeneración simplificada.
+    const [userActionRequired, setUserActionRequired] = useState(null);
+    const [recoveryExhausted, setRecoveryExhausted] = useState([]);
+    const [simplifyingChunkId, setSimplifyingChunkId] = useState(null);
 
     // [P1-3] Flags de transparencia que el orquestador adjunta al plan cuando
     // detecta degradación parcial. El sync ya los exponía vía body + headers
@@ -838,6 +845,10 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                     setFailedChunks(data.failed_chunks);
                 }
 
+                // [P1-ζ] Sincronizar estado del banner dead-lettered.
+                setUserActionRequired(data.user_action_required || null);
+                setRecoveryExhausted(Array.isArray(data.recovery_exhausted_chunks) ? data.recovery_exhausted_chunks : []);
+
                 if (data.days_generated > previousDays) {
                     const newWeeks = Math.floor(data.days_generated / 7);
                     const oldWeeks = Math.floor(previousDays / 7);
@@ -869,6 +880,39 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
 
         return () => clearInterval(intervalId);
     }, [newPlan?.id, newPlan?.generation_status, isRetrying]);
+
+    // [P1-ζ] Forzar regeneración de un chunk dead-lettered en flexible_mode +
+    // advisory_only. Es el último escalón cuando la cascada de recovery agotó
+    // sus reintentos automáticos: el usuario acepta una versión simplificada
+    // antes que esperar intervención manual.
+    const handleSimplifyChunk = async (chunkId) => {
+        setSimplifyingChunkId(chunkId);
+        try {
+            const { regenerateChunkSimplified } = await import('../config/api');
+            const res = await regenerateChunkSimplified(newPlan.id, chunkId);
+            if (res.ok) {
+                import('sonner').then(({ toast }) => {
+                    toast.success('Generando versión simplificada', {
+                        description: 'Tus próximos días aparecerán en breve. Algunos ingredientes pueden ser sugerencias generales.',
+                    });
+                });
+                setRecoveryExhausted(prev => prev.filter(c => c.chunk_id !== chunkId && c.id !== chunkId));
+                setUserActionRequired(null);
+            } else {
+                const err = await res.json().catch(() => ({}));
+                import('sonner').then(({ toast }) => {
+                    toast.error('No se pudo iniciar la regeneración simplificada', {
+                        description: err.detail || 'Inténtalo de nuevo en unos segundos.',
+                    });
+                });
+            }
+        } catch (e) {
+            console.error('[P1-ζ] handleSimplifyChunk:', e);
+            import('sonner').then(({ toast }) => toast.error('Error al iniciar la regeneración simplificada'));
+        } finally {
+            setSimplifyingChunkId(null);
+        }
+    };
 
     const handleRetry = async (chunkId) => {
         setIsRetrying(true);
@@ -1075,6 +1119,55 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                                 <RefreshCw size={16} /> Regenerar
                             </button>
                         </div>
+                    </div>
+                )}
+
+                {/* [P1-ζ] Banner dead-lettered con CTA "Generar versión simplificada".
+                    Cubre el último escalón cuando recovery automático agotó reintentos.
+                    `userActionRequired` viene preformateado del backend; `recoveryExhausted`
+                    lista los chunks específicos que el usuario puede simplificar uno a uno. */}
+                {(userActionRequired || recoveryExhausted.length > 0) && (
+                    <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '1rem', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
+                        <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: '#F59E0B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Activity size={20} /> {userActionRequired?.title || 'Tu plan necesita una decisión'}
+                        </h3>
+                        <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)', marginBottom: '1rem' }}>
+                            {userActionRequired?.body || (
+                                'Algunas semanas no se pudieron generar tras varios intentos automáticos. ' +
+                                'Puedes generar una versión simplificada (con ingredientes generales) para no perder tus próximos días.'
+                            )}
+                        </p>
+                        {recoveryExhausted.length > 0 && recoveryExhausted.map((chunk) => {
+                            const cid = chunk.chunk_id || chunk.id;
+                            const wk = chunk.week_number || chunk.week || '?';
+                            return (
+                                <div key={cid} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '0.75rem 1rem', borderRadius: '0.5rem', marginBottom: '0.5rem' }}>
+                                    <span>Semana {wk}</span>
+                                    <button
+                                        onClick={() => handleSimplifyChunk(cid)}
+                                        disabled={simplifyingChunkId === cid}
+                                        style={{
+                                            padding: '0.5rem 1rem',
+                                            background: '#F59E0B',
+                                            color: 'white',
+                                            borderRadius: '0.5rem',
+                                            border: 'none',
+                                            fontWeight: 600,
+                                            fontSize: '0.9rem',
+                                            cursor: simplifyingChunkId === cid ? 'not-allowed' : 'pointer',
+                                            opacity: simplifyingChunkId === cid ? 0.7 : 1,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem',
+                                        }}
+                                    >
+                                        {simplifyingChunkId === cid
+                                            ? <Loader2 size={16} className="animate-spin" />
+                                            : 'Generar versión simplificada'}
+                                    </button>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
 

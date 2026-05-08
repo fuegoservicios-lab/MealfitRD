@@ -849,31 +849,6 @@ export const QMotivation = ({ onManualAdvance }) => {
 export const QHousehold = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
 
-    // [P0-12] ANTES había un `useEffect` mount-only que seteaba
-    // `householdSize=1` si llegaba falsy, sincronizando el "default visual 1"
-    // con el state real. Eso EVADÍA el gating de `findFirstIncompleteField`:
-    // el step quedaba "completado" sin que el usuario tocara nada, el botón
-    // "Siguiente" quedaba habilitado, y un usuario que avanzaba pasivo
-    // generaba un plan escalado para 1 persona/semanal aunque su hogar
-    // fuera de 4 personas con compras quincenales. AHORA el state arranca
-    // en `null` (desde `initialFormData`) y el botón "Siguiente" queda
-    // disabled hasta que el usuario clique explícitamente un chip de
-    // personas Y un chip de duración. El chip "1" ya no aparece
-    // pre-seleccionado en el primer render.
-
-    const handlePersonSelect = (num) => {
-        updateData('householdSize', num);
-        // [P1-12] Marcar como tocado explícitamente. `_householdSizeTouched`
-        // persiste a localStorage junto con `householdSize`, y el useEffect
-        // mount-only en `AssessmentContext` re-arma `editedFieldsRef` para
-        // que la hidratación async post-login (fetchProfile,
-        // secureLoadFormData) y los Realtime UPDATEs de `user_profiles`
-        // (admin tooling, otra pestaña, sync cloud) NO sobreescriban la
-        // decisión del usuario con un valor stale del DB. Mismo patrón
-        // que P0-FORM-2 (`_skipLunchTouched`) y P1-FORM-3 (`_weightUnitTouched`).
-        updateData('_householdSizeTouched', true);
-    };
-
     const handleDurationSelect = (val) => {
         updateData('groceryDuration', val);
         // [P1-12] Mismo patrón: el ciclo de compras es safety-relevante para
@@ -885,60 +860,6 @@ export const QHousehold = ({ onManualAdvance }) => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            {/* --- Personas --- */}
-            <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                    <Users size={18} color="#7C3AED" />
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#334155' }}>¿Cuántas personas comen?</span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
-                    {[1, 2, 3, 4, 5, 6].map(num => {
-                        // [P0-12] Sin fallback `|| 1`: si el usuario aún no
-                        // eligió, NINGÚN chip aparece pre-seleccionado.
-                        const isSelected = formData.householdSize === num;
-                        return (
-                            <div
-                                key={num}
-                                onClick={() => handlePersonSelect(num)}
-                                style={{
-                                    cursor: 'pointer',
-                                    padding: '0.85rem 0.5rem',
-                                    borderRadius: '0.75rem',
-                                    border: isSelected ? '2px solid #7C3AED' : '1.5px solid #E2E8F0',
-                                    backgroundColor: isSelected ? '#F5F3FF' : 'white',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    gap: '0.25rem',
-                                    transition: 'all 0.2s ease',
-                                    position: 'relative',
-                                    boxShadow: isSelected ? '0 4px 12px rgba(124, 58, 237, 0.12)' : '0 1px 3px rgba(0,0,0,0.04)'
-                                }}
-                            >
-                                <span style={{ fontSize: '1.3rem' }}>
-                                    {num === 1 ? '👤' : num <= 3 ? '👥' : '👨‍👩‍👧‍👦'}
-                                </span>
-                                <span style={{
-                                    fontWeight: 700,
-                                    fontSize: '0.85rem',
-                                    color: isSelected ? '#7C3AED' : '#334155'
-                                }}>
-                                    {num}
-                                </span>
-                                <span style={{ fontSize: '0.65rem', color: '#94A3B8', fontWeight: 500 }}>
-                                    {num === 1 ? 'Individual' : `×${num}`}
-                                </span>
-                                {isSelected && (
-                                    <div style={{ position: 'absolute', top: 6, right: 6, color: '#7C3AED' }}>
-                                        <Check size={14} />
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-
             {/* --- Ciclo de Despensa --- */}
             <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -949,7 +870,7 @@ export const QHousehold = ({ onManualAdvance }) => {
                     {[
                         { val: 'weekly', label: '7 Días', sub: 'Semanal', emoji: '📅' },
                         { val: 'biweekly', label: '15 Días', sub: 'Quincenal', emoji: '📆' },
-                        { val: 'monthly', label: '1 Mes', sub: 'Mensual', emoji: '🗓️' }
+                        { val: 'monthly', label: '30 Días', sub: 'Mensual', emoji: '🗓️' }
                     ].map(opt => {
                         const isSelected = formData.groceryDuration === opt.val;
                         return (
@@ -1056,7 +977,7 @@ export const QHousehold = ({ onManualAdvance }) => {
                     Podrás ajustar esto rápidamente desde tu panel sin regenerar el plan.
                 </span>
             </div>
-            <NextButton onClick={onManualAdvance} disabled={!formData.householdSize || !formData.groceryDuration} />
+            <NextButton onClick={onManualAdvance} disabled={!formData.groceryDuration} />
         </div>
     );
 };

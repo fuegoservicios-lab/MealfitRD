@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, ArrowRight, AlertCircle, CheckCircle2, Loader2, Eye, EyeOff } from 'lucide-react';
+import { checkLeakedPassword } from '../utils/checkLeakedPassword';
 import styles from './Auth.module.css';
 
 const ResetPassword = () => {
@@ -42,6 +43,17 @@ const ResetPassword = () => {
         }
 
         setLoading(true);
+
+        // [P2-3] HIBP leaked password check (k-anonymity, blocks if mode=block)
+        const leak = await checkLeakedPassword(password);
+        if (leak.leaked && leak.mode === 'block') {
+            setError(
+                `Esta contraseña aparece en ${leak.count.toLocaleString()} filtraciones públicas conocidas. Por favor elige una más segura.`
+            );
+            setLoading(false);
+            return;
+        }
+
         try {
             const { error } = await supabase.auth.updateUser({
                 password: password

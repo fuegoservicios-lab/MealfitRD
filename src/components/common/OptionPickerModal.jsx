@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Loader2 } from 'lucide-react';
 import Modal from './Modal';
@@ -16,8 +16,25 @@ const OptionPickerModal = ({
     isBottomSheetOnMobile = true,
     maxWidth = '440px'
 }) => {
-    const [hoveredOption, setHoveredOption] = useState(null);
-    const hoverClearTimer = useRef(null);
+    // [FIX 2026-05-07] Dos estados separados resuelven el flicker en el
+    // borde de los botones:
+    //   - `activeOption`: hover visual (border/sombra). Transitorio: sigue
+    //     al cursor en tiempo real.
+    //   - `pinnedInfoOption`: contenido del infoBand. Persistente: solo
+    //     cambia cuando el usuario explícitamente explora otra opción.
+    //
+    // Antes había UN solo estado para ambos. Cuando el cursor cruzaba el
+    // gap entre botones, el `onMouseLeave` lo reseteaba a null → el
+    // infoBand cambiaba de altura → modal recentraba → el botón se movía
+    // bajo el cursor → loop de enter/leave/enter/leave que hacía parpadear
+    // la descripción.
+    //
+    // Separando los conceptos, el estado visual puede oscilar libremente
+    // sin afectar al infoBand (que ya tiene min-height estable). El
+    // infoBand solo cambia con `onMouseEnter` de otra opción — nunca con
+    // `onMouseLeave`.
+    const [activeOption, setActiveOption] = useState(null);
+    const [pinnedInfoOption, setPinnedInfoOption] = useState(null);
 
     return (
         <Modal
@@ -66,7 +83,9 @@ const OptionPickerModal = ({
                 </div>
 
                 {options.map(option => {
-                    const isHovered = hoveredOption === option.id;
+                    // `isHovered` controla el estilo visual (border/sombra) — usa
+                    // el estado transitorio que sigue al cursor en tiempo real.
+                    const isHovered = activeOption === option.id;
                     const isDisabled = !!isNavigatingOption || !!option.disabled;
                     const isLoading = isNavigatingOption === option.id;
                     const isFaded = !!isNavigatingOption && !isLoading;
@@ -116,11 +135,23 @@ const OptionPickerModal = ({
                                 boxShadow: cardShadow,
                             }}
                             onMouseEnter={() => {
-                                clearTimeout(hoverClearTimer.current);
-                                if (!option.disabled) setHoveredOption(option.id);
+                                if (option.disabled) return;
+                                setActiveOption(option.id);       // visual hover (transitorio)
+                                setPinnedInfoOption(option.id);   // infoBand (persistente)
                             }}
                             onMouseLeave={() => {
-                                hoverClearTimer.current = setTimeout(() => setHoveredOption(null), 80);
+                                // Solo limpia el visual hover. El infoBand queda
+                                // pinned a la última opción explorada — no parpadea
+                                // aunque el cursor cruce el gap entre botones.
+                                setActiveOption(null);
+                            }}
+                            onFocus={() => {
+                                if (option.disabled) return;
+                                setActiveOption(option.id);
+                                setPinnedInfoOption(option.id);
+                            }}
+                            onBlur={() => {
+                                setActiveOption(null);
                             }}
                         >
                             {!headerIcon && option.icon && (
@@ -170,8 +201,10 @@ const OptionPickerModal = ({
                 })}
             </div>
 
-            {/* Informational Band */}
-            {infoBandRenderer && infoBandRenderer(hoveredOption)}
+            {/* Informational Band — usa el estado pinned (no transitorio)
+                para que la descripción NO desaparezca cuando el cursor sale
+                del botón. Solo cambia cuando el usuario hovea otra opción. */}
+            {infoBandRenderer && infoBandRenderer(pinnedInfoOption)}
         </Modal>
     );
 };

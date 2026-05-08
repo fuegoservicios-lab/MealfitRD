@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAssessment } from '../context/AssessmentContext';
 import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,7 +9,7 @@ import {
     Zap, Flame, ArrowRight, CheckCircle,
     RefreshCw, ChefHat, Heart, Pill, Lock,
     Brain, Wallet, AlertCircle, Dumbbell,
-    Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, Trash2, ChevronDown, Users,
+    Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, Trash2, ChevronDown,
     ThumbsDown, Shuffle, X, Utensils, Copy, Infinity as InfinityIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -1134,7 +1134,7 @@ const Dashboard = () => {
             // Obtener duración actual (ya declarada arriba)
             let durationText = '7 Días';
             if (duration === 'biweekly') { durationText = '15 Días'; }
-            if (duration === 'monthly') { durationText = '1 Mes'; }
+            if (duration === 'monthly') { durationText = '30 Días'; }
 
             // Generar contenido HTML estilizado para el PDF
             const element = document.createElement('div');
@@ -1147,7 +1147,6 @@ const Dashboard = () => {
                         <h1 style="margin: 0 0 8px 0; color: #111827; font-size: 20px; font-weight: 800; letter-spacing: -0.025em;">Lista de Compras</h1>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <span style="background-color: #ecfdf5; color: #065f46; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #10b98140;">Ciclo: ${escapeHtml(durationText)}</span>
-                            ${(formData?.householdSize || 1) > 1 ? `<span style="background-color: #f5f3ff; color: #6d28d9; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #ddd6fe;">👥 ${escapeHtml(formData.householdSize)} Personas</span>` : ''}
                             <span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">Generado: ${escapeHtml(new Date().toLocaleDateString('es-DO'))}</span>
                         </div>
                     </div>
@@ -1161,7 +1160,7 @@ const Dashboard = () => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <p style="margin: 0; font-size: ${isUltraDense ? '9px' : '11px'}; color: #334155; line-height: 1.3;">
-                        <strong>Smart Engine:</strong> Las cantidades han sido <strong>calculadas de manera exacta</strong> según empaques del mercado local${(formData?.householdSize || 1) > 1 ? ` y <strong>multiplicadas para ${escapeHtml(formData.householdSize)} personas</strong>` : ''}. Ajusta según tu inventario actual en casa. <strong>Nota: "Ud." significa "Unidad".</strong>
+                        <strong>Smart Engine:</strong> Las cantidades han sido <strong>calculadas de manera exacta</strong> según empaques del mercado local. Ajusta según tu inventario actual en casa. <strong>Nota: "Ud." significa "Unidad".</strong>
                     </p>
                 </div>
 
@@ -2133,17 +2132,11 @@ const Dashboard = () => {
                                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                                         {isRecalculating ? (
                                             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ display: 'flex' }}>
-                                                <Loader2 size={13} color="#7C3AED" strokeWidth={2.5} />
+                                                <Loader2 size={13} color="#059669" strokeWidth={2.5} />
                                             </motion.div>
                                         ) : (
-                                            <Users size={13} color="#7C3AED" strokeWidth={2.5} />
+                                            <Clock size={13} color="#059669" strokeWidth={2.5} />
                                         )}
-                                        <span style={{ fontWeight: 700, color: '#334155' }}>{formData?.householdSize || 1}</span>
-                                        <span style={{ color: '#94A3B8', fontWeight: 500 }}>{(formData?.householdSize || 1) === 1 ? 'persona' : 'personas'}</span>
-                                    </span>
-                                    <span style={{ color: '#CBD5E1' }}>·</span>
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                        <Clock size={13} color="#059669" strokeWidth={2.5} />
                                         <span style={{ fontWeight: 700, color: '#334155' }}>
                                             {{ weekly: '7d', biweekly: '15d', monthly: '30d' }[groceryDuration] || '7d'}
                                         </span>
@@ -2204,13 +2197,13 @@ const Dashboard = () => {
                                         {/* Despensa Section */}
                                         <div style={{ padding: '4px 8px 2px' }}>
                                             <span style={{ fontSize: '0.62rem', color: '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                                <Clock size={10} /> Ciclo de Despensa
+                                                <Clock size={10} /> Duración del Plan
                                             </span>
                                         </div>
                                         {[
-                                            { value: 'weekly', label: '7\u00A0Días', sub: 'Semanal' },
-                                            { value: 'biweekly', label: '15\u00A0Días', sub: 'Quincenal' },
-                                            { value: 'monthly', label: '1\u00A0Mes', sub: 'Mensual' }
+                                            { value: 'weekly', label: '7 Días', sub: 'Semanal' },
+                                            { value: 'biweekly', label: '15 Días', sub: 'Quincenal' },
+                                            { value: 'monthly', label: '30 Días', sub: 'Mensual' }
                                         ].map((opt) => (
                                             <div
                                                 key={opt.value}
@@ -2268,84 +2261,6 @@ const Dashboard = () => {
                                             </div>
                                         ))}
 
-                                        {/* Divider */}
-                                        <div style={{ height: '1px', background: '#F1F5F9', margin: '4px 6px' }} />
-
-                                        {/* Personas Section */}
-                                        <div style={{ padding: '4px 8px 2px' }}>
-                                            <span style={{ fontSize: '0.62rem', color: '#7C3AED', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                                <Users size={10} /> Personas
-                                            </span>
-                                        </div>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '3px', padding: '2px 4px' }}>
-                                            {[1, 2, 3, 4, 5, 6].map((num) => {
-                                                const isActive = (formData?.householdSize || 1) === num;
-                                                return (
-                                                    <div
-                                                        key={num}
-                                                        onClick={async () => {
-                                                            if (isRecalculating) return;
-                                                            const prevHouseholdSize = formData?.householdSize || 1;
-                                                            updateData('householdSize', num);
-                                                            // [P1-FORM-9] Reemplaza spread `{...formData, householdSize}`.
-                                                            safeUpdateHealthProfile({ householdSize: num });
-                                                            setShowDespensaDropdown(false);
-                                                            if (userProfile?.id && planData) {
-                                                                setIsRecalculating(true);
-                                                                const recalcToast = toast.loading('Recalculando...', { position: 'top-center' });
-                                                                try {
-                                                                    // [P0-B2] withRecalcLock garantiza release en finally;
-                                                                    // el revert de householdSize en error vive en el catch
-                                                                    // externo (depende de UI state, no del lock).
-                                                                    await withRecalcLock(async () => {
-                                                                        const response = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
-                                                                            method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                                                            body: JSON.stringify({ user_id: userProfile.id, householdSize: num, groceryDuration: groceryDuration })
-                                                                        });
-                                                                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                                                                        const result = await response.json();
-                                                                        if (result.success && result.plan_data) {
-                                                                            const rk = `mealfit_restock_cache_${userProfile?.id}_${result.plan_data.grocery_start_date || 'latest'}_${num}_${groceryDuration}`;
-                                                                            if (result.plan_data.is_restocked == null && localStorage.getItem(rk)) result.plan_data.is_restocked = true;
-                                                                            localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
-                                                                            setPlanData(result.plan_data);
-                                                                            toast.success(`${num} ${num === 1 ? 'persona' : 'personas'}`, { id: recalcToast, icon: '👥' });
-                                                                        } else toast.dismiss(recalcToast);
-                                                                    });
-                                                                } catch {
-                                                                    toast.dismiss(recalcToast);
-                                                                    toast.error('Error al actualizar personas');
-                                                                    updateData('householdSize', prevHouseholdSize);
-                                                                    // [P1-FORM-9] Rollback con guard de hidratación.
-                                                                    safeUpdateHealthProfile({ householdSize: prevHouseholdSize });
-                                                                } finally {
-                                                                    setIsRecalculating(false);
-                                                                }
-                                                            }
-                                                        }}
-                                                        style={{
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                            padding: '0.4rem 0', borderRadius: '6px', cursor: isRecalculating ? 'not-allowed' : 'pointer',
-                                                            background: isActive ? '#F5F3FF' : 'transparent',
-                                                            border: isActive ? '1.5px solid #DDD6FE' : '1.5px solid transparent',
-                                                            transition: 'all 0.15s ease',
-                                                            fontSize: '0.78rem', fontWeight: isActive ? 800 : 600,
-                                                            color: isActive ? '#7C3AED' : '#64748B',
-                                                            opacity: isRecalculating ? 0.5 : 1
-                                                        }}
-                                                        onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#F8FAFC'; }}
-                                                        onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
-                                                    >
-                                                        {num}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        <div style={{ padding: '3px 8px 5px' }}>
-                                            <span style={{ fontSize: '0.58rem', color: '#94A3B8' }}>
-                                                💡 Las cantidades de la lista se ajustan automáticamente.
-                                            </span>
-                                        </div>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -2582,6 +2497,60 @@ const Dashboard = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: '#EFF6FF', borderRadius: '10px', marginBottom: '16px', color: '#2563EB', fontSize: '0.9rem' }}>
                             <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span>
                             Generando tus próximos platos personalizados…
+                        </div>
+                    )}
+
+                    {/* [P2-δ] Botón explícito "Refrescar próximos días" cuando el usuario está
+                        en día 5+ del bloque y los siguientes chunks NO se están generando. El
+                        useEffect de shift-plan ya corre silenciosamente, pero un control visible
+                        evita que el usuario sienta que el plan "se queda atrás" cuando el cron
+                        background no ha disparado todavía. La acción es idempotente: si el plan
+                        está al día, /shift-plan responde sin hacer cambios. */}
+                    {!isPlanExpired
+                        && daysSinceCreation >= 5
+                        && planData?.generation_status !== 'partial'
+                        && planData?.generation_status !== 'generating_next'
+                        && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '10px 14px', background: '#F0FDF4', borderRadius: '10px', marginBottom: '16px', color: '#15803D', fontSize: '0.85rem', border: '1px solid #BBF7D0' }}>
+                            <span>¿Quieres adelantar la próxima actualización?</span>
+                            <button
+                                onClick={async () => {
+                                    if (!userProfile?.id) return;
+                                    const tId = toast.loading('Refrescando próximos días…', { position: 'top-center' });
+                                    try {
+                                        const res = await fetchWithAuth(`${API_BASE}/api/plans/shift-plan`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                user_id: userProfile.id,
+                                                tzOffset: new Date().getTimezoneOffset(),
+                                            }),
+                                        });
+                                        if (res.ok) {
+                                            const data = await res.json();
+                                            if (data?.plan_data) setPlanData(data.plan_data);
+                                            toast.success('Plan actualizado', { id: tId });
+                                        } else {
+                                            toast.error('No se pudo refrescar', { id: tId });
+                                        }
+                                    } catch (e) {
+                                        console.error('[P2-δ] shift-plan manual:', e);
+                                        toast.error('Error al refrescar', { id: tId });
+                                    }
+                                }}
+                                style={{
+                                    padding: '6px 12px',
+                                    background: '#15803D',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    fontWeight: 600,
+                                    fontSize: '0.8rem',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                Refrescar
+                            </button>
                         </div>
                     )}
 
@@ -3054,15 +3023,15 @@ const Dashboard = () => {
                                 <div style={{ background: '#ECFDF5', padding: '0.4rem', borderRadius: '0.75rem', color: '#10B981' }}>
                                     <ShoppingCart size={22} strokeWidth={2.5} />
                                 </div>
-                                Despensa
+                                Mi Nevera
                             </h3>
                             <p style={{ fontSize: '0.9rem', fontWeight: 400, color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.4, textAlign: 'center' }}>
-                                Toca lo que se agotó. La IA lo excluirá de tu próximo menú.
+                                Lo que tienes en casa hoy
                             </p>
 
                             {physicalPantryIngredients.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '1rem', color: '#64748B', fontSize: '0.95rem' }}>
-                                    Tu despensa está vacía. Registra las compras de tu plan para llenarla.
+                                    Aún no has registrado compras. Cuando marques tu lista como comprada, los ingredientes aparecerán aquí.
                                 </div>
                             ) : (
                                 <div className="soft-scrollbar" style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '350px', overflowY: 'auto', padding: '0.25rem', paddingRight: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
@@ -3388,7 +3357,7 @@ const Dashboard = () => {
                                             }}>
                                                 <AlertCircle size={14} color="#D97706" style={{ flexShrink: 0, marginTop: '1px' }} />
                                                 <span style={{ fontSize: '0.8rem', color: '#92400E', lineHeight: 1.4 }}>
-                                                    Las cantidades están calculadas para <strong>{planData.calc_household_size} personas</strong>. Si cambiaste el tamaño del hogar, recalcula primero.
+                                                    La lista puede estar desactualizada. Si cambiaste el ciclo, recalcula antes de comprar.
                                                 </span>
                                             </div>
                                         )}

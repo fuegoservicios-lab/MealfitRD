@@ -71,8 +71,30 @@ const InteractiveAssessmentFlow = () => {
     // delay, el botón queda oculto hasta que el step cambie naturalmente.
     const [isAutoAdvancing, setIsAutoAdvancing] = useState(false);
 
+    // [P3-FORM-NO-AUTO-ADVANCE-WHEN-MANUAL-BUTTONS · 2026-05-08] Si los
+    // botones manuales ("Siguiente Paso" y/o "Saltar a la última pregunta")
+    // ya son visibles en el step actual, hacer click en una opción
+    // (Hombre/Mujer, nivel de actividad, etc.) NO debe auto-avanzar: el
+    // usuario tiene los botones para decidir cuándo continuar — auto-avance
+    // adicional vuelve a esos botones contradictorios.
+    //
+    // En el flujo lineal first-time (botones no visibles porque ni canSkip
+    // ni stepFieldsFilled) conservamos el auto-advance histórico.
+    //
+    // La ref se actualiza durante el render (asignación más abajo, después
+    // de calcular `canSkip` y `stepFieldsFilled`). El handler la consulta
+    // por referencia, así que siempre ve el último estado coherente con la
+    // visibilidad real de los botones.
+    const manualButtonsVisibleRef = useRef(false);
+
     // Auto advance helper with a slight delay for better UX
     const handleAutoAdvance = () => {
+        if (manualButtonsVisibleRef.current) {
+            // Botones manuales presentes → el usuario decide cuándo avanzar.
+            // Solo dejamos que la selección se persista en formData (lo hace
+            // el componente Q*); este handler abort-early.
+            return;
+        }
         setIsAutoAdvancing(true);
         setTimeout(() => {
             nextStep();
@@ -144,10 +166,10 @@ const InteractiveAssessmentFlow = () => {
             component: <QBudget onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>Tu Hogar y Despensa&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>Tu Despensa&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Esto personaliza tu lista de compras y las cantidades.",
             hasInternalNext: true,
-            fields: ['householdSize', 'groceryDuration'],
+            fields: ['groceryDuration'],
             component: <QHousehold onManualAdvance={nextStep} />
         },
         {
@@ -323,6 +345,13 @@ const InteractiveAssessmentFlow = () => {
             if (Array.isArray(v) && v.length === 0) return false;
             return true;
         });
+
+    // [P3-FORM-NO-AUTO-ADVANCE-WHEN-MANUAL-BUTTONS · 2026-05-08] Sincronizar
+    // ref con la visibilidad real de los botones manuales. Ver el comentario
+    // en `handleAutoAdvance`. Se asigna durante el render (no es side effect:
+    // es mutación de ref, segura en React) para que el siguiente click del
+    // usuario lea el valor del último render.
+    manualButtonsVisibleRef.current = (canSkip || stepFieldsFilled);
 
     // [P1-B4] Handler para "Saltar a la última pregunta". Antes el onClick
     // hacía `setCurrentStep(steps.length - 1)` directo: si el usuario había
