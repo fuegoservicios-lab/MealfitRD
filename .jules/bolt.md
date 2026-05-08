@@ -1,0 +1,3 @@
+## 2024-11-20 - [Pre-compiling Regular Expressions in React Components]
+**Learning:** Instantiating multiple Regular Expressions dynamically inside loops (especially during React render phases or data processing functions called iteratively, like formatting ingredient strings) creates extreme garbage collection pressure and significant overhead from $O(N)$ regex compilation cycles.
+**Action:** Always hoist static dictionary lookups, format patterns, or "stop word" removals into a single pre-compiled `RegExp` object (using `join('|')`) defined *outside* the React component, turning $O(N)$ compilation overhead into $O(1)$.
