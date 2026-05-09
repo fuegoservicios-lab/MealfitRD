@@ -1,0 +1,3 @@
+## 2025-05-08 - [Regex Compilation in Render Cycle]
+**Learning:** Instantiating complex `RegExp` objects inside array `.map` or `for` loops directly within React render cycles (like inside `Dashboard.jsx`'s `normalizeNameAlt`) causes noticeable runtime overhead and triggers excess garbage collection. String replacement loops iterating over 30+ "stop words" with isolated regex compilations run extremely slowly in tight loops.
+**Action:** Always pre-compile static dictionary string patterns into a single combined `RegExp` object (e.g., using `new RegExp('\\b(' + arr.join('|') + ')\\b', 'gi')`) and extract them outside of the React component body to ensure `O(1)` runtime cost instead of `O(N)`.
