@@ -77,6 +77,8 @@ const Header = () => {
                     <button
                         className={styles.mobileToggle}
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        aria-expanded={isMenuOpen}
+                        aria-label={isMenuOpen ? "Cerrar menú principal" : "Abrir menú principal"}
                     >
                         {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
