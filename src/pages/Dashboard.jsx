@@ -18,8 +18,9 @@ import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
 import { supabase } from '../supabase';
 import html2pdf from 'html2pdf.js';
-import { API_BASE, fetchWithAuth } from '../config/api';
+import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
 import { trackEvent } from '../utils/analytics';
+import { safeJSONParse } from '../utils/safeJSONParse';
 import { getActiveShoppingList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
 // [P1-FORM-9] Helper que filtra flags internos `_*` y bloquea cuando la
 // hidratación cifrada del formData (post-login) parece estar en curso —
@@ -69,6 +70,16 @@ const Dashboard = () => {
     const [showChunkBanner, setShowChunkBanner] = useState(
         () => planData?.generation_status === 'partial'
     );
+    // [P0-DASH-CHIP-HONESTY · 2026-05-09] Snapshot del /chunk-status
+    // del plan ACTIVO. Permite que el slot de día faltante distinga
+    // "en camino" (in_flight > 0) de "pausado" (pending_user_action > 0)
+    // sin depender solo de plan_data.generation_status, que puede
+    // declarar "generating_next" mientras la queue tiene chunks
+    // pausados por nevera vacía u otra causa. Polling reuse del mismo
+    // useEffect que ya refresca el plan cada 30s en estado 'partial'.
+    // Shape: { in_flight_count, pending_user_action_count, failed_count,
+    //          completed_count, paused_chunks: [{reason_code, ...}] } | null.
+    const [chunkStatusInfo, setChunkStatusInfo] = useState(null);
     // Estado para el modal de razón de cambio de plato
     const [swapModal, setSwapModal] = useState(null); // { dayIndex, mealIndex, mealType, mealName }
     const [swapDislikeConfirm, setSwapDislikeConfirm] = useState(null); // { dayIndex, mealIndex, mealType, mealName }
@@ -96,14 +107,14 @@ const Dashboard = () => {
     // Estado para "Nevera Virtual" - ingredientes temporalmente marcados como agotados
     // Persistido en localStorage para sobrevivir recargas de página y navegación
     const [disabledIngredients, setDisabledIngredients] = useState(() => {
-        try {
-            const saved = localStorage.getItem('mealfit_disabled_ingredients');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed) && parsed.every(i => typeof i === 'string')) return parsed;
-            }
-        } catch (e) { /* ignore corrupt data */ }
-        return [];
+        // [P2-A · 2026-05-08] SSOT migration de try/catch ad-hoc a safeJSONParse.
+        // Validator estricto: array DE STRINGS (regresión histórica: si entró algún
+        // payload con shape incorrecto, el `every(i => typeof i === 'string')`
+        // lo filtraba; preservamos esa garantía explícitamente).
+        const saved = localStorage.getItem('mealfit_disabled_ingredients');
+        return safeJSONParse(saved, [], {
+            validator: (v) => Array.isArray(v) && v.every(i => typeof i === 'string'),
+        });
     });
 
     // Estados para Compras con 1 clic
@@ -210,7 +221,7 @@ const Dashboard = () => {
     // [P1-FORM-9] Wrapper que centraliza el patrón seguro de actualización de
     // `health_profile`. Reemplaza los 4 spread directos `{...formData}` que
     // existían (ver call-sites más abajo). Beneficios:
-    //   1. Filtra flags internos `_*` (`_skipLunchTouched`, `_weightUnitTouched`,
+    //   1. Filtra flags internos `_*` (`_weightUnitTouched`, `_householdSizeTouched`,
     //      cualquier `_keyOtra`) — espejo del strip backend, evita ruido en DB.
     //   2. Detecta race de hidratación cifrada post-login: si el blob existe
     //      pero los arrays sensibles requeridos están vacíos, asume que la
@@ -387,10 +398,50 @@ const Dashboard = () => {
         const status = planData?.generation_status;
         let pollInterval;
 
+        // [P0-DASH-CHIP-HONESTY · 2026-05-09] Estados activos en los
+        // que la queue puede tener chunks moviéndose o pausados.
+        // 'rolling' incluido porque rolling_refill chunks viven aquí
+        // post-first-chunk-completed. Sin esto, un plan en
+        // 'generating_next' con todos los chunks pausados se quedaba
+        // sin polling de chunkStatusInfo (chip seguía mintiendo).
+        const _isActiveForChunkPoll = (
+            status === 'partial'
+            || status === 'generating'
+            || status === 'generating_next'
+            || status === 'rolling'
+        );
+
+        if (_isActiveForChunkPoll && planData?.id) {
+            // Fetch inicial y también a través del polling normal de
+            // 30s que ya refresca el plan. El response es chico
+            // (counters + paused_chunks resumido), no requiere su
+            // propio interval — piggyback al refresh del plan.
+            getPlanChunkStatus(planData.id)
+                .then(async (r) => {
+                    if (!r || !r.ok) return;
+                    const body = await r.json().catch(() => null);
+                    if (body && typeof body === 'object') setChunkStatusInfo(body);
+                })
+                .catch(() => { /* best-effort: el chip cae al fallback plan_data-only */ });
+        } else if (chunkStatusInfo !== null && status === 'complete') {
+            // Plan completado: limpiar el snapshot stale para que el
+            // render no muestre paused chunks viejos.
+            setChunkStatusInfo(null);
+        }
+
         if (status === 'partial') {
             setShowChunkBanner(true);
             pollInterval = setInterval(() => {
                 refreshProfileAndPlan();
+                if (planData?.id) {
+                    getPlanChunkStatus(planData.id)
+                        .then(async (r) => {
+                            if (!r || !r.ok) return;
+                            const body = await r.json().catch(() => null);
+                            if (body && typeof body === 'object') setChunkStatusInfo(body);
+                        })
+                        .catch(() => {});
+                }
             }, 30000);
         } else if (status === 'complete' && showChunkBanner) {
             setShowChunkBanner(false);
@@ -1646,16 +1697,29 @@ const Dashboard = () => {
         triggerShift();
     }, [userProfile?.id, daysSinceCreation, planDays.length, planData?.total_days_requested]);
 
-    // Ventana de 3 días: mostrar solo el bloque de 3 días actual.
-    // Cada 3 días el bloque avanza automáticamente (aprendizaje continuo).
-    const chunkStart = Math.floor(todayPlanDayIndex / 3) * 3;
-    const visibleStartIndex = Math.min(chunkStart, Math.max(0, planDays.length - 1));
-    const visiblePlanDays = planDays.slice(visibleStartIndex, visibleStartIndex + 3);
+    // Ventana rolling de 3 días. Por defecto empieza en hoy (los días pasados
+    // se ocultan al cruzar la medianoche, así el tab activo coincide con el día
+    // actual sin click manual).
+    //
+    // [P0-DASH-WINDOW-COLLAPSE · 2026-05-09] Anti-colapso al final del plan:
+    // si quedan <3 días desde hoy hasta el final, se desliza el inicio hacia
+    // atrás para preservar la ventana de 3. Sin esto, cuando hoy=último día
+    // (e.g., Sábado en plan 7d que termina sábado, o rolling refill atrasado
+    // sin chunks futuros aún persistidos), el slice colapsaba a 1 tab y el
+    // usuario veía el síntoma "Domingo desapareció" cuando lo que pasó es que
+    // la ventana perdió sus 2 slots futuros. Los días previos aparecen
+    // tachados vía `isPastDay` (comportamiento existente).
+    const _WINDOW_SIZE = 3;
+    const visibleStartIndex = Math.max(
+        0,
+        Math.min(todayPlanDayIndex, planDays.length - _WINDOW_SIZE)
+    );
+    const visiblePlanDays = planDays.slice(visibleStartIndex, visibleStartIndex + _WINDOW_SIZE);
 
     // Auto-seleccionar el tab del día actual si queda fuera de la ventana visible
     useEffect(() => {
         if (!planData?.days || planData.days.length <= 1) return;
-        const windowEnd = visibleStartIndex + 3;
+        const windowEnd = visibleStartIndex + _WINDOW_SIZE;
         if (activeDayIndex < visibleStartIndex || activeDayIndex >= windowEnd) {
             setActiveDayIndex(todayPlanDayIndex);
         }
@@ -2146,6 +2210,41 @@ const Dashboard = () => {
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    {/* [P1-5] Chip compacto: avisa que el inventario en
+                                        uso puede ser caché stale. Antes era un banner
+                                        full-width entre los chips y la fila de botones
+                                        (rompía la jerarquía visual). Ahora es un pin
+                                        discreto al lado del badge "6d" con tooltip
+                                        nativo (`title`) + `aria-label` para
+                                        screen readers. `onClick stopPropagation`
+                                        evita que el click abra el despensa dropdown.
+                                        Se baja automáticamente cuando un fetch fresco
+                                        (mount, focus, Realtime, PDF, Restock) confirma
+                                        datos vivos. */}
+                                    {inventoryStale && (
+                                        <div
+                                            role="status"
+                                            aria-live="polite"
+                                            aria-label="Tu Nevera puede estar desactualizada. Estamos usando datos en caché. Verifica antes de comprar para evitar duplicados."
+                                            title="Tu Nevera puede estar desactualizada. Estamos usando datos en caché. Verifica antes de comprar para evitar duplicados."
+                                            onClick={(e) => e.stopPropagation()}
+                                            style={{
+                                                background: '#FFFBEB',
+                                                color: '#78350F',
+                                                padding: '0.2rem 0.45rem',
+                                                borderRadius: '6px',
+                                                fontSize: '0.65rem',
+                                                fontWeight: 800,
+                                                border: '1px solid #FDE68A',
+                                                display: 'flex', alignItems: 'center', gap: '0.25rem',
+                                                whiteSpace: 'nowrap',
+                                                cursor: 'help',
+                                            }}
+                                        >
+                                            <AlertCircle size={11} color="#F59E0B" strokeWidth={2.5} />
+                                            <span>caché</span>
+                                        </div>
+                                    )}
                                     {!isPlanExpired ? (
                                         <div style={{
                                             background: daysLeft <= 2 ? '#FEE2E2' : '#DBEAFE',
@@ -2266,40 +2365,6 @@ const Dashboard = () => {
                             </AnimatePresence>
                         </div>
 
-
-                        {/* [P1-5] Chip ámbar persistente: avisa al usuario que el
-                            inventario en uso puede ser caché stale. Aparece encima
-                            de la fila de acciones (Update / "Ya compré todo" / PDF)
-                            para que la advertencia llegue ANTES de cualquier acción
-                            que dependa del inventario, no solo cuando ya descargó
-                            el PDF. Se baja automáticamente cuando un fetch fresco
-                            (mount, focus, Realtime, PDF, Restock) confirma datos vivos. */}
-                        {inventoryStale && (
-                            <div
-                                role="status"
-                                aria-live="polite"
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'flex-start',
-                                    gap: '0.5rem',
-                                    padding: '0.5rem 0.75rem',
-                                    marginBottom: '0.5rem',
-                                    background: '#FFFBEB',
-                                    border: '1px solid #FDE68A',
-                                    borderLeft: '3px solid #F59E0B',
-                                    borderRadius: '0.5rem',
-                                    width: '100%',
-                                    fontSize: '0.78rem',
-                                    color: '#78350F',
-                                    lineHeight: 1.3,
-                                }}
-                            >
-                                <AlertCircle size={14} color="#F59E0B" style={{ flexShrink: 0, marginTop: '1px' }} />
-                                <span>
-                                    <strong>Tu Nevera puede estar desactualizada.</strong> Estamos usando datos en caché. Verifica antes de comprar para evitar duplicados.
-                                </span>
-                            </div>
-                        )}
 
                         {/* BOTONES LADO A LADO */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', width: '100%' }}>
@@ -2492,13 +2557,85 @@ const Dashboard = () => {
                         </span>
                     </div>
 
-                    {/* Estado: generando próximos 3 días con IA */}
-                    {planData?.generation_status === 'generating_next' && visiblePlanDays.length < 3 && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: '#EFF6FF', borderRadius: '10px', marginBottom: '16px', color: '#2563EB', fontSize: '0.9rem' }}>
-                            <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span>
-                            Generando tus próximos platos personalizados…
-                        </div>
-                    )}
+                    {/* Indicador de generación → skeleton tab(s) inline en la fila de días (más abajo) */}
+
+                    {/* [P0-DASH-CHIP-HONESTY-V2 · 2026-05-09] Banner contextual
+                        cuando la queue tiene chunks pausados sin nada in-flight.
+                        Reemplaza el slot fantasma "Lunes · nevera vacía" que
+                        antes se renderizaba en la fila de días. UX: el día
+                        futuro NO debe aparecer (aún no llegó), pero el usuario
+                        SÍ debe enterarse de que el sistema espera acción. Copy
+                        derivado del primer paused_chunk.reason_code (matchea
+                        plans.py:3580 reason_to_text). */}
+                    {(() => {
+                        const _csi = chunkStatusInfo;
+                        const _puac = (_csi && typeof _csi.pending_user_action_count === 'number')
+                            ? _csi.pending_user_action_count : 0;
+                        const _inFlight = (_csi && typeof _csi.in_flight_count === 'number')
+                            ? _csi.in_flight_count : 0;
+                        if (!(_puac > 0 && _inFlight === 0)) return null;
+                        const _pc = (_csi && Array.isArray(_csi.paused_chunks) && _csi.paused_chunks.length > 0)
+                            ? _csi.paused_chunks[0] : null;
+                        if (!_pc) return null;
+
+                        // [P0-DASH-CHIP-HONESTY-V3 · 2026-05-09] Mismo
+                        // temporal_gate UX que aplica al slot del día.
+                        // Si el usuario aún está consumiendo días del
+                        // chunk actual (daysSinceCreation < generated),
+                        // NO mostrar el banner — la pausa del próximo
+                        // bloque no es urgente todavía. Reduce ansiedad
+                        // anticipada. SSOT con la lógica del slot.
+                        const _planDaysLen = Array.isArray(planData?.days) ? planData.days.length : 0;
+                        if (
+                            typeof daysSinceCreation === 'number'
+                            && Number.isFinite(daysSinceCreation)
+                            && _planDaysLen > 0
+                            && daysSinceCreation < _planDaysLen
+                        ) {
+                            return null;
+                        }
+
+                        const _reasonCopy = {
+                            empty_pantry: { title: 'Tu próximo bloque está pausado', body: 'Tu nevera está vacía. Añade ingredientes para que generemos los próximos días.', cta: 'Actualizar nevera', url: '/inventory' },
+                            empty_pantry_proactive: { title: 'Tu próximo bloque está pausado', body: 'Tu nevera está vacía. Añade ingredientes para que generemos los próximos días.', cta: 'Actualizar nevera', url: '/inventory' },
+                            stale_snapshot: { title: 'Validando tu inventario', body: 'Estamos refrescando tu nevera. El plan continuará en breve.', cta: null, url: null },
+                            stale_snapshot_live_unreachable: { title: 'Actualiza tu nevera para continuar', body: 'No pudimos validar tu inventario en vivo. Abre la nevera para refrescar.', cta: 'Abrir nevera', url: '/inventory' },
+                            learning_zero_logs: { title: 'Registra tus comidas para continuar', body: 'Necesitamos saber qué comiste para generar el siguiente bloque.', cta: 'Ir al diario', url: '/diary' },
+                            tz_unresolved: { title: 'Confirmando tu zona horaria', body: 'Aún no pudimos resolver tu zona horaria para programar el siguiente bloque.', cta: null, url: null },
+                            missing_prior_lessons: { title: 'Reconstruyendo el aprendizaje', body: 'El sistema intenta recuperar el aprendizaje del bloque previo.', cta: null, url: null },
+                            persistent_drift: { title: 'Validando tu inventario', body: 'Detectamos diferencias persistentes con tu inventario. Refrescando…', cta: 'Abrir nevera', url: '/inventory' },
+                        };
+                        const _copy = _reasonCopy[_pc.reason_code] || {
+                            title: 'Tu próximo bloque está pausado',
+                            body: 'El sistema espera tu acción para continuar.',
+                            cta: null, url: null,
+                        };
+                        return (
+                            <div role="status" style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                gap: '12px', padding: '12px 16px', marginBottom: '16px',
+                                background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: '10px',
+                                color: '#92400E', fontSize: '0.875rem',
+                            }}>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontWeight: 600, marginBottom: '2px' }}>{_copy.title}</div>
+                                    <div style={{ fontSize: '0.8rem', color: '#B45309' }}>{_copy.body}</div>
+                                </div>
+                                {_copy.cta && _copy.url && (
+                                    <button
+                                        onClick={() => navigate(_copy.url)}
+                                        style={{
+                                            padding: '8px 14px', background: '#F59E0B', color: 'white',
+                                            border: 'none', borderRadius: '8px', fontWeight: 600,
+                                            fontSize: '0.85rem', cursor: 'pointer', whiteSpace: 'nowrap',
+                                        }}
+                                    >
+                                        {_copy.cta}
+                                    </button>
+                                )}
+                            </div>
+                        );
+                    })()}
 
                     {/* [P2-δ] Botón explícito "Refrescar próximos días" cuando el usuario está
                         en día 5+ del bloque y los siguientes chunks NO se están generando. El
@@ -2551,6 +2688,31 @@ const Dashboard = () => {
                             >
                                 Refrescar
                             </button>
+                        </div>
+                    )}
+
+                    {/* [P3-2] Banner sutil si alguna semana fue regenerada en modo simplificado.
+                        Backend persiste planData._user_forced_simplified_weeks: {week_number: iso_ts}
+                        cuando el usuario aceptó el CTA "regenerar simplificado" tras un dead_letter.
+                        El indicador es informativo — no bloquea ni afecta la nav. */}
+                    {planData?._user_forced_simplified_weeks && Object.keys(planData._user_forced_simplified_weeks).length > 0 && (
+                        <div style={{
+                            background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+                            border: '1px solid #F59E0B',
+                            borderRadius: '12px',
+                            padding: '10px 14px',
+                            marginBottom: '12px',
+                            fontSize: '0.85rem',
+                            color: '#92400E',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                        }}>
+                            <span style={{ fontSize: '1.1rem' }}>ℹ️</span>
+                            <span>
+                                Algunos días de tu plan fueron regenerados en modo simplificado por tu solicitud.
+                                Las recetas son más sencillas y flexibles con los ingredientes disponibles.
+                            </span>
                         </div>
                     )}
 
@@ -2659,7 +2821,259 @@ const Dashboard = () => {
                                                 );
                                             })}
                                             
-                                            {/* Los días en background se irán agregando silenciosamente por el CRON, sin indicadores que den ansiedad */}
+                                            {/* [P0-DASH-MISSING-DAY-SLOT · 2026-05-09] Skeleton tab(s) para
+                                                días que faltan dentro de la ventana visible. Antes solo se
+                                                mostraban si `generation_status === 'generating_next'`, pero
+                                                hay 2 escenarios MUCHO más comunes donde plan_data.days está
+                                                corto vs total_days_requested:
+                                                  (a) chunk siguiente en `pending_user_action` (dead-lettered
+                                                      esperando regeneración manual del usuario) — el banner
+                                                      P1-CHUNKS-1 ya alerta arriba pero los slots de día se
+                                                      caían silenciosamente.
+                                                  (b) initial generation con generation_status='complete' del
+                                                      primer chunk pero chunks restantes pendientes/dead-letter.
+                                                Ambos casos resultaban en ventana colapsada (e.g., solo Sábado
+                                                visible cuando Domingo es el día 2 del plan pero su chunk no
+                                                se mergeo a plan_data.days). El nuevo predicate dispara el
+                                                skeleton también cuando `total_days_requested > planDays.length`
+                                                o `_user_action_required` está set. */}
+                                            {(() => {
+                                                if (weekIdx !== 0) return null;
+                                                const _missingSlots = _WINDOW_SIZE - visiblePlanDays.length;
+                                                if (_missingSlots <= 0) return null;
+                                                const _genStatus = planData?.generation_status;
+                                                const _isGenerating = _genStatus === 'generating_next'
+                                                    || _genStatus === 'generating'
+                                                    || _genStatus === 'partial';
+                                                const _hasActionReq = !!planData?._user_action_required;
+                                                // [P0-DASH-CHIP-HONESTY · 2026-05-09] Tooltip-anchor:
+                                                // P0-DASH-CHIP-HONESTY-FE | test_p0_dash_chip_honesty
+                                                //
+                                                // Reconciliación con la queue real: plan_data.
+                                                // generation_status='generating_next' puede
+                                                // coexistir con TODOS los chunks pausados
+                                                // (pending_user_action por empty_pantry, snapshot
+                                                // stale, etc). El chip "en camino" mentía cuando
+                                                // realmente nada estaba corriendo — el usuario
+                                                // veía spinner para días pausados y no se enteraba
+                                                // de que tenía que actualizar la nevera.
+                                                //
+                                                // Reglas (prioridad descendente):
+                                                //   1. dead-letter / _user_action_required → chip
+                                                //      "Acción" (ya cubierto). Mismo nivel que
+                                                //      pending_user_action_count > 0 cuando NO
+                                                //      hay nada in-flight.
+                                                //   2. pending_user_action_count > 0 Y in_flight=0
+                                                //      → "Pausado: <reason>". Reason resuelto
+                                                //      del primer paused_chunk con reason válido.
+                                                //   3. _isGenerating Y in_flight > 0 → "en camino"
+                                                //      (el caso histórico, ahora honesto).
+                                                //   4. _isGenerating pero in_flight=0 y nada
+                                                //      pausado → fallback "en camino" (estado
+                                                //      transitorio entre chunks; no esperar a
+                                                //      tener queue counters para mostrar algo).
+                                                const _csi = chunkStatusInfo;
+                                                const _puac = (_csi && typeof _csi.pending_user_action_count === 'number')
+                                                    ? _csi.pending_user_action_count : 0;
+                                                const _inFlight = (_csi && typeof _csi.in_flight_count === 'number')
+                                                    ? _csi.in_flight_count : 0;
+                                                const _failedQ = (_csi && typeof _csi.failed_count === 'number')
+                                                    ? _csi.failed_count : 0;
+                                                const _isPausedFromQueue = (_puac > 0 && _inFlight === 0);
+
+                                                // [P0-DASH-MISSING-DAY-SLOT-V4 · 2026-05-09] Regla
+                                                // "el siguiente chunk se crea SOLO cuando termina
+                                                // el actual" (rolling refill). Implicación visual:
+                                                // los slots de skeleton solo se renderizan si hay
+                                                // automatización en curso o acción explícita
+                                                // requerida — NO para llenar la ventana hasta
+                                                // total_days_requested cuando el plan está
+                                                // 'complete'.
+                                                if (!_isGenerating && !_hasActionReq) return null;
+
+                                                // [P0-DASH-CHIP-HONESTY-V3 · 2026-05-09] Tooltip-anchor:
+                                                // P0-DASH-CHIP-HONESTY-V3 | test_p0_dash_chip_honesty
+                                                //
+                                                // **temporal_gate UX-side**: NO renderizar slots de
+                                                // días futuros hasta que el último día del chunk
+                                                // actual haya llegado en TZ del usuario. Regla
+                                                // operacional fundamental del producto: el rolling
+                                                // refill solo trabaja en chunks cuyos días previos
+                                                // ya concluyeron. Mostrar "Lunes · en camino"
+                                                // cuando aún es Sábado (Domingo no ha terminado)
+                                                // miente sobre lo que el sistema realmente está
+                                                // haciendo — los chunks pueden estar técnicamente
+                                                // `in_flight`, pero el `temporal_gate` los va a
+                                                // diferir hasta que el día previo concluya.
+                                                // Honestidad UX: si el usuario aún consume días
+                                                // del chunk actual, el siguiente bloque NO debe
+                                                // aparecer en pantalla.
+                                                //
+                                                // Algoritmo: usamos `daysSinceCreation` (offset
+                                                // del día activo en el rolling window, calculado
+                                                // arriba en línea ~541 desde grocery_start_date —
+                                                // SSOT del resto del Dashboard para los índices
+                                                // de día). Si `daysSinceCreation < visiblePlanDays.length`
+                                                // → hoy es uno de los días generados → ocultar
+                                                // slot. La igualdad NO se incluye porque
+                                                // daysSinceCreation == length significa que ya
+                                                // pasamos del último día generado (siguiente bloque).
+                                                //
+                                                // Fallback: si daysSinceCreation no es finito o
+                                                // visiblePlanDays está vacío, preserva V4.
+                                                if (
+                                                    typeof daysSinceCreation === 'number'
+                                                    && Number.isFinite(daysSinceCreation)
+                                                    && visiblePlanDays
+                                                    && visiblePlanDays.length > 0
+                                                    && daysSinceCreation < visiblePlanDays.length
+                                                ) {
+                                                    return null;
+                                                }
+
+                                                // [P0-DASH-CHIP-HONESTY-V2 · 2026-05-09] Si el
+                                                // chunk actual ya terminó pero la queue dice
+                                                // "pausado y nada in_flight", el slot no se
+                                                // renderiza tampoco — la pausa se comunica vía
+                                                // el banner contextual arriba del menú.
+                                                if (_isPausedFromQueue) return null;
+
+                                                const _diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                                                // [P0-DASH-CHIP-HONESTY · 2026-05-09] 3 estados
+                                                // visuales (antes 2):
+                                                //   - "en camino" (gris shimmer + spinner): plan
+                                                //     activo Y queue tiene in_flight > 0. Honesto:
+                                                //     algo está corriendo de verdad.
+                                                //   - "pausado: <reason>" (ámbar punteado): la
+                                                //     queue tiene pending_user_action y nada
+                                                //     in-flight. El usuario debe actuar (nevera,
+                                                //     diario, etc). Banner detalle según reason.
+                                                //   - "acción requerida" (ámbar más fuerte):
+                                                //     _user_action_required del plan_data
+                                                //     (escalación dead-letter). Banner P1-CHUNKS-1
+                                                //     arriba detalla.
+                                                const _isPending = _hasActionReq && !_isGenerating;
+                                                // Reason resuelto del primer paused_chunk: el
+                                                // backend ya devuelve reason_code canónico
+                                                // (empty_pantry, stale_snapshot, learning_zero_logs,
+                                                // tz_unresolved, missing_prior_lessons,
+                                                // empty_pantry_proactive, _unknown).
+                                                const _firstPausedReason = (_isPausedFromQueue && _csi
+                                                    && Array.isArray(_csi.paused_chunks)
+                                                    && _csi.paused_chunks.length > 0
+                                                    && typeof _csi.paused_chunks[0].reason_code === 'string')
+                                                    ? _csi.paused_chunks[0].reason_code
+                                                    : null;
+                                                // Map reason_code → copy del chip (corto). Para
+                                                // detalle completo el banner /blocked_reasons
+                                                // (cuando se monte) usará el dict reason_to_text.
+                                                const _PAUSED_LABELS = {
+                                                    empty_pantry: 'nevera vacía',
+                                                    empty_pantry_proactive: 'nevera vacía',
+                                                    stale_snapshot: 'inventario',
+                                                    stale_snapshot_live_unreachable: 'inventario',
+                                                    learning_zero_logs: 'sin registros',
+                                                    tz_unresolved: 'zona horaria',
+                                                    missing_prior_lessons: 'aprendizaje',
+                                                    missing_start_date_no_anchor: 'fecha inicio',
+                                                    pantry_violation_post_merge: 'cantidades',
+                                                    synthesis_ratio_exceeded: 'síntesis',
+                                                };
+                                                const _pausedShortLabel = _firstPausedReason
+                                                    ? (_PAUSED_LABELS[_firstPausedReason] || 'pausado')
+                                                    : 'pausado';
+                                                return Array.from({ length: _missingSlots }).map((_, sIdx) => {
+                                                    const _slotVisibleIdx = visiblePlanDays.length + sIdx;
+                                                    const _d = new Date();
+                                                    _d.setDate(_d.getDate() + _slotVisibleIdx);
+                                                    const _dayName = _diasSemana[_d.getDay()];
+
+                                                    let _suffix; let _ariaSuffix; let _titleText;
+                                                    let _border; let _background; let _backgroundSize;
+                                                    let _animation; let _color; let _showSpinner;
+                                                    if (_isPending) {
+                                                        _suffix = '· acción';
+                                                        _ariaSuffix = 'requiere acción';
+                                                        _titleText = 'Este día está dead-letteado. Revisa el banner "Acción requerida" arriba para regenerar.';
+                                                        _border = '1px dashed #F59E0B';
+                                                        _background = '#FFFBEB';
+                                                        _backgroundSize = 'auto';
+                                                        _animation = 'none';
+                                                        _color = '#B45309';
+                                                        _showSpinner = false;
+                                                    } else if (_isPausedFromQueue) {
+                                                        // [P0-DASH-CHIP-HONESTY · 2026-05-09]
+                                                        // Queue tiene pending_user_action y NADA
+                                                        // in-flight. NO mentir con shimmer; usar
+                                                        // ámbar punteado estático con reason corto.
+                                                        // Detalle vía /blocked_reasons (banner
+                                                        // arriba o tooltip).
+                                                        _suffix = `· ${_pausedShortLabel}`;
+                                                        _ariaSuffix = `pausado, ${_pausedShortLabel}`;
+                                                        _titleText = `Este día está pausado (${_pausedShortLabel}). El sistema espera tu acción para continuar.`;
+                                                        _border = '1px dashed #F59E0B';
+                                                        _background = '#FFFBEB';
+                                                        _backgroundSize = 'auto';
+                                                        _animation = 'none';
+                                                        _color = '#B45309';
+                                                        _showSpinner = false;
+                                                    } else {
+                                                        // _isGenerating con queue in_flight > 0
+                                                        // (o sin info de queue todavía — fallback
+                                                        // honesto durante la primera carga).
+                                                        _suffix = '· en camino';
+                                                        _ariaSuffix = 'en camino';
+                                                        _titleText = 'Este día se está generando en background.';
+                                                        _border = '1px dashed #CBD5E1';
+                                                        _background = 'linear-gradient(90deg, #F1F5F9 0%, #E2E8F0 50%, #F1F5F9 100%)';
+                                                        _backgroundSize = '200% 100%';
+                                                        _animation = 'skeleton-shimmer 1.4s ease-in-out infinite';
+                                                        _color = '#94A3B8';
+                                                        _showSpinner = true;
+                                                    }
+
+                                                    return (
+                                                        <div
+                                                            key={`skeleton-${sIdx}`}
+                                                            role="status"
+                                                            aria-label={`${_dayName}: ${_ariaSuffix}`}
+                                                            title={_titleText}
+                                                            style={{
+                                                                flexShrink: 0,
+                                                                minWidth: '88px',
+                                                                padding: '8px 16px',
+                                                                borderRadius: '8px',
+                                                                border: _border,
+                                                                background: _background,
+                                                                backgroundSize: _backgroundSize,
+                                                                animation: _animation,
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                gap: '6px',
+                                                                color: _color,
+                                                                fontSize: '0.8rem',
+                                                                fontWeight: 500,
+                                                                cursor: 'default',
+                                                            }}
+                                                        >
+                                                            {_showSpinner && (
+                                                                <Loader2 size={12} strokeWidth={2.5} style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+                                                            )}
+                                                            <span>{_dayName}</span>
+                                                            <span style={{ fontSize: '0.7rem', opacity: 0.85 }}>
+                                                                {_suffix}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                });
+                                            })()}
+                                            <style>{`
+                                                @keyframes skeleton-shimmer {
+                                                    0% { background-position: 200% 0; }
+                                                    100% { background-position: -200% 0; }
+                                                }
+                                            `}</style>
                                         </div>
                                     </div>
                                 );
@@ -2670,112 +3084,10 @@ const Dashboard = () => {
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                         {(() => {
                             // Copia segura de platos usando el día activo (filtrar suplementos que tienen su propia sección)
-                            let displayMeals = [...currentDayMeals].filter(m => !m.meal?.toLowerCase().includes('suplemento'));
-
-                            // Inyectar almuerzo familiar visual si aplica
-                            if (formData?.skipLunch) {
-                                const hasLunch = displayMeals.some(m => m.meal.toLowerCase().includes('almuerzo'));
-                                if (!hasLunch) {
-                                    displayMeals.splice(1, 0, {
-                                        meal: 'Almuerzo',
-                                        name: 'Almuerzo Familiar',
-                                        isSkipped: true
-                                    });
-                                }
-                            }
+                            const displayMeals = [...currentDayMeals].filter(m => !m.meal?.toLowerCase().includes('suplemento'));
 
                             return displayMeals.map((meal, index) => {
-                                const isSkippedLunch = meal.isSkipped;
                                 const isLiked = meal.name ? !!likedMeals[meal.name] : false;
-
-                                if (isSkippedLunch) {
-                                    if (isPremium) {
-                                        return (
-                                            <div key={index} className="skipped-lunch" style={{
-                                                background: 'linear-gradient(135deg, rgba(239, 246, 255, 0.8), rgba(219, 234, 254, 0.5))',
-                                                borderTop: index > 0 ? '1px dashed #93C5FD' : 'none',
-                                                borderBottom: index < displayMeals.length - 1 ? '1px dashed #93C5FD' : 'none',
-                                                color: '#1E40AF'
-                                            }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                                    <div style={{
-                                                        background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-                                                        color: 'white',
-                                                        borderRadius: '12px', width: 48, height: 48,
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        boxShadow: '0 4px 10px rgba(37, 99, 235, 0.3)'
-                                                    }}>
-                                                        <ChefHat size={24} />
-                                                    </div>
-                                                    <div>
-                                                        <h3 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '0.25rem', color: '#1E3A8A' }}>
-                                                            Cupo Vacío para Almuerzo
-                                                        </h3>
-                                                        <p style={{ fontSize: '0.9rem', margin: 0, color: '#3B82F6', fontWeight: 500 }}>
-                                                            Dile a tu Agente IA qué vas a almorzar hoy.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={() => {
-                                                        window.scrollTo(0, 0);
-                                                        navigate('/dashboard/agent');
-                                                    }}
-                                                    style={{
-                                                        background: 'white',
-                                                        color: '#2563EB',
-                                                        border: '2px solid #BFDBFE',
-                                                        borderRadius: '1rem',
-                                                        padding: '0.75rem 1.25rem',
-                                                        fontWeight: 700,
-                                                        fontSize: '0.9rem',
-                                                        cursor: 'pointer',
-                                                        display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                                        transition: 'all 0.2s',
-                                                        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
-                                                    }}
-                                                    onMouseEnter={(e) => {
-                                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                                        e.currentTarget.style.boxShadow = '0 6px 12px -2px rgba(59, 130, 246, 0.15)';
-                                                        e.currentTarget.style.borderColor = '#93C5FD';
-                                                    }}
-                                                    onMouseLeave={(e) => {
-                                                        e.currentTarget.style.transform = 'translateY(0)';
-                                                        e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)';
-                                                        e.currentTarget.style.borderColor = '#BFDBFE';
-                                                    }}
-                                                >
-                                                    <Wand2 size={18} /> Registrar con IA
-                                                </button>
-                                            </div>
-                                        );
-                                    }
-
-                                    return (
-                                        <div key={index} className="skipped-lunch" style={{
-                                            background: 'rgba(239, 246, 255, 0.6)',
-                                            borderTop: index > 0 ? '1px dashed #3B82F6' : 'none',
-                                            borderBottom: index < displayMeals.length - 1 ? '1px dashed #3B82F6' : 'none',
-                                            color: '#1E40AF'
-                                        }}>
-                                            <div style={{
-                                                background: '#3B82F6', color: 'white',
-                                                borderRadius: '50%', width: 40, height: 40,
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                            }}>
-                                                <ChefHat size={20} />
-                                            </div>
-                                            <div>
-                                                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-                                                    Almuerzo Familiar / Libre
-                                                </h3>
-                                                <p style={{ fontSize: '0.85rem', margin: 0, opacity: 0.8 }}>
-                                                    Reserva calórica aplicada. Come con moderación lo que haya en casa.
-                                                </p>
-                                            </div>
-                                        </div>
-                                    );
-                                }
 
                                 return (
                                     <div key={index} className="meal-card">

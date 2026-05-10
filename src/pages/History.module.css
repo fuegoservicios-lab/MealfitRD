@@ -393,6 +393,230 @@
     flex-shrink: 0;
 }
 
+/* [P1-HIST-2 · 2026-05-09] Status chips derivados client-side.
+   3 buckets visibles (complete=null, no chip): partial / failed /
+   action_required. Mismo shape que .tag para consistencia visual,
+   con borde y color saturado para diferenciar. */
+.statusPartial,
+.statusFailed,
+.statusActionRequired,
+.statusInProgress,
+.statusUnknown {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 99px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.statusPartial {
+    background: #FFFBEB;
+    color: #92400E;
+    border: 1px solid #FDE68A;
+}
+
+.statusFailed {
+    background: #FEF2F2;
+    color: #991B1B;
+    border: 1px solid #FECACA;
+}
+
+.statusActionRequired {
+    background: #FEF2F2;
+    color: #991B1B;
+    border: 1px solid #FCA5A5;
+    /* Pulse sutil para llamar atención: hay un CTA pendiente. */
+    animation: statusPulse 2.4s ease-in-out infinite;
+}
+
+/* [P0-HIST-IN-PROGRESS · 2026-05-09] Plan generándose en background.
+   Palette azul info para diferenciar de partial (amber=falta) — el
+   plan NO tiene un problema, solo está corriendo. Pulse sutil
+   distinto al de action_required: comunica actividad sin urgencia. */
+.statusInProgress {
+    background: #EFF6FF;
+    color: #1E40AF;
+    border: 1px solid #BFDBFE;
+    animation: statusInProgressPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes statusInProgressPulse {
+    0%, 100% { box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    50% { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.10); }
+}
+
+/* [P2-HIST-AUDIT-1 · 2026-05-09] Plan sin contenido procesable
+   (legacy sin metadata o filas corruptas). Palette gris neutro
+   para diferenciar de partial (amber=falta), failed (rojo=error)
+   y action_required (rojo+pulse=CTA). El gris comunica honestamente
+   "no podemos clasificar" sin alarmar al usuario. */
+.statusUnknown {
+    background: #F1F5F9;
+    color: #475569;
+    border: 1px solid #CBD5E1;
+}
+
+@keyframes statusPulse {
+    0%, 100% { box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    50% { box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.12); }
+}
+
+/* [P1-HIST-3 · 2026-05-09] Chip de lecciones acumuladas. Indigo
+   sutil para diferenciarlo de status (amber/red) y caloriesBadge
+   (orange). El icono Sparkles refuerza "aprendizaje" — diferenciador
+   del producto. Solo aparece cuando count > 0. */
+.lessonsBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 99px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    background: #EEF2FF;
+    color: #4338CA;
+    border: 1px solid #C7D2FE;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.lessonsBadge svg {
+    color: #6366F1;
+}
+
+/* [P2-HIST-4 · 2026-05-09] Chip de ajustes de coherencia hechos
+   por el sistema. Palette cyan/teal: neutro pero distintivo, separa
+   semánticamente de status (amber/red — alerta) y de simplifiedWeeks
+   (violet — degradación). El mensaje es "el sistema corrigió drift
+   por ti" — feature de calidad, no problema. */
+.coherenceAdjustsBadge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    background: #ECFEFF;
+    color: #155E75;
+    border: 1px solid #A5F3FC;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+/* [P2-HIST-3 · 2026-05-09] Chip retroactivo de semanas en modo
+   simplificado. Palette violet (lavender) para diferenciarse de
+   lessonsBadge (indigo) — son ambos "metadata del plan" pero con
+   semánticas distintas (lessons = aprendizaje continuo OK; simplif
+   = degradación honesta tras fallo recuperable). */
+.simplifiedWeeksBadge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    background: #F5F3FF;
+    color: #5B21B6;
+    border: 1px solid #DDD6FE;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+/* [P2-HIST-AUDIT-C · 2026-05-09] Chip retroactivo de días
+   acumulados por shift_plan (TZ resync, rollover por inventario).
+   Palette neutra slate — etiqueta histórica, no warn ni info. */
+.shiftDaysBadge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    background: #F1F5F9;
+    color: #475569;
+    border: 1px solid #CBD5E1;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+/* [P1-HIST-PANTRY-DEGRADED · 2026-05-09] Chip retroactivo cuando
+   ≥1 chunk del plan se generó con `learning_metrics.pantry_degraded_reason`
+   poblado. Palette ámbar (warn) — coherente con statusPartial
+   (mismo tono "se hizo lo mejor con info parcial"), distinta del
+   violeta de simplifiedWeeksBadge (degradación post-fail) y del
+   rojo de statusFailed/Action (acción crítica). NO usa pulse —
+   no es CTA, es etiqueta histórica. */
+.pantryDegradedBadge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    background: #FFFBEB;
+    color: #92400E;
+    border: 1px solid #FDE68A;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+/* [P0-HIST-LEARN-2 · 2026-05-09] Chips de _consecutive_zero_log_chunks.
+   Dos variantes según severity:
+     - .zeroLogBadgeInfo (1-2 bloques sin feedback): palette slate
+       neutral — el cron solo nota, todavía no es alarma.
+     - .zeroLogBadgeAlarm (≥3 bloques O generation_status =
+       degraded_pending_engagement): palette roja — el cron flippeó
+       el plan a degradado y está enviando push notification.
+   Mismo shape geométrico que pantryDegradedBadge / shiftDaysBadge
+   para mantener consistencia visual en la fila de chips de la card. */
+.zeroLogBadgeInfo {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    background: #F1F5F9;
+    color: #475569;
+    border: 1px solid #CBD5E1;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.zeroLogBadgeAlarm {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    background: #FEF2F2;
+    color: #991B1B;
+    border: 1px solid #FECACA;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
 /* Calories Badge */
 .caloriesBadge {
     display: flex;
@@ -545,6 +769,122 @@
     flex: 1;
 }
 
+/* [P2-HIST-2 · 2026-05-09] Banner action_required dentro del modal.
+   Variante red porque indica problema bloqueante (chunks dead-lettered);
+   el chip pulsante de la card (P1-HIST-2) ya alerta visualmente, este
+   banner explica el qué/por qué/cómo. */
+.actionBanner {
+    display: flex;
+    gap: 0.85rem;
+    align-items: flex-start;
+    padding: 1rem 1.1rem;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, #FEF2F2 0%, #FFF1F2 100%);
+    border: 1px solid #FCA5A5;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px -2px rgba(220, 38, 38, 0.08);
+}
+
+.actionBannerIcon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 0.6rem;
+    background: #FEE2E2;
+    border: 1px solid #FECACA;
+    color: #B91C1C;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.actionBannerContent {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.actionBannerTitle {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #991B1B;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+}
+
+.actionBannerBody {
+    font-size: 0.85rem;
+    color: #7F1D1D;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.actionBannerMeta {
+    font-size: 0.78rem;
+    color: #991B1B;
+    margin: 0;
+    font-weight: 600;
+}
+
+.actionBannerMeta code {
+    background: #FEE2E2;
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.3rem;
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    font-size: 0.72rem;
+    color: #7F1D1D;
+}
+
+.actionBannerCta {
+    font-size: 0.8rem;
+    color: #991B1B;
+    margin: 0.15rem 0 0 0;
+    font-weight: 600;
+}
+
+.actionBannerCta strong {
+    color: #B91C1C;
+}
+
+/* [P2-HIST-AUDIT-7 · 2026-05-09] Botón CTA configurable desde el
+   backend (`_user_action_required.cta` + `.url`). Reemplaza al copy
+   hardcoded cuando ambos están presentes y la URL pasa la validación
+   safe-path. Estilo coherente con el banner action_required: rojo
+   inverso (background sólido vs gradient del banner) para que sea el
+   acento accionable claro dentro de la zona de alerta. */
+.actionBannerCtaButton {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.9rem;
+    background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+    color: white;
+    border: none;
+    border-radius: 0.6rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 6px -1px rgba(220, 38, 38, 0.35);
+    transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.actionBannerCtaButton:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px -2px rgba(220, 38, 38, 0.4);
+}
+
+.actionBannerCtaButton:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px -1px rgba(220, 38, 38, 0.3);
+}
+
+.actionBannerCtaButton:focus-visible {
+    outline: 2px solid #FCA5A5;
+    outline-offset: 2px;
+}
+
 /* Macros Grid in Modal */
 .macrosGrid {
     display: grid;
@@ -625,6 +965,53 @@
     font-size: 0.7rem;
     color: #EC4899;
     font-weight: 600;
+}
+
+/* [P1-HIST-1 · 2026-05-09] Nav inter-chunks read-only.
+   Solo aparece cuando el plan tiene >1 chunk. Las flechas saltan al
+   chunk siguiente/previo manteniendo el cap "≤4 días visibles".
+   Estilo discreto (no compite con dayTabs). */
+.chunkNav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.chunkNavBtn {
+    background: white;
+    border: 1px solid #E2E8F0;
+    color: #475569;
+    width: 32px;
+    height: 32px;
+    border-radius: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.chunkNavBtn:hover:not(:disabled) {
+    background: #F8FAFC;
+    border-color: #CBD5E1;
+    color: #0F172A;
+}
+
+.chunkNavBtn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.chunkNavLabel {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #64748B;
+    letter-spacing: 0.01em;
+    text-align: center;
+    flex: 1;
 }
 
 /* Day Tabs */
@@ -1015,4 +1402,607 @@
         width: 100%;
         flex: none;
     }
+}
+
+/* [P2-HIST-AUDIT-2 · 2026-05-09] Tabs del modal del Historial:
+   Menú / Lecciones / Ajustes. Permiten expandir el chip "X lecciones"
+   o "X ajustes" de la card a su detalle por-plan. */
+.modalTabs {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0.4rem;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    margin: 0.6rem 0 1rem 0;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+}
+
+.modalTab {
+    flex: 1;
+    min-width: 0;
+    padding: 0.5rem 0.8rem;
+    border: none;
+    background: transparent;
+    color: #64748B;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+}
+
+.modalTab:hover {
+    background: #F1F5F9;
+    color: #334155;
+}
+
+.modalTabActive {
+    background: white;
+    color: #0F172A;
+    font-weight: 700;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Lista detalle (Lecciones / Ajustes). Estilo plano y compacto —
+   el modal ya tiene chrome propio; aquí evitamos box-shadow extras. */
+.detailList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.detailItem {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    padding: 0.7rem 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.detailItemHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.detailItemBadge {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #4338CA;
+    background: #EEF2FF;
+    border: 1px solid #C7D2FE;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.detailItemMeta {
+    font-size: 0.72rem;
+    color: #64748B;
+    white-space: nowrap;
+}
+
+.detailItemBody {
+    display: flex;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+}
+
+.detailItemCounter {
+    font-size: 0.78rem;
+    color: #475569;
+    background: white;
+    border: 1px solid #E2E8F0;
+    padding: 0.18rem 0.5rem;
+    border-radius: 6px;
+}
+
+.modalDetailEmpty {
+    padding: 1.5rem 1rem;
+    text-align: center;
+    color: #64748B;
+    font-size: 0.9rem;
+    background: #F8FAFC;
+    border: 1px dashed #CBD5E1;
+    border-radius: 10px;
+}
+
+/* [P1-AUDIT-HIST-6 · 2026-05-09] Tier breakdown del modal del
+   Historial. Fila horizontal de badges que muestran la
+   distribución de calidad de los chunks completed del plan
+   archivado. Solo aparece si el plan tiene tier info — tier
+   `llm` (verde, happy path), degraded (amber: shuffle/edge/
+   emergency), error (rojo: failed/paused/error). */
+.tierBreakdownRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.75rem 0 1rem;
+    padding: 0.5rem 0.75rem;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+}
+
+.tierBreakdownLabel {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #475569;
+    margin-right: 0.25rem;
+}
+
+.tierBadge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.6rem;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+/* `llm` (calidad LLM completa) — verde-emerald, mismo palette que
+   shoppingChip durabilidad estable (P3-C 2026-05-08). */
+.tierBadgeOk {
+    background: #ECFDF5;
+    color: #065F46;
+    border-color: #A7F3D0;
+}
+
+/* shuffle/edge/emergency — amber, degraded pero generaron días. */
+.tierBadgeWarn {
+    background: #FFFBEB;
+    color: #92400E;
+    border-color: #FDE68A;
+}
+
+/* failed/paused/error — rojo (no usable), simétrico con statusFailed. */
+.tierBadgeBad {
+    background: #FEF2F2;
+    color: #991B1B;
+    border-color: #FECACA;
+}
+
+/* [P1-HIST-NEW-4 · 2026-05-09] Notice de truncado en el tab
+   Métricas. Compone `modalDetailEmpty` (mismo estilo neutral que
+   los empty states) con un acento azul info para que el usuario
+   note que NO es error y NO es empty — es información sobre el
+   cap LIMIT 50. Aparece encima de la lista de chunks renderizados
+   cuando `total_count > chunks.length`. */
+.metricsTruncatedNotice {
+    background: #EFF6FF;
+    color: #1E3A8A;
+    border-color: #BFDBFE;
+    border-style: solid;
+    margin-bottom: 0.75rem;
+    padding: 0.6rem 0.85rem;
+    text-align: left;
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+/* [P1-HIST-NEW-1 · 2026-05-09] Chip de `error_message` raw del
+   chunk failed. Composición sobre tierBadgeBad: monospace para
+   distinguir texto técnico del badge categórico (dead_letter_reason),
+   max-width para evitar reflow del row si el exception es largo —
+   el truncate visual con ellipsis se combina con el truncate JS
+   (≤80 chars + ellipsis) que el caller ya aplica; el `title=`
+   tooltip muestra el string completo. */
+.errorMessageBadge {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Courier New", monospace;
+    font-size: 0.72rem;
+    max-width: 28rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Tiers desconocidos (futuro) — gris neutro. */
+.tierBadgeNeutral {
+    background: #F1F5F9;
+    color: #475569;
+    border-color: #CBD5E1;
+}
+
+/* [P2-HIST-AUDIT-8 · 2026-05-09] Bloque informativo de días
+   faltantes en el modal del Historial. Se renderiza al final del
+   menú cuando `daysGenerated < totalDaysRequested` o cuando hay
+   chunks dead-lettered no listados. Tonos:
+     - info (azul tenue): días pendientes "normales" (en proceso
+       o sin signal).
+     - warn (amber): chunks pausados esperando acción del usuario.
+     - bad (rojo): fallos no recuperables, requiere regen. */
+.missingDaysBlock {
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    border: 1px solid;
+}
+
+.missingDaysHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.missingDaysIcon {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.missingDaysTitle {
+    font-size: 0.92rem;
+    font-weight: 700;
+    flex: 1;
+    min-width: 0;
+}
+
+.missingDaysCount {
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.18rem 0.55rem;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid currentColor;
+    opacity: 0.85;
+    white-space: nowrap;
+}
+
+.missingDaysReason {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin: 0;
+    opacity: 0.9;
+}
+
+/* [P0-HIST-FIX-2 · 2026-05-09] Subtitle line entre header y reason —
+   muestra el rango concreto de días pendientes ("Faltan del día 3
+   al día 6.") como información complementaria al header. Tipografía
+   menor que reason para jerarquía visual: header > subtitle > reason. */
+.missingDaysSubtitle {
+    font-size: 0.82rem;
+    line-height: 1.35;
+    margin: 0 0 0.35rem 0;
+    font-weight: 600;
+    opacity: 0.85;
+}
+
+/* Tone: info — azul slate. Default cuando no hay señal específica. */
+.missingDaysInfo {
+    background: #EFF6FF;
+    color: #1E40AF;
+    border-color: #BFDBFE;
+}
+
+/* Tone: warn — amber, simétrico con statusPartial. Esperando acción. */
+.missingDaysWarn {
+    background: #FFFBEB;
+    color: #92400E;
+    border-color: #FDE68A;
+}
+
+/* Tone: bad — rojo, simétrico con statusFailed. Recovery exhausted. */
+.missingDaysBad {
+    background: #FEF2F2;
+    color: #991B1B;
+    border-color: #FECACA;
+}
+
+/* [P2-HIST-AUDIT-9 · 2026-05-09] Lista per-chunk de reasons dentro
+   del actionBanner. Cada `<li>` muestra "Semana N: Title — Body".
+   Hereda colores del banner (no debe redefinir bg/color para no
+   sobrescribir el tone del banner padre — solo separación visual). */
+.actionBannerReasons {
+    list-style: none;
+    margin: 0.65rem 0 0;
+    padding: 0.55rem 0.7rem;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    font-size: 0.83rem;
+    line-height: 1.4;
+}
+
+.actionBannerReasonItem {
+    padding: 0.2rem 0;
+}
+
+.actionBannerReasonItem + .actionBannerReasonItem {
+    border-top: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+/* [P1-HIST-BLOCKED-STUCK · 2026-05-09] Mini-bloque para chunks
+   atascados (`processing`/`stale` con lag > threshold). Tono info
+   azul — NO uses la palette del banner action_required (rojo
+   AlertTriangle): stuck no requiere acción del usuario, solo
+   informa. role="status" en lugar de "alert" por la misma razón. */
+.stuckBanner {
+    display: flex;
+    gap: 0.75rem;
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+    align-items: flex-start;
+}
+
+.stuckBannerIcon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #DBEAFE;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1E40AF;
+}
+
+.stuckBannerContent {
+    flex: 1;
+    min-width: 0;
+}
+
+.stuckBannerTitle {
+    display: block;
+    color: #1E40AF;
+    font-size: 0.88rem;
+    margin-bottom: 0.3rem;
+}
+
+.stuckBannerBody {
+    margin: 0 0 0.55rem 0;
+    font-size: 0.78rem;
+    color: #1E3A8A;
+    line-height: 1.45;
+}
+
+.stuckBannerList {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px dashed rgba(30, 64, 175, 0.2);
+}
+
+.stuckBannerListItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.3rem 0;
+    font-size: 0.74rem;
+    color: #1E3A8A;
+}
+
+.stuckBannerListItem + .stuckBannerListItem {
+    border-top: 1px dashed rgba(30, 64, 175, 0.12);
+}
+
+.stuckBannerLag {
+    font-weight: 700;
+    color: #1D4ED8;
+    margin-left: 0.5rem;
+    white-space: nowrap;
+}
+
+/* [P1-HIST-LIFETIME-LESSONS · 2026-05-09] Estilos del bloque
+   "Aprendizaje del usuario" en el tab Lecciones. Palette indigo
+   sutil — espeja `lessonsBadge` (chip indigo del listado) para
+   que el usuario relacione visualmente "X lecciones" con el
+   contenido expandido del modal. NO usar el rojo/amber del status
+   (es info positiva: lo que el sistema aprendió, no advertencia). */
+.lifetimeLessonsBlock {
+    background: linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 100%);
+    border: 1px solid #C7D2FE;
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.lifetimeLessonsHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #3730A3;
+    font-size: 0.85rem;
+    margin-bottom: 0.65rem;
+}
+
+.lifetimeProxyBadge {
+    margin-left: auto;
+    padding: 0.2rem 0.55rem;
+    border-radius: 99px;
+    background: #FEF3C7;
+    color: #92400E;
+    border: 1px solid #FCD34D;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.lifetimeCountersRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.65rem;
+}
+
+.lifetimeListBlock {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    align-items: center;
+    margin-bottom: 0.45rem;
+}
+
+.lifetimeListLabel {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #4338CA;
+    margin-right: 0.2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.lifetimeListItem {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.55rem;
+    border-radius: 99px;
+    background: #FFFFFF;
+    color: #1E293B;
+    border: 1px solid #E0E7FF;
+    font-size: 0.72rem;
+    font-weight: 600;
+    max-width: 100%;
+}
+
+.lifetimeListItemMore {
+    display: inline-flex;
+    padding: 0.2rem 0.55rem;
+    border-radius: 99px;
+    background: #C7D2FE;
+    color: #3730A3;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.lifetimeCriticalBlock,
+.lifetimeHistoryBlock,
+.lastChunkLearningBlock {
+    margin-top: 0.85rem;
+    padding-top: 0.65rem;
+    border-top: 1px dashed rgba(67, 56, 202, 0.18);
+}
+
+/* [P0-HIST-LEARN-1 · 2026-05-09] Snapshot del último chunk
+   aprendido. Header con label semántico (es-DO) + meta (week + ts).
+   El meta queda alineado a la derecha para no competir con el
+   strong del label. */
+.lastChunkLearningHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    color: #3730A3;
+    font-size: 0.78rem;
+    margin-bottom: 0.45rem;
+}
+
+.lastChunkLearningMeta {
+    font-size: 0.7rem;
+    color: #6366F1;
+    font-weight: 600;
+}
+
+/* [P2-HIST-NEW-5 · 2026-05-09] Toggle "Ver todos" / "Ver menos"
+   del lifetime history. Estilo discreto: link-like (sin border,
+   sin bg) consistente con el tone secundario del bloque (que ya
+   tiene border-top dashed). El operator-power que necesita
+   expandir lo encuentra; el user casual no lo nota. */
+.lifetimeHistoryToggle {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.3rem 0;
+    background: transparent;
+    border: none;
+    color: #4338CA;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.lifetimeHistoryToggle:hover {
+    color: #312E81;
+}
+
+.lifetimeHistoryToggle:focus-visible {
+    outline: 2px solid #6366F1;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.lifetimeCriticalHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #3730A3;
+    font-size: 0.78rem;
+    margin-bottom: 0.45rem;
+}
+
+.lifetimeCriticalCount {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #6366F1;
+}
+
+/* [P1-HIST-LM-WHITELIST · 2026-05-09] Render del bloque de
+   learning_metrics agrupado por categoría en el tab Métricas.
+   Cuatro grupos: síntesis / repetición / violaciones / pantry.
+   Cada grupo se renderiza como mini-card con título arriba +
+   chips horizontales. Grupos vacíos NO se renderizan
+   (drift detection: si el writer del backend persiste menos keys,
+   los grupos correspondientes desaparecen automáticamente). */
+.lmGroupsContainer {
+    margin-top: 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.lmGroup {
+    padding: 0.5rem 0.65rem;
+    border-radius: 8px;
+    background: #FAFAFA;
+    border: 1px solid #E5E7EB;
+}
+
+.lmGroupTitle {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.35rem;
+}
+
+.lmGroupItems {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+/* Divider entre la sub-sección lifetime (arriba) y la telemetría
+   (abajo) en el tab Lecciones. Solo se renderiza cuando ambas
+   secciones existen. */
+.lifetimeSectionDivider {
+    margin: 1rem 0 0.55rem 0;
+    padding-top: 0.55rem;
+    border-top: 1px solid #E2E8F0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }

@@ -166,8 +166,8 @@ const InteractiveAssessmentFlow = () => {
             component: <QBudget onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>Tu Despensa&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Esto personaliza tu lista de compras y las cantidades.",
+            title: <>Frecuencia de tus compras&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: "Con esto calculamos cuánto comprar cada vez para que ningún ingrediente se dañe ni te falte antes del próximo mercado.",
             hasInternalNext: true,
             fields: ['groceryDuration'],
             component: <QHousehold onManualAdvance={nextStep} />

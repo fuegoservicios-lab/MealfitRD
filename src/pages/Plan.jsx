@@ -11,6 +11,7 @@ import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api
 import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation';
 import { stripInternalFlags } from '../config/secureFormStorage';
 import { trackEvent } from '../utils/analytics';
+import { safeJSONParseObject } from '../utils/safeJSONParse';
 
 // [P1-B10] Default conservador para countdown de 429 cuando el backend no
 // envía `Retry-After`. El RateLimiter del backend usa period=60s con
@@ -406,7 +407,20 @@ const savePlanToHistory = async (finalPlan) => {
         if (saveError) {
             console.error("❌ Error guardando historial:", saveError.message);
         } else {
-
+            // [P0-HIST-NEW-2 · 2026-05-09] Señalar inserción para que
+            // <History> bypassee el threshold de 60s del listener de
+            // `visibilitychange`. Sin esto, un usuario que ya tenía la
+            // pestaña /history abierta y vuelve a ella dentro de los
+            // 60s post-save vería el listado pre-mutación (sin el plan
+            // recién insertado) hasta refresh manual o re-mount.
+            // Storage event es local-tab-only (mismo orígen, misma
+            // pestaña al reactivar visibility), así que basta un
+            // localStorage.setItem; no necesitamos BroadcastChannel.
+            try {
+                if (typeof window !== 'undefined' && window.localStorage) {
+                    window.localStorage.setItem('mealfit_history_dirty_at', String(Date.now()));
+                }
+            } catch { /* SecurityError en modo private/incógnito: silent */ }
         }
     } catch (dbError) {
         console.error("⚠️ Error crítico al intentar guardar historial:", dbError);
@@ -468,10 +482,15 @@ const Plan = () => {
 
         window.scrollTo(0, 0);
 
-        // Pre-cargar el plan antiguo para el Preview
+        // Pre-cargar el plan antiguo para el Preview.
+        // [P2-A · 2026-05-08] SSOT migration de try/catch ad-hoc.
+        // Si parse falla, `oldPlan` queda en su estado previo (no degradamos).
         const oldPlanStr = localStorage.getItem('mealfit_plan');
         if (oldPlanStr) {
-            try { setOldPlan(JSON.parse(oldPlanStr)); } catch (e) { }
+            const parsed = safeJSONParseObject(oldPlanStr);
+            // Solo setear si efectivamente parseó algo no-trivial; el fallback
+            // `{}` representa "corrupto" para este caller.
+            if (Object.keys(parsed).length > 0) setOldPlan(parsed);
         }
 
         const processPlan = async () => {
@@ -497,8 +516,8 @@ const Plan = () => {
                 }
 
                 const totalDays = getTotalDaysByGroceryDuration(formData?.groceryDuration);
-                // [P1-8] Filtrar las keys internas del wizard (`_skipLunchTouched`,
-                // `_weightUnitTouched`, cualquier futura `_*`) ANTES del spread.
+                // [P1-8] Filtrar las keys internas del wizard (`_weightUnitTouched`,
+                // `_householdSizeTouched`, cualquier futura `_*`) ANTES del spread.
                 // Sin este filtro, el endpoint `/api/plans/analyze/stream` recibía
                 // los flags de UI; el backend los strippea con `_strip_untrusted_internal_keys`,
                 // pero el JSON dump del prompt al LLM podía incluirlas como ruido
@@ -560,8 +579,14 @@ const Plan = () => {
                 if (ignore) return;
 
                 // Lógica de fechas para compras (Grocery Cycle)
+                // [P2-A · 2026-05-08] safeJSONParseObject defiende contra
+                // storage corrupto: antes el throw aquí abortaba la generación
+                // del plan recién creado. Sin storageKey: NO sobrescribimos el
+                // plan local cacheado a `{}` (destruiría datos legítimos del
+                // usuario); el fallback `{}` solo afecta esta lectura local
+                // de `oldPlan` para preservar fechas de ciclo previas.
                 const oldPlanStr = localStorage.getItem('mealfit_plan');
-                const oldPlan = oldPlanStr ? JSON.parse(oldPlanStr) : {};
+                const oldPlan = safeJSONParseObject(oldPlanStr);
 
                 // [GROCERY-START-DATE-FIX 2026-05-06] grocery_start_date SIEMPRE es ahora.
                 // Antes, en flujos con `previousMeals` (renewal/regeneración con historial)

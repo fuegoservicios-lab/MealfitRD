@@ -65,7 +65,7 @@ const getAlternativeMeal = (mealType, currentMealName, targetCalories, userDietT
     };
 };
 import { toast } from 'sonner';
-import { fetchWithAuth } from '../config/api';
+import { fetchWithAuth, restorePlanFromHistory as restorePlanFromHistoryApi } from '../config/api';
 // [P1-B7] Storage seguro para datos sensibles del formulario.
 import {
     saveFormData as secureSaveFormData,
@@ -107,10 +107,23 @@ export const AssessmentProvider = ({ children }) => {
     const [maxReachedStep, setMaxReachedStep] = useState(0);
 
     // Datos del Plan Generado (JSON devuelto por la IA)
-    const [planData, setPlanData] = useState(savedPlan ? JSON.parse(savedPlan) : null);
+    // [P2-B] try/catch defensivo: si `mealfit_plan` se corrompe (edición manual,
+    // bug de serialización, downgrade de versión), un throw aquí rompe el render
+    // inicial del AssessmentProvider — y como envuelve toda la app, el usuario
+    // ve pantalla blanca sin forma de recuperarse salvo limpiando storage manual.
+    const [planData, setPlanData] = useState(() => {
+        if (!savedPlan) return null;
+        try { return JSON.parse(savedPlan); }
+        catch { return null; }
+    });
 
     // Estado de Likes Persistente { "NombrePlato": true }
-    const [likedMeals, setLikedMeals] = useState(savedLikes ? JSON.parse(savedLikes) : {});
+    // [P2-B] Mismo patrón defensivo que `planData` arriba.
+    const [likedMeals, setLikedMeals] = useState(() => {
+        if (!savedLikes) return {};
+        try { return JSON.parse(savedLikes); }
+        catch { return {}; }
+    });
 
     // Estado de Dislikes Persistente (permanente — sin expiración)
     const savedDislikes = localStorage.getItem('mealfit_dislikes');
@@ -156,20 +169,9 @@ export const AssessmentProvider = ({ children }) => {
         age: '', gender: '', height: '', weight: '', weightUnit: _getDefaultWeightUnit(), bodyFat: '', activityLevel: '',
         sleepHours: '', stressLevel: '', cookingTime: '', budget: '', scheduleType: '',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
-        mainGoal: '', motivation: '', struggles: [], skipLunch: false,
-        // [P0-FORM-2] Persiste si el usuario ya tomó la decisión EXPLÍCITA sobre
-        // skipLunch (toggle clickeado en QHousehold). Antes, `editedFieldsRef`
-        // protegía la edición solo dentro de UNA sesión (in-memory). Tras
-        // refresh/remount, un usuario que toggleó skipLunch=true en sesión 1
-        // perdía la protección y la hidratación post-login desde DB
-        // (`fetchProfile`, `secureLoadFormData`) podía sobreescribir con el
-        // valor stale del DB → backend generaba 4 comidas en vez de 3 →
-        // distribución de macros rota. Este flag persiste a localStorage junto
-        // con skipLunch; un useEffect al mount re-puebla `editedFieldsRef`
-        // con 'skipLunch' si está true, garantizando que la decisión sobreviva
-        // remounts, refreshes, y hidratación async post-login.
-        _skipLunchTouched: false,
-        // [P1-FORM-3] Mismo patrón que `_skipLunchTouched` para `weightUnit`.
+        mainGoal: '', motivation: '', struggles: [],
+        // [P1-FORM-3] Touched-flag para `weightUnit` (mismo patrón que otros
+        // touched-flags del wizard).
         // Si el usuario explícitamente tocó el toggle LB/KG en QMeasurements,
         // `_weightUnitTouched=true` persiste y el useEffect mount-only protege
         // `weightUnit` de ser sobreescrito por hidratación stale del DB. Sin
@@ -181,8 +183,8 @@ export const AssessmentProvider = ({ children }) => {
         // default 'kg' incorrecto para él) o cualquier mismatch locale↔intent.
         _weightUnitTouched: false,
         // [P1-12] Touched-flags para householdSize y groceryDuration. Mismo
-        // patrón que `_skipLunchTouched` (P0-FORM-2) y `_weightUnitTouched`
-        // (P1-FORM-3). Sin estos, una edición explícita del usuario (ej.
+        // patrón que `_weightUnitTouched` (P1-FORM-3). Sin estos, una edición
+        // explícita del usuario (ej.
         // cambiar de 4 a 2 personas en mudanza) podía revertirse al siguiente
         // Realtime UPDATE de `user_profiles` (admin tooling, otra pestaña,
         // sync cloud) o tras `fetchProfile` post-login con valores stale del
@@ -395,12 +397,9 @@ export const AssessmentProvider = ({ children }) => {
     // pasan por `updateData` que añade el field al ref directamente.
     //
     // Patrón: `_xxxTouched=true` (persistido) → re-armar 'xxx' en el ref.
-    // Cubre actualmente: skipLunch (P0-FORM-2), weightUnit (P1-FORM-3),
-    // householdSize y groceryDuration (P1-12).
+    // Cubre actualmente: weightUnit (P1-FORM-3), householdSize y
+    // groceryDuration (P1-12).
     useEffect(() => {
-        if (formData?._skipLunchTouched === true) {
-            editedFieldsRef.current.add('skipLunch');
-        }
         if (formData?._weightUnitTouched === true) {
             editedFieldsRef.current.add('weightUnit');
         }
@@ -481,6 +480,24 @@ export const AssessmentProvider = ({ children }) => {
                 const latestPlan = plans[0].plan_data;
                 const planCreatedAt = plans[0].created_at;
                 const planId = plans[0].id;
+
+                // [P0-DASH-CHIP-HONESTY · 2026-05-09] Inyectar el row id
+                // dentro del jsonb del planData para que consumidores
+                // (Dashboard chip honesto, restock handler línea 1590,
+                // History fetchHistory) lo lean como `planData.id`. Antes
+                // el id solo vivía en este scope local; los call sites
+                // que escribían `planData?.id` recibían undefined y
+                // fallaban silenciosamente — el endpoint /chunk-status
+                // se llamaba con `/api/plans/undefined/chunk-status` →
+                // 404 → state chunkStatusInfo nunca se hidrataba → el
+                // chip "en camino" del Dashboard mentía pese al fix
+                // P0-DASH-CHIP-HONESTY del backend. Reconcilia ambos
+                // lados (el jsonb mantiene su shape; agregamos una key
+                // `id` que coincide con la fila — análogo al inject de
+                // grocery_start_date/cycle_start_date más abajo).
+                if (latestPlan && typeof latestPlan === 'object') {
+                    latestPlan.id = planId;
+                }
 
                 // FIX: Asegurar que el plan de la BD tenga una fecha de inicio de compras para el contador de Dashboard
                 let didInjectGroceryDate = false;
@@ -1370,10 +1387,46 @@ export const AssessmentProvider = ({ children }) => {
                 if (latestRows && latestRows.length > 0) {
                     const planId = latestRows[0].id;
 
-                    // Actualizar el plan_data del registro más reciente
+                    // [P0-HIST-2 · 2026-05-09] Además de `plan_data`,
+                    // sobrescribir las columnas top-level críticas para el
+                    // header (Dashboard.jsx lee `name/calories/macros`
+                    // directo de la fila, no del jsonb). Sin esto, revertir
+                    // un regen rechazado restauraba los días pero el header
+                    // seguía mostrando el nombre/calorías/macros del plan
+                    // rechazado → drift visible.
+                    //
+                    // Derivamos solo lo seguro de `pastPlanData`:
+                    //   - name: jsonb top-level "name".
+                    //   - calories: jsonb "calories" o "totalCalories".
+                    //   - macros: jsonb "macros" si es un objeto.
+                    // `meal_names/ingredients/techniques` son derivados
+                    // server-side en _save_plan_and_track_background y NO
+                    // viajan en plan_data. Recalcularlos client-side
+                    // tendría drift; los dejamos al próximo save.
+                    //
+                    // Para restauración desde Historial (con id) usar
+                    // `restorePlanFromHistory` (P0-HIST-1) en lugar de este
+                    // path: el endpoint atómico backend cubre las 6
+                    // columnas + cancel chunks + lock release.
+                    const updates = { plan_data: pastPlanData };
+                    if (typeof pastPlanData?.name === 'string' && pastPlanData.name.trim()) {
+                        updates.name = pastPlanData.name;
+                    }
+                    const _calories = pastPlanData?.calories ?? pastPlanData?.totalCalories;
+                    if (typeof _calories === 'number' && Number.isFinite(_calories)) {
+                        updates.calories = _calories;
+                    }
+                    if (
+                        pastPlanData?.macros &&
+                        typeof pastPlanData.macros === 'object' &&
+                        !Array.isArray(pastPlanData.macros)
+                    ) {
+                        updates.macros = pastPlanData.macros;
+                    }
+
                     const { error: updateError } = await supabase
                         .from('meal_plans')
-                        .update({ plan_data: pastPlanData })
+                        .update(updates)
                         .eq('id', planId);
 
                     if (updateError) {
@@ -1388,6 +1441,65 @@ export const AssessmentProvider = ({ children }) => {
             } catch (dbError) {
                 console.error('❌ Error de DB al restaurar plan:', dbError);
             }
+        }
+    };
+
+    // [P0-HIST-1 · 2026-05-09] Restauración atómica desde Historial.
+    // `restorePlan` (arriba) sigue cubriendo los call-sites de Plan.jsx y
+    // Recipes.jsx que reviven un plan_data sin `id` (e.g., revertir una
+    // regeneración rechazada usando state local). Para el flujo del
+    // Historial donde existe el `id` del plan archivado, esta función
+    // delega al endpoint backend `/api/plans/restore`, que en una sola
+    // transacción:
+    //   1. Cancela chunks pending/processing del target → cierra el bug
+    //      de "workers continúan generando días con pipeline_snapshot
+    //      del plan anterior y los mergean al plan_data restaurado".
+    //   2. Libera chunk_user_locks del target (locks zombi bloqueaban
+    //      la siguiente generación).
+    //   3. Sobrescribe plan_data Y las 6 columnas top-level
+    //      (name/calories/macros/meal_names/ingredients/techniques) →
+    //      cierra P0-HIST-2 (drift entre plan_data y header del
+    //      Dashboard que las lee directo).
+    //   4. Anota `_plan_modified_at` y `_restored_from_plan_id`.
+    const restorePlanFromHistory = async (pastPlanRow) => {
+        if (!pastPlanRow || !pastPlanRow.id) {
+            // Sin id no podemos llamar al endpoint. El caller debió
+            // pasar el row completo (no solo plan_data). Caemos al
+            // legacy local-only para no romper edge cases.
+            return restorePlan(pastPlanRow?.plan_data || pastPlanRow);
+        }
+
+        const pastPlanData = pastPlanRow.plan_data;
+
+        // 1. Estado local primero (UI inmediata).
+        setPlanData(pastPlanData);
+        localStorage.setItem('mealfit_plan', JSON.stringify(pastPlanData));
+
+        // 2. Endpoint atómico (cancel chunks + release locks + UPDATE).
+        const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
+        if (!userId || userId === 'guest') {
+            // Guest sin userId: solo local-state. No hay nada que
+            // sincronizar server-side.
+            return { success: true, noop: true, guest: true };
+        }
+
+        try {
+            const response = await restorePlanFromHistoryApi(pastPlanRow.id);
+            if (!response.ok) {
+                const errBody = await response.json().catch(() => ({}));
+                console.error('❌ Error en restore endpoint:', response.status, errBody);
+                toast.warning('Plan restaurado localmente', {
+                    description: 'No se pudo sincronizar con la nube.'
+                });
+                return { success: false, status: response.status, error: errBody };
+            }
+            return await response.json();
+        } catch (apiError) {
+            console.error('❌ Error de red al restaurar plan:', apiError);
+            toast.warning('Plan restaurado localmente', {
+                description: 'No se pudo sincronizar con la nube.'
+            });
+            return { success: false, error: String(apiError) };
         }
     };
 
@@ -1544,6 +1656,10 @@ export const AssessmentProvider = ({ children }) => {
             remainingCredits: typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : '∞',
             upgradeUserPlan,
             restorePlan,
+            // [P0-HIST-1 · 2026-05-09] Variante atómica para Historial.
+            // Caller debe pasar el row completo (con `id`) para que el
+            // endpoint pueda autorizar y resolver source/target.
+            restorePlanFromHistory,
             refreshProfileAndPlan,
             restoreSessionData,
             setRecalcLock,

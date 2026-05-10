@@ -5,6 +5,8 @@ import { supabase } from '../supabase';
 import { Search, Plus, Minus, Trash2, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth, API_BASE } from '../config/api';
+import { getEstimatedDailyConsumption } from '../utils/pantryConsumption';
+import { safeJSONParseObject } from '../utils/safeJSONParse';
 
 const CATEGORY_ICONS = {
     'PROTEÍNAS': Beef,
@@ -53,6 +55,10 @@ const getCategoryIcon = (cat) => {
     if (!cat) return Package;
     return CATEGORY_ICONS[cat.toUpperCase().trim()] || Package;
 };
+
+// [P3-C · 2026-05-08] El helper `getEstimatedDailyConsumption` vive en
+// `frontend/src/utils/pantryConsumption.js` para que sea testeable sin
+// arrastrar este componente al bundle de tests.
 
 const Pantry = () => {
     const { session, userProfile, setPlanData } = useAssessment();
@@ -354,10 +360,24 @@ const Pantry = () => {
 
             // ── Recalcular lista de compras en background ──
             // Al vaciar la nevera, el delta cambia: ahora se necesitan TODOS los ingredientes del plan.
+            // [P2-A · 2026-05-08] safeJSONParseObject defiende contra storage corrupto:
+            // antes el throw quedaba absorbido por el catch externo, el recálculo
+            // FALLABA y el usuario veía cantidades stale tras vaciar la nevera —
+            // pérdida silenciosa de feature crítico. Sin storageKey: si el plan
+            // cache se corrompe, NO lo reescribimos a `{}` (sería destrucción de
+            // datos legítimos del usuario); preferimos que el flujo de carga del
+            // plan principal lo regenere desde DB.
             try {
                 const savedPlan = localStorage.getItem('mealfit_plan');
                 if (savedPlan && session?.user?.id) {
-                    const planData = JSON.parse(savedPlan);
+                    const planData = safeJSONParseObject(savedPlan);
+                    if (!planData.calc_household_size && !planData.calc_grocery_duration) {
+                        // Storage corrupto o vacío: el recálculo no puede inferir
+                        // householdSize/duration sin el plan. Skip silencioso —
+                        // el flujo principal (carga desde DB) lo restaurará.
+                        console.warn('[Pantry] mealfit_plan storage no parseable; skip recalc.');
+                        return;
+                    }
                     const householdSize = planData?.calc_household_size || 1;
                     const groceryDuration = planData?.calc_grocery_duration || 'weekly';
 
@@ -1282,6 +1302,31 @@ const Pantry = () => {
                                                 <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: isDisabled ? 'var(--danger)' : 'var(--text-main)', lineHeight: 1.2 }}>{item.ingredient_name}</h3>
                                                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
                                                     <span className="nevera-item-unit-tag">Unidad base: {item.unit}</span>
+                                                    {/* [P3-C] Badge de consumo estimado. Tooltip aclara que es
+                                                        orientación por categoría, no el rate dinámico real (el
+                                                        backend lo computa con el plan activo). Solo se muestra
+                                                        cuando la categoría tiene rate estimable. */}
+                                                    {(() => {
+                                                        const est = getEstimatedDailyConsumption(category, item.unit);
+                                                        if (!est) return null;
+                                                        return (
+                                                            <span
+                                                                title="Estimación por categoría · varía según tu plan"
+                                                                aria-label={`Consumo estimado: ${est.rate} ${est.unit} por día`}
+                                                                style={{
+                                                                    fontSize: '0.7rem',
+                                                                    color: '#475569',
+                                                                    background: '#F1F5F9',
+                                                                    padding: '2px 8px',
+                                                                    borderRadius: '999px',
+                                                                    fontWeight: 500,
+                                                                    whiteSpace: 'nowrap',
+                                                                }}
+                                                            >
+                                                                ~{est.rate} {est.unit}/día
+                                                            </span>
+                                                        );
+                                                    })()}
                                                     {isDisabled && <span style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Trash2 size={12}/> Pendiente de eliminación</span>}
                                                 </div>
                                             </div>

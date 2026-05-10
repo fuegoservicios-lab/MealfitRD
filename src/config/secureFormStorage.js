@@ -312,9 +312,9 @@ export const clearFormStorage = () => {
 //
 // Dos problemas con ese patrón:
 //
-// 1. **Filtrado de flags internos**: el spread incluye `_skipLunchTouched` y
-//    `_weightUnitTouched` (flags frontend-only del touched-tracking). El
-//    backend `_strip_untrusted_internal_keys` los limpia al re-leer, pero
+// 1. **Filtrado de flags internos**: el spread incluye `_weightUnitTouched`,
+//    `_householdSizeTouched`, etc. (flags frontend-only del touched-tracking).
+//    El backend `_strip_untrusted_internal_keys` los limpia al re-leer, pero
 //    quedan persistidos en la columna JSONB. Ruido en DB + costo de bytes.
 //
 // 2. **Race con hidratación cifrada**: si el usuario abre Dashboard ANTES de
@@ -425,7 +425,7 @@ export const buildHealthProfilePayload = (formData, overrides = {}, session = nu
  * Usado por `buildHealthProfilePayload` (persistencia DB) y por
  * `Plan.jsx → generateAIPlanStream` (payload al backend `/api/plans/analyze/stream`).
  * Antes el spread `{ ...formData, ... }` enviaba claves internas como
- * `_skipLunchTouched`/`_weightUnitTouched` al endpoint y, transitivamente,
+ * `_weightUnitTouched`/`_householdSizeTouched` al endpoint y, transitivamente,
  * al prompt del LLM (que dumpea `form_data` como contexto). Drift de
  * contrato + leak menor de estado UI al modelo. El helper centraliza el
  * filtro en un único lugar para que el invariante sea testeable y el

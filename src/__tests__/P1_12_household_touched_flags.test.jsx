@@ -4,16 +4,15 @@
  * post-refresh.
  *
  * Bug original (audit P1-12):
- *   El patrón de touched-flag protege `skipLunch` (P0-FORM-2) y `weightUnit`
- *   (P1-FORM-3), pero `householdSize` y `groceryDuration` no lo tenían.
- *   `fetchProfile` y `secureLoadFormData` filtran solo por `editedFieldsRef`
- *   que se llena vía `updateData` en sesión actual; tras refresh el set
- *   arranca vacío. Un usuario que cambió de 4 personas a 2 (mudanza), el
- *   siguiente Realtime UPDATE de `user_profiles` (admin tooling, otra
- *   pestaña, sync cloud) podía revertir su decisión a los 4 viejos
- *   persistidos en DB. Mismo modo de fallo que justificó P0-FORM-2 para
- *   skipLunch — y `householdSize` afecta DIRECTAMENTE el escalado de la
- *   lista de compras, así que el riesgo es operacional.
+ *   El patrón de touched-flag protege `weightUnit` (P1-FORM-3), pero
+ *   `householdSize` y `groceryDuration` no lo tenían. `fetchProfile` y
+ *   `secureLoadFormData` filtran solo por `editedFieldsRef` que se llena vía
+ *   `updateData` en sesión actual; tras refresh el set arranca vacío. Un
+ *   usuario que cambió de 4 personas a 2 (mudanza), el siguiente Realtime
+ *   UPDATE de `user_profiles` (admin tooling, otra pestaña, sync cloud)
+ *   podía revertir su decisión a los 4 viejos persistidos en DB.
+ *   `householdSize` afecta DIRECTAMENTE el escalado de la lista de compras,
+ *   así que el riesgo es operacional.
  *
  * Fix:
  *   1. Nuevos flags `_householdSizeTouched` / `_groceryDurationTouched` en
@@ -22,7 +21,7 @@
  *      junto con la edición del campo.
  *   3. `useEffect` mount-only en AssessmentContext re-arma `editedFieldsRef`
  *      con `'householdSize'`/`'groceryDuration'` cuando los flags están a
- *      `true`. Patrón idéntico a P0-FORM-2 / P1-FORM-3.
+ *      `true`. Patrón idéntico a P1-FORM-3.
  */
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
@@ -100,19 +99,17 @@ describe('P1-12 — useEffect mount-only re-arma editedFieldsRef', () => {
         expect(ctxCode).toMatch(pattern);
     });
 
-    it('Mantiene los re-armados existentes (skipLunch + weightUnit)', () => {
+    it('Mantiene el re-armado existente (weightUnit)', () => {
         // Defensa contra reintroducir el bug en otros flags durante el refactor.
-        expect(ctxCode).toMatch(/editedFieldsRef\.current\.add\(\s*['"]skipLunch['"]\s*\)/);
         expect(ctxCode).toMatch(/editedFieldsRef\.current\.add\(\s*['"]weightUnit['"]\s*\)/);
     });
 });
 
 
-describe('P1-12 — simetría con el patrón establecido (skipLunch / weightUnit)', () => {
-    it('Los 4 touched-flags se re-arman en el mismo useEffect mount-only', () => {
-        // El effect canónico contiene los 4 chequeos.
-        // Buscamos el useEffect con las 4 keys.
-        const flags = ['_skipLunchTouched', '_weightUnitTouched', '_householdSizeTouched', '_groceryDurationTouched'];
+describe('P1-12 — simetría con el patrón establecido (weightUnit)', () => {
+    it('Los 3 touched-flags se re-arman en el mismo useEffect mount-only', () => {
+        // El effect canónico contiene los 3 chequeos.
+        const flags = ['_weightUnitTouched', '_householdSizeTouched', '_groceryDurationTouched'];
         for (const flag of flags) {
             expect(ctxCode).toMatch(new RegExp(`formData\\?\\.${flag}\\s*===\\s*true`));
         }

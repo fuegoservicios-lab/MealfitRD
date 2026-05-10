@@ -21,14 +21,31 @@ import { BIO_RANGES, DIET_TYPES, SUPPLEMENTS, isBiometricInRange } from '../../.
 // (`_SENTINEL_NONE_VALUES` en `graph_orchestrator.py`).
 import { SENTINELS } from '../../../config/sentinels';
 import {
-    User, UserCircle, Sun, Moon, RefreshCw,
-    Battery, Target, Clock, CheckCircle, ChefHat,
-    Wallet, Banknote, Landmark, Infinity, Utensils, UtensilsCrossed,
+    Sun, Moon, MoonStar, AlarmClock, BedDouble, RefreshCw,
+    Mars, Venus,
+    Battery, BatteryFull, BatteryMedium, BatteryLow, BatteryWarning,
+    Target, Clock, ChefHat,
+    Wallet, Banknote, Landmark, Infinity, Utensils,
     Leaf, Salad, TrendingUp, Zap, Shield,
     AlertTriangle, Frown, Users, XCircle, HelpCircle,
-    Check, Pill, ArrowRight, Ban, Milk, Wheat, Egg, Fish, Nut, Activity, Heart, AlertCircle, Timer
+    Check, Pill, ArrowRight, Ban, Milk, Wheat, Egg, Fish, Nut, Activity, Heart, AlertCircle, Timer,
+    CalendarDays, CalendarRange, CalendarClock,
+    Hourglass,
+    Armchair, Footprints, Bike, Dumbbell, Medal,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+// [P2-A] Activación por teclado para `<div role="button|switch">`. Replica el
+// comportamiento nativo de <button>: Enter dispara el callback, Space también
+// (con preventDefault para evitar scroll de página). Sin esto, los selectores
+// tipo card son alcanzables con Tab pero NO se pueden activar con teclado —
+// usuarios de lectores de pantalla y de keyboard-only quedan bloqueados.
+const handleActivationKey = (callback) => (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        callback();
+    }
+};
 
 // --- Reusable Navigation Button for Manual Steps ---
 export const NextButton = ({ onClick, disabled, label = "Siguiente", icon: Icon = ArrowRight }) => (
@@ -61,6 +78,10 @@ export const NextButton = ({ onClick, disabled, label = "Siguiente", icon: Icon 
 const DietOption = ({ val, label, icon: Icon, desc, isSelected, onSelect }) => (
     <div
         onClick={() => onSelect(val)}
+        onKeyDown={handleActivationKey(() => onSelect(val))}
+        role="button"
+        aria-pressed={isSelected}
+        tabIndex={0}
         style={{
             cursor: 'pointer', padding: '1rem', borderRadius: 'var(--radius-md)',
             border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
@@ -83,6 +104,10 @@ const DietOption = ({ val, label, icon: Icon, desc, isSelected, onSelect }) => (
 const ChipOption = ({ val, label, icon: Icon, isSelected, onToggle }) => (
     <div
         onClick={() => onToggle(val)}
+        onKeyDown={handleActivationKey(() => onToggle(val))}
+        role="button"
+        aria-pressed={isSelected}
+        tabIndex={0}
         style={{
             cursor: 'pointer', padding: '0.75rem 1rem', borderRadius: 'var(--radius-lg)',
             border: isSelected ? '1px solid var(--secondary)' : '1px solid var(--border)',
@@ -100,6 +125,10 @@ const ChipOption = ({ val, label, icon: Icon, isSelected, onToggle }) => (
 const GoalCard = ({ val, label, icon: Icon, color, isSelected, onSelect }) => (
     <div
         onClick={() => onSelect(val)}
+        onKeyDown={handleActivationKey(() => onSelect(val))}
+        role="button"
+        aria-pressed={isSelected}
+        tabIndex={0}
         style={{
             cursor: 'pointer', padding: '1.25rem', borderRadius: 'var(--radius-lg)',
             border: isSelected ? `2px solid ${color}` : '1px solid var(--border)',
@@ -157,14 +186,18 @@ export const QGender = ({ onAutoAdvance }) => {
     // dispararían advance, daría doble-trigger en cambio de opción.
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* Símbolos biológicos universales (♀ ♂) — coherentes con
+                el subtítulo "sexo biológico". Antes ambos chips usaban
+                User/UserCircle (personas genéricas) y no se distinguían
+                visualmente entre sí. */}
             <RadioCard
-                name="gender" value="female" label="Mujer" icon={UserCircle}
+                name="gender" value="female" label="Mujer" icon={Venus}
                 checked={formData.gender === 'female'}
                 onChange={(e) => { updateData('gender', e.target.value); onAutoAdvance(); }}
                 onClick={() => { if (formData.gender === 'female') onAutoAdvance(); }}
             />
             <RadioCard
-                name="gender" value="male" label="Hombre" icon={User}
+                name="gender" value="male" label="Hombre" icon={Mars}
                 checked={formData.gender === 'male'}
                 onChange={(e) => { updateData('gender', e.target.value); onAutoAdvance(); }}
                 onClick={() => { if (formData.gender === 'male') onAutoAdvance(); }}
@@ -239,7 +272,7 @@ export const QMeasurements = ({ onManualAdvance }) => {
         // y el useEffect mount-only en AssessmentContext re-arma editedFieldsRef
         // para que la hidratación async post-login (fetchProfile,
         // secureLoadFormData) NO sobreescriba la elección del usuario con un
-        // valor stale del DB. Patrón análogo al P0-FORM-2 (`_skipLunchTouched`).
+        // valor stale del DB. Mismo patrón que otros toggles "touched" del wizard.
         setWeightUnit(newUnit);
         updateData('weightUnit', newUnit);
         updateData('_weightUnitTouched', true);
@@ -263,16 +296,17 @@ export const QMeasurements = ({ onManualAdvance }) => {
         <div style={{ display: 'grid', gap: '1.5rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
                 <div>
-                    <Label htmlFor="age">Edad (años)&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
+                    <Label htmlFor="age">Edad (años)&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
                     <Input
                         id="age" type="number" placeholder="Ej. 28"
                         min={BIO_RANGES.age.min} max={BIO_RANGES.age.max} step={BIO_RANGES.age.step}
                         value={formData.age} onChange={e => updateData('age', e.target.value)}
+                        aria-required="true"
                     />
                 </div>
                 <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <Label htmlFor="height" style={{ margin: 0 }}>Altura&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
+                        <Label htmlFor="height" style={{ margin: 0 }}>Altura&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
                         <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '0.5rem', padding: '3px' }}>
                             <button onClick={() => setUnit('cm')} style={{ border: 'none', background: unit === 'cm' ? 'white' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: unit === 'cm' ? 'var(--primary)' : '#64748B' }}>CM</button>
                             <button onClick={() => setUnit('ft')} style={{ border: 'none', background: unit === 'ft' ? 'white' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: unit === 'ft' ? 'var(--primary)' : '#64748B' }}>FT</button>
@@ -283,18 +317,21 @@ export const QMeasurements = ({ onManualAdvance }) => {
                             id="height" type="number" inputMode="decimal" placeholder="Ej. 170"
                             min={BIO_RANGES.heightCm.min} max={BIO_RANGES.heightCm.max} step={BIO_RANGES.heightCm.step}
                             value={formData.height} onChange={e => updateData('height', _normalizeDecimal(e.target.value))}
+                            aria-required="true"
                         />
                     ) : (
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <Input
-                                type="number" placeholder="Pies"
+                                type="number" placeholder="Pies" aria-label="Altura en pies"
                                 min={BIO_RANGES.heightFt.min} max={BIO_RANGES.heightFt.max} step={BIO_RANGES.heightFt.step}
                                 value={feet} onChange={(e) => handleFtChange(e.target.value, inches)}
+                                aria-required="true"
                             />
                             <Input
-                                type="number" placeholder="Pulg"
+                                type="number" placeholder="Pulg" aria-label="Altura en pulgadas"
                                 min={BIO_RANGES.heightIn.min} max={BIO_RANGES.heightIn.max} step={BIO_RANGES.heightIn.step}
                                 value={inches} onChange={(e) => handleFtChange(feet, e.target.value)}
+                                aria-required="true"
                             />
                         </div>
                     )}
@@ -304,7 +341,7 @@ export const QMeasurements = ({ onManualAdvance }) => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
                 <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <Label htmlFor="weight" style={{ margin: 0 }}>Peso&nbsp;<span style={{ color: '#EF4444' }}>*</span></Label>
+                        <Label htmlFor="weight" style={{ margin: 0 }}>Peso&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
                         {/* [P1-FORM-3] Border ámbar destacado cuando el usuario aún no
                             confirmó la unidad explícitamente. Antes el toggle pasaba
                             desapercibido y usuarios métricos tipeaban "70" como kg
@@ -331,14 +368,20 @@ export const QMeasurements = ({ onManualAdvance }) => {
                         id="weight" type="number" inputMode="decimal" placeholder={weightUnit === 'lb' ? 'Ej. 150' : 'Ej. 70'}
                         min={weightRange.min} max={weightRange.max} step={weightRange.step}
                         value={formData.weight} onChange={e => updateData('weight', _normalizeDecimal(e.target.value))}
+                        aria-required="true"
+                        aria-describedby={!formData._weightUnitTouched ? 'weight-unit-warning' : undefined}
                     />
                     {!formData._weightUnitTouched && (
-                        <div style={{
-                            fontSize: '0.7rem',
-                            color: '#B45309',
-                            marginTop: '0.35rem',
-                            fontWeight: 500,
-                        }}>
+                        <div
+                            id="weight-unit-warning"
+                            role="alert"
+                            style={{
+                                fontSize: '0.7rem',
+                                color: '#B45309',
+                                marginTop: '0.35rem',
+                                fontWeight: 500,
+                            }}
+                        >
                             ⚠️ Confirma tu unidad de peso ({weightUnit.toUpperCase()} por defecto). Toca LB o KG para confirmar.
                         </div>
                     )}
@@ -363,11 +406,20 @@ export const QActivityLevel = ({ onAutoAdvance }) => {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {[
-                { val: 'sedentary', label: 'Sedentario', desc: 'Trabajo de escritorio, poco o ningún ejercicio.', icon: User },
-                { val: 'light', label: 'Ligero', desc: 'Ejercicio suave de 1 a 3 días por semana.', icon: Activity },
-                { val: 'moderate', label: 'Moderado', desc: 'Ejercicio moderado de 3 a 5 días por semana.', icon: Activity },
-                { val: 'active', label: 'Activo', desc: 'Deportes fuertes o ejercicio 6 a 7 días por semana.', icon: TrendingUp },
-                { val: 'athlete', label: 'Atleta', desc: 'Entrenamientos dobles, trabajo físico demandante.', icon: Target }
+                // Progresión visual de actividad física: cada icono
+                // representa el TIPO de movimiento del nivel.
+                //   - Armchair (Sedentario): silla = trabajo de escritorio.
+                //   - Footprints (Ligero): pasos = caminar / actividad suave.
+                //   - Bike (Moderado): bicicleta = cardio moderado.
+                //   - Dumbbell (Activo): pesas = entrenamiento de fuerza.
+                //   - Medal (Atleta): medalla = nivel competitivo.
+                // Antes Ligero y Moderado compartían `Activity` (no se
+                // distinguían) y User/TrendingUp/Target eran abstractos.
+                { val: 'sedentary', label: 'Sedentario', desc: 'Trabajo de escritorio, poco o ningún ejercicio.', icon: Armchair },
+                { val: 'light', label: 'Ligero', desc: 'Ejercicio suave de 1 a 3 días por semana.', icon: Footprints },
+                { val: 'moderate', label: 'Moderado', desc: 'Ejercicio moderado de 3 a 5 días por semana.', icon: Bike },
+                { val: 'active', label: 'Activo', desc: 'Deportes fuertes o ejercicio 6 a 7 días por semana.', icon: Dumbbell },
+                { val: 'athlete', label: 'Atleta', desc: 'Entrenamientos dobles, trabajo físico demandante.', icon: Medal }
             ].map(opt => (
                 <RadioCard
                     key={opt.val} name="activityLevel" value={opt.val} label={opt.label} desc={opt.desc} icon={opt.icon}
@@ -402,14 +454,29 @@ export const QSchedule = ({ onAutoAdvance }) => {
 
 export const QSleep = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
+    // Progresión visual de calidad/cantidad de descanso:
+    //   AlarmClock → Moon → MoonStar → BedDouble
+    // Cada icono representa el estado de sueño del usuario:
+    //   - AlarmClock (<6h): la alarma te despierta antes de descansar.
+    //   - Moon (6-7h): sueño regular pero corto.
+    //   - MoonStar (7-8h): sueño con estrella = calidad óptima.
+    //   - BedDouble (>8h): cama = sueño abundante / dormilón.
+    // Antes los 4 niveles usaban el mismo Moon → no se distinguían
+    // visualmente y la card no comunicaba la calidad/cantidad.
+    const _SLEEP_OPTIONS = [
+        { val: '< 6 horas', icon: AlarmClock },
+        { val: '6-7 horas', icon: Moon },
+        { val: '7-8 horas', icon: MoonStar },
+        { val: '> 8 horas', icon: BedDouble },
+    ];
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-            {['< 6 horas', '6-7 horas', '7-8 horas', '> 8 horas'].map(opt => (
+            {_SLEEP_OPTIONS.map(opt => (
                 <RadioCard
-                    key={opt} name="sleepHours" value={opt} label={opt} icon={Moon}
-                    checked={formData.sleepHours === opt}
+                    key={opt.val} name="sleepHours" value={opt.val} label={opt.val} icon={opt.icon}
+                    checked={formData.sleepHours === opt.val}
                     onChange={(e) => { updateData('sleepHours', e.target.value); onAutoAdvance(); }}
-                    onClick={() => { if (formData.sleepHours === opt) onAutoAdvance(); }}
+                    onClick={() => { if (formData.sleepHours === opt.val) onAutoAdvance(); }}
                 />
             ))}
         </div>
@@ -418,14 +485,30 @@ export const QSleep = ({ onAutoAdvance }) => {
 
 export const QStress = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
+    // Progresión visual: la barra REPRESENTA el nivel de estrés —
+    // a más estrés, más llena la barra (como un medidor que se
+    // satura). El icono crece visualmente con la respuesta:
+    //   Bajo      → BatteryLow (apenas marcada, calma)
+    //   Moderado  → BatteryMedium (mitad)
+    //   Alto      → BatteryFull (llena, mucho estrés acumulado)
+    //   Muy Alto  → BatteryWarning (sobrecarga, alerta crítica)
+    // Antes los 4 niveles usaban el mismo Battery → no se distinguían
+    // visualmente y el chip seleccionado no comunicaba la severidad
+    // de la respuesta del usuario.
+    const _STRESS_OPTIONS = [
+        { val: 'Bajo', icon: BatteryLow },
+        { val: 'Moderado', icon: BatteryMedium },
+        { val: 'Alto', icon: BatteryFull },
+        { val: 'Muy Alto', icon: BatteryWarning },
+    ];
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-            {['Bajo', 'Moderado', 'Alto', 'Muy Alto'].map(opt => (
+            {_STRESS_OPTIONS.map(opt => (
                 <RadioCard
-                    key={opt} name="stressLevel" value={opt} label={opt} icon={Battery}
-                    checked={formData.stressLevel === opt}
+                    key={opt.val} name="stressLevel" value={opt.val} label={opt.val} icon={opt.icon}
+                    checked={formData.stressLevel === opt.val}
                     onChange={(e) => { updateData('stressLevel', e.target.value); onAutoAdvance(); }}
-                    onClick={() => { if (formData.stressLevel === opt) onAutoAdvance(); }}
+                    onClick={() => { if (formData.stressLevel === opt.val) onAutoAdvance(); }}
                 />
             ))}
         </div>
@@ -437,10 +520,20 @@ export const QCookingTime = ({ onAutoAdvance }) => {
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             {[
-                { val: 'none', label: 'Nada', desc: 'Opciones directas, de 5 mins', icon: Timer },
-                { val: '30min', label: 'Poco', desc: 'Máximo 30 min', icon: Clock },
-                { val: '1hour', label: 'Medio', desc: '45-60 min', icon: CheckCircle },
-                { val: 'plenty', label: 'Sin límite', desc: 'Me gusta cocinar', icon: ChefHat }
+                // Progresión literal de DURACIÓN de tiempo:
+                //   Hourglass → Timer → Clock → Infinity
+                // Cada icono representa exactamente el texto del label:
+                //   - Hourglass (Nada): reloj de arena = "poco/nada de tiempo"
+                //   - Timer (Poco): cronómetro corto = "30 min"
+                //   - Clock (Medio): reloj completo = "ciclo de 45-60 min"
+                //   - Infinity (Sin límite): ∞ = "sin restricción de tiempo"
+                // Iteraciones previas con iconos de comida (Sandwich/Soup) o
+                // energía (Zap) eran ambiguos — no comunicaban DURACIÓN
+                // que es lo que el campo realmente mide.
+                { val: 'none', label: 'Nada', desc: 'Opciones directas, de 5 mins', icon: Hourglass },
+                { val: '30min', label: 'Poco', desc: 'Máximo 30 min', icon: Timer },
+                { val: '1hour', label: 'Medio', desc: '45-60 min', icon: Clock },
+                { val: 'plenty', label: 'Sin límite', desc: 'Me gusta cocinar', icon: Infinity }
             ].map(opt => (
                 <RadioCard
                     key={opt.val} name="cookingTime" value={opt.val} label={opt.label} desc={opt.desc} icon={opt.icon}
@@ -821,6 +914,8 @@ export const QMotivation = ({ onManualAdvance }) => {
                     value={formData.motivation || ''}
                     onChange={(e) => updateData('motivation', e.target.value)}
                     rows={4}
+                    aria-required="true"
+                    aria-label="Tu motivación"
                     style={{
                         width: '100%', padding: '1.25rem', paddingLeft: '3rem', borderRadius: '1rem',
                         border: '1px solid var(--border)', fontSize: '0.95rem', fontFamily: 'inherit',
@@ -864,19 +959,33 @@ export const QHousehold = ({ onManualAdvance }) => {
             <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                     <Clock size={18} color="#059669" />
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#334155' }}>¿Cada cuánto haces compras?</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#334155' }}>¿Cada cuántos días vas al supermercado?</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
                     {[
-                        { val: 'weekly', label: '7 Días', sub: 'Semanal', emoji: '📅' },
-                        { val: 'biweekly', label: '15 Días', sub: 'Quincenal', emoji: '📆' },
-                        { val: 'monthly', label: '30 Días', sub: 'Mensual', emoji: '🗓️' }
+                        // Cada duración usa un icono lucide-react que
+                        // comunica visualmente su rango temporal:
+                        //   - CalendarDays (semanal): días de la semana
+                        //     visibles como filas — sugiere granularidad
+                        //     diaria.
+                        //   - CalendarRange (quincenal): rango con dos
+                        //     extremos marcados — sugiere "2 semanas".
+                        //   - CalendarClock (mensual): calendario + reloj —
+                        //     sugiere "más tiempo entre compras".
+                        { val: 'weekly', label: '7 Días', sub: 'Semanal', Icon: CalendarDays },
+                        { val: 'biweekly', label: '15 Días', sub: 'Quincenal', Icon: CalendarRange },
+                        { val: 'monthly', label: '30 Días', sub: 'Mensual', Icon: CalendarClock },
                     ].map(opt => {
                         const isSelected = formData.groceryDuration === opt.val;
+                        const IconCmp = opt.Icon;
                         return (
                             <div
                                 key={opt.val}
                                 onClick={() => handleDurationSelect(opt.val)}
+                                onKeyDown={handleActivationKey(() => handleDurationSelect(opt.val))}
+                                role="button"
+                                aria-pressed={isSelected}
+                                tabIndex={0}
                                 style={{
                                     cursor: 'pointer',
                                     padding: '1rem 0.75rem',
@@ -886,13 +995,17 @@ export const QHousehold = ({ onManualAdvance }) => {
                                     display: 'flex',
                                     flexDirection: 'column',
                                     alignItems: 'center',
-                                    gap: '0.3rem',
+                                    gap: '0.4rem',
                                     transition: 'all 0.2s ease',
                                     position: 'relative',
                                     boxShadow: isSelected ? '0 4px 12px rgba(16, 185, 129, 0.12)' : '0 1px 3px rgba(0,0,0,0.04)'
                                 }}
                             >
-                                <span style={{ fontSize: '1.3rem' }}>{opt.emoji}</span>
+                                <IconCmp
+                                    size={26}
+                                    strokeWidth={1.75}
+                                    color={isSelected ? '#059669' : '#64748B'}
+                                />
                                 <span style={{
                                     fontWeight: 700,
                                     fontSize: '0.88rem',
@@ -914,57 +1027,6 @@ export const QHousehold = ({ onManualAdvance }) => {
                 </div>
             </div>
 
-            {/* [P1-B5] Toggle `skipLunch` — el backend ya consume este campo para
-                redistribuir macros (ai_helpers.py:282-286), saltar validación de
-                legumbre y cambiar comportamiento del agente. Antes el campo siempre
-                llegaba como `false` porque el formulario no lo capturaba.
-                Ubicado dentro de QHousehold porque la decisión de saltar almuerzo
-                afecta directamente las cantidades de la lista de compras. */}
-            <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                    <UtensilsCrossed size={18} color="#EA580C" />
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#334155' }}>¿Sueles saltarte el almuerzo?</span>
-                </div>
-                <div
-                    onClick={() => {
-                        // [P0-FORM-2] Marca el toggle como tocado explícitamente.
-                        // `_skipLunchTouched` persiste a localStorage junto con
-                        // `skipLunch`, y un useEffect mount-only en
-                        // `AssessmentContext` re-arma `editedFieldsRef` para que
-                        // la hidratación async post-login (fetchProfile,
-                        // secureLoadFormData) NO sobreescriba la decisión del
-                        // usuario con un valor stale del DB. Sin esto, un usuario
-                        // que toggleaba `skipLunch=true` perdía la decisión tras
-                        // refresh → backend generaba 4 comidas en vez de 3 →
-                        // distribución de macros rota.
-                        updateData('skipLunch', !formData.skipLunch);
-                        updateData('_skipLunchTouched', true);
-                    }}
-                    style={{
-                        cursor: 'pointer',
-                        padding: '1rem 1.25rem',
-                        borderRadius: '0.75rem',
-                        border: formData.skipLunch ? '2px solid #EA580C' : '1.5px solid #E2E8F0',
-                        backgroundColor: formData.skipLunch ? '#FFF7ED' : 'white',
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
-                        transition: 'all 0.2s ease',
-                    }}
-                >
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.88rem', color: formData.skipLunch ? '#C2410C' : '#334155' }}>
-                            {formData.skipLunch ? 'Sí, suelo saltarlo' : 'No, almuerzo siempre'}
-                        </span>
-                        <span style={{ fontSize: '0.7rem', color: '#94A3B8', lineHeight: 1.3 }}>
-                            Adaptaremos la distribución de macros y la lista de compras.
-                        </span>
-                    </div>
-                    {/* Toggle UI */}
-                    <div style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: formData.skipLunch ? '#EA580C' : '#CBD5E1', position: 'relative', flexShrink: 0 }}>
-                        <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: 3, left: formData.skipLunch ? 23 : 3, transition: 'all 0.2s' }} />
-                    </div>
-                </div>
-            </div>
-
             {/* Nota informativa */}
             <div style={{
                 display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
@@ -974,7 +1036,7 @@ export const QHousehold = ({ onManualAdvance }) => {
             }}>
                 <span style={{ fontSize: '0.85rem', flexShrink: 0 }}>💡</span>
                 <span style={{ fontSize: '0.75rem', color: '#64748B', lineHeight: 1.4 }}>
-                    Podrás ajustar esto rápidamente desde tu panel sin regenerar el plan.
+                    Si cambia tu rutina, lo ajustas en tu panel sin regenerar el plan.
                 </span>
             </div>
             <NextButton onClick={onManualAdvance} disabled={!formData.groceryDuration} />
@@ -1032,6 +1094,15 @@ export const QSupplements = ({ onFinish, isSubmitting }) => {
                     updateData('includeSupplements', newVal);
                     if (!newVal) updateData('selectedSupplements', []);
                 }}
+                onKeyDown={handleActivationKey(() => {
+                    const newVal = !formData.includeSupplements;
+                    updateData('includeSupplements', newVal);
+                    if (!newVal) updateData('selectedSupplements', []);
+                })}
+                role="switch"
+                aria-checked={!!formData.includeSupplements}
+                aria-label="Incluir Suplementos"
+                tabIndex={0}
                 style={{
                     cursor: 'pointer', padding: '1.25rem 1.5rem',
                     borderRadius: formData.includeSupplements ? '1rem 1rem 0 0' : '1rem',
@@ -1062,15 +1133,23 @@ export const QSupplements = ({ onFinish, isSubmitting }) => {
                             const meta = SUPPLEMENT_META[val];
                             if (!meta) return null;  // safety net — el invariante de arriba ya avisó
                             const isSelected = (formData.selectedSupplements || []).includes(val);
+                            const toggleSupplement = () => {
+                                const current = formData.selectedSupplements || [];
+                                const updated = current.includes(val) ? current.filter(s => s !== val) : [...current, val];
+                                updateData('selectedSupplements', updated);
+                            };
                             return (
                                 <div
                                     key={val}
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        const current = formData.selectedSupplements || [];
-                                        const updated = current.includes(val) ? current.filter(s => s !== val) : [...current, val];
-                                        updateData('selectedSupplements', updated);
+                                        toggleSupplement();
                                     }}
+                                    onKeyDown={handleActivationKey(toggleSupplement)}
+                                    role="button"
+                                    aria-pressed={isSelected}
+                                    aria-label={meta.label}
+                                    tabIndex={0}
                                     style={{
                                         cursor: 'pointer', padding: '0.75rem', borderRadius: '0.75rem',
                                         border: isSelected ? '1.5px solid #8b5cf6' : '1px solid #e2e8f0',

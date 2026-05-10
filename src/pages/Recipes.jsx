@@ -6,6 +6,11 @@ import { toast } from 'sonner';
 import React, { useRef, useState, useEffect } from 'react';
 import html2pdf from 'html2pdf.js';
 import { fetchWithAuth, API_BASE } from '../config/api';
+// [P-RECIPES-CHUNK-WINDOW] Helpers chunk-aware extraídos a utils para
+// reutilizar desde otras páginas (Plan.jsx, Dashboard.jsx) y testear
+// independientemente. Sincronizados con `split_with_absorb` del backend.
+import { parseStartLocal, findChunkContaining } from '../utils/chunkWindow';
+
 const FormattedRecipeStep = ({ step, index }) => {
     // 1. Identificar si es una sección especial (Mise en place, Fuego, Montaje)
     const getSectionInfo = (text) => {
@@ -272,7 +277,22 @@ const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
 };
 
 const Recipes = () => {
-    const { planData, formData, restorePlan } = useAssessment();
+    // [P1-HIST-CLOSE-1 · 2026-05-10] `restorePlan` ya NO se importa aquí.
+    // El callsite legacy (`if (restorePlan) restorePlan(planData)` tras
+    // expandir una receta, línea ~368 pre-fix) duplicaba el write que ya
+    // hace `/api/plans/recipe/expand` server-side (plans.py:2860 →
+    // `update_meal_plan_data`). Peor aún: el path legacy de
+    // `restorePlan` re-emite `name/calories/macros` desde `planData` en
+    // memoria del cliente, valores que NO cambian al expandir una
+    // receta y que pueden estar stale (e.g., un chunk worker añadió
+    // días entre page-load y cook-click → kcal/macros recalculados
+    // server-side; el client write los pisa con el snapshot viejo).
+    // El fix es sólo droppear la llamada — el server ya persiste, y
+    // localStorage update sigue para consistencia inmediata UI. El
+    // mismo bug que P0-HIST-2 cerró para el path Historial (drift
+    // top-level cols ↔ plan_data) se reintroducía aquí cada vez que un
+    // usuario abría una receta.
+    const { planData, formData } = useAssessment();
     const navigate = useNavigate();
     const contentRef = useRef(null);
     const [activeDayIndex, setActiveDayIndex] = useState(0);
@@ -288,6 +308,41 @@ const Recipes = () => {
         document.documentElement.scrollTop = 0;
         document.body.scrollTop = 0;
     }, []);
+
+    // [P-RECIPES-CHUNK-WINDOW] Ventana del chunk que contiene "hoy".
+    // ─────────────────────────────────────────────────────────────────────
+    // Estos valores DEBEN computarse antes del `useEffect` que los consume
+    // (el clamp de abajo) para evitar TDZ. También antes del early-return
+    // `if (!planData)` porque las Reglas de Hooks prohíben llamar useEffect
+    // condicionalmente — todos los hooks quedan arriba del Navigate.
+    // Acceso null-safe via `planData?.…`: si planData es null la primera
+    // pasada, los defaults (totalDays=0, chunkStart=0) hacen que el
+    // useEffect no escriba state y el componente termine en el Navigate.
+    const _planDaysAll = planData?.days || [];
+    const _totalDays = _planDaysAll.length;
+    const _todayMid = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
+    const _startMid = parseStartLocal(planData?.grocery_start_date || planData?.created_at);
+    const _daysSinceCreation = Math.max(0, Math.round((_todayMid - _startMid) / 86400000));
+    const todayPlanDayIndex = _totalDays > 0
+        ? Math.max(0, Math.min(_daysSinceCreation, _totalDays - 1))
+        : 0;
+    const { start: chunkStart, size: chunkSize } = _totalDays > 0
+        ? findChunkContaining(_totalDays, todayPlanDayIndex)
+        : { start: 0, size: 0 };
+    const chunkDays = _planDaysAll.slice(chunkStart, chunkStart + chunkSize);
+
+    // [P-RECIPES-CHUNK-WINDOW] Clampa `activeDayIndex` (que es GLOBAL en
+    // planData.days) al window del chunk activo. Si el usuario llegó a esta
+    // página con un index pre-existente fuera del chunk (deeplink, refresh,
+    // navegación cruzada), default a `todayPlanDayIndex`.
+    useEffect(() => {
+        if (!planData?.days || planData.days.length === 0) return;
+        const windowEnd = chunkStart + chunkSize;
+        if (activeDayIndex < chunkStart || activeDayIndex >= windowEnd) {
+            setActiveDayIndex(todayPlanDayIndex);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planData?.days, chunkStart, chunkSize, todayPlanDayIndex]);
 
     const toggleIngredient = (idx) => {
         setCheckedIngredients(prev => ({ ...prev, [idx]: !prev[idx] }));
@@ -306,10 +361,29 @@ const Recipes = () => {
 
         try {
             const userId = formData?.id !== "guest" ? formData?.id : "guest";
+            // [P1-HIST-RECIPE-1 · 2026-05-10] Pasar plan_id + (day_index,
+            // meal_index) para que el backend persista al plan correcto y
+            // a la posición exacta. Sin estos identificadores el backend
+            // cae a `get_latest_meal_plan(user_id)` y a match por `name`
+            // (legacy), lo que (a) puede persistir al plan equivocado si
+            // un chunk worker insertó uno nuevo entre cook-click y request,
+            // y (b) en planes con la misma receta repetida solo expandía
+            // la primera ocurrencia, quemando cuota LLM en clicks
+            // posteriores. Los 3 campos son OPCIONALES y el backend tiene
+            // fallback a la lógica legacy.
+            const planId = planData?.id;
+            const dayIndex = activeDayIndex;
+            const mealIndex = activeMealIndex;
             const response = await fetchWithAuth('/api/plans/recipe/expand', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...meal, user_id: userId })
+                body: JSON.stringify({
+                    ...meal,
+                    user_id: userId,
+                    plan_id: planId,
+                    day_index: typeof dayIndex === 'number' ? dayIndex : undefined,
+                    meal_index: typeof mealIndex === 'number' ? mealIndex : undefined,
+                })
             });
 
             const data = await response.json();
@@ -321,12 +395,19 @@ const Recipes = () => {
                 meal.recipe = data.expanded_recipe;
                 meal.isExpanded = true;
 
-                // Forzar persistencia manual en LocalStorage inmediato e impactar la DB (Supabase)
+                // [P1-HIST-CLOSE-1 · 2026-05-10] Solo localStorage. El
+                // server-side persist lo hace `/api/plans/recipe/expand`
+                // (plans.py:2860 → `update_meal_plan_data`) en la MISMA
+                // request que devolvió `expanded_recipe`. Antes este
+                // bloque llamaba `restorePlan(planData)` adicionalmente,
+                // duplicando el write y arrastrando `name/calories/
+                // macros` posiblemente stale del cliente al server (un
+                // chunk worker que añadió días entre page-load y
+                // cook-click recalcula kcal; el client write los pisa).
                 if (planData) {
                     try {
                         localStorage.setItem('mealfit_plan', JSON.stringify(planData));
-                        if (restorePlan) restorePlan(planData);
-                    } catch (e) { console.error("Error setting plan to LS/DB:", e); }
+                    } catch (e) { console.error("Error setting plan to LS:", e); }
                 }
 
                 toast.success('¡Instrucciones de chef listas!', { id: loadingToast });
@@ -420,7 +501,9 @@ const Recipes = () => {
         </div>
     );
 
-    // Protección de Ruta
+    // Protección de Ruta. La computación del chunk se movió arriba del
+    // useEffect de clamp (P-RECIPES-CHUNK-WINDOW); la guard sigue funcionando
+    // igual porque chunkStart/Size/Days tienen defaults seguros para planData=null.
     if (!planData) {
         return <Navigate to="/" replace />;
     }
@@ -588,8 +671,11 @@ const Recipes = () => {
                             }
                         `}</style>
 
-                        {/* DAY SELECTOR */}
-                        {planData.days && planData.days.length > 1 && (
+                        {/* DAY SELECTOR — limitado al chunk activo (3 ó 4 días)
+                            según `split_with_absorb`. Sin chunk-aware se mostraban
+                            TODOS los días del plan aunque el usuario solo tenga
+                            recetas válidas para el chunk actual. */}
+                        {chunkDays.length > 1 && (
                             <div
                                 data-html2canvas-ignore="true"
                                 style={{
@@ -599,46 +685,55 @@ const Recipes = () => {
                                     border: '1px solid var(--border)',
                                     position: 'relative', zIndex: 2, margin: '0'
                                 }}>
-                                {planData.days.map((dayObj, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => { setActiveDayIndex(idx); setActiveMealIndex(0); setCheckedIngredients({}); }}
-                                        style={{
-                                            flex: 1, padding: isMobile ? '0.6rem 0.15rem' : '0.85rem 1rem', width: isMobile ? 'auto' : '120px',
-                                            borderRadius: '99px',
-                                            border: activeDayIndex === idx ? 'none' : '1px solid transparent',
-                                            background: activeDayIndex === idx ? 'var(--primary)' : 'transparent',
-                                            color: activeDayIndex === idx ? 'var(--bg-card)' : 'var(--text-muted)',
-                                            fontWeight: 800, cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                            fontSize: isMobile ? '0.8rem' : '1rem',
-                                            boxShadow: activeDayIndex === idx ? '0 4px 10px -2px rgba(0, 0, 0, 0.15)' : 'none',
-                                            transform: activeDayIndex === idx ? 'translateY(-1px)' : 'translateY(0)',
-                                        }}
-                                    >
-                                        {(() => {
-                                            const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-                                            const d = new Date();
-                                            d.setDate(d.getDate() + idx);
-                                            return diasSemana[d.getDay()];
-                                        })()}
-                                    </button>
-                                ))}
+                                {chunkDays.map((dayObj, localIdx) => {
+                                    const globalIdx = chunkStart + localIdx;
+                                    const isActive = activeDayIndex === globalIdx;
+                                    return (
+                                        <button
+                                            key={globalIdx}
+                                            onClick={() => { setActiveDayIndex(globalIdx); setActiveMealIndex(0); setCheckedIngredients({}); }}
+                                            style={{
+                                                flex: 1, padding: isMobile ? '0.6rem 0.15rem' : '0.85rem 1rem', width: isMobile ? 'auto' : '120px',
+                                                borderRadius: '99px',
+                                                border: isActive ? 'none' : '1px solid transparent',
+                                                background: isActive ? 'var(--primary)' : 'transparent',
+                                                color: isActive ? 'var(--bg-card)' : 'var(--text-muted)',
+                                                fontWeight: 800, cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                fontSize: isMobile ? '0.8rem' : '1rem',
+                                                boxShadow: isActive ? '0 4px 10px -2px rgba(0, 0, 0, 0.15)' : 'none',
+                                                transform: isActive ? 'translateY(-1px)' : 'translateY(0)',
+                                            }}
+                                        >
+                                            {(() => {
+                                                // Día = grocery_start_date + globalIdx. Antes el código
+                                                // usaba "today + localIdx" lo que producía nombres
+                                                // incorrectos cuando el chunk no empieza en hoy o el
+                                                // plan llevaba días corriendo (P-RECIPES-CHUNK-WINDOW).
+                                                const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                                                const d = new Date(_startMid.getTime());
+                                                d.setDate(d.getDate() + globalIdx);
+                                                return diasSemana[d.getDay()];
+                                            })()}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )}
 
                         {(() => {
                             const planDays = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
-                            const currentDayIndex = Math.min(activeDayIndex, planDays.length - 1);
+                            // [P-RECIPES-CHUNK-WINDOW] Clamp inline al window
+                            // del chunk antes que el useEffect corra. Sin esto,
+                            // el primer render con `activeDayIndex=0` (default
+                            // useState) podía mostrar día de chunk anterior por
+                            // un tick si chunkStart>0.
+                            const _windowEnd = chunkStart + chunkSize;
+                            const _clampedIdx = Math.max(chunkStart, Math.min(activeDayIndex, _windowEnd - 1));
+                            const currentDayIndex = Math.min(_clampedIdx, planDays.length - 1);
                             const dayObj = planDays[currentDayIndex];
                             if (!dayObj) return null;
 
-                            const validMeals = dayObj.meals?.filter(meal => {
-                                if (formData?.skipLunch) {
-                                    const isLunch = meal.meal.toLowerCase().includes('almuerzo') || meal.name.toLowerCase().includes('lunch');
-                                    return !isLunch;
-                                }
-                                return true;
-                            }) || [];
+                            const validMeals = dayObj.meals || [];
 
                             if (validMeals.length === 0) return null;
 

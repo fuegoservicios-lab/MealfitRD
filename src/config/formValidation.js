@@ -85,6 +85,12 @@
 // Si se añade un nuevo campo aquí, agregarlo también a
 // `_REQUIRED_FORM_FIELDS` del backend o el test
 // `backend/test_p0_form_6_required_fields_sync.py` falla intencionalmente.
+//
+// Total actual: 20 campos. El conteo histórico que aparece en este header
+// ("6 completos" en P0-B3, "19 campos" en el drift documentado de P0-FORM-6)
+// refleja el estado pre-fix; no actualizar esos números — son evidencia
+// narrativa del problema que se cerró. La cifra autoritativa es la longitud
+// del array de abajo (`REQUIRED_FORM_FIELDS.length`).
 export const REQUIRED_FORM_FIELDS = [
     'gender', 'age', 'height', 'weight', 'weightUnit', 'activityLevel',
     'scheduleType', 'sleepHours', 'stressLevel', 'cookingTime', 'budget',
@@ -204,10 +210,14 @@ export const BIO_RANGES = {
     weightLb: { min: 66,  max: 660, step: 0.1, unit: 'lb' },     // = 30-300 kg
     bodyFat:  { min: 1,   max: 60,  step: 0.1, unit: '%' },
     // [P1-FORM-12] Espejo de `_BIO_RANGES["household"]` en
-    // `backend/routers/plans.py`. El wizard solo expone chips 1..6 (`QHousehold`),
-    // pero el cap backend de 12 cubre callers legacy / hidratación de DB que
-    // pudieran traer un valor mayor. Si en el futuro se añaden chips para
-    // `7+`, subir AMBOS lados.
+    // `backend/routers/plans.py`. El cap de 12 cubre callers legacy /
+    // hidratación de DB / households extendidos. Históricamente había
+    // chips 1..6 en QHousehold; tras P0-12 el campo `householdSize` ya
+    // no se setea desde chips ahí (UI canónica reside en otra superficie:
+    // Settings, ajustes manuales o defaults del flow). Si frontend o
+    // backend bumpea este rango, AMBOS lados deben subirlo
+    // simultáneamente — `backend/test_p3_5_bio_ranges_parity.py` audita
+    // la paridad cross-language (mismo patrón que P3-NEW-A).
     household: { min: 1,   max: 12,  step: 1,   unit: 'personas' },
 };
 

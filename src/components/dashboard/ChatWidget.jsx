@@ -3,6 +3,7 @@ import { useAssessment } from '../../context/AssessmentContext';
 import { Send, Bot, User, Loader2, Sparkles, MessageSquare, History, Plus, ArrowLeft } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
 import ReactMarkdown from 'react-markdown';
+import { safeJSONParse } from '../../utils/safeJSONParse';
 
 const ChatWidget = () => {
     const { session, planData, formData, userProfile, updateData, saveGeneratedPlan, checkPlanLimit } = useAssessment();
@@ -16,9 +17,22 @@ const ChatWidget = () => {
     });
 
     const [guestSessionIds, setGuestSessionIds] = useState(() => {
+        // [P1-B · 2026-05-08] try/catch defensivo + Array.isArray check.
+        // ChatWidget vive en el Dashboard (componente global): un throw aquí
+        // (storage corrupto por edición manual, downgrade de versión, write
+        // parcial) propaga whitescreen al footer entero. El else-branch ya
+        // cubría storage AUSENTE; ahora también cubre storage MALFORMADO
+        // reescribiendo el slot con un valor limpio en lugar de fallar.
+        // Patrón espejo de AgentPage.jsx:248-262 (P2-B 2026-05-06).
         const savedList = localStorage.getItem('mealfit_guest_sessions_list');
+        let list = null;
         if (savedList) {
-            const list = JSON.parse(savedList);
+            try {
+                const parsed = JSON.parse(savedList);
+                if (Array.isArray(parsed)) list = parsed;
+            } catch { /* corrupto; reset a continuación */ }
+        }
+        if (Array.isArray(list)) {
             if (!list.includes(localSessionId)) {
                 list.unshift(localSessionId);
                 localStorage.setItem('mealfit_guest_sessions_list', JSON.stringify(list));
@@ -113,8 +127,21 @@ const ChatWidget = () => {
             let url = `/api/chat/sessions/${userId}`;
             
             if (isGuest) {
+                // [P2-A · 2026-05-08] safeJSONParse con fallback=[currentSessionId]
+                // y self-heal vía storageKey: si el storage está corrupto,
+                // reescribimos con [currentSessionId] y seguimos. Antes el throw
+                // silencioso quedaba absorbido por el try del wrapper async
+                // (línea 121) y el chat history nunca cargaba — feature roto
+                // sin pista para el usuario.
                 const savedListStr = localStorage.getItem('mealfit_guest_sessions_list');
-                const latestSessionIds = savedListStr ? JSON.parse(savedListStr) : [currentSessionId];
+                const latestSessionIds = safeJSONParse(
+                    savedListStr,
+                    [currentSessionId],
+                    {
+                        validator: Array.isArray,
+                        storageKey: 'mealfit_guest_sessions_list',
+                    }
+                );
                 const sessionIdsParam = latestSessionIds.join(',');
                 url += `?session_ids=${sessionIdsParam}`;
             }
@@ -190,9 +217,17 @@ const ChatWidget = () => {
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;
 
-        // Asegurar que el currentSessionId esté en la lista de localStorage
+        // Asegurar que el currentSessionId esté en la lista de localStorage.
+        // [P2-A · 2026-05-08] safeJSONParse defiende contra storage corrupto:
+        // si el JSON falla, fallback=[] + self-heal del storage. La rama
+        // siguiente (.includes/unshift) reescribe el storage de todos modos
+        // si currentSessionId no está, así que el self-heal aquí es
+        // belt-and-suspenders pero garantiza el shape esperado por .includes.
         const savedListStr = localStorage.getItem('mealfit_guest_sessions_list');
-        const currentList = savedListStr ? JSON.parse(savedListStr) : [];
+        const currentList = safeJSONParse(savedListStr, [], {
+            validator: Array.isArray,
+            storageKey: 'mealfit_guest_sessions_list',
+        });
         if (!currentList.includes(currentSessionId)) {
             currentList.unshift(currentSessionId);
             localStorage.setItem('mealfit_guest_sessions_list', JSON.stringify(currentList));

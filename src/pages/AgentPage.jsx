@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
 import { SidebarRecientes } from '../components/agent/SidebarRecientes';
+import { safeJSONParse } from '../utils/safeJSONParse';
 const generateIntelligentWelcome = (userProfile, formData, planData) => {
     const nameStr = formData?.name || userProfile?.name || userProfile?.first_name || '';
     const nameParts = nameStr.split(' ');
@@ -243,9 +244,18 @@ const AgentPage = () => {
     });
 
     const [guestSessionIds, setGuestSessionIds] = useState(() => {
+        // [P2-B] try/catch defensivo + validación de tipo: si `mealfit_guest_sessions_list`
+        // se corrompe, el throw aquí rompe el render de AgentPage entero. Tras el
+        // catch caemos al "initialList" como si nunca hubiera habido storage previo.
         const savedList = localStorage.getItem('mealfit_guest_sessions_list');
+        let list = null;
         if (savedList) {
-            let list = JSON.parse(savedList);
+            try {
+                const parsed = JSON.parse(savedList);
+                if (Array.isArray(parsed)) list = parsed;
+            } catch { /* corrupt; reset */ }
+        }
+        if (Array.isArray(list)) {
             if (!list.includes(localSessionId)) {
                 list.unshift(localSessionId);
                 list = list.slice(0, 40);
@@ -723,9 +733,18 @@ const AgentPage = () => {
             let url = `/api/chat/sessions/${userId}`;
 
             if (isGuest) {
-                // Para invitados, enviamos la lista de IDs guardada en localStorage
+                // Para invitados, enviamos la lista de IDs guardada en localStorage.
+                // [P2-A · 2026-05-08] safeJSONParse defiende contra storage corrupto:
+                // antes el throw del JSON.parse propagaba al catch del wrapper async
+                // y bloqueaba el load de history para todos los guests con storage
+                // corrupto, sin self-heal. `.slice(0, 40)` solo se aplica a arrays
+                // válidos; el validator garantiza el shape.
                 const savedListStr = localStorage.getItem('mealfit_guest_sessions_list');
-                const latestSessionIds = savedListStr ? JSON.parse(savedListStr).slice(0, 40) : [currentSessionId];
+                const parsedList = safeJSONParse(savedListStr, [currentSessionId], {
+                    validator: Array.isArray,
+                    storageKey: 'mealfit_guest_sessions_list',
+                });
+                const latestSessionIds = parsedList.slice(0, 40);
                 const sessionIdsParam = latestSessionIds.join(',');
                 url += `?session_ids=${sessionIdsParam}`;
             }
@@ -951,9 +970,14 @@ const AgentPage = () => {
             recognitionRef.current?.stop();
         }
 
-        // Asegurar que el currentSessionId esté en la lista de localStorage
+        // Asegurar que el currentSessionId esté en la lista de localStorage.
+        // [P2-A · 2026-05-08] safeJSONParse + self-heal: corrupto → fallback []
+        // y storage reescrito; el flujo siguiente añade currentSessionId arriba.
         const savedListStr = localStorage.getItem('mealfit_guest_sessions_list');
-        let currentList = savedListStr ? JSON.parse(savedListStr) : [];
+        let currentList = safeJSONParse(savedListStr, [], {
+            validator: Array.isArray,
+            storageKey: 'mealfit_guest_sessions_list',
+        });
         if (!currentList.includes(currentSessionId)) {
             currentList.unshift(currentSessionId);
             currentList = currentList.slice(0, 40);

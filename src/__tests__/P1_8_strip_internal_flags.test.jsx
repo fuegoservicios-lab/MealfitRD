@@ -4,8 +4,8 @@
  *
  * Bug original (audit P1-8):
  *   `Plan.jsx:421-431` hacía `dataToSend = { ...formData, ... }` directo. El
- *   spread enviaba claves internas del wizard (`_skipLunchTouched`,
- *   `_weightUnitTouched`, cualquier futura `_*`) al endpoint
+ *   spread enviaba claves internas del wizard (`_weightUnitTouched`,
+ *   `_householdSizeTouched`, cualquier futura `_*`) al endpoint
  *   `/api/plans/analyze/stream`. El backend tiene
  *   `_strip_untrusted_internal_keys` pero `_sanitize_form_data_recursive`
  *   las recorre y, más crítico, el JSON dump del prompt al LLM las puede
@@ -34,7 +34,7 @@ describe('P1-8 — stripInternalFlags comportamiento básico', () => {
         const input = {
             age: 30,
             weight: 75,
-            _skipLunchTouched: true,
+            _householdSizeTouched: true,
             _weightUnitTouched: false,
             _someFutureFlag: 'whatever',
         };
@@ -47,7 +47,7 @@ describe('P1-8 — stripInternalFlags comportamiento básico', () => {
             age: 0,
             weight: '',
             allergies: [],
-            skipLunch: false,  // skipLunch sin prefijo es PERSISTENTE — NO se filtra.
+            weightUnit: 'kg',  // sin prefijo es PERSISTENTE — NO se filtra.
         };
         const out = stripInternalFlags(input);
         expect(out).toEqual(input);
@@ -69,19 +69,19 @@ describe('P1-8 — stripInternalFlags comportamiento básico', () => {
         expect(stripInternalFlags(123)).toEqual({});
     });
 
-    it('los flags exactos del bug (skipLunchTouched/weightUnitTouched) son filtrados', () => {
+    it('los flags touched del bug original son filtrados', () => {
         const input = {
-            skipLunch: true,
             weightUnit: 'kg',
-            _skipLunchTouched: true,
+            householdSize: 4,
             _weightUnitTouched: true,
+            _householdSizeTouched: true,
         };
         const out = stripInternalFlags(input);
-        expect(out._skipLunchTouched).toBeUndefined();
         expect(out._weightUnitTouched).toBeUndefined();
+        expect(out._householdSizeTouched).toBeUndefined();
         // Los campos sin prefijo (los datos reales) sí se preservan.
-        expect(out.skipLunch).toBe(true);
         expect(out.weightUnit).toBe('kg');
+        expect(out.householdSize).toBe(4);
     });
 
     it('cualquier `_*` futuro se filtra automáticamente (no hay allowlist hardcoded)', () => {
@@ -104,7 +104,7 @@ describe('P1-8 — buildHealthProfilePayload sigue usando el filtro', () => {
     it('después del refactor, buildHealthProfilePayload sigue filtrando _*', () => {
         const formData = {
             age: 30, weight: 75,
-            _skipLunchTouched: true,
+            _householdSizeTouched: true,
             _weightUnitTouched: false,
         };
         // session=null y formData con campos pobladas pasa el race-detection guard.
@@ -113,7 +113,7 @@ describe('P1-8 — buildHealthProfilePayload sigue usando el filtro', () => {
             // Si el guard se activa, el test no aplica (no hay payload que validar).
             return;
         }
-        expect(payload._skipLunchTouched).toBeUndefined();
+        expect(payload._householdSizeTouched).toBeUndefined();
         expect(payload._weightUnitTouched).toBeUndefined();
         expect(payload.age).toBe(30);
         expect(payload.weight).toBe(75);
