@@ -10,6 +10,15 @@ import { fetchWithAuth, API_BASE } from '../config/api';
 // reutilizar desde otras páginas (Plan.jsx, Dashboard.jsx) y testear
 // independientemente. Sincronizados con `split_with_absorb` del backend.
 import { parseStartLocal, findChunkContaining } from '../utils/chunkWindow';
+// [P2-NEW-3 · 2026-05-11] Tras `/api/plans/recipe/expand` exitoso, el
+// backend persiste `expanded_recipe` en `plan_data` (vía
+// `update_meal_plan_data` server-side). Los caches del Historial
+// (lessonsDetail, coherenceHistory, blockedReasons, chunkMetrics) NO
+// se enteran del cambio porque su TTL=30min — el modal del Historial
+// seguiría mostrando data pre-expand por hasta 30min. Invalidamos
+// caches per-plan para que el próximo render del modal refetchee.
+// Mismo helper SSOT que usa History.jsx en sus mutaciones.
+import { invalidateCachesForPlan } from '../utils/historyCaches';
 
 const FormattedRecipeStep = ({ step, index }) => {
     // 1. Identificar si es una sección especial (Mise en place, Fuego, Montaje)
@@ -408,6 +417,19 @@ const Recipes = () => {
                     try {
                         localStorage.setItem('mealfit_plan', JSON.stringify(planData));
                     } catch (e) { console.error("Error setting plan to LS:", e); }
+                }
+
+                // [P2-NEW-3 · 2026-05-11] Invalidar caches del Historial para
+                // este plan_id. Sin esto, el modal del Historial podría
+                // mostrar receta pre-expand hasta 30min (TTL del cache).
+                // Solo se invoca cuando hay `planId` real — guest plans
+                // ni planes legacy no tienen caches asociados.
+                if (planId) {
+                    try {
+                        invalidateCachesForPlan(planId);
+                    } catch (e) {
+                        console.warn('[P2-NEW-3] invalidate cache falló:', e);
+                    }
                 }
 
                 toast.success('¡Instrucciones de chef listas!', { id: loadingToast });

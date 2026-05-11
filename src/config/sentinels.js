@@ -62,3 +62,18 @@ export const SENTINEL_VALUES = Object.freeze(
  */
 export const isSentinelValue = (value) =>
     typeof value === 'string' && SENTINEL_VALUES.includes(value);
+
+// [P3-NEW-2 · 2026-05-11] Review tracker. Cuando un sentinel se renombra,
+// añade fecha + razón aquí. Permite a un futuro auditor confirmar que
+// `Ninguna`/`Ninguno` siguen siendo los valores activos sin parsear git log.
+//
+// Última review confirmada: 2026-05-11
+//   - 4 sentinels activos (allergies/medicalConditions/dislikes/struggles).
+//   - Gender agreement preservado (Ninguna fem / Ninguno masc).
+//   - 0 P0-FORM-1 reincidencias desde la introducción de SENTINELS SSOT.
+//   - Test backend `test_p1_form_13_sentinel_drift.py` enforza paridad
+//     con `_SENTINEL_NONE_VALUES` (graph_orchestrator.py).
+//   - Test anchor `test_p3_new_2_sentinels_review.py` añadido en P3-NEW-2.
+//
+// Si añades un nuevo sentinel (ej. `cravings: 'Ningún antojo'`), añadir aquí
+// + actualizar el backend frozenset + el test backend P1-FORM-13.

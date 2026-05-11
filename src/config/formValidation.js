@@ -95,7 +95,21 @@ export const REQUIRED_FORM_FIELDS = [
     'gender', 'age', 'height', 'weight', 'weightUnit', 'activityLevel',
     'scheduleType', 'sleepHours', 'stressLevel', 'cookingTime', 'budget',
     'householdSize', 'groceryDuration',
-    'dietType', 'allergies', 'dislikes', 'medicalConditions',
+    // [P3-NEW-4 · 2026-05-11] `dietType` está aquí pero el backend
+    // `_REQUIRED_FORM_FIELDS` (`routers/plans.py:234`) lo OMITE
+    // intencional. Asimetría documentada:
+    //   - Frontend: required (wizard UX — el usuario debe elegir entre
+    //     balanced/keto/vegetarian/etc; sin selección, "Siguiente"
+    //     bloqueado).
+    //   - Backend: opcional (legacy compat — perfiles antiguos sin
+    //     dietType cargados desde DB siguen funcionando con default
+    //     `"balanced"` en graph_orchestrator.py:8058).
+    // El test `test_p0_form_6_required_fields_sync.py:225` whitelista
+    // esta divergencia en `_FRONTEND_ONLY_BY_DESIGN = {"dietType"}`. Si
+    // alguien intenta "arreglar" agregando dietType al backend, el test
+    // diet_type_NO_es_required_por_compat_legacy falla con copy explicativo.
+    'dietType',
+    'allergies', 'dislikes', 'medicalConditions',
     'mainGoal', 'struggles', 'motivation',
 ];
 

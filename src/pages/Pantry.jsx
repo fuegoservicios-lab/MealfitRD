@@ -6,6 +6,7 @@ import { Search, Plus, Minus, Trash2, Loader2, Save, X, Search as SearchIcon, Al
 import { toast } from 'sonner';
 import { fetchWithAuth, API_BASE } from '../config/api';
 import { getEstimatedDailyConsumption } from '../utils/pantryConsumption';
+import { getShelfLifeBadge, getShelfLifeBadgeStyle } from '../utils/shelfLife';
 import { safeJSONParseObject } from '../utils/safeJSONParse';
 
 const CATEGORY_ICONS = {
@@ -127,7 +128,7 @@ const Pantry = () => {
             try {
                 const { data, error } = await supabase
                     .from('user_inventory')
-                    .select('*, master_ingredients(name, category, default_unit)')
+                    .select('*, master_ingredients(name, category, default_unit, shelf_life_days)')
                     .eq('id', itemId)
                     .single();
                 if (error) throw error;
@@ -173,7 +174,7 @@ const Pantry = () => {
             // Fetch User Inventory
             const { data: invData, error: invError } = await supabase
                 .from('user_inventory')
-                .select('*, master_ingredients(name, category, default_unit)')
+                .select('*, master_ingredients(name, category, default_unit, shelf_life_days)')
                 .eq('user_id', session.user.id)
                 .gt('quantity', 0)
                 .order('ingredient_name', { ascending: true });
@@ -216,6 +217,137 @@ const Pantry = () => {
     };
 
     // 2. Real-time updates (Optimistic UI con Debounce Agresivo)
+    // [P3-AUDIT-8 · 2026-05-10] Helper SSOT para recalcular la lista de
+    // compras tras un cambio en el SET de items de la nevera (add/delete).
+    //
+    // ANTES, solo `confirmDeleteAll` ejecutaba este flow inline; añadir o
+    // eliminar un item individual NO invalidaba el `mealfit_plan` cacheado
+    // ni notificaba al Dashboard. El PDF (`Dashboard.jsx handleDownloadShoppingList`)
+    // sí refresca con `fetchFreshInventoryWithTimeout` antes de renderizar,
+    // pero el DISPLAY in-app del Dashboard usaba la lista del plan cacheada
+    // hasta el siguiente full refresh → user veía un item recién comprado
+    // todavía en la lista "por comprar".
+    //
+    // NO se invoca tras `handleUpdateQuantity` porque los cambios de
+    // cantidad ya quedan reflejados via el RPC `increment_inventory_quantity`
+    // (que actualiza user_inventory directo) + el render del Dashboard
+    // recalcula sobre liveInventory. Llamar al recalc en cada qty change
+    // dispararía N HTTP innecesarios por la ráfaga del velocímetro turbo.
+    //
+    // Best-effort: si el recálculo falla, NO bloquea al usuario — el
+    // cambio en pantry ya se persistió y el PDF lo recoge en la próxima
+    // generación.
+    const _recalcShoppingListAfterPantryChange = async ({
+        silentSuccess = true,
+        clearRestockedFlag = false,
+    } = {}) => {
+        try {
+            const savedPlan = localStorage.getItem('mealfit_plan');
+            if (!savedPlan || !session?.user?.id) return;
+
+            let planData = safeJSONParseObject(savedPlan);
+            if (!planData.calc_household_size && !planData.calc_grocery_duration) {
+                // Storage corrupto/vacío: skip silencioso. El flujo principal
+                // (carga desde DB en próximo mount) lo restaurará.
+                console.warn('[Pantry] mealfit_plan storage no parseable; skip recalc.');
+                return;
+            }
+
+            // [P2-NEW-4 · 2026-05-11] Pre-check defensive: si el plan
+            // cambió en background (shift_plan, regen, restore), el
+            // cliente puede tener `calc_household_size`/`calc_grocery_duration`
+            // de un plan viejo. Aplicarlos al recalc generaría una lista
+            // con household incorrecto.
+            //
+            // Defensa: lectura barata del plan actual del usuario antes
+            // del recalc. Si el `id` o `updated_at` cambiaron, recargamos
+            // localStorage desde DB y usamos los valores frescos.
+            //
+            // Patrón best-effort: cualquier fallo del pre-check NO debe
+            // abortar el recalc — caemos al comportamiento previo.
+            try {
+                const { data: latestRows, error: latestErr } = await supabase
+                    .from('meal_plans')
+                    .select('id, updated_at, calc_household_size, calc_grocery_duration, plan_data')
+                    .eq('user_id', session.user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                if (!latestErr && latestRows && latestRows.length > 0) {
+                    const latest = latestRows[0];
+                    const localId = planData?.id;
+                    const localUpdatedAt = planData?.updated_at;
+                    if (
+                        latest.id &&
+                        localId &&
+                        (latest.id !== localId ||
+                         (latest.updated_at && localUpdatedAt && latest.updated_at !== localUpdatedAt))
+                    ) {
+                        console.warn(
+                            '[P2-NEW-4] Plan drift detected pre-recalc: ' +
+                            `local=${localId} (${localUpdatedAt}), ` +
+                            `latest=${latest.id} (${latest.updated_at}). ` +
+                            'Refrescando localStorage antes del recalc.'
+                        );
+                        // Refrescar planData con el plan real.
+                        const fresh = latest.plan_data || {};
+                        // Inyectar campos top-level que el recalc necesita.
+                        fresh.id = latest.id;
+                        fresh.updated_at = latest.updated_at;
+                        fresh.calc_household_size = latest.calc_household_size ?? fresh.calc_household_size;
+                        fresh.calc_grocery_duration = latest.calc_grocery_duration ?? fresh.calc_grocery_duration;
+                        try {
+                            localStorage.setItem('mealfit_plan', JSON.stringify(fresh));
+                        } catch (_lsErr) { /* localStorage best-effort */ }
+                        planData = fresh;
+                        try { setPlanData(fresh); } catch (_setErr) { /* setter best-effort */ }
+                    }
+                }
+            } catch (_prefetchErr) {
+                console.warn('[P2-NEW-4] Plan freshness prefetch falló (best-effort):', _prefetchErr);
+            }
+
+            const householdSize = planData?.calc_household_size || 1;
+            const groceryDuration = planData?.calc_grocery_duration || 'weekly';
+
+            const recalcRes = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: session.user.id,
+                    householdSize,
+                    groceryDuration,
+                    // [P2-NEW-4] plan_id incluido para que el backend pueda
+                    // loggear/rechazar drift si recibe un id que ya no es el
+                    // último del usuario.
+                    // [P2-NEW-B · 2026-05-11] El backend ahora resuelve el
+                    // plan target con SELECT explícito `WHERE id=%s AND
+                    // user_id=%s` cuando el body lleva plan_id (en lugar de
+                    // fallback a `get_latest_meal_plan_with_id`). Cierra
+                    // race con _chunk_worker creando plan B en paralelo.
+                    plan_id: planData?.id,
+                }),
+            });
+            const result = await recalcRes.json();
+            if (result.success && result.plan_data) {
+                if (clearRestockedFlag) {
+                    // confirmDeleteAll limpia `is_restocked` porque la
+                    // despensa fue vaciada por completo. Para add/delete
+                    // individual no tocamos este flag (el restock parcial
+                    // sigue siendo válido).
+                    delete result.plan_data.is_restocked;
+                }
+                localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
+                setPlanData(result.plan_data);
+                if (!silentSuccess) {
+                    toast.success('Lista de compras actualizada', { icon: '🛒', duration: 3000 });
+                }
+            }
+        } catch (recalcErr) {
+            // No bloquear al usuario — el cambio en pantry ya se persistió.
+            console.warn('⚠️ No se pudo recalcular la lista de compras:', recalcErr);
+        }
+    };
+
     const handleUpdateQuantity = async (id, newQty) => {
         if (newQty < 0) return;
         const roundedQty = Math.round(newQty * 100) / 100;
@@ -324,11 +456,11 @@ const Pantry = () => {
                         const { data, error } = await supabase
                             .from('user_inventory')
                             .insert([itemToInsert])
-                            .select('*, master_ingredients(name, category, default_unit)')
+                            .select('*, master_ingredients(name, category, default_unit, shelf_life_days)')
                             .single();
-                        
+
                         if (error) throw error;
-                        
+
                         // Insertar nueva data devuelta por DB
                         setInventory(prev =>
                             [...prev.filter(i => i.id !== oldId), data].sort((a, b) =>
@@ -336,6 +468,9 @@ const Pantry = () => {
                             )
                         );
                         toast.success(`${deletedItem.ingredient_name} restaurado`, { icon: '↩️', duration: 2000 });
+                        // [P3-AUDIT-8] Revertir el delta: el item está de
+                        // vuelta, la lista de compras debe excluirlo otra vez.
+                        _recalcShoppingListAfterPantryChange();
                     } catch (err) {
                         console.error('Error restaurando item:', err);
                         toast.error('No se pudo restaurar el alimento.');
@@ -343,6 +478,11 @@ const Pantry = () => {
                 }
             }
         });
+
+        // [P3-AUDIT-8 · 2026-05-10] Recalcular lista tras delete individual.
+        // Sin esto el Dashboard mostraría el item recién eliminado todavía
+        // como "ya en nevera" en su display in-app.
+        _recalcShoppingListAfterPantryChange();
     };
 
     const confirmDeleteAll = async () => {
@@ -358,52 +498,19 @@ const Pantry = () => {
             toast.dismiss(loadingToast);
             toast.success('Todos los alimentos han sido borrados');
 
-            // ── Recalcular lista de compras en background ──
-            // Al vaciar la nevera, el delta cambia: ahora se necesitan TODOS los ingredientes del plan.
-            // [P2-A · 2026-05-08] safeJSONParseObject defiende contra storage corrupto:
-            // antes el throw quedaba absorbido por el catch externo, el recálculo
-            // FALLABA y el usuario veía cantidades stale tras vaciar la nevera —
-            // pérdida silenciosa de feature crítico. Sin storageKey: si el plan
-            // cache se corrompe, NO lo reescribimos a `{}` (sería destrucción de
-            // datos legítimos del usuario); preferimos que el flujo de carga del
-            // plan principal lo regenere desde DB.
-            try {
-                const savedPlan = localStorage.getItem('mealfit_plan');
-                if (savedPlan && session?.user?.id) {
-                    const planData = safeJSONParseObject(savedPlan);
-                    if (!planData.calc_household_size && !planData.calc_grocery_duration) {
-                        // Storage corrupto o vacío: el recálculo no puede inferir
-                        // householdSize/duration sin el plan. Skip silencioso —
-                        // el flujo principal (carga desde DB) lo restaurará.
-                        console.warn('[Pantry] mealfit_plan storage no parseable; skip recalc.');
-                        return;
-                    }
-                    const householdSize = planData?.calc_household_size || 1;
-                    const groceryDuration = planData?.calc_grocery_duration || 'weekly';
-
-                    const recalcRes = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            user_id: session.user.id,
-                            householdSize,
-                            groceryDuration
-                        })
-                    });
-                    const result = await recalcRes.json();
-                    if (result.success && result.plan_data) {
-                        // Limpiar flag de restocked — la despensa fue vaciada
-                        delete result.plan_data.is_restocked;
-                        localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
-                        // Sincronizar con el contexto global para que Dashboard se actualice al instante
-                        setPlanData(result.plan_data);
-                        toast.success('Lista de compras actualizada', { icon: '🛒', duration: 3000 });
-                    }
-                }
-            } catch (recalcErr) {
-                console.warn('⚠️ No se pudo recalcular la lista de compras:', recalcErr);
-                // No bloquear al usuario — el delete ya fue exitoso
-            }
+            // [P3-AUDIT-8 · 2026-05-10] Delega al helper SSOT. Pasa
+            // `clearRestockedFlag=true` porque vaciar la nevera invalida
+            // cualquier restock previo; `silentSuccess=false` muestra el
+            // toast "Lista actualizada" porque vaciar todo es operación
+            // mayor (vs add/delete individual que es silencioso).
+            //
+            // Previamente este bloque vivía inline (~50 LOC duplicadas
+            // contra el helper). Refactor cierra drift y simplifica el
+            // cierre del gap P3-AUDIT-8 (un solo path de recálculo).
+            await _recalcShoppingListAfterPantryChange({
+                silentSuccess: false,
+                clearRestockedFlag: true,
+            });
         } catch (error) {
             console.error("Error deleting all:", error);
             toast.dismiss(loadingToast);
@@ -441,7 +548,7 @@ const Pantry = () => {
             const { data, error } = await supabase
                 .from('user_inventory')
                 .upsert([newItem], { onConflict: 'user_id,master_ingredient_id' })
-                .select('*, master_ingredients(name, category, default_unit)')
+                .select('*, master_ingredients(name, category, default_unit, shelf_life_days)')
                 .single();
 
             if (error) throw error;
@@ -450,6 +557,14 @@ const Pantry = () => {
             setInventory(prev => [...prev, data].sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name)));
             setShowAddMenu(false);
             setAddItemSearch('');
+            // [P3-AUDIT-8 · 2026-05-10] Recalcular lista tras add individual.
+            // Si el ítem que se acaba de añadir estaba en la lista de
+            // compras, debe desaparecer; el Dashboard refleja el cambio
+            // al instante. NOTA: el path "+1 a existing" arriba (línea ~424)
+            // delega a `handleUpdateQuantity` que NO recalcula — qty
+            // changes no alteran el set de items y el PDF live-fetch
+            // ya cubre ese caso.
+            _recalcShoppingListAfterPantryChange();
         } catch (error) {
             console.error("Add Error: ", error);
             toast.error("Error al añadir alimento.");
@@ -1324,6 +1439,36 @@ const Pantry = () => {
                                                                 }}
                                                             >
                                                                 ~{est.rate} {est.unit}/día
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                    {/* [P3-4 · 2026-05-10] Chip de shelf-life: el backend ya
+                                                        computaba urgency y lo incluía en el texto al LLM, pero
+                                                        el frontend no lo surfaceaba al usuario. Helper
+                                                        client-side computa days_left desde `created_at` +
+                                                        `master_ingredients.shelf_life_days`. Solo se muestra
+                                                        para items con urgency (≤3 días) — items frescos NO
+                                                        ven chip para evitar ruido visual. */}
+                                                    {(() => {
+                                                        const badge = getShelfLifeBadge(item);
+                                                        if (!badge) return null;
+                                                        const _style = getShelfLifeBadgeStyle(badge.severity);
+                                                        return (
+                                                            <span
+                                                                title={`Tu plan priorizará este ingrediente. ${badge.label}.`}
+                                                                aria-label={`Shelf-life: ${badge.label}`}
+                                                                style={{
+                                                                    fontSize: '0.7rem',
+                                                                    background: _style.background,
+                                                                    color: _style.color,
+                                                                    border: `1px solid ${_style.borderColor}`,
+                                                                    padding: '2px 8px',
+                                                                    borderRadius: '999px',
+                                                                    fontWeight: 600,
+                                                                    whiteSpace: 'nowrap',
+                                                                }}
+                                                            >
+                                                                ⚠ {badge.label}
                                                             </span>
                                                         );
                                                     })()}

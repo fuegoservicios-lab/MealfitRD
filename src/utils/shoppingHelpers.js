@@ -142,6 +142,26 @@ export const escapeHtml = (value) => {
 
 export const getActiveShoppingList = (planData, duration) => {
     if (!planData || !duration) return null;
+    // [P3-NEW-1 · 2026-05-10] Defense-in-depth contra
+    // `_shopping_coherence_block` no consumido. Contrato del backend
+    // (`review_plan_node` en graph_orchestrator.py:7704): si el guard
+    // de coherencia recetas↔lista bloqueó el plan, el flag debe estar
+    // POPED post-review (degrade) o el plan debe estar rechazado (no
+    // llegar al frontend con la lista). Si el flag aún viene en planData
+    // al render time, es una violación del contrato — log defensivo +
+    // SEGUIR renderizando (no degradamos UX por un flag posiblemente
+    // stale; el backend es source-of-truth de qué planes son visibles).
+    if (Array.isArray(planData._shopping_coherence_block) && planData._shopping_coherence_block.length > 0) {
+        try {
+            // eslint-disable-next-line no-console
+            console.warn(
+                '[P3-NEW-1/PDF-RENDER] Plan llegó al frontend con ' +
+                '`_shopping_coherence_block` no vacío — contrato roto entre ' +
+                'backend (review_plan_node debió popearlo) y persistencia. ' +
+                `Entries: ${planData._shopping_coherence_block.length}. Render continúa.`
+            );
+        } catch { /* console.warn falló — best-effort */ }
+    }
     const keyMap = {
         'weekly': 'aggregated_shopping_list_weekly',
         'biweekly': 'aggregated_shopping_list_biweekly',

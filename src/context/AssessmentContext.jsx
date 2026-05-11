@@ -556,9 +556,29 @@ export const AssessmentProvider = ({ children }) => {
                 }
 
                 // Guardar la fecha en DB para persistencia cruzada (si se inyectó)
+                //
+                // [P0-NEW-B · 2026-05-11] Reemplaza el patrón legacy
+                // `supabase.from('meal_plans').update({plan_data: latestPlan}).eq('id', planId)`
+                // (full overwrite del JSONB desde el cliente) que producía
+                // lost-update si `_chunk_worker` o el cron
+                // `_resolve_grocery_start_date` mutaban plan_data en
+                // paralelo. El endpoint backend hace jsonb_set quirúrgico
+                // sobre `{grocery_start_date}` y `{cycle_start_date}` con
+                // idempotencia `(plan_data->>'<key>') IS NULL` + AND user_id.
                 if (didInjectGroceryDate && userId && userId !== 'guest') {
-                    supabase.from('meal_plans').update({ plan_data: latestPlan }).eq('id', planId).then((res) => {
-                        if (res.error) console.error('Error sincronizando fecha inicio despensa', res.error);
+                    fetchWithAuth(`/api/plans/${planId}/grocery-start-date`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            grocery_start_date: latestPlan.grocery_start_date,
+                            cycle_start_date: latestPlan.cycle_start_date,
+                        }),
+                    }).then((res) => {
+                        if (!res.ok) {
+                            console.error('Error sincronizando fecha inicio despensa:', res.status);
+                        }
+                    }).catch((err) => {
+                        console.error('Error sincronizando fecha inicio despensa', err);
                     });
                 }
             } else {
@@ -1181,6 +1201,12 @@ export const AssessmentProvider = ({ children }) => {
             // por lo que el usuario nunca sabría que le faltan. Aquí detectamos ese caso y
             // reseteamos is_restocked=false para que la lista de compras reaparezca solo
             // para los ingredientes verdaderamente nuevos.
+            //
+            // [P0-NEW-A · 2026-05-11] Capturamos el flag además de mutar
+            // `updatedPlan.is_restocked` local: el backend lo aplicará en el
+            // mismo UPDATE atómico (`clear_is_restocked: true`) para que la
+            // mutación local y la persistida no diverjan tras lost-update.
+            let clearIsRestockedFlag = false;
             if (updatedPlan.is_restocked && liveInventory && Array.isArray(liveInventory)) {
                 const newIngredients = newMealData.ingredients || [];
                 if (newIngredients.length > 0) {
@@ -1204,6 +1230,7 @@ export const AssessmentProvider = ({ children }) => {
                     if (hasUncoveredIngredient) {
                         // Resetear bandera para que la lista de compras muestre el delta faltante
                         updatedPlan.is_restocked = false;
+                        clearIsRestockedFlag = true;
                         console.log('[P0-1] Swap post-restock introdujo ingredientes nuevos — is_restocked reseteado a false.');
                     }
                 }
@@ -1221,10 +1248,23 @@ export const AssessmentProvider = ({ children }) => {
             setPlanData(updatedPlan);
             localStorage.setItem('mealfit_plan', JSON.stringify(updatedPlan));
 
-            // 3. PERSISTENCIA EN SUPABASE (CRÍTICO)
+            // 3. PERSISTENCIA ATÓMICA EN BACKEND
+            // [P0-NEW-A · 2026-05-11] Reemplaza el patrón legacy
+            // `supabase.from('meal_plans').update({plan_data: updatedPlan}).eq('id', planId)`
+            // que pisaba el JSONB completo desde el cliente. Ese patrón
+            // producía lost-update si `_chunk_worker` finalizaba un chunk
+            // entre el read del state local y el write — los `days[7-14]`
+            // (y `_chunk_lessons`, `aggregated_shopping_list`, etc.) recién
+            // persistidos por el worker se perdían.
+            //
+            // El nuevo endpoint `/api/plans/{plan_id}/swap-meal/persist`
+            // hace `jsonb_set` quirúrgico sobre `days[dayIndex].meals[mealIndex]`
+            // + bump `_plan_modified_at` + strip de aggregated_shopping_list*
+            // + `AND user_id = %s` defense-in-depth, todo en un UPDATE
+            // atómico. Mismo patrón que `/retry-chunk` y `/recipe/expand`.
             if (userId && userId !== 'guest') {
                 try {
-                    // a) Obtener el ID del plan actual (el más reciente)
+                    // a) Resolver plan_id activo (igual que pre-fix).
                     const { data: latestRows } = await supabase
                         .from('meal_plans')
                         .select('id')
@@ -1235,16 +1275,27 @@ export const AssessmentProvider = ({ children }) => {
                     if (latestRows && latestRows.length > 0) {
                         const planId = latestRows[0].id;
 
+                        // b) POST atómico al backend. El body solo lleva el
+                        //    delta (meal nuevo + índices) — el backend no
+                        //    recibe el plan completo, eliminando la
+                        //    superficie del lost-update.
+                        const persistResponse = await fetchWithAuth(
+                            `/api/plans/${planId}/swap-meal/persist`,
+                            {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    day_index: dayIndex,
+                                    meal_index: mealIndex,
+                                    new_meal: updatedMeals[mealIndex],
+                                    clear_is_restocked: clearIsRestockedFlag,
+                                }),
+                            }
+                        );
 
-                        // b) Ejecutar UPDATE del campo plan_data
-                        const { error: updateError } = await supabase
-                            .from('meal_plans')
-                            .update({ plan_data: updatedPlan }) // Guardamos el JSON modificado
-                            .eq('id', planId);
-
-                        if (updateError) {
-                            console.error("❌ Error Supabase UPDATE:", updateError);
-                            toast.error("Error de sincronización", { description: "El cambio es solo local." });
+                        if (!persistResponse.ok) {
+                            console.error('❌ Error /swap-meal/persist:', persistResponse.status);
+                            toast.error('Error de sincronización', { description: 'El cambio es solo local.' });
                         } else {
                             // GAP 3: Recalcular la lista de compras como un Delta Matemático
                             try {
@@ -1253,12 +1304,19 @@ export const AssessmentProvider = ({ children }) => {
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
                                         user_id: userId,
+                                        // [P2-NEW-B · 2026-05-11] plan_id explícito: el
+                                        // swap acaba de persistirse contra `planId`,
+                                        // garantizamos que el recalc opere sobre EL
+                                        // MISMO plan (no `get_latest_meal_plan` que
+                                        // bajo race con _chunk_worker podría apuntar
+                                        // a plan B recién creado).
+                                        plan_id: planId,
                                         householdSize: updatedPlan.calc_household_size || formData.householdSize || 1,
                                         groceryDuration: updatedPlan.calc_grocery_duration || formData.groceryDuration || 'weekly',
                                         is_new_plan: false
                                     })
                                 });
-                                
+
                                 if (recalcResponse.ok) {
                                     const recalcData = await recalcResponse.json();
                                     if (recalcData.success && recalcData.plan_data) {
@@ -1273,7 +1331,7 @@ export const AssessmentProvider = ({ children }) => {
                         }
                     }
                 } catch (dbError) {
-                    console.error("❌ Fallo crítico DB:", dbError);
+                    console.error("❌ Fallo crítico persistencia swap:", dbError);
                 }
             }
 
@@ -1359,8 +1417,31 @@ export const AssessmentProvider = ({ children }) => {
         }, 2000);
     };
 
-    const restorePlan = async (pastPlanData) => {
+    const restorePlan = async (pastPlanData, expectedUserId = null) => {
         if (!pastPlanData) return;
+
+        // [P1-NEW-4 · 2026-05-11] Guard de ownership defensive (client-side IDOR
+        // read-only). Si el caller proporciona `expectedUserId` (típicamente el
+        // `user_id` de la fila del Historial), verificar contra la sesión actual
+        // ANTES de pisar el state local. Backend ya tiene IDOR guards en
+        // mutaciones (`.eq('user_id', userId)` más abajo + `.eq('id', planId)`),
+        // pero un deeplink/fetch interceptado que pase plan ajeno al callsite
+        // local pisaría `setPlanData` con contenido cross-user hasta el próximo
+        // refresh — UX confunde. Defensa-en-profundidad client-side:
+        if (expectedUserId) {
+            const _currentUid = session?.user?.id || localStorage.getItem('mealfit_user_id');
+            if (_currentUid && _currentUid !== expectedUserId) {
+                console.warn(
+                    '[P1-NEW-4] restorePlan: ownership mismatch — ' +
+                    `expected user_id=${expectedUserId}, current session=${_currentUid}. ` +
+                    'Abortando para evitar pintar plan ajeno en el UI.'
+                );
+                try {
+                    toast.error('No se pudo restaurar el plan (sesión inválida).');
+                } catch (_toastErr) { /* toast es best-effort */ }
+                return;
+            }
+        }
 
         // 1. Actualizar estado local inmediatamente
         setPlanData(pastPlanData);
@@ -1408,34 +1489,53 @@ export const AssessmentProvider = ({ children }) => {
                     // `restorePlanFromHistory` (P0-HIST-1) en lugar de este
                     // path: el endpoint atómico backend cubre las 6
                     // columnas + cancel chunks + lock release.
-                    const updates = { plan_data: pastPlanData };
+                    //
+                    // [P1-OPEN-1 · 2026-05-11] Migrado al endpoint backend
+                    // atómico `POST /api/plans/{plan_id}/restore-local` para
+                    // cerrar la última violación de invariante I6 (CLAUDE.md):
+                    // direct-write desde cliente a `meal_plans`. Pre-fix
+                    // este bloque hacía `supabase.from('meal_plans').update(
+                    // {plan_data, name, calories, macros}).eq('id', planId)`
+                    // que producía lost-update vs `_chunk_worker` concurrente
+                    // (mismo modo de fallo que P0-NEW-A cerró para swap-meal,
+                    // P0-NEW-B para grocery-start-date, P1-HIST-5 para rename).
+                    // El endpoint nuevo toma advisory lock 'general' antes del
+                    // UPDATE (I7) y filtra `AND user_id = %s` (I2).
+                    const restoreBody = { plan_data: pastPlanData };
                     if (typeof pastPlanData?.name === 'string' && pastPlanData.name.trim()) {
-                        updates.name = pastPlanData.name;
+                        restoreBody.name = pastPlanData.name;
                     }
                     const _calories = pastPlanData?.calories ?? pastPlanData?.totalCalories;
                     if (typeof _calories === 'number' && Number.isFinite(_calories)) {
-                        updates.calories = _calories;
+                        restoreBody.calories = _calories;
                     }
                     if (
                         pastPlanData?.macros &&
                         typeof pastPlanData.macros === 'object' &&
                         !Array.isArray(pastPlanData.macros)
                     ) {
-                        updates.macros = pastPlanData.macros;
+                        restoreBody.macros = pastPlanData.macros;
                     }
 
-                    const { error: updateError } = await supabase
-                        .from('meal_plans')
-                        .update(updates)
-                        .eq('id', planId);
+                    const restoreResp = await fetchWithAuth(
+                        `/api/plans/${planId}/restore-local`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(restoreBody),
+                        },
+                    );
 
-                    if (updateError) {
-                        console.error('❌ Error sincronizando plan restaurado:', updateError);
+                    if (!restoreResp.ok) {
+                        const errBody = await restoreResp.json().catch(() => ({}));
+                        console.error(
+                            '❌ Error sincronizando plan restaurado:',
+                            restoreResp.status,
+                            errBody,
+                        );
                         toast.warning('Plan restaurado localmente', {
-                            description: 'No se pudo sincronizar con la nube.'
+                            description: 'No se pudo sincronizar con la nube.',
                         });
-                    } else {
-
                     }
                 }
             } catch (dbError) {
@@ -1467,6 +1567,31 @@ export const AssessmentProvider = ({ children }) => {
             // pasar el row completo (no solo plan_data). Caemos al
             // legacy local-only para no romper edge cases.
             return restorePlan(pastPlanRow?.plan_data || pastPlanRow);
+        }
+
+        // [P1-NEW-4 · 2026-05-11] Guard de ownership defensive ANTES de
+        // pisar state local. Backend `/api/plans/restore` ya filtra por
+        // `user_id` (IDOR-safe), pero un deeplink/fetch interceptado podría
+        // pasar un row con `user_id` ajeno y pintaríamos el plan en el UI
+        // hasta que el endpoint backend rechace. Pre-check abortar temprano.
+        {
+            const _currentUid = session?.user?.id || localStorage.getItem('mealfit_user_id');
+            if (
+                pastPlanRow.user_id &&
+                _currentUid &&
+                _currentUid !== 'guest' &&
+                pastPlanRow.user_id !== _currentUid
+            ) {
+                console.warn(
+                    '[P1-NEW-4] restorePlanFromHistory: ownership mismatch — ' +
+                    `row.user_id=${pastPlanRow.user_id}, current=${_currentUid}. ` +
+                    'Abortando (no pintar plan ajeno en UI).'
+                );
+                try {
+                    toast.error('No se pudo restaurar el plan (sesión inválida).');
+                } catch (_toastErr) { /* toast es best-effort */ }
+                return { success: false, error: 'ownership_mismatch' };
+            }
         }
 
         const pastPlanData = pastPlanRow.plan_data;

@@ -2322,7 +2322,10 @@ const Dashboard = () => {
                                                                 const response = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
                                                                     method: 'POST',
                                                                     headers: { 'Content-Type': 'application/json' },
-                                                                    body: JSON.stringify({ user_id: userProfile.id, householdSize: formData?.householdSize || 1, groceryDuration: opt.value })
+                                                                    // [P2-NEW-B · 2026-05-11] Enviar plan_id explícito
+                                                                    // (cuando esté disponible en planData) para evitar
+                                                                    // race con _chunk_worker creando un plan B en paralelo.
+                                                                    body: JSON.stringify({ user_id: userProfile.id, plan_id: planData?.id, householdSize: formData?.householdSize || 1, groceryDuration: opt.value })
                                                                 });
                                                                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                                                                 const result = await response.json();

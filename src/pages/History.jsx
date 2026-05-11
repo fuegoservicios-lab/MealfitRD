@@ -397,10 +397,28 @@ const History = () => {
             //    silent — si falla, los conteos previos se preservan
             //    (no se borran a {}, eso parpadearía los chips).
             _fetchLessonsCounts();
-            // 3) Limpiar caches del plan abierto (singleton + state).
+            // 3) Limpiar caches del plan abierto SOLO si hay señal
+            //    explícita de mutación (_dirty) — antes invalidábamos
+            //    en cada visibilitychange con _stale>60s aunque NO
+            //    hubiera cambio real, causando re-fetch de 4 endpoints
+            //    pesados (lessons/coherence/blocked/metrics) cada vez
+            //    que el usuario volvía al tab.
+            //
+            //    [P2-NEW-1 · 2026-05-11] Alineamos threshold con TTL
+            //    del cache singleton (30min). Modal caches viven 30min
+            //    por diseño — invalidarlos en cada alt-tab ≥60s
+            //    desperdicia cuota del tier ultra. Ahora solo se
+            //    invalidan cuando:
+            //      (a) _dirty=true: señal explícita via
+            //          `mealfit_history_dirty_at` (P0-HIST-NEW-2).
+            //      (b) _stale ≥ TTL del cache (30min): preservación
+            //          natural del TTL ya hace expirar las entries;
+            //          la invalidación es safety net.
             //    Si no hay modal abierto, nada que limpiar — el resto
             //    de planes se re-cachea on-demand al abrir su modal.
-            if (selectedPlan && selectedPlan.id) {
+            const _CACHE_TTL_MS = 30 * 60 * 1000;  // mirror utils/historyCaches.js _DEFAULT_TTL_MS
+            const _shouldInvalidateModalCaches = _dirty || _stale >= _CACHE_TTL_MS;
+            if (_shouldInvalidateModalCaches && selectedPlan && selectedPlan.id) {
                 invalidateCachesForPlan(selectedPlan.id);
                 setLessonsDetailCache((prev) => {
                     if (!(selectedPlan.id in prev)) return prev;

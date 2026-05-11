@@ -107,9 +107,9 @@ const Login = () => {
 
             <div className={styles.authCard}>
                 <div className={styles.logoWrapper}>
-                    <Link to="/" className={styles.logo}>
+                    <div className={styles.logo}>
                         Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
-                    </Link>
+                    </div>
                 </div>
 
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Utensils, Settings, LogOut, User, Menu, X, Clock, Bot, Refrigerator } from 'lucide-react';
+import { LayoutDashboard, Utensils, Settings, LogOut, User, Menu, X, Clock, Bot, Refrigerator, Home } from 'lucide-react';
 import { useAssessment } from '../../context/AssessmentContext';
 import LogoutConfirmModal from './LogoutConfirmModal';
 import BottomTabBar from './BottomTabBar';
@@ -12,6 +12,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const navigate = useNavigate();
     const { resetApp, planData, userProfile, session, isPremium } = useAssessment();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isMobileMoreMenuOpen, setIsMobileMoreMenuOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
 
     const handleLogoutConfirm = async () => {
@@ -43,9 +44,9 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
             {/* Sidebar */}
             <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Link to="/" className={styles.logo} onClick={closeMenu}>
+                    <div className={styles.logo}>
                         Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
-                    </Link>
+                    </div>
                     {/* Close button for mobile inside sidebar */}
                     <button className={styles.menuBtn} onClick={closeMenu} style={{ marginBottom: '3rem', display: 'none' }}>
                         {/* We hide this by default and could show via media query if we wanted an internal close button, 
@@ -93,6 +94,14 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 </nav>
 
                 <div className={styles.userFooter}>
+                    <Link
+                        to="/"
+                        onClick={closeMenu}
+                        className={styles.homeBtn}
+                    >
+                        <Home size={18} strokeWidth={2.5} className={styles.homeIcon} />
+                        <span>Inicio</span>
+                    </Link>
                     <button
                         onClick={() => setShowLogoutModal(true)}
                         className={styles.logoutBtn}
@@ -109,9 +118,16 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 {/* Mobile Header — hidden on AgentPage which has its own */}
                 {!noPaddingMobile && (
                 <header className={styles.mobileHeader}>
-                    <Link to="/" className={styles.mobileLogo}>
+                    <div className={styles.mobileLogo}>
                         Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
-                    </Link>
+                    </div>
+                    <button
+                        className={styles.menuBtn}
+                        onClick={() => setIsMobileMoreMenuOpen(true)}
+                        aria-label="Abrir menú"
+                    >
+                        <Menu size={22} />
+                    </button>
                 </header>
                 )}
 
@@ -131,6 +147,38 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 onCancel={() => setShowLogoutModal(false)}
                 userEmail={session?.user?.email}
             />
+
+            {/* Mobile More Menu (Inicio + Cerrar Sesión) — rendered at container root to escape stacking contexts */}
+            {isMobileMoreMenuOpen && (
+                <>
+                    <div
+                        className={styles.mobileMoreOverlay}
+                        onClick={() => setIsMobileMoreMenuOpen(false)}
+                    />
+                    <div className={styles.mobileMoreMenu} role="menu">
+                        <Link
+                            to="/"
+                            className={styles.mobileMoreItem}
+                            onClick={() => setIsMobileMoreMenuOpen(false)}
+                            role="menuitem"
+                        >
+                            <Home size={18} strokeWidth={2.5} />
+                            <span>Inicio</span>
+                        </Link>
+                        <button
+                            className={`${styles.mobileMoreItem} ${styles.mobileMoreItemDanger}`}
+                            onClick={() => {
+                                setIsMobileMoreMenuOpen(false);
+                                setShowLogoutModal(true);
+                            }}
+                            role="menuitem"
+                        >
+                            <LogOut size={18} strokeWidth={2.5} />
+                            <span>Cerrar Sesión</span>
+                        </button>
+                    </div>
+                </>
+            )}
         </div>
     );
 };

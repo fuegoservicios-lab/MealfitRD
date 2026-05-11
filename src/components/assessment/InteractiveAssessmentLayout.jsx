@@ -27,9 +27,9 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, title, subtitle }) 
                         <div className={styles.backSpacer} />
                     )}
                     
-                    <Link to="/" className={styles.logo}>
+                    <div className={styles.logo}>
                         Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
-                    </Link>
+                    </div>
                     
                     <Link to={planData ? '/dashboard' : '/'} className={styles.closeBtn}>
                         Cancelar
