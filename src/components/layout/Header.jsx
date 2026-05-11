@@ -77,14 +77,17 @@ const Header = () => {
                     <button
                         className={styles.mobileToggle}
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
+                        aria-expanded={isMenuOpen}
+                        aria-controls="mobile-nav"
                     >
-                        {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                        {isMenuOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
                     </button>
                 )}
 
                 {/* Navegación Móvil */}
                 {isMenuOpen && (
-                    <nav className={styles.navMobile}>
+                    <nav className={styles.navMobile} id="mobile-nav">
 
 
                         {planData && !isPlanLoading ? (
