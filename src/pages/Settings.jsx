@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-    User, Bell, Shield, ChevronRight,
-    LogOut, Save, Trash2, Database, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, Sparkles, RefreshCw, ChefHat
+    User, Bell, Shield, ChevronRight, ArrowLeft,
+    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, Sparkles, RefreshCw, ChefHat
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -233,6 +233,58 @@ const Settings = () => {
     const [showEvaluateModal, setShowEvaluateModal] = useState(false);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
 
+    // --- NAVEGACIÓN DE SECCIONES ---
+    // activeSection puede ser un id de SECTION_IDS o null (en móvil = vista de lista).
+    // Sincronizado con window.location.hash para deep-linking y back/forward del navegador.
+    const SECTION_IDS = ['profile', 'notifications', 'plan', 'subscription', 'memory'];
+    const computeInitialSection = () => {
+        if (typeof window === 'undefined') return 'profile';
+        const hash = window.location.hash.replace('#', '');
+        if (SECTION_IDS.includes(hash)) return hash;
+        if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) return null;
+        return 'profile';
+    };
+    const [activeSection, setActiveSection] = useState(computeInitialSection);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const handleHashChange = () => {
+            const hash = window.location.hash.replace('#', '');
+            if (SECTION_IDS.includes(hash)) {
+                setActiveSection(hash);
+            } else if (!hash) {
+                const isMobile = window.matchMedia('(max-width: 768px)').matches;
+                setActiveSection(isMobile ? null : 'profile');
+            }
+        };
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const navigateToSection = (id) => {
+        setActiveSection(id);
+        if (typeof window === 'undefined') return;
+        // replaceState (NO pushState): navegar entre secciones NO debe inflar
+        // el historial. Si pusheáramos, `navigate(-1)` desde el listado
+        // aterrizaría en una sección de Settings en vez de salir al caller.
+        if (id) {
+            window.history.replaceState(null, '', `#${id}`);
+        } else {
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+    };
+
+    const sectionsConfig = [
+        { id: 'profile', label: 'Perfil', description: 'Nombre, correo y avatar', Icon: User, iconBg: '#EFF6FF', iconColor: '#3B82F6' },
+        { id: 'notifications', label: 'Notificaciones', description: 'Alertas y modo automático', Icon: Bell, iconBg: '#F3E8FF', iconColor: '#9333EA' },
+        { id: 'plan', label: 'Plan & Objetivo', description: 'Meta principal y calorías', Icon: Trophy, iconBg: '#DCFCE7', iconColor: '#166534' },
+        { id: 'subscription', label: 'Suscripción', description: 'Plan, pagos y cancelación', Icon: CreditCard, iconBg: '#E0E7FF', iconColor: '#4F46E5' },
+        { id: 'memory', label: 'Memoria IA', description: 'Lo que el agente recuerda', Icon: Brain, iconBg: '#FEF3C7', iconColor: '#CA8A04' },
+    ];
+
+    const activeSectionMeta = sectionsConfig.find(s => s.id === activeSection) || null;
+
     // --- EFECTOS ---
 
     // CORRECCIÓN: Validación estricta dentro del useEffect
@@ -445,10 +497,34 @@ const Settings = () => {
     return (
         <>
             <div className={styles.wrapper}>
-                <Modal 
-                    isOpen={showCancelModal} 
-                    onClose={() => !isCancelling && setShowCancelModal(false)} 
-                    titleId="cancel-modal-title" 
+                {/* Back arrow visible en ambos viewports:
+                    - Móvil + dentro de una sección: vuelve al listado de Ajustes.
+                    - Móvil en listado / Desktop siempre: sale al dashboard.
+                      Destino fijo (no `navigate(-1)`) — el historial puede tener
+                      entradas previas que desorientan al usuario. */}
+                <button
+                    type="button"
+                    className={styles.exitSettingsBtn}
+                    onClick={() => {
+                        const isMobileViewport = typeof window !== 'undefined'
+                            && window.matchMedia
+                            && window.matchMedia('(max-width: 768px)').matches;
+                        if (isMobileViewport && activeSection) {
+                            navigateToSection(null);
+                            return;
+                        }
+                        navigate('/dashboard');
+                    }}
+                    aria-label="Volver"
+                >
+                    <ArrowLeft size={20} strokeWidth={2.5} />
+                    <span>Volver</span>
+                </button>
+
+                <Modal
+                    isOpen={showCancelModal}
+                    onClose={() => !isCancelling && setShowCancelModal(false)}
+                    titleId="cancel-modal-title"
                     maxWidth="420px"
                     disableClose={isCancelling}
                 >
@@ -768,9 +844,52 @@ const Settings = () => {
                 )}
             </AnimatePresence>
 
-                <div className={styles.grid}>
+                <div className={`${styles.pageHeader} ${activeSection ? styles.pageHeaderInSection : ''}`}>
+                    {/* Default (desktop siempre, móvil cuando NO hay sección activa). */}
+                    <h1 className={`${styles.pageTitle} ${styles.titleDesktop}`}>Ajustes</h1>
+                    <p className={`${styles.pageSubtitle} ${styles.subtitleDesktop}`}>Gestiona tu cuenta, plan y preferencias.</p>
+                    {/* Móvil cuando hay sección activa: refleja la sección. */}
+                    {activeSection && activeSectionMeta && (
+                        <>
+                            <h1 className={`${styles.pageTitle} ${styles.titleMobile}`}>{activeSectionMeta.label}</h1>
+                            <p className={`${styles.pageSubtitle} ${styles.subtitleMobile}`}>{activeSectionMeta.description}</p>
+                        </>
+                    )}
+                </div>
+
+                <div className={`${styles.layout} ${activeSection ? styles.layoutWithSection : ''}`}>
+                    <aside className={styles.sidebar} aria-label="Secciones de ajustes">
+                        <nav className={styles.sidebarNav}>
+                            {sectionsConfig.map(s => {
+                                const isActive = activeSection === s.id;
+                                const Icon = s.Icon;
+                                return (
+                                    <button
+                                        key={s.id}
+                                        type="button"
+                                        onClick={() => navigateToSection(s.id)}
+                                        className={`${styles.sidebarItem} ${isActive ? styles.sidebarItemActive : ''}`}
+                                        aria-current={isActive ? 'page' : undefined}
+                                    >
+                                        <span className={styles.sidebarIcon} style={{ background: s.iconBg, color: s.iconColor }}>
+                                            <Icon size={18} strokeWidth={2.25} />
+                                        </span>
+                                        <span className={styles.sidebarText}>
+                                            <span className={styles.sidebarLabel}>{s.label}</span>
+                                            <span className={styles.sidebarDescription}>{s.description}</span>
+                                        </span>
+                                        <ChevronRight size={16} className={styles.sidebarChevron} aria-hidden="true" />
+                                    </button>
+                                );
+                            })}
+                        </nav>
+                    </aside>
+
+                    <main className={styles.contentPanel}>
+                        <div className={styles.grid}>
 
                     {/* SECCIÓN 1: PERFIL (CONECTADO A SUPABASE) */}
+                    {activeSection === 'profile' && (
                     <section className={styles.section}>
                         <h2 className={styles.sectionTitle}>
                             <div style={{ background: '#EFF6FF', padding: '0.5rem', borderRadius: '0.5rem', color: '#3B82F6' }}>
@@ -879,12 +998,10 @@ const Settings = () => {
                             </div>
                         </div>
                     </section>
+                    )}
 
-
-                    {/* SECCIÓN 2: PREFERENCIAS & DATOS (Grid) */}
-                    <div className={styles.preferencesGrid}>
-
-                        {/* Preferencias */}
+                    {/* SECCIÓN 2: NOTIFICACIONES */}
+                    {activeSection === 'notifications' && (
                         <section className={styles.section}>
                             <h2 className={styles.sectionTitle}>
                                 <div style={{ background: '#F3E8FF', padding: '0.5rem', borderRadius: '0.5rem', color: '#9333EA' }}>
@@ -1026,12 +1143,14 @@ const Settings = () => {
                             </div>
 
                         </section>
+                    )}
 
-                        {/* INFO DEL PLAN */}
+                    {/* SECCIÓN 3: PLAN & OBJETIVO */}
+                    {activeSection === 'plan' && (
                         <section className={styles.section}>
                             <h2 className={styles.sectionTitle}>
                                 <div style={{ background: '#DCFCE7', padding: '0.5rem', borderRadius: '0.5rem', color: '#166534' }}>
-                                    <Database size={20} />
+                                    <Trophy size={20} />
                                 </div>
                                 Tu Objetivo Actual
                             </h2>
@@ -1103,9 +1222,10 @@ const Settings = () => {
                                 </div>
                             </div>
                         </section>
-                    </div>
+                    )}
 
-                    {/* SECCIÓN NUEVA: SUSCRIPCIÓN */}
+                    {/* SECCIÓN 4: SUSCRIPCIÓN */}
+                    {activeSection === 'subscription' && (
                     <section className={styles.section} id="subscription">
                         <h2 className={styles.sectionTitle} style={{ marginBottom: '1rem' }}>
                             <div style={{ background: '#E0E7FF', padding: '0.5rem', borderRadius: '0.5rem', color: '#4F46E5' }}>
@@ -1225,8 +1345,10 @@ const Settings = () => {
                             )}
                         </div>
                     </section>
+                    )}
 
-                    {/* SECCIÓN NUEVA: CEREBRO IA */}
+                    {/* SECCIÓN 5: MEMORIA IA */}
+                    {activeSection === 'memory' && (
                     <section className={styles.section}>
                         <h2 className={styles.sectionTitle} style={{ marginBottom: '0.5rem' }}>
                             <div style={{ background: '#FEF08A', padding: '0.5rem', borderRadius: '0.5rem', color: '#CA8A04' }}>
@@ -1303,6 +1425,9 @@ const Settings = () => {
                             )}
                         </div>
                     </section>
+                    )}
+                        </div>
+                    </main>
                 </div>
             </div>
         </>

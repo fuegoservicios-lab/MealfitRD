@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { deletePlanFromHistory, getHistoryList, getLessonsCounts, getPlanLessonsDetail, getPlanCoherenceHistory, getHistoryStatusSummary, getPlanBlockedReasons, getPlanChunkMetrics, getPlanLifetimeLessons, renamePlan } from '../config/api';
 import { useAssessment } from '../context/AssessmentContext';
-import { Utensils, Calendar, ChevronLeft, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles } from 'lucide-react';
+import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Wheat, Droplet, RotateCcw, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles, Search } from 'lucide-react';
+import ProteinIcon from '../components/icons/ProteinIcon';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -93,6 +94,7 @@ const _dayNameForGlobalIdx = (startMid, globalIdx) => {
 
 const History = () => {
     const [plans, setPlans] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [selectedDay, setSelectedDay] = useState(0);
@@ -1331,26 +1333,15 @@ const History = () => {
         </div>
     );
 
+    // Filtrado por nombre del plan (case-insensitive, trim).
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const filteredPlans = normalizedQuery
+        ? plans.filter(p => (p.name || 'Plan Generado').toLowerCase().includes(normalizedQuery))
+        : plans;
+    const isSearchActive = normalizedQuery.length > 0;
+
     return (
         <>
-            <div className={styles.container}>
-                <div className={styles.headerRow}>
-                    <div>
-                        <h1 className={styles.title}>
-                            Librería de Planes
-                        </h1>
-                        <p className={styles.subtitle}>
-                            Revisa en detalle, renombra o reactiva tus planes anteriores.
-                        </p>
-                    </div>
-                    {!loading && plans.length > 0 && (
-                        <span className={styles.planCount}>
-                            {plans.length} {plans.length === 1 ? 'plan guardado' : 'planes guardados'}
-                        </span>
-                    )}
-                </div>
-            </div>
-
             {loading ? (
                 <SkeletonLoader />
             ) : plans.length === 0 ? (
@@ -1362,8 +1353,49 @@ const History = () => {
                     initial="hidden"
                     animate="visible"
                 >
+                    <div className={styles.surfaceHeader}>
+                        <span className={styles.planCount}>
+                            {isSearchActive
+                                ? `${filteredPlans.length} de ${plans.length}`
+                                : `${plans.length} ${plans.length === 1 ? 'plan guardado' : 'planes guardados'}`}
+                        </span>
+                        <div className={styles.searchWrap}>
+                            <Search size={16} className={styles.searchIcon} aria-hidden="true" />
+                            <input
+                                type="text"
+                                className={styles.searchInput}
+                                placeholder="Buscar planes…"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                aria-label="Buscar planes por nombre"
+                            />
+                            {isSearchActive && (
+                                <button
+                                    type="button"
+                                    className={styles.searchClear}
+                                    onClick={() => setSearchQuery('')}
+                                    aria-label="Limpiar búsqueda"
+                                >
+                                    <X size={14} strokeWidth={2.5} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                    {filteredPlans.length === 0 && (
+                        <div className={styles.searchEmpty}>
+                            <Search size={28} strokeWidth={1.75} />
+                            <p>Sin resultados para <strong>“{searchQuery}”</strong></p>
+                            <button
+                                type="button"
+                                className={styles.searchEmptyClear}
+                                onClick={() => setSearchQuery('')}
+                            >
+                                Limpiar búsqueda
+                            </button>
+                        </div>
+                    )}
                     <AnimatePresence>
-                        {plans.map((plan) => (
+                        {filteredPlans.map((plan) => (
                             <motion.div
                                 key={plan.id}
                                 variants={itemVariants}
@@ -1437,7 +1469,19 @@ const History = () => {
                             >
                                 <div className={styles.cardContent}>
                                     <div className={styles.iconWrapper}>
-                                        <Utensils size={24} />
+                                        {(() => {
+                                            // Ícono según duración del plan: comunica
+                                            // visualmente la diferencia entre planes
+                                            // cortos / medios / largos sin necesitar
+                                            // leer el título.
+                                            //  - ≤7 días:  CalendarDays (grid de día)
+                                            //  - 8–21 días: CalendarRange (rango)
+                                            //  - ≥22 días:  CalendarCheck (mes pleno)
+                                            const _td = getStatusInfo(plan).totalDays || 0;
+                                            if (_td >= 22) return <CalendarCheck size={22} strokeWidth={2.25} />;
+                                            if (_td >= 8) return <CalendarRange size={22} strokeWidth={2.25} />;
+                                            return <CalendarDays size={22} strokeWidth={2.25} />;
+                                        })()}
                                     </div>
                                     <div className={styles.planInfo}>
                                         {isEditing === plan.id ? (
@@ -1868,7 +1912,7 @@ const History = () => {
 
                                     {/* Chevron */}
                                     <div className={styles.chevronWrapper}>
-                                        <ChevronRight size={18} color="#94A3B8" />
+                                        <ChevronRight size={18} strokeWidth={2.5} />
                                     </div>
                                 </div>
                             </motion.div>
@@ -2263,7 +2307,9 @@ const History = () => {
                                         <div className={styles.macroLabelOrange}>kcal</div>
                                     </div>
                                     <div className={`${styles.macroCard} ${styles.macroCardBlue}`}>
-                                        <Dumbbell size={18} color="#2563EB" style={{ marginBottom: '0.4rem' }} />
+                                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.4rem' }}>
+                                            <ProteinIcon size={18} />
+                                        </div>
                                         <div className={styles.macroValueBlue}>{selectedPlan.macros?.protein || '—'}</div>
                                         <div className={styles.macroLabelBlue}>Proteína</div>
                                     </div>

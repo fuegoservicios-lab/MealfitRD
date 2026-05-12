@@ -8,6 +8,19 @@
     isolation: isolate;
 }
 
+/* === STANDALONE PAGE (Settings) ===
+   En desktop, Settings funciona como página standalone: oculta el sidebar
+   global (Plan/Agente/Nevera/Recetas/Historial) y el contenido se desplaza
+   a full-width. La salida la maneja el botón "Volver" interno de Settings. */
+@media (min-width: 1025px) {
+    .standalonePage .sidebar {
+        display: none;
+    }
+    .standalonePage .mainWrapper {
+        margin-left: 0;
+    }
+}
+
 /* Optimized noise/gradient background using pseudo-element */
 .container::before {
     content: '';
@@ -152,81 +165,122 @@
 }
 
 
-/* User Footer Area */
-.userFooter {
+/* Account Section (fusión de Ajustes + Inicio + Cerrar Sesión) */
+.accountSection {
     border-top: 1px solid rgba(226, 232, 240, 0.8);
-    padding-top: 1.5rem;
+    padding-top: 1rem;
     margin-top: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
+    position: relative;
 }
 
-.homeBtn {
+.accountBtn {
     width: 100%;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.6rem;
+    gap: 0.65rem;
     color: #334155;
     background: #FFFFFF;
     border: 1px solid #E2E8F0;
-    padding: 0.85rem;
+    padding: 0.7rem 0.85rem;
     border-radius: 1rem;
     cursor: pointer;
-    font-size: 0.95rem;
+    font-family: inherit;
+    font-size: 0.92rem;
     font-weight: 600;
-    text-decoration: none;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: left;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.homeBtn:hover {
+.accountBtn:hover {
     background: #F8FAFC;
     color: #0F172A;
     border-color: #CBD5E1;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px -2px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 4px 10px -2px rgba(15, 23, 42, 0.06);
 }
 
-.homeIcon {
-    transition: transform 0.2s ease;
-}
-
-.homeBtn:hover .homeIcon {
-    transform: translateX(-3px);
-}
-
-.logoutBtn {
-    width: 100%;
+.accountAvatar {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: #FFFFFF;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.6rem;
-    color: #EF4444;
+}
+
+.accountEmail {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.accountChevron {
+    flex-shrink: 0;
+    color: #94A3B8;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accountChevronOpen {
+    transform: rotate(180deg);
+}
+
+.accountPopover {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 0.4rem);
     background: #FFFFFF;
-    border: 1px solid #FECACA;
-    padding: 0.85rem;
-    border-radius: 1rem;
-    cursor: pointer;
-    font-size: 0.95rem;
+    border: 1px solid #E2E8F0;
+    border-radius: 0.85rem;
+    box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.18);
+    padding: 0.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    z-index: 60;
+    animation: accountPopoverIn 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes accountPopoverIn {
+    from { opacity: 0; transform: translateY(4px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.accountItem {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border: none;
+    background: transparent;
+    color: #334155;
+    font-family: inherit;
+    font-size: 0.92rem;
     font-weight: 600;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: left;
+    text-decoration: none;
+    border-radius: 0.55rem;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
-.logoutBtn:hover {
-    background: #FEF2F2;
+.accountItem:hover {
+    background: #F1F5F9;
+    color: #0F172A;
+}
+
+.accountItemDanger {
     color: #DC2626;
-    border-color: #FCA5A5;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px -2px rgba(239, 68, 68, 0.15);
 }
 
-.logoutIcon {
-    transition: transform 0.2s ease;
-}
-
-.logoutBtn:hover .logoutIcon {
-    transform: translateX(3px); /* Arrow pushes right */
+.accountItemDanger:hover {
+    background: #FEF2F2;
+    color: #B91C1C;
 }
 
 /* Mobile Header (Hidden on Desktop) */
@@ -399,6 +453,11 @@
         flex: 1;
     }
 
+    /* En rutas sin BottomTabBar (Ajustes), elimina el padding-bottom reservado. */
+    .mainContent.bottomBarHidden {
+        padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+    }
+
     .noPaddingMobile {
         padding: 0 !important;
         height: 100%;
@@ -421,6 +480,11 @@
         padding-bottom: calc(2rem + 75px + env(safe-area-inset-bottom, 0px));
         overflow-x: hidden;
         max-width: 100vw;
+    }
+
+    /* En rutas sin BottomTabBar (Ajustes), elimina el padding-bottom reservado. */
+    .mainContent.bottomBarHidden {
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     }
 
     .noPaddingMobile {

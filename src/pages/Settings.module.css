@@ -1,28 +1,196 @@
 .wrapper {
-    max-width: 920px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 1.5rem 1rem 4rem;
     position: relative;
 }
 
-.header {
-    margin-bottom: 2.5rem;
-    text-align: center;
+/* --- PAGE HEADER (left-aligned, persistente sobre toda la página) --- */
+.pageHeader {
+    margin-bottom: 1.75rem;
+    padding: 0 0.25rem;
 }
 
-.headerTitle {
-    font-size: 2rem;
+.pageTitle {
+    font-size: 1.85rem;
     font-weight: 800;
     color: var(--text-main);
-    line-height: 1;
-    margin-bottom: 0.5rem;
+    letter-spacing: -0.025em;
+    margin: 0 0 0.35rem 0;
+    line-height: 1.1;
 }
 
-.headerSubtitle {
+.pageSubtitle {
     color: var(--text-muted);
+    font-size: 0.95rem;
+    margin: 0;
 }
 
-/* --- UNIFIED PREMIUM SURFACE --- */
+/* Variante móvil del page header: se muestra solo en mobile cuando hay
+   sección activa. En desktop siempre se oculta. */
+.titleMobile,
+.subtitleMobile {
+    display: none;
+}
+
+/* --- LAYOUT: sidebar 280px + content 1fr (desktop) --- */
+.layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+}
+
+/* --- SIDEBAR (lista de secciones) --- */
+.sidebar {
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+}
+
+.sidebarNav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(252, 252, 255, 0.92) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 1.25rem;
+    border: 1px solid rgba(226, 232, 240, 0.75);
+    padding: 0.5rem;
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
+        0 1px 2px rgba(15, 23, 42, 0.04),
+        0 12px 28px -12px rgba(15, 23, 42, 0.10);
+}
+
+.sidebarItem {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.7rem 0.75rem;
+    border: none;
+    background: transparent;
+    border-radius: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.18s cubic-bezier(0.4, 0, 0.2, 1), transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebarItem:hover {
+    background: rgba(79, 70, 229, 0.05);
+}
+
+.sidebarItemActive {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.10) 0%, rgba(99, 102, 241, 0.06) 100%);
+    box-shadow: inset 3px 0 0 var(--primary, #4F46E5);
+}
+
+.sidebarItemActive:hover {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.14) 0%, rgba(99, 102, 241, 0.08) 100%);
+}
+
+.sidebarIcon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebarText {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.sidebarLabel {
+    font-size: 0.93rem;
+    font-weight: 700;
+    color: #0F172A;
+    line-height: 1.2;
+}
+
+.sidebarDescription {
+    font-size: 0.75rem;
+    color: #64748B;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sidebarChevron {
+    flex-shrink: 0;
+    color: #CBD5E1;
+    transition: transform 0.2s ease;
+}
+
+.sidebarItem:hover .sidebarChevron {
+    color: #94A3B8;
+    transform: translateX(2px);
+}
+
+.sidebarItemActive .sidebarChevron {
+    color: var(--primary, #4F46E5);
+}
+
+/* --- CONTENT PANEL --- */
+.contentPanel {
+    min-width: 0;
+}
+
+.mobileBackBtn {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--primary, #4F46E5);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 0.5rem 0.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.mobileBackBtn:hover {
+    color: #3730A3;
+}
+
+/* Exit settings: flecha global "Volver" en la parte superior del wrapper.
+   Visible en ambos viewports — en mobile reemplaza al BottomTabBar oculto;
+   en desktop reemplaza al sidebar oculto en standalonePage. */
+.exitSettingsBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--primary, #4F46E5);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    padding: 0.5rem 0.5rem;
+    margin: 0 0 0.75rem -0.5rem;
+    border-radius: 0.6rem;
+}
+
+.exitSettingsBtn:hover,
+.exitSettingsBtn:active {
+    background: rgba(238, 242, 255, 0.6);
+    color: #3730A3;
+}
+
+/* --- PREMIUM SURFACE para la sección activa --- */
 .grid {
     display: flex;
     flex-direction: column;
@@ -31,7 +199,7 @@
         linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(252, 252, 255, 0.92) 100%);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border-radius: 1.75rem;
+    border-radius: 1.5rem;
     border: 1px solid rgba(226, 232, 240, 0.75);
     box-shadow:
         inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
@@ -67,7 +235,6 @@
     z-index: 0;
 }
 
-/* Sections become rows on the unified surface, no individual cards */
 .section {
     background: transparent;
     border: none;
@@ -76,12 +243,6 @@
     padding: 2.25rem 2.5rem;
     position: relative;
     z-index: 1;
-}
-
-.section + .section,
-.preferencesGrid + .section,
-.section + .preferencesGrid {
-    border-top: 1px solid rgba(226, 232, 240, 0.7);
 }
 
 .sectionTitle {
@@ -93,24 +254,6 @@
     gap: 0.85rem;
     letter-spacing: -0.015em;
     color: var(--text-main);
-}
-
-/* Two-column inner grid (notifications + IA prefs) — visually divided by a vertical line */
-.preferencesGrid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
-    position: relative;
-    z-index: 1;
-}
-
-.preferencesGrid > .section {
-    padding: 2.25rem 2rem;
-}
-
-.preferencesGrid > .section + .section {
-    border-top: none;
-    border-left: 1px solid rgba(226, 232, 240, 0.7);
 }
 
 .profileFlex {
@@ -192,17 +335,12 @@
     justify-content: flex-end;
 }
 
-/* Selector de tamaño del hogar — 6 cols en desktop, 3×2 en mobile pequeño.
- * En 390px el grid de 6 deja ~50px por botón y los emojis de familia
- * (👨‍👩‍👧‍👦) quedan apretados con el número. 3 columnas en 480px o menos
- * dan ~110px por botón y respiran bien. */
 .householdGrid {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
     gap: 0.5rem;
 }
 
-/* "Protegido" como label + ícono en desktop; ícono solo en mobile pequeño. */
 .emailBadgeText {
     display: inline;
 }
@@ -321,40 +459,80 @@
 }
 
 
-/* Responsive adjustments */
+/* === RESPONSIVE: tablet (≤1024px) === */
+@media (max-width: 1024px) {
+    .layout {
+        grid-template-columns: 240px minmax(0, 1fr);
+        gap: 1.25rem;
+    }
+}
+
+/* === RESPONSIVE: mobile (≤768px) — drill-down === */
 @media (max-width: 768px) {
     .wrapper {
         padding: 1rem 0.75rem 3rem;
     }
 
-    .header {
-        margin-top: 1.5rem;
-        margin-bottom: 1.5rem;
+    .pageHeader {
+        margin-top: 0.5rem;
+        margin-bottom: 1.25rem;
         padding: 0 0.5rem;
+        text-align: center;
     }
 
-    .headerTitle {
-        font-size: 1.75rem;
+    /* En móvil, cuando hay sección activa: oculta el title/subtitle default
+       ("Ajustes") y muestra los de la sección activa (Notificaciones, etc.). */
+    .pageHeaderInSection .titleDesktop,
+    .pageHeaderInSection .subtitleDesktop {
+        display: none;
+    }
+
+    .pageHeaderInSection .titleMobile {
+        display: block;
+    }
+
+    .pageHeaderInSection .subtitleMobile {
+        display: block;
+    }
+
+    .pageTitle {
+        font-size: 1.6rem;
+    }
+
+    .pageSubtitle {
+        font-size: 0.88rem;
+    }
+
+    /* En móvil colapsa a 1 columna; el JS controla qué se muestra vía `layoutWithSection` */
+    .layout {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .sidebar {
+        position: static;
+        top: auto;
+    }
+
+    /* Cuando hay sección activa: ocultar sidebar, mostrar content */
+    .layoutWithSection .sidebar {
+        display: none;
+    }
+
+    /* Cuando NO hay sección activa: ocultar content, mostrar sidebar */
+    .layout:not(.layoutWithSection) .contentPanel {
+        display: none;
+    }
+
+    .mobileBackBtn {
+        display: inline-flex;
     }
 
     .grid {
         border-radius: 1.25rem;
     }
 
-    .preferencesGrid {
-        grid-template-columns: 1fr;
-    }
-
-    .preferencesGrid > .section + .section {
-        border-left: none;
-        border-top: 1px solid rgba(226, 232, 240, 0.7);
-    }
-
     .section {
-        padding: 1.5rem 1.25rem;
-    }
-
-    .preferencesGrid > .section {
         padding: 1.5rem 1.25rem;
     }
 
@@ -362,6 +540,48 @@
         margin-bottom: 1.25rem;
         font-size: 1.1rem;
         word-break: break-word;
+    }
+
+    /* === LISTA PLANA estilo iOS Settings ===
+       Quita el card-wrapper del sidebarNav, oculta las descripciones
+       (densidad), y convierte los items en filas planas separadas por
+       hairlines en lugar de un card boxy. */
+    .sidebarNav {
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        border: none;
+        border-radius: 0;
+        padding: 0;
+        box-shadow: none;
+        gap: 0;
+    }
+
+    .sidebarItem {
+        padding: 0.95rem 0.5rem;
+        border-radius: 0;
+    }
+
+    .sidebarItem + .sidebarItem {
+        border-top: 1px solid rgba(226, 232, 240, 0.7);
+    }
+
+    .sidebarItemActive {
+        background: rgba(238, 242, 255, 0.55);
+        box-shadow: none;
+    }
+
+    .sidebarItemActive:hover {
+        background: rgba(238, 242, 255, 0.7);
+    }
+
+    .sidebarLabel {
+        font-size: 1.02rem;
+    }
+
+    /* Descripción oculta en móvil — densidad sobre redundancia */
+    .sidebarDescription {
+        display: none;
     }
 
     .profileFlex {
@@ -423,18 +643,13 @@
     }
 }
 
-/* Mobile pequeño (≤480px, p.ej. iPhone 12 Pro 390px). Más compacto:
- * recupera scroll vertical y arregla el cramping del selector de hogar. */
+/* === Mobile pequeño (≤480px) === */
 @media (max-width: 480px) {
     .wrapper {
         padding: 0.75rem 0.625rem 3rem;
     }
 
     .section {
-        padding: 1.25rem 1rem;
-    }
-
-    .preferencesGrid > .section {
         padding: 1.25rem 1rem;
     }
 
@@ -458,12 +673,10 @@
             0 0 0 4px rgba(79, 70, 229, 0.15);
     }
 
-    /* 3×2 layout: cada botón ~110px, los emojis de familia respiran. */
     .householdGrid {
         grid-template-columns: repeat(3, 1fr);
     }
 
-    /* Solo ícono en el badge — el shield ya comunica "protegido". */
     .emailBadgeText {
         display: none;
     }

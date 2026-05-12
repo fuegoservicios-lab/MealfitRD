@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Utensils, Settings, LogOut, User, Menu, X, Clock, Bot, Refrigerator, Home } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, User, Menu, X, Clock, Bot, Refrigerator, Home, ChevronUp } from 'lucide-react';
+import RecipesIcon from '../icons/RecipesIcon';
 import { useAssessment } from '../../context/AssessmentContext';
 import LogoutConfirmModal from './LogoutConfirmModal';
 import BottomTabBar from './BottomTabBar';
@@ -14,6 +15,26 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMobileMoreMenuOpen, setIsMobileMoreMenuOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+    const accountMenuRef = useRef(null);
+
+    useEffect(() => {
+        if (!isAccountMenuOpen) return undefined;
+        const handlePointerDown = (e) => {
+            if (accountMenuRef.current && !accountMenuRef.current.contains(e.target)) {
+                setIsAccountMenuOpen(false);
+            }
+        };
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') setIsAccountMenuOpen(false);
+        };
+        document.addEventListener('mousedown', handlePointerDown);
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('mousedown', handlePointerDown);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isAccountMenuOpen]);
 
     const handleLogoutConfirm = async () => {
         await resetApp();
@@ -23,17 +44,21 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const toggleMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
     const closeMenu = () => setIsMobileMenuOpen(false);
 
+    // Settings funciona como página standalone (sin sidebar global ni BottomTabBar).
+    const isSettings = location.pathname.startsWith('/dashboard/settings');
+
     const menuItems = [
         { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
         { icon: Bot, label: 'Agente', path: '/dashboard/agent' },
         { icon: Refrigerator, label: 'Nevera', path: '/dashboard/pantry', iconStroke: 2.25 },
-        { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' }, // Placeholder
+        { icon: RecipesIcon, label: 'Recetas', path: '/dashboard/recipes' }, // Placeholder
         { icon: Clock, label: 'Historial', path: '/history' },
-        { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' }, // Placeholder
     ];
 
+    const userEmail = session?.user?.email || 'Cuenta';
+
     return (
-        <div className={styles.container}>
+        <div className={`${styles.container} ${isSettings ? styles.standalonePage : ''}`}>
 
             {/* Mobile Overlay */}
             <div
@@ -93,21 +118,55 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                     })}
                 </nav>
 
-                <div className={styles.userFooter}>
-                    <Link
-                        to="/"
-                        onClick={closeMenu}
-                        className={styles.homeBtn}
-                    >
-                        <Home size={18} strokeWidth={2.5} className={styles.homeIcon} />
-                        <span>Inicio</span>
-                    </Link>
+                <div className={styles.accountSection} ref={accountMenuRef}>
+                    {isAccountMenuOpen && (
+                        <div className={styles.accountPopover} role="menu">
+                            <Link
+                                to="/dashboard/settings"
+                                className={styles.accountItem}
+                                onClick={() => { setIsAccountMenuOpen(false); closeMenu(); }}
+                                role="menuitem"
+                            >
+                                <Settings size={16} strokeWidth={2.25} />
+                                <span>Ajustes</span>
+                            </Link>
+                            <Link
+                                to="/"
+                                className={styles.accountItem}
+                                onClick={() => { setIsAccountMenuOpen(false); closeMenu(); }}
+                                role="menuitem"
+                            >
+                                <Home size={16} strokeWidth={2.25} />
+                                <span>Inicio</span>
+                            </Link>
+                            <button
+                                type="button"
+                                className={`${styles.accountItem} ${styles.accountItemDanger}`}
+                                onClick={() => { setIsAccountMenuOpen(false); setShowLogoutModal(true); }}
+                                role="menuitem"
+                            >
+                                <LogOut size={16} strokeWidth={2.25} />
+                                <span>Cerrar sesión</span>
+                            </button>
+                        </div>
+                    )}
                     <button
-                        onClick={() => setShowLogoutModal(true)}
-                        className={styles.logoutBtn}
+                        type="button"
+                        className={styles.accountBtn}
+                        onClick={() => setIsAccountMenuOpen(prev => !prev)}
+                        aria-haspopup="menu"
+                        aria-expanded={isAccountMenuOpen}
+                        aria-label="Abrir menú de cuenta"
                     >
-                        <LogOut size={18} strokeWidth={2.5} className={styles.logoutIcon} />
-                        <span>Cerrar Sesión</span>
+                        <span className={styles.accountAvatar} aria-hidden="true">
+                            <User size={16} strokeWidth={2.25} />
+                        </span>
+                        <span className={styles.accountEmail}>{userEmail}</span>
+                        <ChevronUp
+                            size={16}
+                            className={`${styles.accountChevron} ${isAccountMenuOpen ? styles.accountChevronOpen : ''}`}
+                            aria-hidden="true"
+                        />
                     </button>
                 </div>
             </aside>
@@ -131,15 +190,15 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 </header>
                 )}
 
-                <main 
-                    className={`${styles.mainContent} ${noPaddingMobile ? styles.noPaddingMobile : ''}`}
+                <main
+                    className={`${styles.mainContent} ${noPaddingMobile ? styles.noPaddingMobile : ''} ${isSettings ? styles.bottomBarHidden : ''}`}
                     style={noPaddingMobile ? { padding: 0, maxWidth: '100vw', overflow: 'hidden', margin: 0, width: '100%' } : {}}
                 >
                     {children}
                 </main>
             </div>
 
-            {!noPaddingMobile && <BottomTabBar />}
+            {!noPaddingMobile && !isSettings && <BottomTabBar />}
 
             <LogoutConfirmModal
                 isOpen={showLogoutModal}
@@ -148,7 +207,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 userEmail={session?.user?.email}
             />
 
-            {/* Mobile More Menu (Inicio + Cerrar Sesión) — rendered at container root to escape stacking contexts */}
+            {/* Mobile More Menu (Ajustes + Inicio + Cerrar Sesión) — rendered at container root to escape stacking contexts */}
             {isMobileMoreMenuOpen && (
                 <>
                     <div
@@ -156,6 +215,15 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         onClick={() => setIsMobileMoreMenuOpen(false)}
                     />
                     <div className={styles.mobileMoreMenu} role="menu">
+                        <Link
+                            to="/dashboard/settings"
+                            className={styles.mobileMoreItem}
+                            onClick={() => setIsMobileMoreMenuOpen(false)}
+                            role="menuitem"
+                        >
+                            <Settings size={18} strokeWidth={2.5} />
+                            <span>Ajustes</span>
+                        </Link>
                         <Link
                             to="/"
                             className={styles.mobileMoreItem}
