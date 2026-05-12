@@ -4,7 +4,10 @@ import { Utensils, ArrowLeft, Clock, ChefHat, Share2, Flame, CheckCircle2, Downl
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import React, { useRef, useState, useEffect } from 'react';
-import html2pdf from 'html2pdf.js';
+// [P2-LAZY-PDF · 2026-05-13] html2pdf.js (976 KB) importado dinámico
+// dentro del handler `handleDownloadPDF` — ver `await import('html2pdf.js')`
+// más abajo. Mismo patrón que Dashboard.jsx para evitar eager load del
+// chunk a usuarios que solo navegan recetas sin descargar PDF.
 import { fetchWithAuth, API_BASE } from '../config/api';
 // [P-RECIPES-CHUNK-WINDOW] Helpers chunk-aware extraídos a utils para
 // reutilizar desde otras páginas (Plan.jsx, Dashboard.jsx) y testear
@@ -633,6 +636,9 @@ const Recipes = () => {
                 html2canvas: { scale: 2.5, useCORS: true, letterRendering: true, backgroundColor: '#ffffff' },
                 jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
             };
+            // [P2-LAZY-PDF · 2026-05-13] Dynamic import: ver nota en el
+            // import section. Chunk html2pdf-*.js solo se fetch al click.
+            const html2pdf = (await import('html2pdf.js')).default;
             await html2pdf().set(opt).from(htmlString, 'string').save();
             toast.dismiss(toastId);
             toast.success('Receta descargada correctamente');

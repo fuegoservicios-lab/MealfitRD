@@ -17,7 +17,11 @@ import TrackingProgress from '../components/dashboard/TrackingProgress';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
 import { supabase } from '../supabase';
-import html2pdf from 'html2pdf.js';
+// [P2-LAZY-PDF · 2026-05-13] html2pdf.js (976 KB) se importa dinámico
+// dentro del handler de descarga — ver `await import('html2pdf.js')` más
+// abajo. Pre-fix era import estático top-level: el chunk se fetch eager
+// al entrar al Dashboard, 100% de usuarios pagan el costo aunque jamás
+// descarguen PDF. Tooltip-anchor: P2-LAZY-PDF.
 import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
 import { trackEvent } from '../utils/analytics';
 import { safeJSONParse } from '../utils/safeJSONParse';
@@ -1494,6 +1498,9 @@ const Dashboard = () => {
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
+            // [P2-LAZY-PDF · 2026-05-13] Dynamic import: ver nota en el
+            // import section. El chunk html2pdf-*.js se fetch SOLO acá.
+            const html2pdf = (await import('html2pdf.js')).default;
             await html2pdf().set(opt).from(element).save();
 
             toast.dismiss(loadingToast);
