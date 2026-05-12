@@ -23,8 +23,12 @@ const Register = () => {
         setLoading(true);
         setError(null);
 
-        if (password.length < 6) {
-            setError('La contraseña debe tener al menos 6 caracteres.');
+        // [P3-PASSWORD-MIN-LENGTH · 2026-05-12] Subido de 6 → 8 caracteres
+        // alineado con recomendación OWASP. HIBP k-anonymity check abajo
+        // cubre el caso "password filtrada"; este check cubre el caso
+        // "password corta no-filtrada pero brute-forceable".
+        if (password.length < 8) {
+            setError('La contraseña debe tener al menos 8 caracteres.');
             setLoading(false);
             return;
         }
@@ -64,7 +68,7 @@ const Register = () => {
             if (errorMessage === 'User already registered' || errorMessage.includes('already registered')) {
                 errorMessage = 'Este correo electrónico ya está registrado. Por favor, inicia sesión.';
             } else if (errorMessage.includes('Password should be at least')) {
-                errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
+                errorMessage = 'La contraseña debe tener al menos 8 caracteres.';
             } else if (errorMessage.toLowerCase().includes('invalid email')) {
                 errorMessage = 'El correo electrónico ingresado no tiene un formato válido.';
             } else if (errorMessage.toLowerCase().includes('rate limit') || errorMessage.toLowerCase().includes('too many')) {

@@ -4,7 +4,11 @@ import { useAssessment } from '../context/AssessmentContext';
 import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Lock, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { toast } from 'sonner';
-import ReactMarkdown from 'react-markdown';
+// [P3-LAZY-MARKDOWN · 2026-05-12] import de `react-markdown` eliminado:
+// no se usa en este archivo. Pre-fix bundle includuía `react-markdown` +
+// deps remark/mdast (~60KB gzip) en el chunk AgentPage por un import
+// muerto. El uso real vive en MessageBubble + ChatWidget vía LazyMarkdown
+// wrapper que mueve la lib a un chunk async separado.
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
 import { SidebarRecientes } from '../components/agent/SidebarRecientes';
 import { safeJSONParse } from '../utils/safeJSONParse';

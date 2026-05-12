@@ -28,8 +28,20 @@ export default defineConfig(({ mode }) => ({
       srcDir: 'src',
       filename: 'custom-sw.js',
       registerType: 'autoUpdate',
+      // [P2-PWA-DEV-MODE · 2026-05-12] `devOptions.enabled: true` registraba
+      // el Service Worker en `npm run dev`. Riesgos:
+      //   (a) Browsers que abrieron tanto localhost:5173 como mealfitrd.com
+      //       en el mismo dispositivo pueden cachear bundles dev/stale en
+      //       el SW y servirlos de vuelta en sesiones futuras (depende del
+      //       scope del SW por origen).
+      //   (b) Rompe HMR — cualquier cambio de source dispara invalidación
+      //       parcial, dejando el module graph mitad nuevo / mitad cacheado.
+      //   (c) Deja artefactos en `.vite/` que confunden bug reports
+      //       ("¿por qué mi cambio no aparece?" cuando el SW lo intercepta).
+      // Para testear PWA localmente: `npm run build && npm run preview`
+      // (modo production-like sin tocar el binary corriendo).
       devOptions: {
-        enabled: true,
+        enabled: false,
         type: 'module',
       },
       injectManifest: {

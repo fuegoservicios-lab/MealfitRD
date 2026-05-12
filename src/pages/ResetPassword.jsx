@@ -37,8 +37,11 @@ const ResetPassword = () => {
             return;
         }
 
-        if (password.length < 6) {
-            setError('La contraseña debe tener al menos 6 caracteres.');
+        // [P3-PASSWORD-MIN-LENGTH · 2026-05-12] Subido de 6 → 8 caracteres
+        // alineado con Register.jsx + recomendación OWASP. HIBP check abajo
+        // cubre passwords filtradas; este cubre brute-force de cortas.
+        if (password.length < 8) {
+            setError('La contraseña debe tener al menos 8 caracteres.');
             return;
         }
 

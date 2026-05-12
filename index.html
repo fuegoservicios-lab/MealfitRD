@@ -19,25 +19,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="MealfitRD" />
   <link rel="apple-touch-icon" href="/favicon.png" />
-  <!-- DNS prefetch for external resources -->
-  <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-  <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
-
-  <!-- Preconnect to critical origins -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-
-  <!-- Non-render-blocking font loading -->
-  <link
-    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
-    rel="stylesheet"
-    media="print"
-    onload="this.media='all'" />
-  <noscript>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
-      rel="stylesheet" />
-  </noscript>
+  <!-- [P3-SELF-HOST-FONTS · 2026-05-12] Outfit + Plus Jakarta Sans ahora
+       self-hosted en /fonts/*.woff2 (declaraciones @font-face viven en
+       frontend/src/index.css). Pre-fix cargaba CSS + woff2 desde
+       fonts.googleapis.com / fonts.gstatic.com — privacy leak (IP del
+       visitante a Google en cada carga), LCP variable según latencia del
+       CDN externo, dependencia externa para tipografía. Removidos:
+       dns-prefetch + preconnect + <link rel="stylesheet"> + <noscript>
+       fallback a Google. Anchor: P3-SELF-HOST-FONTS. -->
+  <link rel="preload" href="/fonts/QGYvz_MVcBeNP4NJtEtq.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yw.woff2" as="font" type="font/woff2" crossorigin />
   <style>
     #pwa-splash {
       display: flex;

@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+// [P3-LAZY-MARKDOWN · 2026-05-12] react-markdown movido a chunk async via
+// wrapper LazyMarkdown (Suspense + lazy import). Reduce el chunk AgentPage
+// porque react-markdown + remark deps (~60KB gzip) solo se descargan tras
+// el primer render de markdown.
+import LazyMarkdown from '../common/LazyMarkdown';
 import { ThumbsUp, ThumbsDown, RefreshCw, Copy, Check } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
 
@@ -142,7 +146,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                 )}
                 {msg.content && msg.content !== '📷 Imagen enviada' && (
                     <div className="markdown-chat">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        <LazyMarkdown>{msg.content}</LazyMarkdown>
                     </div>
                 )}
                 

@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAssessment } from '../../context/AssessmentContext';
 import { Send, Bot, User, Loader2, Sparkles, MessageSquare, History, Plus, ArrowLeft } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
-import ReactMarkdown from 'react-markdown';
+// [P3-LAZY-MARKDOWN · 2026-05-12] react-markdown ahora lazy via wrapper.
+import LazyMarkdown from '../common/LazyMarkdown';
 import { safeJSONParse } from '../../utils/safeJSONParse';
 
 const ChatWidget = () => {
@@ -561,7 +562,7 @@ const ChatWidget = () => {
                                             )}
                                             {msg.content && msg.content !== '📷 Imagen enviada' && (
                                                 <div className="markdown-chat">
-                                                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                                                    <LazyMarkdown>{msg.content}</LazyMarkdown>
                                                 </div>
                                             )}
                                         </div>
