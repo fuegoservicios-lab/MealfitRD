@@ -73,10 +73,15 @@ const Header = () => {
                 </nav>
 
                 {/* Botón Menú Móvil */}
+                {/* [P2-A11Y-LOGGING · 2026-05-13] aria-label + aria-expanded
+                    para que lectores de pantalla anuncien tanto la acción
+                    ("Abrir/Cerrar menú") como el estado actual del menú. */}
                 {!isPlanLoading && (
                     <button
                         className={styles.mobileToggle}
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        aria-label={isMenuOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
+                        aria-expanded={isMenuOpen}
                     >
                         {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>

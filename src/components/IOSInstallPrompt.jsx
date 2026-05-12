@@ -52,7 +52,10 @@ const IOSInstallPrompt = () => {
             border: '1px solid rgba(0,0,0,0.05)',
             transition: 'transform 0.3s ease-out, opacity 0.3s ease-out'
         }}>
-            <button onClick={dismissPrompt} style={{
+            {/* [P2-A11Y-LOGGING · 2026-05-13] aria-label requerido: icon-only
+                button (X) sin texto visible necesita label para lectores de
+                pantalla. */}
+            <button onClick={dismissPrompt} aria-label="Cerrar aviso de instalación" style={{
                 position: 'absolute', top: '8px', right: '8px',
                 background: 'none', border: 'none', color: '#64748b',
                 padding: '4px', cursor: 'pointer', zIndex: 10

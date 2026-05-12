@@ -151,16 +151,23 @@ const Pricing = () => {
                     </p>
 
                     {/* --- TOGGLE MENSUAL / ANUAL --- */}
-                    <div className={styles.billingToggle}>
+                    {/* [P2-A11Y-LOGGING · 2026-05-13] role="group" + aria-label
+                        en el contenedor + aria-pressed por botón para que
+                        lectores de pantalla anuncien el estado seleccionado.
+                        Sin esto, ambos botones se anuncian igual (visual
+                        active vía className es invisible a la AT). */}
+                    <div className={styles.billingToggle} role="group" aria-label="Periodo de facturación">
                         <button
                             className={`${styles.toggleOption} ${!isAnnual ? styles.toggleActive : ''}`}
                             onClick={() => setBillingPeriod('monthly')}
+                            aria-pressed={!isAnnual}
                         >
                             Mensual
                         </button>
                         <button
                             className={`${styles.toggleOption} ${isAnnual ? styles.toggleActive : ''}`}
                             onClick={() => setBillingPeriod('annual')}
+                            aria-pressed={isAnnual}
                         >
                             Anual
                             <span className={styles.discountBadge}>-25%</span>

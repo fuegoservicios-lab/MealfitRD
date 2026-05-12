@@ -396,8 +396,11 @@ const ChatWidget = () => {
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         {showHistory ? (
-                            <button 
+                            // [P2-A11Y-LOGGING · 2026-05-13] aria-label en
+                            // icon-only ArrowLeft (volver del historial al chat).
+                            <button
                                 onClick={() => setShowHistory(false)}
+                                aria-label="Volver al chat actual"
                                 style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', padding: '4px', borderRadius: '4px' }}
                                 onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
                                 onMouseOut={e => e.currentTarget.style.background = 'none'}
@@ -429,10 +432,15 @@ const ChatWidget = () => {
                     </div>
                     
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        {/* [P2-A11Y-LOGGING · 2026-05-13] aria-label en
+                            icon-only History/Plus. `title=` solo se anuncia
+                            por algunos lectores (no es estándar WAI-ARIA);
+                            duplicamos a aria-label para garantía cross-AT. */}
                         {!showHistory && userProfile?.id && (
-                            <button 
+                            <button
                                 onClick={() => { setShowHistory(true); fetchChatSessions(); }}
                                 title="Ver Historial"
+                                aria-label="Ver historial de chats"
                                 style={{
                                     background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '0.5rem', borderRadius: '0.5rem', cursor: 'pointer', display: 'flex'
                                 }}
@@ -440,9 +448,10 @@ const ChatWidget = () => {
                                 <History size={18} />
                             </button>
                         )}
-                        <button 
+                        <button
                             onClick={handleNewChat}
                             title="Nuevo Chat"
+                            aria-label="Iniciar nuevo chat"
                             style={{
                                 background: '#3B82F6', border: 'none', color: 'white', padding: '0.5rem', borderRadius: '0.5rem', cursor: 'pointer', display: 'flex'
                             }}
@@ -654,8 +663,13 @@ const ChatWidget = () => {
             </div>
 
             {/* Fab Button */}
+            {/* [P2-A11Y-LOGGING · 2026-05-13] aria-label + aria-expanded:
+                el FAB es icon-only (MessageSquare ↔ ×). Sin label, los
+                lectores de pantalla narran "botón" sin contexto. */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
+                aria-label={isOpen ? "Cerrar asistente Mealfit AI" : "Abrir asistente Mealfit AI"}
+                aria-expanded={isOpen}
                 style={{
                     width: '3.5rem',
                     height: '3.5rem',
