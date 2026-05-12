@@ -22,6 +22,7 @@ import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
 import { trackEvent } from '../utils/analytics';
 import { safeJSONParse } from '../utils/safeJSONParse';
 import { getActiveShoppingList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
+import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P1-FORM-9] Helper que filtra flags internos `_*` y bloquea cuando la
 // hidratación cifrada del formData (post-login) parece estar en curso —
 // evita que el spread `{...formData}` envíe campos sensibles vacíos a DB,
@@ -974,8 +975,62 @@ const Dashboard = () => {
             // Obtener duración actual desde el formulario para cambiar la cantidad en el PDF sobre la marcha
             const duration = formData?.groceryDuration || 'weekly';
 
+            // [P2-NEW-14 · 2026-05-11] Pre-PDF drift detection del plan.
+            // Espejo del patrón P2-NEW-4 (Pantry recalc): si chunk worker
+            // recalculó `aggregated_shopping_list*` en background mientras
+            // user estaba en Dashboard, `planData` local está stale. Sin
+            // este prefetch, el PDF se genera con lista vieja.
+            //
+            // Comportamiento:
+            //   - Lectura SELECT estrecho (id+updated_at+plan_data) del plan
+            //     actual filtrando por user_id (ownership).
+            //   - Si `_plan_modified_at` en DB difiere del local → sync
+            //     localStorage + setPlanData + usar fresh para el PDF.
+            //   - Best-effort: cualquier fallo cae al planData en memoria
+            //     (mejor PDF "potencialmente stale" que abortar el download).
+            //   - `effectivePlanData` es la versión que `getActiveShoppingList`
+            //     consume; si no hubo drift, es idéntico a `planData`.
+            let effectivePlanData = planData;
+            try {
+                if (planData?.id && session?.user?.id) {
+                    const { data: latestRow, error: latestErr } = await supabase
+                        .from('meal_plans')
+                        .select('id, updated_at, plan_data')
+                        .eq('id', planData.id)
+                        .eq('user_id', session.user.id)
+                        .maybeSingle();
+                    if (!latestErr && latestRow?.plan_data) {
+                        const latestModified = latestRow.plan_data._plan_modified_at;
+                        const localModified = planData._plan_modified_at;
+                        // Drift solo si AMBOS existen y difieren — un local
+                        // sin marker (legacy) NO debe disparar sync (el
+                        // backend tampoco persistirá un marker si nadie lo
+                        // setea, así que igualdad espuria).
+                        if (latestModified && latestModified !== localModified) {
+                            console.warn(
+                                '[P2-NEW-14] PDF drift detected: ' +
+                                `local=${localModified}, latest=${latestModified}. ` +
+                                'Sincronizando localStorage + state antes del PDF.'
+                            );
+                            const fresh = {
+                                ...latestRow.plan_data,
+                                id: latestRow.id,
+                                updated_at: latestRow.updated_at,
+                            };
+                            try {
+                                localStorage.setItem('mealfit_plan', JSON.stringify(fresh));
+                            } catch (_lsErr) { /* localStorage best-effort */ }
+                            try { setPlanData(fresh); } catch (_setErr) { /* setter best-effort */ }
+                            effectivePlanData = fresh;
+                        }
+                    }
+                }
+            } catch (driftErr) {
+                console.warn('[P2-NEW-14] PDF prefetch drift falló (best-effort):', driftErr);
+            }
+
             // Usar la lista consolidada correcta según el ciclo seleccionado
-            const rawSourceIngredients = getActiveShoppingList(planData, duration) || allPlanIngredients || [];
+            const rawSourceIngredients = getActiveShoppingList(effectivePlanData, duration) || allPlanIngredients || [];
 
             // [P1-PDF-1] Fetch de inventario fresco con timeout + degradación
             // visible. Antes el bloque era un `try/catch` silencioso: si Supabase
@@ -2335,6 +2390,10 @@ const Dashboard = () => {
                                                                     localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
                                                                     setPlanData(result.plan_data);
                                                                     toast.success('Lista actualizada', { id: recalcToast });
+                                                                    // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir
+                                                                    // `_coherence_warnings` post-recalc (silencio
+                                                                    // si endpoint legacy o sin drift).
+                                                                    emitCoherenceToast(toast, result._coherence_warnings);
                                                                 } else toast.dismiss(recalcToast);
                                                             });
                                                         } catch {

@@ -3,7 +3,24 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
-export default defineConfig({
+//
+// [P3-FRONTEND-1 · 2026-05-12] Strip de `console.log/warn/debug/info` y
+// `debugger` en builds production via esbuild. Preserva `console.error` /
+// `console.trace` / `console.assert` para mantener trazas de errores
+// genuinos en prod (críticos para post-mortem cuando un usuario reporta
+// un bug por screenshot). En `mode !== 'production'` (dev, test) no se
+// aplica nada — los logs siguen visibles para Vitest + debug interactivo.
+//
+// Razón del audit 2026-05-11: 141 console.* en 24 archivos source.
+// Muchos legítimos para debug local pero terminaban en el bundle público
+// ofuscando logs de error reales en producción + leak menor de
+// info interna (ej. shape de respuestas, IDs internos).
+//
+// esbuild `pure` marca las funciones como side-effect-free → si el return
+// value no se usa (siempre true para console.*) el call es eliminado por
+// tree-shaking. No requiere terser ni deps extra.
+// Anchor: P3-FRONTEND-1-ESBUILD-DROP-CONSOLE.
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     VitePWA({
@@ -57,6 +74,13 @@ export default defineConfig({
       }
     }
   },
+  // [P3-FRONTEND-1 · 2026-05-12] esbuild config solo en production. En dev
+  // y test los logs se preservan (debug interactivo + Vitest specs que
+  // inspeccionan console output siguen funcionando).
+  esbuild: mode === 'production' ? {
+    drop: ['debugger'],
+    pure: ['console.log', 'console.warn', 'console.debug', 'console.info'],
+  } : {},
   build: {
     // Target modern browsers for smaller output
     target: 'es2020',
@@ -82,4 +106,4 @@ export default defineConfig({
     setupFiles: './src/setupTests.js',
     css: true,
   },
-})
+}))

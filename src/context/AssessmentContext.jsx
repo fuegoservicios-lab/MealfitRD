@@ -65,6 +65,7 @@ const getAlternativeMeal = (mealType, currentMealName, targetCalories, userDietT
     };
 };
 import { toast } from 'sonner';
+import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { fetchWithAuth, restorePlanFromHistory as restorePlanFromHistoryApi } from '../config/api';
 // [P1-B7] Storage seguro para datos sensibles del formulario.
 import {
@@ -707,6 +708,62 @@ export const AssessmentProvider = ({ children }) => {
         sessionRef.current = session;
     }, [session]);
 
+    // [P2-NEW-13 · 2026-05-11] Sync multi-tab del `mealfit_plan` via
+    // storage event.
+    //
+    // Por qué existe (re-audit 2026-05-11):
+    //   Sin este listener, dos tabs abiertas del mismo usuario divergían
+    //   silenciosamente:
+    //     1. Tab A swap-meal vía `/api/plans/{plan_id}/swap-meal/persist`
+    //        → backend persiste vía jsonb_set quirúrgico → frontend Tab A
+    //        actualiza localStorage `mealfit_plan` + `setPlanData(...)`.
+    //     2. Tab B no se entera. Sigue mostrando plan viejo en UI.
+    //     3. Cuando Tab B navega o refresca, lee localStorage fresco —
+    //        pero hasta entonces, el user ve macros/lista de compras del
+    //        plan pre-swap. UX inconsistente entre tabs.
+    //
+    //   Backend está safe (jsonb_set + AND user_id, no lost-update — eso
+    //   lo cerró P0-NEW-A). Este P-fix solo arregla la sincronía visual
+    //   entre tabs. Patrón espejo de Pantry.jsx que ya escucha storage
+    //   para `mealfit_disabled_ingredients` desde 2026-05-08.
+    //
+    // Comportamiento:
+    //   - `storage` event SOLO se dispara en tabs OTRAS — el originador
+    //     ya tiene el estado via `setPlanData` directo.
+    //   - newValue=null (key removida por logout/clear) → resetear
+    //     planData a null en este tab también.
+    //   - parse error → log warning y mantener estado actual (mejor
+    //     UI desactualizada que pantalla blanca).
+    //   - Mismo session check que el resto del contexto: si user logout
+    //     entremedio, no aplicamos cambios.
+    useEffect(() => {
+        const handlePlanStorageChange = (e) => {
+            if (e.key !== 'mealfit_plan') return;
+            // storageArea distinto al window actual → ignorar (sessionStorage
+            // u otro origin no nos afecta).
+            if (e.storageArea && e.storageArea !== window.localStorage) return;
+            try {
+                if (e.newValue === null || e.newValue === '') {
+                    // Plan eliminado en otra tab — sincronizar.
+                    setPlanData(null);
+                    return;
+                }
+                const fresh = JSON.parse(e.newValue);
+                if (fresh && typeof fresh === 'object') {
+                    setPlanData(fresh);
+                }
+            } catch (err) {
+                console.warn(
+                    '[P2-NEW-13] mealfit_plan storage event: parse falló, ' +
+                    'manteniendo estado actual:',
+                    err
+                );
+            }
+        };
+        window.addEventListener('storage', handlePlanStorageChange);
+        return () => window.removeEventListener('storage', handlePlanStorageChange);
+    }, []);
+
     useEffect(() => {
         const handleAuthChange = async (currentSession) => {
             // Evitar actualizaciones innecesarias si la sesión es idéntica.
@@ -1323,6 +1380,9 @@ export const AssessmentProvider = ({ children }) => {
                                         setPlanData(recalcData.plan_data);
                                         localStorage.setItem('mealfit_plan', JSON.stringify(recalcData.plan_data));
                                         console.log("✅ [GAP 3] Lista de compras recalculada vía Delta Matemático tras modificar plato.");
+                                        // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir
+                                        // `_coherence_warnings` post-swap-recalc.
+                                        emitCoherenceToast(toast, recalcData._coherence_warnings);
                                     }
                                 }
                             } catch (recalcErr) {
@@ -1411,6 +1471,22 @@ export const AssessmentProvider = ({ children }) => {
         // El backend ya lo hace en _save_plan_and_track_background() con datos más completos
         // (meal_names, ingredients, techniques, frequency tracking).
         // Guardarlo aquí también causaba duplicados en el historial.
+
+        // [P3-DOC-1 · 2026-05-11] Señal cross-tab para que `History.jsx`
+        // bypassee su threshold de 60s en el listener `visibilitychange`.
+        // ANTES vivía en `Plan.jsx::savePlanToHistory` (eliminada por
+        // P3-DOC-1 — dead code, 0 callers). Acá es el callsite real
+        // post-SSE-success: cuando llegamos a `saveGeneratedPlan`, el
+        // backend ya invocó `_save_plan_and_track_background` y el plan
+        // está persistido. Sin esta señal, un usuario que ya tenía
+        // /history abierto en otra pestaña y vuelve dentro de los 60s
+        // ve el listado pre-mutación. P0-HIST-NEW-2 contract preserved.
+        // Try/catch porque localStorage tira SecurityError en private mode.
+        try {
+            if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.setItem('mealfit_history_dirty_at', String(Date.now()));
+            }
+        } catch { /* SecurityError en modo private/incógnito: silent */ }
 
         setTimeout(async () => {
             await checkPlanLimit();
@@ -1569,23 +1645,20 @@ export const AssessmentProvider = ({ children }) => {
             return restorePlan(pastPlanRow?.plan_data || pastPlanRow);
         }
 
-        // [P1-NEW-4 · 2026-05-11] Guard de ownership defensive ANTES de
-        // pisar state local. Backend `/api/plans/restore` ya filtra por
-        // `user_id` (IDOR-safe), pero un deeplink/fetch interceptado podría
-        // pasar un row con `user_id` ajeno y pintaríamos el plan en el UI
-        // hasta que el endpoint backend rechace. Pre-check abortar temprano.
+        // [P1-NEW-4 · 2026-05-11] [P1-NEW-8 · 2026-05-11] Guard de
+        // ownership defensive (P1-NEW-4) extendido para rechazar user_id
+        // falsy (legacy null, row corrupta) — P1-NEW-8.
         {
             const _currentUid = session?.user?.id || localStorage.getItem('mealfit_user_id');
             if (
-                pastPlanRow.user_id &&
                 _currentUid &&
                 _currentUid !== 'guest' &&
-                pastPlanRow.user_id !== _currentUid
+                (!pastPlanRow.user_id || pastPlanRow.user_id !== _currentUid)
             ) {
                 console.warn(
-                    '[P1-NEW-4] restorePlanFromHistory: ownership mismatch — ' +
+                    '[P1-NEW-4] [P1-NEW-8] restorePlanFromHistory: ownership mismatch — ' +
                     `row.user_id=${pastPlanRow.user_id}, current=${_currentUid}. ` +
-                    'Abortando (no pintar plan ajeno en UI).'
+                    'Abortando (no pintar plan ajeno o sin owner en UI).'
                 );
                 try {
                     toast.error('No se pudo restaurar el plan (sesión inválida).');

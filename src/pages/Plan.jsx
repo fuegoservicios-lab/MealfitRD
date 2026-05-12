@@ -362,70 +362,32 @@ export const generateAIPlanStream = async (formData, onProgress) => {
     return globalGenerationPromise;
 };
 
-// --- GUARDAR PLAN EN HISTORIAL (SUPABASE) ---
-const savePlanToHistory = async (finalPlan) => {
-    if (!finalPlan || (!finalPlan.perfectDay && !finalPlan.meals && !finalPlan.days)) {
-        console.warn("⚠️ Intento de guardar un plan vacío o inválido.");
-        return;
-    }
-    try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-
-            return;
-        }
-
-        const { data: recentPlans } = await supabase
-            .from('meal_plans')
-            .select('created_at')
-            .eq('user_id', session.user.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-        if (recentPlans && recentPlans.length > 0) {
-            const diffSeconds = (Date.now() - new Date(recentPlans[0].created_at).getTime()) / 1000;
-            if (diffSeconds < 60) {
-
-                return;
-            }
-        }
-
-        const calories = parseInt(finalPlan.calories || finalPlan.estimated_calories) || 0;
-        const macros = finalPlan.macros || {};
-        const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        const planName = `Plan del ${new Date().toLocaleDateString('es-DO', dateOptions)}`;
-
-        const { error: saveError } = await supabase.from('meal_plans').insert({
-            user_id: session.user.id,
-            plan_data: finalPlan,
-            name: planName,
-            calories: calories,
-            macros: macros,
-            created_at: new Date().toISOString()
-        });
-
-        if (saveError) {
-            console.error("❌ Error guardando historial:", saveError.message);
-        } else {
-            // [P0-HIST-NEW-2 · 2026-05-09] Señalar inserción para que
-            // <History> bypassee el threshold de 60s del listener de
-            // `visibilitychange`. Sin esto, un usuario que ya tenía la
-            // pestaña /history abierta y vuelve a ella dentro de los
-            // 60s post-save vería el listado pre-mutación (sin el plan
-            // recién insertado) hasta refresh manual o re-mount.
-            // Storage event es local-tab-only (mismo orígen, misma
-            // pestaña al reactivar visibility), así que basta un
-            // localStorage.setItem; no necesitamos BroadcastChannel.
-            try {
-                if (typeof window !== 'undefined' && window.localStorage) {
-                    window.localStorage.setItem('mealfit_history_dirty_at', String(Date.now()));
-                }
-            } catch { /* SecurityError en modo private/incógnito: silent */ }
-        }
-    } catch (dbError) {
-        console.error("⚠️ Error crítico al intentar guardar historial:", dbError);
-    }
-};
+// [P3-DOC-1 · 2026-05-11] `savePlanToHistory` eliminado.
+// ────────────────────────────────────────────────────────────────────────────
+// La función vivía aquí desde antes del audit 2026-05-11 con un INSERT directo
+// a `supabase.from('meal_plans').insert(...)` — única excepción restante a la
+// invariante I6 ("toda mutación de meal_plans pasa por backend"). Audit
+// cross-codebase (`grep -r savePlanToHistory frontend/src`) confirmó CERO
+// callsites. La persistencia del plan post-SSE ya la hace el backend en
+// `services._save_plan_and_track_background` (comentario explícito en
+// `AssessmentContext.jsx:1467`). Mantener la función como dead code era una
+// trampa: cualquier desarrollador futuro podía reactivarla sin saber que
+// reabriría I6 + lost-update vs `_chunk_worker`.
+//
+// La señal `mealfit_history_dirty_at` (que History.jsx lee en su listener
+// `visibilitychange` para bypassear su threshold de 60s post-mutación) se
+// movió a `AssessmentContext.jsx:saveGeneratedPlan` — el callsite real
+// post-SSE-success que sustituye al INSERT eliminado. P0-HIST-NEW-2 sigue
+// vivo: el contrato cross-tab se preserva, sólo cambió quién lo emite.
+//
+// Si en el futuro se necesita un fallback frontend-side (e.g., backend
+// persist falló silente y queremos persistir desde el cliente), crear
+// endpoint backend `POST /api/plans/persist-from-stream` con auth + dedupe
+// + INSERT atómico + `acquire_meal_plan_advisory_lock(purpose='general')`
+// (mismas garantías que `swap-meal/persist`/`restore-local`). NO restaurar
+// el patrón directo `supabase.from('meal_plans').insert()`.
+//
+// Tooltip-anchor: P3-DOC-1-DEAD-CODE-REMOVED
 
 // Duración total del plan según frecuencia de compras del hogar.
 // El backend genera solo 3 días iniciales (PLAN_CHUNK_SIZE) y encola los demás
@@ -728,6 +690,49 @@ const Plan = () => {
         // correr una vez por mount efectivo, no por cada keystroke del form.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loadingSensitive]);
+
+    // [P2-NEW-15 · 2026-05-11] Cancelar SSE + pipeline backend si user
+    // cierra la tab mid-stream.
+    //
+    // Por qué existe (re-audit 2026-05-11):
+    //   `generateAIPlanStream` abre un SSE reader (`response.body.getReader()`)
+    //   que lee chunks del backend durante toda la pipeline (~2-5min).
+    //   Si user cierra la tab mid-stream:
+    //     - El reader queda abierto en heap del frontend → memleak.
+    //     - El backend sigue emitiendo events sin destino → cuota LLM
+    //       quemada para un user que ya se fue.
+    //
+    //   Solución: `beforeunload` listener llama `cancelGeneration()` que
+    //   POSTea `/api/plans/cancel?session_id=X` (cooperative backend
+    //   cancel) + aborta el AbortController local (cierra reader).
+    //
+    // Por qué NO hacemos esto en el cleanup del useEffect de arriba:
+    //   StrictMode (dev) hace double-invoke: mount → cleanup → mount.
+    //   Cancelar en cleanup abortaría el `globalGenerationPromise`
+    //   compartido y el segundo mount lo recibe abortado → UX rota
+    //   en dev. `beforeunload` solo dispara en cierre REAL de tab.
+    //
+    // Limitaciones aceptadas:
+    //   - Nav interna (Plan → Dashboard) no triggerea `beforeunload`.
+    //     El leak persiste hasta que pipeline termine naturalmente
+    //     (~5min). Trade-off consciente vs. complejidad de detectar
+    //     StrictMode replay.
+    //   - Algunos browsers ignoran async work en `beforeunload` —
+    //     el `keepalive: true` en el POST de cancelGeneration cubre
+    //     el caso (fetch sigue tras unload).
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            if (globalGenerationPromise && globalAbortController) {
+                try {
+                    cancelGeneration();
+                } catch (_err) {
+                    /* best-effort: nunca bloquear unload */
+                }
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, []);
 
     // [P0-13] Side-effect de "campo faltante → toast + navigate a /assessment".
     // ANTES vivía inline en render con `setTimeout(0)` + `<Navigate>`, lo cual:

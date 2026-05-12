@@ -8,6 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
 import { SidebarRecientes } from '../components/agent/SidebarRecientes';
 import { safeJSONParse } from '../utils/safeJSONParse';
+import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 const generateIntelligentWelcome = (userProfile, formData, planData) => {
     const nameStr = formData?.name || userProfile?.name || userProfile?.first_name || '';
     const nameParts = nameStr.split(' ');
@@ -1229,6 +1230,16 @@ const AgentPage = () => {
                                         if (dataObj.new_plan) {
                                             saveGeneratedPlan(dataObj.new_plan);
                                         }
+
+                                        // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir
+                                        // `coherence_warnings` propagados desde
+                                        // el state del LangGraph (acumulados
+                                        // por `execute_tools` cuando
+                                        // `modify_single_meal` retorna
+                                        // `_coherence_warnings` del guard
+                                        // P2-COHERENCE-1). Toast no-bloqueante
+                                        // — silencio si lista vacía o ausente.
+                                        emitCoherenceToast(toast, dataObj.coherence_warnings);
 
                                         // Actualizar contador de créditos en tiempo real
                                         setTimeout(async () => {

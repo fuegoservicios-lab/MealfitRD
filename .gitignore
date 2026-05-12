@@ -1,3 +1,14 @@
+# [P2-AUDIT-1 · 2026-05-12] Scratch / dev one-off helpers
+/scratch/
+/lint_results.json
+/checkdb*.js
+/checkdb*.mjs
+/checkdb*.cjs
+/fetch_test*.cjs
+/patch.cjs
+/replace.py
+/print_lint.py
+
 # Logs
 logs
 *.log

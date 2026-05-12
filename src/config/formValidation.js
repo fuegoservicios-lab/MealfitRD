@@ -86,6 +86,18 @@
 // `_REQUIRED_FORM_FIELDS` del backend o el test
 // `backend/test_p0_form_6_required_fields_sync.py` falla intencionalmente.
 //
+// [P3-NEW-10 · 2026-05-11] [FORM-DRIFT-ANCHOR] Contrato de sync
+// bidireccional entre este array y el backend:
+//   - Backend SSOT: `backend/routers/plans.py:_REQUIRED_FORM_FIELDS`.
+//   - Test que enforza la simetría: `backend/tests/test_p0_form_6_required_fields_sync.py`
+//     (parsea ESTE archivo con regex Y compara contra el set backend).
+//   - Excepciones documentadas: `dietType` (solo frontend, compat legacy).
+//   - Convención de orden: alineado con el flujo del wizard para que
+//     `findFirstIncompleteField` lleve al usuario al step más temprano.
+//
+// Grep-anchor para frontend devs: si modificas este array, grep por
+// `[FORM-DRIFT-ANCHOR]` para encontrar TODA la documentación.
+//
 // Total actual: 20 campos. El conteo histórico que aparece en este header
 // ("6 completos" en P0-B3, "19 campos" en el drift documentado de P0-FORM-6)
 // refleja el estado pre-fix; no actualizar esos números — son evidencia

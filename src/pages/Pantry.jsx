@@ -8,6 +8,7 @@ import { fetchWithAuth, API_BASE } from '../config/api';
 import { getEstimatedDailyConsumption } from '../utils/pantryConsumption';
 import { getShelfLifeBadge, getShelfLifeBadgeStyle } from '../utils/shelfLife';
 import { safeJSONParseObject } from '../utils/safeJSONParse';
+import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 
 const CATEGORY_ICONS = {
     'PROTEÍNAS': Beef,
@@ -108,6 +109,14 @@ const Pantry = () => {
     const holdIntervalRef = useRef({});
     const holdTimeoutRef = useRef({});
     const inventoryRef = useRef([]);
+
+    // [P2-NEW-12 · 2026-05-11] Debounce coalescente trailing para
+    // `_recalcShoppingListAfterPantryChange`. Refs vs state porque NO
+    // queremos re-render por cada burst de add/delete.
+    const _recalcDebounceTimer = useRef(null);
+    const _recalcInFlight = useRef(false);
+    const _recalcPendingAfterFlight = useRef(false);
+    const _RECALC_DEBOUNCE_MS = 500; // P2-NEW-12: ventana coalescente
 
     // Mantener inventoryRef fresco para los intervalos asíncronos y fallbacks
     useEffect(() => {
@@ -341,12 +350,73 @@ const Pantry = () => {
                 if (!silentSuccess) {
                     toast.success('Lista de compras actualizada', { icon: '🛒', duration: 3000 });
                 }
+                // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir `_coherence_warnings`
+                // que el backend emite cuando el guard P2-COHERENCE-1 detecta
+                // drift recetas↔lista durante el recalc. Toast no-bloqueante
+                // (silencio si la key está ausente o lista vacía — endpoints
+                // legacy que no emiten warnings siguen funcionando igual).
+                emitCoherenceToast(toast, result._coherence_warnings);
             }
         } catch (recalcErr) {
             // No bloquear al usuario — el cambio en pantry ya se persistió.
             console.warn('⚠️ No se pudo recalcular la lista de compras:', recalcErr);
         }
     };
+
+    // [P2-NEW-12 · 2026-05-11] Wrapper coalescente para los callsites
+    // add/delete INDIVIDUALES (no para `confirmDeleteAll` que mantiene
+    // semántica await directa — toast post-éxito).
+    //
+    // Garantías:
+    //   - Múltiples invocaciones dentro de `_RECALC_DEBOUNCE_MS` (500ms)
+    //     producen UN solo HTTP a `/api/plans/recalculate-shopping-list`.
+    //   - Si una invocación llega mientras OTRO recalc está en flight,
+    //     se marca `_recalcPendingAfterFlight=true` y al terminar el
+    //     en-flight se dispara UN recalc adicional (preserva el último
+    //     estado de la nevera).
+    //   - El timer se cancela en unmount via efecto de cleanup más abajo.
+    //
+    // Trade-off consciente: descarta args (`silentSuccess`/`clearRestockedFlag`)
+    // — los 3 callsites debounced no los pasaban en su forma original
+    // (línea 473, 485, 567 invocaban sin args). El path `confirmDeleteAll`
+    // (línea 510, que SÍ pasa args) sigue inline sin debounce.
+    const _scheduleRecalcShoppingList = () => {
+        if (_recalcInFlight.current) {
+            // Hay un recalc corriendo — marcamos pendiente y volveremos
+            // a schedule al terminar.
+            _recalcPendingAfterFlight.current = true;
+            return;
+        }
+        if (_recalcDebounceTimer.current) {
+            clearTimeout(_recalcDebounceTimer.current);
+        }
+        _recalcDebounceTimer.current = setTimeout(async () => {
+            _recalcDebounceTimer.current = null;
+            _recalcInFlight.current = true;
+            try {
+                await _recalcShoppingListAfterPantryChange();
+            } finally {
+                _recalcInFlight.current = false;
+                if (_recalcPendingAfterFlight.current) {
+                    _recalcPendingAfterFlight.current = false;
+                    // Re-schedule trailing: respeta debounce window.
+                    _scheduleRecalcShoppingList();
+                }
+            }
+        }, _RECALC_DEBOUNCE_MS);
+    };
+
+    // Cleanup del timer si el componente se desmonta mid-debounce —
+    // evita warning "state update on unmounted component" si el recalc
+    // resolve después del unmount y modifica state.
+    useEffect(() => {
+        return () => {
+            if (_recalcDebounceTimer.current) {
+                clearTimeout(_recalcDebounceTimer.current);
+                _recalcDebounceTimer.current = null;
+            }
+        };
+    }, []);
 
     const handleUpdateQuantity = async (id, newQty) => {
         if (newQty < 0) return;
@@ -470,7 +540,9 @@ const Pantry = () => {
                         toast.success(`${deletedItem.ingredient_name} restaurado`, { icon: '↩️', duration: 2000 });
                         // [P3-AUDIT-8] Revertir el delta: el item está de
                         // vuelta, la lista de compras debe excluirlo otra vez.
-                        _recalcShoppingListAfterPantryChange();
+                        // [P2-NEW-12 · 2026-05-11] Debounced — undo masivo no
+                        // genera N recalcs paralelos.
+                        _scheduleRecalcShoppingList();
                     } catch (err) {
                         console.error('Error restaurando item:', err);
                         toast.error('No se pudo restaurar el alimento.');
@@ -482,7 +554,9 @@ const Pantry = () => {
         // [P3-AUDIT-8 · 2026-05-10] Recalcular lista tras delete individual.
         // Sin esto el Dashboard mostraría el item recién eliminado todavía
         // como "ya en nevera" en su display in-app.
-        _recalcShoppingListAfterPantryChange();
+        // [P2-NEW-12 · 2026-05-11] Debounced — delete masivo no genera N
+        // recalcs paralelos al backend.
+        _scheduleRecalcShoppingList();
     };
 
     const confirmDeleteAll = async () => {
@@ -564,7 +638,9 @@ const Pantry = () => {
             // delega a `handleUpdateQuantity` que NO recalcula — qty
             // changes no alteran el set de items y el PDF live-fetch
             // ya cubre ese caso.
-            _recalcShoppingListAfterPantryChange();
+            // [P2-NEW-12 · 2026-05-11] Debounced — añadir N items rápido no
+            // genera N recalcs.
+            _scheduleRecalcShoppingList();
         } catch (error) {
             console.error("Add Error: ", error);
             toast.error("Error al añadir alimento.");
