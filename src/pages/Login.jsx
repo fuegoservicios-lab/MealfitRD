@@ -225,9 +225,10 @@ const Login = () => {
                                                 type="button"
                                                 className={styles.passwordToggle}
                                                 onClick={() => setShowPassword(!showPassword)}
-                                                tabIndex="-1"
+                                                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                                title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                                             >
-                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                                             </button>
                                         </div>
                                     </div>
