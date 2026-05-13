@@ -27,6 +27,12 @@ dist-ssr
 .env
 .env.*
 !.env.example
+# .env.production permitido: solo contiene VITE_* (públicas por diseño,
+# se inlinean al bundle del browser). Vite necesita el archivo físico
+# durante `vite build`, y Nixpacks/EasyPanel NO inyectan env vars al
+# build-time (solo runtime). Secretos reales (service_role, paypal_secret,
+# webhook_id, api keys) viven en backend/.env y NUNCA aquí.
+!.env.production
 
 # Editor directories and files
 .vscode/*
