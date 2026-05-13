@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Flame, Dumbbell, Wheat, Droplet, Activity, Lock } from 'lucide-react';
+import { Flame, Dumbbell, Wheat, Droplet, Activity } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { useAssessment } from '../../context/AssessmentContext';
 import { fetchWithAuth } from '../../config/api';
 import ProteinIcon from '../icons/ProteinIcon';
 import styles from './TrackingProgress.module.css';
 
-const TrackingProgress = ({ planData, userId, isLocked }) => {
+const TrackingProgress = ({ planData, userId }) => {
     const { userProfile } = useAssessment();
-    const navigate = useNavigate();
 
     const [consumed, setConsumed] = useState({
         calories: 0,
@@ -83,46 +81,6 @@ const TrackingProgress = ({ planData, userId, isLocked }) => {
 
     return (
         <div className={styles.card}>
-            {/* Overlay para Plan Gratis */}
-            {isLocked && (
-                <div className={styles.premiumOverlay}>
-                    <div className={styles.premiumBox}>
-                        <Lock size={32} color="#94A3B8" style={{ marginBottom: '1rem' }} />
-                        <h3 style={{ margin: 0, color: '#334155', fontSize: '1.1rem', marginBottom: '0.5rem' }}>Seguimiento de Progreso Interactivo</h3>
-                        <p style={{ margin: 0, color: '#64748B', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                            Actualiza a <strong>Básico</strong> o superior para desbloquear el análisis inteligente de macros en tiempo real.
-                        </p>
-                        <button 
-                            onClick={() => {
-                                navigate('/');
-                                setTimeout(() => {
-                                    const element = document.getElementById('pricing');
-                                    if (element) {
-                                        const yOffset = -20; 
-                                        const y = element.getBoundingClientRect().top + window.scrollY + yOffset;
-                                        window.scrollTo({ top: y, behavior: 'smooth' });
-                                    }
-                                }, 350);
-                            }}
-                            style={{
-                                background: 'white',
-                                border: '1px solid #CBD5E1',
-                                padding: '0.5rem 1.5rem',
-                                borderRadius: '8px',
-                                fontWeight: '600',
-                                color: '#0F172A',
-                                cursor: 'pointer',
-                                marginTop: '1rem',
-                                transition: 'all 0.2s ease',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                            }}
-                        >
-                            Ver Planes
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {/* Header Sector */}
             <div className={styles.header}>
                 <div className={styles.headerLeft}>

@@ -16,18 +16,21 @@ const Footer = () => {
                     </p>
                     <div className={styles.socialLinks}>
                         <a href="https://www.tiktok.com/@mealfitrd?_r=1&_t=ZS-93cjeaZR3NI" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="TikTok">
+                            {/* TikTok glyph oficial — path llena el viewBox 24x24
+                                de manera centrada (logo completo, no solo el "gancho"
+                                abstracto que tenía antes). Usa fill en lugar de stroke
+                                para matchear el peso visual de los íconos lucide
+                                (Instagram/Facebook/Youtube son stroke-based, pero TikTok
+                                queda visualmente mejor como solid fill aquí). */}
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 width="20"
                                 height="20"
                                 viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
+                                fill="currentColor"
+                                aria-hidden="true"
                             >
-                                <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+                                <path d="M16.6 5.82a4.28 4.28 0 0 1-1.06-2.82V2.5h-3.09v12.9a2.59 2.59 0 1 1-2.59-2.59c.27 0 .53.04.78.12V9.66a5.69 5.69 0 0 0-.78-.05 5.69 5.69 0 1 0 5.7 5.69V9.01a7.34 7.34 0 0 0 4.29 1.38V7.3a4.32 4.32 0 0 1-3.25-1.48z" />
                             </svg>
                         </a>
                         <a href="https://www.instagram.com/mealfit_rd?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Instagram">

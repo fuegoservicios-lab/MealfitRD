@@ -2607,7 +2607,6 @@ const Dashboard = () => {
             <TrackingProgress
                 planData={planData}
                 userId={userProfile?.id || formData?.session_id || 'guest'}
-                isLocked={!isPremium}
             />
 
             {/* --- MAIN CONTENT COLUMNS --- */}

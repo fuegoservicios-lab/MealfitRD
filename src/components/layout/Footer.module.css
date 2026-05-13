@@ -81,16 +81,43 @@
 }
 
 .socialIcon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    /* display: grid + place-items: center es más estricto que flex —
+       garantiza centrado en ambos ejes sin depender de baseline o line-height
+       del browser default del <a>. */
+    display: grid;
+    place-items: center;
+    /* box-sizing: border-box asegura que el border de 1px NO añada al
+       tamaño total (sin esto, el círculo sería 42x42 y el contenido se
+       desplaza ligeramente). */
+    box-sizing: border-box;
     width: 40px;
     height: 40px;
+    padding: 0;
+    margin: 0;
+    line-height: 0;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--text-light);
+    text-decoration: none;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* SVG renderizado como block elimina el baseline-spacing residual y
+   se posiciona exactamente en la celda central del grid del padre.
+   Tamaño 22px (no 20) para que el path llene mejor el círculo de 40px:
+   con 20px quedaban ~9px de padding visual a cada lado → el ojo percibe
+   el icono "perdido en el círculo". Con 22 el ratio queda más equilibrado. */
+.socialIcon svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+    grid-area: 1 / 1;
+    /* Offset óptico hacia abajo: lucide-react usa stroke-linecap="round"
+       que carga peso visual en la parte superior de las líneas. Sin este
+       translate los íconos se perciben subidos aunque matemáticamente
+       estén centrados. 5px ajustado tras iteraciones con el usuario. */
+    transform: translateY(5px);
 }
 
 .socialIcon:hover {

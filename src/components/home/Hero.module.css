@@ -64,15 +64,40 @@
 
 
 
-.badge svg {
-    color: #FFF;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    padding: 5px;
+/* Orb brilloso (reemplaza al rayo). Esfera morada con highlight especular
+   superior izquierda + sombra interna inferior derecha para dar la
+   ilusión 3D de "calva pulida". */
+.badgeOrb {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
-    box-sizing: content-box;
-    width: 16px;
-    height: 16px;
-    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.25);
+    background:
+        radial-gradient(circle at 32% 28%,
+            rgba(255, 255, 255, 0.95) 0%,
+            rgba(199, 210, 254, 0.55) 14%,
+            var(--primary) 50%,
+            var(--primary-dark) 100%);
+    box-shadow:
+        0 2px 4px rgba(79, 70, 229, 0.35),
+        inset 0 -2px 5px rgba(15, 23, 42, 0.22),
+        inset 0 1px 2px rgba(255, 255, 255, 0.25);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Reflejo especular extra (highlight pequeño y blando arriba-izquierda) */
+.badgeOrb::before {
+    content: '';
+    position: absolute;
+    top: 14%;
+    left: 22%;
+    width: 32%;
+    height: 22%;
+    background: rgba(255, 255, 255, 0.75);
+    border-radius: 50%;
+    filter: blur(1.5px);
+    pointer-events: none;
 }
 
 .title {

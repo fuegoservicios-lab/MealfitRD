@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
-import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Lock, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost } from 'lucide-react';
+import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { toast } from 'sonner';
 // [P3-LAZY-MARKDOWN · 2026-05-12] import de `react-markdown` eliminado:
@@ -217,11 +217,6 @@ const AgentPage = () => {
 
     // IsMobile detection para asegurar sobrescritura inline a prueba de fallos de iOS
     const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 1024 : false);
-
-    // Determinar nivel del plan
-    const tier = (userProfile?.plan_tier || 'gratis').toLowerCase().trim();
-    const tierRank = tier === 'admin' ? 5 : tier === 'ultra' ? 4 : tier === 'plus' ? 3 : tier === 'basic' ? 2 : 1;
-
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth <= 1024);
@@ -1459,14 +1454,6 @@ const AgentPage = () => {
                             className={`attachment-btn ${isLoading ? 'disabled' : ''}`}
                             disabled={isLoading}
                             onClick={() => {
-                                const tier = (userProfile?.plan_tier || '').toLowerCase();
-                                if (tier === 'gratis') {
-                                    toast.error("Requiere Plan Básico", {
-                                        description: "Mejora a Básico o superior para el Asistente con Visión.",
-                                        icon: "🔒"
-                                    });
-                                    return;
-                                }
                                 if (fileInputRef.current) {
                                     fileInputRef.current.value = '';
                                     fileInputRef.current.click();
@@ -1747,47 +1734,6 @@ const AgentPage = () => {
                         </div>
                     </div>
                 )}
-                {/* Overlay para Plan Gratis */}
-                {tierRank < 2 && (
-                    <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: 'rgba(255, 255, 255, 0.4)',
-                        backdropFilter: 'blur(4px)',
-                        zIndex: 50,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexDirection: 'column',
-                        padding: '2rem',
-                        textAlign: 'center'
-                    }}>
-                        <div style={{
-                            background: 'white',
-                            padding: '2rem',
-                            borderRadius: '1.25rem',
-                            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-                            border: '1px solid #F1F5F9',
-                            maxWidth: '320px'
-                        }}>
-                            <div style={{
-                                background: '#FEF2F2', color: '#EF4444', height: 56, width: 56,
-                                borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                margin: '0 auto 1.25rem'
-                            }}>
-                                <Lock size={28} strokeWidth={2.5} />
-                            </div>
-                            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.75rem', marginTop: 0 }}>Función Premium</h3>
-                            <p style={{ fontSize: '0.95rem', color: '#64748B', lineHeight: 1.5, margin: 0 }}>
-                                Tu Asistente Experto Nutricional requiere una suscripción Básico o superior. ¡Mejora tu plan en ajustes!
-                            </p>
-                        </div>
-                    </div>
-                )}
-
                 {/* Overlay para móvil */}
                 {showSidebar && (
                     <div

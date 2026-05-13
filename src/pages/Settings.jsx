@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
     User, Bell, Shield, ChevronRight, ArrowLeft,
-    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, Sparkles, RefreshCw, ChefHat
+    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -23,7 +23,7 @@ const Settings = () => {
     // Obtenemos userProfile y updateUserProfile del contexto global
     // [P1-FORM-9] `session` necesario para el guard de hidratación cifrada en
     // `buildHealthProfilePayload`.
-    const { planData, formData, resetApp, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session } = useAssessment();
+    const { planData, formData, resetApp, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session, isPremium } = useAssessment();
 
     // [P1-FORM-9] Wrapper análogo al de Dashboard.jsx: filtra flags `_*` y
     // bloquea si la hidratación cifrada del formData parece estar in-flight.
@@ -225,6 +225,12 @@ const Settings = () => {
     const [isLoadingFacts, setIsLoadingFacts] = useState(false);
     const [isDeletingFact, setIsDeletingFact] = useState(null); // ID del fact que se está borrando
 
+    // [LONG-TERM-MEMORY-TOGGLE · 2026-05-13] Estado del toggle del usuario.
+    // `null` = aún no consultado al backend (loading). El componente del toggle
+    // solo monta para isPremium, así que el GET solo dispara para esos usuarios.
+    const [ltmEnabled, setLtmEnabled] = useState(null);
+    const [isLtmToggling, setIsLtmToggling] = useState(false);
+
     // --- ESTADOS DE PAGO ---
     const [isCancelling, setIsCancelling] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
@@ -236,15 +242,34 @@ const Settings = () => {
     // --- NAVEGACIÓN DE SECCIONES ---
     // activeSection puede ser un id de SECTION_IDS o null (en móvil = vista de lista).
     // Sincronizado con window.location.hash para deep-linking y back/forward del navegador.
-    const SECTION_IDS = ['profile', 'notifications', 'plan', 'subscription', 'memory'];
+    const SECTION_IDS = ['profile', 'notifications', 'preferences', 'plan', 'subscription'];
     const computeInitialSection = () => {
         if (typeof window === 'undefined') return 'profile';
+        const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+        // Desktop: siempre arrancar con Perfil al entrar — ignora hash residual
+        // de navegaciones previas. Si el usuario después navega a otra sección
+        // dentro de Settings, el hash se actualiza vía replaceState; pero al
+        // entrar fresco (incluyendo refresh) siempre cae en Perfil.
+        if (!isMobile) return 'profile';
+        // Mobile: respetar hash si es válido (deep-linking), sino mostrar lista.
         const hash = window.location.hash.replace('#', '');
         if (SECTION_IDS.includes(hash)) return hash;
-        if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) return null;
-        return 'profile';
+        return null;
     };
     const [activeSection, setActiveSection] = useState(computeInitialSection);
+
+    // En desktop, limpiar cualquier hash residual de la URL al mount. Sin esto
+    // el browser bar muestra e.g. `/dashboard/settings#preferences` mientras
+    // la UI ya está en Perfil — inconsistencia visual + el back button del
+    // navegador llevaría a una URL con hash que ya no refleja el state.
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (!isMobile && window.location.hash) {
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         if (typeof window === 'undefined') return undefined;
@@ -262,6 +287,23 @@ const Settings = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Listener de cambio de viewport: si user pasa de mobile (state=null en
+    // modo lista) a desktop redimensionando o cerrando DevTools, forzar 'profile'.
+    // Desktop NO tiene "modo lista" — siempre debe haber una sección activa.
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const mql = window.matchMedia('(max-width: 768px)');
+        const handleViewportChange = (e) => {
+            if (!e.matches) {
+                // Cambió a desktop: si state era null (lista mobile) → fuerza 'profile'.
+                // Si ya hay sección activa, mantenerla.
+                setActiveSection((prev) => prev ?? 'profile');
+            }
+        };
+        mql.addEventListener('change', handleViewportChange);
+        return () => mql.removeEventListener('change', handleViewportChange);
+    }, []);
+
     const navigateToSection = (id) => {
         setActiveSection(id);
         if (typeof window === 'undefined') return;
@@ -277,10 +319,10 @@ const Settings = () => {
 
     const sectionsConfig = [
         { id: 'profile', label: 'Perfil', description: 'Nombre, correo y avatar', Icon: User, iconBg: '#EFF6FF', iconColor: '#3B82F6' },
-        { id: 'notifications', label: 'Notificaciones', description: 'Alertas y modo automático', Icon: Bell, iconBg: '#F3E8FF', iconColor: '#9333EA' },
+        { id: 'notifications', label: 'Notificaciones', description: 'Alertas inteligentes', Icon: Bell, iconBg: '#F3E8FF', iconColor: '#9333EA' },
+        { id: 'preferences', label: 'Preferencias', description: 'Modo automático, memoria y datos del agente', Icon: SlidersHorizontal, iconBg: '#FCE7F3', iconColor: '#DB2777' },
         { id: 'plan', label: 'Plan & Objetivo', description: 'Meta principal y calorías', Icon: Trophy, iconBg: '#DCFCE7', iconColor: '#166534' },
         { id: 'subscription', label: 'Suscripción', description: 'Plan, pagos y cancelación', Icon: CreditCard, iconBg: '#E0E7FF', iconColor: '#4F46E5' },
-        { id: 'memory', label: 'Memoria IA', description: 'Lo que el agente recuerda', Icon: Brain, iconBg: '#FEF3C7', iconColor: '#CA8A04' },
     ];
 
     const activeSectionMeta = sectionsConfig.find(s => s.id === activeSection) || null;
@@ -330,6 +372,31 @@ const Settings = () => {
 
         fetchUserFacts();
     }, [userProfile?.id]);
+
+    // [LONG-TERM-MEMORY-TOGGLE · 2026-05-13] Carga el estado actual del toggle
+    // solo para usuarios isPremium. Para gratis ni se monta (no aplica).
+    // Default optimista TRUE si el GET falla — fail-open consistente con el
+    // backend que asume TRUE para perfiles legacy sin el campo.
+    useEffect(() => {
+        if (!userProfile?.id || !isPremium) {
+            setLtmEnabled(null);
+            return;
+        }
+        const fetchLtmState = async () => {
+            try {
+                const response = await fetchWithAuth('/api/user/preferences/memory');
+                if (response.ok) {
+                    const data = await response.json();
+                    setLtmEnabled(Boolean(data.long_term_memory_enabled));
+                } else {
+                    setLtmEnabled(true);
+                }
+            } catch {
+                setLtmEnabled(true);
+            }
+        };
+        fetchLtmState();
+    }, [userProfile?.id, isPremium]);
 
     // --- MANEJADORES (HANDLERS) ---
     
@@ -456,6 +523,36 @@ const Settings = () => {
             toast.error("No se pudo conectar con el servidor para borrar.");
         } finally {
             setIsDeletingFact(null);
+        }
+    };
+
+    // [LONG-TERM-MEMORY-TOGGLE · 2026-05-13] Handler del toggle.
+    // Optimistic update: refleja el cambio en UI antes del response. Si el
+    // PATCH falla, revierte el state y notifica al usuario.
+    const handleToggleLtm = async () => {
+        if (isLtmToggling || ltmEnabled === null) return;
+        const next = !ltmEnabled;
+        setLtmEnabled(next); // optimistic
+        setIsLtmToggling(true);
+        try {
+            const response = await fetchWithAuth('/api/user/preferences/memory', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ long_term_memory_enabled: next }),
+            });
+            if (!response.ok) throw new Error('PATCH failed');
+            const data = await response.json();
+            setLtmEnabled(Boolean(data.long_term_memory_enabled));
+            toast.success(
+                next ? 'Memoria a largo plazo activada.' : 'Memoria a largo plazo pausada. Tus datos guardados se conservan.',
+                { duration: 3500 }
+            );
+        } catch (error) {
+            console.error('Error toggling LTM:', error);
+            setLtmEnabled(!next); // revertir
+            toast.error('No pudimos actualizar tu preferencia. Inténtalo de nuevo.');
+        } finally {
+            setIsLtmToggling(false);
         }
     };
 
@@ -1100,7 +1197,27 @@ const Settings = () => {
                                 </div>
                             )}
 
-                            {/* [P1-4] Toggle de modo de logging */}
+                        </section>
+                    )}
+
+                    {/* SECCIÓN PREFERENCIAS: Modo Automático + Memoria a Largo Plazo.
+                        Modo Automático: visible para todos los usuarios autenticados.
+                        Memoria a Largo Plazo: visible SOLO para isPremium (Básico+).
+                        Para usuarios Gratis la sección sigue mostrándose, pero solo
+                        contiene el Modo Automático — el toggle de memoria está oculto. */}
+                    {activeSection === 'preferences' && (
+                        <section className={styles.section}>
+                            <h2 className={styles.sectionTitle}>
+                                <div style={{ background: '#FCE7F3', padding: '0.5rem', borderRadius: '0.5rem', color: '#DB2777' }}>
+                                    <SlidersHorizontal size={20} />
+                                </div>
+                                Comportamiento del agente
+                            </h2>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                                Ajusta cómo el agente registra tus comidas y aprende de ti.
+                            </p>
+
+                            {/* Toggle: Modo automático (todos los tiers) */}
                             <div style={{
                                 background: 'linear-gradient(135deg, #F8F7FF 0%, #F0EEFF 50%, #EEF2FF 100%)',
                                 borderRadius: '1rem',
@@ -1110,7 +1227,7 @@ const Settings = () => {
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
                                 gap: '1rem',
-                                marginTop: '0.75rem'
+                                marginBottom: '1rem'
                             }}>
                                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
                                     <div style={{
@@ -1142,6 +1259,173 @@ const Settings = () => {
                                 </label>
                             </div>
 
+                            {/* Toggle: Memoria a Largo Plazo (solo Básico+).
+                                [LONG-TERM-MEMORY-TOGGLE · 2026-05-13] Reutiliza state
+                                ltmEnabled + handler handleToggleLtm definidos arriba. */}
+                            {isPremium && ltmEnabled !== null && (
+                                <div style={{
+                                    background: ltmEnabled ? 'linear-gradient(135deg, #F0FDF4 0%, #FFFFFF 100%)' : '#F8FAFC',
+                                    borderRadius: '1rem',
+                                    padding: '1.25rem',
+                                    border: `1px solid ${ltmEnabled ? '#86EFAC' : '#CBD5E1'}`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: '1rem',
+                                    transition: 'all 0.2s ease',
+                                }}>
+                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
+                                        <div style={{
+                                            background: 'linear-gradient(135deg, #8B5CF6 0%, #4F46E5 100%)',
+                                            padding: '0.75rem',
+                                            borderRadius: '0.75rem',
+                                            flexShrink: 0,
+                                            boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)'
+                                        }}>
+                                            <Brain size={20} color="#FFFFFF" />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem' }}>
+                                                Memoria a Largo Plazo
+                                            </div>
+                                            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.45', marginTop: '0.25rem' }}>
+                                                {ltmEnabled
+                                                    ? 'Activa. La IA aprende de tus conversaciones y recuerda lo importante.'
+                                                    : 'Pausada. La IA no aprende ni consulta lo aprendido. Tus datos guardados se conservan.'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleToggleLtm}
+                                        disabled={isLtmToggling}
+                                        role="switch"
+                                        aria-checked={ltmEnabled}
+                                        aria-label="Activar o pausar la memoria a largo plazo"
+                                        style={{
+                                            position: 'relative',
+                                            width: '52px',
+                                            height: '30px',
+                                            borderRadius: '999px',
+                                            border: 'none',
+                                            background: ltmEnabled ? '#10B981' : '#CBD5E1',
+                                            cursor: isLtmToggling ? 'wait' : 'pointer',
+                                            transition: 'background 0.2s ease',
+                                            flexShrink: 0,
+                                            padding: 0,
+                                            opacity: isLtmToggling ? 0.6 : 1,
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                position: 'absolute',
+                                                top: '3px',
+                                                left: ltmEnabled ? '25px' : '3px',
+                                                width: '24px',
+                                                height: '24px',
+                                                borderRadius: '50%',
+                                                background: '#FFFFFF',
+                                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
+                                                transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            }}
+                                        />
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Sub-sección: Lo que el agente recuerda (datos extraídos).
+                                Fusionada desde el antiguo apartado "Memoria IA".
+                                Para gratis: lockscreen con upsell.
+                                Para Básico+: lista de userFacts con opción de borrar. */}
+                            <div style={{
+                                marginTop: '1.5rem',
+                                paddingTop: '1.5rem',
+                                borderTop: '1px solid rgba(15, 23, 42, 0.08)',
+                            }}>
+                                <h3 style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.6rem',
+                                    fontSize: '1rem',
+                                    fontWeight: 800,
+                                    color: 'var(--text-main)',
+                                    margin: '0 0 0.4rem 0',
+                                    letterSpacing: '-0.01em',
+                                }}>
+                                    <div style={{ background: '#FEF3C7', padding: '0.4rem', borderRadius: '0.5rem', color: '#CA8A04', display: 'flex' }}>
+                                        <Brain size={16} />
+                                    </div>
+                                    Lo que el agente recuerda
+                                </h3>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.1rem', lineHeight: 1.5 }}>
+                                    Datos puntuales que la IA aprendió de tus conversaciones. Borra los que ya no necesite saber.
+                                </p>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                                    {!isPremium ? (
+                                        <div style={{ textAlign: 'center', color: '#94A3B8', padding: '2.5rem 1.5rem', background: '#F8FAFC', borderRadius: '1rem', border: '1px dashed #CBD5E1' }}>
+                                            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔒</div>
+                                            <h4 style={{ margin: '0 0 0.5rem 0', color: '#334155' }}>Memoria a Largo Plazo</h4>
+                                            <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5, color: '#64748B' }}>
+                                                El Cerebro IA está disponible a partir del plan <strong>Básico</strong>.<br />
+                                                La IA aprenderá de tus gustos y conversaciones automáticamente.
+                                            </p>
+                                        </div>
+                                    ) : isLoadingFacts ? (
+                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', background: '#F8FAFC', borderRadius: '1rem' }}>
+                                            Conectando con el Cerebro Neural...
+                                        </div>
+                                    ) : userFacts.length === 0 ? (
+                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', background: '#F8FAFC', borderRadius: '1rem' }}>
+                                            Aún no he aprendido datos extra sobre ti. ¡Sigue conversando!
+                                        </div>
+                                    ) : (
+                                        userFacts.map(fact => (
+                                            <div key={fact.id} className={styles.factItem} style={{
+                                                opacity: isDeletingFact === fact.id ? 0.5 : 1
+                                            }}>
+                                                <div className={styles.factContent}>
+                                                    <div className={styles.factText}>
+                                                        "{fact.fact}"
+                                                    </div>
+                                                    <div className={styles.factMeta}>
+                                                        <span style={{ background: '#E2E8F0', padding: '2px 8px', borderRadius: '4px', textTransform: 'capitalize' }}>
+                                                            {fact.metadata?.categoria || 'Dato'}
+                                                        </span>
+                                                        {fact.metadata?.ingrediente && (
+                                                            <span style={{ border: '1px solid #CBD5E1', padding: '2px 8px', borderRadius: '4px' }}>
+                                                                {fact.metadata.ingrediente}
+                                                            </span>
+                                                        )}
+                                                        <span>Añadido: {new Date(fact.created_at).toLocaleDateString()}</span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDeleteFact(fact.id)}
+                                                    disabled={isDeletingFact === fact.id}
+                                                    style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        color: '#EF4444',
+                                                        cursor: 'pointer',
+                                                        padding: '0.5rem',
+                                                        borderRadius: '0.5rem',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        transition: 'background 0.2s',
+                                                    }}
+                                                    onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'}
+                                                    onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                                                    title="Olvidar Dato"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
                         </section>
                     )}
 
@@ -1347,85 +1631,8 @@ const Settings = () => {
                     </section>
                     )}
 
-                    {/* SECCIÓN 5: MEMORIA IA */}
-                    {activeSection === 'memory' && (
-                    <section className={styles.section}>
-                        <h2 className={styles.sectionTitle} style={{ marginBottom: '0.5rem' }}>
-                            <div style={{ background: '#FEF08A', padding: '0.5rem', borderRadius: '0.5rem', color: '#CA8A04' }}>
-                                <Brain size={20} />
-                            </div>
-                            Memoria
-                        </h2>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                            Tu Agente aprende de tus conversaciones para ser más preciso. Borra lo que ya no necesite saber.
-                        </p>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {!['basic', 'plus', 'ultra', 'admin'].includes((userProfile?.plan_tier || '').toLowerCase()) ? (
-                                <div style={{ textAlign: 'center', color: '#94A3B8', padding: '2.5rem 1.5rem', background: '#F8FAFC', borderRadius: '1rem', border: '1px dashed #CBD5E1' }}>
-                                    <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔒</div>
-                                    <h3 style={{ margin: '0 0 0.5rem 0', color: '#334155' }}>Memoria a Largo Plazo</h3>
-                                    <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5, color: '#64748B' }}>
-                                        El Cerebro IA está disponible a partir del plan <strong>Básico</strong>.<br />
-                                        La IA aprenderá de tus gustos y conversaciones automáticamente.
-                                    </p>
-                                </div>
-                            ) : isLoadingFacts ? (
-                                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', background: '#F8FAFC', borderRadius: '1rem' }}>
-                                    Conectando con el Cerebro Neural...
-                                </div>
-                            ) : userFacts.length === 0 ? (
-                                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', background: '#F8FAFC', borderRadius: '1rem' }}>
-                                    Aún no he aprendido datos extra sobre ti. ¡Sigue conversando!
-                                </div>
-                            ) : (
-                                userFacts.map(fact => (
-                                    <div key={fact.id} className={styles.factItem} style={{ 
-                                        opacity: isDeletingFact === fact.id ? 0.5 : 1
-                                    }}>
-                                        <div className={styles.factContent}>
-                                            <div className={styles.factText}>
-                                                "{fact.fact}"
-                                            </div>
-                                            <div className={styles.factMeta}>
-                                                <span style={{ background: '#E2E8F0', padding: '2px 8px', borderRadius: '4px', textTransform: 'capitalize' }}>
-                                                    {fact.metadata?.categoria || 'Dato'}
-                                                </span>
-                                                {fact.metadata?.ingrediente && (
-                                                    <span style={{ border: '1px solid #CBD5E1', padding: '2px 8px', borderRadius: '4px' }}>
-                                                        {fact.metadata.ingrediente}
-                                                    </span>
-                                                )}
-                                                <span>Añadido: {new Date(fact.created_at).toLocaleDateString()}</span>
-                                            </div>
-                                        </div>
-                                        <button 
-                                            onClick={() => handleDeleteFact(fact.id)}
-                                            disabled={isDeletingFact === fact.id}
-                                            style={{
-                                                background: 'none',
-                                                border: 'none',
-                                                color: '#EF4444',
-                                                cursor: 'pointer',
-                                                padding: '0.5rem',
-                                                borderRadius: '0.5rem',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                transition: 'background 0.2s',
-                                            }}
-                                            onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'}
-                                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                                            title="Olvidar Dato"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </section>
-                    )}
+                    {/* Sección "Memoria IA" eliminada: su contenido fue fusionado
+                        dentro de Preferencias como sub-sección "Lo que el agente recuerda". */}
                         </div>
                     </main>
                 </div>

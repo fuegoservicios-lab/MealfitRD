@@ -563,7 +563,7 @@
     }
 
     .sidebarItem + .sidebarItem {
-        border-top: 1px solid rgba(226, 232, 240, 0.7);
+        border-top: 1px solid #CBD5E1;
     }
 
     .sidebarItemActive {

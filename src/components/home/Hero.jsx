@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, CheckCircle, Zap, Utensils, Activity, TrendingUp, ChevronRight, PlayCircle } from 'lucide-react';
+import { ArrowRight, FlaskConical, Wallet, Bot, ShieldCheck, Unlock, Utensils, Activity, TrendingUp, ChevronRight, PlayCircle } from 'lucide-react';
 import styles from './Hero.module.css';
 import { useAssessment } from '../../context/AssessmentContext';
 import heroBg from '../../assets/hero-bg.webp';
@@ -23,7 +23,7 @@ const Hero = () => {
                         transition={{ duration: 0.8, ease: "easeOut" }}
                     >
                         <div className={styles.badge}>
-                            <Zap size={14} /> Nueva Generación en Nutrición
+                            <span className={styles.badgeOrb} aria-hidden="true" /> Nueva Generación en Nutrición
                         </div>
 
                         <h1 className={styles.title}>
@@ -54,12 +54,24 @@ const Hero = () => {
 
                         <div className={styles.trust}>
                             <div className={styles.trustItem}>
-                                <CheckCircle size={16} className={styles.trustIcon} />
+                                <FlaskConical size={16} className={styles.trustIcon} strokeWidth={2.25} />
                                 <span>100% Basado en Ciencia</span>
                             </div>
                             <div className={styles.trustItem}>
-                                <CheckCircle size={16} className={styles.trustIcon} />
+                                <Bot size={16} className={styles.trustIcon} strokeWidth={2.25} />
+                                <span>Personalizado con IA</span>
+                            </div>
+                            <div className={styles.trustItem}>
+                                <Wallet size={16} className={styles.trustIcon} strokeWidth={2.25} />
                                 <span>Adaptado a tu Presupuesto</span>
+                            </div>
+                            <div className={styles.trustItem}>
+                                <ShieldCheck size={16} className={styles.trustIcon} strokeWidth={2.25} />
+                                <span>Privacidad Garantizada</span>
+                            </div>
+                            <div className={styles.trustItem}>
+                                <Unlock size={16} className={styles.trustIcon} strokeWidth={2.25} />
+                                <span>Cancela Cuando Quieras</span>
                             </div>
                         </div>
                     </motion.div>
