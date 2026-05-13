@@ -1,0 +1,3 @@
+## 2026-05-13 - Keyboard-Accessible Password Toggles
+**Learning:** Password visibility toggles often use `tabIndex="-1"` to prevent interrupting form flow, but this completely blocks keyboard-only users from accessing the toggle. In addition, using icon-only buttons without `aria-label`s leaves screen reader users without context, and visual users without a tooltip.
+**Action:** When implementing password toggles (or any icon-only button within inputs), remove `tabIndex="-1"`, add dynamic `aria-label`s and `title` attributes that reflect the current state (e.g., 'Mostrar contraseña' / 'Ocultar contraseña'), and add `aria-hidden="true"` to the internal SVG icons to prevent redundant screen reader announcements.
