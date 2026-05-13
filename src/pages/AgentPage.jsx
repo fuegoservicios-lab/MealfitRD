@@ -214,6 +214,7 @@ const AgentPage = () => {
     const [titlePollCount, setTitlePollCount] = useState(0);
     const [showNavMenu, setShowNavMenu] = useState(false);
     const navMenuRef = useRef(null);
+    const inputWrapperRef = useRef(null);
 
     // IsMobile detection para asegurar sobrescritura inline a prueba de fallos de iOS
     const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 1024 : false);
@@ -234,6 +235,35 @@ const AgentPage = () => {
         if (showNavMenu) document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showNavMenu]);
+
+    // [MOBILE-KEYBOARD-LIFT] Eleva el input wrapper sobre el teclado iOS.
+    // Sin esto, el `position: sticky` no responde al keyboard porque iOS Safari
+    // mueve el "visual viewport" (donde el usuario VE) pero no el "layout
+    // viewport" (donde CSS posiciona). Solución: listen a window.visualViewport
+    // y aplicar transform: translateY(-offset) al wrapper, replicando el
+    // patrón de Gemini/ChatGPT/Claude en mobile.
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.visualViewport) return undefined;
+        const vv = window.visualViewport;
+
+        const updateInputPosition = () => {
+            const wrapper = inputWrapperRef.current;
+            if (!wrapper) return;
+            // offsetBottom > 0 cuando el teclado está abierto (visual viewport
+            // más pequeño que window.innerHeight). vv.offsetTop captura el caso
+            // de scroll dentro del visual viewport (raro pero defensivo).
+            const offsetBottom = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+            wrapper.style.transform = offsetBottom > 0 ? `translateY(-${offsetBottom}px)` : '';
+        };
+
+        vv.addEventListener('resize', updateInputPosition);
+        vv.addEventListener('scroll', updateInputPosition);
+        updateInputPosition();
+        return () => {
+            vv.removeEventListener('resize', updateInputPosition);
+            vv.removeEventListener('scroll', updateInputPosition);
+        };
+    }, []);
 
     const [localSessionId, setLocalSessionId] = useState(() => {
         const saved = localStorage.getItem('mealfit_guest_session');
@@ -1331,7 +1361,7 @@ const AgentPage = () => {
     };
 
     const renderInputArea = (isCentered = false) => (
-        <div className="input-wrapper" style={{
+        <div className="input-wrapper" ref={inputWrapperRef} style={{
             padding: isCentered ? '1.5rem 1.25rem 2.5rem 1.25rem' : '1.25rem 2rem',
             background: isCentered ? '#ffffff' : 'rgba(255, 255, 255, 0.9)',
             backdropFilter: isCentered ? 'none' : 'blur(12px)',
@@ -1345,6 +1375,10 @@ const AgentPage = () => {
             right: 0,
             width: '100%',
             zIndex: 10,
+            // [MOBILE-KEYBOARD-LIFT] transition para que el translateY del
+            // visualViewport handler sea suave en lugar de saltar abrupto.
+            transition: 'transform 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
+            willChange: 'transform',
         }}>
             <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', position: 'relative' }}>
 
