@@ -122,6 +122,9 @@ const Dashboard = () => {
         });
     });
 
+    // [⚡ Bolt] Optimize lookups from O(N) to O(1) in render loops
+    const disabledIngredientsSet = useMemo(() => new Set(disabledIngredients), [disabledIngredients]);
+
     // Estados para Compras con 1 clic
     const [showRestockModal, setShowRestockModal] = useState(false);
     const [isRestocking, setIsRestocking] = useState(false);
@@ -1630,7 +1633,7 @@ const Dashboard = () => {
                     if (match) name = match[2];
                 }
                 return { raw, structured, normalized: name.toLowerCase().trim() };
-            }).filter(item => !disabledIngredients.includes(item.normalized))
+            }).filter(item => !disabledIngredientsSet.has(item.normalized))
                 .map(item => item.structured || item.raw);
 
             if (sourceIngredients.length === 0) {
@@ -3418,14 +3421,14 @@ const Dashboard = () => {
                                 <div className="soft-scrollbar" style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '350px', overflowY: 'auto', padding: '0.25rem', paddingRight: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
                                     {[...physicalPantryIngredients]
                                         .sort((a, b) => {
-                                            const aDisabled = disabledIngredients.includes(a.name.toLowerCase().trim());
-                                            const bDisabled = disabledIngredients.includes(b.name.toLowerCase().trim());
+                                            const aDisabled = disabledIngredientsSet.has(a.name.toLowerCase().trim());
+                                            const bDisabled = disabledIngredientsSet.has(b.name.toLowerCase().trim());
                                             if (aDisabled !== bDisabled) return aDisabled ? 1 : -1;
                                             return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
                                         })
                                         .map((ingObj, idx) => {
                                             const normalizedName = ingObj.name.toLowerCase().trim();
-                                            const isDisabled = disabledIngredients.includes(normalizedName);
+                                            const isDisabled = disabledIngredientsSet.has(normalizedName);
                                             const quantity = ingObj.quantity;
                                             const name = ingObj.name;
 
