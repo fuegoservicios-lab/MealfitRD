@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
-import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost } from 'lucide-react';
+import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Home } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { toast } from 'sonner';
 // [P3-LAZY-MARKDOWN · 2026-05-12] import de `react-markdown` eliminado:
@@ -1464,26 +1464,42 @@ const AgentPage = () => {
                             <Paperclip size={20} strokeWidth={2} />
                         </button>
 
-                        <input
-                            type="text"
+                        {/* Convertido de <input type="text"> a <textarea> para
+                            que iOS Safari NO active el "Form Assistant" (la barra
+                            con flechas ↑↓ + checkmark que aparecía encima del
+                            teclado). Los textareas no disparan ese accessory bar.
+                            rows={1} + style line-height + auto-resize mantienen
+                            look single-line; Shift+Enter = newline (handleKeyDown
+                            ya respeta esto). */}
+                        <textarea
+                            rows={1}
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
                             placeholder={micErrorMsg || "Pregúntale a MealfitRD"}
                             onFocus={() => setTimeout(scrollToBottom, 300)}
+                            onInput={(e) => {
+                                // Auto-resize hasta 120px (≈5 líneas), después scroll interno
+                                e.target.style.height = 'auto';
+                                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                            }}
                             enterKeyHint="send"
                             style={{
                                 flex: 1,
                                 background: 'transparent',
                                 border: 'none',
-                                padding: '0 0.5rem',
+                                padding: '0.4rem 0.5rem',
                                 borderRadius: '0',
                                 fontSize: '1rem',
+                                lineHeight: '1.4',
                                 outline: 'none',
                                 color: '#1e293b',
                                 fontFamily: 'inherit',
-                                minWidth: 0 // Prevents input from breaking flex layout
+                                minWidth: 0,
+                                resize: 'none',
+                                overflow: 'auto',
+                                maxHeight: '120px'
                             }}
                         />
                         {isLoading ? (
@@ -1853,9 +1869,10 @@ const AgentPage = () => {
                                     {[
                                         { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
                                         { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' },
-
+                                        { icon: Refrigerator, label: 'Nevera', path: '/dashboard/pantry' },
                                         { icon: Clock, label: 'Historial', path: '/history' },
-                                        { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' }
+                                        { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' },
+                                        { icon: Home, label: 'Inicio', path: '/' }
                                     ].map((item) => (
                                         <button
                                             key={item.path}
