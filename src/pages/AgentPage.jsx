@@ -253,7 +253,16 @@ const AgentPage = () => {
             // más pequeño que window.innerHeight). vv.offsetTop captura el caso
             // de scroll dentro del visual viewport (raro pero defensivo).
             const offsetBottom = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-            wrapper.style.transform = offsetBottom > 0 ? `translateY(-${offsetBottom}px)` : '';
+            if (offsetBottom > 0) {
+                // Keyboard abierto: elevar Y colapsar el padding-bottom para
+                // que el input quede pegado al accessory bar (sin gap visual).
+                wrapper.style.transform = `translateY(-${offsetBottom}px)`;
+                wrapper.style.paddingBottom = '0.5rem';
+            } else {
+                // Keyboard cerrado: restaurar a los valores definidos en style inline.
+                wrapper.style.transform = '';
+                wrapper.style.paddingBottom = '';
+            }
         };
 
         vv.addEventListener('resize', updateInputPosition);
