@@ -264,9 +264,81 @@ export const buildHistoricalCoherenceToast = (history, opts = {}) => {
     return { severity, title, description, count: recent.length };
 };
 
+// [P3-HISTORICAL-TOAST-DISMISS · 2026-05-14] Persistencia del dismiss
+// del toast histórico en localStorage. Pre-fix:
+// `emitHistoricalCoherenceToast` emitía el toast en CADA descarga de
+// PDF si había entries en `_shopping_coherence_block_history` ≤48h. Si
+// el usuario lo cerraba y descargaba PDF 3 veces seguidas, veía el
+// mismo toast 3 veces — molesto.
+//
+// Fix:
+//   1. Antes de emitir, leer `mealfit_coherence_toast_dismissed_at`
+//      de localStorage. Si dismiss < windowHours previas, omitir el
+//      toast (usuario ya lo vio y lo cerró).
+//   2. Al emitir, pasar `onDismiss` callback al toast de sonner que
+//      escribe `Date.now()` al localStorage cuando el usuario cierra
+//      manualmente (X o swipe).
+//
+// Cap defensivo: el dismiss state expira tras `windowHours` (default
+// 48h) — mismo cap que el filtro de entries históricas. Si pasa el
+// cap, el toast vuelve a aparecer (asume que el contexto cambió y
+// vale la pena re-notificar).
+
+const _DISMISS_STORAGE_KEY = 'mealfit_coherence_toast_dismissed_at';
+
+/**
+ * Lee timestamp de dismiss desde localStorage (best-effort, retorna
+ * `null` si storage unavailable / valor inválido).
+ */
+const _readDismissAt = () => {
+    try {
+        const raw = typeof localStorage !== 'undefined'
+            ? localStorage.getItem(_DISMISS_STORAGE_KEY)
+            : null;
+        if (raw === null || raw === undefined || raw === '') return null;
+        const n = parseInt(raw, 10);
+        return Number.isFinite(n) ? n : null;
+    } catch {
+        return null;
+    }
+};
+
+/**
+ * Escribe `Date.now()` al localStorage (best-effort, no-op si storage
+ * unavailable). Llamado desde el `onDismiss` del toast.
+ */
+const _writeDismissAt = () => {
+    try {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(_DISMISS_STORAGE_KEY, String(Date.now()));
+        }
+    } catch { /* best-effort */ }
+};
+
+/**
+ * Determina si el dismiss persistido cae DENTRO de la ventana actual.
+ * Exportado para tests; el consumer normal solo lo usa indirectamente.
+ *
+ * @param {number} windowHours - ventana del dismiss state (default 48).
+ * @returns {boolean} true si el usuario dismissed dentro del cap → skip toast.
+ */
+export const isHistoricalToastRecentlyDismissed = (windowHours = 48) => {
+    const dismissedAt = _readDismissAt();
+    if (dismissedAt === null) return false;
+    const cap = (Number.isFinite(windowHours) && windowHours > 0 ? windowHours : 48) * 3600 * 1000;
+    const age = Date.now() - dismissedAt;
+    if (age < 0) return false; // clock skew → ignorar
+    return age < cap;
+};
+
 /**
  * Emite toast a partir del historial. Misma semántica de fallback que
  * `emitCoherenceToast` (sonner API resiliente).
+ *
+ * [P3-HISTORICAL-TOAST-DISMISS · 2026-05-14] Respeta dismiss persistido
+ * en localStorage: si el usuario cerró el toast dentro de `windowHours`
+ * (default 48h), omite emit en este call. El timestamp se reescribe via
+ * `onDismiss` cuando el usuario vuelve a cerrarlo.
  *
  * @param {Object} toast - sonner toast namespace
  * @param {Array|null|undefined} history
@@ -280,15 +352,23 @@ export const emitHistoricalCoherenceToast = (toast, history, options = {}) => {
     if (!descriptor) {
         return null;
     }
+    // [P3-HISTORICAL-TOAST-DISMISS] Skip si el usuario dismissed reciente.
+    const windowHours = typeof options.windowHours === 'number' && options.windowHours >= 0
+        ? options.windowHours
+        : 48;
+    if (isHistoricalToastRecentlyDismissed(windowHours)) {
+        return null;
+    }
     const { severity, title, description } = descriptor;
     const duration = typeof options.duration === 'number' ? options.duration : 8000;
+    const toastOpts = { description, duration, onDismiss: _writeDismissAt };
     const emitter = severity === 'warning' ? toast.warning : toast.info;
     if (typeof emitter !== 'function') {
         if (typeof toast === 'function') {
-            toast(title, { description, duration });
+            toast(title, toastOpts);
         }
         return descriptor;
     }
-    emitter(title, { description, duration });
+    emitter(title, toastOpts);
     return descriptor;
 };
