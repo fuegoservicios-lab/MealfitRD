@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import TrackingProgress from '../components/dashboard/TrackingProgress';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
+import EmptyState from '../components/common/EmptyState';
 import { supabase } from '../supabase';
 // [P2-LAZY-PDF · 2026-05-13] html2pdf.js (976 KB) se importa dinámico
 // dentro del handler de descarga — ver `await import('html2pdf.js')` más
@@ -26,7 +27,7 @@ import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
 import { trackEvent } from '../utils/analytics';
 import { safeJSONParse } from '../utils/safeJSONParse';
 import { getActiveShoppingList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
-import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
+import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P1-FORM-9] Helper que filtra flags internos `_*` y bloquea cuando la
 // hidratación cifrada del formData (post-login) parece estar en curso —
 // evita que el spread `{...formData}` envíe campos sensibles vacíos a DB,
@@ -1033,6 +1034,23 @@ const Dashboard = () => {
                 console.warn('[P2-NEW-14] PDF prefetch drift falló (best-effort):', driftErr);
             }
 
+            // [P2-SHOPPING-1 · 2026-05-14] Telemetría visible al usuario del
+            // historial de revisiones automáticas del plan. Las superficies
+            // que persisten `_shopping_coherence_block_history` (chunk worker
+            // T2, recalc, agent_tool, cron diario, /recipe/expand) NO emiten
+            // toast — y el handler PDF se invoca directo (sin recalc previo),
+            // por lo que el usuario que descarga PDF nunca veía la telemetría.
+            // Best-effort: cualquier fallo se loguea y sigue al PDF (no
+            // bloquear descarga por un toast).
+            try {
+                emitHistoricalCoherenceToast(
+                    toast,
+                    effectivePlanData?._shopping_coherence_block_history,
+                );
+            } catch (_histToastErr) {
+                console.warn('[P2-SHOPPING-1] emitHistoricalCoherenceToast falló (best-effort):', _histToastErr);
+            }
+
             // Usar la lista consolidada correcta según el ciclo seleccionado
             const rawSourceIngredients = getActiveShoppingList(effectivePlanData, duration) || allPlanIngredients || [];
 
@@ -1076,6 +1094,29 @@ const Dashboard = () => {
                     user_id: userProfile?.id,
                     fallback_inventory_size: Array.isArray(liveInventory) ? liveInventory.length : 0,
                 });
+                // [P2-SHOPPING-3 · 2026-05-14] Sink backend para que el cron
+                // `_alert_pdf_stale_inventory_fallback_burst` cuente eventos
+                // y emita `system_alerts.pdf_stale_inventory_fallback_burst`
+                // cuando supere umbral. `trackEvent` ya envía a Sentry/PostHog/
+                // GA/GTM, pero el backend no observa esos canales — sin este
+                // POST el cron leería 0 filas y nunca alertaría.
+                // Fire-and-forget: si el endpoint falla, telemetría perdida es
+                // preferible a abortar el PDF (que ya está en flight).
+                try {
+                    fetchWithAuth('/api/plans/telemetry/pdf-stale-fallback', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            reason: _freshFetchResult.reason,
+                            fallback_inventory_size: Array.isArray(liveInventory) ? liveInventory.length : 0,
+                        }),
+                    }).catch((_postErr) => {
+                        // Silent fail por diseño — telemetría best-effort.
+                    });
+                } catch (_telemetryErr) {
+                    // No-op: defense-en-profundidad por si fetchWithAuth no
+                    // está disponible en algún edge state del bundle.
+                }
             }
 
             // 🔄 Delta Shopping: restar lo que ya hay en la Nevera (con inventario FRESCO)
@@ -1288,6 +1329,25 @@ const Dashboard = () => {
                 </div>
                 ` : ''}
 
+                ${isPlanExpired ? `
+                <!-- [P2-SHOPPING-2 · 2026-05-14] Banner plan vencido. El botón de
+                     descargar PDF NO chequea isPlanExpired (decisión UX: permitir
+                     re-descarga de lista histórica), pero advertimos al usuario
+                     en el PDF mismo para que no compre ingredientes sin
+                     regenerar el plan. Color rojo prominente (vs ámbar del stale
+                     inventory): es señal "acción requerida", no "información de
+                     contexto". El usuario puede ignorar y comprar igual — es su
+                     decisión informada. -->
+                <div style="background-color: #fef2f2; border: 1px solid #fca5a5; border-left: 3px solid #dc2626; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; align-items: flex-start; gap: 8px;">
+                    <svg style="flex-shrink: 0; width: 14px; height: 14px; color: #dc2626; margin-top: 1px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p style="margin: 0; font-size: ${isUltraDense ? '9.5px' : '11px'}; color: #991b1b; line-height: 1.3;">
+                        <strong>Plan vencido:</strong> Tu ciclo de compras ya expiró. Esta lista refleja el plan anterior. <strong>Regenera tu plan</strong> antes de comprar para que coincida con tus próximas comidas.
+                    </p>
+                </div>
+                ` : ''}
+
                 ${deltaIsAdjusted ? `
                 <!-- Delta Shopping Banner -->
                 <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-left: 3px solid #10b981; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; align-items: flex-start; gap: 8px;">
@@ -1489,9 +1549,18 @@ const Dashboard = () => {
             //   respeta `page-break-inside: avoid` por elemento individual,
             //   permitiendo que html2pdf paginee formalmente sin truncar.
             const pagebreakMode = multiPage ? ['css', 'legacy'] : ['avoid-all'];
+            // [P3-SHOPPING-1 · 2026-05-14] Nombre PDF con discriminador único:
+            // fecha (YYYY-MM-DD) + prefix corto del plan_id. Antes el filename
+            // era `Lista_de_compras_7_Días.pdf` y descargar 2 PDFs con la
+            // misma duración producía colisión (`(1).pdf` según browser, o
+            // sobrescribía silenciosamente). El prefix de plan_id discrimina
+            // entre planes distintos del mismo ciclo; la fecha discrimina
+            // re-descargas del mismo plan en días diferentes.
+            const _planIdPrefix = (effectivePlanData?.id || '').toString().slice(0, 8) || 'noid';
+            const _today = new Date().toISOString().slice(0, 10);
             const opt = {
                 margin: multiPage ? [6, 4, 8, 4] : [4, 0, 0, 0],
-                filename: `Lista_de_compras_${durationText.replace(/ /g, '_')}.pdf`,
+                filename: `Lista_de_compras_${durationText.replace(/ /g, '_')}_${_today}_${_planIdPrefix}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, windowWidth: 800 },
                 pagebreak: { mode: pagebreakMode },
@@ -1506,10 +1575,51 @@ const Dashboard = () => {
             toast.dismiss(loadingToast);
             toast.success('Lista PDF descargada exitosamente', { icon: '📄', position: 'top-center' });
 
+            // [P3-SHOPPING-4 · 2026-05-14] Telemetría de éxito. Antes solo
+            // emitíamos `pdf_stale_inventory_fallback` (path degradado);
+            // ahora también `pdf_download_success` con dimensiones que
+            // permiten medir adopción (total_items, density tier, multi_page,
+            // si fue stale fallback). Base-rate de success permite calcular
+            // success_rate y discriminar bursts del cron P2-SHOPPING-3 vs
+            // crecimiento orgánico de uso del feature.
+            try {
+                trackEvent('pdf_download_success', {
+                    user_id: userProfile?.id,
+                    plan_id: effectivePlanData?.id,
+                    duration,
+                    total_items: totalItems,
+                    density: layout?.density,
+                    multi_page: !!multiPage,
+                    fresh_inventory_stale: freshInventoryStale,
+                    is_plan_expired: isPlanExpired,
+                    delta_items_removed: deltaItemsRemoved,
+                });
+            } catch (_telSuccessErr) {
+                // No-op: telemetría best-effort.
+            }
+
         } catch (error) {
             console.error('Error downloading supply list:', error);
             toast.dismiss();
             toast.error('Error al generar la lista de compras.');
+            // [P3-SHOPPING-4 · 2026-05-14] Telemetría de fallo. Sin esto el
+            // operador no puede distinguir "feature no usado" de "feature
+            // roto" — ambos producen 0 success events. `error_name` y
+            // `error_message` truncados a 200 chars para evitar payloads
+            // gigantes en GA/PostHog (algunos backends cortan a 256).
+            try {
+                const _errName = (error && error.name) ? String(error.name).slice(0, 64) : 'UnknownError';
+                const _errMsg = (error && error.message) ? String(error.message).slice(0, 200) : '';
+                trackEvent('pdf_download_failed', {
+                    user_id: userProfile?.id,
+                    plan_id: planData?.id,
+                    duration: formData?.groceryDuration || 'weekly',
+                    error_name: _errName,
+                    error_message: _errMsg,
+                });
+            } catch (_telFailErr) {
+                // No-op: telemetría best-effort.
+            }
         } finally {
             // [P1-6] Liberar SIEMPRE el lock, aunque el render del PDF
             // o el fetch fresh fallaran. Sin este finally, un fallo
@@ -3153,6 +3263,20 @@ const Dashboard = () => {
                         {(() => {
                             // Copia segura de platos usando el día activo (filtrar suplementos que tienen su propia sección)
                             const displayMeals = [...currentDayMeals].filter(m => !m.meal?.toLowerCase().includes('suplemento'));
+
+                            if (displayMeals.length === 0) {
+                                return (
+                                    <EmptyState
+                                        icon={Utensils}
+                                        title="No hay comidas para este día"
+                                        description="Cuando tu plan esté listo, verás aquí el menú del día seleccionado."
+                                        cta={{
+                                            label: 'Generar nuevo plan',
+                                            onClick: () => navigate('/assessment'),
+                                        }}
+                                    />
+                                );
+                            }
 
                             return displayMeals.map((meal, index) => {
                                 const isLiked = meal.name ? !!likedMeals[meal.name] : false;

@@ -160,3 +160,135 @@ export const emitCoherenceToast = (toast, warnings, options = {}) => {
     emitter(title, { description, duration });
     return descriptor;
 };
+
+// ============================================================
+// [P2-SHOPPING-1 · 2026-05-14] Consumidor de `_shopping_coherence_block_history`
+// ------------------------------------------------------------
+// Espejo de `buildCoherenceToast`/`emitCoherenceToast` pero opera sobre el
+// HISTORIAL persistido en `plan_data._shopping_coherence_block_history`
+// (P3-NEW-C · 2026-05-11), no sobre `_coherence_warnings` de una response.
+//
+// Por qué se necesita:
+//   `emitCoherenceToast` se invoca SOLO tras `/recalculate-shopping-list`
+//   (Pantry add/delete, Dashboard cambio de groceryDuration, swap post-
+//   recalc) y tras `modify_single_meal` del agente. Pero el usuario que
+//   abre Dashboard y descarga PDF directo NO pasa por recalc — y por
+//   tanto NUNCA ve telemetría aunque el plan tenga entries reales en
+//   `_shopping_coherence_block_history` (escritas por chunk worker T2,
+//   cron diario, agent tool, /recipe/expand, etc.).
+//
+// Entry shape (backend, espejo de
+// `shopping_calculator.run_shopping_coherence_guard_and_append_history`):
+//   {
+//     ts: ISO timestamp,
+//     attempt: int,
+//     divergence_count: int,
+//     presence_count: int,
+//     magnitude_count: int,
+//     hypotheses: { cap_swallowed_modifier: 2, unit_mismatch: 1, ... },
+//     block_set: bool,
+//     action_taken: "degrade" | "reject_minor" | "reject_high" |
+//                   "warn_only_chunk_t2" | "warn_only_recalc" |
+//                   "warn_only_agent_tool" | "warn_only_cron_daily" |
+//                   "post_swap_revalidation" | "not_applicable" |
+//                   "hydration_error" | null
+//   }
+//
+// Política de filtrado:
+//   - Entries con `action_taken ∈ {null, "not_applicable", "hydration_error"}`
+//     se ignoran: el primero es invariant violation (P2-2), el segundo es
+//     placeholder warn-mode sin acción real, el tercero es bug
+//     interno (review_plan_node falló — no es señal al usuario final).
+//   - Entries fuera de `windowHours` (default 48h) se ignoran — un
+//     plan persiste hasta 30d y un entry de hace 25 días ya no es
+//     accionable.
+//   - Severity warning si AL MENOS UNO tiene `block_set=true` (degrade/
+//     reject_*) o `hypotheses` incluye `cap_swallowed_modifier` /
+//     `unit_mismatch`. Resto = info.
+// ============================================================
+
+const _HISTORICAL_ACTION_BLACKLIST = new Set([
+    'not_applicable',
+    'hydration_error',
+]);
+
+const _CRITICAL_HYPOTHESES = new Set([
+    'cap_swallowed_modifier',
+    'unit_mismatch',
+]);
+
+/**
+ * @param {Array|null|undefined} history - plan_data._shopping_coherence_block_history
+ * @param {Object} [opts]
+ * @param {number} [opts.windowHours=48] - solo entries en últimas N horas (0 = sin filtro temporal)
+ * @returns {ToastDescriptor|null}
+ */
+export const buildHistoricalCoherenceToast = (history, opts = {}) => {
+    if (!Array.isArray(history) || history.length === 0) {
+        return null;
+    }
+    const windowHours = typeof opts.windowHours === 'number' && opts.windowHours >= 0
+        ? opts.windowHours
+        : 48;
+    const cutoffMs = windowHours > 0
+        ? Date.now() - windowHours * 3600 * 1000
+        : 0;
+
+    const recent = history.filter((e) => {
+        if (!e || typeof e !== 'object') return false;
+        const action = e.action_taken;
+        if (!action || _HISTORICAL_ACTION_BLACKLIST.has(action)) return false;
+        if (windowHours > 0 && typeof e.ts === 'string') {
+            const t = Date.parse(e.ts);
+            if (!Number.isNaN(t) && t < cutoffMs) return false;
+        }
+        return true;
+    });
+
+    if (recent.length === 0) {
+        return null;
+    }
+
+    const hasCritical = recent.some((e) => {
+        if (e.block_set) return true;
+        const hyps = e.hypotheses && typeof e.hypotheses === 'object' ? e.hypotheses : {};
+        return Object.keys(hyps).some((h) => _CRITICAL_HYPOTHESES.has(h));
+    });
+    const severity = hasCritical ? 'warning' : 'info';
+
+    const title = recent.length === 1
+        ? 'Tu lista de compras tuvo una revisión automática reciente'
+        : `Tu lista de compras tuvo ${recent.length} revisiones automáticas recientes`;
+    const description = 'Algunas cantidades pueden necesitar ajuste manual. Verifica los items antes de comprar.';
+
+    return { severity, title, description, count: recent.length };
+};
+
+/**
+ * Emite toast a partir del historial. Misma semántica de fallback que
+ * `emitCoherenceToast` (sonner API resiliente).
+ *
+ * @param {Object} toast - sonner toast namespace
+ * @param {Array|null|undefined} history
+ * @param {Object} [options]
+ * @param {number} [options.duration=8000]
+ * @param {number} [options.windowHours=48]
+ * @returns {ToastDescriptor|null}
+ */
+export const emitHistoricalCoherenceToast = (toast, history, options = {}) => {
+    const descriptor = buildHistoricalCoherenceToast(history, options);
+    if (!descriptor) {
+        return null;
+    }
+    const { severity, title, description } = descriptor;
+    const duration = typeof options.duration === 'number' ? options.duration : 8000;
+    const emitter = severity === 'warning' ? toast.warning : toast.info;
+    if (typeof emitter !== 'function') {
+        if (typeof toast === 'function') {
+            toast(title, { description, duration });
+        }
+        return descriptor;
+    }
+    emitter(title, { description, duration });
+    return descriptor;
+};
