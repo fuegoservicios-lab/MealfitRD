@@ -22,6 +22,7 @@ import { parseStartLocal, findChunkContaining } from '../utils/chunkWindow';
 // caches per-plan para que el próximo render del modal refetchee.
 // Mismo helper SSOT que usa History.jsx en sus mutaciones.
 import { invalidateCachesForPlan } from '../utils/historyCaches';
+import EmptyState from '../components/common/EmptyState';
 
 const FormattedRecipeStep = ({ step, index }) => {
     // 1. Identificar si es una sección especial (Mise en place, Fuego, Montaje)
@@ -759,11 +760,21 @@ const Recipes = () => {
                             const _clampedIdx = Math.max(chunkStart, Math.min(activeDayIndex, _windowEnd - 1));
                             const currentDayIndex = Math.min(_clampedIdx, planDays.length - 1);
                             const dayObj = planDays[currentDayIndex];
-                            if (!dayObj) return null;
+                            const validMeals = (dayObj && dayObj.meals) || [];
 
-                            const validMeals = dayObj.meals || [];
-
-                            if (validMeals.length === 0) return null;
+                            if (!dayObj || validMeals.length === 0) {
+                                return (
+                                    <EmptyState
+                                        icon={ChefHat}
+                                        title="Aún no hay recetas para este día"
+                                        description="Cuando tu plan esté completo, encontrarás aquí las recetas paso a paso."
+                                        cta={{
+                                            label: 'Volver al plan',
+                                            onClick: () => navigate('/dashboard'),
+                                        }}
+                                    />
+                                );
+                            }
 
                             const currentMealIndex = Math.min(activeMealIndex, validMeals.length - 1);
                             const activeMeal = validMeals[currentMealIndex];
