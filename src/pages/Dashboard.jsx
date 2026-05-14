@@ -3704,7 +3704,14 @@ const Dashboard = () => {
                         </h3>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                            {planData.insights?.map((insight, i) => {
+                            {(!planData.insights || planData.insights.length === 0) ? (
+                                <EmptyState
+                                    icon={Brain}
+                                    title="Aún no hay razonamiento"
+                                    description="Cuando tu plan esté listo, encontrarás aquí el diagnóstico, el plan de acción y los tips del chef."
+                                    compact
+                                />
+                            ) : planData.insights.map((insight, i) => {
                                 let icon = <CheckCircle size={20} />;
                                 let title = "Nota:";
                                 let color = "#0F172A";
