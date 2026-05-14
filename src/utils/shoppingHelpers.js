@@ -161,6 +161,29 @@ export const getActiveShoppingList = (planData, duration) => {
                 `Entries: ${planData._shopping_coherence_block.length}. Render continúa.`
             );
         } catch { /* console.warn falló — best-effort */ }
+        // [P3-PDF-OBS-FU-A · 2026-05-14] Telemetría complementaria al
+        // `console.warn` previo, que en producción se elimina por esbuild
+        // (`pure: ['console.warn']` en vite.config.js). Sin esto, una
+        // regresión en `review_plan_node` (backend) que dejase de popear
+        // `_shopping_coherence_block` pasaría inadvertida en prod: el plan
+        // se renderiza igual (defense-in-depth correcto) pero operadores
+        // no saben que el contrato está roto. Lazy import del trackEvent
+        // (dynamic) para mantener `shoppingHelpers.js` libre de carga
+        // estática del módulo de analytics — usuarios cuyo plan NO viola
+        // el contrato no pagan el costo del fetch.
+        try {
+            // eslint-disable-next-line no-unused-expressions
+            import('./analytics.js')
+                .then(({ trackEvent }) => {
+                    try {
+                        trackEvent('pdf_render_coherence_block_leak', {
+                            plan_id: planData?.id,
+                            entries_count: planData._shopping_coherence_block.length,
+                        });
+                    } catch { /* analytics SDK best-effort */ }
+                })
+                .catch(() => { /* import falló — no romper render */ });
+        } catch { /* dynamic import sync-error — no-op defensivo */ }
     }
     const keyMap = {
         'weekly': 'aggregated_shopping_list_weekly',
@@ -304,6 +327,47 @@ export const calculateAllPlanIngredients = (planData, isPlanExpired, liveInvento
  * @param {number} [timeoutMs=2000] — cap blando antes de degradar a caché.
  * @returns {Promise<{data: any[]|null, stale: boolean, reason: string|null}>}
  */
+// ============================================================
+// [P2-PDF-INV-TIMEOUT-KNOB · 2026-05-14] Knob para el timeout de
+// `fetchFreshInventoryWithTimeout`.
+// ------------------------------------------------------------
+// Antes del P-fix, los 4 callsites de Dashboard.jsx (mount, focus,
+// PDF download, restock) pasaban literal `2000` ms al helper. Si
+// Supabase entra en degradación tail-latency (incidente regional,
+// pool exhausted, network blip), no había forma de subir el timeout
+// sin redeploy del frontend (Vercel build). El cron P2-SHOPPING-3
+// (`_alert_pdf_stale_inventory_fallback_burst`) detectaría el burst
+// pero la mitigación requería rebuild.
+//
+// Este helper lee `VITE_INVENTORY_FETCH_TIMEOUT_MS` desde el env
+// (sustituido en build-time por Vite/esbuild) con clamp defensivo:
+//   - Default: 2000ms (comportamiento pre-knob preservado).
+//   - Mínimo: 500ms (debajo de eso casi todos los fetches caerían
+//     a stale fallback — peor UX que esperar 500ms).
+//   - Máximo: 10000ms (sobre 10s el usuario asume que el PDF/restock
+//     se colgó; html2pdf render timeout es 60s pero el inventory
+//     fetch es solo un prefetch — sobre 10s es worse-than-stale).
+//   - Valores no-numéricos (NaN, undefined, string vacío): fallback al
+//     default 2000.
+//
+// Symmetric counterpart to `VITE_PDF_RENDER_TIMEOUT_MS` (P2-PDF-OBS-2)
+// que cubre el timeout del render html2pdf. Ambos knobs permiten al
+// SRE bumpearlos sin redeploy si Supabase/render latencia tail crece.
+// ============================================================
+
+/**
+ * Retorna el timeout (ms) para `fetchFreshInventoryWithTimeout` leído
+ * desde el env knob con clamp defensivo.
+ * @returns {number} clamp [500, 10000], default 2000.
+ */
+export const getInventoryFetchTimeoutMs = () => {
+    const raw = parseInt(import.meta.env?.VITE_INVENTORY_FETCH_TIMEOUT_MS, 10);
+    let ms = Number.isFinite(raw) ? raw : 2000;
+    if (ms < 500) ms = 500;
+    if (ms > 10000) ms = 10000;
+    return ms;
+};
+
 export const fetchFreshInventoryWithTimeout = async (fetchFn, timeoutMs = 2000) => {
     if (typeof fetchFn !== 'function') {
         return { data: null, stale: true, reason: 'invalid_fetch_fn' };

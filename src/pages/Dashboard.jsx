@@ -26,7 +26,7 @@ import { supabase } from '../supabase';
 import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
 import { trackEvent } from '../utils/analytics';
 import { safeJSONParse } from '../utils/safeJSONParse';
-import { getActiveShoppingList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
+import { getActiveShoppingList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P1-FORM-9] Helper que filtra flags internos `_*` y bloquea cuando la
 // hidratación cifrada del formData (post-login) parece estar en curso —
@@ -301,7 +301,7 @@ const Dashboard = () => {
                     .eq('user_id', userProfile.id)
                     .gt('quantity', 0)
                     .order('ingredient_name', { ascending: true }),
-                2000,
+                getInventoryFetchTimeoutMs(),
             );
             if (!result.stale) {
                 setLiveInventory(result.data);
@@ -372,7 +372,7 @@ const Dashboard = () => {
                     .eq('user_id', userProfile.id)
                     .gt('quantity', 0)
                     .order('ingredient_name', { ascending: true }),
-                2000,
+                getInventoryFetchTimeoutMs(),
             );
             if (!result.stale) {
                 setLiveInventory(result.data);
@@ -1027,6 +1027,24 @@ const Dashboard = () => {
                             } catch (_lsErr) { /* localStorage best-effort */ }
                             try { setPlanData(fresh); } catch (_setErr) { /* setter best-effort */ }
                             effectivePlanData = fresh;
+                            // [P2-PDF-OBS-1 · 2026-05-14] Telemetría del drift
+                            // corregido. El `console.warn` arriba es stripped
+                            // por esbuild en producción (vite.config.js declara
+                            // `pure: ['console.warn', ...]`) → operadores no
+                            // pueden medir cuántas veces el prefetch evita un
+                            // PDF stale. `trackEvent` sobrevive el strip
+                            // (Sentry/PostHog/GA/GTM). Best-effort: cualquier
+                            // fallo de analytics SDK NO debe romper el PDF.
+                            try {
+                                trackEvent('pdf_prefetch_drift_corrected', {
+                                    user_id: userProfile?.id,
+                                    plan_id: planData?.id,
+                                    local_modified_at: typeof localModified === 'string' ? localModified.slice(0, 32) : null,
+                                    latest_modified_at: typeof latestModified === 'string' ? latestModified.slice(0, 32) : null,
+                                });
+                            } catch (_telDriftErr) {
+                                // No-op: telemetría best-effort.
+                            }
                         }
                     }
                 }
@@ -1075,7 +1093,7 @@ const Dashboard = () => {
                     .eq('user_id', userProfile.id)
                     .gt('quantity', 0)
                     .order('ingredient_name', { ascending: true }),
-                2000,
+                getInventoryFetchTimeoutMs(),
             );
             if (!_freshFetchResult.stale) {
                 freshInventoryForPdf = _freshFetchResult.data;
@@ -1539,6 +1557,11 @@ const Dashboard = () => {
             </div>
             `;
 
+            // [P1-PDF-XSS-AUDITED: htmlContent compuesto con escapeHtml() en
+            // toda interpolación user-controlled (display_name, category,
+            // displayQty, _inventoryNote, durationText, banners). El render
+            // se hace en un div detached que se pasa a html2pdf — no se
+            // inyecta al DOM live. Auditoría P1-1 + P1-PDF-XSS-BLANKET.]
             element.innerHTML = htmlContent;
 
             // [P1-PDF-3] Configuración de paginación según densidad.
@@ -1570,7 +1593,41 @@ const Dashboard = () => {
             // [P2-LAZY-PDF · 2026-05-13] Dynamic import: ver nota en el
             // import section. El chunk html2pdf-*.js se fetch SOLO acá.
             const html2pdf = (await import('html2pdf.js')).default;
-            await html2pdf().set(opt).from(element).save();
+            // [P2-PDF-OBS-2 · 2026-05-14] Timeout sobre html2pdf().save().
+            // Bug observado (raro pero reproducible): html2canvas cuelga
+            // indefinido en iOS Safari con `column-count: 4` + `break-inside:
+            // avoid-column` en planes hyper-dense (≥60 items), o en
+            // Chromium mobile si la pestaña pierde foco durante un render
+            // largo. La promise nunca resuelve → el `finally` que libera
+            // `pdfLock.current = false` nunca corre → usuario no puede
+            // descargar PDF hasta refresh de página.
+            //
+            // Fix: Promise.race contra un timeout (default 60s, knob
+            // `VITE_PDF_RENDER_TIMEOUT_MS` con clamp [15s, 180s]). Si
+            // dispara, lanza `PdfRenderTimeout` que el catch existente
+            // captura → `pdf_download_failed` con `error_name=PdfRenderTimeout`
+            // permite a operadores grep eventos y discriminar timeouts de
+            // errores reales del render.
+            const _rawTimeoutKnob = parseInt(import.meta.env.VITE_PDF_RENDER_TIMEOUT_MS, 10);
+            let _pdfRenderTimeoutMs = Number.isFinite(_rawTimeoutKnob) ? _rawTimeoutKnob : 60000;
+            if (_pdfRenderTimeoutMs < 15000) _pdfRenderTimeoutMs = 15000;
+            if (_pdfRenderTimeoutMs > 180000) _pdfRenderTimeoutMs = 180000;
+            let _pdfTimeoutHandle = null;
+            const _pdfTimeoutPromise = new Promise((_resolve, reject) => {
+                _pdfTimeoutHandle = setTimeout(() => {
+                    const _timeoutErr = new Error(`html2pdf no completó en ${_pdfRenderTimeoutMs}ms`);
+                    _timeoutErr.name = 'PdfRenderTimeout';
+                    reject(_timeoutErr);
+                }, _pdfRenderTimeoutMs);
+            });
+            try {
+                await Promise.race([
+                    html2pdf().set(opt).from(element).save(),
+                    _pdfTimeoutPromise,
+                ]);
+            } finally {
+                if (_pdfTimeoutHandle) clearTimeout(_pdfTimeoutHandle);
+            }
 
             toast.dismiss(loadingToast);
             toast.success('Lista PDF descargada exitosamente', { icon: '📄', position: 'top-center' });
@@ -1676,7 +1733,7 @@ const Dashboard = () => {
                     .eq('user_id', userProfile.id)
                     .gt('quantity', 0)
                     .order('ingredient_name', { ascending: true }),
-                2000,
+                getInventoryFetchTimeoutMs(),
             );
             if (!_restockFreshFetch.stale) {
                 freshInventoryForRestock = _restockFreshFetch.data;
