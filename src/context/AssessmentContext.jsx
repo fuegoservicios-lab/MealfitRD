@@ -1,12 +1,14 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../supabase';
-// [P2-AUDIT-3 · 2026-05-15] Helper SSOT para `localStorage.setItem` defensivo
-// — atrapa QuotaExceededError (iOS Private Mode, cuota agotada) y SecurityError
-// (storage deshabilitado) sin romper el flujo del context. Convención del
-// repo (P3-HISTORICAL-TOAST-DISMISS · 2026-05-14): TODO write a localStorage
-// va via este helper. Anchor: P2-AUDIT-3.
-import { safeLocalStorageSet } from '../utils/safeLocalStorage';
+// [P2-AUDIT-3 · 2026-05-15] Helper SSOT para `localStorage.setItem` defensivo.
+// [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] + `safeLocalStorageRemove` para
+// los flujos de logout/reset (iOS Private Mode lanza SecurityError en
+// removeItem y rompe la cadena).
+// [P2-LOCALSTORAGE-GETITEM-DEFENSIVE · 2026-05-15] + `safeLocalStorageGet`
+// para los reads en el initializer del provider (líneas 88+) donde un
+// throw de localStorage congela el provider entero.
+import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 // --- BASE DE DATOS LOCAL DE RECETAS (FALLBACK) ---
 const DOMINICAN_MEALS = {
     breakfast: [
@@ -85,7 +87,12 @@ const AssessmentContext = createContext();
 
 export const AssessmentProvider = ({ children }) => {
     // 1. CARGAR DATOS PERSISTENTES (LocalStorage)
-    const savedPlan = localStorage.getItem('mealfit_plan');
+    // [P2-LOCALSTORAGE-GETITEM-DEFENSIVE · 2026-05-15] Usar `safeLocalStorageGet`.
+    // ANTES: `localStorage.getItem(...)` raw. Un throw (iOS Private Mode,
+    // SecurityError, storage corrupt) en estos 3 reads ABORTA el provider
+    // entero, dejando pantalla blanca sin recuperación posible salvo limpieza
+    // manual de storage. Crítico porque AssessmentProvider envuelve toda la app.
+    const savedPlan = safeLocalStorageGet('mealfit_plan', null);
     // [P1-B7] Migración legacy ANTES de leer `mealfit_form`. Si el storage tenía
     // sensitive mezclado con public (formato pre-fix), `migrateLegacyFormStorage`
     // separa: deja public en `mealfit_form` (lo que leeremos abajo) y nos
@@ -93,8 +100,8 @@ export const AssessmentProvider = ({ children }) => {
     // ocurrirá en el primer `useEffect` cuando haya session disponible.
     const _legacyMigration = migrateLegacyFormStorage();
     const _legacySensitive = _legacyMigration?.sensitiveData || null;
-    const savedForm = localStorage.getItem('mealfit_form');
-    const savedLikes = localStorage.getItem('mealfit_likes');
+    const savedForm = safeLocalStorageGet('mealfit_form', null);
+    const savedLikes = safeLocalStorageGet('mealfit_likes', null);
 
     // --- ESTADOS DE LA APLICACIÓN ---
 
@@ -831,12 +838,15 @@ export const AssessmentProvider = ({ children }) => {
                 }
             } else {
                 // Logout / No sesión
+                // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] safeLocalStorageRemove
+                // (iOS Private Mode lanza SecurityError en removeItem y corta
+                // la cadena de cleanup).
                 setUserProfile(null);
                 setPlanCount(0);
                 setPlanData(null);
-                localStorage.removeItem('mealfit_user_id');
-                localStorage.removeItem('mealfit_plan');
-                localStorage.removeItem('mealfit_guest_session');
+                safeLocalStorageRemove('mealfit_user_id');
+                safeLocalStorageRemove('mealfit_plan');
+                safeLocalStorageRemove('mealfit_guest_session');
                 // [P1-B7] Al cerrar sesión, borrar el secure storage cifrado:
                 // sin access_token ya no podremos descifrarlo, así que dejarlo
                 // ahí solo ocupa espacio. El public en `mealfit_form` se mantiene
@@ -1719,16 +1729,21 @@ export const AssessmentProvider = ({ children }) => {
         // NO limpiamos mealfit_form para que tras cerrar sesión,
         // los datos no sensibles sigan presentes para invitados, pero sí se
         // limpiarán al entrar con otra cuenta.
+        // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] safeLocalStorageRemove
+        // — la cadena pre-fix usaba `localStorage.removeItem` raw para 7
+        // keys; iOS Private Mode (SecurityError) corta el flujo en cualquier
+        // call, quedando el reset parcial (algunas keys borradas, otras no
+        // → state inconsistente post-signout).
         // [P1-B7] Sí limpiamos el secure storage cifrado: sin access_token ya
         // no podremos descifrarlo, así que se descarta para no ocupar espacio.
-        try { localStorage.removeItem('mealfit_form_secure'); } catch { /* noop */ }
-        localStorage.removeItem('mealfit_plan');
-        localStorage.removeItem('mealfit_likes');
-        localStorage.removeItem('mealfit_user_id');
-        localStorage.removeItem('mealfit_guest_session');
-        localStorage.removeItem('mealfit_guest_sessions_list');
-        localStorage.removeItem('mealfit_current_session');
-        localStorage.removeItem('mealfit_dislikes');
+        safeLocalStorageRemove('mealfit_form_secure');
+        safeLocalStorageRemove('mealfit_plan');
+        safeLocalStorageRemove('mealfit_likes');
+        safeLocalStorageRemove('mealfit_user_id');
+        safeLocalStorageRemove('mealfit_guest_session');
+        safeLocalStorageRemove('mealfit_guest_sessions_list');
+        safeLocalStorageRemove('mealfit_current_session');
+        safeLocalStorageRemove('mealfit_dislikes');
 
         await supabase.auth.signOut();
 

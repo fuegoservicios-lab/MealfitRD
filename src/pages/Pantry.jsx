@@ -8,6 +8,9 @@ import { fetchWithAuth, API_BASE } from '../config/api';
 import { getEstimatedDailyConsumption } from '../utils/pantryConsumption';
 import { getShelfLifeBadge, getShelfLifeBadgeStyle } from '../utils/shelfLife';
 import { safeJSONParseObject } from '../utils/safeJSONParse';
+// [P2-LOCALSTORAGE-GETITEM-DEFENSIVE · 2026-05-15] read defensivo para
+// `mealfit_disabled_ingredients` en el useEffect mount (línea 88+).
+import { safeLocalStorageGet } from '../utils/safeLocalStorage';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 
 const CATEGORY_ICONS = {
@@ -87,7 +90,10 @@ const Pantry = () => {
 
     useEffect(() => {
         const checkDisabled = () => {
-            const saved = localStorage.getItem('mealfit_disabled_ingredients');
+            // [P2-LOCALSTORAGE-GETITEM-DEFENSIVE · 2026-05-15] safeLocalStorageGet
+            // — iOS Private Mode lanza SecurityError en getItem y rompía
+            // este useEffect (Pantry no se hidrataba en initial mount).
+            const saved = safeLocalStorageGet('mealfit_disabled_ingredients', null);
             if (saved) {
                 try {
                     setDisabledIngredients(JSON.parse(saved));

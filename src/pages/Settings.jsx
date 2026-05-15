@@ -16,6 +16,10 @@ import { fetchWithAuth } from '../config/api';
 import { confirmToast } from '../utils/confirmToast';
 import { requestNotificationPermission, subscribeToPushNotifications, unsubscribeFromPushNotifications, isPushSupported } from '../utils/pushNotifications';
 import { trackEvent } from '../utils/analytics';
+// [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] Helper defensivo para removeItem
+// — iOS Private Mode lanza SecurityError y corta el cleanup del reset
+// preferences (líneas ~775+).
+import { safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
 // [P1-FORM-9] Helper para construir el payload de health_profile sin filtrar
@@ -771,11 +775,13 @@ const Settings = () => {
                                                 method: 'POST'
                                             });
 
-                                            // Limpiar LocalStorage para asegurar que el UI refleje el reseteo
-                                            localStorage.removeItem('mealfit_disabled_ingredients');
-                                            localStorage.removeItem('mealfit_plan');
-                                            localStorage.removeItem('mealfit_likes');
-                                            localStorage.removeItem('mealfit_dislikes');
+                                            // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15]
+                                            // safeLocalStorageRemove para que iOS Private
+                                            // Mode no corte la cadena del reset.
+                                            safeLocalStorageRemove('mealfit_disabled_ingredients');
+                                            safeLocalStorageRemove('mealfit_plan');
+                                            safeLocalStorageRemove('mealfit_likes');
+                                            safeLocalStorageRemove('mealfit_dislikes');
 
                                             toast.dismiss(toastId);
                                             toast.success('Cuenta reseteada', { description: 'Empecemos de nuevo.' });

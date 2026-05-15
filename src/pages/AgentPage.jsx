@@ -17,6 +17,21 @@ import { safeJSONParse } from '../utils/safeJSONParse';
 // helper P2-AUDIT-3 que atrapa errores y devuelve boolean.
 import { safeLocalStorageSet } from '../utils/safeLocalStorage';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
+// [P2-AGENTPAGE-ERROR-SENTRY · 2026-05-15] Capture estructurada de los catch
+// blocks del agent page. ANTES: solo `console.error(...)` — esbuild conserva
+// el call pero el output queda en DevTools del cliente, NO en Sentry; los
+// crashes mid-chat (network, token expiry, server 5xx) eran invisibles en
+// observabilidad backend. Best-effort try/catch para que un Sentry KO no
+// rompa el caller.
+import * as Sentry from '@sentry/react';
+
+const _captureAgentPageException = (err, tags) => {
+    try {
+        Sentry.captureException(err, {
+            tags: { component: 'AgentPage', ...(tags || {}) },
+        });
+    } catch (_e) { /* swallow */ }
+};
 const generateIntelligentWelcome = (userProfile, formData, planData) => {
     const nameStr = formData?.name || userProfile?.name || userProfile?.first_name || '';
     const nameParts = nameStr.split(' ');
@@ -822,6 +837,7 @@ const AgentPage = () => {
             }
         } catch (error) {
             console.error("Error fetching sessions:", error);
+            _captureAgentPageException(error, { action: 'fetchSessions' });
         } finally {
             setIsLoadingSessions(false);
         }
@@ -914,6 +930,7 @@ const AgentPage = () => {
                 setTimeout(() => fetchSessionMessages(sessionId, retryCount + 1), 600);
                 return;
             }
+            _captureAgentPageException(error, { action: 'fetchSessionMessages', retried: 'true' });
             setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
         } finally {
             if (retryCount >= 2 || (response && response.ok)) {
@@ -945,6 +962,7 @@ const AgentPage = () => {
             }
         } catch (error) {
             console.error("Excepción eliminando chat:", error);
+            _captureAgentPageException(error, { action: 'deleteChat' });
         }
     };
 
