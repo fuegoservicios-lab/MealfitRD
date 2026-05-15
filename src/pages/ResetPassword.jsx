@@ -93,59 +93,65 @@ const ResetPassword = () => {
                     <p className={styles.subtitle}>Escribe tu nueva contraseña a continuación para recuperar el acceso a tu cuenta.</p>
                 </div>
 
+                {/* [P2-AUDIT-6 · 2026-05-15] role + aria-live para screen readers. */}
                 {error && (
-                    <div className={styles.errorBox}>
-                        <AlertCircle size={16} />
+                    <div className={styles.errorBox} role="alert" aria-live="assertive">
+                        <AlertCircle size={16} aria-hidden="true" />
                         {error}
                     </div>
                 )}
 
                 {successMessage && (
-                    <div className={styles.successBox}>
-                        <CheckCircle2 size={16} />
+                    <div className={styles.successBox} role="status" aria-live="polite">
+                        <CheckCircle2 size={16} aria-hidden="true" />
                         {successMessage}
                     </div>
                 )}
 
                 <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <div className={styles.formGroup}>
-                        <label className={styles.label}>Nueva Contraseña <span className={styles.requiredAsterisk}>*</span></label>
+                        <label className={styles.label} htmlFor="reset-password-new">Nueva Contraseña <span className={styles.requiredAsterisk}>*</span></label>
                         <div className={styles.inputWrapper}>
-                            <div className={styles.inputIcon}>
+                            <div className={styles.inputIcon} aria-hidden="true">
                                 <Lock size={18} />
                             </div>
                             <input
+                                id="reset-password-new"
                                 type={showPassword ? "text" : "password"}
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="••••••••"
                                 className={styles.input}
+                                autoComplete="new-password"
                             />
                             <button
                                 type="button"
                                 className={styles.passwordToggle}
                                 onClick={() => setShowPassword(!showPassword)}
                                 tabIndex="-1"
+                                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                             >
-                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                             </button>
                         </div>
                     </div>
 
                     <div className={styles.formGroup}>
-                        <label className={styles.label}>Confirmar Contraseña <span className={styles.requiredAsterisk}>*</span></label>
+                        <label className={styles.label} htmlFor="reset-password-confirm">Confirmar Contraseña <span className={styles.requiredAsterisk}>*</span></label>
                         <div className={styles.inputWrapper}>
-                            <div className={styles.inputIcon}>
+                            <div className={styles.inputIcon} aria-hidden="true">
                                 <Lock size={18} />
                             </div>
                             <input
+                                id="reset-password-confirm"
                                 type={showPassword ? "text" : "password"}
                                 required
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 placeholder="••••••••"
                                 className={styles.input}
+                                autoComplete="new-password"
                             />
                         </div>
                     </div>

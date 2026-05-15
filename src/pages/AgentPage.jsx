@@ -682,7 +682,11 @@ const AgentPage = () => {
 
     const processSelectedFile = async (file) => {
         if (!file.type.startsWith('image/')) {
-            alert('Formato no soportado. Por favor sube una imagen válida.');
+            // [P3-AUDIT-2 · 2026-05-15] `alert()` nativo reemplazado por
+            // `toast.error` (sonner). El resto de la app usa sonner
+            // consistentemente; `alert()` bloquea el thread y rompe la UX
+            // mobile (modal-blocking dialog que no respeta el theme dark).
+            toast.error('Formato no soportado. Por favor sube una imagen válida.');
             return;
         }
 

@@ -13,6 +13,20 @@ import { fetchWithAuth, API_BASE } from '../config/api';
 // reutilizar desde otras páginas (Plan.jsx, Dashboard.jsx) y testear
 // independientemente. Sincronizados con `split_with_absorb` del backend.
 import { parseStartLocal, findChunkContaining } from '../utils/chunkWindow';
+// [P2-AUDIT-2 · 2026-05-15] Helper SSOT para escapar texto del LLM antes de
+// interpolarlo en `generateRecipeHTML`. html2pdf renderiza el htmlString en
+// un iframe detached vía html2canvas — sin escape, prompt injection
+// adversarial via meal.name/desc/recipe podría inyectar `<script>` que
+// ejecuta en ese contexto y exfiltra tokens de localStorage. Defense-in-depth
+// análoga al test blanket que cubre Dashboard.jsx (P1-PDF-XSS-AUDITED).
+// Anchor: P2-AUDIT-2.
+import { escapeHtml } from '../utils/escapeHtml';
+// [P3-AUDIT-1 · 2026-05-15] Telemetría success/failure del PDF de recetas
+// individual, análoga a la que P3-SHOPPING-4 instrumentó en Dashboard.jsx
+// para el PDF de lista de compras. Antes este handler no emitía ningún
+// event — operador no podía distinguir "feature no usado" de "feature
+// roto" (ambos producen 0 success events). Anchor: P3-AUDIT-1.
+import { trackEvent } from '../utils/analytics';
 // [P2-NEW-3 · 2026-05-11] Tras `/api/plans/recipe/expand` exitoso, el
 // backend persiste `expanded_recipe` en `plan_data` (vía
 // `update_meal_plan_data` server-side). Los caches del Historial
@@ -535,11 +549,20 @@ const Recipes = () => {
     }
 
     const generateRecipeHTML = (meal) => {
+        // [P2-AUDIT-2 · 2026-05-15] `escapeHtml` aplicado a TODAS las
+        // interpolaciones de texto proveniente del LLM (meal.name, meal.desc,
+        // meal.meal, meal.cals, recipe steps, ingredients). `parseBold`
+        // post-escape convierte el patrón **bold** del LLM en `<strong>` —
+        // hacer el bold DESPUÉS del escape garantiza que `<strong>` legítimo
+        // queda intacto pero cualquier `<script>` adversarial ya fue
+        // escapado a `&lt;script&gt;`. `color` (sectionTitle determinístico
+        // de mapping local) NO escapado intencionalmente; los demás
+        // `${...}` ahora pasan por `escapeHtml`.
         const stepsHTML = meal.recipe ? meal.recipe.map((step, i) => {
             let sectionTitle = "";
             let color = "#475569";
             let content = step;
-            const lowerT = step.toLowerCase();
+            const lowerT = (typeof step === 'string' ? step : '').toLowerCase();
             if (lowerT.startsWith("mise en place:")) { sectionTitle = "Mise en place"; color = "#00B4D8"; }
             if (lowerT.startsWith("el toque de fuego:") || lowerT.startsWith("toque de fuego:")) { sectionTitle = "El Toque de Fuego"; color = "#F97316"; }
             if (lowerT.startsWith("montaje:")) { sectionTitle = "Montaje"; color = "#8B5CF6"; }
@@ -550,13 +573,19 @@ const Recipes = () => {
                 content = content.replace(prefixRegex, '');
             }
 
-            const parseBold = (str) => str.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // [P2-AUDIT-2] Bold parser opera sobre el texto YA escapado:
+            // `**foo**` → `<strong>foo</strong>`. Si la LLM hubiera emitido
+            // `**<script>**`, el escape previo lo convirtió en
+            // `**&lt;script&gt;**` → bold parser produce
+            // `<strong>&lt;script&gt;</strong>` — visible como texto, no
+            // ejecutado.
+            const parseBoldEscaped = (raw) => escapeHtml(raw).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
             return `
                 <div style="margin-bottom: 20px; page-break-inside: avoid;">
                     ${sectionTitle ? `
                         <div style="color: ${color}; font-size: 14pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">
-                            ${sectionTitle}
+                            ${escapeHtml(sectionTitle)}
                         </div>
                     ` : `
                         <div style="color: #4F46E5; font-size: 14pt; font-weight: bold; margin-bottom: 8px;">
@@ -564,7 +593,7 @@ const Recipes = () => {
                         </div>
                     `}
                     <div style="font-size: 13pt; line-height: 1.6; color: #334155;">
-                        ${parseBold(content.replace(/^\d+[\.\)]\s*/, ''))}
+                        ${parseBoldEscaped(content.replace(/^\d+[\.\)]\s*/, ''))}
                     </div>
                 </div>
             `;
@@ -572,7 +601,7 @@ const Recipes = () => {
 
         const ingredientsHTML = meal.ingredients ? meal.ingredients.map(ing => `
             <li style="margin-bottom: 8px; font-size: 12pt; color: #475569; display: flex; align-items: flex-start; line-height: 1.4;">
-                <span style="color: #10B981; margin-right: 8px; font-weight: bold;">•</span> ${ing}
+                <span style="color: #10B981; margin-right: 8px; font-weight: bold;">•</span> ${escapeHtml(ing)}
             </li>
         `).join('') : '';
 
@@ -588,18 +617,18 @@ const Recipes = () => {
                     </div>
                     <div style="text-align: right;">
                         <div style="background: #EEF2FF; color: #4F46E5; padding: 6px 14px; border-radius: 20px; font-size: 11pt; font-weight: 700; display: inline-block; margin-bottom: 6px;">
-                            ${meal.meal}
+                            ${escapeHtml(meal.meal)}
                         </div>
                         <div style="color: #F97316; font-size: 11pt; font-weight: bold;">
-                            🔥 ${meal.cals} kcal
+                            🔥 ${escapeHtml(meal.cals)} kcal
                         </div>
                     </div>
                 </div>
 
                 <!-- TITLE & DESC -->
                 <div style="margin-bottom: 30px;">
-                    <h1 style="font-size: 26pt; font-weight: 900; color: #0F172A; margin: 0 0 10px 0; line-height: 1.2;">${meal.name}</h1>
-                    <p style="font-size: 13pt; color: #64748B; margin: 0; line-height: 1.5;">${meal.desc || ''}</p>
+                    <h1 style="font-size: 26pt; font-weight: 900; color: #0F172A; margin: 0 0 10px 0; line-height: 1.2;">${escapeHtml(meal.name)}</h1>
+                    <p style="font-size: 13pt; color: #64748B; margin: 0; line-height: 1.5;">${escapeHtml(meal.desc || '')}</p>
                 </div>
 
                 <div style="display: flex; gap: 30px; align-items: flex-start;">
@@ -630,9 +659,21 @@ const Recipes = () => {
         const toastId = toast.loading('Generando PDF de alta calidad...');
         try {
             const htmlString = generateRecipeHTML(meal);
+            // [P3-AUDIT-1 · 2026-05-15] Filename con discriminador único:
+            // `Receta_<meal-name-slug>_<plan_id[:8]>_<YYYY-MM-DD>.pdf`.
+            // Pre-fix `Receta-${meal.name}.pdf` colisionaba para 2 recetas
+            // del mismo nombre en planes distintos (común: "Pollo guisado"
+            // aparece en múltiples planes). Cada PDF descargado sobrescribía
+            // al anterior en la carpeta Downloads del usuario. Mismo patrón
+            // que P3-SHOPPING-1 (Dashboard PDF) — plan_id[:8] preserva
+            // legibilidad sin exponer el UUID completo; fecha discrimina
+            // re-descargas del mismo plan en días distintos.
+            const _planIdPrefix = (planData?.id || '').toString().slice(0, 8) || 'noid';
+            const _today = new Date().toISOString().slice(0, 10);
+            const _mealSlug = String(meal?.name || 'receta').replace(/\s+/g, '-');
             const opt = {
                 margin: [15, 15, 15, 15],
-                filename: `Receta-${meal.name.replace(/\s+/g, '-')}.pdf`,
+                filename: `Receta_${_mealSlug}_${_planIdPrefix}_${_today}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2.5, useCORS: true, letterRendering: true, backgroundColor: '#ffffff' },
                 jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
@@ -640,13 +681,83 @@ const Recipes = () => {
             // [P2-LAZY-PDF · 2026-05-13] Dynamic import: ver nota en el
             // import section. Chunk html2pdf-*.js solo se fetch al click.
             const html2pdf = (await import('html2pdf.js')).default;
-            await html2pdf().set(opt).from(htmlString, 'string').save();
+            // [P1-AUDIT-2 · 2026-05-15] Timeout sobre html2pdf().save().
+            // Patrón canónico replicado de Dashboard.jsx P2-PDF-OBS-2: el audit
+            // 2026-05-14 cerró el hang en Dashboard pero olvidó este segundo
+            // callsite. Bug observado (raro pero reproducible): html2canvas
+            // cuelga indefinido en iOS Safari con recetas hyper-densas
+            // (recipe con ≥20 pasos + ingredients largos) o si la pestaña
+            // pierde foco durante un render largo. La promise nunca resuelve →
+            // `toast.dismiss(toastId)` nunca corre → usuario no puede retry
+            // sin refresh.
+            //
+            // Fix: Promise.race contra un timeout (default 60s, knob
+            // `VITE_PDF_RENDER_TIMEOUT_MS` con clamp [15s, 180s]). Si dispara,
+            // lanza `PdfRenderTimeout` que el catch existente captura. Mismo
+            // knob que Dashboard — SRE puede subirlo sin redeploy si recetas
+            // legítimas exceden 60s.
+            const _rawTimeoutKnob = parseInt(import.meta.env.VITE_PDF_RENDER_TIMEOUT_MS, 10);
+            let _pdfRenderTimeoutMs = Number.isFinite(_rawTimeoutKnob) ? _rawTimeoutKnob : 60000;
+            if (_pdfRenderTimeoutMs < 15000) _pdfRenderTimeoutMs = 15000;
+            if (_pdfRenderTimeoutMs > 180000) _pdfRenderTimeoutMs = 180000;
+            let _pdfTimeoutHandle = null;
+            const _pdfTimeoutPromise = new Promise((_resolve, reject) => {
+                _pdfTimeoutHandle = setTimeout(() => {
+                    const _timeoutErr = new Error(`html2pdf no completó en ${_pdfRenderTimeoutMs}ms`);
+                    _timeoutErr.name = 'PdfRenderTimeout';
+                    reject(_timeoutErr);
+                }, _pdfRenderTimeoutMs);
+            });
+            try {
+                await Promise.race([
+                    html2pdf().set(opt).from(htmlString, 'string').save(),
+                    _pdfTimeoutPromise,
+                ]);
+            } finally {
+                if (_pdfTimeoutHandle) clearTimeout(_pdfTimeoutHandle);
+            }
             toast.dismiss(toastId);
             toast.success('Receta descargada correctamente');
+            // [P3-AUDIT-1 · 2026-05-15] Telemetría success. Análoga a
+            // `pdf_download_success` en Dashboard (P3-SHOPPING-4) pero para
+            // recetas individuales — permite calcular adoption rate del
+            // feature recipe-PDF vs el shopping-list PDF. `recipe_steps` y
+            // `ingredients_count` ayudan a discriminar bursts de recetas
+            // hyper-densas que se acercan al timeout límite.
+            try {
+                trackEvent('recipe_pdf_download_success', {
+                    plan_id: planData?.id,
+                    meal_name: String(meal?.name || '').slice(0, 64),
+                    meal_type: meal?.meal,
+                    recipe_steps: Array.isArray(meal?.recipe) ? meal.recipe.length : 0,
+                    ingredients_count: Array.isArray(meal?.ingredients) ? meal.ingredients.length : 0,
+                    is_expanded: !!meal?.isExpanded,
+                });
+            } catch (_telSuccessErr) {
+                // No-op: telemetría best-effort.
+            }
         } catch (error) {
             console.error(error);
             toast.dismiss(toastId);
             toast.error('Error al generar PDF');
+            // [P3-AUDIT-1 · 2026-05-15] Telemetría failure. `error_name` y
+            // `error_message` truncados a 64/200 chars para evitar payloads
+            // gigantes en GA/PostHog (algunos backends cortan a 256). `name`
+            // distingue timeouts (`PdfRenderTimeout` de P1-AUDIT-2) de
+            // errores reales del render.
+            try {
+                const _errName = (error && error.name) ? String(error.name).slice(0, 64) : 'UnknownError';
+                const _errMsg = (error && error.message) ? String(error.message).slice(0, 200) : '';
+                trackEvent('recipe_pdf_download_failed', {
+                    plan_id: planData?.id,
+                    meal_name: String(meal?.name || '').slice(0, 64),
+                    meal_type: meal?.meal,
+                    error_name: _errName,
+                    error_message: _errMsg,
+                });
+            } catch (_telFailErr) {
+                // No-op: telemetría best-effort.
+            }
         }
     };
 

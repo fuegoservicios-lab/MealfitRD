@@ -8,11 +8,27 @@ import App from './App.jsx'
 // Register Service Worker
 registerSW({ immediate: true })
 
+// [P3-AUDIT-4 · 2026-05-15] Listener para `pushsubscriptionchange` postMessage
+// desde el SW. Cuando el browser rota credentials FCM/push, el SW dispara el
+// evento + postMessage; el cliente recibe el message acá y reposta la nueva
+// subscription al backend con auth (SW no tiene access_token). Sin esto, las
+// subscriptions zombie viven en BD hasta el próximo bootstrap del cliente.
+// Idempotente: registra el handler una sola vez.
+import { registerPushSubscriptionChangeListener } from './utils/pushNotifications';
+registerPushSubscriptionChangeListener();
+
 // [P1-SENTRY-SAMPLE-COST · 2026-05-12] `tracesSampleRate` driven from env
 // var con default seguro 0.1 (10%). Pre-fix `tracesSampleRate: 1.0` capturaba
 // el 100% de transacciones — a escala satura la cuota Sentry y los errores
 // genuinos empiezan a ser dropeados por throttling. Clamp [0.0, 1.0]; valores
 // fuera de rango caen al default. Tooltip-anchor: P1-SENTRY-SAMPLE-COST.
+//
+// [P2-AUDIT-5 · 2026-05-15] Extended a `replaysSessionSampleRate` y
+// `replaysOnErrorSampleRate`. Pre-fix esos dos quedaron hardcoded — replays
+// son el output más caro de Sentry (vídeo de sesión completo) y un default
+// hardcoded sin escape hatch impide a SRE bajar el sample rate sin redeploy
+// si la cuota empieza a saturarse. Mismo helper `_parseSentrySampleRate` con
+// clamp [0.0, 1.0] reusado para los 3 sample rates.
 const _parseSentrySampleRate = (raw, fallback) => {
   const v = parseFloat(raw);
   if (Number.isFinite(v) && v >= 0.0 && v <= 1.0) return v;
@@ -21,6 +37,14 @@ const _parseSentrySampleRate = (raw, fallback) => {
 const SENTRY_TRACES_SAMPLE_RATE = _parseSentrySampleRate(
   import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE,
   0.1,
+);
+const SENTRY_REPLAYS_SESSION_RATE = _parseSentrySampleRate(
+  import.meta.env.VITE_SENTRY_REPLAYS_SESSION_RATE,
+  0.1,
+);
+const SENTRY_REPLAYS_ON_ERROR_RATE = _parseSentrySampleRate(
+  import.meta.env.VITE_SENTRY_REPLAYS_ON_ERROR_RATE,
+  1.0,
 );
 
 Sentry.init({
@@ -33,8 +57,8 @@ Sentry.init({
     }),
   ],
   tracesSampleRate: SENTRY_TRACES_SAMPLE_RATE,
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
+  replaysSessionSampleRate: SENTRY_REPLAYS_SESSION_RATE,
+  replaysOnErrorSampleRate: SENTRY_REPLAYS_ON_ERROR_RATE,
 });
 
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';

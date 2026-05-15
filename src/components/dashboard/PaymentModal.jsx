@@ -3,6 +3,7 @@ import { PayPalScriptProvider, PayPalButtons, FUNDING } from "@paypal/react-payp
 import { X, CreditCard, Sparkles, Lock, Tag, Check, AlertCircle, Loader2, ChevronRight, Zap, User, Calendar, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import PropTypes from 'prop-types';
+import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 
 /* ─── Plan Feature Map ─── */
@@ -104,7 +105,10 @@ const PaymentModal = ({
     const handleCreateSubscription = (data, actions) => {
         const paypalPlanId = PLAN_IDS[isAnnual ? 'annual' : 'monthly'][tier];
         if (paypalPlanId.includes("PLACEHOLDER")) {
-            alert("Plan ID Anual no configurado.");
+            // [P3-AUDIT-2 · 2026-05-15] `alert()` nativo reemplazado por
+            // `toast.error` (sonner). Consistencia UX con el resto de la
+            // app + no bloquea el thread durante el flujo de pago.
+            toast.error("Plan ID Anual no configurado.");
             return Promise.reject(new Error("Missing Plan ID"));
         }
 

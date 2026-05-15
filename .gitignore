@@ -1,5 +1,10 @@
 # [P2-AUDIT-1 · 2026-05-12] Scratch / dev one-off helpers
 /scratch/
+
+# [P3-AUDIT-3 · 2026-05-15] Backups locales de favicon u otros assets
+# (`.bak`, `.bak.YYYY_MM_DD`, `.bak2.YYYY_MM_DD`, etc.). Pattern general
+# `*.bak*` cubre todas las variantes — `bak`, `bak2`, `bak.date`, `bak2.date`.
+*.bak*
 /lint_results.json
 /checkdb*.js
 /checkdb*.mjs

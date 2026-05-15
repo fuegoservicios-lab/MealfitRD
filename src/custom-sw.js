@@ -41,10 +41,10 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    
+
     // This looks to see if the current is already open and focuses if it is
     const urlToOpen = new URL(event.notification.data.url, self.location.origin).href;
-    
+
     const promiseChain = clients.matchAll({
         type: 'window',
         includeUncontrolled: true
@@ -65,6 +65,86 @@ self.addEventListener('notificationclick', (event) => {
             return clients.openWindow(urlToOpen);
         }
     });
+
+    event.waitUntil(promiseChain);
+});
+
+// ----------------------------------------------------------------------------
+// [P3-AUDIT-4 · 2026-05-15] Handler `pushsubscriptionchange`.
+//
+// Por qué existe: el browser puede invalidar y rotar credentials de push
+// (FCM rotation, refresh interno, app reset) sin reinstalación del SW. El
+// SW debe re-suscribirse para mantener notificaciones funcionales — sin
+// este handler, las notificaciones simplemente dejan de llegar al usuario
+// hasta que abra la app y `subscribeToPushNotifications()` corra durante
+// el bootstrap del cliente.
+//
+// Adicional: la subscription en BD backend queda zombie con un endpoint
+// inválido — backend intenta enviar notifs a un endpoint muerto, recibe
+// 410 Gone, y debe limpiar. Mejor reportar la nueva subscription de
+// inmediato.
+//
+// Estrategia (two-phase):
+//   1. Re-subscribir DENTRO del SW usando `event.oldSubscription.options.
+//      applicationServerKey` — el SW NO tiene access al VITE_VAPID_PUBLIC_KEY
+//      del cliente, pero el navegador conserva el applicationServerKey
+//      original en la oldSubscription. Si re-subscribe falla (browser
+//      bloqueó, sin internet, etc.), no es fatal — el cliente lo arregla
+//      en el próximo load via `subscribeToPushNotifications()` que llama
+//      `getSubscription()` y reposta al backend.
+//
+//   2. Notificar via `postMessage` a CUALQUIER cliente abierto para que
+//      reposte la nueva subscription al backend CON auth (SW no tiene
+//      access_token). Si no hay clientes abiertos, el cliente lo
+//      detectará en el próximo load (paso 1 ya re-suscribió localmente).
+//
+// Best-effort: TODO el handler envuelto en try/catch para que errores
+// (e.g., `pushManager.subscribe` rejected con NotAllowedError) NO
+// propaguen al runtime del SW (que mata el worker entero).
+self.addEventListener('pushsubscriptionchange', (event) => {
+    const promiseChain = (async () => {
+        let newSubscription = null;
+
+        // FASE 1: re-suscribir en el SW.
+        try {
+            const oldSub = event.oldSubscription;
+            const applicationServerKey = oldSub && oldSub.options
+                ? oldSub.options.applicationServerKey
+                : null;
+            if (applicationServerKey) {
+                newSubscription = await self.registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey,
+                });
+            }
+        } catch (_subErr) {
+            // Re-subscribe falló (sin internet, VAPID inválido, browser
+            // bloqueó). No fatal — el cliente lo arreglará en próximo load.
+        }
+
+        // FASE 2: avisar a clientes abiertos para que repostean al backend
+        // con auth (SW no tiene access_token del usuario).
+        try {
+            const allClients = await self.clients.matchAll({
+                type: 'window',
+                includeUncontrolled: true,
+            });
+            const payload = {
+                type: 'pushsubscriptionchange',
+                subscription: newSubscription ? newSubscription.toJSON() : null,
+            };
+            for (const client of allClients) {
+                try {
+                    client.postMessage(payload);
+                } catch (_pmErr) {
+                    // postMessage puede fallar si el cliente se cerró
+                    // entre matchAll y postMessage. Best-effort.
+                }
+            }
+        } catch (_clientsErr) {
+            // matchAll falló (raro). No fatal.
+        }
+    })();
 
     event.waitUntil(promiseChain);
 });

@@ -123,16 +123,21 @@ const Login = () => {
                     </p>
                 </div>
 
+                {/* [P2-AUDIT-6 · 2026-05-15] `role="alert"` + `aria-live="assertive"`
+                    para que screen readers (NVDA, VoiceOver, TalkBack) anuncien
+                    errores de validación inmediatamente al renderizarse, sin
+                    requerir foco. Sin estos atributos los errores eran
+                    invisibles para usuarios non-visual. */}
                 {error && (
-                    <div className={styles.errorBox}>
-                        <AlertCircle size={16} />
+                    <div className={styles.errorBox} role="alert" aria-live="assertive">
+                        <AlertCircle size={16} aria-hidden="true" />
                         {error}
                     </div>
                 )}
 
                 {resetMessage && (
-                    <div className={styles.successBox}>
-                        <CheckCircle2 size={16} />
+                    <div className={styles.successBox} role="status" aria-live="polite">
+                        <CheckCircle2 size={16} aria-hidden="true" />
                         {resetMessage}
                     </div>
                 )}
@@ -140,18 +145,20 @@ const Login = () => {
                 {isForgotPasswordMode ? (
                     <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         <div className={styles.formGroup}>
-                            <label className={styles.label}>Correo Electrónico <span className={styles.requiredAsterisk}>*</span></label>
+                            <label className={styles.label} htmlFor="login-reset-email">Correo Electrónico <span className={styles.requiredAsterisk}>*</span></label>
                             <div className={styles.inputWrapper}>
-                                <div className={styles.inputIcon}>
+                                <div className={styles.inputIcon} aria-hidden="true">
                                     <User size={18} />
                                 </div>
                                 <input
+                                    id="login-reset-email"
                                     type="email"
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="ejemplo@correo.com"
                                     className={styles.input}
+                                    autoComplete="email"
                                 />
                             </div>
                         </div>
@@ -189,18 +196,20 @@ const Login = () => {
                     <>
                         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <div className={styles.formGroup}>
-                                <label className={styles.label}>Correo Electrónico <span className={styles.requiredAsterisk}>*</span></label>
+                                <label className={styles.label} htmlFor="login-email">Correo Electrónico <span className={styles.requiredAsterisk}>*</span></label>
                                 <div className={styles.inputWrapper}>
-                                    <div className={styles.inputIcon}>
+                                    <div className={styles.inputIcon} aria-hidden="true">
                                         <User size={18} />
                                     </div>
                                     <input
+                                        id="login-email"
                                         type="email"
                                         required
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         placeholder="ejemplo@correo.com"
                                         className={styles.input}
+                                        autoComplete="email"
                                     />
                                 </div>
                             </div>
@@ -208,26 +217,29 @@ const Login = () => {
                             {email.length > 0 && (
                                 <div className={styles.animateFadeIn}>
                                     <div className={styles.formGroup}>
-                                        <label className={styles.label}>Contraseña <span className={styles.requiredAsterisk}>*</span></label>
+                                        <label className={styles.label} htmlFor="login-password">Contraseña <span className={styles.requiredAsterisk}>*</span></label>
                                         <div className={styles.inputWrapper}>
-                                            <div className={styles.inputIcon}>
+                                            <div className={styles.inputIcon} aria-hidden="true">
                                                 <Lock size={18} />
                                             </div>
                                             <input
+                                                id="login-password"
                                                 type={showPassword ? "text" : "password"}
                                                 required
                                                 value={password}
                                                 onChange={(e) => setPassword(e.target.value)}
                                                 placeholder="••••••••"
                                                 className={styles.input}
+                                                autoComplete="current-password"
                                             />
                                             <button
                                                 type="button"
                                                 className={styles.passwordToggle}
                                                 onClick={() => setShowPassword(!showPassword)}
                                                 tabIndex="-1"
+                                                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                                             >
-                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                                             </button>
                                         </div>
                                     </div>

@@ -1,6 +1,12 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../supabase';
+// [P2-AUDIT-3 · 2026-05-15] Helper SSOT para `localStorage.setItem` defensivo
+// — atrapa QuotaExceededError (iOS Private Mode, cuota agotada) y SecurityError
+// (storage deshabilitado) sin romper el flujo del context. Convención del
+// repo (P3-HISTORICAL-TOAST-DISMISS · 2026-05-14): TODO write a localStorage
+// va via este helper. Anchor: P2-AUDIT-3.
+import { safeLocalStorageSet } from '../utils/safeLocalStorage';
 // --- BASE DE DATOS LOCAL DE RECETAS (FALLBACK) ---
 const DOMINICAN_MEALS = {
     breakfast: [
@@ -551,7 +557,7 @@ export const AssessmentProvider = ({ children }) => {
                 if (!localSavedParsed || JSON.stringify(localSavedParsed) !== JSON.stringify(latestPlan)) {
 
                     setPlanData(latestPlan);
-                    localStorage.setItem('mealfit_plan', JSON.stringify(latestPlan));
+                    safeLocalStorageSet('mealfit_plan', latestPlan);
                 } else {
 
                 }
@@ -778,7 +784,7 @@ export const AssessmentProvider = ({ children }) => {
 
             if (currentSession?.user) {
                 const userId = currentSession.user.id;
-                localStorage.setItem('mealfit_user_id', userId);
+                safeLocalStorageSet('mealfit_user_id', userId);
 
                 const lastOwner = localStorage.getItem('mealfit_last_form_owner');
                 if (lastOwner && lastOwner !== 'guest' && lastOwner !== userId) {
@@ -791,7 +797,7 @@ export const AssessmentProvider = ({ children }) => {
                     clearFormStorage();
                     setFormData(initialFormData);
                 }
-                localStorage.setItem('mealfit_last_form_owner', userId);
+                safeLocalStorageSet('mealfit_last_form_owner', userId);
 
                 // [P1-10] Marcamos profile como en-vuelo ANTES de los fetches.
                 // El Promise.race + timeout de 5s garantiza que el flag baje
@@ -961,7 +967,7 @@ export const AssessmentProvider = ({ children }) => {
                             generation_status: incomingStatus,
                             total_days_requested: newPlanData.total_days_requested ?? prev.total_days_requested,
                         };
-                        localStorage.setItem('mealfit_plan', JSON.stringify(merged));
+                        safeLocalStorageSet('mealfit_plan', merged);
                         return merged;
                     });
                 }
@@ -1103,15 +1109,15 @@ export const AssessmentProvider = ({ children }) => {
     }, [session?.user?.id, session?.access_token]);
 
     useEffect(() => {
-        if (planData) localStorage.setItem('mealfit_plan', JSON.stringify(planData));
+        if (planData) safeLocalStorageSet('mealfit_plan', planData);
     }, [planData]);
 
     useEffect(() => {
-        if (likedMeals) localStorage.setItem('mealfit_likes', JSON.stringify(likedMeals));
+        if (likedMeals) safeLocalStorageSet('mealfit_likes', likedMeals);
     }, [likedMeals]);
 
     useEffect(() => {
-        if (dislikedMeals) localStorage.setItem('mealfit_dislikes', JSON.stringify(dislikedMeals));
+        if (dislikedMeals) safeLocalStorageSet('mealfit_dislikes', dislikedMeals);
     }, [dislikedMeals]);
 
     // --- LÓGICA DE NEGOCIO Y WEBHOOKS ---
@@ -1303,7 +1309,7 @@ export const AssessmentProvider = ({ children }) => {
 
             // Actualizamos UI inmediatamente
             setPlanData(updatedPlan);
-            localStorage.setItem('mealfit_plan', JSON.stringify(updatedPlan));
+            safeLocalStorageSet('mealfit_plan', updatedPlan);
 
             // 3. PERSISTENCIA ATÓMICA EN BACKEND
             // [P0-NEW-A · 2026-05-11] Reemplaza el patrón legacy
@@ -1378,7 +1384,7 @@ export const AssessmentProvider = ({ children }) => {
                                     const recalcData = await recalcResponse.json();
                                     if (recalcData.success && recalcData.plan_data) {
                                         setPlanData(recalcData.plan_data);
-                                        localStorage.setItem('mealfit_plan', JSON.stringify(recalcData.plan_data));
+                                        safeLocalStorageSet('mealfit_plan', recalcData.plan_data);
                                         console.log("✅ [GAP 3] Lista de compras recalculada vía Delta Matemático tras modificar plato.");
                                         // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir
                                         // `_coherence_warnings` post-swap-recalc.
@@ -1439,7 +1445,7 @@ export const AssessmentProvider = ({ children }) => {
 
     const updateData = (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
-        localStorage.setItem('mealfit_last_form_owner', session?.user?.id || 'guest');
+        safeLocalStorageSet('mealfit_last_form_owner', session?.user?.id || 'guest');
         // [P0-FORM-2 + P0-FORM-3] Marca el campo como tocado para que ningún
         // writer async lo sobrescriba con valor stale. Cubre TRES consumidores:
         //   1. Hidratación cifrada de `mealfit_form_secure` (post-login).
@@ -1481,12 +1487,10 @@ export const AssessmentProvider = ({ children }) => {
         // está persistido. Sin esta señal, un usuario que ya tenía
         // /history abierto en otra pestaña y vuelve dentro de los 60s
         // ve el listado pre-mutación. P0-HIST-NEW-2 contract preserved.
-        // Try/catch porque localStorage tira SecurityError en private mode.
-        try {
-            if (typeof window !== 'undefined' && window.localStorage) {
-                window.localStorage.setItem('mealfit_history_dirty_at', String(Date.now()));
-            }
-        } catch { /* SecurityError en modo private/incógnito: silent */ }
+        // [P2-AUDIT-3 · 2026-05-15] Helper SSOT atrapa SecurityError +
+        // QuotaExceededError silenciosamente; el try/catch inline previo
+        // quedó como ejemplo del patrón ad-hoc que el helper subsume.
+        safeLocalStorageSet('mealfit_history_dirty_at', String(Date.now()));
 
         setTimeout(async () => {
             await checkPlanLimit();
@@ -1527,7 +1531,7 @@ export const AssessmentProvider = ({ children }) => {
         // los gustos acumulados del usuario; si el plato del like no existe en
         // el plan restaurado, la UI simplemente no lo muestra (sin perder el
         // dato para planes futuros).
-        localStorage.setItem('mealfit_plan', JSON.stringify(pastPlanData));
+        safeLocalStorageSet('mealfit_plan', pastPlanData);
 
         // 2. Sincronizar con Supabase para que cloud sync no lo revierta
         const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
@@ -1671,7 +1675,7 @@ export const AssessmentProvider = ({ children }) => {
 
         // 1. Estado local primero (UI inmediata).
         setPlanData(pastPlanData);
-        localStorage.setItem('mealfit_plan', JSON.stringify(pastPlanData));
+        safeLocalStorageSet('mealfit_plan', pastPlanData);
 
         // 2. Endpoint atómico (cancel chunks + release locks + UPDATE).
         const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');

@@ -92,21 +92,25 @@ const Register = () => {
                     <p className={styles.subtitle}>Empieza tu transformación hoy mismo.</p>
                 </div>
 
+                {/* [P2-AUDIT-6 · 2026-05-15] `role="alert"` + `aria-live="assertive"`
+                    para que screen readers anuncien errores de validación
+                    inmediatamente. */}
                 {error && (
-                    <div className={styles.errorBox}>
-                        <AlertCircle size={16} />
+                    <div className={styles.errorBox} role="alert" aria-live="assertive">
+                        <AlertCircle size={16} aria-hidden="true" />
                         {error}
                     </div>
                 )}
 
                 <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <div className={styles.formGroup}>
-                        <label className={styles.label}>Nombre Completo <span className={styles.requiredAsterisk}>*</span></label>
+                        <label className={styles.label} htmlFor="register-name">Nombre Completo <span className={styles.requiredAsterisk}>*</span></label>
                         <div className={styles.inputWrapper}>
-                            <div className={styles.inputIcon}>
+                            <div className={styles.inputIcon} aria-hidden="true">
                                 <User size={18} />
                             </div>
                             <input
+                                id="register-name"
                                 type="text"
                                 required
                                 value={name}
@@ -120,12 +124,13 @@ const Register = () => {
                     </div>
 
                     <div className={styles.formGroup}>
-                        <label className={styles.label}>Correo Electrónico <span className={styles.requiredAsterisk}>*</span></label>
+                        <label className={styles.label} htmlFor="register-email">Correo Electrónico <span className={styles.requiredAsterisk}>*</span></label>
                         <div className={styles.inputWrapper}>
-                            <div className={styles.inputIcon}>
+                            <div className={styles.inputIcon} aria-hidden="true">
                                 <Mail size={18} />
                             </div>
                             <input
+                                id="register-email"
                                 type="email"
                                 required
                                 value={email}
@@ -141,12 +146,13 @@ const Register = () => {
                     {name.trim() !== '' && email.trim() !== '' && (
                         <div className={`${styles.inputRow} ${styles.animateFadeIn}`}>
                             <div className={styles.formGroup}>
-                                <label className={styles.label}>Contraseña <span className={styles.requiredAsterisk}>*</span></label>
+                                <label className={styles.label} htmlFor="register-password">Contraseña <span className={styles.requiredAsterisk}>*</span></label>
                                 <div className={styles.inputWrapper}>
-                                    <div className={styles.inputIcon}>
+                                    <div className={styles.inputIcon} aria-hidden="true">
                                         <Lock size={18} />
                                     </div>
                                     <input
+                                        id="register-password"
                                         type={showPassword ? "text" : "password"}
                                         required
                                         value={password}
@@ -160,19 +166,21 @@ const Register = () => {
                                         className={styles.passwordToggle}
                                         onClick={() => setShowPassword(!showPassword)}
                                         tabIndex="-1"
+                                        aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                                     >
-                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                                     </button>
                                 </div>
                             </div>
 
                             <div className={styles.formGroup}>
-                                <label className={styles.label}>Confirmar Contraseña <span className={styles.requiredAsterisk}>*</span></label>
+                                <label className={styles.label} htmlFor="register-confirm-password">Confirmar Contraseña <span className={styles.requiredAsterisk}>*</span></label>
                                 <div className={styles.inputWrapper}>
-                                    <div className={styles.inputIcon}>
+                                    <div className={styles.inputIcon} aria-hidden="true">
                                         <Lock size={18} />
                                     </div>
                                     <input
+                                        id="register-confirm-password"
                                         type={showConfirmPassword ? "text" : "password"}
                                         required
                                         value={confirmPassword}
@@ -186,8 +194,9 @@ const Register = () => {
                                         className={styles.passwordToggle}
                                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                         tabIndex="-1"
+                                        aria-label={showConfirmPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                                     >
-                                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        {showConfirmPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                                     </button>
                                 </div>
                             </div>

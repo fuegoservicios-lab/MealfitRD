@@ -103,6 +103,52 @@ export const subscribeToPushNotifications = async () => {
 };
 
 /**
+ * [P3-AUDIT-4 · 2026-05-15] Listener del client-side que recibe `postMessage`
+ * desde el SW cuando el browser dispara `pushsubscriptionchange` (rotación
+ * de FCM credentials, refresh interno del browser, app reset). El SW ya
+ * re-suscribió localmente vía `event.oldSubscription.options.applicationServerKey`
+ * pero NO tiene access_token para POSTear al backend — el cliente lo hace
+ * aquí con `subscribeToPushNotifications()` que reusa el `getSubscription()`
+ * actual y reposta al endpoint `/api/notifications/subscribe`.
+ *
+ * Si no hay sesión activa (user logged out), `fetchWithAuth` fallará con 401
+ * y el backend NO se actualizará — el operador del backend recibe un
+ * endpoint zombie hasta que el user re-loguee. Es trade-off aceptado: sin
+ * auth no podemos POSTear, y forzar re-login solo para sync push sería UX
+ * intrusivo.
+ *
+ * Llamar `registerPushSubscriptionChangeListener()` UNA vez durante el
+ * bootstrap del cliente (`main.jsx` o `App.jsx`). Idempotente: si se invoca
+ * 2+ veces solo registra el handler una vez.
+ *
+ * Tooltip-anchor: P3-AUDIT-4-CLIENT-LISTENER | gap audit 2026-05-15
+ */
+let _pushSubChangeListenerRegistered = false;
+
+export function registerPushSubscriptionChangeListener() {
+    if (_pushSubChangeListenerRegistered) return;
+    if (typeof navigator === 'undefined' || !navigator.serviceWorker) return;
+    _pushSubChangeListenerRegistered = true;
+
+    navigator.serviceWorker.addEventListener('message', async (event) => {
+        if (!event || !event.data || event.data.type !== 'pushsubscriptionchange') return;
+        try {
+            // `subscribeToPushNotifications` ya hace getSubscription() (que
+            // ahora devuelve la nueva subscription re-creada por el SW) +
+            // POST al backend con auth. Si falla (sin sesión / sin internet /
+            // backend down), log y continue — la próxima vez que el cliente
+            // bootstrap llamará el mismo flow.
+            const result = await subscribeToPushNotifications();
+            if (!result.success) {
+                console.warn('[P3-AUDIT-4] Re-sync de push subscription falló:', result.error);
+            }
+        } catch (err) {
+            console.warn('[P3-AUDIT-4] Excepción durante re-sync de push subscription:', err);
+        }
+    });
+}
+
+/**
  * Desuscribe el dispositivo y notifica al Backend.
  */
 export const unsubscribeFromPushNotifications = async () => {
