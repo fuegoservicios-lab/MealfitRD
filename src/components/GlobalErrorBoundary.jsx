@@ -11,8 +11,19 @@ export class GlobalErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("Caught error in GlobalErrorBoundary:", error, errorInfo);
-    
+    // [P3-NEW-CONSOLE-ERROR-SENTRY · 2026-05-15] esbuild solo stripea
+    // log/warn/info/debug en prod build (vite.config.js terserOptions);
+    // `console.error` se preserva. Sin gate, en prod el usuario ve el
+    // stack trace + componentStack en DevTools — minor info leak +
+    // ruido visual ante usuarios técnicos que abren consola buscando
+    // diagnóstico. Sentry ya capta unhandled errors via window listener
+    // (P1-SENTRY-PII-SCRUBBING-BACKEND inicializado en main.jsx) — el
+    // log local es solo para dev workflow. Anchor:
+    // P3-NEW-CONSOLE-ERROR-SENTRY.
+    if (import.meta.env.DEV) {
+      console.error("Caught error in GlobalErrorBoundary:", error, errorInfo);
+    }
+
     // Auto-reload the page if it's a chunk loading error.
     // Common symptoms of new deployment missing old chunks:
     // "Failed to fetch dynamically imported module" (404)

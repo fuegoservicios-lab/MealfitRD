@@ -12,6 +12,10 @@ import { toast } from 'sonner';
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
 import { SidebarRecientes } from '../components/agent/SidebarRecientes';
 import { safeJSONParse } from '../utils/safeJSONParse';
+// [P2-NEW-LOCALSTORAGE-MIGRATION-DEBT · 2026-05-15] Ver ChatWidget.jsx para
+// rationale (QuotaExceededError silente). Migración del setItem raw al
+// helper P2-AUDIT-3 que atrapa errores y devuelve boolean.
+import { safeLocalStorageSet } from '../utils/safeLocalStorage';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 const generateIntelligentWelcome = (userProfile, formData, planData) => {
     const nameStr = formData?.name || userProfile?.name || userProfile?.first_name || '';
@@ -278,7 +282,7 @@ const AgentPage = () => {
         const saved = localStorage.getItem('mealfit_guest_session');
         if (saved) return saved;
         const newId = crypto.randomUUID();
-        localStorage.setItem('mealfit_guest_session', newId);
+        safeLocalStorageSet('mealfit_guest_session', newId);
         return newId;
     });
 
@@ -298,22 +302,22 @@ const AgentPage = () => {
             if (!list.includes(localSessionId)) {
                 list.unshift(localSessionId);
                 list = list.slice(0, 40);
-                localStorage.setItem('mealfit_guest_sessions_list', JSON.stringify(list));
+                safeLocalStorageSet('mealfit_guest_sessions_list', JSON.stringify(list));
             }
             return list;
         }
         const initialList = [localSessionId];
-        localStorage.setItem('mealfit_guest_sessions_list', JSON.stringify(initialList));
+        safeLocalStorageSet('mealfit_guest_sessions_list', JSON.stringify(initialList));
         return initialList;
     });
 
     const [currentSessionId, _setCurrentSessionId] = useState(() => {
         const newId = crypto.randomUUID();
-        localStorage.setItem('mealfit_current_session', newId);
+        safeLocalStorageSet('mealfit_current_session', newId);
         return newId;
     });
     const setCurrentSessionId = (id) => {
-        localStorage.setItem('mealfit_current_session', id);
+        safeLocalStorageSet('mealfit_current_session', id);
         _setCurrentSessionId(id);
     };
 
@@ -323,7 +327,7 @@ const AgentPage = () => {
             const currentGuestSession = localStorage.getItem('mealfit_guest_session');
             if (!currentGuestSession) {
                 const newId = crypto.randomUUID();
-                localStorage.setItem('mealfit_guest_session', newId);
+                safeLocalStorageSet('mealfit_guest_session', newId);
                 setLocalSessionId(newId);
                 setCurrentSessionId(newId);
                 setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
@@ -932,7 +936,7 @@ const AgentPage = () => {
                 // Si borramos el chat actual activo, redirigimos a un chat nuevo
                 if (currentSessionId === sessionIdToDelete) {
                     const newId = crypto.randomUUID();
-                    localStorage.setItem('mealfit_current_session', newId);
+                    safeLocalStorageSet('mealfit_current_session', newId);
                     setCurrentSessionId(newId);
                 }
             } else {
@@ -983,7 +987,7 @@ const AgentPage = () => {
         const newId = crypto.randomUUID();
         setGuestSessionIds(prev => {
             const newList = [newId, ...prev].slice(0, 40);
-            localStorage.setItem('mealfit_guest_sessions_list', JSON.stringify(newList));
+            safeLocalStorageSet('mealfit_guest_sessions_list', JSON.stringify(newList));
             return newList;
         });
         setCurrentSessionId(newId);
@@ -1024,7 +1028,7 @@ const AgentPage = () => {
         if (!currentList.includes(currentSessionId)) {
             currentList.unshift(currentSessionId);
             currentList = currentList.slice(0, 40);
-            localStorage.setItem('mealfit_guest_sessions_list', JSON.stringify(currentList));
+            safeLocalStorageSet('mealfit_guest_sessions_list', JSON.stringify(currentList));
             setGuestSessionIds(currentList);
         }
 

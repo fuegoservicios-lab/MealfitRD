@@ -55,9 +55,26 @@ const PaymentModal = ({
         return () => window.removeEventListener('resize', handler);
     }, []);
 
+    // [P3-NEW-PAYPAL-FALLBACK · 2026-05-15] Anti-pattern eliminado: el
+    // fallback hardcoded a un client_id de PayPal real (no placeholder)
+    // ocultaba misconfig — si Vercel perdía `VITE_PAYPAL_CLIENT_ID` por
+    // typo o deploy parcial, el SDK seguía usando el ID hardcoded del
+    // commit, posiblemente apuntando al merchant equivocado o a un client
+    // viejo deshabilitado. Fail-loud: tirar Error visible que para el
+    // mount del modal y dispara el ErrorBoundary global. Mejor "modal
+    // roto + alert SRE" que "pago procesado contra merchant incorrecto".
+    // PayPal client_id es público (visible en bundle), pero el riesgo es
+    // operacional, no de seguridad. Anchor: P3-NEW-PAYPAL-FALLBACK.
+    const _paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
+    if (!_paypalClientId) {
+        throw new Error(
+            "[P3-NEW-PAYPAL-FALLBACK] VITE_PAYPAL_CLIENT_ID missing in env. " +
+            "Configure Vercel env vars before deploying PaymentModal."
+        );
+    }
     // PayPal
     const initialOptions = {
-        "client-id": import.meta.env.VITE_PAYPAL_CLIENT_ID || "ARVcVpVZ-8CQvKUs5hZEPpvUYmt-V4ahVzHblAkOQ343_N83vcwlV_8IUHgvW2aH6dKUUtiZ5xIC4YnP",
+        "client-id": _paypalClientId,
         currency: "USD",
         intent: "subscription",
         vault: true

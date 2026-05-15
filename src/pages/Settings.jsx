@@ -10,6 +10,10 @@ import { useNavigate } from 'react-router-dom';
 import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
 import styles from './Settings.module.css';
 import { fetchWithAuth } from '../config/api';
+// [P2-NEW-WINDOW-CONFIRM-SETTINGS · 2026-05-15] Reemplazo Promise-based
+// para los 2 `window.confirm` legacy del flujo Renovar/Cero (líneas ~847,
+// ~862). Modal nativo rompía dark theme + a11y; este helper usa sonner.
+import { confirmToast } from '../utils/confirmToast';
 import { requestNotificationPermission, subscribeToPushNotifications, unsubscribeFromPushNotifications, isPushSupported } from '../utils/pushNotifications';
 import { trackEvent } from '../utils/analytics';
 import Modal from '../components/common/Modal';
@@ -844,7 +848,10 @@ const Settings = () => {
                                     if (typeof userPlanLimit === 'number' && userPlanLimit > 0) {
                                         if (planCount / userPlanLimit > 0.7) {
                                             const remaining = Math.max(0, userPlanLimit - planCount);
-                                            const confirmed = window.confirm(`¿Consumir 1 regeneración? Quedan ${remaining}.`);
+                                            const confirmed = await confirmToast(
+                                                `¿Consumir 1 regeneración? Quedan ${remaining}.`,
+                                                { confirmLabel: 'Consumir', cancelLabel: 'Cancelar' }
+                                            );
                                             if (!confirmed) return;
                                         }
                                     }
@@ -859,7 +866,10 @@ const Settings = () => {
                                     if (typeof userPlanLimit === 'number' && userPlanLimit > 0) {
                                         if (planCount / userPlanLimit > 0.7) {
                                             const remaining = Math.max(0, userPlanLimit - planCount);
-                                            const confirmed = window.confirm(`Empezar de cero consumirá 1 regeneración al generar el nuevo plan. Quedan ${remaining}. ¿Continuar?`);
+                                            const confirmed = await confirmToast(
+                                                `Empezar de cero consumirá 1 regeneración al generar el nuevo plan. Quedan ${remaining}. ¿Continuar?`,
+                                                { confirmLabel: 'Continuar', cancelLabel: 'Cancelar' }
+                                            );
                                             if (!confirmed) return;
                                         }
                                     }

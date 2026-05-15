@@ -5,6 +5,11 @@ import { fetchWithAuth } from '../../config/api';
 // [P3-LAZY-MARKDOWN · 2026-05-12] react-markdown ahora lazy via wrapper.
 import LazyMarkdown from '../common/LazyMarkdown';
 import { safeJSONParse } from '../../utils/safeJSONParse';
+// [P2-NEW-LOCALSTORAGE-MIGRATION-DEBT · 2026-05-15] Migración mecánica de
+// `localStorage.setItem` raw a `safeLocalStorageSet` (P2-AUDIT-3 helper).
+// QuotaExceededError silente (iOS Private Mode, cuota llena) interrumpía
+// flujo de sesión guest y dejaba state inconsistente entre React y storage.
+import { safeLocalStorageSet } from '../../utils/safeLocalStorage';
 
 const ChatWidget = () => {
     const { session, planData, formData, userProfile, updateData, saveGeneratedPlan, checkPlanLimit } = useAssessment();
@@ -13,7 +18,7 @@ const ChatWidget = () => {
         const saved = localStorage.getItem('mealfit_guest_session');
         if (saved) return saved;
         const newId = crypto.randomUUID();
-        localStorage.setItem('mealfit_guest_session', newId);
+        safeLocalStorageSet('mealfit_guest_session', newId);
         return newId;
     });
 
@@ -36,12 +41,12 @@ const ChatWidget = () => {
         if (Array.isArray(list)) {
             if (!list.includes(localSessionId)) {
                 list.unshift(localSessionId);
-                localStorage.setItem('mealfit_guest_sessions_list', JSON.stringify(list));
+                safeLocalStorageSet('mealfit_guest_sessions_list', JSON.stringify(list));
             }
             return list;
         }
         const initialList = [localSessionId];
-        localStorage.setItem('mealfit_guest_sessions_list', JSON.stringify(initialList));
+        safeLocalStorageSet('mealfit_guest_sessions_list', JSON.stringify(initialList));
         return initialList;
     });
     
@@ -59,7 +64,7 @@ const ChatWidget = () => {
             const currentGuestSession = localStorage.getItem('mealfit_guest_session');
             if (!currentGuestSession) {
                 const newId = crypto.randomUUID();
-                localStorage.setItem('mealfit_guest_session', newId);
+                safeLocalStorageSet('mealfit_guest_session', newId);
                 setLocalSessionId(newId);
                 setCurrentSessionId(newId);
                 setMessages([{ role: 'model', content: '¡Hola! Soy tu asistente de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?' }]);
@@ -231,7 +236,7 @@ const ChatWidget = () => {
         });
         if (!currentList.includes(currentSessionId)) {
             currentList.unshift(currentSessionId);
-            localStorage.setItem('mealfit_guest_sessions_list', JSON.stringify(currentList));
+            safeLocalStorageSet('mealfit_guest_sessions_list', JSON.stringify(currentList));
             setGuestSessionIds(currentList);
         }
 
