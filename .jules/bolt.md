@@ -1,0 +1,3 @@
+## 2024-05-24 - [Avoid redundant JSON.parse of localStorage strings]
+**Learning:** In `restoreSessionData` within `AssessmentContext.jsx`, parsing the same `mealfit_plan` string multiple times from `localStorage` to retrieve specific keys (like `grocery_start_date` and `cycle_start_date`) introduces unnecessary CPU overhead and garbage collection. Also, comparing the stringified version of a remote object directly with the raw string from `localStorage` can skip an expensive `JSON.parse()` + `JSON.stringify()` cycle.
+**Action:** Consolidate redundant `localStorage.getItem` and `JSON.parse` calls, and compare the raw string from `localStorage` directly against a stringified remote object to minimize CPU overhead from unnecessary serialization cycles.
