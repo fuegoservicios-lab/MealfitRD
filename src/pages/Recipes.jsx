@@ -680,7 +680,29 @@ const Recipes = () => {
             };
             // [P2-LAZY-PDF · 2026-05-13] Dynamic import: ver nota en el
             // import section. Chunk html2pdf-*.js solo se fetch al click.
-            const html2pdf = (await import('html2pdf.js')).default;
+            //
+            // [P3-RECIPES-CHUNK-LOAD-FAIL · 2026-05-15] Wrap dedicado para
+            // `ChunkLoadError` (Vercel/CDN dropea el chunk en red intermitente,
+            // o rotación de build invalida el hash mientras la pestaña vive).
+            // Sin esto el outer try/catch muestra "Error al descargar PDF" —
+            // mensaje genérico que confunde al usuario. Mensaje específico
+            // sugiere refresh + retry, lo que arregla el caso.
+            let html2pdf;
+            try {
+                html2pdf = (await import('html2pdf.js')).default;
+            } catch (importErr) {
+                toast.dismiss(toastId);
+                const _msg = String(importErr?.message || '');
+                if (
+                    importErr?.name === 'ChunkLoadError' ||
+                    /loading chunk|failed to fetch dynamically imported/i.test(_msg)
+                ) {
+                    toast.error('Error de red al cargar el PDF. Refresca la página e intenta de nuevo.');
+                } else {
+                    toast.error('No se pudo cargar el generador de PDF. Refresca la página e intenta de nuevo.');
+                }
+                return;
+            }
             // [P1-AUDIT-2 · 2026-05-15] Timeout sobre html2pdf().save().
             // Patrón canónico replicado de Dashboard.jsx P2-PDF-OBS-2: el audit
             // 2026-05-14 cerró el hang en Dashboard pero olvidó este segundo

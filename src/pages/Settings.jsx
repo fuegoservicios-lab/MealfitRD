@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
     User, Bell, Shield, ChevronRight, ArrowLeft,
-    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat
+    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat, GlassWater
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -227,6 +227,12 @@ const Settings = () => {
     const [saveStatus, setSaveStatus] = useState(''); // '', 'success', 'error'
     const [nameError, setNameError] = useState('');
     const [confirmReset, setConfirmReset] = useState(false);
+    // [P3-RESET-BUTTON-LOADING-STATE · 2026-05-16] Loading state inmediato
+    // del botón "Sí, empezar desde cero". Sin esto, el user clickeaba y
+    // el botón NO cambiaba visualmente durante los ~5-8s del backend
+    // call → percepción de "el botón está roto, no respondió a mi click".
+    // El toast.loading aparece arriba pero el botón mismo seguía idéntico.
+    const [isResetting, setIsResetting] = useState(false);
 
     // --- ESTADOS PARA CEREBRO IA ---
     const [userFacts, setUserFacts] = useState([]);
@@ -238,6 +244,13 @@ const Settings = () => {
     // solo monta para isPremium, así que el GET solo dispara para esos usuarios.
     const [ltmEnabled, setLtmEnabled] = useState(null);
     const [isLtmToggling, setIsLtmToggling] = useState(false);
+
+    // [P3-WATER-TRACKER · 2026-05-16] Toggle del card de hidratacion del
+    // Dashboard. Disponible para TODOS los usuarios autenticados (no
+    // gate de tier). Default TRUE; el usuario lo apaga si no quiere
+    // ver el card.
+    const [waterTrackerEnabled, setWaterTrackerEnabled] = useState(null);
+    const [isWaterTrackerToggling, setIsWaterTrackerToggling] = useState(false);
 
     // --- ESTADOS DE PAGO ---
     const [isCancelling, setIsCancelling] = useState(false);
@@ -406,6 +419,37 @@ const Settings = () => {
         fetchLtmState();
     }, [userProfile?.id, isPremium]);
 
+    // [P3-WATER-TRACKER · 2026-05-16] Carga el estado actual del toggle
+    // del water tracker. Disponible para todos los usuarios autenticados.
+    // Default optimista TRUE si el GET falla — fail-open consistente con
+    // el backend que asume TRUE para perfiles legacy.
+    useEffect(() => {
+        if (!userProfile?.id) {
+            setWaterTrackerEnabled(null);
+            return;
+        }
+        const fetchWaterTrackerState = async () => {
+            try {
+                const response = await fetchWithAuth('/api/user/preferences/water-tracker');
+                if (response.ok) {
+                    const data = await response.json();
+                    const value = Boolean(data.water_tracker_enabled);
+                    setWaterTrackerEnabled(value);
+                    // Cache en localStorage para que WaterTracker.jsx pueda
+                    // pre-render sin esperar al GET (evita el flash de "cargando").
+                    try {
+                        localStorage.setItem('mealfit_water_tracker_enabled', String(value));
+                    } catch { /* localStorage no critico */ }
+                } else {
+                    setWaterTrackerEnabled(true);
+                }
+            } catch {
+                setWaterTrackerEnabled(true);
+            }
+        };
+        fetchWaterTrackerState();
+    }, [userProfile?.id]);
+
     // --- MANEJADORES (HANDLERS) ---
     
     const getNotificationBlockedMessage = async () => {
@@ -561,6 +605,53 @@ const Settings = () => {
             toast.error('No pudimos actualizar tu preferencia. Inténtalo de nuevo.');
         } finally {
             setIsLtmToggling(false);
+        }
+    };
+
+    // [P3-WATER-TRACKER · 2026-05-16] Toggle del card de hidratacion.
+    // PATCH al backend + actualiza cache local para que WaterTracker.jsx
+    // (en Dashboard) lea el nuevo valor SIN flash visual cuando el usuario
+    // regresa al Dashboard.
+    const handleToggleWaterTracker = async () => {
+        if (isWaterTrackerToggling || waterTrackerEnabled === null) return;
+        const next = !waterTrackerEnabled;
+        setWaterTrackerEnabled(next); // optimistic
+        setIsWaterTrackerToggling(true);
+        // Pre-actualizar localStorage para que el unmount del card sea
+        // instantaneo al navegar al Dashboard (el state inicial lee de aqui).
+        try {
+            localStorage.setItem('mealfit_water_tracker_enabled', String(next));
+            // Storage event para que un Dashboard abierto en otra tab
+            // recoja el cambio sin reload (Fix 3 cross-tab).
+            window.dispatchEvent(new StorageEvent('storage', {
+                key: 'mealfit_water_tracker_enabled',
+                newValue: String(next),
+            }));
+        } catch { /* localStorage no critico */ }
+        try {
+            const response = await fetchWithAuth('/api/user/preferences/water-tracker', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ water_tracker_enabled: next }),
+            });
+            if (!response.ok) throw new Error('PATCH failed');
+            const data = await response.json();
+            setWaterTrackerEnabled(Boolean(data.water_tracker_enabled));
+            toast.success(
+                next
+                    ? 'Tracker de hidratacion activado.'
+                    : 'Tracker de hidratacion oculto. Tu historial se conserva.',
+                { duration: 3500 }
+            );
+        } catch (error) {
+            console.error('Error toggling water tracker:', error);
+            setWaterTrackerEnabled(!next); // revertir
+            try {
+                localStorage.setItem('mealfit_water_tracker_enabled', String(!next));
+            } catch { /* localStorage no critico */ }
+            toast.error('No pudimos actualizar tu preferencia. Intentalo de nuevo.');
+        } finally {
+            setIsWaterTrackerToggling(false);
         }
     };
 
@@ -762,11 +853,18 @@ const Settings = () => {
                             </div>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                <button 
+                                <button
+                                    disabled={isResetting}
                                     onClick={async (e) => {
-                                        if (isNavigatingRef.current) return;
+                                        if (isNavigatingRef.current || isResetting) return;
                                         isNavigatingRef.current = true;
-                                        
+                                        // [P3-RESET-BUTTON-LOADING-STATE · 2026-05-16]
+                                        // Feedback visual INMEDIATO. El backend hace 7
+                                        // DELETEs + 1 UPDATE en el free tier — 1-8s
+                                        // depending on pool. Sin esto el user clickeaba
+                                        // 2-3 veces porque el botón no respondía.
+                                        setIsResetting(true);
+
                                         const toastId = toast.loading('Borrando preferencias...', { description: 'Preparando tu cuenta para un nuevo inicio.' });
 
                                         try {
@@ -785,7 +883,7 @@ const Settings = () => {
 
                                             toast.dismiss(toastId);
                                             toast.success('Cuenta reseteada', { description: 'Empecemos de nuevo.' });
-                                            
+
                                             // GAP 13: Analítica explícita para la intención de empezar de cero
                                             trackEvent('plan_regeneration_triggered', {
                                                 reason: 'account_reset',
@@ -797,7 +895,7 @@ const Settings = () => {
 
                                             setShowEvaluateModal(false);
                                             setShowResetConfirm(false);
-                                            
+
                                             // Ir al form desde cero
                                             setCurrentStep(0);
                                             navigate('/assessment');
@@ -805,20 +903,36 @@ const Settings = () => {
                                             console.error("Error reseteando preferencias:", error);
                                             toast.dismiss(toastId);
                                             toast.error('Error', { description: 'Hubo un problema al borrar tus preferencias.' });
+                                            // [P3-RESET-BUTTON-LOADING-STATE] Reset del loading
+                                            // SOLO en error path — happy path navega y el
+                                            // componente se desmonta naturalmente.
+                                            setIsResetting(false);
                                         } finally {
                                             setTimeout(() => { isNavigatingRef.current = false; }, 1000);
                                         }
                                     }}
                                     style={{
                                         padding: '1rem 1.25rem', borderRadius: '0.875rem', border: 'none',
-                                        background: '#EF4444', color: 'white', cursor: 'pointer', transition: 'all 0.2s',
+                                        background: isResetting ? '#FCA5A5' : '#EF4444',
+                                        color: 'white',
+                                        cursor: isResetting ? 'wait' : 'pointer',
+                                        transition: 'all 0.2s',
                                         fontWeight: 700, fontSize: '1rem', textAlign: 'center',
-                                        boxShadow: '0 4px 14px rgba(239, 68, 68, 0.28)'
+                                        boxShadow: isResetting ? '0 2px 6px rgba(239, 68, 68, 0.15)' : '0 4px 14px rgba(239, 68, 68, 0.28)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.625rem'
                                     }}
-                                    onMouseOver={(e) => { e.currentTarget.style.background = '#DC2626'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                                    onMouseOut={(e) => { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                                    onMouseOver={(e) => { if (!isResetting) { e.currentTarget.style.background = '#DC2626'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                                    onMouseOut={(e) => { if (!isResetting) { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.transform = 'translateY(0)'; } }}
                                 >
-                                    Sí, empezar desde cero
+                                    {/* [P3-RESET-BUTTON-LOADING-STATE · 2026-05-16]
+                                        Sin spinner: el keyframe `mfSpin` vive en
+                                        Plan.jsx (scope local) y no aplica aquí.
+                                        El cambio de texto + color desaturado
+                                        (#FCA5A5 vs #EF4444) + cursor:wait +
+                                        sombra reducida + `disabled` HTML attr
+                                        dan feedback visual fuerte e inmediato
+                                        sin depender de animaciones globales. */}
+                                    {isResetting ? 'Borrando…' : 'Sí, empezar desde cero'}
                                 </button>
                             </div>
                         </Modal>
@@ -850,18 +964,14 @@ const Settings = () => {
                             isNavigatingOption={isNavigatingOption}
                             onOptionClick={async (optionId) => {
                                 if (optionId === 'renovar') {
-                                    // GAP 11: Mini-confirm inline si se están agotando los créditos
-                                    if (typeof userPlanLimit === 'number' && userPlanLimit > 0) {
-                                        if (planCount / userPlanLimit > 0.7) {
-                                            const remaining = Math.max(0, userPlanLimit - planCount);
-                                            const confirmed = await confirmToast(
-                                                `¿Consumir 1 regeneración? Quedan ${remaining}.`,
-                                                { confirmLabel: 'Consumir', cancelLabel: 'Cancelar' }
-                                            );
-                                            if (!confirmed) return;
-                                        }
-                                    }
-
+                                    // [P3-RESET-CONFIRM-NO-DOUBLE-CONFIRM · 2026-05-16]
+                                    // Pre-fix: confirmToast bloqueante cuando planCount/limit > 70%
+                                    // → toast renderizaba DETRÁS del OptionPickerModal (z-index)
+                                    // → user no lo veía → botón parecía "no responder".
+                                    // Post-fix: la info "Consume 1 regeneración" + tiempo
+                                    // estimado YA están en el `infoBandRenderer` del modal
+                                    // (visible cuando hover sobre la card). Si necesitas ver
+                                    // créditos restantes, están en /settings → Suscripción.
                                     if (isNavigatingRef.current) return;
                                     setIsNavigatingOption('renovar');
                                     const toastId = toast.loading('Preparando renovación...', { description: 'Iniciando Chef IA...' });
@@ -869,16 +979,14 @@ const Settings = () => {
                                     setIsNavigatingOption(null);
                                     setShowEvaluateModal(false);
                                 } else if (optionId === 'cero') {
-                                    if (typeof userPlanLimit === 'number' && userPlanLimit > 0) {
-                                        if (planCount / userPlanLimit > 0.7) {
-                                            const remaining = Math.max(0, userPlanLimit - planCount);
-                                            const confirmed = await confirmToast(
-                                                `Empezar de cero consumirá 1 regeneración al generar el nuevo plan. Quedan ${remaining}. ¿Continuar?`,
-                                                { confirmLabel: 'Continuar', cancelLabel: 'Cancelar' }
-                                            );
-                                            if (!confirmed) return;
-                                        }
-                                    }
+                                    // [P3-RESET-CONFIRM-NO-DOUBLE-CONFIRM · 2026-05-16]
+                                    // Pre-fix: confirmToast bloqueante cuando planCount/limit > 70%
+                                    // → el toast aparece DETRÁS del OptionPickerModal (z-index conflict)
+                                    // → user no lo ve → parece que el botón "no responde".
+                                    // Post-fix: el modal `showResetConfirm` que aparece
+                                    // INMEDIATAMENTE después YA advierte sobre el reset + consumo
+                                    // de créditos. Doble confirmación es fricción innecesaria.
+                                    // Saltar directo al modal de confirmación.
                                     setShowResetConfirm(true);
                                 }
                             }}
@@ -1274,6 +1382,81 @@ const Settings = () => {
                                     <span className={styles.toggleSlider} style={{ opacity: isLoggingPrefLoading ? 0.5 : 1 }}></span>
                                 </label>
                             </div>
+
+                            {/* [P3-WATER-TRACKER · 2026-05-16] Toggle: Tracker de
+                                hidratacion. Disponible para todos los usuarios
+                                autenticados (sin gate de tier). Default TRUE. */}
+                            {waterTrackerEnabled !== null && (
+                                <div style={{
+                                    background: waterTrackerEnabled ? 'linear-gradient(135deg, #EFF6FF 0%, #FFFFFF 100%)' : '#F8FAFC',
+                                    borderRadius: '1rem',
+                                    padding: '1.25rem',
+                                    border: `1px solid ${waterTrackerEnabled ? '#93C5FD' : '#CBD5E1'}`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: '1rem',
+                                    marginBottom: '1rem',
+                                    transition: 'all 0.2s ease',
+                                }}>
+                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
+                                        <div style={{
+                                            background: 'linear-gradient(135deg, #3B82F6 0%, #06B6D4 100%)',
+                                            padding: '0.75rem',
+                                            borderRadius: '0.75rem',
+                                            flexShrink: 0,
+                                            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
+                                        }}>
+                                            <GlassWater size={20} color="#FFFFFF" />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem' }}>
+                                                Tracker de hidratacion
+                                            </div>
+                                            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.45', marginTop: '0.25rem' }}>
+                                                {waterTrackerEnabled
+                                                    ? 'Visible en tu Dashboard. Marca tus vasos diarios; la meta se calcula segun tu peso.'
+                                                    : 'Oculto del Dashboard. Tu historial de vasos se conserva si lo reactivas.'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleToggleWaterTracker}
+                                        disabled={isWaterTrackerToggling}
+                                        role="switch"
+                                        aria-checked={waterTrackerEnabled}
+                                        aria-label="Activar o desactivar el tracker de hidratacion"
+                                        style={{
+                                            position: 'relative',
+                                            width: '52px',
+                                            height: '30px',
+                                            borderRadius: '999px',
+                                            border: 'none',
+                                            background: waterTrackerEnabled ? '#10B981' : '#CBD5E1',
+                                            cursor: isWaterTrackerToggling ? 'wait' : 'pointer',
+                                            transition: 'background 0.2s ease',
+                                            flexShrink: 0,
+                                            padding: 0,
+                                            opacity: isWaterTrackerToggling ? 0.6 : 1,
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                position: 'absolute',
+                                                top: '3px',
+                                                left: waterTrackerEnabled ? '25px' : '3px',
+                                                width: '24px',
+                                                height: '24px',
+                                                borderRadius: '50%',
+                                                background: '#FFFFFF',
+                                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
+                                                transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            }}
+                                        />
+                                    </button>
+                                </div>
+                            )}
 
                             {/* Toggle: Memoria a Largo Plazo (solo Básico+).
                                 [LONG-TERM-MEMORY-TOGGLE · 2026-05-13] Reutiliza state

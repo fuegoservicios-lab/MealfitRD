@@ -324,24 +324,44 @@ const Pantry = () => {
             const householdSize = planData?.calc_household_size || 1;
             const groceryDuration = planData?.calc_grocery_duration || 'weekly';
 
-            const recalcRes = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    user_id: session.user.id,
-                    householdSize,
-                    groceryDuration,
-                    // [P2-NEW-4] plan_id incluido para que el backend pueda
-                    // loggear/rechazar drift si recibe un id que ya no es el
-                    // último del usuario.
-                    // [P2-NEW-B · 2026-05-11] El backend ahora resuelve el
-                    // plan target con SELECT explícito `WHERE id=%s AND
-                    // user_id=%s` cuando el body lleva plan_id (en lugar de
-                    // fallback a `get_latest_meal_plan_with_id`). Cierra
-                    // race con _chunk_worker creando plan B en paralelo.
-                    plan_id: planData?.id,
-                }),
+            // [P3-RECALC-503-CLASSIFICATION · 2026-05-16] Retry 1× en
+            // 5xx/network. Backend escala transient (pool exhaustion,
+            // RemoteProtocolError) → 503; este recalc post-pantry es
+            // no-crítico (cambio ya persistido) pero el retry evita
+            // toast "no se pudo recalcular" en blips.
+            const recalcBody = JSON.stringify({
+                user_id: session.user.id,
+                householdSize,
+                groceryDuration,
+                // [P2-NEW-4] plan_id incluido para que el backend pueda
+                // loggear/rechazar drift si recibe un id que ya no es el
+                // último del usuario.
+                // [P2-NEW-B · 2026-05-11] El backend ahora resuelve el
+                // plan target con SELECT explícito `WHERE id=%s AND
+                // user_id=%s` cuando el body lleva plan_id (en lugar de
+                // fallback a `get_latest_meal_plan_with_id`). Cierra
+                // race con _chunk_worker creando plan B en paralelo.
+                plan_id: planData?.id,
             });
+            const attemptRecalc = async () => {
+                try {
+                    const r = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: recalcBody,
+                    });
+                    return { res: r, networkError: null };
+                } catch (e) {
+                    return { res: null, networkError: e };
+                }
+            };
+            let { res: recalcRes, networkError } = await attemptRecalc();
+            const isTransient = networkError || (recalcRes && recalcRes.status >= 500);
+            if (isTransient) {
+                await new Promise((r) => setTimeout(r, 500));
+                ({ res: recalcRes, networkError } = await attemptRecalc());
+            }
+            if (networkError) throw networkError;
             const result = await recalcRes.json();
             if (result.success && result.plan_data) {
                 if (clearRestockedFlag) {

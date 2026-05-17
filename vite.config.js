@@ -109,8 +109,15 @@ export default defineConfig(({ mode }) => ({
         }
       }
     },
-    // Reduce chunk size warnings threshold
-    chunkSizeWarningLimit: 500,
+    // [P3-VITE-CHUNK-WARNING-THRESHOLD · 2026-05-15] Cap reducido 500→300.
+    // El cap default de Vite es 500 KB; bajarlo a 300 captura regresiones
+    // de entry chunks que crecen accidentalmente (ej. import estático de
+    // una lib pesada en lugar de dynamic import). Los chunks intencionalmente
+    // lazy (html2pdf-*.js ~976KB, P2-LAZY-PDF) seguirán emitiendo warning
+    // en cada build — es esperado y se ignora; la señal útil es cuando
+    // aparece un NUEVO chunk > 300 KB. Si la señal/ruido empeora, override
+    // per-chunk con `output.manualChunks` arriba.
+    chunkSizeWarningLimit: 300,
   },
   test: {
     globals: true,

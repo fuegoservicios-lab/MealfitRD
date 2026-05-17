@@ -429,6 +429,19 @@ export const AssessmentProvider = ({ children }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // [P3-RECALC-LOCK-TIMER-FIX · 2026-05-16] Safety timer ms — configurable
+    // pero default 30s (era 15s). Razón: con el retry P3-RECALC-503-CLASSIFICATION
+    // (frontend reintenta 1× tras 500ms en 5xx), una operación legítima puede
+    // tomar:
+    //   • 1er intento (recalc lento free tier): 8-12s
+    //   • backoff: 0.5s
+    //   • 2do intento: 8-12s
+    //   • total: 17-24s — excede 15s habitualmente, disparaba el warn falso.
+    // 30s acomoda el caso retry + recalc lento sin desbloquear lock prematuramente.
+    // Si una operación realmente tarda >30s, hay un bug aguas arriba — el warn
+    // sigue siendo útil pero con mensaje preciso (sin culpar al caller).
+    const _RECALC_SAFETY_TIMER_MS = 30000;
+
     const setRecalcLock = useCallback((val) => {
         // Siempre cancelar el timer pendiente: evita que un timer huérfano
         // libere prematuramente un lock futuro.
@@ -438,15 +451,26 @@ export const AssessmentProvider = ({ children }) => {
         }
         recalcLockRef.current = !!val;
         if (val) {
-            // Safety net: si por alguna razón el caller no libera el lock
-            // (excepción no atrapada, unmount, etc.), 15s después se libera
-            // automáticamente. `withRecalcLock` debería ser el camino normal —
-            // este timer solo cubre fallos del path manual.
+            // Safety net: si la operación tarda más del límite, asumimos que
+            // algo se quedó colgado (componente desmontado mid-flight, fetch
+            // hanging, finally que no corrió) y liberamos el lock para que
+            // Realtime y otros consumidores no queden bloqueados indefinidamente.
+            // [P3-RECALC-LOCK-TIMER-FIX · 2026-05-16] Mensaje reescrito: el warn
+            // original ("el caller olvidó setRecalcLock") era engañoso —
+            // `withRecalcLock` siempre libera en finally, así que el warn dispara
+            // por operaciones lentas legítimas (free tier + retry), no por bug
+            // del caller. Si esto aparece >30s, es señal de backend lento, no
+            // de bug del frontend.
             recalcSafetyTimerRef.current = setTimeout(() => {
                 recalcLockRef.current = false;
                 recalcSafetyTimerRef.current = null;
-                console.warn('🔒 [RECALC LOCK] Safety timer (15s) liberó el lock — el caller olvidó setRecalcLock(false). Migrar a withRecalcLock.');
-            }, 15000);
+                console.warn(
+                    `🔒 [RECALC LOCK] Safety timer (${_RECALC_SAFETY_TIMER_MS / 1000}s) ` +
+                    `liberó el lock — la operación de recalc no terminó a tiempo. ` +
+                    `Probable causa: backend lento (free tier DB + retry transient). ` +
+                    `Si recurrente, investigar logs backend del endpoint recalc.`
+                );
+            }, _RECALC_SAFETY_TIMER_MS);
         }
     }, []);
     // [P0-B2] Wrapper recomendado para envolver operaciones de recalc:
@@ -1371,24 +1395,43 @@ export const AssessmentProvider = ({ children }) => {
                             toast.error('Error de sincronización', { description: 'El cambio es solo local.' });
                         } else {
                             // GAP 3: Recalcular la lista de compras como un Delta Matemático
+                            // [P3-RECALC-503-CLASSIFICATION · 2026-05-16] Retry 1× en
+                            // 5xx/network — backend escala transient (pool/network) a 503;
+                            // este recalc post-swap es no-crítico (swap ya persistió)
+                            // pero el retry evita falsos console.error en blips.
                             try {
-                                const recalcResponse = await fetchWithAuth('/api/plans/recalculate-shopping-list', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        user_id: userId,
-                                        // [P2-NEW-B · 2026-05-11] plan_id explícito: el
-                                        // swap acaba de persistirse contra `planId`,
-                                        // garantizamos que el recalc opere sobre EL
-                                        // MISMO plan (no `get_latest_meal_plan` que
-                                        // bajo race con _chunk_worker podría apuntar
-                                        // a plan B recién creado).
-                                        plan_id: planId,
-                                        householdSize: updatedPlan.calc_household_size || formData.householdSize || 1,
-                                        groceryDuration: updatedPlan.calc_grocery_duration || formData.groceryDuration || 'weekly',
-                                        is_new_plan: false
-                                    })
+                                const recalcBody = JSON.stringify({
+                                    user_id: userId,
+                                    // [P2-NEW-B · 2026-05-11] plan_id explícito: el
+                                    // swap acaba de persistirse contra `planId`,
+                                    // garantizamos que el recalc opere sobre EL
+                                    // MISMO plan (no `get_latest_meal_plan` que
+                                    // bajo race con _chunk_worker podría apuntar
+                                    // a plan B recién creado).
+                                    plan_id: planId,
+                                    householdSize: updatedPlan.calc_household_size || formData.householdSize || 1,
+                                    groceryDuration: updatedPlan.calc_grocery_duration || formData.groceryDuration || 'weekly',
+                                    is_new_plan: false
                                 });
+                                const attemptRecalc = async () => {
+                                    try {
+                                        const r = await fetchWithAuth('/api/plans/recalculate-shopping-list', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: recalcBody
+                                        });
+                                        return { res: r, networkError: null };
+                                    } catch (e) {
+                                        return { res: null, networkError: e };
+                                    }
+                                };
+                                let { res: recalcResponse, networkError } = await attemptRecalc();
+                                const isTransient = networkError || (recalcResponse && recalcResponse.status >= 500);
+                                if (isTransient) {
+                                    await new Promise((r) => setTimeout(r, 500));
+                                    ({ res: recalcResponse, networkError } = await attemptRecalc());
+                                }
+                                if (networkError) throw networkError;
 
                                 if (recalcResponse.ok) {
                                     const recalcData = await recalcResponse.json();
@@ -1402,7 +1445,7 @@ export const AssessmentProvider = ({ children }) => {
                                     }
                                 }
                             } catch (recalcErr) {
-                                console.error("⚠️ Error recalculando lista de compras post-swap:", recalcErr);
+                                console.error("⚠️ Error recalculando lista de compras post-swap (tras retry):", recalcErr);
                             }
                         }
                     }

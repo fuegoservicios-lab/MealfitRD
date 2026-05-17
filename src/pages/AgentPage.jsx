@@ -1209,14 +1209,21 @@ const AgentPage = () => {
                                         // Detectar y procesar evento silencioso REFRESH_PLAN
                                         if (fullText.includes('[UI_ACTION: REFRESH_PLAN]')) {
                                             fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_PLAN\]/g, '');
-                                            displayContent = fullText;
                                             if (session?.user?.id) {
                                                 restoreSessionData(session.user.id);
                                             }
-                                        } else {
-                                            // Ocultar fragmento incompleto del token temporalmente en la UI
-                                            displayContent = fullText.replace(/\[UI_ACT[^\]]*$/g, '');
                                         }
+                                        // [P3-WATER-TRACKER · 2026-05-16] REFRESH_HYDRATION: el agente
+                                        // mutó el conteo de vasos via log_water_glass → notificar al
+                                        // WaterTracker para que refetchee. Custom event en lugar de
+                                        // restoreSessionData (el card vive independiente del session).
+                                        if (fullText.includes('[UI_ACTION: REFRESH_HYDRATION]')) {
+                                            fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_HYDRATION\]/g, '');
+                                            window.dispatchEvent(new CustomEvent('mealfit:refresh-hydration'));
+                                        }
+                                        // Ocultar fragmento incompleto del token temporalmente en la UI
+                                        // (idempotente — si ya fue procesado arriba, no queda nada que ocultar).
+                                        displayContent = fullText.replace(/\[UI_ACT[^\]]*$/g, '');
 
                                         // Extraer oraciones completas para TTS en Modo Llamada
                                         if (callModeRef.current) {
@@ -1256,6 +1263,11 @@ const AgentPage = () => {
                                             if (session?.user?.id) {
                                                 restoreSessionData(session.user.id);
                                             }
+                                        }
+                                        // [P3-WATER-TRACKER · 2026-05-16] Misma limpieza para REFRESH_HYDRATION.
+                                        if (fullText.includes('[UI_ACTION: REFRESH_HYDRATION]')) {
+                                            fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_HYDRATION\]/g, '');
+                                            window.dispatchEvent(new CustomEvent('mealfit:refresh-hydration'));
                                         }
 
                                         if (callModeRef.current) {

@@ -139,14 +139,25 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                     />
 
                     {/* Modal Content */}
+                    {/* [P2-MODAL-OUTLINE-A11Y · 2026-05-15] `className` +
+                        CSS `:focus-visible` en index.css. Pre-fix tenía
+                        `outline: 'none'` inline aplicado siempre — un
+                        keyboard user que recibía el foco programático en
+                        modal-open no veía indicador alguno (WCAG 2.4.7
+                        Focus Visible). El reemplazo usa `:focus-visible`
+                        que SOLO dispara con keyboard nav (Tab) y no con
+                        click, así mouse users no ven outline molesto y
+                        keyboard users sí lo ven. Anchor:
+                        P2-MODAL-OUTLINE-A11Y. */}
                     <motion.div
                         ref={modalRef}
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby={titleId}
                         tabIndex={-1}
-                        initial={animationVariants.initial} 
-                        animate={animationVariants.animate} 
+                        className="mealfit-modal-content"
+                        initial={animationVariants.initial}
+                        animate={animationVariants.animate}
                         exit={animationVariants.exit}
                         transition={animationVariants.transition}
                         drag={isMobile ? "y" : false}
@@ -158,12 +169,14 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                             }
                         }}
                         style={{
-                            background: '#FFFFFF', 
-                            borderRadius: isMobile ? '1.5rem 1.5rem 0 0' : '1.25rem', 
+                            background: '#FFFFFF',
+                            borderRadius: isMobile ? '1.5rem 1.5rem 0 0' : '1.25rem',
                             padding: isMobile ? '1.5rem 1.25rem 2rem' : '2rem',
                             width: '100%', maxWidth, position: 'relative', zIndex: 1,
                             boxShadow: isMobile ? '0 -8px 30px rgba(0,0,0,0.12)' : '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                            outline: 'none' // Quitamos el borde default de outline al hacer focus sobre el div
+                            // [P2-MODAL-OUTLINE-A11Y] outline ahora gestionado
+                            // por `.mealfit-modal-content:focus-visible` en
+                            // index.css — keyboard users SÍ ven el indicador.
                         }}
                     >
                         {/* Drag handle — solo en móvil */}

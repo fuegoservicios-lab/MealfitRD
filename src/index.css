@@ -532,3 +532,27 @@ button {
   align-items: center;
   justify-content: center;
 }
+
+/* [P2-MODAL-OUTLINE-A11Y · 2026-05-15] Focus visible para el contenedor
+ * `<motion.div role="dialog">` de `components/common/Modal.jsx`. El modal
+ * recibe foco programático en open (para que screen readers anuncien el
+ * contenido). Pre-fix el inline `outline: 'none'` suprimía el indicador
+ * SIEMPRE — keyboard users no veían dónde estaba el foco durante ese
+ * momento, violando WCAG 2.4.7 ("Focus Visible").
+ *
+ * Solución: `:focus-visible` solo dispara con keyboard nav (Tab) y NO
+ * con click — mouse users no ven outline molesto, keyboard users sí.
+ * `outline-offset: 2px` separa el ring del border-radius del modal.
+ * Color violet-600 (#4F46E5) matchea la paleta primary de la app.
+ *
+ * Tooltip-anchor: P2-MODAL-OUTLINE-A11Y. */
+.mealfit-modal-content:focus {
+  /* :focus default (incluye mouse click): sin outline para no romper UX
+   * de mouse users. El ring solo aparece bajo :focus-visible (keyboard). */
+  outline: none;
+}
+
+.mealfit-modal-content:focus-visible {
+  outline: 3px solid rgba(79, 70, 229, 0.65);
+  outline-offset: 2px;
+}

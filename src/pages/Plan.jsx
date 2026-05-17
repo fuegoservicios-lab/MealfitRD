@@ -48,6 +48,31 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
             err.retryAfter = retryAfter;
             throw err;
         }
+        // [P3-409-PIPELINE-RUNNING · 2026-05-16] 409 con body
+        // `{detail: {code: 'pipeline_already_running', ...}}` significa que el
+        // guardrail del backend (P1-DEEP-SEARCH-PIPELINE) detectó un pipeline
+        // activo previo del MISMO user. NO reintentar — el guardrail no se va
+        // a resolver en 2s. Propagar el code para que el caller redirija al
+        // dashboard y el recovery polling recoja el plan en progreso cuando
+        // termine.
+        if (response.status === 409) {
+            let parsedDetail = null;
+            let startedAt = null;
+            try {
+                const body = await response.json();
+                parsedDetail = body?.detail;
+                if (parsedDetail && typeof parsedDetail === 'object') {
+                    startedAt = parsedDetail.started_at || null;
+                }
+            } catch { /* body puede no ser JSON */ }
+            const msg = (parsedDetail && typeof parsedDetail === 'object' && parsedDetail.message)
+                ? parsedDetail.message
+                : (typeof parsedDetail === 'string' ? parsedDetail : 'Ya hay un plan generándose.');
+            const err = new Error(msg);
+            err.code = (parsedDetail && parsedDetail.code) || 'pipeline_already_running';
+            err.startedAt = startedAt;
+            throw err;
+        }
         if (response.status >= 500) throw new Error(`Server Error ${response.status}`);
         if (!response.ok) {
             const txt = await response.text();
@@ -59,6 +84,8 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
         if (err.name === 'AbortError') throw err;
         // [P1-B10] No reintentar 429 — backoff lo maneja el caller con countdown.
         if (err.code === 'rate_limited') throw err;
+        // [P3-409-PIPELINE-RUNNING] No reintentar 409 — guardrail no se resuelve con backoff.
+        if (err.code === 'pipeline_already_running') throw err;
 
         if (retries > 1) {
             console.warn(`⚠️ Intento fallido. Reintentando en ${backoff / 1000}s... (${retries - 1} intentos restantes)`);
@@ -71,17 +98,27 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
 }
 
 // [P0-3] Timeout sincronizado con el servidor.
-// El backend tiene `MEALFIT_GLOBAL_PIPELINE_TIMEOUT_S` (default 600s) +
-// validación pantry post-pipeline (~60s en peor caso, P0-2) + persistencia
-// + RTT SSE. Antes el cliente abortaba a 480s y el servidor seguía hasta
-// 600s+, persistiendo un plan que el usuario nunca veía → "plan duplicado"
-// en la próxima sesión + costo LLM perdido. Ahora el cliente espera
-// `server_timeout + 90s` por defecto. Override vía `VITE_PIPELINE_TIMEOUT_MS`
-// si el deploy aumenta `MEALFIT_GLOBAL_PIPELINE_TIMEOUT_S`.
+// El backend tiene `MEALFIT_GLOBAL_PIPELINE_TIMEOUT_S` (default 720s).
+// Cliente debe esperar `server_timeout + 90s` por defecto (90s = pantry
+// post-validation + persistencia + RTT SSE buffer).
+//
+// [P2-PIPELINE-TIMEOUT-FRONTEND-RAISE · 2026-05-16] Subido default
+// 690000→990000ms (11.5min→16.5min). Razón: bug observado 2026-05-16
+// donde el pipeline backend tarda ~640-690s post P2-PIPELINE-TIMEOUT-RAISE
+// (.env=900s permite retry post-review-fail). El default frontend 690000ms
+// era demasiado conservador — abortaba justo cuando el pipeline estaba
+// terminando, frontend mostraba "Error Fatal: Timeout total excedido" →
+// caía a fallback síncrono (también fail) → "No pudimos conectarnos con
+// la IA" + redirect a /assessment ANTES de que el plan se aprobara.
+// Usuario veía error cuando en realidad el plan se generó OK (rescatable
+// vía /pending-status recovery, pero la UX es confusa).
+// Nuevo default 990000ms = 900s backend + 90s buffer.
+// Override en producción con VITE_PIPELINE_TIMEOUT_MS si el backend
+// se configura con timeout distinto.
 const PIPELINE_TIMEOUT_MS = (() => {
     const raw = import.meta.env.VITE_PIPELINE_TIMEOUT_MS;
     const parsed = parseInt(raw, 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 690000;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 990000;
 })();
 
 // --- GENERACIÓN DE PLAN CON STREAMING SSE ---
@@ -121,6 +158,12 @@ export const cancelGeneration = () => {
         globalAbortController = null;
     }
     globalCancelSessionId = null;
+    // [P3-CANCEL-CLEAR-FLAG · 2026-05-16] Limpiar el flag del recovery para
+    // que `<PendingPipelineRecovery />` NO intente recuperar un plan que el
+    // user canceló intencionalmente. Sin este clear, al recargar la página
+    // el recovery polearia el KV y mostraría toast "Tu plan está listo" si
+    // el backend alcanzó a completar antes del cancel cooperativo.
+    try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
 };
 
 // Exportada para tests de regresión (P0-1): verificar que cuando SSE y el
@@ -285,6 +328,15 @@ export const generateAIPlanStream = async (formData, onProgress) => {
             ) {
                 console.warn("🚫 Generación cancelada por el usuario (vía SSE).");
                 throw new Error("UserCancelled");
+            } else if (error.code === 'pipeline_already_running') {
+                // [P3-409-PIPELINE-RUNNING · 2026-05-16] El guardrail del backend
+                // detectó otro pipeline activo del mismo user. El fallback
+                // síncrono recibiría el MISMO 409 (mismo guardrail) → saltarlo
+                // y propagar para que el caller redirija al dashboard. El
+                // <PendingPipelineRecovery /> polea el KV y recogerá el plan
+                // cuando termine.
+                console.warn("🟡 Pipeline ya activo — propagando para recovery via dashboard.");
+                throw error;
             } else if (error.code === 'llm_unavailable') {
                 // El backend YA decidió que la IA no está disponible (504 de Gemini,
                 // circuit breaker abierto, etc.). El endpoint síncrono devolverá el
@@ -432,13 +484,33 @@ const Plan = () => {
         // momento.
         if (loadingSensitive) return;
 
+        // [P3-RECOVERY-BYPASS-FORM-CHECK · 2026-05-16] Si hay un pipeline
+        // pendiente del backend (flag `mealfit_plan_in_progress` en localStorage),
+        // BYPASS la validación de form incompleto. Razón:
+        //   - El user generó plan → cerró tab → reabre → flag sigue ahí.
+        //   - PendingPipelineRecovery navega a /plan correctamente.
+        //   - Pero formData hidrata async desde localStorage; durante el
+        //     primer render puede estar vacío → findFirstIncompleteField
+        //     retorna truthy → otro useEffect navega a /assessment → user
+        //     queda fuera de la pantalla de carga aunque el plan se está
+        //     generando.
+        //   - La validación de form existe para evitar disparar SSE con
+        //     datos vacíos. En recovery mode NO disparamos SSE (el backend
+        //     ya está generando) → la validación NO aplica.
+        // Sync read porque tanto este useEffect como el useEffect del navigate
+        // necesitan la misma decisión sin race.
+        const _hasInProgressFlag = (() => {
+            try { return !!localStorage.getItem('mealfit_plan_in_progress'); }
+            catch { return false; }
+        })();
+
         // [P1-B6] Validación pre-fetch alineada con el backend. Antes este
         // check solo verificaba `age && mainGoal` (2 de 6 requeridos), así que
         // un usuario con `gender=""` o `weight=""` quemaba el check de cuota
         // y recibía un 422 genérico tras 1.5s de "Analizando...". Ahora
         // detectamos cualquier campo faltante antes y dejamos que el render
         // condicional de abajo redirija a /assessment.
-        if (findFirstIncompleteField(formData)) return;
+        if (!_hasInProgressFlag && findFirstIncompleteField(formData)) return;
 
         let ignore = false;
 
@@ -458,6 +530,51 @@ const Plan = () => {
         const processPlan = async () => {
             try {
                 if (ignore) return;
+
+                // [P3-PLAN-RECOVERY-LOADING · 2026-05-16] Pre-flight check:
+                // ¿hay ya un pipeline `status='generating'` en backend para este
+                // user? Si sí, NO disparar SSE — entrar en MODO RECOVERY.
+                //
+                // Escenario: user generó plan, cerró laptop / cerró tab, vuelve
+                // a abrir la web. El P1-DEEP-SEARCH-PIPELINE mantiene el
+                // pipeline corriendo en backend. PendingPipelineRecovery (App.jsx)
+                // detecta el flag local y redirige a /plan. Pero antes de este
+                // fix, Plan.jsx disparaba un NUEVO SSE → 409 pipeline_already_running
+                // → catch redirigía a /dashboard → loop. Ahora detectamos pending
+                // ANTES del SSE y solo mostramos loading.
+                //
+                // Cuando el pipeline termine, PendingPipelineRecovery hace el
+                // toast + redirige a /dashboard. Plan.jsx solo necesita mostrar
+                // la pantalla de loading mientras tanto.
+                try {
+                    const pendingRes = await fetchWithAuth('/api/plans/pending-status');
+                    if (pendingRes.ok) {
+                        const pendingData = await pendingRes.json();
+                        if (pendingData?.status === 'generating') {
+                            // Asegurar flag local seteado (por si llegó vía
+                            // navigate desde recovery sin pasar por el set
+                            // pre-SSE más abajo).
+                            try {
+                                const _existingFlag = localStorage.getItem('mealfit_plan_in_progress');
+                                if (!_existingFlag) {
+                                    localStorage.setItem('mealfit_plan_in_progress', JSON.stringify({
+                                        user_id: localStorage.getItem('mealfit_user_id') || null,
+                                        started_at: pendingData.started_at || new Date().toISOString(),
+                                    }));
+                                }
+                            } catch { /* localStorage best-effort */ }
+                            // Mostrar pantalla de loading; PendingPipelineRecovery
+                            // hará el polling y redirigirá cuando complete.
+                            setStatus('generating');
+                            // Hint visual: estamos en fase post-skeleton para
+                            // que LoadingScreen no muestre "analizando" 1.5s.
+                            setStreamPhase('recovery_mode');
+                            return;
+                        }
+                    }
+                } catch {
+                    // Endpoint no disponible / red — caer al flujo SSE normal.
+                }
 
                 // FASE 1: UI de "Analizando"
                 setStatus('analyzing');
@@ -536,6 +653,18 @@ const Plan = () => {
                     }
                 };
 
+                // [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Persistir flag de "plan
+                // en progreso" en localStorage ANTES de empezar el stream. Si el
+                // usuario cierra la pestaña, el boot hook (App.jsx) detectará el
+                // flag al volver, consultará /api/plans/pending-status, y
+                // redirigirá al dashboard si el plan ya está listo.
+                try {
+                    localStorage.setItem('mealfit_plan_in_progress', JSON.stringify({
+                        user_id: userId || null,
+                        started_at: new Date().toISOString(),
+                    }));
+                } catch (_lsErr) { /* localStorage full / disabled — best-effort */ }
+
                 const generatedPlan = await generateAIPlanStream(dataToSend, handleProgress);
 
                 if (ignore) return;
@@ -578,51 +707,154 @@ const Plan = () => {
                     type: 'full_plan'
                 });
 
-                // FASE 3: GAP 14 - Vista Previa en vez de autoguardar
-                setTempPlan(generatedPlan);
-                setStatus('preview');
+                // [P3-PLAN-SKIP-PREVIEW-ALWAYS · 2026-05-16] Skip pantalla
+                // intermedia PreviewScreen INCONDICIONALMENTE. Las observaciones
+                // (critical_rejection, review_failed_but_delivered, pantry_degraded,
+                // initial_chunk_pantry_degraded) se surfacean en el dashboard via
+                // toast persistente — el usuario NO necesita una pantalla
+                // intermedia con "Aceptar y Aplicar Nuevo Plan" (el plan ya está
+                // aplicado por saveGeneratedPlan; la pantalla intermedia era
+                // fricción adicional).
+                //
+                // Pre-fix: setStatus('preview') cuando _hasObservations → user
+                // veía una pantalla con banners ámbar/rojo + botones "Regenerar".
+                // Post-fix: navigate inmediato al dashboard + toast informativo
+                // con los mismos disclaimers + botón de acción si aplica.
+                //
+                // Razonamiento UX: el plan SE GENERÓ exitosamente, las
+                // observaciones son AVISOS post-hoc, no bloqueos. El user
+                // tomará decisión informada desde el dashboard donde ya puede
+                // ver el plan completo.
+                const _hasObservations = !!(
+                    generatedPlan?._critical_rejection
+                    || generatedPlan?._review_failed_but_delivered
+                    || generatedPlan?._pantry_degraded_summary?.degraded
+                    || generatedPlan?._initial_chunk_pantry_degraded
+                );
+
+                // Guardar + redirigir SIEMPRE. Sin branching por _hasObservations.
+                saveGeneratedPlan(generatedPlan);
+                setCurrentStep(0);
+                navigate('/dashboard', { replace: true });
+
+                // Surfacear observaciones via toast persistente en el dashboard.
+                if (_hasObservations) {
+                    import('sonner').then(({ toast }) => {
+                        if (generatedPlan?._critical_rejection) {
+                            toast.error("Plan ajustado por seguridad médica", {
+                                description: generatedPlan?._review_disclaimer
+                                    || "El plan se ajustó para cumplir tus condiciones médicas. Considera regenerarlo o revisarlo con tu nutricionista.",
+                                duration: 12000,
+                            });
+                        } else if (generatedPlan?._review_failed_but_delivered) {
+                            const _issues = Array.isArray(generatedPlan?._review_issues)
+                                ? generatedPlan._review_issues.slice(0, 2).map(String).join(' · ')
+                                : '';
+                            toast.warning("Plan generado con observaciones", {
+                                description: _issues
+                                    || generatedPlan?._review_disclaimer
+                                    || "Observaciones no-críticas. Puedes regenerarlo si prefieres.",
+                                duration: 10000,
+                            });
+                        } else if (
+                            generatedPlan?._pantry_degraded_summary?.degraded
+                            || generatedPlan?._initial_chunk_pantry_degraded
+                        ) {
+                            toast.info("Algunos ingredientes faltan en tu nevera", {
+                                description: "Revisa la lista de compras antes de cocinar — algunos meals usan alternativas.",
+                                duration: 8000,
+                            });
+                        }
+                    }).catch(() => { /* toast best-effort */ });
+                }
 
             } catch (error) {
                 if (error.message === 'UserCancelled') {
-                    console.log("Generación cancelada. Volviendo al dashboard...");
-                    navigate('/dashboard', { replace: true });
+                    // [P3-CANCEL-REDIRECT-ASSESSMENT · 2026-05-16] Pre-fix
+                    // redirigía a /dashboard tras cancelar. UX feedback: el
+                    // user que cancela voluntariamente quiere AJUSTAR el
+                    // formulario antes de regenerar (cambiar preferencias,
+                    // alergias, household size, etc.), no volver al dashboard
+                    // donde ya está el plan ANTERIOR. /assessment es el
+                    // siguiente paso natural del intent de cancel.
+                    console.log("Generación cancelada. Volviendo al formulario...");
+                    navigate('/assessment', { replace: true });
                     return;
                 }
                 console.error("❌ Error generando el plan:", error);
                 if (!ignore) {
-                    // IA upstream caída (504 Gemini / circuit breaker): no navegar al
-                    // dashboard, mostrar toast con Reintentar para que el usuario
-                    // pueda volver a disparar el plan sin perder el contexto.
+                    // [P3-409-PIPELINE-RUNNING · 2026-05-16] El user disparó un
+                    // segundo plan mientras uno previo seguía generando en el
+                    // backend (P1-DEEP-SEARCH-PIPELINE guardrail, max_age=15min).
+                    // NO mostrar error, NO clearear el flag — el pipeline
+                    // existente terminará y el <PendingPipelineRecovery />
+                    // recogerá el resultado. Toast informativo + redirect.
+                    if (error.code === 'pipeline_already_running') {
+                        // Asegurar que el flag local esté seteado para que el
+                        // recovery polee (el user pudo llegar aquí desde un
+                        // refresh donde el flag se perdió).
+                        try {
+                            const _existingFlag = localStorage.getItem('mealfit_plan_in_progress');
+                            if (!_existingFlag) {
+                                localStorage.setItem('mealfit_plan_in_progress', JSON.stringify({
+                                    user_id: null,
+                                    started_at: error.startedAt || new Date().toISOString(),
+                                }));
+                            }
+                        } catch { /* localStorage best-effort */ }
+                        import('sonner').then(({ toast }) => {
+                            toast.info("Tu plan se está generando", {
+                                description: "Ya tienes uno en curso. Te avisamos cuando esté listo.",
+                                duration: 6000,
+                            });
+                        });
+                        navigate('/dashboard', { replace: true });
+                        return;
+                    }
+                    // [P3-ERROR-REDIRECT-ASSESSMENT · 2026-05-16] IA upstream
+                    // caída (504 Gemini / circuit breaker). Pre-fix dejaba la
+                    // pantalla de carga renderizada con toast persistente
+                    // "Reintentar". UX feedback: la pantalla de loading
+                    // congelada confunde — el user prefiere volver al formulario
+                    // y reintentar desde ahí. Toast sigue visible en el
+                    // formulario; el botón de generar relanza el plan.
                     if (error.code === 'llm_unavailable') {
+                        // [P3-CLEAR-FLAG-ON-FATAL · 2026-05-16] Limpiar flag:
+                        // el backend rechazó ANTES de iniciar pipeline (CB abierto).
+                        // Sin clear, <PendingPipelineRecovery /> poleará un row
+                        // stale del KV y redirigirá al user a /plan cuando el
+                        // backend vuelva → ilusión de "regeneración automática".
+                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
                         import('sonner').then(({ toast }) => {
                             toast.error("La IA está saturada", {
                                 description: error.message || "Intenta de nuevo en 1-2 minutos.",
-                                duration: Infinity,
-                                action: {
-                                    label: "Reintentar",
-                                    onClick: () => { processPlan(); },
-                                },
+                                duration: 8000,
                             });
                         });
+                        navigate('/assessment', { replace: true });
                         return;
                     }
-                    // [P0-1] SSE + endpoint síncrono ambos fallaron (red caída,
-                    // backend inalcanzable, DNS, etc.). Antes retornábamos un
-                    // plan hardcoded con alérgenos comunes — riesgo médico.
-                    // Ahora mostramos toast con Reintentar (NO navegamos al
-                    // dashboard) para que el usuario pueda recuperar conexión
-                    // y disparar el flujo de nuevo sin perder contexto.
+                    // [P3-ERROR-REDIRECT-ASSESSMENT · 2026-05-16] SSE + endpoint
+                    // síncrono fallaron (red caída, backend inalcanzable, DNS).
+                    // Pre-fix: toast persistente + loading congelado. Post-fix:
+                    // toast + redirect al formulario para que el user vea el
+                    // contexto completo y pueda reintentar (incluyendo refrescar
+                    // su perfil si suspendió la PC y la sesión expiró).
                     if (error.code === 'offline_unavailable') {
+                        // [P3-CLEAR-FLAG-ON-FATAL · 2026-05-16] Backend down /
+                        // ERR_CONNECTION_REFUSED. NO hay pipeline procesando
+                        // (todo el backend está caído). Sin clear, al volver el
+                        // backend, el flag local hace que <PendingPipelineRecovery />
+                        // polee un KV row stale del intento anterior y
+                        // redirija al user a /plan SIN que él haya clickeado nada.
+                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
                         import('sonner').then(({ toast }) => {
                             toast.error("Sin conexión con la IA", {
                                 description: error.message || "Verifica tu conexión y reintenta.",
-                                duration: Infinity,
-                                action: {
-                                    label: "Reintentar",
-                                    onClick: () => { processPlan(); },
-                                },
+                                duration: 8000,
                             });
                         });
+                        navigate('/assessment', { replace: true });
                         return;
                     }
                     // [P1-B10] Rate limit del backend (`_PLAN_GEN_LIMITER`,
@@ -632,7 +864,16 @@ const Plan = () => {
                     // generar el plan" sin saber que era cool-down ni cuánto
                     // esperar — confundía con "IA caída" y reintentaba en
                     // bucle (agravando el rate limit).
+                    // [P3-ERROR-REDIRECT-ASSESSMENT · 2026-05-16] Rate limit
+                    // del backend. Pre-fix: countdown en toast persistente +
+                    // loading congelado. Post-fix: toast con countdown sigue
+                    // pero la pantalla cambia a /assessment para que el user
+                    // vea su formulario mientras espera.
                     if (error.code === 'rate_limited') {
+                        // [P3-CLEAR-FLAG-ON-FATAL · 2026-05-16] El backend
+                        // rechazó ANTES de iniciar pipeline (429). Sin clear,
+                        // el flag stale dispararía recovery espurio.
+                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
                         import('sonner').then(({ toast }) => {
                             const toastId = 'rate-limit-toast';
                             const startedAt = Date.now();
@@ -645,14 +886,10 @@ const Plan = () => {
                                         duration: Infinity,
                                     });
                                 } else {
-                                    toast.error('Listo para reintentar', {
+                                    toast.success('Listo para reintentar', {
                                         id: toastId,
-                                        description: 'La ventana de espera terminó. Puedes regenerar.',
-                                        duration: Infinity,
-                                        action: {
-                                            label: 'Reintentar',
-                                            onClick: () => { toast.dismiss(toastId); processPlan(); },
-                                        },
+                                        description: 'La ventana de espera terminó. Puedes regenerar desde el formulario.',
+                                        duration: 6000,
                                     });
                                 }
                             };
@@ -669,12 +906,48 @@ const Plan = () => {
                                 if (remaining <= 0) clearInterval(intervalId);
                             }, 1000);
                         });
+                        navigate('/assessment', { replace: true });
                         return;
                     }
+                    // [P1-RECOVERY-SUSPEND-FIX · 2026-05-16] Si hay un flag
+                    // `mealfit_plan_in_progress` activo, el SSE pudo haberse
+                    // roto por suspend/sleep/network blip — NO es "error de
+                    // generación". El backend sigue procesando en background
+                    // (P1-DEEP-SEARCH-PIPELINE) y `<PendingPipelineRecovery />`
+                    // recogerá el plan cuando esté listo. Mostrar toast suave
+                    // que comunique este comportamiento en lugar del "Error
+                    // al generar el plan" engañoso.
+                    let _hasInProgressFlag = false;
+                    try {
+                        const _flagRaw = localStorage.getItem('mealfit_plan_in_progress');
+                        _hasInProgressFlag = !!_flagRaw;
+                    } catch { /* localStorage best-effort */ }
+
+                    if (_hasInProgressFlag) {
+                        import('sonner').then(({ toast }) => {
+                            toast.info("Conexión interrumpida", {
+                                description: "Tu plan se sigue generando en segundo plano. Te avisamos cuando esté listo.",
+                                duration: 6000,
+                            });
+                        });
+                        // NO clear del flag — el recovery component lo manejará
+                        // cuando detecte status='complete' en el KV.
+                        navigate('/dashboard', { replace: true });
+                        return;
+                    }
+
+                    // [P3-ERROR-REDIRECT-ASSESSMENT · 2026-05-16] Catch genérico:
+                    // pre-fix navegaba a /dashboard. Post-fix navega al
+                    // formulario para que el user pueda ajustar y reintentar
+                    // sin tener que volver desde el dashboard.
+                    // [P3-CLEAR-FLAG-ON-FATAL · 2026-05-16] Clear del flag para
+                    // que el recovery NO redirija al user a /plan automáticamente
+                    // al volver el backend (KV row stale del intento fallido).
+                    try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
                     import('sonner').then(({ toast }) => {
                         toast.error("Error al generar el plan", { description: "Por favor, intenta nuevamente más tarde." });
                     });
-                    navigate('/dashboard', { replace: true });
+                    navigate('/assessment', { replace: true });
                 }
             }
         };
@@ -691,48 +964,36 @@ const Plan = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loadingSensitive]);
 
-    // [P2-NEW-15 · 2026-05-11] Cancelar SSE + pipeline backend si user
-    // cierra la tab mid-stream.
+    // [P3-BEFOREUNLOAD-NO-CANCEL · 2026-05-16] El handler `beforeunload` que
+    // disparaba `cancelGeneration()` al cerrar la tab fue REMOVIDO porque
+    // contradecía directamente P1-DEEP-SEARCH-PIPELINE (2026-05-15).
     //
-    // Por qué existe (re-audit 2026-05-11):
-    //   `generateAIPlanStream` abre un SSE reader (`response.body.getReader()`)
-    //   que lee chunks del backend durante toda la pipeline (~2-5min).
-    //   Si user cierra la tab mid-stream:
-    //     - El reader queda abierto en heap del frontend → memleak.
-    //     - El backend sigue emitiendo events sin destino → cuota LLM
-    //       quemada para un user que ya se fue.
+    // Historia:
+    //   - P2-NEW-15 (2026-05-11): añadió beforeunload→cancel para evitar
+    //     "quemar cuota LLM con un user que ya se fue".
+    //   - P1-DEEP-SEARCH-PIPELINE (2026-05-15): cambió el paradigma — el
+    //     pipeline SIGUE corriendo cuando el SSE muere, y el user recupera
+    //     el plan al volver via /pending-status.
+    //   - Las 2 features coexistieron sin reconciliar. Resultado observado
+    //     2026-05-16: user cerró tab → beforeunload disparó cancel → KV
+    //     clear + pipeline aborted → PendingPipelineRecovery no encuentra
+    //     nada que recuperar → user ve el formulario al volver.
     //
-    //   Solución: `beforeunload` listener llama `cancelGeneration()` que
-    //   POSTea `/api/plans/cancel?session_id=X` (cooperative backend
-    //   cancel) + aborta el AbortController local (cierra reader).
+    // Fix: NO cancelar en beforeunload. El backend completa el plan; KV
+    // mantiene `status='generating'` → recovery navega a /plan al volver.
     //
-    // Por qué NO hacemos esto en el cleanup del useEffect de arriba:
-    //   StrictMode (dev) hace double-invoke: mount → cleanup → mount.
-    //   Cancelar en cleanup abortaría el `globalGenerationPromise`
-    //   compartido y el segundo mount lo recibe abortado → UX rota
-    //   en dev. `beforeunload` solo dispara en cierre REAL de tab.
+    // El botón "Cancelar" explícito (onCancel={cancelGeneration} en
+    // LoadingScreen y otros) SIGUE funcionando — solo eliminamos el
+    // cancel AUTOMÁTICO en tab-close. La intent del user es distinta:
+    // cerrar tab = "me voy un rato, vuelvo después"; click cancel =
+    // "no quiero este plan, descártalo".
     //
-    // Limitaciones aceptadas:
-    //   - Nav interna (Plan → Dashboard) no triggerea `beforeunload`.
-    //     El leak persiste hasta que pipeline termine naturalmente
-    //     (~5min). Trade-off consciente vs. complejidad de detectar
-    //     StrictMode replay.
-    //   - Algunos browsers ignoran async work en `beforeunload` —
-    //     el `keepalive: true` en el POST de cancelGeneration cubre
-    //     el caso (fetch sigue tras unload).
-    useEffect(() => {
-        const handleBeforeUnload = () => {
-            if (globalGenerationPromise && globalAbortController) {
-                try {
-                    cancelGeneration();
-                } catch (_err) {
-                    /* best-effort: nunca bloquear unload */
-                }
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, []);
+    // Trade-offs aceptados:
+    //   - Memleak del SSE reader: trivial; el browser GC lo limpia
+    //     cuando la tab se cierra (el JS heap se libera).
+    //   - "Cuota LLM quemada": ya NO aplica — el user vuelve y el
+    //     plan se le entrega. La cuota se "consume" como cualquier
+    //     plan exitoso.
 
     // [P0-13] Side-effect de "campo faltante → toast + navigate a /assessment".
     // ANTES vivía inline en render con `setTimeout(0)` + `<Navigate>`, lo cual:
@@ -754,6 +1015,13 @@ const Plan = () => {
         if (loadingSensitive) return;
         const missing = findFirstIncompleteField(formData);
         if (!missing) return;
+        // [P3-RECOVERY-BYPASS-FORM-CHECK · 2026-05-16] Mirror del bypass
+        // de processPlan: si hay pending pipeline en backend, NO navegar
+        // al cuestionario aunque formData esté incompleto — el user vino
+        // a recuperar su plan en curso, no a re-llenar el form.
+        try {
+            if (localStorage.getItem('mealfit_plan_in_progress')) return;
+        } catch { /* localStorage best-effort */ }
         if (!incompleteToastShownRef.current) {
             incompleteToastShownRef.current = true;
             const label = FIELD_LABELS[missing] || missing;
@@ -859,6 +1127,43 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
     const showReviewWarningBanner = !!(
         newPlan?._review_failed_but_delivered && !showReviewCriticalBanner
     );
+
+    // [P3-PLAN-AUTO-APPLY-CLEAN · 2026-05-15] Auto-apply + skip al dashboard
+    // cuando el plan se aprobó LIMPIAMENTE (sin observaciones que requieran
+    // decisión del usuario). Razón: la pantalla intermedia "Compara los cambios"
+    // es valiosa SOLO cuando hay algo que el usuario necesita revisar (banners
+    // médicos, pantry degradada, regenerate). En el happy path es fricción
+    // innecesaria — el usuario inició la generación porque quiere el plan.
+    //
+    // Casos en que NO skipeamos (preservamos la pantalla):
+    //   - `showReviewCriticalBanner`: rechazo médico crítico → usuario DEBE
+    //     ver el banner rojo + opción de regenerar (legal/safety).
+    //   - `showReviewWarningBanner`: observaciones no-críticas → usuario DEBE
+    //     poder leer y decidir aceptar o regenerar.
+    //   - `showPantryBanner`: despensa degradada → usuario DEBE saber que
+    //     faltan ingredientes.
+    //
+    // Kill switch sin redeploy: `VITE_PLAN_AUTO_APPLY_ON_CLEAN_REVIEW=false`
+    // en `.env.local`. Por default `true`.
+    //
+    // No incluimos `userActionRequired`/`failedChunks`/`recoveryExhausted` en
+    // el check porque al mount son vacíos (vienen del polling de chunk-status
+    // que solo dispara para planes partial). Si aparecen después, el usuario
+    // ya está en el dashboard, que tiene su propio surface para esos eventos.
+    const autoApplyEnabled = (
+        import.meta.env.VITE_PLAN_AUTO_APPLY_ON_CLEAN_REVIEW ?? 'true'
+    ).toString().toLowerCase() !== 'false';
+    const _hasReviewableObservations = (
+        showPantryBanner || showReviewCriticalBanner || showReviewWarningBanner
+    );
+    useEffect(() => {
+        if (!autoApplyEnabled) return;
+        if (_hasReviewableObservations) return;
+        if (!newPlan) return;
+        // Happy path: plan aprobado limpio → ir directo al dashboard.
+        onAccept();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         if (!newPlan?.id || newPlan?.generation_status !== 'partial') return;
@@ -1238,9 +1543,32 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     const [progress, setProgress] = useState(0);
     const displayProgress = status === 'ready' ? 100 : progress;
     const [tipIndex, setTipIndex] = useState(0);
-    // [P6-CANCEL-MODAL] State para confirm inline (reemplaza window.confirm
-    // nativo que se ve fuera de tema y rompe la UX dark del loading screen).
-    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+    // [P3-LOADING-TIME-ESTIMATE · 2026-05-16] Contador de tiempo transcurrido
+    // + copy dinámico de estimado. Pre-fix: usuario veía solo "Diseñando tu
+    // plan" sin idea de cuánto duraría → ansiedad + intentos de cancelar
+    // prematuros.
+    //
+    // Calibración real (logs prod 2026-05-16): el pipeline completo tarda
+    // 12-13 min (775s observado: planner 60s + day_gen paralelo 170s +
+    // self-critique 136s + reviewer 80s + assembly + retries con Supabase
+    // free tier que satura pool). Rango honesto = 10-15 min. Copy adapta:
+    //   - <30s:     "Esto suele tomar entre 10 y 15 minutos."
+    //   - 30s-15m:  "Transcurrido X:XX · estimado 10-15 minutos"
+    //   - 15-20m:   "Transcurrido X:XX · ya casi terminamos, espera un poco más"
+    //   - >20m:     "Transcurrido X:XX · gracias por tu paciencia · cerca del final"
+    // El startTimeRef se inicializa UNA VEZ al mount (useRef no re-init en
+    // re-renders) — incluso si el componente re-renderea por cambios de
+    // status/streamPhase, el contador es continuo desde el primer mount.
+    const startTimeRef = useRef(Date.now());
+    const [elapsedSec, setElapsedSec] = useState(0);
+    // [P3-CANCEL-FORCE-NAVIGATE · 2026-05-16] Hook local del navigate para
+    // forzar el redirect al /assessment ANTES de que el SSE catch propague el
+    // UserCancelled. Sin esto, si el reader está bloqueado en `await
+    // reader.read()` o el catch no detecta el cancel correctamente, el
+    // LoadingScreen se queda renderizado infinitamente. Garantizamos el
+    // redirect desde el handler del botón sin depender del catch.
+    const navigateCancel = useNavigate();
 
     const steps = [
         { text: "Iniciando motor de Inteligencia Artificial", icon: Server, pct: 5, phase: null },
@@ -1335,6 +1663,45 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
         return () => clearInterval(tipTimer);
     }, [tips.length]);
 
+    // [P3-LOADING-TIME-ESTIMATE · 2026-05-16] Timer 1s para elapsed counter.
+    // Pausa al alcanzar `status === 'ready'` (el plan terminó).
+    useEffect(() => {
+        if (status === 'ready') return undefined;
+        const t = setInterval(() => {
+            setElapsedSec(Math.floor((Date.now() - startTimeRef.current) / 1000));
+        }, 1000);
+        return () => clearInterval(t);
+    }, [status]);
+
+    // Helper local: 125 → "2:05". Soporta horas si elapsed > 1h (edge case
+    // de planes muy lentos por retries o Pro escalation).
+    const formatElapsed = (sec) => {
+        const totalSec = Math.max(0, sec);
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const s = totalSec % 60;
+        const mm = String(m).padStart(h > 0 ? 2 : 1, '0');
+        const ss = String(s).padStart(2, '0');
+        return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+    };
+
+    // Copy adaptativo: ofrece estimate inicial, luego switchea a elapsed
+    // tracking, y reconoce explícitamente cuando se pasa del rango típico
+    // para evitar que el usuario asuma "se colgó".
+    const timeMessage = (() => {
+        const transcurrido = formatElapsed(elapsedSec);
+        if (elapsedSec < 30) {
+            return 'Esto suele tomar entre 10 y 15 minutos.';
+        }
+        if (elapsedSec < 15 * 60) {
+            return `Transcurrido ${transcurrido} · estimado 10-15 minutos`;
+        }
+        if (elapsedSec < 20 * 60) {
+            return `Transcurrido ${transcurrido} · ya casi terminamos, espera un poco más`;
+        }
+        return `Transcurrido ${transcurrido} · gracias por tu paciencia · cerca del final`;
+    })();
+
     // Determinar qué pasos ya se completaron (basado en progreso + días completados)
     const activeStepIndex = steps.findIndex(s => {
         // Si el step tiene dayCheck, verificar si ese día ya se completó
@@ -1345,360 +1712,173 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
 
     return (
         <div style={{
-            minHeight: 'calc(100dvh - 70px)', // Adjust for header
+            minHeight: 'calc(100dvh - 70px)',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            padding: '2rem 1.5rem',
-            background: 'linear-gradient(135deg, #0f0c29 0%, #1a1a3e 40%, #24243e 100%)',
+            padding: '3rem 1.5rem',
+            // [P3-LOADING-PALETTE-ALIGN · 2026-05-16] Reemplazado el radial negro
+            // por el slate-900 del footer (`--text-main: #0F172A`). El loading
+            // ahora combina con el header (blanco con logo rojo+azul) y el
+            // footer (slate-900) — antes el negro choccaba contra el resto de
+            // la app que es light theme con accent navy. Gradient suave hacia
+            // slate-800 (#1E293B) en el centro para no ser plano.
+            background: 'radial-gradient(ellipse at center, #1E293B 0%, #0F172A 70%)',
             position: 'relative', overflow: 'hidden',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
         }}>
-            {/* Animated background orbs */}
+            {/* [P3-LOADING-PREMIUM-REDESIGN · 2026-05-15] Minimalist premium loading:
+                Solo un pulse sutil + fade-in. Sin orbs, sin shimmer, sin 2 rings.
+                Acorde a la identidad MealfitRD (rojo + azul + blanco). */}
             <style>{`
-                @keyframes float1 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(30px, -40px) scale(1.1); } }
-                @keyframes float2 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-20px, 30px) scale(1.05); } }
-                @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.3); } 50% { box-shadow: 0 0 80px rgba(99, 102, 241, 0.6); } }
-                @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-                @keyframes spinReverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
-                @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-                .loading-orb1 { animation: float1 8s ease-in-out infinite; }
-                .loading-orb2 { animation: float2 10s ease-in-out infinite; }
-                .pulse-ring { animation: pulseGlow 2.5s ease-in-out infinite; }
-                .orbit-ring { animation: spinSlow 6s linear infinite; }
-                .orbit-ring-reverse { animation: spinReverse 8s linear infinite; }
-                .shimmer-bar { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent); background-size: 200% 100%; animation: shimmer 2s infinite; }
+                @keyframes mfPulse { 0%, 100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 1; transform: scale(1.04); } }
+                @keyframes mfSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                .mf-pulse { animation: mfPulse 2.4s ease-in-out infinite; }
+                .mf-spin { animation: mfSpin 1.6s linear infinite; }
             `}</style>
 
-            {/* Background floating orbs */}
-            <div className="loading-orb1" style={{
-                position: 'absolute', width: '300px', height: '300px', borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
-                top: '10%', left: '5%', pointerEvents: 'none',
-            }} />
-            <div className="loading-orb2" style={{
-                position: 'absolute', width: '250px', height: '250px', borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%)',
-                bottom: '10%', right: '10%', pointerEvents: 'none',
-            }} />
-
             <motion.div
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-                style={{ width: '100%', maxWidth: '440px', textAlign: 'center', position: 'relative', zIndex: 2 }}
+                transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
+                style={{ width: '100%', maxWidth: '380px', textAlign: 'center', position: 'relative', zIndex: 2 }}
             >
-                {/* === ANIMATED SPINNER === */}
+                {/* === DOT INDICATOR MINIMALIST === */}
+                {/* [P3-LOADING-PREMIUM-REDESIGN] Reemplaza el spinner doble-ring +
+                    iconos rotando por UN solo punto con pulse sutil + un ring
+                    delgado girando. Premium = menos. */}
                 <div style={{
-                    width: 90, height: 90, margin: '0 auto 1.5rem',
+                    width: 64, height: 64, margin: '0 auto 2.5rem',
                     position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                    {/* Outer ring */}
-                    <div className="orbit-ring" style={{
+                    <div className="mf-spin" style={{
                         position: 'absolute', inset: 0, borderRadius: '50%',
-                        border: '2px solid transparent', borderTopColor: 'rgba(99, 102, 241, 0.8)',
-                        borderRightColor: 'rgba(99, 102, 241, 0.3)',
+                        border: '1.5px solid rgba(255,255,255,0.06)',
+                        borderTopColor: 'rgba(255,255,255,0.55)',
                     }} />
-                    {/* Inner ring */}
-                    <div className="orbit-ring-reverse" style={{
-                        position: 'absolute', inset: '12px', borderRadius: '50%',
-                        border: '2px solid transparent', borderBottomColor: 'rgba(16, 185, 129, 0.7)',
-                        borderLeftColor: 'rgba(16, 185, 129, 0.25)',
+                    <div className="mf-pulse" style={{
+                        width: 8, height: 8, borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.85)',
                     }} />
-                    {/* Center icon */}
-                    <div className="pulse-ring" style={{
-                        width: 50, height: 50, borderRadius: '50%',
-                        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(16, 185, 129, 0.15))',
-                        backdropFilter: 'blur(10px)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '1.5rem',
-                    }}>
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={steps[currentStep]?.text}
-                                initial={{ opacity: 0, scale: 0.5 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.5 }}
-                                transition={{ duration: 0.3 }}
-                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            >
-                                {steps[currentStep]?.icon && 
-                                  function() { 
-                                      const StepIcon = steps[currentStep].icon; 
-                                      return <StepIcon size={24} color="#ffffff" strokeWidth={1.5} />;
-                                  }()
-                                }
-                            </motion.div>
-                        </AnimatePresence>
-                    </div>
                 </div>
 
                 {/* === TITLE === */}
                 <h2 style={{
-                    fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.25rem',
-                    background: 'linear-gradient(135deg, #ffffff, #c7d2fe)',
-                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
+                    fontSize: '1.75rem', fontWeight: 600, marginBottom: '0.5rem',
+                    color: '#ffffff',
+                    letterSpacing: '-0.02em',
+                    lineHeight: 1.2,
                 }}>
-                    Diseñando tu Estrategia
+                    Diseñando tu plan
                 </h2>
-                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.85rem', marginBottom: '1.5rem', fontWeight: 500 }}>
-                    Nuestra IA está creando tu plan perfecto
+                <p style={{
+                    color: 'rgba(255,255,255,0.45)',
+                    fontSize: '0.95rem', marginBottom: '2rem',
+                    fontWeight: 400, letterSpacing: '0.005em',
+                }}>
+                    {steps[currentStep]?.text || 'Procesando...'}
                 </p>
 
-                {/* === STEP CHECKLIST === */}
-                <div style={{
-                    background: 'rgba(255,255,255,0.04)', borderRadius: '1rem',
-                    padding: '1rem 1.25rem', marginBottom: '1.5rem',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    textAlign: 'left',
-                }}>
-                    {steps.map((step, i) => {
-                    const isDone = displayProgress >= step.pct || (step.dayCheck && daysCompleted.includes(step.dayCheck));
-                        const isCurrent = i === currentStep && !isDone;
-                        return (
-                            <motion.div
-                                key={step.text}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: i * 0.08, duration: 0.3 }}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.75rem',
-                                    padding: '0.5rem 0',
-                                    borderBottom: i < steps.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
-                                }}
-                            >
-                                {/* Step indicator */}
-                                <div style={{
-                                    width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: '0.7rem', fontWeight: 700, transition: 'all 0.4s ease',
-                                    ...(isDone ? {
-                                        background: 'linear-gradient(135deg, #10B981, #059669)',
-                                        color: 'white',
-                                    } : isCurrent ? {
-                                        background: 'rgba(99, 102, 241, 0.2)',
-                                        border: '2px solid rgba(99, 102, 241, 0.6)',
-                                        color: '#818cf8',
-                                    } : {
-                                        background: 'rgba(255,255,255,0.05)',
-                                        border: '1px solid rgba(255,255,255,0.1)',
-                                        color: 'rgba(255,255,255,0.2)',
-                                    }),
-                                }}>
-                                    {isDone ? '✓' : i + 1}
-                                </div>
-
-                                {/* Step text */}
-                                <span style={{
-                                    fontSize: '0.85rem', fontWeight: isDone || isCurrent ? 600 : 400,
-                                    transition: 'all 0.3s ease',
-                                    color: isDone ? 'rgba(16, 185, 129, 0.9)' : isCurrent ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.25)',
-                                }}>
-                                    {step.text}
-                                </span>
-
-                                {/* Current step spinner */}
-                                {isCurrent && (
-                                    <motion.div
-                                        animate={{ rotate: 360 }}
-                                        transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
-                                        style={{ marginLeft: 'auto', flexShrink: 0 }}
-                                    >
-                                        <Loader2 size={14} color="#818cf8" />
-                                    </motion.div>
-                                )}
-                            </motion.div>
-                        );
-                    })}
+                {/* [P3-LOADING-TIME-ESTIMATE · 2026-05-16] Time estimate
+                    + elapsed counter. Copy evoluciona según elapsedSec:
+                    <30s estimate puro, 30s-5min tracking, 5-10min warning
+                    suave, >10min mensaje de paciencia. Mostrado en una
+                    fila monoespaciada sutil — informativo sin gritar.
+                    Sin esto el usuario no sabe cuánto va a esperar y
+                    asume que está colgado tras 1-2 min. */}
+                <div
+                    aria-live="polite"
+                    style={{
+                        color: 'rgba(255,255,255,0.62)',
+                        fontSize: '0.82rem', marginBottom: '0.75rem',
+                        fontWeight: 500, letterSpacing: '0.01em',
+                        fontVariantNumeric: 'tabular-nums',
+                        textAlign: 'center', maxWidth: '320px',
+                        margin: '0 auto 0.75rem',
+                    }}
+                >
+                    {timeMessage}
                 </div>
 
-                {/* === PROGRESS BAR === */}
-                <div style={{
-                    width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)',
-                    borderRadius: '10px', overflow: 'hidden', position: 'relative',
-                    marginBottom: '0.75rem',
+                {/* [P3-PLAN-FLOW-MINIMALIST · 2026-05-15] Mensaje informativo
+                    sobre el comportamiento deep-search (P1-DEEP-SEARCH-PIPELINE).
+                    Comunica al usuario que puede cerrar la app y volver — el
+                    plan se generará en background y aparecerá listo. Sin esto,
+                    el usuario asume que necesita esperar 8-10 min mirando la
+                    pantalla. */}
+                <p style={{
+                    color: 'rgba(255,255,255,0.55)',
+                    fontSize: '0.85rem', marginBottom: '3rem',
+                    fontWeight: 400, letterSpacing: '0.005em',
+                    lineHeight: 1.55, maxWidth: '320px', margin: '0 auto 3rem',
                 }}>
-                    <motion.div
-                        style={{
-                            height: '100%',
-                            background: 'linear-gradient(90deg, #6366f1 0%, #10B981 60%, #34d399 100%)',
-                            borderRadius: '10px',
-                            position: 'relative',
-                        }}
-                        animate={{ width: `${displayProgress}%` }}
-                        transition={{ type: 'spring', stiffness: 40, damping: 20 }}
-                    />
-                    {/* Shimmer overlay */}
-                    <div className="shimmer-bar" style={{
-                        position: 'absolute', inset: 0, borderRadius: '10px', pointerEvents: 'none',
-                    }} />
-                </div>
+                    Puedes salir si quieres. Te avisamos cuando tu plan esté listo.
+                </p>
 
+                {/* === TIP — sutil, sin emoji === */}
                 <div style={{
-                    display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem',
-                    color: 'rgba(255,255,255,0.35)', fontWeight: 600, marginBottom: '1rem',
-                }}>
-                    <span>{steps[currentStep]?.text || 'Procesando...'}</span>
-                    <span style={{ color: '#818cf8', fontWeight: 700 }}>{Math.round(displayProgress)}%</span>
-                </div>
-
-                {/* === TIP CAROUSEL === */}
-                <div style={{
-                    minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    marginBottom: '0.5rem',
                 }}>
                     <AnimatePresence mode="wait">
                         <motion.p
                             key={tipIndex}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8 }}
-                            transition={{ duration: 0.4 }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.6 }}
                             style={{
-                                color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem',
-                                fontWeight: 500, fontStyle: 'italic', lineHeight: '1.4',
-                                textAlign: 'center',
+                                color: 'rgba(255,255,255,0.32)', fontSize: '0.78rem',
+                                fontWeight: 400, lineHeight: '1.5',
+                                textAlign: 'center', maxWidth: '320px',
                             }}
                         >
-                            {tips[tipIndex]}
+                            {tips[tipIndex].replace(/^💡\s*/, '')}
                         </motion.p>
                     </AnimatePresence>
                 </div>
 
-                {/* === CANCEL BUTTON / CONFIRM MODAL === */}
-                {/* [P6-CANCEL-MODAL] Reemplaza `window.confirm()` (modal nativo
-                 * blanco que rompe el tema dark) con un confirm inline animado.
-                 * Patrón "click → expand inline confirm" — más bajo riesgo
-                 * que un modal flotante (no sobreposiciona, no atrapa focus,
-                 * no rompe scroll del loading screen). */}
+                {/* === CANCEL BUTTON (single-click action) === */}
+                {/* [P3-CANCEL-ONE-CLICK · 2026-05-16] Antes había un modal
+                 * inline confirm "¿Cancelar la generación? Perderás el
+                 * progreso actual." con botones Continuar/Sí cancelar.
+                 * UX feedback: doble paso era fricción innecesaria — el
+                 * botón cancelar está deliberadamente DISCRETO (texto-only,
+                 * opacity 35%) y el user ya hizo el commit mental al
+                 * clickearlo. Eliminado el modal: click directo dispara
+                 * onCancel() + navigate. */}
                 {onCancel && status !== 'ready' && status !== 'preview' && (
-                    <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'center' }}>
-                        <AnimatePresence mode="wait">
-                            {!showCancelConfirm ? (
-                                <motion.button
-                                    key="cancel-trigger"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
-                                    transition={{ duration: 0.15 }}
-                                    onClick={() => setShowCancelConfirm(true)}
-                                    style={{
-                                        background: 'transparent',
-                                        border: '1px solid rgba(239, 68, 68, 0.4)',
-                                        color: 'rgba(239, 68, 68, 0.85)',
-                                        padding: '0.6rem 1.5rem',
-                                        borderRadius: '2rem',
-                                        fontSize: '0.8rem',
-                                        fontWeight: 600,
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                    }}
-                                    onMouseOver={(e) => {
-                                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                                        e.currentTarget.style.color = '#ef4444';
-                                        e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.7)';
-                                    }}
-                                    onMouseOut={(e) => {
-                                        e.currentTarget.style.background = 'transparent';
-                                        e.currentTarget.style.color = 'rgba(239, 68, 68, 0.85)';
-                                        e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-                                    }}
-                                >
-                                    <X size={14} strokeWidth={2.5} />
-                                    Cancelar Generación
-                                </motion.button>
-                            ) : (
-                                <motion.div
-                                    key="cancel-confirm"
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
-                                    transition={{ duration: 0.2 }}
-                                    style={{
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '0.75rem',
-                                        padding: '1rem 1.25rem',
-                                        background: 'rgba(20, 20, 25, 0.85)',
-                                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                                        borderRadius: '0.75rem',
-                                        backdropFilter: 'blur(8px)',
-                                        maxWidth: '320px',
-                                    }}
-                                >
-                                    <div style={{
-                                        color: 'rgba(255,255,255,0.9)',
-                                        fontSize: '0.85rem',
-                                        fontWeight: 500,
-                                        textAlign: 'center',
-                                        lineHeight: '1.4',
-                                    }}>
-                                        ¿Cancelar la generación?
-                                    </div>
-                                    <div style={{
-                                        color: 'rgba(255,255,255,0.5)',
-                                        fontSize: '0.7rem',
-                                        textAlign: 'center',
-                                        lineHeight: '1.4',
-                                    }}>
-                                        Perderás el progreso actual.
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                                        <button
-                                            onClick={() => setShowCancelConfirm(false)}
-                                            style={{
-                                                flex: 1,
-                                                background: 'transparent',
-                                                border: '1px solid rgba(255,255,255,0.2)',
-                                                color: 'rgba(255,255,255,0.85)',
-                                                padding: '0.5rem 1rem',
-                                                borderRadius: '0.5rem',
-                                                fontSize: '0.75rem',
-                                                fontWeight: 600,
-                                                cursor: 'pointer',
-                                                transition: 'all 0.15s',
-                                            }}
-                                            onMouseOver={(e) => {
-                                                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)';
-                                            }}
-                                            onMouseOut={(e) => {
-                                                e.currentTarget.style.background = 'transparent';
-                                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                                            }}
-                                        >
-                                            Continuar
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setShowCancelConfirm(false);
-                                                onCancel();
-                                            }}
-                                            style={{
-                                                flex: 1,
-                                                background: 'rgba(239, 68, 68, 0.85)',
-                                                border: '1px solid rgba(239, 68, 68, 0.85)',
-                                                color: 'white',
-                                                padding: '0.5rem 1rem',
-                                                borderRadius: '0.5rem',
-                                                fontSize: '0.75rem',
-                                                fontWeight: 600,
-                                                cursor: 'pointer',
-                                                transition: 'all 0.15s',
-                                            }}
-                                            onMouseOver={(e) => {
-                                                e.currentTarget.style.background = '#ef4444';
-                                            }}
-                                            onMouseOut={(e) => {
-                                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.85)';
-                                            }}
-                                        >
-                                            Sí, cancelar
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                    <div style={{ marginTop: '2.5rem', display: 'flex', justifyContent: 'center' }}>
+                        <motion.button
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.15 }}
+                            onClick={() => {
+                                // [P3-CANCEL-FORCE-NAVIGATE] onCancel() aborta SSE + POST
+                                // cancel backend + clear flag LS; navigate fuerza el redirect
+                                // sin esperar al catch del SSE reader (que puede tardar si
+                                // está bloqueado en reader.read()).
+                                onCancel();
+                                navigateCancel('/assessment', { replace: true });
+                            }}
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'rgba(255,255,255,0.35)',
+                                padding: '0.5rem 1rem',
+                                fontSize: '0.78rem',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                transition: 'color 0.2s',
+                                letterSpacing: '0.01em',
+                            }}
+                            onMouseOver={(e) => {
+                                e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+                            }}
+                            onMouseOut={(e) => {
+                                e.currentTarget.style.color = 'rgba(255,255,255,0.35)';
+                            }}
+                        >
+                            Cancelar
+                        </motion.button>
                     </div>
                 )}
 

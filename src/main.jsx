@@ -47,6 +47,95 @@ const SENTRY_REPLAYS_ON_ERROR_RATE = _parseSentrySampleRate(
   1.0,
 );
 
+// [P2-SENTRY-PII-SCRUBBING-FRONTEND · 2026-05-15] `beforeSend` +
+// `beforeBreadcrumb` que redactan PII (email, health_profile, tokens,
+// Authorization headers, query strings con token/secret) antes de enviar
+// el event a Sentry.
+//
+// Pre-fix: `replayIntegration({ maskAllText: true })` cubría el video DOM
+// de replays — pero error events normales (`Sentry.captureException(err,
+// { extra: { body } })`) llegaban con request body/headers/extras sin
+// redacción. Verificado: `grep beforeSend` → 0 matches. GDPR-relevant para
+// PII y risk de leak de tokens si Sentry se ve comprometido.
+//
+// Mirror del backend `_sentry_redact_pii` (backend/app.py). Fail-open:
+// si el filtro lanza, el event sigue (preferimos PII filtrada
+// incorrectamente que perder un error genuino).
+//
+// Tooltip-anchor: P2-SENTRY-PII-SCRUBBING-FRONTEND.
+const SENTRY_SENSITIVE_KEY_SUBSTRINGS = [
+  'password', 'secret', 'token', 'authorization', 'cookie',
+  'email', 'phone', 'health_profile', 'plan_data', 'access_key',
+  'api_key', 'refresh_token', 'credit_card', 'card_number',
+];
+
+const _isSensitiveKey = (key) => {
+  const k = String(key || '').toLowerCase();
+  return SENTRY_SENSITIVE_KEY_SUBSTRINGS.some((s) => k.includes(s));
+};
+
+const _redactInPlace = (obj, depth = 0) => {
+  if (depth > 3 || !obj || typeof obj !== 'object') return;
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      if (item && typeof item === 'object') _redactInPlace(item, depth + 1);
+    }
+    return;
+  }
+  for (const k of Object.keys(obj)) {
+    if (_isSensitiveKey(k)) {
+      obj[k] = '[Filtered]';
+    } else if (obj[k] && typeof obj[k] === 'object') {
+      _redactInPlace(obj[k], depth + 1);
+    }
+  }
+};
+
+const _sentryBeforeSend = (event) => {
+  try {
+    if (!event || typeof event !== 'object') return event;
+    const req = event.request;
+    if (req && typeof req === 'object') {
+      for (const subKey of ['data', 'headers', 'cookies']) {
+        if (req[subKey] && typeof req[subKey] === 'object') {
+          _redactInPlace(req[subKey]);
+        }
+      }
+      if (
+        typeof req.query_string === 'string' &&
+        /token=|secret=|password=|key=/i.test(req.query_string)
+      ) {
+        req.query_string = '[Filtered]';
+      }
+    }
+    if (event.extra && typeof event.extra === 'object') _redactInPlace(event.extra);
+    if (event.contexts && typeof event.contexts === 'object') _redactInPlace(event.contexts);
+    if (event.user && typeof event.user === 'object') {
+      for (const k of ['email', 'username', 'ip_address']) {
+        if (k in event.user) event.user[k] = '[Filtered]';
+      }
+    }
+  } catch {
+    // fail-open
+  }
+  return event;
+};
+
+const _sentryBeforeBreadcrumb = (crumb) => {
+  try {
+    if (!crumb || typeof crumb !== 'object') return crumb;
+    if (crumb.data && typeof crumb.data === 'object') _redactInPlace(crumb.data);
+    if (typeof crumb.message === 'string' && crumb.message.includes('?')) {
+      if (/token=|secret=|password=|key=/i.test(crumb.message)) {
+        crumb.message = crumb.message.split('?')[0] + '?[Filtered]';
+      }
+    }
+  } catch {
+    // fail-open
+  }
+  return crumb;
+};
+
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   integrations: [
@@ -59,6 +148,8 @@ Sentry.init({
   tracesSampleRate: SENTRY_TRACES_SAMPLE_RATE,
   replaysSessionSampleRate: SENTRY_REPLAYS_SESSION_RATE,
   replaysOnErrorSampleRate: SENTRY_REPLAYS_ON_ERROR_RATE,
+  beforeSend: _sentryBeforeSend,
+  beforeBreadcrumb: _sentryBeforeBreadcrumb,
 });
 
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';

@@ -9,11 +9,14 @@ import {
     Zap, Flame, ArrowRight, CheckCircle,
     RefreshCw, ChefHat, Heart, Pill, Lock,
     Brain, Wallet, AlertCircle, Dumbbell,
-    Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, Trash2, ChevronDown,
+    Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, ChevronDown,
     ThumbsDown, Shuffle, X, Utensils, Copy, Infinity as InfinityIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import TrackingProgress from '../components/dashboard/TrackingProgress';
+// [P3-WATER-TRACKER · 2026-05-16] Tracker de hidratacion (8 vasos diarios)
+// reemplaza el card "Mi Nevera" que duplicaba la pagina Pantry.
+import WaterTracker from '../components/dashboard/WaterTracker';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
 import EmptyState from '../components/common/EmptyState';
@@ -34,6 +37,14 @@ import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/rende
 // pisando datos médicos previos. Ver `secureFormStorage.js` para el
 // rationale completo.
 import { buildHealthProfilePayload } from '../config/secureFormStorage';
+
+// [P3-UPDATE-PLATOS-REQUIRES-PANTRY · 2026-05-17] Mínimo de alimentos en la
+// Nevera para desbloquear "Actualizar platos". Con menos ítems el LLM no
+// puede regenerar platos significativos (regeneración usa el inventory real
+// como ingredient pool). UX decision: usuario reportó que el botón se podía
+// clickear con nevera vacía → modal abría → flujo sin sentido. Threshold de
+// 3 permite construir 1-2 platos variados sin ser restrictivo.
+const PANTRY_MIN_ITEMS_FOR_UPDATE = 3;
 
 const Dashboard = () => {
     // 1. Obtenemos estado y funciones del Contexto Global
@@ -109,6 +120,28 @@ const Dashboard = () => {
     // Estado local para la navegación por pestañas (Días)
     const [activeDayIndex, setActiveDayIndex] = useState(0);
     const [isRecalculating, setIsRecalculating] = useState(false);
+
+    // [P3-WATER-TRACKER · 2026-05-16] Detector de viewport mobile (≤768px,
+    // mismo breakpoint que el resto de las media queries del Dashboard).
+    // Determina si <WaterTracker /> se renderiza ENCIMA del menu de comidas
+    // (mobile) o dentro de la columna derecha junto a Insights (desktop).
+    // Una sola instancia activa a la vez evita doble fetch + state divergente.
+    const [isMobileViewport, setIsMobileViewport] = useState(() => {
+        if (typeof window === 'undefined' || !window.matchMedia) return false;
+        return window.matchMedia('(max-width: 768px)').matches;
+    });
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+        const mq = window.matchMedia('(max-width: 768px)');
+        const handler = (e) => setIsMobileViewport(e.matches);
+        // Safari < 14 usa addListener/removeListener. Probamos ambas APIs.
+        if (mq.addEventListener) {
+            mq.addEventListener('change', handler);
+            return () => mq.removeEventListener('change', handler);
+        }
+        mq.addListener(handler);
+        return () => mq.removeListener(handler);
+    }, []);
 
     // Estado para "Nevera Virtual" - ingredientes temporalmente marcados como agotados
     // Persistido en localStorage para sobrevivir recargas de página y navegación
@@ -351,7 +384,13 @@ const Dashboard = () => {
             })
             .subscribe((status) => {
                 if (status === 'CHANNEL_ERROR') {
-                    console.warn('[MealfitRD] Realtime sync failed for inventory channel');
+                    // [P3-CONSOLE-DEMOTE · 2026-05-16] Degradado de warn→log.
+                    // CHANNEL_ERROR es genérico (throttle, inventory vacío del
+                    // user, RLS sin filas para subscribir). El feature funciona
+                    // sin realtime (fallback al fetch REST). El amarillo ⚠ en
+                    // dev confundía: no es un fallo accionable, es estado normal
+                    // cuando no hay nada que sincronizar.
+                    console.log('[MealfitRD] Realtime inventory sync no disponible (fallback a polling REST).');
                 }
             });
         return () => supabase.removeChannel(channel);
@@ -512,6 +551,18 @@ const Dashboard = () => {
     // Cálculos para la UI de límites
     const isLimitReached = typeof userPlanLimit === 'number' && planCount >= userPlanLimit;
 
+    // [P3-UPDATE-PLATOS-REQUIRES-PANTRY · 2026-05-17] Gate "Actualizar platos"
+    // contra Nevera vacía. `pantryItemCount`:
+    //   - `null`  → inventario no cargado aún o fetch falló (no bloquear)
+    //   - número  → conteo de filas con quantity > 0 (filtro ya aplicado en la
+    //               query supabase de `fetchLiveInventory`)
+    // `isPantryTooEmpty` solo es true cuando SABEMOS que hay menos del mínimo
+    // (fail-open mientras `isLoadingInventory` o el fetch falla).
+    const pantryItemCount = Array.isArray(liveInventory) ? liveInventory.length : null;
+    const isPantryTooEmpty = !isLoadingInventory
+        && pantryItemCount !== null
+        && pantryItemCount < PANTRY_MIN_ITEMS_FOR_UPDATE;
+
     // Calcular si el periodo de compras expiró para sugerir "Actualizar Plan" en lugar de "Platos"
     const groceryDuration = formData?.groceryDuration || 'weekly';
 
@@ -584,32 +635,6 @@ const Dashboard = () => {
     const allPlanIngredients = useMemo(() => {
         return calculateAllPlanIngredients(planData, isPlanExpired, liveInventory);
     }, [planData, isPlanExpired, liveInventory]);
-
-    // Despensa puramente física, mapeada del user_inventory real
-    const physicalPantryIngredients = useMemo(() => {
-        if (!liveInventory || !Array.isArray(liveInventory) || liveInventory.length === 0) return [];
-
-        return liveInventory.map(item => {
-            const qty = parseFloat(item.quantity) || 0;
-            const unit = item.unit || 'unidad';
-            const name = item.ingredient_name || item.master_ingredients?.name || 'Ingrediente';
-            const qtyStr = Number.isInteger(qty) ? String(qty) : qty.toFixed(1).replace(/\.0$/, '');
-
-            let displayQty = '';
-            if (qty > 0) {
-                if (unit === 'unidad') {
-                    displayQty = qty === 1 ? '1 Ud.' : `${qtyStr} Uds.`;
-                } else {
-                    displayQty = `${qtyStr} ${unit}`;
-                }
-            }
-
-            return {
-                name: name,
-                quantity: displayQty
-            };
-        });
-    }, [liveInventory]);
 
     // 🔄 DELTA SHOPPING: Lista de compras inteligente que resta lo que ya hay en la Nevera.
     // Si el usuario tiene 5 lb de pollo en inventario, el PDF/restock no mostrará pollo (o mostrará la diferencia).
@@ -1012,7 +1037,12 @@ const Dashboard = () => {
                         // backend tampoco persistirá un marker si nadie lo
                         // setea, así que igualdad espuria).
                         if (latestModified && latestModified !== localModified) {
-                            console.warn(
+                            // [P3-CONSOLE-DEMOTE · 2026-05-16] Degradado de warn→log.
+                            // El drift detectado se resuelve EXITOSAMENTE en las 4
+                            // líneas siguientes (sync localStorage + state + setea
+                            // effectivePlanData fresh). El amarillo ⚠ en dev sugería
+                            // un fallo accionable pero es flujo de éxito de P2-NEW-14.
+                            console.log(
                                 '[P2-NEW-14] PDF drift detected: ' +
                                 `local=${localModified}, latest=${latestModified}. ` +
                                 'Sincronizando localStorage + state antes del PDF.'
@@ -1305,6 +1335,23 @@ const Dashboard = () => {
             if (duration === 'biweekly') { durationText = '15 Días'; }
             if (duration === 'monthly') { durationText = '30 Días'; }
 
+            // [P2-SHOPPING-TOTALS · 2026-05-16] Conteo de items por sección
+            // para mostrar en header + section labels. Beneficio UX: el
+            // usuario sabe a primera vista cuánto va a tomar comprar (e.g.
+            // 25 items = 1 trip; 60 items = 2 trips o online).
+            // Pre-fix: no había total visible, el usuario tenía que contar
+            // mentalmente o asumir. Con totalItems (declarado arriba) ya
+            // tenemos el global; aquí derivamos los de cada sección desde
+            // los dicts `perishables` y `stables`.
+            const perishableItemCount = Object.values(perishables).reduce(
+                (acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0,
+            );
+            const stableItemCount = Object.values(stables).reduce(
+                (acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0,
+            );
+            // Helper para pluralizar: "1 item" vs "5 items".
+            const _fmtItems = (n) => `${n} ${n === 1 ? 'ítem' : 'ítems'}`;
+
             // Generar contenido HTML estilizado para el PDF
             const element = document.createElement('div');
 
@@ -1317,6 +1364,8 @@ const Dashboard = () => {
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <span style="background-color: #ecfdf5; color: #065f46; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #10b98140;">Ciclo: ${escapeHtml(durationText)}</span>
                             <span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">Generado: ${escapeHtml(new Date().toLocaleDateString('es-DO'))}</span>
+                            <!-- [P2-SHOPPING-TOTALS · 2026-05-16] Total chip. -->
+                            <span style="background-color: #eff6ff; color: #1e40af; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #3b82f640;">Total: ${escapeHtml(_fmtItems(totalItems))}</span>
                         </div>
                     </div>
                     <img src="/favicon-transparent.png" alt="MealfitRD Logo" style="height: 40px;" />
@@ -1329,7 +1378,30 @@ const Dashboard = () => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <p style="margin: 0; font-size: ${isUltraDense ? '9px' : '11px'}; color: #334155; line-height: 1.3;">
+                        <!-- [P3-SHOPPING-DISCLAIMER-EXPAND · 2026-05-16] Disclaimer
+                             ampliado para explicar (a) '~' = unit-conversion
+                             aprox (e.g., "2 cabezas ≈ 2.2 lbs"); (b) caps por
+                             realismo de almacenamiento (cilantro máx 2 mazos,
+                             lácteos perecederos, etc.). Sin esto el usuario
+                             ve "~" y asume "error" o "cap injustificado". -->
                         <strong>Smart Engine:</strong> Las cantidades han sido <strong>calculadas de manera exacta</strong> según empaques del mercado local. Ajusta según tu inventario actual en casa. <strong>Nota: "Ud." significa "Unidad".</strong>
+                        ${isUltraDense ? '' : `
+                        <br/>
+                        <span style="display: inline-block; margin-top: 4px; color: #475569;">
+                            <strong>"~"</strong> indica conversión aproximada entre unidades (ej.: <em>2 Cabezas ≈ 2.2 lbs</em>). Algunas cantidades pueden ajustarse por <strong>realismo de almacenamiento</strong> (hierbas frescas, lácteos perecederos, cítricos) para evitar desperdicio.
+                        </span>
+                        <br/>
+                        <!-- [P3-STABLES-NO-SCALE-UX · 2026-05-16] Explicar
+                             por qué items estables (aceite, vinagre, miel,
+                             vainilla, especias) muestran el mismo tamaño en
+                             ciclos de 7d, 15d y 30d. Sin esto el usuario que
+                             compara los 3 PDFs ve "1 botella" en ambos y
+                             asume "no escaló = bug", cuando realmente 1
+                             botella rinde para ≥1 mes de uso normal. -->
+                        <span style="display: inline-block; margin-top: 4px; color: #475569;">
+                            <strong>Estables (aceite, vinagre, miel, especias):</strong> 1 botella o sobre rinde para varias semanas, por eso la cantidad puede verse igual entre ciclos 7d, 15d y 30d. Compras menos veces, no menos producto.
+                        </span>
+                        `}
                     </p>
                 </div>
 
@@ -1437,11 +1509,23 @@ const Dashboard = () => {
                         const tagBg = isPerishable ? '#fff7ed' : '#ecfdf5';
                         const tagColor = isPerishable ? '#ea580c' : '#059669';
                         const tagBorder = isPerishable ? '#ea580c30' : '#10b98130';
-                        // La señal de "match débil al catálogo" se preserva como
-                        // ⚠️ inline junto al nombre cuando conf<0.7. Es un evento
-                        // raro en producción, no merece slot de color principal.
-                        const lowConfWarn = conf < 0.7
-                            ? `<span title="Match al catálogo dudoso — verifica el ingrediente" style="margin-left: 4px; font-size: ${isHyperDense ? '7px' : '9px'}; cursor: help;">⚠️</span>`
+                        // [P3-PDF-LOWCONF-WARN-FIX · 2026-05-16] Pre-fix mostraba
+                        // ⚠️ inline cuando conf<0.7 confiando en el tooltip
+                        // `title="Match al catálogo dudoso"`. PERO el PDF es print
+                        // estático: el tooltip NUNCA es visible al usuario que ve
+                        // el PDF descargado o impreso → el ⚠ huérfano confundía
+                        // (¿caducidad? ¿alérgeno? ¿error de cantidad?). Caso
+                        // observado 2026-05-15: Ajo y Huevo flageados conf<0.7
+                        // simplemente porque el embedding-2 RPM estaba saturado
+                        // y caímos al regex fast-path (penaliza confidence).
+                        // Post-fix: mostrar etiqueta de texto "verifica" pequeña
+                        // y discreta SOLO cuando conf<0.5 (umbral más estricto
+                        // — los matches 0.5-0.7 del fast-path son típicamente
+                        // canónicos comunes). En el Dashboard UI (interactiva)
+                        // se preserva el render rico con tooltip — eso vive en
+                        // otro path de renderizado, no en este HTML.
+                        const lowConfWarn = conf < 0.5
+                            ? `<span style="margin-left: 6px; font-size: ${isHyperDense ? '6.5px' : '8px'}; color: #b45309; background-color: #fef3c7; padding: 0px 4px; border-radius: 3px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;">verifica</span>`
                             : '';
 
                         // [P1-PDF-3] Font size escalado: 6.5px en hyper-dense
@@ -1518,7 +1602,7 @@ const Dashboard = () => {
                 <div style="background-color: #fef2f2; border: 1px solid #fca5a5; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; flex-direction: column; gap: 4px;">
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        <span style="font-size: ${sectionLabelFont}; font-weight: 800; color: #991b1b; letter-spacing: 0.05em;">${perishableLabel}</span>
+                        <span style="font-size: ${sectionLabelFont}; font-weight: 800; color: #991b1b; letter-spacing: 0.05em;">${perishableLabel}<span style="font-weight: 600; color: #b91c1c; margin-left: 6px;">· ${escapeHtml(_fmtItems(perishableItemCount))}</span></span>
                     </div>
                     <div style="font-size: ${sectionDescFont}; color: #b91c1c; padding-left: 18px; line-height: 1.2;">
                         ${perishableDesc}
@@ -1536,7 +1620,7 @@ const Dashboard = () => {
                 <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: ${disclaimerPadding}; border-radius: 6px; margin-top: 2px; margin-bottom: ${disclaimerMargin}; display: flex; flex-direction: column; gap: 4px;">
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2.5"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></svg>
-                        <span style="font-size: ${sectionLabelFont}; font-weight: 800; color: #166534; letter-spacing: 0.05em;">${stableLabel}</span>
+                        <span style="font-size: ${sectionLabelFont}; font-weight: 800; color: #166534; letter-spacing: 0.05em;">${stableLabel}<span style="font-weight: 600; color: #15803d; margin-left: 6px;">· ${escapeHtml(_fmtItems(stableItemCount))}</span></span>
                     </div>
                     <div style="font-size: ${sectionDescFont}; color: #15803d; padding-left: 18px; line-height: 1.2;">
                        ${stableDesc}
@@ -1592,7 +1676,29 @@ const Dashboard = () => {
 
             // [P2-LAZY-PDF · 2026-05-13] Dynamic import: ver nota en el
             // import section. El chunk html2pdf-*.js se fetch SOLO acá.
-            const html2pdf = (await import('html2pdf.js')).default;
+            //
+            // [P3-RECIPES-CHUNK-LOAD-FAIL · 2026-05-15] Wrap dedicado para
+            // `ChunkLoadError` — mismo patrón que Recipes.jsx. Sin esto el
+            // outer try/catch lanza un toast genérico; el mensaje específico
+            // sugiere refresh + retry que arregla el caso (red intermitente
+            // o build rotation invalidando hashes).
+            let html2pdf;
+            try {
+                html2pdf = (await import('html2pdf.js')).default;
+            } catch (importErr) {
+                toast.dismiss(loadingToast);
+                const _msg = String(importErr?.message || '');
+                if (
+                    importErr?.name === 'ChunkLoadError' ||
+                    /loading chunk|failed to fetch dynamically imported/i.test(_msg)
+                ) {
+                    toast.error('Error de red al cargar el PDF. Refresca la página e intenta de nuevo.');
+                } else {
+                    toast.error('No se pudo cargar el generador de PDF. Refresca la página e intenta de nuevo.');
+                }
+                pdfLock.current = false;
+                return;
+            }
             // [P2-PDF-OBS-2 · 2026-05-14] Timeout sobre html2pdf().save().
             // Bug observado (raro pero reproducible): html2canvas cuelga
             // indefinido en iOS Safari con `column-count: 4` + `break-inside:
@@ -2505,16 +2611,26 @@ const Dashboard = () => {
                             {/* Combined Popover */}
                             <AnimatePresence>
                                 {showDespensaDropdown && (
+                                    // [P3-DURATION-DROPDOWN-OPEN-FLUID · 2026-05-17]
+                                    // Iteración 2: pre-fix tenía spring underdamped + scale +
+                                    // backdropFilter blur(16px) sobre background rgba(0.97).
+                                    // El doble destello sobreviviente tras quitar el spring era
+                                    // causado por `backdrop-filter` recomponiendo el blur en
+                                    // stages durante la transición + el background semi-translúcido
+                                    // (bug conocido de blink/webkit: el filtro se "snapea" al
+                                    // final del primer frame produciendo flash en los bordes).
+                                    // Fix definitivo: fondo opaco + sin backdrop-filter + animación
+                                    // SOLO de opacity (sin transform/scale) — opacity-only no puede
+                                    // flickerar porque no requiere capa de composición nueva.
                                     <motion.div
-                                        initial={{ opacity: 0, y: -4, scale: 0.95 }}
-                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                        exit={{ opacity: 0, y: -4, scale: 0.95 }}
-                                        transition={{ type: 'spring', stiffness: 450, damping: 30, mass: 0.8 }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{ duration: 0.15, ease: 'easeOut' }}
                                         style={{
                                             position: 'absolute', top: 'calc(100% + 6px)', left: '-4px', right: '-4px',
                                             zIndex: 9999,
-                                            background: 'rgba(255, 255, 255, 0.97)',
-                                            backdropFilter: 'blur(16px)',
+                                            background: '#FFFFFF',
                                             borderRadius: '12px',
                                             border: '1.5px solid #CBD5E1',
                                             boxShadow: '0 20px 40px -10px rgba(0,0,0,0.15)',
@@ -2539,6 +2655,11 @@ const Dashboard = () => {
                                                     updateData('groceryDuration', opt.value);
                                                     // [P1-FORM-9] Reemplaza spread `{...formData, groceryDuration}`.
                                                     safeUpdateHealthProfile({ groceryDuration: opt.value });
+                                                    // [P3-DURATION-DROPDOWN-CLOSE-IMMEDIATE · 2026-05-17]
+                                                    // Cerrar el dropdown INMEDIATAMENTE tras seleccionar, no esperar
+                                                    // a que termine el recalc (~1-3s). El toast.loading('Calculando...')
+                                                    // ya da feedback visible del trabajo en background.
+                                                    setShowDespensaDropdown(false);
                                                     if (userProfile?.id && planData) {
                                                         setIsRecalculating(true);
                                                         const recalcToast = toast.loading('Calculando lista...', { position: 'top-center' });
@@ -2548,14 +2669,36 @@ const Dashboard = () => {
                                                             // happy + catch (riesgo de leak si una excepción caía entre
                                                             // medio o si el componente se desmontaba mid-flight).
                                                             await withRecalcLock(async () => {
-                                                                const response = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
-                                                                    method: 'POST',
-                                                                    headers: { 'Content-Type': 'application/json' },
-                                                                    // [P2-NEW-B · 2026-05-11] Enviar plan_id explícito
-                                                                    // (cuando esté disponible en planData) para evitar
-                                                                    // race con _chunk_worker creando un plan B en paralelo.
-                                                                    body: JSON.stringify({ user_id: userProfile.id, plan_id: planData?.id, householdSize: formData?.householdSize || 1, groceryDuration: opt.value })
-                                                                });
+                                                                // [P3-RECALC-503-CLASSIFICATION · 2026-05-16] Retry 1×
+                                                                // tras 500ms si la respuesta es 5xx o el fetch falla
+                                                                // (network error). Backend ya clasifica transient → 503
+                                                                // (pool exhaustion, supabase RemoteProtocolError);
+                                                                // determinístico → 500. Esta retry cubre el blip más
+                                                                // común: free tier pgBouncer saturado por ~500ms.
+                                                                // 4xx (401/400) NO se reintentan.
+                                                                const recalcBody = JSON.stringify({ user_id: userProfile.id, plan_id: planData?.id, householdSize: formData?.householdSize || 1, groceryDuration: opt.value });
+                                                                const attemptRecalc = async () => {
+                                                                    try {
+                                                                        const r = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
+                                                                            method: 'POST',
+                                                                            headers: { 'Content-Type': 'application/json' },
+                                                                            // [P2-NEW-B · 2026-05-11] Enviar plan_id explícito
+                                                                            // (cuando esté disponible en planData) para evitar
+                                                                            // race con _chunk_worker creando un plan B en paralelo.
+                                                                            body: recalcBody
+                                                                        });
+                                                                        return { res: r, networkError: null };
+                                                                    } catch (e) {
+                                                                        return { res: null, networkError: e };
+                                                                    }
+                                                                };
+                                                                let { res: response, networkError } = await attemptRecalc();
+                                                                const isTransient = networkError || (response && response.status >= 500);
+                                                                if (isTransient) {
+                                                                    await new Promise((r) => setTimeout(r, 500));
+                                                                    ({ res: response, networkError } = await attemptRecalc());
+                                                                }
+                                                                if (networkError) throw networkError;
                                                                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                                                                 const result = await response.json();
                                                                 if (result.success && result.plan_data) {
@@ -2576,7 +2719,6 @@ const Dashboard = () => {
                                                             setIsRecalculating(false);
                                                         }
                                                     }
-                                                    setShowDespensaDropdown(false);
                                                 }}
                                                 style={{
                                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -2612,26 +2754,47 @@ const Dashboard = () => {
                                                 navigate('/assessment');
                                                 return;
                                             }
+                                            // [P3-UPDATE-PLATOS-REQUIRES-PANTRY · 2026-05-17]
+                                            // Gate antes del credit check: si la Nevera no tiene
+                                            // mínimo de alimentos, abrir el modal sería un dead-end
+                                            // (regeneración no tiene ingredientes con qué trabajar).
+                                            // Toast informativo + CTA hacia /pantry para que el
+                                            // usuario llene la Nevera y vuelva.
+                                            if (isPantryTooEmpty) {
+                                                const msg = pantryItemCount === 0
+                                                    ? `Tu Nevera está vacía. Añade al menos ${PANTRY_MIN_ITEMS_FOR_UPDATE} alimentos para actualizar platos.`
+                                                    : `Tu Nevera tiene ${pantryItemCount} alimento${pantryItemCount === 1 ? '' : 's'}. Necesitas mínimo ${PANTRY_MIN_ITEMS_FOR_UPDATE} para actualizar platos.`;
+                                                toast.info(msg, {
+                                                    duration: 5000,
+                                                    action: {
+                                                        label: 'Ir a Nevera',
+                                                        onClick: () => navigate('/pantry'),
+                                                    },
+                                                });
+                                                return;
+                                            }
                                             const hasCredits = await validateCreditsAsync();
                                             if (!hasCredits) return;
                                             setShowUpdatePlanModal(true);
                                         }}
                                         className="new-plan-btn"
+                                        aria-disabled={isLimitReached || isPantryTooEmpty}
+                                        title={isPantryTooEmpty ? `Llena tu Nevera (mínimo ${PANTRY_MIN_ITEMS_FOR_UPDATE} alimentos) para actualizar platos` : undefined}
                                         style={{
-                                            background: isLimitReached
+                                            background: (isLimitReached || isPantryTooEmpty)
                                                 ? '#E2E8F0'
                                                 : isPlanExpired
                                                     ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)'
                                                     : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
-                                            color: isLimitReached ? '#94A3B8' : 'white',
-                                            cursor: isLimitReached ? 'not-allowed' : 'pointer',
+                                            color: (isLimitReached || isPantryTooEmpty) ? '#94A3B8' : 'white',
+                                            cursor: (isLimitReached || isPantryTooEmpty) ? 'not-allowed' : 'pointer',
                                             '--hover-shadow': isPlanExpired
                                                 ? '0 20px 40px -5px rgba(239, 68, 68, 0.5), inset 0 0 0 1px rgba(255,255,255,0.1)'
                                                 : '0 20px 40px -5px rgba(15, 23, 42, 0.45), inset 0 0 0 1px rgba(255,255,255,0.1)',
                                             '--active-shadow': isPlanExpired
                                                 ? '0 5px 15px -5px rgba(239, 68, 68, 0.2)'
                                                 : '0 5px 15px -5px rgba(15, 23, 42, 0.2)',
-                                            boxShadow: isLimitReached ? 'none' : isPlanExpired
+                                            boxShadow: (isLimitReached || isPantryTooEmpty) ? 'none' : isPlanExpired
                                                 ? '0 10px 20px -5px rgba(239, 68, 68, 0.4)'
                                                 : '0 10px 20px -5px rgba(15, 23, 42, 0.35)',
                                             flex: '1 1 auto',
@@ -2647,8 +2810,22 @@ const Dashboard = () => {
                                             whiteSpace: 'nowrap'
                                         }}
                                     >
-                                        {isLimitReached ? <AlertCircle size={18} /> : isPlanExpired ? <RefreshCw size={18} /> : <Wand2 size={18} />}
-                                        <span style={{ fontSize: '0.85rem' }}>{isLimitReached ? 'Límite' : (isPlanExpired ? 'Evaluar de Nuevo' : 'Actualizar platos')}</span>
+                                        {isLimitReached
+                                            ? <AlertCircle size={18} />
+                                            : isPlanExpired
+                                                ? <RefreshCw size={18} />
+                                                : isPantryTooEmpty
+                                                    ? <Lock size={18} />
+                                                    : <Wand2 size={18} />}
+                                        <span style={{ fontSize: '0.85rem' }}>
+                                            {isLimitReached
+                                                ? 'Límite'
+                                                : isPlanExpired
+                                                    ? 'Evaluar de Nuevo'
+                                                    : isPantryTooEmpty
+                                                        ? 'Llena tu Nevera'
+                                                        : 'Actualizar platos'}
+                                        </span>
                                     </button>
                                 );
                             })()}
@@ -2775,6 +2952,18 @@ const Dashboard = () => {
                 planData={planData}
                 userId={userProfile?.id || formData?.session_id || 'guest'}
             />
+
+            {/* [P3-WATER-TRACKER · 2026-05-16] En mobile el WaterTracker
+                vive ENCIMA del menu de comidas (UX: la hidratacion es accion
+                diaria de alto valor; en pantalla pequeña la columna derecha
+                stackea al final, dejando el tracker debajo del bottom-tab).
+                En desktop sigue en la columna derecha (ver mas abajo).
+                Render condicional por viewport para evitar doble fetch.
+                NO gateado por `isPlanExpired`: la hidratacion es independiente
+                del ciclo de plan — un usuario sin plan activo igual debe poder
+                rastrear vasos. El propio componente se auto-oculta si el
+                usuario apago el toggle en Preferencias. */}
+            {isMobileViewport && <WaterTracker />}
 
             {/* --- MAIN CONTENT COLUMNS --- */}
             <div className="main-grid">
@@ -3027,7 +3216,29 @@ const Dashboard = () => {
                                                         }}
                                                     >
                                                         {(() => {
-                                                            // Compute day name dynamically from today + visible index
+                                                            // [P3-DAY-LABEL-FROM-PLAN · 2026-05-17] Usar
+                                                            // `day.day_name` que el backend inyecta en
+                                                            // graph_orchestrator.py:7278 (computado desde
+                                                            // grocery_start_date + day_index, TZ-aware).
+                                                            // Sin esto, las labels se computaban desde
+                                                            // `new Date() + visibleIdx` (calendario) y el
+                                                            // dot "Hoy" desde `todayPlanDayIndex` (índice
+                                                            // del plan) → mismatch cuando el plan empieza
+                                                            // en un día distinto a hoy. Bug observable
+                                                            // 2026-05-17: localStorage con plan de ayer
+                                                            // (Sábado start) + hoy Domingo → labels decían
+                                                            // "Domingo/Lunes/Martes" pero meals eran de
+                                                            // "Sábado/Domingo/Lunes" y dot caía en "Lunes"
+                                                            // (porque ESO era el slot de hoy en el plan).
+                                                            //
+                                                            // Ahora label = day.day_name → tabs siempre
+                                                            // alineados con meals; el dot cae en el mismo
+                                                            // tab donde está el contenido de hoy.
+                                                            //
+                                                            // Fallback al cálculo viejo si day_name ausente
+                                                            // (planes legacy pre-backend-inject que aún
+                                                            // están en localStorage).
+                                                            if (day?.day_name) return day.day_name;
                                                             const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
                                                             const d = new Date();
                                                             d.setDate(d.getDate() + visibleIdx);
@@ -3564,124 +3775,21 @@ const Dashboard = () => {
                 {/* Right Column: INSIGHTS & INGREDIENTS */}
                 <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
 
-                    {/* Despensa (Virtual Fridge) */}
-                    {!isPlanExpired && (
-                        <div style={{
-                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.5) 100%)',
-                            backdropFilter: 'blur(12px)',
-                            padding: '1.75rem',
-                            borderRadius: '2rem',
-                            border: '1.5px solid rgba(203, 213, 225, 0.8)',
-                            boxShadow: '0 20px 40px -10px rgba(0,0,0,0.08), 0 0 0 1px rgba(148, 163, 184, 0.05)',
-                            marginBottom: '2rem',
-                            width: '100%',
-                            boxSizing: 'border-box'
-                        }}>
-                            <h3 style={{
-                                fontSize: '1.2rem', fontWeight: 800, color: '#0F172A',
-                                marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem'
-                            }}>
-                                <div style={{ background: '#ECFDF5', padding: '0.4rem', borderRadius: '0.75rem', color: '#10B981' }}>
-                                    <ShoppingCart size={22} strokeWidth={2.5} />
-                                </div>
-                                Mi Nevera
-                            </h3>
-                            <p style={{ fontSize: '0.9rem', fontWeight: 400, color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.4, textAlign: 'center' }}>
-                                Lo que tienes en casa hoy
-                            </p>
+                    {/* [P3-WATER-TRACKER · 2026-05-16] Tracker de hidratacion
+                        diaria (8 vasos, reset a medianoche local). Reemplazo
+                        del card "Mi Nevera" anterior — la pagina Pantry ya
+                        cubre el inventario fisico, mantener ambas confundia
+                        al usuario. La gestion de "agotados" (disabledIngredients)
+                        sigue activa via Pantry y se aplica al render del
+                        shopping list / PDF.
 
-                            {physicalPantryIngredients.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '1rem', color: '#64748B', fontSize: '0.95rem' }}>
-                                    Aún no has registrado compras. Cuando marques tu lista como comprada, los ingredientes aparecerán aquí.
-                                </div>
-                            ) : (
-                                <div className="soft-scrollbar" style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '350px', overflowY: 'auto', padding: '0.25rem', paddingRight: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
-                                    {[...physicalPantryIngredients]
-                                        .sort((a, b) => {
-                                            const aDisabled = disabledIngredients.includes(a.name.toLowerCase().trim());
-                                            const bDisabled = disabledIngredients.includes(b.name.toLowerCase().trim());
-                                            if (aDisabled !== bDisabled) return aDisabled ? 1 : -1;
-                                            return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
-                                        })
-                                        .map((ingObj, idx) => {
-                                            const normalizedName = ingObj.name.toLowerCase().trim();
-                                            const isDisabled = disabledIngredients.includes(normalizedName);
-                                            const quantity = ingObj.quantity;
-                                            const name = ingObj.name;
-
-                                            return (
-                                                <motion.button
-                                                    key={normalizedName}
-                                                    whileHover={{ scale: isDisabled ? 1.0 : 1.03, opacity: 0.9 }}
-                                                    whileTap={{ scale: 0.95 }}
-                                                    layout
-                                                    onClick={() => {
-                                                        if (isDisabled) {
-                                                            setDisabledIngredients(prev => prev.filter(i => i !== normalizedName));
-                                                        } else {
-                                                            setDisabledIngredients(prev => [...prev, normalizedName]);
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '0.4rem',
-                                                        background: isDisabled ? '#F8FAFC' : '#FFFFFF',
-                                                        color: isDisabled ? '#94A3B8' : '#0F172A',
-                                                        border: `1px solid ${isDisabled ? '#E2E8F0' : '#CBD5E1'}`,
-                                                        boxShadow: isDisabled ? 'inset 0 2px 4px rgba(0,0,0,0.02)' : '0 2px 5px rgba(0,0,0,0.06)',
-                                                        borderRadius: '9999px',
-                                                        padding: quantity ? '0.25rem 0.75rem 0.25rem 0.25rem' : '0.4rem 0.8rem',
-                                                        fontSize: '0.85rem',
-                                                        cursor: 'pointer',
-                                                        transition: 'background 0.2s, color 0.2s, border 0.2s, box-shadow 0.2s'
-                                                    }}
-                                                    title={isDisabled ? "Agotado. Toca para restaurar." : "Disponible. Toca para reportar como agotado."}
-                                                >
-                                                    {quantity && (
-                                                        <div style={{
-                                                            background: isDisabled ? '#E2E8F0' : '#F1F5F9',
-                                                            color: isDisabled ? '#94A3B8' : '#64748B',
-                                                            padding: '0.2rem 0.5rem',
-                                                            borderRadius: '9999px',
-                                                            fontSize: '0.7rem',
-                                                            fontWeight: 700,
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            textDecoration: isDisabled ? 'line-through' : 'none'
-                                                        }}>
-                                                            {quantity}
-                                                        </div>
-                                                    )}
-
-                                                    <span style={{
-                                                        fontWeight: 600,
-                                                        textDecoration: isDisabled ? 'line-through' : 'none',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '0.3rem'
-                                                    }}>
-                                                        {name}
-                                                        <AnimatePresence>
-                                                            {isDisabled && (
-                                                                <motion.div
-                                                                    initial={{ scale: 0, opacity: 0 }}
-                                                                    animate={{ scale: 1, opacity: 1 }}
-                                                                    exit={{ scale: 0, opacity: 0 }}
-                                                                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                                                                >
-                                                                    <Trash2 size={13} color="#EF4444" style={{ marginLeft: '2px', opacity: 0.9 }} />
-                                                                </motion.div>
-                                                            )}
-                                                        </AnimatePresence>
-                                                    </span>
-                                                </motion.button>
-                                            );
-                                        })}
-                                </div>
-                            )}
-                        </div>
-                    )}
+                        En mobile (≤768px) el tracker se renderiza ENCIMA del
+                        menu (ver bloque arriba del .main-grid); aqui solo
+                        rendera en desktop para mantener una sola instancia.
+                        NO gateado por `isPlanExpired` — la hidratacion es
+                        independiente del plan. El componente se auto-oculta
+                        via toggle en Preferencias. */}
+                    {!isMobileViewport && <WaterTracker />}
 
                     {/* Insights Card */}
                     <div style={{

@@ -10,6 +10,9 @@ import { AssessmentProvider } from './context/AssessmentContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import IOSInstallPrompt from './components/IOSInstallPrompt';
 import useThemeColor from './components/common/useThemeColor';
+// [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Boot hook que detecta planes pendientes
+// y redirige al dashboard cuando el pipeline backend completa fuera del SSE.
+import PendingPipelineRecovery from './components/PendingPipelineRecovery';
 
 // --- Lazy-loaded pages (code-split into separate chunks) ---
 const Assessment = lazy(() => import('./pages/Assessment'));
@@ -83,6 +86,9 @@ function App() {
     <AssessmentProvider>
       <Router>
         <IOSInstallPrompt />
+        {/* [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Headless: poll background
+            pipeline status si el user tiene plan pendiente en localStorage. */}
+        <PendingPipelineRecovery />
         <Routes>
           <Route element={<AnimatedLayout />}>
             {/* Public Routes: Auth */}
