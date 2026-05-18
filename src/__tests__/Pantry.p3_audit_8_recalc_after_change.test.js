@@ -123,21 +123,24 @@ describe('P3-AUDIT-8 · Pantry recalc helper wiring', () => {
         expect(matches.length).toBeGreaterThanOrEqual(2);
     });
 
-    test('handleAddNewItem invoca el helper (post-insert path)', () => {
+    test('handleSaveAddForm invoca el recalc-scheduler (post-insert path)', () => {
+        // [ADD-FOODS-2026-05-18] El handler antes se llamaba `handleAddNewItem` y
+        // sólo manejaba el path master-catalog con cantidad fija = 1. Ahora se
+        // llama `handleSaveAddForm` y maneja también items personalizados (custom).
+        // El invariante P3-AUDIT-8 sigue intacto: tras un INSERT exitoso, debe
+        // schedularse el recalc para que la lista de compras refleje el alimento
+        // recién añadido.
         const src = readPantry();
-        const start = src.indexOf('handleAddNewItem = async');
+        const start = src.indexOf('handleSaveAddForm = async');
         expect(start).toBeGreaterThan(-1);
         const rest = src.slice(start);
-        // Cuerpo termina cuando empieza la próxima declaración del componente
-        // (cualquier `const X` top-level posterior). Use heurística: hasta el
-        // próximo `// 3. Computed Views` (delimitador conocido en este componente)
-        // o `} catch (error)` final.
         const endRel = rest.indexOf('// 3. Computed Views');
-        // Defensivo: si el comentario se renombra, usar fallback (próximo `const filteredInventory`).
         const fallbackEnd = rest.indexOf('const filteredInventory');
         const end = endRel > -1 ? endRel : fallbackEnd;
         expect(end).toBeGreaterThan(-1);
         const body = rest.slice(0, end);
-        expect(body).toMatch(/_recalcShoppingListAfterPantryChange\s*\(/);
+        // Acepta tanto la llamada directa al helper como al wrapper debounced
+        // (`_scheduleRecalcShoppingList`), que internamente lo invoca.
+        expect(body).toMatch(/_(?:recalcShoppingListAfterPantryChange|scheduleRecalcShoppingList)\s*\(/);
     });
 });

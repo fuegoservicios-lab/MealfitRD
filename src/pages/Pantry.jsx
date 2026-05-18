@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAssessment } from '../context/AssessmentContext';
 import { supabase } from '../supabase';
-import { Search, Plus, Minus, Trash2, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket, RotateCcw, PackageX } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket, RotateCcw, PackageX, ChevronLeft, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth, API_BASE } from '../config/api';
 import { getShelfLifeBadge, getShelfLifeBadgeStyle } from '../utils/shelfLife';
@@ -79,6 +79,23 @@ const Pantry = () => {
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeletingAll, setIsDeletingAll] = useState(false);
+
+    // [ADD-FOODS-2026-05-18] Flujo "Añadir Alimento" en 2 pasos:
+    //   'search'  → autocomplete sobre master_ingredients (paso 1).
+    //   'details' → formulario nombre/categoría/cantidad/unidad (paso 2),
+    //               disparado al elegir un master O al crear personalizado.
+    // `addFormData` mantiene los valores del formulario del paso 2.
+    // Cuando `masterItem` está presente, es un master conocido (puede tener
+    // master_ingredient_id); cuando es null, el usuario está creando un item
+    // 100% custom (master_ingredient_id se persiste como NULL).
+    const [addStep, setAddStep] = useState('search');
+    const [addFormData, setAddFormData] = useState({
+        masterItem: null,
+        name: '',
+        category: 'Despensa',
+        quantity: '1',
+        unit: 'unidad',
+    });
 
     // Resetear focus activo al cambiar búsqueda o cerrar modal
     useEffect(() => {
@@ -715,56 +732,124 @@ const Pantry = () => {
         }
     };
 
-    const handleAddNewItem = async (masterItem) => {
+    // [ADD-FOODS-2026-05-18] Helpers del flujo "Añadir Alimento" en 2 pasos.
+    // El step 'details' aparece después de que el usuario:
+    //   (a) elige un master del autocomplete → openAddDetailsForMaster(master)
+    //   (b) hace click en "Crear personalizado" → openAddDetailsForCustom()
+    // Pre-rellenamos el formulario con defaults sensatos para que el camino
+    // happy-path siga siendo de un click (Enter en el form lo confirma).
+    const _closeAddModal = () => {
+        setShowAddMenu(false);
+        setAddItemSearch('');
+        setAddStep('search');
+        setAddFormData({ masterItem: null, name: '', category: 'Despensa', quantity: '1', unit: 'unidad' });
+    };
+
+    const openAddDetailsForMaster = (masterItem) => {
+        setAddFormData({
+            masterItem,
+            name: masterItem.name,
+            category: masterItem.category || 'Despensa',
+            quantity: '1',
+            unit: masterItem.default_unit || 'unidad',
+        });
+        setAddStep('details');
+    };
+
+    const openAddDetailsForCustom = () => {
+        const presetName = (addItemSearch || '').trim();
+        setAddFormData({
+            masterItem: null,
+            name: presetName,
+            category: 'Despensa',
+            quantity: '1',
+            unit: 'unidad',
+        });
+        setAddStep('details');
+    };
+
+    // [ADD-FOODS-2026-05-18] Persistencia del paso 2. Acepta el form completo
+    // y un masterItem opcional. Lógica de merge:
+    //   - Si hay masterItem y ya existe por master_ingredient_id → suma qty.
+    //   - Si no hay masterItem (custom) y existe row con mismo (name, unit)
+    //     → suma qty (matches el UNIQUE (user_id, ingredient_name, unit)).
+    //   - Sino INSERT nuevo. category solo se guarda para items custom
+    //     (los master resuelven categoría vía join con master_ingredients).
+    const handleSaveAddForm = async () => {
+        if (isAdding) return;
+
+        const name = (addFormData.name || '').trim();
+        const qty = parseFloat(addFormData.quantity);
+        const unit = (addFormData.unit || '').trim() || 'unidad';
+        const category = (addFormData.category || '').trim() || null;
+        const masterItem = addFormData.masterItem;
+
+        if (!name) {
+            toast.error('Pónle un nombre al alimento.');
+            return;
+        }
+        if (!Number.isFinite(qty) || qty <= 0) {
+            toast.error('La cantidad debe ser mayor que 0.');
+            return;
+        }
+
         setIsAdding(true);
         try {
-            // Si estaba marcado como agotado, sale de la lista — el usuario
-            // lo está reponiendo.
-            _removeDepleted({ master_ingredient_id: masterItem.id, ingredient_name: masterItem.name });
+            _removeDepleted({
+                master_ingredient_id: masterItem?.id || null,
+                ingredient_name: name,
+            });
 
-            // Check if already exists in User Inventory
-            const existing = inventory.find(i => i.master_ingredient_id === masterItem.id);
+            const nameLc = name.toLowerCase();
+            const unitLc = unit.toLowerCase();
+            const existing = inventory.find(i => {
+                if (masterItem && i.master_ingredient_id === masterItem.id) return true;
+                if (!masterItem
+                    && (i.ingredient_name || '').toLowerCase().trim() === nameLc
+                    && (i.unit || '').toLowerCase().trim() === unitLc) return true;
+                return false;
+            });
+
             if (existing) {
-                // Just add 1 to the existing
-                await handleUpdateQuantity(existing.id, existing.quantity + 1);
-                toast.success(`Añadido +1 a ${masterItem.name}`);
-                setShowAddMenu(false);
-                setAddItemSearch('');
+                await handleUpdateQuantity(existing.id, existing.quantity + qty);
+                toast.success(`+${qty} ${unit} a ${existing.ingredient_name}`);
+                _closeAddModal();
                 return;
             }
 
-            // Unidad base desde el catálogo maestro (columna default_unit)
-            const defaultUnit = masterItem.default_unit || "unidad";
-
             const newItem = {
                 user_id: session.user.id,
-                ingredient_name: masterItem.name,
-                master_ingredient_id: masterItem.id,
-                quantity: 1,
-                unit: defaultUnit,
+                ingredient_name: name,
+                master_ingredient_id: masterItem?.id || null,
+                quantity: qty,
+                unit,
+                category: masterItem ? null : category,
             };
 
             const { data, error } = await supabase
                 .from('user_inventory')
-                .upsert([newItem], { onConflict: 'user_id,master_ingredient_id' })
+                .insert([newItem])
                 .select('*, master_ingredients(name, category, default_unit, shelf_life_days)')
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                // 23505 = unique violation por race (otra pestaña/refresh insertó
+                // el mismo (name, unit) entre el pre-check y el INSERT). Refresh
+                // y tratamos como éxito — la fila quedó en DB de alguna forma.
+                if (error.code === '23505') {
+                    await fetchData(false);
+                    toast.success(`${name} ya está en tu nevera.`);
+                    _closeAddModal();
+                    return;
+                }
+                throw error;
+            }
 
-            toast.success(`${masterItem.name} puesto en Nevera.`);
+            toast.success(`${name} puesto en Nevera.`);
             setInventory(prev => [...prev, data].sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name)));
-            setShowAddMenu(false);
-            setAddItemSearch('');
+            _closeAddModal();
             // [P3-AUDIT-8 · 2026-05-10] Recalcular lista tras add individual.
-            // Si el ítem que se acaba de añadir estaba en la lista de
-            // compras, debe desaparecer; el Dashboard refleja el cambio
-            // al instante. NOTA: el path "+1 a existing" arriba (línea ~424)
-            // delega a `handleUpdateQuantity` que NO recalcula — qty
-            // changes no alteran el set de items y el PDF live-fetch
-            // ya cubre ese caso.
-            // [P2-NEW-12 · 2026-05-11] Debounced — añadir N items rápido no
-            // genera N recalcs.
+            // [P2-NEW-12 · 2026-05-11] Debounced — añadir N items no genera N recalcs.
             _scheduleRecalcShoppingList();
         } catch (error) {
             console.error("Add Error: ", error);
@@ -851,7 +936,10 @@ const Pantry = () => {
         };
         const grouped = {};
         textMatch.forEach(item => {
-            let cat = item.master_ingredients?.category || "OTROS";
+            // [ADD-FOODS-2026-05-18] Items personalizados (sin master_ingredient_id)
+            // traen su categoría en `item.category` directamente; los canónicos la
+            // resuelven vía join con master_ingredients. Fallback final: "OTROS".
+            let cat = item.category || item.master_ingredients?.category || "OTROS";
             cat = CATEGORY_NORMALIZE[cat] || cat; // Normalizar
             if(!grouped[cat]) grouped[cat] = [];
             grouped[cat].push(item);
@@ -899,8 +987,17 @@ const Pantry = () => {
     }, [addItemSearch, masterList]);
 
     const handleKeyDown = (e) => {
-        if (!suggestedMasterItems.length) return;
-        
+        // [ADD-FOODS-2026-05-18] Enter sin resultados → abre el paso "Crear
+        // personalizado" con el texto actual como nombre. Antes esta tecla
+        // era no-op cuando no había sugerencias del master.
+        if (!suggestedMasterItems.length) {
+            if (e.key === 'Enter' && (addItemSearch || '').trim()) {
+                e.preventDefault();
+                openAddDetailsForCustom();
+            }
+            return;
+        }
+
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             setSelectedIndex(prev => (prev < suggestedMasterItems.length - 1 ? prev + 1 : prev));
@@ -910,10 +1007,9 @@ const Pantry = () => {
         } else if (e.key === 'Enter') {
             e.preventDefault();
             if (selectedIndex >= 0 && selectedIndex < suggestedMasterItems.length) {
-                handleAddNewItem(suggestedMasterItems[selectedIndex]);
+                openAddDetailsForMaster(suggestedMasterItems[selectedIndex]);
             } else if (suggestedMasterItems.length === 1) {
-                // Si solo hay una opción y presionan Enter, la agregamos por defecto
-                handleAddNewItem(suggestedMasterItems[0]);
+                openAddDetailsForMaster(suggestedMasterItems[0]);
             }
         }
     };
@@ -2048,83 +2144,292 @@ const Pantry = () => {
                 )}
             </div>
 
-            {/* Modal "Nuevo Alimento" Estilo App */}
+            {/* Modal "Nuevo Alimento" — 2 pasos (search / details) [ADD-FOODS-2026-05-18] */}
             <AnimatePresence>
                 {showAddMenu && (
                     <>
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            onClick={() => { setShowAddMenu(false); setAddItemSearch(''); }}
+                            onClick={_closeAddModal}
                             style={{ position: 'fixed', inset: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(4px)', zIndex: 100 }}
                         />
-                        <motion.div 
+                        <motion.div
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                             style={{
                                 position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--bg-card)',
                                 borderRadius: '2rem 2rem 0 0', padding: '2rem', zIndex: 101,
-                                boxShadow: '0 -10px 40px rgba(0,0,0,0.1)', maxHeight: '85vh', display: 'flex', flexDirection: 'column'
+                                boxShadow: '0 -10px 40px rgba(0,0,0,0.1)', maxHeight: '90vh', display: 'flex', flexDirection: 'column'
                             }}
                         >
                             <div style={{ width: '40px', height: '5px', background: 'var(--border)', borderRadius: '10px', margin: '0 auto 1.5rem', opacity: 0.8 }} />
-                            
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 1rem 0', color: 'var(--text-main)' }}>Registrar Nuevo Alimento</h2>
-                            
-                            <div style={{ position: 'relative', marginBottom: '1rem' }}>
-                                <SearchIcon color="var(--text-light)" size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
-                                <input 
-                                    autoFocus
-                                    type="text" 
-                                    placeholder="Buscar en el catálogo semántico..." 
-                                    value={addItemSearch}
-                                    onChange={e => setAddItemSearch(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    style={{
-                                        width: '100%', padding: '1.2rem 1rem 1.2rem 3rem', borderRadius: '1rem', border: '2px solid var(--border)',
-                                        outline: 'none', fontSize: '1.1rem', fontWeight: 500, background: 'var(--bg-page)', color: 'var(--text-main)'
-                                    }}
-                                />
-                            </div>
 
-                            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem' }}>
-                                <AlertCircle size={14} /> El buscador utiliza el Catálogo Maestro para evitar redundancias.
-                            </p>
+                            {addStep === 'search' && (
+                                <>
+                                    <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 1rem 0', color: 'var(--text-main)' }}>Añadir Alimento</h2>
 
-                            {/* Resultados de búsqueda (Scrollable) */}
-                            <div style={{ overflowY: 'auto', flex: 1, paddingBottom: '2rem' }}>
-                                {suggestedMasterItems.map((item, index) => (
-                                    <div 
-                                        key={item.id}
-                                        onClick={() => handleAddNewItem(item)}
-                                        onMouseEnter={() => setSelectedIndex(index)}
-                                        style={{
-                                            padding: '1rem', borderBottom: '1px solid var(--bg-muted)', display: 'flex',
-                                            justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer',
-                                            backgroundColor: index === selectedIndex ? 'var(--bg-muted)' : 'transparent',
-                                            borderRadius: index === selectedIndex ? '0.5rem' : '0',
-                                            transition: 'background-color 0.2s'
-                                        }}
-                                    >
-                                        <div>
-                                            <h4 style={{ margin: 0, fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>{item.name}</h4>
-                                            <span style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '0.2rem', display: 'block' }}>
-                                                Alias incl.: {item.aliases?.slice(0, 3).join(', ')}{item.aliases?.length > 3 ? '...' : ''}
-                                            </span>
-                                        </div>
-                                        <button disabled={isAdding} style={{
-                                            background: 'var(--bg-muted)', color: 'var(--secondary)', border: '1px solid var(--border)', padding: '0.5rem 1rem',
-                                            borderRadius: '99px', fontWeight: 700, cursor: 'pointer'
-                                        }}>
-                                            Elegir
+                                    <div style={{ position: 'relative', marginBottom: '1rem' }}>
+                                        <SearchIcon color="var(--text-light)" size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            placeholder="Buscar (ej: aceite de oliva, pollo, leche…)"
+                                            value={addItemSearch}
+                                            onChange={e => setAddItemSearch(e.target.value)}
+                                            onKeyDown={handleKeyDown}
+                                            style={{
+                                                width: '100%', padding: '1.2rem 1rem 1.2rem 3rem', borderRadius: '1rem', border: '2px solid var(--border)',
+                                                outline: 'none', fontSize: '1.1rem', fontWeight: 500, background: 'var(--bg-page)', color: 'var(--text-main)'
+                                            }}
+                                        />
+                                    </div>
+
+                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem' }}>
+                                        <AlertCircle size={14} /> Empieza desde el catálogo. Si no aparece, crea uno personalizado.
+                                    </p>
+
+                                    {/* Resultados + CTA personalizado (Scrollable) */}
+                                    <div style={{ overflowY: 'auto', flex: 1, paddingBottom: '2rem' }}>
+                                        {suggestedMasterItems.map((item, index) => (
+                                            <div
+                                                key={item.id}
+                                                onClick={() => openAddDetailsForMaster(item)}
+                                                onMouseEnter={() => setSelectedIndex(index)}
+                                                style={{
+                                                    padding: '1rem', borderBottom: '1px solid var(--bg-muted)', display: 'flex',
+                                                    justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer',
+                                                    backgroundColor: index === selectedIndex ? 'var(--bg-muted)' : 'transparent',
+                                                    borderRadius: index === selectedIndex ? '0.5rem' : '0',
+                                                    transition: 'background-color 0.2s'
+                                                }}
+                                            >
+                                                <div>
+                                                    <h4 style={{ margin: 0, fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>{item.name}</h4>
+                                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '0.2rem', display: 'block' }}>
+                                                        {item.category ? `${item.category} · ` : ''}Unidad: {item.default_unit || 'unidad'}
+                                                        {item.aliases?.length ? ` · Alias: ${item.aliases.slice(0, 2).join(', ')}` : ''}
+                                                    </span>
+                                                </div>
+                                                <button disabled={isAdding} style={{
+                                                    background: 'var(--bg-muted)', color: 'var(--secondary)', border: '1px solid var(--border)', padding: '0.5rem 1rem',
+                                                    borderRadius: '99px', fontWeight: 700, cursor: 'pointer'
+                                                }}>
+                                                    Elegir
+                                                </button>
+                                            </div>
+                                        ))}
+
+                                        {addItemSearch.trim() && suggestedMasterItems.length === 0 && (
+                                            <div style={{ textAlign: 'center', padding: '2rem 1rem 1.5rem', color: 'var(--text-light)' }}>
+                                                "<strong style={{ color: 'var(--text-main)' }}>{addItemSearch.trim()}</strong>" no está en el catálogo.
+                                                <br />Puedes crearlo tú mismo abajo.
+                                            </div>
+                                        )}
+
+                                        <button
+                                            type="button"
+                                            onClick={openAddDetailsForCustom}
+                                            disabled={isAdding}
+                                            style={{
+                                                width: '100%', marginTop: '0.5rem', padding: '1rem 1.25rem',
+                                                background: 'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)',
+                                                color: '#FFFFFF',
+                                                border: '2px solid rgba(125, 211, 252, 0.5)',
+                                                borderRadius: '1rem', fontWeight: 700, fontSize: '1rem',
+                                                cursor: isAdding ? 'not-allowed' : 'pointer',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                                boxShadow: '0 8px 20px -4px rgba(14, 165, 233, 0.4)',
+                                            }}
+                                        >
+                                            <Sparkles size={18} strokeWidth={2.5} />
+                                            {addItemSearch.trim()
+                                                ? `Crear personalizado: "${addItemSearch.trim()}"`
+                                                : 'Crear alimento personalizado'}
                                         </button>
                                     </div>
-                                ))}
-                                
-                                {addItemSearch.trim() && suggestedMasterItems.length === 0 && (
-                                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-light)' }}>
-                                        No existe en el catálogo maestro todavía.
+                                </>
+                            )}
+
+                            {addStep === 'details' && (
+                                <>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1rem 0' }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setAddStep('search')}
+                                            disabled={isAdding}
+                                            aria-label="Volver a la búsqueda"
+                                            style={{
+                                                background: 'var(--bg-muted)', color: 'var(--text-main)',
+                                                border: '1px solid var(--border)', borderRadius: '99px',
+                                                width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                cursor: isAdding ? 'not-allowed' : 'pointer',
+                                            }}
+                                        >
+                                            <ChevronLeft size={20} strokeWidth={2.5} />
+                                        </button>
+                                        <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>
+                                            {addFormData.masterItem ? 'Confirmar Alimento' : 'Alimento Personalizado'}
+                                        </h2>
                                     </div>
-                                )}
-                            </div>
+
+                                    <div style={{ overflowY: 'auto', flex: 1, paddingBottom: '1rem' }}>
+                                        <label style={{ display: 'block', fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', margin: '0 0 0.4rem 0' }}>
+                                            Nombre del alimento
+                                        </label>
+                                        <input
+                                            type="text"
+                                            autoFocus={!addFormData.masterItem}
+                                            value={addFormData.name}
+                                            onChange={e => setAddFormData(prev => ({ ...prev, name: e.target.value }))}
+                                            placeholder="Ej: Aceite de oliva extra virgen"
+                                            disabled={!!addFormData.masterItem}
+                                            style={{
+                                                width: '100%', padding: '0.9rem 1rem', borderRadius: '0.75rem',
+                                                border: '2px solid var(--border)', outline: 'none',
+                                                fontSize: '1rem', fontWeight: 500,
+                                                background: addFormData.masterItem ? 'var(--bg-muted)' : 'var(--bg-page)',
+                                                color: 'var(--text-main)', marginBottom: '1rem',
+                                            }}
+                                        />
+
+                                        <label style={{ display: 'block', fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', margin: '0 0 0.4rem 0' }}>
+                                            Categoría
+                                        </label>
+                                        <select
+                                            value={addFormData.category}
+                                            onChange={e => setAddFormData(prev => ({ ...prev, category: e.target.value }))}
+                                            disabled={!!addFormData.masterItem}
+                                            style={{
+                                                width: '100%', padding: '0.9rem 1rem', borderRadius: '0.75rem',
+                                                border: '2px solid var(--border)', outline: 'none',
+                                                fontSize: '1rem', fontWeight: 500,
+                                                background: addFormData.masterItem ? 'var(--bg-muted)' : 'var(--bg-page)',
+                                                color: 'var(--text-main)', marginBottom: '1rem',
+                                                appearance: 'auto',
+                                            }}
+                                        >
+                                            <option value="Despensa">Despensa y Granos</option>
+                                            <option value="Vegetales">Vegetales</option>
+                                            <option value="Frutas">Frutas</option>
+                                            <option value="Proteínas">Proteínas</option>
+                                            <option value="Lácteos">Lácteos</option>
+                                            <option value="Víveres">Víveres</option>
+                                            <option value="Otros">Otros</option>
+                                        </select>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '0.75rem' }}>
+                                            <div>
+                                                <label style={{ display: 'block', fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', margin: '0 0 0.4rem 0' }}>
+                                                    Cantidad
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    inputMode="decimal"
+                                                    min="0"
+                                                    step="0.25"
+                                                    value={addFormData.quantity}
+                                                    onChange={e => setAddFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                                                    style={{
+                                                        width: '100%', padding: '0.9rem 1rem', borderRadius: '0.75rem',
+                                                        border: '2px solid var(--border)', outline: 'none',
+                                                        fontSize: '1rem', fontWeight: 600, textAlign: 'center',
+                                                        background: 'var(--bg-page)', color: 'var(--text-main)',
+                                                    }}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', margin: '0 0 0.4rem 0' }}>
+                                                    Unidad
+                                                </label>
+                                                <select
+                                                    value={addFormData.unit}
+                                                    onChange={e => setAddFormData(prev => ({ ...prev, unit: e.target.value }))}
+                                                    style={{
+                                                        width: '100%', padding: '0.9rem 1rem', borderRadius: '0.75rem',
+                                                        border: '2px solid var(--border)', outline: 'none',
+                                                        fontSize: '1rem', fontWeight: 500,
+                                                        background: 'var(--bg-page)', color: 'var(--text-main)',
+                                                        appearance: 'auto',
+                                                    }}
+                                                >
+                                                    <optgroup label="Discretas">
+                                                        <option value="unidad">unidad</option>
+                                                        <option value="paquete">paquete</option>
+                                                        <option value="bolsa">bolsa</option>
+                                                        <option value="caja">caja</option>
+                                                        <option value="lata">lata</option>
+                                                        <option value="botella">botella</option>
+                                                        <option value="pote">pote</option>
+                                                        <option value="sobre">sobre</option>
+                                                        <option value="cartón">cartón</option>
+                                                        <option value="tetra">tetra</option>
+                                                        <option value="galón">galón</option>
+                                                        <option value="mazo">mazo</option>
+                                                        <option value="diente">diente</option>
+                                                        <option value="cabeza">cabeza</option>
+                                                        <option value="hoja">hoja</option>
+                                                        <option value="rebanada">rebanada</option>
+                                                    </optgroup>
+                                                    <optgroup label="Peso">
+                                                        <option value="g">g</option>
+                                                        <option value="kg">kg</option>
+                                                        <option value="lb">lb</option>
+                                                        <option value="oz">oz</option>
+                                                    </optgroup>
+                                                    <optgroup label="Volumen">
+                                                        <option value="ml">ml</option>
+                                                        <option value="l">l</option>
+                                                        <option value="taza">taza</option>
+                                                        <option value="cda">cda</option>
+                                                        <option value="cdta">cdta</option>
+                                                    </optgroup>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {addFormData.masterItem && (
+                                            <p style={{ fontSize: '0.8rem', color: 'var(--text-light)', margin: '1rem 0 0', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                                <AlertCircle size={13} /> Nombre y categoría heredados del catálogo. Ajusta cantidad y unidad.
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setAddStep('search')}
+                                            disabled={isAdding}
+                                            style={{
+                                                flex: 1, padding: '1rem',
+                                                background: 'var(--bg-muted)', color: 'var(--text-main)',
+                                                border: 'none', borderRadius: '1rem',
+                                                fontWeight: 700, fontSize: '1rem',
+                                                cursor: isAdding ? 'not-allowed' : 'pointer',
+                                            }}
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleSaveAddForm}
+                                            disabled={isAdding}
+                                            style={{
+                                                flex: 1.4, padding: '1rem',
+                                                background: 'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)',
+                                                color: '#FFFFFF', border: 'none', borderRadius: '1rem',
+                                                fontWeight: 700, fontSize: '1rem',
+                                                cursor: isAdding ? 'not-allowed' : 'pointer',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                                boxShadow: '0 8px 20px -4px rgba(14, 165, 233, 0.45)',
+                                                opacity: isAdding ? 0.7 : 1,
+                                            }}
+                                        >
+                                            {isAdding
+                                                ? <><Loader2 size={18} strokeWidth={2.5} className="spin-animation" /> Guardando…</>
+                                                : <><Save size={18} strokeWidth={2.5} /> Guardar en Nevera</>}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </motion.div>
                     </>
                 )}
