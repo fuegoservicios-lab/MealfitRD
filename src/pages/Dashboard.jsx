@@ -159,6 +159,25 @@ const Dashboard = () => {
     // Estados para Compras con 1 clic
     const [showRestockModal, setShowRestockModal] = useState(false);
     const [isRestocking, setIsRestocking] = useState(false);
+    // Contador 0→100 driven por rAF — sincronizado con la barra (mismo easing
+    // y duración). Sirve al label "67%" y a los checkmarks de los pasos para
+    // que se enciendan en porcentajes reales (no en delays hardcoded).
+    const [restockPercent, setRestockPercent] = useState(0);
+    useEffect(() => {
+        if (!isRestocking) { setRestockPercent(0); return; }
+        const duration = 3600; // ms — coincide con la barra
+        const start = performance.now();
+        let raf = 0;
+        const tick = (now) => {
+            const t = Math.min((now - start) / duration, 1);
+            // ease-out cubic: arranca rápido, decelera al final → "premium feel"
+            const eased = 1 - Math.pow(1 - t, 3);
+            setRestockPercent(Math.round(eased * 100));
+            if (t < 1) raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [isRestocking]);
 
     // Estados para GAP 8 (Bandas informativas de modales)
     const [hoveredUpdateOption, setHoveredUpdateOption] = useState(null);
@@ -640,13 +659,48 @@ const Dashboard = () => {
     // Si el usuario tiene 5 lb de pollo en inventario, el PDF/restock no mostrará pollo (o mostrará la diferencia).
     const buildDeltaShoppingList = useCallback((shoppingList, inventoryOverride = null) => {
         if (!shoppingList || !Array.isArray(shoppingList) || shoppingList.length === 0) return shoppingList || [];
-        const inventoryToUse = inventoryOverride || liveInventory;
-        if (!inventoryToUse || !Array.isArray(inventoryToUse) || inventoryToUse.length === 0) return shoppingList;
+        // [P3-DEDUP-EXPLICIT-OVERRIDE · 2026-05-18] Distinguir "no override
+        // pasado" vs "override = []" usando undefined check (no `||`). Esto
+        // permite que el caller pase explícitamente [] para significar
+        // "pantry vacía confirmada vía fresh fetch — NO dedup". Antes
+        // `[] || liveInventory` retornaba [] correctamente (porque [] es
+        // truthy), pero hacerlo explícito documenta el contrato y es
+        // robusto contra refactors futuros.
+        const inventoryToUse = (inventoryOverride !== null && inventoryOverride !== undefined)
+            ? inventoryOverride
+            : liveInventory;
+        if (!inventoryToUse || !Array.isArray(inventoryToUse) || inventoryToUse.length === 0) {
+            // Tag de diagnóstico — el caller que vea esto en DevTools confirma
+            // que la versión nueva del bundle está cargada (post-2026-05-18).
+            try { console.log('[P3-DEDUP-EXPLICIT-OVERRIDE] inventory empty/null → returning full shoppingList (' + shoppingList.length + ' items)'); } catch(_e) {}
+            return shoppingList;
+        }
 
         // 🔄 ROTACIÓN POST-RESTOCK: Solo suprimir ítems parciales/nuevos cuando el usuario
         // YA registró sus compras (is_restocked=true) y luego rotó platos.
         // Para planes NUEVOS, is_restocked es undefined → delta normal con todos los faltantes.
-        const isPostRestockRotation = !!planData?.is_restocked;
+        //
+        // [P3-RESTOCK-STALE-DEDUP · 2026-05-17] Defense-in-depth contra `is_restocked`
+        // stale en plan_data. Si el usuario vació la nevera (delete all en Pantry, RPC
+        // del agente, FK CASCADE) y `plan_data.is_restocked` quedó true en DB por la
+        // ventana frontend-helper-no-persiste-a-DB, este bloque ignoraría TODOS los
+        // items y el PDF/lista mostraría "Lista Vacía" pese a nevera real vacía.
+        // Heurística: si el inventario actual cubre <50% del `restocked_items` dict,
+        // el dedup es claramente obsoleto → forzamos modo normal (no-rotation).
+        // El backend self-heal de /restock cierra la raíz; este guard cubre la
+        // ventana antes del próximo /restock + cualquier ruta que vacíe pantry
+        // skip del helper SSOT (Pantry.jsx::_recalcShoppingListAfterPantryChange).
+        const _restockedItemsObj = planData?.restocked_items;
+        const _restockedCount = (_restockedItemsObj && typeof _restockedItemsObj === 'object')
+            ? Object.keys(_restockedItemsObj).length
+            : 0;
+        const _inventoryCount = inventoryToUse.length;
+        const _staleDedup = (
+            !!planData?.is_restocked &&
+            _restockedCount > 0 &&
+            _inventoryCount < Math.max(3, Math.floor(_restockedCount * 0.5))
+        );
+        const isPostRestockRotation = !!planData?.is_restocked && !_staleDedup;
 
         const MASS_TO_G = { 'g': 1, 'gr': 1, 'gramos': 1, 'kg': 1000, 'lb': 453.592, 'lbs': 453.592, 'oz': 28.3495, 'onza': 28.3495, 'onzas': 28.3495 };
         const VOL_TO_ML = { 'ml': 1, 'l': 1000, 'taza': 240, 'tazas': 240, 'cda': 15, 'cdta': 5 };
@@ -1030,13 +1084,23 @@ const Dashboard = () => {
                         .eq('user_id', session.user.id)
                         .maybeSingle();
                     if (!latestErr && latestRow?.plan_data) {
+                        // [P3-PDF-ALWAYS-SYNC · 2026-05-18] Para el flujo del
+                        // PDF, SIEMPRE sincronizamos desde DB (sin comparar
+                        // timestamps). Razón: timestamp-based drift detection
+                        // tenía falsos negativos cuando localStorage y DB
+                        // tenían el mismo `_plan_modified_at` pero contenido
+                        // diferente en `aggregated_shopping_list_weekly` (por
+                        // ejemplo, un recalc intermedio que mutó la lista pero
+                        // no bumpeó el marker hasta P3-PLAN-MODIFIED-AT-RECALC).
+                        //
+                        // El costo es minimal: un SELECT + setPlanData. Mejor
+                        // pagar este overhead que arriesgar un PDF con lista
+                        // stale. El SELECT ya se hace de todas formas para
+                        // detectar drift; lo único que cambia es aplicar la
+                        // sync incondicionalmente.
                         const latestModified = latestRow.plan_data._plan_modified_at;
                         const localModified = planData._plan_modified_at;
-                        // Drift solo si AMBOS existen y difieren — un local
-                        // sin marker (legacy) NO debe disparar sync (el
-                        // backend tampoco persistirá un marker si nadie lo
-                        // setea, así que igualdad espuria).
-                        if (latestModified && latestModified !== localModified) {
+                        if (true) {  // Siempre sincronizar.
                             // [P3-CONSOLE-DEMOTE · 2026-05-16] Degradado de warn→log.
                             // El drift detectado se resuelve EXITOSAMENTE en las 4
                             // líneas siguientes (sync localStorage + state + setea
@@ -1114,6 +1178,12 @@ const Dashboard = () => {
             //      PDF avise al usuario "verifica tu Nevera antes de comprar".
             //   3. trackEvent emite `pdf_stale_inventory_fallback` con el reason
             //      → operadores pueden medir frecuencia y escalar a P0 si crece.
+            // [P3-RESTOCK-STALE-FALLBACK-EMPTY · 2026-05-18] Mismo fix que en
+            // restock: cuando el fresh fetch falla, fallback a [] (no
+            // liveInventory cacheado). Razón: post-Borrar-Todos, liveInventory
+            // de Dashboard puede estar stale (35 items pre-delete) mientras
+            // la DB ya tiene user_inventory=[]. El dedup contra liveInventory
+            // stale removía 27 de 35 items del PDF, dejando solo 8.
             let freshInventoryForPdf = liveInventory;
             let freshInventoryStale = false;
             const _freshFetchResult = await fetchFreshInventoryWithTimeout(
@@ -1132,6 +1202,10 @@ const Dashboard = () => {
                 // ámbar in-app si estaba activo desde el mount o focus anterior.
                 setInventoryStale(false);
             } else {
+                // [P3-RESTOCK-STALE-FALLBACK-EMPTY] Fallback seguro: [] sin stale data.
+                // buildDeltaShoppingList early-return cuando inventory.length===0
+                // → la lista completa pasa al PDF y la DB es la fuente de verdad.
+                freshInventoryForPdf = [];
                 freshInventoryStale = true;
                 // [P1-5] Promovemos la señal al estado global del Dashboard:
                 // el chip ámbar permanecerá visible hasta que un fetch fresco
@@ -1377,29 +1451,21 @@ const Dashboard = () => {
                     <svg style="flex-shrink: 0; width: 14px; height: 14px; color: #3b82f6; margin-top: 1px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p style="margin: 0; font-size: ${isUltraDense ? '9px' : '11px'}; color: #334155; line-height: 1.3;">
-                        <!-- [P3-SHOPPING-DISCLAIMER-EXPAND · 2026-05-16] Disclaimer
-                             ampliado para explicar (a) '~' = unit-conversion
-                             aprox (e.g., "2 cabezas ≈ 2.2 lbs"); (b) caps por
-                             realismo de almacenamiento (cilantro máx 2 mazos,
-                             lácteos perecederos, etc.). Sin esto el usuario
-                             ve "~" y asume "error" o "cap injustificado". -->
-                        <strong>Smart Engine:</strong> Las cantidades han sido <strong>calculadas de manera exacta</strong> según empaques del mercado local. Ajusta según tu inventario actual en casa. <strong>Nota: "Ud." significa "Unidad".</strong>
+                    <p style="margin: 0; font-size: ${isUltraDense ? '9px' : '10px'}; color: #334155; line-height: 1.25;">
+                        <!-- [P3-DISCLAIMER-CONDENSE · 2026-05-17] Texto condensado
+                             ~40% para evitar overflow a 2da página en planes de
+                             tamaño normal. Preserva keywords ancla de tests:
+                             '~', 'conversión aproximada', 'realismo de
+                             almacenamiento' (P3-SHOPPING-DISCLAIMER-EXPAND),
+                             'Estables (aceite, vinagre, miel, especias)' +
+                             '1 botella o sobre rinde' (P3-STABLES-NO-SCALE-UX). -->
+                        <strong>Smart Engine:</strong> Cantidades <strong>calculadas de manera exacta</strong> según empaques del mercado local. Ajusta a tu inventario. <strong>"Ud." significa "Unidad"</strong>.
                         ${isUltraDense ? '' : `
-                        <br/>
-                        <span style="display: inline-block; margin-top: 4px; color: #475569;">
-                            <strong>"~"</strong> indica conversión aproximada entre unidades (ej.: <em>2 Cabezas ≈ 2.2 lbs</em>). Algunas cantidades pueden ajustarse por <strong>realismo de almacenamiento</strong> (hierbas frescas, lácteos perecederos, cítricos) para evitar desperdicio.
+                        <span style="display: block; margin-top: 2px; color: #475569;">
+                            <strong>"~"</strong> = conversión aproximada (ej.: <em>2 Cabezas ≈ 2.2 lbs</em>). Algunas se ajustan por <strong>realismo de almacenamiento</strong> (hierbas frescas, lácteos perecederos, cítricos).
                         </span>
-                        <br/>
-                        <!-- [P3-STABLES-NO-SCALE-UX · 2026-05-16] Explicar
-                             por qué items estables (aceite, vinagre, miel,
-                             vainilla, especias) muestran el mismo tamaño en
-                             ciclos de 7d, 15d y 30d. Sin esto el usuario que
-                             compara los 3 PDFs ve "1 botella" en ambos y
-                             asume "no escaló = bug", cuando realmente 1
-                             botella rinde para ≥1 mes de uso normal. -->
-                        <span style="display: inline-block; margin-top: 4px; color: #475569;">
-                            <strong>Estables (aceite, vinagre, miel, especias):</strong> 1 botella o sobre rinde para varias semanas, por eso la cantidad puede verse igual entre ciclos 7d, 15d y 30d. Compras menos veces, no menos producto.
+                        <span style="display: block; margin-top: 2px; color: #475569;">
+                            <strong>Estables (aceite, vinagre, miel, especias):</strong> 1 botella o sobre rinde varias semanas — misma cantidad entre ciclos 7d/15d/30d.
                         </span>
                         `}
                     </p>
@@ -1831,6 +1897,31 @@ const Dashboard = () => {
             //   3. NUNCA bloquea indefinidamente — si Supabase cuelga el helper
             //      retorna a los 2s y procedemos con caché en lugar de dejar
             //      al usuario congelado en "Guardando ingredientes...".
+            // [P3-RESTOCK-STALE-FALLBACK-EMPTY · 2026-05-18] Cuando el fresh
+            // fetch de user_inventory falla (timeout/error), NO usar liveInventory
+            // cacheado como fallback — usar [] (lista vacía).
+            //
+            // Razón: liveInventory puede estar stale post-Borrar-Todos.
+            // Escenario reproducido (plan dfb03329, user angelobrito500):
+            //   1. Usuario en Pantry: Borrar Todos → user_inventory = [] en DB.
+            //   2. Pantry.setInventory([]) — Dashboard.liveInventory NO se sincroniza.
+            //   3. Usuario navega a Dashboard, clic Compré todo.
+            //   4. fetchFreshInventoryWithTimeout falla/timeout.
+            //   5. Fallback antiguo: freshInventoryForRestock = liveInventory (35 items stale).
+            //   6. buildDeltaShoppingList compara shoppingList vs 35 stale →
+            //      dedup descarta 28, solo 7 sobreviven.
+            //   7. POST /restock con 7 items → backend self-heal correcto pero
+            //      solo registra 7 en restocked_items. Usuario ve 7 de 35.
+            //
+            // Defensa: cuando el fetch falla, fallback a [] hace que
+            // buildDeltaShoppingList haga early-return sin dedup (línea 663
+            // `if (...inventoryToUse.length === 0) return shoppingList;`).
+            // El backend ya tiene self-heal: si user_inventory está vacío en
+            // DB al momento del /restock, resetea is_restocked + restocked_items
+            // antes del dedup (plans.py:4255+). Y la constraint UNIQUE
+            // (user_id, ingredient_name, unit) previene duplicados físicos.
+            // Conclusión: pasar [] al frontend es seguro y deja que la DB
+            // sea la fuente de verdad.
             let freshInventoryForRestock = liveInventory;
             const _restockFreshFetch = await fetchFreshInventoryWithTimeout(
                 () => supabase
@@ -1848,18 +1939,17 @@ const Dashboard = () => {
                 // ámbar persistente in-app si estaba activo.
                 setInventoryStale(false);
             } else {
-                // [P1-5] Mantener el chip in-app encendido tras la advertencia
-                // transiente del toast: el toast desaparece a los 6s pero el
-                // chip permanece hasta que un fetch fresco confirme datos vivos.
+                // [P3-RESTOCK-STALE-FALLBACK-EMPTY] Fallback seguro: [] no stale data.
+                freshInventoryForRestock = [];
                 setInventoryStale(true);
                 toast.warning('Tu Nevera puede estar desactualizada', {
-                    description: 'No pudimos validar tu inventario en vivo; usando datos en caché. Verifica antes de confirmar para evitar duplicados.',
+                    description: 'No pudimos validar tu inventario en vivo. Procediendo con la lista completa — la DB es la fuente de verdad.',
                     duration: 6000,
                 });
                 trackEvent('restock_stale_inventory_fallback', {
                     reason: _restockFreshFetch.reason,
                     user_id: userProfile?.id,
-                    fallback_inventory_size: Array.isArray(liveInventory) ? liveInventory.length : 0,
+                    fallback_strategy: 'empty_array_trust_backend',
                 });
             }
 
@@ -1867,6 +1957,15 @@ const Dashboard = () => {
             // No enviar todo el 'allPlanIngredients' ya que duplicaría el liveInventory que el usuario ya poseía.
             const duration = formData?.groceryDuration || 'weekly';
             const rawActiveShoppingList = getActiveShoppingList(planData, duration) || allPlanIngredients || [];
+
+            // [P3-RESTOCK-STALE-DEDUP-CAPA3-REMOVED · 2026-05-17] Workaround
+            // pre-flight (2 POSTs a /recalculate-shopping-list con toggle
+            // householdSize) removido por fluidez. Capa 1 backend self-heal
+            // (routers/plans.py P3-RESTOCK-STALE-DEDUP-START) cierra el bug en
+            // un solo /restock cuando user_inventory está vacío. El costo de
+            // Capa 3 (~600-1000ms extra antes del POST real) no se justifica
+            // mientras Capa 1 esté activa. Si Capa 1 se desactiva o regresa,
+            // restaurar este pre-flight desde el git log.
 
             // 🔄 Delta Shopping: solo enviar lo que NO está ya en la Nevera
             const activeShoppingList = buildDeltaShoppingList(rawActiveShoppingList, freshInventoryForRestock);
@@ -2830,18 +2929,27 @@ const Dashboard = () => {
                                 );
                             })()}
 
-                            {(hasPendingShoppingItems || isLoadingInventory) && (
+                            {/* [P3-RESTOCK-BTN-NO-FLASH · 2026-05-18] Solo renderizar
+                              * cuando hayPendingShoppingItems es DEFINITIVAMENTE true
+                              * (no mientras isLoadingInventory). Antes el botón mostraba
+                              * "Calculando..." durante el mount fetch de inventario, lo
+                              * que producía un flash de ~200ms cada vez que el usuario
+                              * navegaba a Plan (el useEffect de fetch reaccionaba a
+                              * planData changes). Ahora el botón aparece "limpio"
+                              * solo cuando se sabe que hay items por comprar — el delay
+                              * inicial del fetch queda absorbido como "no mostrar nada"
+                              * en vez de "mostrar estado falso de carga". */}
+                            {hasPendingShoppingItems && (
                                 <button
-                                    onClick={() => !isLoadingInventory && setShowRestockModal(true)}
-                                    disabled={isLoadingInventory}
+                                    onClick={() => setShowRestockModal(true)}
                                     className="new-plan-btn"
                                     style={{
-                                        background: isLoadingInventory ? '#E2E8F0' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                                        color: isLoadingInventory ? '#94A3B8' : 'white',
-                                        cursor: isLoadingInventory ? 'wait' : 'pointer',
-                                        '--hover-shadow': isLoadingInventory ? 'none' : '0 20px 40px -5px rgba(16, 185, 129, 0.5), inset 0 0 0 1px rgba(255,255,255,0.2)',
-                                        '--active-shadow': isLoadingInventory ? 'none' : '0 5px 15px -5px rgba(16, 185, 129, 0.2)',
-                                        boxShadow: isLoadingInventory ? 'none' : '0 10px 20px -5px rgba(16, 185, 129, 0.4)',
+                                        background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                                        color: 'white',
+                                        cursor: 'pointer',
+                                        '--hover-shadow': '0 20px 40px -5px rgba(16, 185, 129, 0.5), inset 0 0 0 1px rgba(255,255,255,0.2)',
+                                        '--active-shadow': '0 5px 15px -5px rgba(16, 185, 129, 0.2)',
+                                        boxShadow: '0 10px 20px -5px rgba(16, 185, 129, 0.4)',
                                         flex: '1 1 auto',
                                         width: 'auto',
                                         justifyContent: 'center',
@@ -2855,8 +2963,8 @@ const Dashboard = () => {
                                         whiteSpace: 'nowrap'
                                     }}
                                 >
-                                    {isLoadingInventory ? <Loader2 className="spin-animation" size={18} /> : <CheckCircle size={18} />}
-                                    <span style={{ fontSize: '0.85rem' }}>{isLoadingInventory ? 'Calculando...' : 'Ya compré todo'}</span>
+                                    <CheckCircle size={18} />
+                                    <span style={{ fontSize: '0.85rem' }}>Ya compré todo</span>
                                 </button>
                             )}
 
@@ -4079,104 +4187,174 @@ const Dashboard = () => {
                                         transition={{ duration: 0.3 }}
                                         style={{ padding: '0.5rem 0' }}
                                     >
-                                        {/* Icono animado con pulso */}
-                                        <div style={{ position: 'relative', margin: '0 auto 1.5rem auto', width: '72px', height: '72px' }}>
+                                        {/* Halo + icono animado */}
+                                        <div style={{ position: 'relative', margin: '0 auto 1.5rem auto', width: '84px', height: '84px' }}>
+                                            {/* Halo difuso pulsante */}
+                                            <motion.div
+                                                animate={{ scale: [1, 1.18, 1], opacity: [0.45, 0.15, 0.45] }}
+                                                transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                                                style={{
+                                                    position: 'absolute', inset: '-8px',
+                                                    borderRadius: '50%',
+                                                    background: 'radial-gradient(circle, rgba(16,185,129,0.45) 0%, rgba(16,185,129,0) 70%)',
+                                                    filter: 'blur(8px)',
+                                                    pointerEvents: 'none'
+                                                }}
+                                            />
                                             <motion.div
                                                 animate={{ rotate: 360 }}
-                                                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                                                transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}
                                                 style={{
                                                     position: 'absolute', inset: 0,
                                                     borderRadius: '50%',
                                                     border: '3px solid transparent',
                                                     borderTopColor: '#10B981',
-                                                    borderRightColor: '#10B981',
+                                                    borderRightColor: 'rgba(16,185,129,0.55)',
                                                 }}
                                             />
                                             <motion.div
                                                 animate={{ rotate: -360 }}
-                                                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                                                transition={{ duration: 3.2, repeat: Infinity, ease: 'linear' }}
                                                 style={{
-                                                    position: 'absolute', inset: '6px',
+                                                    position: 'absolute', inset: '7px',
                                                     borderRadius: '50%',
-                                                    border: '3px solid transparent',
+                                                    border: '2px solid transparent',
                                                     borderBottomColor: '#059669',
-                                                    borderLeftColor: '#059669',
-                                                    opacity: 0.6
+                                                    borderLeftColor: 'rgba(5,150,105,0.45)',
                                                 }}
                                             />
                                             <div style={{
-                                                position: 'absolute', inset: '14px',
+                                                position: 'absolute', inset: '15px',
                                                 borderRadius: '50%',
                                                 background: 'linear-gradient(135deg, #ECFDF5, #D1FAE5)',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85), 0 4px 12px -2px rgba(16,185,129,0.35)'
                                             }}>
                                                 <motion.div
-                                                    animate={{ scale: [1, 1.15, 1] }}
+                                                    animate={{ scale: [1, 1.12, 1] }}
                                                     transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
                                                 >
-                                                    <ShoppingCart size={22} color="#059669" strokeWidth={2.5} />
+                                                    <ShoppingCart size={24} color="#059669" strokeWidth={2.5} />
                                                 </motion.div>
                                             </div>
                                         </div>
 
-                                        <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.5rem' }}>
-                                            Registrando compras...
+                                        <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.4rem', letterSpacing: '-0.01em' }}>
+                                            Registrando compras
                                         </h2>
-                                        <p style={{ color: '#64748B', fontSize: '0.85rem', lineHeight: '1.4', marginBottom: '1.5rem' }}>
+                                        <p style={{ color: '#64748B', fontSize: '0.88rem', lineHeight: '1.45', marginBottom: '1.6rem' }}>
                                             Estamos organizando tus ingredientes en la Nevera
                                         </p>
 
-                                        {/* Barra de progreso animada */}
-                                        <div style={{
-                                            width: '100%', height: '6px', borderRadius: '3px',
-                                            background: '#F1F5F9', overflow: 'hidden', marginBottom: '1.25rem'
-                                        }}>
-                                            <motion.div
-                                                initial={{ width: '0%' }}
-                                                animate={{ width: '92%' }}
-                                                transition={{ duration: 4, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                                style={{
-                                                    height: '100%', borderRadius: '3px',
-                                                    background: 'linear-gradient(90deg, #10B981, #059669, #10B981)',
-                                                    backgroundSize: '200% 100%',
-                                                    animation: 'shimmer 1.5s ease-in-out infinite'
-                                                }}
-                                            />
-                                        </div>
-
-                                        {/* Pasos de progreso */}
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', textAlign: 'left' }}>
-                                            {[
-                                                { label: 'Verificando ingredientes', delay: 0 },
-                                                { label: 'Actualizando inventario', delay: 1.2 },
-                                                { label: 'Sincronizando Nevera', delay: 2.4 }
-                                            ].map((step, i) => (
+                                        {/* Barra de progreso premium — llega a 100% con ease-out cubic.
+                                          * 3 capas: base con inner-shadow / fill con glow verde /
+                                          * sheen sweep diagonal animado encima. */}
+                                        <div style={{ marginBottom: '1.4rem' }}>
+                                            <div style={{
+                                                width: '100%', height: '10px', borderRadius: '99px',
+                                                background: 'linear-gradient(180deg, #EEF2F7 0%, #DDE3EC 100%)',
+                                                boxShadow: 'inset 0 1.5px 3px rgba(15,23,42,0.08), inset 0 -1px 0 rgba(255,255,255,0.55)',
+                                                overflow: 'hidden', position: 'relative'
+                                            }}>
                                                 <motion.div
-                                                    key={step.label}
-                                                    initial={{ opacity: 0, x: -10 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    transition={{ delay: step.delay, duration: 0.4 }}
+                                                    initial={{ width: '0%' }}
+                                                    animate={{ width: '100%' }}
+                                                    transition={{ duration: 3.6, ease: [0.33, 1, 0.68, 1] }}
                                                     style={{
-                                                        display: 'flex', alignItems: 'center', gap: '0.6rem',
-                                                        fontSize: '0.85rem', color: '#64748B'
+                                                        height: '100%', borderRadius: '99px',
+                                                        background: 'linear-gradient(90deg, #34D399 0%, #10B981 45%, #059669 100%)',
+                                                        boxShadow: '0 0 14px rgba(16,185,129,0.55), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -1px 0 rgba(4,120,87,0.35)',
+                                                        position: 'relative', overflow: 'hidden'
                                                     }}
                                                 >
+                                                    {/* Sheen sweep — luz diagonal que pasa por la barra */}
+                                                    <div style={{
+                                                        position: 'absolute', inset: 0,
+                                                        background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)',
+                                                        backgroundSize: '200% 100%',
+                                                        animation: 'shimmer 1.4s ease-in-out infinite',
+                                                        pointerEvents: 'none'
+                                                    }} />
+                                                </motion.div>
+                                            </div>
+
+                                            {/* Indicador % + label de estado */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '0.6rem' }}>
+                                                <span style={{
+                                                    fontSize: '0.76rem', color: '#94A3B8', fontWeight: 700,
+                                                    textTransform: 'uppercase', letterSpacing: '0.08em'
+                                                }}>
+                                                    {restockPercent >= 100 ? '¡Listo!' : 'En proceso'}
+                                                </span>
+                                                <span style={{
+                                                    fontSize: '1.05rem', color: '#059669', fontWeight: 900,
+                                                    fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em'
+                                                }}>
+                                                    {restockPercent}%
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Pasos de progreso — sincronizados con el % real (no delays hardcoded).
+                                          * Cada paso muestra estado "pending" (gris) hasta cruzar su threshold,
+                                          * después transiciona a "complete" (verde con check + spring). */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', textAlign: 'left' }}>
+                                            {[
+                                                { label: 'Verificando ingredientes', threshold: 20 },
+                                                { label: 'Actualizando inventario', threshold: 55 },
+                                                { label: 'Sincronizando Nevera', threshold: 90 }
+                                            ].map((step) => {
+                                                const isDone = restockPercent >= step.threshold;
+                                                return (
                                                     <motion.div
-                                                        initial={{ scale: 0 }}
-                                                        animate={{ scale: 1 }}
-                                                        transition={{ delay: step.delay + 0.2, type: 'spring', stiffness: 300 }}
+                                                        key={step.label}
+                                                        initial={{ opacity: 0, x: -8 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ duration: 0.35 }}
                                                         style={{
-                                                            width: '20px', height: '20px', borderRadius: '50%',
-                                                            background: 'linear-gradient(135deg, #10B981, #059669)',
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                            flexShrink: 0
+                                                            display: 'flex', alignItems: 'center', gap: '0.7rem',
+                                                            fontSize: '0.88rem',
+                                                            color: isDone ? '#0F172A' : '#94A3B8',
+                                                            fontWeight: isDone ? 600 : 500,
+                                                            transition: 'color 0.3s ease'
                                                         }}
                                                     >
-                                                        <CheckCircle size={12} color="#fff" strokeWidth={3} />
+                                                        <motion.div
+                                                            animate={isDone
+                                                                ? { scale: [0.6, 1.18, 1] }
+                                                                : { scale: 1 }
+                                                            }
+                                                            transition={{ duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
+                                                            style={{
+                                                                width: '22px', height: '22px', borderRadius: '50%',
+                                                                background: isDone
+                                                                    ? 'linear-gradient(135deg, #10B981, #059669)'
+                                                                    : 'linear-gradient(135deg, #E2E8F0, #CBD5E1)',
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                flexShrink: 0,
+                                                                boxShadow: isDone
+                                                                    ? '0 4px 10px -2px rgba(16,185,129,0.55), inset 0 1px 0 rgba(255,255,255,0.35)'
+                                                                    : 'inset 0 1px 0 rgba(255,255,255,0.6)',
+                                                                transition: 'background 0.3s ease, box-shadow 0.3s ease'
+                                                            }}
+                                                        >
+                                                            {isDone ? (
+                                                                <CheckCircle size={13} color="#fff" strokeWidth={3} />
+                                                            ) : (
+                                                                <motion.div
+                                                                    animate={{ opacity: [0.4, 1, 0.4] }}
+                                                                    transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                                                                    style={{
+                                                                        width: '6px', height: '6px', borderRadius: '50%',
+                                                                        background: '#94A3B8'
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        </motion.div>
+                                                        {step.label}
                                                     </motion.div>
-                                                    {step.label}
-                                                </motion.div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </motion.div>
                                 )}

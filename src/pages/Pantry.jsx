@@ -2,15 +2,14 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAssessment } from '../context/AssessmentContext';
 import { supabase } from '../supabase';
-import { Search, Plus, Minus, Trash2, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket, RotateCcw, PackageX } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth, API_BASE } from '../config/api';
-import { getEstimatedDailyConsumption } from '../utils/pantryConsumption';
 import { getShelfLifeBadge, getShelfLifeBadgeStyle } from '../utils/shelfLife';
 import { safeJSONParseObject } from '../utils/safeJSONParse';
 // [P2-LOCALSTORAGE-GETITEM-DEFENSIVE · 2026-05-15] read defensivo para
 // `mealfit_disabled_ingredients` en el useEffect mount (línea 88+).
-import { safeLocalStorageGet } from '../utils/safeLocalStorage';
+import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 
 const CATEGORY_ICONS = {
@@ -105,6 +104,69 @@ const Pantry = () => {
         checkDisabled();
         window.addEventListener('storage', checkDisabled);
         return () => window.removeEventListener('storage', checkDisabled);
+    }, []);
+
+    // Estado "Agotados": items que el usuario marcó como agotados o eliminó
+    // manualmente. Se guarda en localStorage (mismo patrón que disabledIngredients)
+    // y NO toca la DB — semánticamente "agotado" === "ya no lo tengo", que es
+    // idéntico para el backend a "eliminado". El visual es puramente client-side.
+    const [depletedItems, setDepletedItems] = useState([]);
+
+    const _depletedKey = (entryOrItem) => {
+        const masterId = entryOrItem?.master_ingredient_id;
+        if (masterId) return `m:${masterId}`;
+        const name = entryOrItem?.ingredient_name || entryOrItem?.name || '';
+        return `n:${String(name).toLowerCase().trim()}`;
+    };
+
+    const _persistDepleted = (next) => {
+        setDepletedItems(next);
+        if (next.length === 0) {
+            safeLocalStorageRemove('mealfit_depleted_items');
+        } else {
+            safeLocalStorageSet('mealfit_depleted_items', JSON.stringify(next));
+        }
+    };
+
+    const _addDepleted = (item) => {
+        // Capturamos la cantidad en el momento de agotar para que Reponer
+        // devuelva el mismo número (ej: 2 limones → agotar → reponer → 2).
+        // Fallback a 1 si el item llega sin quantity (defensive).
+        const snapshotQty = (typeof item.quantity === 'number' && item.quantity > 0)
+            ? item.quantity
+            : 1;
+        const entry = {
+            master_ingredient_id: item.master_ingredient_id || null,
+            ingredient_name: item.ingredient_name,
+            quantity: snapshotQty,
+            unit: item.unit,
+            category: item.master_ingredients?.category || 'OTROS',
+            shelf_life_days: item.master_ingredients?.shelf_life_days || null,
+            depleted_at: new Date().toISOString(),
+        };
+        const k = _depletedKey(entry);
+        const next = [...depletedItems.filter(e => _depletedKey(e) !== k), entry];
+        _persistDepleted(next);
+    };
+
+    const _removeDepleted = (entryOrItem) => {
+        const k = _depletedKey(entryOrItem);
+        const next = depletedItems.filter(e => _depletedKey(e) !== k);
+        if (next.length !== depletedItems.length) _persistDepleted(next);
+    };
+
+    useEffect(() => {
+        const hydrate = () => {
+            const saved = safeLocalStorageGet('mealfit_depleted_items', null);
+            if (!saved) { setDepletedItems([]); return; }
+            try {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) setDepletedItems(parsed);
+            } catch (e) { setDepletedItems([]); }
+        };
+        hydrate();
+        window.addEventListener('storage', hydrate);
+        return () => window.removeEventListener('storage', hydrate);
     }, []);
 
     // Lock/Debounce por item para el guardado 
@@ -281,9 +343,13 @@ const Pantry = () => {
             // Patrón best-effort: cualquier fallo del pre-check NO debe
             // abortar el recalc — caemos al comportamiento previo.
             try {
+                // calc_household_size / calc_grocery_duration NO son columnas
+                // top-level en meal_plans — viven dentro de plan_data jsonb.
+                // Pedirlas en el SELECT producía 400 silencioso (absorbido por
+                // el try/catch, ruido en consola). Las leemos del jsonb abajo.
                 const { data: latestRows, error: latestErr } = await supabase
                     .from('meal_plans')
-                    .select('id, updated_at, calc_household_size, calc_grocery_duration, plan_data')
+                    .select('id, updated_at, plan_data')
                     .eq('user_id', session.user.id)
                     .order('created_at', { ascending: false })
                     .limit(1);
@@ -306,10 +372,11 @@ const Pantry = () => {
                         // Refrescar planData con el plan real.
                         const fresh = latest.plan_data || {};
                         // Inyectar campos top-level que el recalc necesita.
+                        // calc_household_size / calc_grocery_duration ya están
+                        // dentro de plan_data jsonb (i.e. `fresh.calc_...`), no
+                        // hace falta sobreescribirlas con columnas inexistentes.
                         fresh.id = latest.id;
                         fresh.updated_at = latest.updated_at;
-                        fresh.calc_household_size = latest.calc_household_size ?? fresh.calc_household_size;
-                        fresh.calc_grocery_duration = latest.calc_grocery_duration ?? fresh.calc_grocery_duration;
                         try {
                             localStorage.setItem('mealfit_plan', JSON.stringify(fresh));
                         } catch (_lsErr) { /* localStorage best-effort */ }
@@ -503,24 +570,42 @@ const Pantry = () => {
     };
 
     // Activación del "Velocímetro"
+    //
+    // Reglas de floor (P-FIX agotar-vs-decrement):
+    //   - El botón "-" SOLO decrementa cantidad. Tiene piso en qty=1.
+    //     Para eliminar/agotar el usuario tiene los botones explícitos
+    //     (trash al llegar a qty=1, o "Agotar" siempre visible).
+    //   - Sin este floor, mantener "-" presionado >400ms hacía que el
+    //     turbo decrementara 2→1→0 en ~480ms, eliminando + marcando
+    //     como agotado sin intención del usuario.
     const startHolding = (e, id, step) => {
         if (e) e.preventDefault(); // prevenir double click zoom
         const item = inventoryRef.current.find(i => i.id === id);
         if (!item) return;
 
+        const _floor = step < 0 ? 1 : -Infinity; // "-" no baja de 1; "+" sin tope
         let currentQty = getLatestQuantity(id) + step;
+        if (currentQty < _floor) return; // primera pulsación bajo el floor: no-op
         handleUpdateQuantity(id, currentQty);
 
         holdTimeoutRef.current[id] = setTimeout(() => {
             holdIntervalRef.current[id] = setInterval(() => {
                 currentQty += step;
+                if (step < 0 && currentQty < _floor) {
+                    // El turbo llegó al piso (qty=1). Detener el interval —
+                    // el usuario deberá soltar y dar click explícito en el
+                    // botón trash o "Agotar" para eliminar.
+                    stopHolding(null, id);
+                    return;
+                }
                 if (currentQty < 0) currentQty = 0;
                 handleUpdateQuantity(id, currentQty);
             }, 80); // <--- Velocidad supersónica (80ms = turbo)
         }, 400);
     };
 
-    const handleDeleteItem = async (id) => {
+    const handleDeleteItem = async (id, opts = {}) => {
+        const { markAsDepleted = true } = opts;
         // Capturar snapshot del item antes de eliminarlo de la UI
         const deletedItem = inventory.find(item => item.id === id);
         if (!deletedItem) return;
@@ -538,6 +623,11 @@ const Pantry = () => {
             toast.error(`Error al eliminar ${deletedItem.ingredient_name}`);
             return;
         }
+
+        // Marcar como "agotado" para que siga visible en el listado con la
+        // etiqueta AGOTADO. Si el caller no quiere ese visual (delete duro
+        // desde la sección de agotados), pasa markAsDepleted=false.
+        if (markAsDepleted) _addDepleted(deletedItem);
 
         // Toast con opción de deshacer real (insert)
         toast.success(`${deletedItem.ingredient_name} eliminado`, {
@@ -563,6 +653,8 @@ const Pantry = () => {
                                 a.ingredient_name.localeCompare(b.ingredient_name)
                             )
                         );
+                        // Salió del estado "agotado" porque el usuario lo recuperó.
+                        _removeDepleted(deletedItem);
                         toast.success(`${deletedItem.ingredient_name} restaurado`, { icon: '↩️', duration: 2000 });
                         // [P3-AUDIT-8] Revertir el delta: el item está de
                         // vuelta, la lista de compras debe excluirlo otra vez.
@@ -595,6 +687,9 @@ const Pantry = () => {
             if (error) throw error;
             
             setInventory([]);
+            // Vaciar también la lista de "agotados" — el usuario está empezando
+            // desde cero, no tiene sentido conservar recordatorios viejos.
+            _persistDepleted([]);
             toast.dismiss(loadingToast);
             toast.success('Todos los alimentos han sido borrados');
 
@@ -623,6 +718,10 @@ const Pantry = () => {
     const handleAddNewItem = async (masterItem) => {
         setIsAdding(true);
         try {
+            // Si estaba marcado como agotado, sale de la lista — el usuario
+            // lo está reponiendo.
+            _removeDepleted({ master_ingredient_id: masterItem.id, ingredient_name: masterItem.name });
+
             // Check if already exists in User Inventory
             const existing = inventory.find(i => i.master_ingredient_id === masterItem.id);
             if (existing) {
@@ -675,6 +774,64 @@ const Pantry = () => {
         }
     };
 
+    // Reponer un item agotado: INSERT en user_inventory con quantity=1 + remover
+    // de la lista de agotados. No requiere abrir el modal de búsqueda.
+    //
+    // Usa INSERT (no upsert) porque el row fue eliminado físicamente al
+    // marcar agotado, no debería haber conflicto. El único UNIQUE en la
+    // tabla es (user_id, ingredient_name, unit) — si por race condition
+    // otra pestaña re-añadió el item, Postgres devuelve 23505 que tratamos
+    // como "ya existe, todo bien".
+    const handleRestoreDepleted = async (entry) => {
+        // Restaurar con la cantidad snapshot al momento de agotar (entry.quantity).
+        // Entradas legacy sin quantity caen al fallback 1.
+        const restoreQty = (typeof entry.quantity === 'number' && entry.quantity > 0)
+            ? entry.quantity
+            : 1;
+        const newItem = {
+            user_id: session.user.id,
+            ingredient_name: entry.ingredient_name,
+            master_ingredient_id: entry.master_ingredient_id || null,
+            quantity: restoreQty,
+            unit: entry.unit || 'unidad',
+        };
+        try {
+            const { data, error } = await supabase
+                .from('user_inventory')
+                .insert([newItem])
+                .select('*, master_ingredients(name, category, default_unit, shelf_life_days)')
+                .single();
+            if (error) {
+                // 23505 = unique_violation. El item ya existe en DB (race con
+                // otra pestaña / sync remoto). Refrescamos para que aparezca
+                // y tratamos como éxito.
+                if (error.code === '23505') {
+                    await fetchData(false);
+                    _removeDepleted(entry);
+                    toast.success(`${entry.ingredient_name} ya estaba en tu nevera`, { icon: '✅', duration: 2000 });
+                    return;
+                }
+                throw error;
+            }
+            setInventory(prev => [...prev.filter(i => i.id !== data.id), data].sort((a, b) =>
+                a.ingredient_name.localeCompare(b.ingredient_name)
+            ));
+            _removeDepleted(entry);
+            toast.success(`${entry.ingredient_name} repuesto (${restoreQty} ${entry.unit || ''})`.trim(), { icon: '✅', duration: 2000 });
+            _scheduleRecalcShoppingList();
+        } catch (err) {
+            console.error('Restore depleted error:', err);
+            toast.error(`No se pudo reponer ${entry.ingredient_name}.`);
+        }
+    };
+
+    // Quitar definitivamente de la lista de agotados (no toca DB porque la fila
+    // ya no existe; solo limpia el marcador localStorage).
+    const handleDismissDepleted = (entry) => {
+        _removeDepleted(entry);
+        toast(`${entry.ingredient_name} removido de la lista de agotados`, { duration: 2000 });
+    };
+
     // 3. Computed Views
     const filteredInventory = useMemo(() => {
         let textMatch = inventory;
@@ -701,6 +858,36 @@ const Pantry = () => {
         });
         return grouped;
     }, [inventory, searchQuery]);
+
+    // Items agotados visibles: excluye los que actualmente existen en
+    // inventory (defensive — un INSERT externo podría dejar el item activo
+    // pese a estar en la lista de agotados; preferimos verdad DB).
+    const visibleDepletedItems = useMemo(() => {
+        const activeKeys = new Set(
+            inventory.map(i => i.master_ingredient_id
+                ? `m:${i.master_ingredient_id}`
+                : `n:${(i.ingredient_name || '').toLowerCase().trim()}`)
+        );
+        let list = depletedItems.filter(e => !activeKeys.has(_depletedKey(e)));
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            list = list.filter(e => (e.ingredient_name || '').toLowerCase().includes(q));
+        }
+        return list.sort((a, b) =>
+            // Más recientes arriba
+            (b.depleted_at || '').localeCompare(a.depleted_at || '')
+        );
+    }, [depletedItems, inventory, searchQuery]);
+
+    const activeCount = inventory.length;
+    const depletedCount = useMemo(() => {
+        const activeKeys = new Set(
+            inventory.map(i => i.master_ingredient_id
+                ? `m:${i.master_ingredient_id}`
+                : `n:${(i.ingredient_name || '').toLowerCase().trim()}`)
+        );
+        return depletedItems.filter(e => !activeKeys.has(_depletedKey(e))).length;
+    }, [depletedItems, inventory]);
 
     const suggestedMasterItems = useMemo(() => {
         if (!addItemSearch.trim()) return [];
@@ -838,12 +1025,14 @@ const Pantry = () => {
                         radial-gradient(circle at 100% 0%, rgba(186, 230, 253, 0.18) 0%, transparent 40%);
                 }
 
-                /* === HEADER — frosted glass arctic === */
+                /* === HEADER — frosted glass arctic ===
+                 * Position sticky + backdrop-filter es el combo más costoso
+                 * para scroll: el header re-blurea contenido por frame.
+                 * Mantenemos blur ligero (10px) y backdrop-filter solo en
+                 * pointer fino (desktop). En touch usamos bg opaco. */
                 .nevera-header {
                     padding: 2rem;
-                    background: linear-gradient(135deg, rgba(255,255,255,0.72) 0%, rgba(240, 249, 255, 0.55) 100%);
-                    backdrop-filter: blur(20px) saturate(140%);
-                    -webkit-backdrop-filter: blur(20px) saturate(140%);
+                    background: linear-gradient(135deg, rgba(248,252,255,0.98) 0%, rgba(240, 249, 255, 0.96) 100%);
                     border-bottom: 2.5px solid rgba(125, 211, 252, 0.7);
                     border-radius: 1.45rem 1.45rem 0 0;
                     box-shadow:
@@ -854,6 +1043,14 @@ const Pantry = () => {
                     top: 0;
                     z-index: 40;
                     overflow: hidden;
+                    will-change: transform;
+                }
+                @media (hover: hover) and (pointer: fine) {
+                    .nevera-header {
+                        background: linear-gradient(135deg, rgba(255,255,255,0.78) 0%, rgba(240, 249, 255, 0.62) 100%);
+                        backdrop-filter: blur(10px);
+                        -webkit-backdrop-filter: blur(10px);
+                    }
                 }
                 .nevera-header::after {
                     content: '';
@@ -1034,12 +1231,9 @@ const Pantry = () => {
                     font-size: 1rem;
                     font-weight: 500;
                     color: var(--text-main);
-                    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 249, 255, 0.85) 100%);
-                    backdrop-filter: blur(12px);
-                    -webkit-backdrop-filter: blur(12px);
+                    background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(240, 249, 255, 0.95) 100%);
                     box-shadow:
                         inset 0 1.5px 0 rgba(255,255,255,1),
-                        inset 0 -2px 4px -1px rgba(125, 211, 252, 0.2),
                         0 4px 12px -3px rgba(14, 165, 233, 0.12);
                     transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
                 }
@@ -1120,14 +1314,16 @@ const Pantry = () => {
                     box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
                 }
 
-                /* === ITEM CARDS — fridge bin / drawer look === */
+                /* === ITEM CARDS — fridge bin / drawer look ===
+                 * NO backdrop-filter aquí: con 30+ items el navegador
+                 * composita N capas blur por scroll frame y el listado
+                 * empieza a janquear (sobre todo en mobile). Reemplazado
+                 * por gradiente opaco que da el mismo look "frosted". */
                 .nevera-item-card {
                     background: linear-gradient(180deg,
-                        rgba(255, 255, 255, 0.96) 0%,
-                        rgba(240, 249, 255, 0.88) 50%,
-                        rgba(224, 242, 254, 0.82) 100%);
-                    backdrop-filter: blur(12px);
-                    -webkit-backdrop-filter: blur(12px);
+                        rgba(255, 255, 255, 1) 0%,
+                        rgba(240, 249, 255, 0.98) 50%,
+                        rgba(224, 242, 254, 0.96) 100%);
                     border: 2px solid rgba(125, 211, 252, 0.75);
                     border-top-color: rgba(186, 230, 253, 0.95);
                     border-bottom-color: rgba(56, 189, 248, 0.55);
@@ -1140,10 +1336,9 @@ const Pantry = () => {
                     overflow: hidden;
                     box-shadow:
                         inset 0 1.5px 0 rgba(255,255,255,1),
-                        inset 0 -3px 8px -2px rgba(125, 211, 252, 0.28),
-                        0 6px 18px -4px rgba(14, 165, 233, 0.2),
-                        0 2px 4px rgba(0,0,0,0.03);
+                        0 4px 12px -4px rgba(14, 165, 233, 0.18);
                     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+                    contain: layout style paint;
                 }
                 /* Frost shimmer on top (cold surface highlight) */
                 .nevera-item-card::before {
@@ -1160,16 +1355,17 @@ const Pantry = () => {
                     border-radius: 0.85rem 0.85rem 0 0;
                 }
                 .nevera-item-card > * { position: relative; z-index: 1; }
-                .nevera-item-card:hover {
-                    transform: translateY(-2px);
-                    border-color: rgba(56, 189, 248, 0.85);
-                    border-top-color: rgba(186, 230, 253, 1);
-                    border-bottom-color: rgba(14, 165, 233, 0.65);
-                    box-shadow:
-                        inset 0 1.5px 0 rgba(255,255,255,1),
-                        inset 0 -3px 10px -2px rgba(125, 211, 252, 0.4),
-                        0 12px 28px -6px rgba(14, 165, 233, 0.28),
-                        0 3px 6px rgba(0,0,0,0.04);
+                /* Hover sólo en pointer fino (desktop). En touch el hover
+                 * se "pega" durante scroll y dispara box-shadow recompose
+                 * por cada item bajo el dedo → jank. */
+                @media (hover: hover) and (pointer: fine) {
+                    .nevera-item-card:hover {
+                        transform: translateY(-2px);
+                        border-color: rgba(56, 189, 248, 0.85);
+                        box-shadow:
+                            inset 0 1.5px 0 rgba(255,255,255,1),
+                            0 8px 18px -6px rgba(14, 165, 233, 0.25);
+                    }
                 }
                 .nevera-item-unit-tag {
                     font-size: 0.78rem;
@@ -1186,11 +1382,185 @@ const Pantry = () => {
                 .nevera-item-counter {
                     display: flex;
                     align-items: center;
-                    background: rgba(240, 249, 255, 0.85);
-                    backdrop-filter: blur(6px);
+                    background: rgba(240, 249, 255, 0.95);
                     border-radius: 99px;
                     border: 1px solid rgba(186, 230, 253, 0.65);
                     padding: 0.25rem;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+                }
+
+                /* === DEPLETE BUTTON (per item) === */
+                .nevera-deplete-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.3rem;
+                    background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(254, 242, 242, 0.85) 100%);
+                    color: #B91C1C;
+                    border: 1px solid rgba(252, 165, 165, 0.7);
+                    padding: 0.28rem 0.7rem;
+                    border-radius: 99px;
+                    font-size: 0.72rem;
+                    font-weight: 700;
+                    cursor: pointer;
+                    letter-spacing: 0.01em;
+                    box-shadow:
+                        inset 0 1px 0 rgba(255,255,255,0.95),
+                        0 1px 2px rgba(220, 38, 38, 0.08);
+                    transition: all 0.15s;
+                    white-space: nowrap;
+                }
+                .nevera-deplete-btn:hover {
+                    background: linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(254, 226, 226, 0.95) 100%);
+                    border-color: rgba(248, 113, 113, 0.85);
+                    transform: translateY(-1px);
+                }
+                .nevera-deplete-btn:active { transform: scale(0.96); }
+
+                /* === DEPLETED SHELF (agotados) === */
+                .nevera-depleted-shelf {
+                    margin-top: 2.5rem;
+                    padding-top: 1.5rem;
+                    border-top: 2px dashed rgba(252, 165, 165, 0.45);
+                }
+                .nevera-depleted-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-size: 1.1rem;
+                    font-weight: 800;
+                    color: #991B1B;
+                    margin: 0 0 0.4rem 0;
+                }
+                .nevera-depleted-subtitle {
+                    margin: 0 0 1rem 0;
+                    color: #64748B;
+                    font-size: 0.85rem;
+                }
+                .nevera-depleted-count {
+                    font-size: 0.75rem;
+                    background: linear-gradient(135deg, rgba(254, 226, 226, 0.85) 0%, rgba(254, 242, 242, 0.75) 100%);
+                    border: 1px solid rgba(252, 165, 165, 0.6);
+                    color: #991B1B;
+                    padding: 0.15rem 0.6rem;
+                    border-radius: 99px;
+                    font-weight: 800;
+                    font-variant-numeric: tabular-nums;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+                }
+                .nevera-depleted-card {
+                    background: linear-gradient(180deg, #FAFAFA 0%, #F1F5F9 100%);
+                    border: 2px dashed rgba(203, 213, 225, 0.9);
+                    border-radius: 1rem;
+                    padding: 1.2rem;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 1rem;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+                    position: relative;
+                    overflow: hidden;
+                    contain: layout style paint;
+                }
+                .nevera-depleted-card::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    background: repeating-linear-gradient(
+                        135deg,
+                        rgba(248, 113, 113, 0.04) 0px,
+                        rgba(248, 113, 113, 0.04) 8px,
+                        transparent 8px,
+                        transparent 18px
+                    );
+                    pointer-events: none;
+                }
+                .nevera-depleted-card > * { position: relative; z-index: 1; }
+                .nevera-depleted-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.25rem;
+                    font-size: 0.68rem;
+                    background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+                    color: white;
+                    padding: 0.18rem 0.6rem;
+                    border-radius: 99px;
+                    font-weight: 800;
+                    letter-spacing: 0.05em;
+                    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.25);
+                }
+                .nevera-depleted-name {
+                    margin: 0;
+                    font-size: 1.05rem;
+                    font-weight: 700;
+                    color: #475569;
+                    text-decoration: line-through;
+                    text-decoration-color: rgba(220, 38, 38, 0.45);
+                    line-height: 1.2;
+                }
+                .nevera-restore-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.35rem;
+                    background: linear-gradient(135deg, #10B981 0%, #047857 100%);
+                    color: white;
+                    border: 1px solid rgba(167, 243, 208, 0.65);
+                    padding: 0.5rem 0.95rem;
+                    border-radius: 99px;
+                    font-weight: 700;
+                    font-size: 0.82rem;
+                    cursor: pointer;
+                    box-shadow:
+                        inset 0 1px 0 rgba(255,255,255,0.3),
+                        0 4px 12px -2px rgba(16, 185, 129, 0.4);
+                    transition: transform 0.15s;
+                    white-space: nowrap;
+                }
+                .nevera-restore-btn:hover { transform: translateY(-1px); }
+                .nevera-restore-btn:active { transform: scale(0.96); }
+                .nevera-dismiss-btn {
+                    background: transparent;
+                    color: #64748B;
+                    border: 1px solid rgba(203, 213, 225, 0.8);
+                    padding: 0.5rem;
+                    border-radius: 99px;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.15s;
+                }
+                .nevera-dismiss-btn:hover {
+                    background: rgba(241, 245, 249, 0.95);
+                    color: #334155;
+                }
+
+                /* === TOTAL COUNT METRICS === */
+                .nevera-total-pills {
+                    display: flex;
+                    gap: 0.5rem;
+                    margin-top: 0.5rem;
+                    flex-wrap: wrap;
+                }
+                .nevera-total-pill {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.35rem;
+                    padding: 0.28rem 0.75rem;
+                    border-radius: 99px;
+                    font-size: 0.82rem;
+                    font-weight: 700;
+                    font-variant-numeric: tabular-nums;
+                }
+                .nevera-total-pill-active {
+                    background: linear-gradient(135deg, rgba(186, 230, 253, 0.55) 0%, rgba(207, 250, 254, 0.45) 100%);
+                    border: 1px solid rgba(125, 211, 252, 0.6);
+                    color: #0369A1;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+                }
+                .nevera-total-pill-depleted {
+                    background: linear-gradient(135deg, rgba(254, 226, 226, 0.65) 0%, rgba(254, 242, 242, 0.55) 100%);
+                    border: 1px solid rgba(252, 165, 165, 0.6);
+                    color: #991B1B;
                     box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
                 }
 
@@ -1413,6 +1783,18 @@ const Pantry = () => {
                                 <span className="nevera-badge-text">Solo lo que tienes</span>
                                 <span style={{ fontSize: '0.85rem' }}>🔒</span>
                             </div>
+                            <div className="nevera-total-pills">
+                                <span className="nevera-total-pill nevera-total-pill-active" title="Alimentos disponibles en tu nevera">
+                                    <ShoppingBasket size={13} strokeWidth={2.5} />
+                                    {activeCount} {activeCount === 1 ? 'item' : 'items'}
+                                </span>
+                                {depletedCount > 0 && (
+                                    <span className="nevera-total-pill nevera-total-pill-depleted" title="Alimentos agotados (pendientes de reponer)">
+                                        <PackageX size={13} strokeWidth={2.5} />
+                                        {depletedCount} agotado{depletedCount === 1 ? '' : 's'}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -1449,8 +1831,8 @@ const Pantry = () => {
 
             {/* Listado de Inventario Groupped by Category */}
             <div style={{ padding: '0 1.5rem' }}>
-                
-                {Object.keys(filteredInventory).length === 0 ? (
+
+                {Object.keys(filteredInventory).length === 0 && visibleDepletedItems.length === 0 ? (
                   <div className="nevera-empty-wrapper">
                      <motion.div
                         className="nevera-empty-fridge"
@@ -1484,6 +1866,7 @@ const Pantry = () => {
                      </motion.div>
                   </div>
                 ) : (
+                    <>
                     <AnimatePresence>
                         {Object.keys(filteredInventory).sort().map(category => {
                             const CategoryIcon = getCategoryIcon(category);
@@ -1508,42 +1891,15 @@ const Pantry = () => {
                                         <motion.div
                                             key={item.id}
                                             className="nevera-item-card"
-                                            layout
                                             exit={{ opacity: 0, scale: 0.9 }}
                                             style={{
                                                 opacity: isDisabled ? 0.5 : 1,
-                                                filter: isDisabled ? 'grayscale(100%)' : 'none'
                                             }}
                                         >
                                             <div style={{ flex: 1, marginRight: '1rem', textDecoration: isDisabled ? 'line-through' : 'none' }}>
                                                 <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: isDisabled ? 'var(--danger)' : 'var(--text-main)', lineHeight: 1.2 }}>{item.ingredient_name}</h3>
                                                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
                                                     <span className="nevera-item-unit-tag">Unidad base: {item.unit}</span>
-                                                    {/* [P3-C] Badge de consumo estimado. Tooltip aclara que es
-                                                        orientación por categoría, no el rate dinámico real (el
-                                                        backend lo computa con el plan activo). Solo se muestra
-                                                        cuando la categoría tiene rate estimable. */}
-                                                    {(() => {
-                                                        const est = getEstimatedDailyConsumption(category, item.unit);
-                                                        if (!est) return null;
-                                                        return (
-                                                            <span
-                                                                title="Estimación por categoría · varía según tu plan"
-                                                                aria-label={`Consumo estimado: ${est.rate} ${est.unit} por día`}
-                                                                style={{
-                                                                    fontSize: '0.7rem',
-                                                                    color: '#475569',
-                                                                    background: '#F1F5F9',
-                                                                    padding: '2px 8px',
-                                                                    borderRadius: '999px',
-                                                                    fontWeight: 500,
-                                                                    whiteSpace: 'nowrap',
-                                                                }}
-                                                            >
-                                                                ~{est.rate} {est.unit}/día
-                                                            </span>
-                                                        );
-                                                    })()}
                                                     {/* [P3-4 · 2026-05-10] Chip de shelf-life: el backend ya
                                                         computaba urgency y lo incluía en el texto al LLM, pero
                                                         el frontend no lo surfaceaba al usuario. Helper
@@ -1578,39 +1934,49 @@ const Pantry = () => {
                                                 </div>
                                             </div>
 
-                                            {/* Controlador Inteligente */}
-                                            <div className="nevera-item-counter">
-                                                {item.quantity <= 1 ? (
-                                                    <button 
-                                                        onClick={() => handleUpdateQuantity(item.id, 0)} 
-                                                        style={{ border:'none', background:'none', padding:'0.5rem', color:'var(--danger)', cursor:'pointer', touchAction: 'manipulation' }}
-                                                    >
-                                                        {savingItem === item.id ? <Loader2 size={16} className="spin-fast" /> : <Trash2 size={16} strokeWidth={2.5}/>}
-                                                    </button>
-                                                ) : (
-                                                    <button 
-                                                        onPointerDown={(e) => startHolding(e, item.id, -1)}
+                                            {/* Controlador + botón Agotar */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                                                <div className="nevera-item-counter">
+                                                    {item.quantity <= 1 ? (
+                                                        <button
+                                                            onClick={() => handleUpdateQuantity(item.id, 0)}
+                                                            style={{ border:'none', background:'none', padding:'0.5rem', color:'var(--danger)', cursor:'pointer', touchAction: 'manipulation' }}
+                                                        >
+                                                            {savingItem === item.id ? <Loader2 size={16} className="spin-fast" /> : <Trash2 size={16} strokeWidth={2.5}/>}
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onPointerDown={(e) => startHolding(e, item.id, -1)}
+                                                            onPointerUp={(e) => stopHolding(e, item.id)}
+                                                            onPointerLeave={(e) => stopHolding(e, item.id)}
+                                                            onContextMenu={(e) => e.preventDefault()}
+                                                            style={{ border:'none', background:'none', padding:'0.5rem', color:'var(--text-muted)', cursor:'pointer', userSelect: 'none', touchAction: 'manipulation' }}
+                                                        >
+                                                            <Minus size={16} strokeWidth={2.5}/>
+                                                        </button>
+                                                    )}
+
+                                                    <span style={{ width: '2.5rem', textAlign: 'center', fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', fontVariantNumeric: 'tabular-nums' }}>
+                                                        {item.quantity}
+                                                    </span>
+
+                                                    <button
+                                                        onPointerDown={(e) => startHolding(e, item.id, 1)}
                                                         onPointerUp={(e) => stopHolding(e, item.id)}
                                                         onPointerLeave={(e) => stopHolding(e, item.id)}
                                                         onContextMenu={(e) => e.preventDefault()}
-                                                        style={{ border:'none', background:'none', padding:'0.5rem', color:'var(--text-muted)', cursor:'pointer', userSelect: 'none', touchAction: 'manipulation' }}
+                                                        style={{ border:'none', background:'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)', color:'white', borderRadius:'99px', padding:'0.5rem', cursor:'pointer', boxShadow:'0 4px 12px -2px rgba(14, 165, 233, 0.45), inset 0 1px 0 rgba(255,255,255,0.2)', userSelect: 'none', touchAction: 'manipulation' }}
                                                     >
-                                                        <Minus size={16} strokeWidth={2.5}/>
+                                                        <Plus size={16} strokeWidth={3}/>
                                                     </button>
-                                                )}
-                                                
-                                                <span style={{ width: '2.5rem', textAlign: 'center', fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', fontVariantNumeric: 'tabular-nums' }}>
-                                                    {item.quantity}
-                                                </span>
-
+                                                </div>
                                                 <button
-                                                    onPointerDown={(e) => startHolding(e, item.id, 1)}
-                                                    onPointerUp={(e) => stopHolding(e, item.id)}
-                                                    onPointerLeave={(e) => stopHolding(e, item.id)}
-                                                    onContextMenu={(e) => e.preventDefault()}
-                                                    style={{ border:'none', background:'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)', color:'white', borderRadius:'99px', padding:'0.5rem', cursor:'pointer', boxShadow:'0 4px 12px -2px rgba(14, 165, 233, 0.45), inset 0 1px 0 rgba(255,255,255,0.2)', userSelect: 'none', touchAction: 'manipulation' }}
+                                                    onClick={() => handleDeleteItem(item.id)}
+                                                    title="Marcar como agotado"
+                                                    aria-label={`Marcar ${item.ingredient_name} como agotado`}
+                                                    className="nevera-deplete-btn"
                                                 >
-                                                    <Plus size={16} strokeWidth={3}/>
+                                                    <PackageX size={13} strokeWidth={2.5} /> Agotar
                                                 </button>
                                             </div>
                                         </motion.div>
@@ -1621,6 +1987,64 @@ const Pantry = () => {
                             );
                         })}
                     </AnimatePresence>
+
+                    {visibleDepletedItems.length > 0 && (
+                        <section className="nevera-depleted-shelf">
+                            <h2 className="nevera-depleted-header">
+                                <PackageX size={20} strokeWidth={2.25} />
+                                Agotados
+                                <span className="nevera-depleted-count">{visibleDepletedItems.length}</span>
+                            </h2>
+                            <p className="nevera-depleted-subtitle">
+                                Ya no los tienes. Toca <strong>Reponer</strong> cuando vuelvas a comprarlos.
+                            </p>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                                <AnimatePresence>
+                                    {visibleDepletedItems.map(entry => (
+                                        <motion.div
+                                            key={_depletedKey(entry)}
+                                            className="nevera-depleted-card"
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, scale: 0.9 }}
+                                        >
+                                            <div style={{ flex: 1, marginRight: '0.75rem', minWidth: 0 }}>
+                                                <span className="nevera-depleted-badge">
+                                                    <PackageX size={10} strokeWidth={3} /> AGOTADO
+                                                </span>
+                                                <h3 className="nevera-depleted-name" style={{ marginTop: '0.5rem' }}>
+                                                    {entry.ingredient_name}
+                                                </h3>
+                                                <span style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '0.25rem', display: 'inline-block' }}>
+                                                    Tenías: <strong style={{ color: '#475569', fontWeight: 700 }}>
+                                                        {entry.quantity || 1} {entry.unit || 'unidad'}
+                                                    </strong>
+                                                </span>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'flex-end' }}>
+                                                <button
+                                                    onClick={() => handleRestoreDepleted(entry)}
+                                                    className="nevera-restore-btn"
+                                                    title="Reponer este alimento"
+                                                >
+                                                    <RotateCcw size={14} strokeWidth={2.5} /> Reponer
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDismissDepleted(entry)}
+                                                    className="nevera-dismiss-btn"
+                                                    title="Quitar de la lista de agotados"
+                                                    aria-label={`Quitar ${entry.ingredient_name} de la lista de agotados`}
+                                                >
+                                                    <X size={14} strokeWidth={2.5} />
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
+                            </div>
+                        </section>
+                    )}
+                    </>
                 )}
             </div>
 
