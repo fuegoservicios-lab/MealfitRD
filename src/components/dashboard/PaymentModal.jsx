@@ -169,6 +169,7 @@ const PaymentModal = ({
                 {/* Close */}
                 <button
                     onClick={onClose}
+                    aria-label="Cerrar modal de pago"
                     style={{
                         position: 'fixed', top: '1.5rem', right: '1.5rem', zIndex: 10000,
                         background: 'rgba(255,255,255,0.06)',

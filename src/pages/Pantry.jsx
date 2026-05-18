@@ -1583,6 +1583,7 @@ const Pantry = () => {
                                                 {item.quantity <= 1 ? (
                                                     <button 
                                                         onClick={() => handleUpdateQuantity(item.id, 0)} 
+                                                        aria-label="Eliminar alimento"
                                                         style={{ border:'none', background:'none', padding:'0.5rem', color:'var(--danger)', cursor:'pointer', touchAction: 'manipulation' }}
                                                     >
                                                         {savingItem === item.id ? <Loader2 size={16} className="spin-fast" /> : <Trash2 size={16} strokeWidth={2.5}/>}
@@ -1593,6 +1594,7 @@ const Pantry = () => {
                                                         onPointerUp={(e) => stopHolding(e, item.id)}
                                                         onPointerLeave={(e) => stopHolding(e, item.id)}
                                                         onContextMenu={(e) => e.preventDefault()}
+                                                        aria-label="Disminuir cantidad"
                                                         style={{ border:'none', background:'none', padding:'0.5rem', color:'var(--text-muted)', cursor:'pointer', userSelect: 'none', touchAction: 'manipulation' }}
                                                     >
                                                         <Minus size={16} strokeWidth={2.5}/>
@@ -1608,6 +1610,7 @@ const Pantry = () => {
                                                     onPointerUp={(e) => stopHolding(e, item.id)}
                                                     onPointerLeave={(e) => stopHolding(e, item.id)}
                                                     onContextMenu={(e) => e.preventDefault()}
+                                                    aria-label="Aumentar cantidad"
                                                     style={{ border:'none', background:'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)', color:'white', borderRadius:'99px', padding:'0.5rem', cursor:'pointer', boxShadow:'0 4px 12px -2px rgba(14, 165, 233, 0.45), inset 0 1px 0 rgba(255,255,255,0.2)', userSelect: 'none', touchAction: 'manipulation' }}
                                                 >
                                                     <Plus size={16} strokeWidth={3}/>

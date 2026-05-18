@@ -3619,6 +3619,7 @@ const Dashboard = () => {
                                                 {/* VER RECETA */}
                                                 <button
                                                     onClick={() => navigate('/dashboard/recipes')}
+                                                    aria-label="Ver paso a paso"
                                                     style={{
                                                         background: '#EFF6FF',
                                                         border: '1.5px solid #BFDBFE',
@@ -3678,6 +3679,7 @@ const Dashboard = () => {
                                                             toast('Like removido');
                                                         }
                                                     }}
+                                                    aria-label="Me gusta"
                                                     style={{
                                                         background: isLiked ? '#FEE2E2' : '#FDF2F8',
                                                         border: isLiked ? '1.5px solid #FECACA' : '1.5px solid #FBCFE8',
