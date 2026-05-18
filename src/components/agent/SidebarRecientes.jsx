@@ -181,6 +181,7 @@ export const SidebarRecientes = ({
                                         <button
                                             className="chat-actions-hover"
                                             title="Eliminar chat"
+                                            aria-label="Eliminar chat"
                                             onClick={(e) => handleDeleteChat(s.id, e)}
                                             style={{
                                                 position: 'absolute',
@@ -202,7 +203,7 @@ export const SidebarRecientes = ({
                                             onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
                                             onMouseLeave={e => e.currentTarget.style.background = 'white'}
                                         >
-                                            <Trash2 size={15} strokeWidth={2} />
+                                            <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
                                         </button>
 
                                     </div>
