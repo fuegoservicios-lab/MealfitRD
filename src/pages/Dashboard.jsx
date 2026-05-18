@@ -38,6 +38,18 @@ import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/rende
 // rationale completo.
 import { buildHealthProfilePayload } from '../config/secureFormStorage';
 
+// ⚡ BOLT OPTIMIZATION: Hoisted stop words and pre-compiled regex for normalizeNameAlt
+// Replicating exactly backend's (shopping_calculator.py line 103) stop words.
+const INGREDIENT_STOP_WORDS = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada',
+    'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada',
+    'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados',
+    'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones',
+    'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada',
+    'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
+    'horneado', 'grandes', 'firme'];
+
+const STOP_WORDS_REGEX = new RegExp('\\b(' + INGREDIENT_STOP_WORDS.join('|') + ')\\b', 'gi');
+
 // [P3-UPDATE-PLATOS-REQUIRES-PANTRY · 2026-05-17] Mínimo de alimentos en la
 // Nevera para desbloquear "Actualizar platos". Con menos ítems el LLM no
 // puede regenerar platos significativos (regeneración usa el inventory real
@@ -695,16 +707,8 @@ const Dashboard = () => {
 
             // Stop words: réplica exacta del backend (shopping_calculator.py línea 103)
             // Elimina descriptores que no forman parte del nombre base del ingrediente.
-            const stops = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada', 
-                'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada', 
-                'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados', 
-                'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones', 
-                'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada', 
-                'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
-                'horneado', 'grandes', 'firme'];
-            for (const s of stops) {
-                n = n.replace(new RegExp('\\b' + s + '\\b', 'gi'), '');
-            }
+            // ⚡ BOLT OPTIMIZATION: Using pre-compiled STOP_WORDS_REGEX instead of O(N) loop
+            n = n.replace(STOP_WORDS_REGEX, '');
             n = n.replace(/,/g, '').replace(/\s+/g, ' ').trim();
 
             return n.split(/\s+/).map(w => {
