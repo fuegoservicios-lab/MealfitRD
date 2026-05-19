@@ -222,6 +222,42 @@ const Dashboard = () => {
     // Inventario real (user_inventory en DB) — sincronizado con la Nevera física
     const [liveInventory, setLiveInventory] = useState(null);
     const [isLoadingInventory, setIsLoadingInventory] = useState(true);
+
+    // [P3-PLAN-BTN-STABLE · 2026-05-19] Cache del último conteo conocido del
+    // inventario en localStorage, keyed por user_id. Bootstrap del primer paint
+    // del botón "Llena tu Nevera"/"Actualizar platos" para que coincida con su
+    // estado final post-fetch. Pre-fix: al volver al apartado Plan, el primer
+    // paint asumía "Actualizar platos" (verde) por `isLoadingInventory=true`,
+    // y cuando el fetch resolvía ms después con <PANTRY_MIN_ITEMS_FOR_UPDATE
+    // items, flippeaba a "Llena tu Nevera" (gris) → flash visible. P3-PLAN-BTN-
+    // NO-FLASH del mismo día solo acotó el `transition` CSS; este fix cierra
+    // el caso real (cambio de render-state, no de CSS). Los otros botones
+    // ("Ya compré todo", "PDF") no flashean porque no dependen del fetch async.
+    const _pantryCountCacheKey = userProfile?.id ? `mealfit_pantry_count_${userProfile.id}` : null;
+    // Lazy initializer: `useState(fn)` solo ejecuta la lectura en el primer
+    // render, no en cada keystroke / state change posterior.
+    const [cachedPantryCount, setCachedPantryCount] = useState(() => {
+        try {
+            // Si userProfile.id aún no está disponible en el primer render,
+            // intentamos un read "anon" — el effect de abajo re-lee cuando
+            // _pantryCountCacheKey aparezca.
+            const initialUid = userProfile?.id;
+            if (!initialUid) return null;
+            const v = localStorage.getItem(`mealfit_pantry_count_${initialUid}`);
+            const n = v == null ? null : parseInt(v, 10);
+            return Number.isFinite(n) && n >= 0 ? n : null;
+        } catch { return null; }
+    });
+    // Si userProfile.id se resuelve tarde (auth context cargando), re-leemos
+    // el cache. No-op si ya cargamos en el lazy initializer.
+    useEffect(() => {
+        if (!_pantryCountCacheKey) return;
+        try {
+            const v = localStorage.getItem(_pantryCountCacheKey);
+            const n = v == null ? null : parseInt(v, 10);
+            if (Number.isFinite(n) && n >= 0) setCachedPantryCount(n);
+        } catch { /* private mode / quota */ }
+    }, [_pantryCountCacheKey]);
     // [P1-5] Indicador persistente de "Nevera potencialmente desactualizada".
     // Antes este estado solo vivía como variable local dentro de
     // `handleDownloadShoppingList` y era visible solo DENTRO del PDF generado.
@@ -332,6 +368,17 @@ const Dashboard = () => {
             safeUpdateHealthProfile({ disabled_ingredients: disabledIngredients });
         }, 800);
     }, [disabledIngredients]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // [P3-PLAN-BTN-STABLE · 2026-05-19] Sync del cache localStorage cada vez que
+    // `liveInventory` cambia (cubre fetch inicial + realtime postgres_changes +
+    // restock). Centralizar acá evita duplicar la escritura del cache en cada
+    // callsite de `setLiveInventory`. SSOT: liveInventory.length → cache.
+    useEffect(() => {
+        if (!_pantryCountCacheKey || !Array.isArray(liveInventory)) return;
+        const count = liveInventory.length;
+        setCachedPantryCount(count);
+        try { localStorage.setItem(_pantryCountCacheKey, String(count)); } catch { /* quota / private mode */ }
+    }, [liveInventory, _pantryCountCacheKey]);
 
     // Fetch inventario real desde user_inventory (refleja consumos y ediciones de la Nevera)
     // [P1-5] Usa `fetchFreshInventoryWithTimeout` (cap 2000ms) y alimenta
@@ -577,9 +624,16 @@ const Dashboard = () => {
     //               query supabase de `fetchLiveInventory`)
     // `isPantryTooEmpty` solo es true cuando SABEMOS que hay menos del mínimo
     // (fail-open mientras `isLoadingInventory` o el fetch falla).
-    const pantryItemCount = Array.isArray(liveInventory) ? liveInventory.length : null;
-    const isPantryTooEmpty = !isLoadingInventory
-        && pantryItemCount !== null
+    //
+    // [P3-PLAN-BTN-STABLE · 2026-05-19] Fallback al `cachedPantryCount` cuando
+    // el fetch aún no resolvió. Esto hace que el primer paint del botón coincida
+    // con el estado final, evitando el flash verde→gris. Se removió el gate
+    // `!isLoadingInventory` porque ya no es necesario: si tenemos cache, lo
+    // usamos; si no, `pantryItemCount` queda null → `isPantryTooEmpty=false`
+    // (fail-open preservado para usuarios sin historial cacheado).
+    const _liveCount = Array.isArray(liveInventory) ? liveInventory.length : null;
+    const pantryItemCount = _liveCount !== null ? _liveCount : cachedPantryCount;
+    const isPantryTooEmpty = pantryItemCount !== null
         && pantryItemCount < PANTRY_MIN_ITEMS_FOR_UPDATE;
 
     // Calcular si el periodo de compras expiró para sugerir "Actualizar Plan" en lugar de "Platos"
