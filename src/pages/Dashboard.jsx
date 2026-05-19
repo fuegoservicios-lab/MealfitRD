@@ -2358,7 +2358,20 @@ const Dashboard = () => {
                     display: flex;
                     align-items: center;
                     gap: 0.75rem;
-                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    /* [P3-PLAN-BTN-NO-FLASH · 2026-05-19] Transition acotada a
+                       box-shadow + filter (lo que el :hover/:active necesitan).
+                       Pre-fix transition:all 0.3s animaba CUALQUIER cambio de
+                       propiedad, incluyendo el background runtime que el
+                       botón "Llena tu Nevera" / "Actualizar platos" recalcula
+                       cuando isPantryTooEmpty flippea tras el fetch async del
+                       inventario. Resultado: al volver al apartado Plan, el
+                       botón hacía un flash de ~300ms por el background fade.
+                       Los botones "Ya compré todo" y "PDF" no flasheaban
+                       porque su background es estable. Ahora todos quedan
+                       estáticos en mount/remount. */
+                    transition:
+                        box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                        filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                     font-size: 0.95rem;
                     cursor: pointer;
                 }

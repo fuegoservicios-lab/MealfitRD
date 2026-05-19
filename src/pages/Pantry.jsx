@@ -1431,7 +1431,7 @@ const Pantry = () => {
     };
 
     return (
-        <div className="nevera-page-outer" style={{ padding: '0px', paddingBottom: '90px', backgroundColor: 'var(--bg-page)', minHeight: '100vh', position: 'relative', transition: 'background-color 0.3s' }}>
+        <div className="nevera-page-outer" style={{ padding: '0px', paddingBottom: '64px', backgroundColor: 'var(--bg-page)', minHeight: '100vh', position: 'relative', transition: 'background-color 0.3s' }}>
         <div className="nevera-page-frame">
             <div className="nevera-overlay" />
 
@@ -1873,11 +1873,11 @@ const Pantry = () => {
 
                 .nevera-fridge-body {
                     position: relative;
-                    /* [P3-PANTRY-FRIDGE-UNIT · 2026-05-19] Margen-top 0 para
-                       continuidad con header (groove divisor visible). Sin
-                       margin-bottom porque la sombra del piso ya está en el
-                       page-frame externo. Padding-right para acomodar manija. */
-                    margin: 0 0 1.5rem 0;
+                    /* [P3-PANTRY-FEET-INSIDE · 2026-05-19] margin-bottom
+                       eliminado — las patitas ahora viven DENTRO del
+                       interior-wrap (con bg cyan), no sobresalen del
+                       fridge-body. Padding-right sigue para acomodar manija. */
+                    margin: 0;
                     padding-right: 44px;
                 }
                 .nevera-fridge-interior-wrap {
@@ -1886,13 +1886,16 @@ const Pantry = () => {
                        border-radius propios — el page-frame externo ya es el
                        marco visual de la nevera. Mantenemos solo el fondo
                        cyan claro tipo "interior frío iluminado" + sombras
-                       inset que dan profundidad sin duplicar contorno. */
+                       inset que dan profundidad sin duplicar contorno.
+                       [P3-PANTRY-FEET-INSIDE · 2026-05-19] padding-bottom
+                       subido 1.5rem → 2.25rem para reservar 36px (height 16
+                       de las patitas + bottom 4px + ~16px buffer). */
                     background:
                         linear-gradient(180deg,
                             rgba(240, 249, 255, 0.85) 0%,
                             rgba(224, 242, 254, 0.7) 50%,
                             rgba(186, 230, 253, 0.45) 100%);
-                    padding: 1.25rem 1.4rem 1.5rem 1.4rem;
+                    padding: 1.25rem 1.4rem 2.25rem 1.4rem;
                     box-shadow:
                         /* Sombra interior tipo "frío reflejado" */
                         inset 0 4px 12px -4px rgba(255, 255, 255, 0.95),
@@ -2068,12 +2071,18 @@ const Pantry = () => {
                         0 2px 4px rgba(15, 23, 42, 0.35);
                 }
 
-                /* === Patitas inferiores de la nevera — más prominentes === */
+                /* === Patitas inferiores — ahora DENTRO del interior-wrap === */
+                /* [P3-PANTRY-FEET-INSIDE · 2026-05-19] bottom -16px → 4px.
+                   Las patitas ya no sobresalen del fridge-body; viven dentro
+                   del interior-wrap (con bg cyan) reservando 24px de
+                   padding-bottom. Cierra la franja blanca del bg-frame que
+                   antes quedaba entre el final del contenido y el border
+                   inferior del page-frame. */
                 .nevera-fridge-feet {
                     position: absolute;
-                    bottom: -16px;
+                    bottom: 4px;
                     left: 0;
-                    right: 44px;
+                    right: 0;
                     height: 16px;
                     display: flex;
                     justify-content: space-between;
@@ -2384,6 +2393,222 @@ const Pantry = () => {
                 }
                 .nevera-deplete-btn:active { transform: scale(0.96); }
 
+                /* === [P3-PANTRY-CONFIRM-MODAL · 2026-05-19] ===
+                   Modal "Vaciar la Nevera" con look metálico tipo electrodoméstico
+                   (mismo lenguaje visual que el page-frame): marco perlado +
+                   control panel oscuro arriba con LED rojo ALERT pulsante. */
+
+                .alert-modal-card {
+                    position: relative;
+                    overflow: hidden;
+                    border: 2.5px solid rgba(148, 163, 184, 0.45);
+                    border-top: 3.5px solid rgba(241, 245, 249, 1);
+                    border-bottom: 4px solid rgba(100, 116, 139, 0.5);
+                    border-left: 2.5px solid rgba(203, 213, 225, 0.65);
+                    border-right: 2.5px solid rgba(148, 163, 184, 0.55);
+                    border-radius: 1.4rem;
+                    background:
+                        radial-gradient(ellipse 60% 30% at 50% 0%,
+                            rgba(255, 255, 255, 0.6) 0%, transparent 75%),
+                        linear-gradient(180deg,
+                            rgba(248, 250, 252, 0.98) 0%,
+                            rgba(241, 245, 249, 0.96) 50%,
+                            rgba(226, 232, 240, 0.94) 100%);
+                    box-shadow:
+                        inset 0 2px 0 rgba(255,255,255,1),
+                        inset 0 -3px 0 rgba(148, 163, 184, 0.3),
+                        inset 4px 0 12px -6px rgba(255, 255, 255, 0.7),
+                        inset -3px 0 10px -6px rgba(100, 116, 139, 0.18),
+                        0 28px 60px -16px rgba(15, 23, 42, 0.45),
+                        0 12px 28px -8px rgba(15, 23, 42, 0.25);
+                }
+                /* Patrón acero cepillado sutil */
+                .alert-modal-card::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    background: repeating-linear-gradient(
+                        90deg,
+                        rgba(255, 255, 255, 0) 0,
+                        rgba(255, 255, 255, 0) 2px,
+                        rgba(148, 163, 184, 0.03) 2px,
+                        rgba(148, 163, 184, 0.03) 3px
+                    );
+                    pointer-events: none;
+                    z-index: 0;
+                }
+                .alert-modal-card > * {
+                    position: relative;
+                    z-index: 1;
+                }
+
+                /* Control panel oscuro arriba — paralela del de la nevera */
+                .alert-modal-control-panel {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.7rem;
+                    padding: 0.5rem 0.8rem;
+                    margin: -0.4rem -0.4rem 1.4rem -0.4rem;
+                    background:
+                        linear-gradient(180deg,
+                            rgba(15, 23, 42, 0.92) 0%,
+                            rgba(30, 41, 59, 0.95) 100%);
+                    border-radius: 0.8rem;
+                    border: 1px solid rgba(51, 65, 85, 0.9);
+                    border-top: 1.5px solid rgba(71, 85, 105, 1);
+                    border-bottom: 2px solid rgba(2, 6, 23, 0.95);
+                    box-shadow:
+                        inset 0 1px 0 rgba(148, 163, 184, 0.3),
+                        inset 0 -2px 4px rgba(0, 0, 0, 0.4),
+                        0 4px 10px -2px rgba(15, 23, 42, 0.4);
+                }
+                /* LED de alerta — rojo en lugar de cyan */
+                .alert-modal-led-display {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.4rem;
+                    padding: 0.25rem 0.7rem;
+                    background: linear-gradient(180deg,
+                        rgba(127, 29, 29, 0.95) 0%,
+                        rgba(153, 27, 27, 0.9) 100%);
+                    border-radius: 0.4rem;
+                    border: 1px solid rgba(248, 113, 113, 0.6);
+                    box-shadow:
+                        inset 0 1px 2px rgba(0, 0, 0, 0.6),
+                        0 0 8px rgba(248, 113, 113, 0.4);
+                    font-family: 'Courier New', monospace;
+                    font-weight: 700;
+                }
+                .alert-modal-led-icon {
+                    color: #FCA5A5;
+                    font-size: 0.85rem;
+                    text-shadow: 0 0 4px rgba(252, 165, 165, 0.85);
+                }
+                .alert-modal-led-temp {
+                    color: #FECACA;
+                    font-size: 0.72rem;
+                    letter-spacing: 0.1em;
+                    text-shadow: 0 0 4px rgba(254, 202, 202, 0.7);
+                }
+                .alert-modal-vent {
+                    flex: 1;
+                    height: 14px;
+                    background: repeating-linear-gradient(
+                        90deg,
+                        rgba(71, 85, 105, 0.9) 0,
+                        rgba(71, 85, 105, 0.9) 2px,
+                        rgba(15, 23, 42, 0.95) 2px,
+                        rgba(15, 23, 42, 0.95) 4px
+                    );
+                    border-radius: 2px;
+                    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+                }
+                .alert-modal-power-dot {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: radial-gradient(circle at 30% 30%,
+                        #FCA5A5 0%,
+                        #DC2626 40%,
+                        #7F1D1D 100%);
+                    box-shadow:
+                        0 0 6px rgba(220, 38, 38, 0.95),
+                        0 0 12px rgba(220, 38, 38, 0.55),
+                        inset 0 -1px 1px rgba(0, 0, 0, 0.3);
+                    animation: alert-modal-pulse 1.5s ease-in-out infinite;
+                    flex-shrink: 0;
+                }
+                @keyframes alert-modal-pulse {
+                    0%, 100% { opacity: 0.6; }
+                    50% { opacity: 1; }
+                }
+
+                /* Icono central — círculo metálico con LED rojo grande */
+                .alert-modal-icon-wrap {
+                    width: 78px;
+                    height: 78px;
+                    margin: 0 auto 1rem auto;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background:
+                        radial-gradient(circle at 30% 30%,
+                            rgba(254, 226, 226, 0.95) 0%,
+                            rgba(252, 165, 165, 0.85) 40%,
+                            rgba(220, 38, 38, 0.7) 100%);
+                    border: 3px solid rgba(220, 38, 38, 0.55);
+                    border-top-color: rgba(252, 165, 165, 0.85);
+                    box-shadow:
+                        inset 0 2px 0 rgba(255, 255, 255, 0.7),
+                        inset 0 -3px 6px rgba(127, 29, 29, 0.35),
+                        0 0 24px rgba(220, 38, 38, 0.35),
+                        0 8px 20px -4px rgba(220, 38, 38, 0.45);
+                    color: #991B1B;
+                }
+
+                /* Botones del modal — estilo coherente con .nevera-add-btn */
+                .alert-modal-btn-cancel {
+                    flex: 1;
+                    padding: 0.85rem 1rem;
+                    border-radius: 99px;
+                    font-weight: 700;
+                    font-size: 0.95rem;
+                    cursor: pointer;
+                    background: linear-gradient(180deg,
+                        rgba(255, 255, 255, 0.95) 0%,
+                        rgba(241, 245, 249, 0.92) 100%);
+                    color: var(--text-main);
+                    border: 2px solid rgba(148, 163, 184, 0.55);
+                    border-top-color: rgba(241, 245, 249, 0.95);
+                    border-bottom-color: rgba(100, 116, 139, 0.45);
+                    box-shadow:
+                        inset 0 1.5px 0 rgba(255, 255, 255, 1),
+                        inset 0 -2px 4px -1px rgba(148, 163, 184, 0.25),
+                        0 3px 8px -2px rgba(15, 23, 42, 0.1);
+                    transition: box-shadow 0.18s, background 0.18s;
+                }
+                .alert-modal-btn-cancel:hover {
+                    background: linear-gradient(180deg,
+                        rgba(255, 255, 255, 1) 0%,
+                        rgba(226, 232, 240, 0.95) 100%);
+                    box-shadow:
+                        inset 0 1.5px 0 rgba(255, 255, 255, 1),
+                        inset 0 -2px 4px -1px rgba(148, 163, 184, 0.35),
+                        0 6px 14px -3px rgba(15, 23, 42, 0.18);
+                }
+                .alert-modal-btn-confirm {
+                    flex: 1;
+                    padding: 0.85rem 1rem;
+                    border-radius: 99px;
+                    font-weight: 700;
+                    font-size: 0.95rem;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                    background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+                    color: white;
+                    border: 2px solid rgba(248, 113, 113, 0.55);
+                    border-top-color: rgba(254, 202, 202, 0.85);
+                    border-bottom-color: rgba(127, 29, 29, 0.7);
+                    box-shadow:
+                        inset 0 1.5px 0 rgba(255, 255, 255, 0.4),
+                        inset 0 -2px 4px -1px rgba(127, 29, 29, 0.45),
+                        0 8px 22px -4px rgba(220, 38, 38, 0.55),
+                        0 2px 5px rgba(220, 38, 38, 0.2);
+                    transition: box-shadow 0.18s, transform 0.08s, background 0.18s;
+                }
+                .alert-modal-btn-confirm:hover {
+                    box-shadow:
+                        inset 0 1.5px 0 rgba(255, 255, 255, 0.5),
+                        inset 0 -2px 4px -1px rgba(127, 29, 29, 0.5),
+                        0 14px 32px -4px rgba(220, 38, 38, 0.7),
+                        0 4px 10px rgba(220, 38, 38, 0.3);
+                }
+                .alert-modal-btn-confirm:active { transform: scale(0.97); }
+
                 /* === DEPLETED SHELF (agotados) === */
                 .nevera-depleted-shelf {
                     margin-top: 2.5rem;
@@ -2533,19 +2758,32 @@ const Pantry = () => {
                 }
 
                 /* === EMPTY STATE — the card IS a fridge === */
+                /* [P3-PANTRY-EMPTY-EXTEND · 2026-05-19] El user quería que
+                   el page-frame se EXTIENDA hasta cubrir el bg-page debajo
+                   (que se veía blanco entre el border-bottom del page-frame
+                   y el TabBar). Min-height del wrapper alto fuerza que el
+                   page-frame baje hasta llenar el viewport útil.
+                   calc(100vh - 250px) = viewport - (header ~190px + TabBar
+                   ~64px - margen ~4px) → page-frame casi ras al TabBar. */
                 .nevera-empty-wrapper {
                     display: flex;
                     flex-direction: column;
                     justify-content: center;
                     align-items: center;
-                    min-height: calc(100vh - 260px);
+                    min-height: calc(100vh - 100px);
                     width: 100%;
                     padding: 2rem 1rem;
                 }
                 .nevera-empty-fridge {
                     width: 100%;
                     max-width: 340px;
-                    min-height: 440px;
+                    /* [P3-PANTRY-EMPTY-NO-VOID · 2026-05-19] min-height
+                       eliminado. Pre-fix forzaba 440px de altura del mini-card
+                       pero el mensaje "Tu Nevera está vacía" solo ocupa ~150px
+                       → quedaban ~290px de espacio vacío DENTRO del card
+                       (bg gradient blanco→cyan claro), visible como la franja
+                       blanca que el user marcó. Sin min-height el card se
+                       ajusta exacto al contenido. */
                     background: linear-gradient(180deg, #FFFFFF 0%, #F0F9FF 100%);
                     border: 2px solid #BAE6FD;
                     border-radius: 1.5rem;
@@ -2626,11 +2864,14 @@ const Pantry = () => {
 
                 /* Interior */
                 .nevera-fridge-interior {
-                    height: 78%;
-                    padding: 1.75rem 1.5rem;
+                    /* [P3-PANTRY-EMPTY-NO-VOID · 2026-05-19] height 78% →
+                       auto. El padre .nevera-empty-fridge ya no tiene
+                       min-height fijo, así que el porcentaje no aplica
+                       coherentemente. Padding generoso da el espacio
+                       respirable que antes daba el min-height. */
+                    padding: 2.5rem 1.5rem 2.5rem 1.5rem;
                     display: flex;
                     flex-direction: column;
-                    justify-content: center;
                     align-items: center;
                     text-align: center;
                     position: relative;
@@ -2781,12 +3022,18 @@ const Pantry = () => {
                     /* === BODY (cuerpo principal) más cerca del header === */
                     .nevera-fridge-body {
                         padding-right: 26px;
-                        margin: 0 0 1rem 0;
+                        /* [P3-PANTRY-FEET-INSIDE · 2026-05-19] margin-bottom
+                           eliminado en mobile también — patitas dentro del
+                           interior-wrap, no overflow. */
+                        margin: 0;
                     }
                     .nevera-fridge-interior-wrap {
                         /* padding-top reducido para cerrar gap con header.
-                           Antes 1rem (~ resulta en gap visible); ahora 0.75rem. */
-                        padding: 0.75rem 0.75rem 1.25rem 0.75rem;
+                           Antes 1rem (~ resulta en gap visible); ahora 0.75rem.
+                           [P3-PANTRY-FEET-INSIDE · 2026-05-19] padding-bottom
+                           subido 1.25rem → 2rem para reservar espacio para
+                           patitas (height 13 + bottom 4 + buffer). */
+                        padding: 0.75rem 0.75rem 2rem 0.75rem;
                     }
                     .nevera-fridge-control-panel {
                         margin: -0.25rem -0.1rem 0.7rem -0.1rem;
@@ -2823,7 +3070,11 @@ const Pantry = () => {
                     .nevera-fridge-handle::before { top: -7px; }
                     .nevera-fridge-handle::after  { bottom: -7px; }
                     .nevera-fridge-feet {
-                        right: 26px;
+                        /* [P3-PANTRY-FEET-INSIDE · 2026-05-19] right 26px → 0
+                           porque las patitas ahora están dentro del interior-wrap
+                           que NO tiene el padding-right de la manija (eso está
+                           en el fridge-body, padre del interior-wrap). */
+                        right: 0;
                         padding: 0 6%;
                     }
                     .nevera-fridge-feet span {
@@ -3103,9 +3354,17 @@ const Pantry = () => {
                                                     })}
                                                 </div>
                                             )}
-                                        </div>
-                                        <div className="nevera-fridge-feet" aria-hidden="true">
-                                            <span /><span />
+                                            {/* [P3-PANTRY-FEET-INSIDE · 2026-05-19]
+                                                Las patitas se renderizan ahora DENTRO
+                                                del interior-wrap (no hermanas) para que
+                                                queden sobre el bg cyan del interior y
+                                                no sobre el bg perla del page-frame —
+                                                cierra la franja blanca que veía el user
+                                                entre el final de los items y el border
+                                                inferior del page-frame. */}
+                                            <div className="nevera-fridge-feet" aria-hidden="true">
+                                                <span /><span />
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -3672,45 +3931,61 @@ const Pantry = () => {
                 )}
             </AnimatePresence>
 
-            {/* Modal de Confirmación Borrar Todos */}
+            {/* [P3-PANTRY-CONFIRM-MODAL · 2026-05-19] Modal de Confirmación
+                "Vaciar la Nevera" rediseñado para combinar con el lenguaje
+                visual de la página Pantry: marco metálico perlado tipo
+                electrodoméstico + control panel oscuro con LED rojo ALERT
+                pulsante + icono central con halo rojo + botones cohesivos. */}
             <AnimatePresence>
                 {showDeleteConfirm && (
                     <>
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={() => setShowDeleteConfirm(false)}
-                            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)', zIndex: 200 }}
+                            style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(10px)', zIndex: 200 }}
                         />
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: '-50%', x: '-50%' }} animate={{ opacity: 1, scale: 1, y: '-50%', x: '-50%' }} exit={{ opacity: 0, scale: 0.95, y: '-50%', x: '-50%' }}
+                            className="alert-modal-card"
                             style={{
                                 position: 'fixed', top: '50%', left: '50%',
-                                background: 'var(--bg-card)', borderRadius: '1.5rem', padding: '2rem', zIndex: 201,
-                                width: '90%', maxWidth: '400px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+                                padding: '1.5rem 1.6rem 1.6rem 1.6rem', zIndex: 201,
+                                width: '90%', maxWidth: '420px',
                             }}
                         >
-                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem', color: 'var(--danger, #ef4444)' }}>
-                                <AlertCircle size={56} strokeWidth={1.5} />
+                            {/* Control panel oscuro — paralelo al de la nevera pero ALERT en rojo */}
+                            <div className="alert-modal-control-panel" aria-hidden="true">
+                                <div className="alert-modal-led-display">
+                                    <span className="alert-modal-led-icon">⚠</span>
+                                    <span className="alert-modal-led-temp">ALERT</span>
+                                </div>
+                                <div className="alert-modal-vent" />
+                                <div className="alert-modal-power-dot" />
                             </div>
-                            <h2 style={{ textAlign: 'center', margin: '0 0 1rem 0', fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)' }}>¿Vaciar la Nevera?</h2>
-                            <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '2rem', lineHeight: 1.5 }}>
+
+                            {/* Icono central con halo rojo */}
+                            <div className="alert-modal-icon-wrap">
+                                <AlertCircle size={42} strokeWidth={2} />
+                            </div>
+
+                            <h2 style={{ textAlign: 'center', margin: '0 0 0.8rem 0', fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.01em' }}>
+                                ¿Vaciar la Nevera?
+                            </h2>
+                            <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: '0 0 1.6rem 0', lineHeight: 1.55, fontSize: '0.95rem' }}>
                                 Estás a punto de borrar <strong>todos los alimentos</strong> de la despensa. Esta acción no se puede deshacer.
                             </p>
-                            <div style={{ display: 'flex', gap: '1rem' }}>
-                                <button 
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <button
                                     onClick={() => setShowDeleteConfirm(false)}
-                                    style={{ flex: 1, padding: '1rem', background: 'var(--bg-muted)', color: 'var(--text-main)', border: 'none', borderRadius: '1rem', fontWeight: 700, cursor: 'pointer', transition: 'background-color 0.2s' }}
+                                    className="alert-modal-btn-cancel"
                                 >
                                     Cancelar
                                 </button>
-                                <button 
+                                <button
                                     onClick={confirmDeleteAll}
-                                    style={{ flex: 1, padding: '1rem', background: 'var(--danger, #ef4444)', color: 'white', border: 'none', borderRadius: '1rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(239, 68, 68, 0.3)', transition: 'transform 0.1s' }}
-                                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.96)'}
-                                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                    className="alert-modal-btn-confirm"
                                 >
-                                    <Trash2 size={18} strokeWidth={2.5}/> Sí, vaciar
+                                    <Trash2 size={17} strokeWidth={2.5}/> Sí, vaciar
                                 </button>
                             </div>
                         </motion.div>
