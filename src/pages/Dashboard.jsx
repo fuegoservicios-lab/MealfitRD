@@ -1019,16 +1019,57 @@ const Dashboard = () => {
 
     // Calcular si la delta list de esta sesión actual todavia requiere compras
     // GUARD: No calcular hasta que liveInventory se haya cargado (evita flash del botón).
-    const hasPendingShoppingItems = useMemo(() => {
+    const computedHasPendingShoppingItems = useMemo(() => {
         if (liveInventory !== null && planData && (planData.aggregated_shopping_list || allPlanIngredients)) {
             const duration = formData?.groceryDuration || 'weekly';
             const rawList = getActiveShoppingList(planData, duration) || allPlanIngredients || [];
-                    
+
             const currentDelta = buildDeltaShoppingList(rawList);
             return currentDelta.length > 0;
         }
-        return false;
+        return null;  // null = "no sabemos aún" (vs false = "sabemos que NO hay items")
     }, [liveInventory, planData, formData?.groceryDuration, allPlanIngredients, buildDeltaShoppingList]);
+
+    // [P3-RESTOCK-BTN-STABLE · 2026-05-19] Cache localStorage del último valor
+    // conocido de `hasPendingShoppingItems` para bootstrap del primer paint del
+    // botón "Ya compré todo". Pre-fix: P3-RESTOCK-BTN-NO-FLASH (2026-05-18)
+    // gateaba el render hasta `liveInventory !== null`, pero igual había flash
+    // "desaparece y aparece" porque entre mount y fetch-resolve, el botón
+    // simplemente NO renderizaba (false && ...). Ahora el primer paint usa el
+    // cache; cuando el fetch resuelve, si difiere, hay un flash legítimo (raro).
+    const _restockBtnCacheKey = userProfile?.id ? `mealfit_restock_btn_${userProfile.id}` : null;
+    const [cachedHasPendingShoppingItems, setCachedHasPendingShoppingItems] = useState(() => {
+        try {
+            const initialUid = userProfile?.id;
+            if (!initialUid) return null;
+            const v = localStorage.getItem(`mealfit_restock_btn_${initialUid}`);
+            if (v === '1') return true;
+            if (v === '0') return false;
+            return null;
+        } catch { return null; }
+    });
+    // Re-leer cache si userProfile.id se resuelve tarde.
+    useEffect(() => {
+        if (!_restockBtnCacheKey) return;
+        try {
+            const v = localStorage.getItem(_restockBtnCacheKey);
+            if (v === '1') setCachedHasPendingShoppingItems(true);
+            else if (v === '0') setCachedHasPendingShoppingItems(false);
+        } catch { /* private mode */ }
+    }, [_restockBtnCacheKey]);
+    // Sincronizar cache cuando el useMemo computa un valor real (no-null).
+    useEffect(() => {
+        if (!_restockBtnCacheKey || computedHasPendingShoppingItems === null) return;
+        setCachedHasPendingShoppingItems(computedHasPendingShoppingItems);
+        try { localStorage.setItem(_restockBtnCacheKey, computedHasPendingShoppingItems ? '1' : '0'); }
+        catch { /* quota */ }
+    }, [computedHasPendingShoppingItems, _restockBtnCacheKey]);
+
+    // SSOT: si el computed ya resolvió, usar ese valor (fresh); si no, usar
+    // el cache (estable). Si ni cache ni computed, false (no renderizar).
+    const hasPendingShoppingItems = computedHasPendingShoppingItems !== null
+        ? computedHasPendingShoppingItems
+        : (cachedHasPendingShoppingItems === true);
 
 
     // Stale check: shopping quantities were calculated for a different household size
