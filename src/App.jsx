@@ -34,28 +34,46 @@ const MedicalDisclaimer = lazy(() => import('./pages/legal/LegalPages').then(m =
 const PageLoader = () => <div className="min-h-screen bg-slate-50/50" />;
 
 // --- Native Style Page Transitions ---
+// [P3-DASH-NO-ANIMATE · 2026-05-19] AnimatePresence + motion.div con
+// `key={location.pathname}` removido. Era la causa raíz del "double mount"
+// que el user percibía como delay en Nevera: cuando location cambiaba,
+// la `key` cambiaba → motion.div se desmontaba completo + remontaba →
+// TODO el árbol descendiente (Suspense → DashboardAnimatedLayout →
+// Outlet → Pantry) se desmontaba y remontaba. Pantry siendo el más
+// pesado (1100 líneas + 30+ items + Supabase realtime channel) tomaba
+// ~120ms por mount × 2 mounts (uno por unmount + uno por remount) =
+// ~240-340ms perceptibles. Las páginas más livianas tenían el mismo bug
+// pero ~30ms × 2 = 60ms imperceptible. Diagnóstico via telemetría
+// [PANTRY-PERF]: vimos 2 ciclos completos de Mount fetch decision /
+// Paint settled separados por ~200ms aunque cache hits ambos.
+//
+// Trade-off aceptado: cero animación entre páginas público + auth +
+// assessment + plan. El user explícitamente reportó "snap puro"
+// preferible al fade que sumaba delay perceptible.
 const AnimatedLayout = () => {
-  const location = useLocation();
   useThemeColor();
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={location.pathname}
-        initial={{ opacity: 0, x: 10 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -10 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-        style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}
-      >
-        <Suspense fallback={<PageLoader />}>
-          <Outlet />
-        </Suspense>
-      </motion.div>
-    </AnimatePresence>
+    <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Suspense fallback={<PageLoader />}>
+        <Outlet />
+      </Suspense>
+    </div>
   );
 };
 
 // --- Native Style Page Transitions for Dashboard (Persistent Tab Bar) ---
+// [P3-DASH-NO-ANIMATE · 2026-05-19] Eliminado AnimatePresence + motion.div.
+// Diagnóstico: con `duration: 0` el fade era instantáneo PERO
+// `AnimatePresence mode="popLayout"` igual mantenía 2 componentes en el
+// DOM simultáneamente durante el "exit" — duplicaba los re-renders en
+// cascada del componente entrante (Pantry tenía 8 renders × 2 = 16
+// evaluaciones del JSX de 1100 líneas) en el caso peor. El user
+// reportaba "delay" exclusivo a Nevera por su mayor tamaño de JSX.
+// Sin AnimatePresence, el page swap es snap puro: la página vieja se
+// desmonta y la nueva monta en el mismo frame del router update.
+// Trade-off aceptado: cero animation cue al cambiar de apartado. El
+// active state del NavItem (sidebar/bottomtabbar) sigue dando feedback
+// visual del click.
 const DashboardAnimatedLayout = () => {
   const location = useLocation();
   useThemeColor();
@@ -63,20 +81,9 @@ const DashboardAnimatedLayout = () => {
 
   return (
     <DashboardLayout noPaddingMobile={isAgent}>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={location.pathname}
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -10 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          style={{ width: '100%', minHeight: '100%', display: 'flex', flexDirection: 'column' }}
-        >
-          <Suspense fallback={<PageLoader />}>
-            <Outlet />
-          </Suspense>
-        </motion.div>
-      </AnimatePresence>
+      <Suspense fallback={<PageLoader />}>
+        <Outlet />
+      </Suspense>
     </DashboardLayout>
   );
 };

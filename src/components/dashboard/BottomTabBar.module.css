@@ -29,7 +29,12 @@
         align-items: center;
         justify-content: center;
         gap: 0.3rem;
-        padding: 0.65rem 0 0.5rem;
+        /* [P3-TABBAR-HIG-COMPLIANCE · 2026-05-19] padding-top 0.65rem → 0.75rem
+           y min-height 60px → 64px para cumplir Apple HIG (tab bar ≥ 49pt ≈ 65px).
+           Altura visible final ~72-76px incluyendo padding + safe-area-inset.
+           Mantiene Material Design (56dp) + WCAG AAA (target ≥44px) que ya
+           cumplía antes. */
+        padding: 0.75rem 0 0.5rem;
         background: none;
         border: none;
         cursor: pointer;
@@ -37,7 +42,7 @@
         color: #94A3B8;
         transition: color 0.2s ease;
         -webkit-tap-highlight-color: transparent;
-        min-height: 60px;
+        min-height: 64px;
     }
 
     .tab:active {

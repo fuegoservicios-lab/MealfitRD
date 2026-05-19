@@ -45,6 +45,52 @@ const _lessonsDetail = new Map();
 const _coherenceHistory = new Map();
 const _blockedReasons = new Map();
 const _chunkMetrics = new Map();
+
+// [P3-HIST-LIST-CACHE · 2026-05-19] Singleton del LISTADO completo del
+// Historial (no por-plan, una sola entry por sesión). Patrón
+// stale-while-revalidate: al re-montar <History>, si hay cache válido
+// se renderiza INSTANTÁNEO + fetch refresca en background. Pre-fix cada
+// entrada a /history disparaba un round-trip backend (~300-800ms con
+// auth.get_user contra Supabase cloud) → "varios segundos" de skeleton
+// que reportó el usuario en sesión de UX 2026-05-19.
+//
+// TTL: 60s. Suficientemente corto para que un swap/restore/delete que
+// se haga desde otra pestaña no quede stale >1min; suficientemente
+// largo para cubrir la navegación típica entre apartados.
+// Invalidación explícita en restore/delete asegura cero stale visible
+// en la pestaña activa.
+//
+// Shape: `{ value: Array<Plan>, expiresAt: number }`. Singleton via
+// `let` module-scope (cero deps externas).
+let _historyListEntry = null;
+const _HISTORY_LIST_TTL_MS = 60 * 1000;
+
+// [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Hidrata el singleton desde
+// localStorage al boot del módulo. Permite que la primera entrada de la
+// sesión (incluso tras refresh / cierre de tab / cold boot) renderice
+// instantáneo con la última lista conocida, y el fetch background
+// refresque silencioso. La key incluye un version stamp para invalidar
+// cuando cambia el shape del payload.
+const _HISTORY_LIST_LS_KEY = 'mealfit_history_list_cache_v1';
+try {
+    if (typeof localStorage !== 'undefined') {
+        const _raw = localStorage.getItem(_HISTORY_LIST_LS_KEY);
+        if (_raw) {
+            const _parsed = JSON.parse(_raw);
+            if (_parsed && Array.isArray(_parsed.value)) {
+                // Hidratamos al singleton con `expiresAt` original. Si ya
+                // está stale (>60s) los lectores con `allowStale=true`
+                // siguen viéndolo; `getCachedHistoryList()` lo dropea pero
+                // como `getCachedHistoryListStale()` lo respeta, el render
+                // instantáneo funciona.
+                _historyListEntry = _parsed;
+            }
+        }
+    }
+} catch (_e) {
+    // localStorage puede fallar (private mode, quota, JSON parse) — no
+    // crítico, simplemente arrancamos sin cache.
+}
 // [P1-HIST-LIFETIME-LESSONS · 2026-05-09] Cache singleton del payload
 // de lifetime-lessons (summary + history + critical_permanent). Mismo
 // patrón que los 4 caches existentes — TTL 30 min, persistencia
@@ -167,6 +213,99 @@ export const invalidateCachesForPlan = (planId) => {
     _lifetimeLessons.delete(planId);
 };
 
+// [P3-HIST-LIST-CACHE · 2026-05-19] Lee el listado cacheado si está
+// vigente. Devuelve `undefined` si no hay cache o expiró (deja al caller
+// decidir si dispara fetch). Side-effect: borra entry expirada.
+export const getCachedHistoryList = () => {
+    if (!_historyListEntry) return undefined;
+    if (typeof _historyListEntry.expiresAt === 'number'
+        && Date.now() > _historyListEntry.expiresAt) {
+        // Solo borrar la versión memory — NO tocar localStorage; los
+        // lectores `Stale` siguen leyendo desde memory hasta que el
+        // próximo fetch pisa con datos frescos.
+        return undefined;
+    }
+    return _historyListEntry.value;
+};
+
+// [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Versión "stale-tolerant":
+// retorna el último valor conocido AUNQUE haya expirado. Usado por el
+// render inicial para que la lista aparezca INSTANTÁNEA aunque pasaron
+// >60s desde el último fetch. El componente DEBE disparar fetch en el
+// useEffect mount para refrescar — la "frescura" se asegura via
+// stale-while-revalidate, no via cache miss.
+export const getCachedHistoryListStale = () => {
+    if (!_historyListEntry || !Array.isArray(_historyListEntry.value)) return undefined;
+    return _historyListEntry.value;
+};
+
+// [P3-HIST-LIST-CACHE · 2026-05-19] Persiste el listado tras un
+// fetchHistory exitoso. Solo guarda arrays — un fetch fallido (que
+// devuelve undefined o lanza) NO debe pisar el cache vigente.
+// [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Espeja a localStorage para
+// que sobreviva refresh / cierre de tab. La key incluye version stamp.
+export const setCachedHistoryList = (plans, ttlMs = _HISTORY_LIST_TTL_MS) => {
+    if (!Array.isArray(plans)) return;
+    _historyListEntry = {
+        value: plans,
+        expiresAt: ttlMs > 0 ? Date.now() + ttlMs : null,
+    };
+    try {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(_HISTORY_LIST_LS_KEY, JSON.stringify(_historyListEntry));
+        }
+    } catch (_e) {
+        // Quota exceeded / disabled / private mode — no crítico.
+    }
+};
+
+// [P3-HIST-LIST-CACHE · 2026-05-19] Invalidación explícita post-mutación
+// (delete/restore). Rename muta el listado también (cambia el `name` del
+// plan) — el caller lo invoca tras un PATCH exitoso del rename.
+// [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] También borra localStorage
+// para que el próximo refresh no resucite datos stale invalidados.
+export const invalidateHistoryListCache = () => {
+    _historyListEntry = null;
+    try {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem(_HISTORY_LIST_LS_KEY);
+        }
+    } catch (_e) { /* no-op */ }
+};
+
+// [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del listado on
+// hover/touchstart del NavItem "Historial". Dispara `getHistoryList()`
+// best-effort y pisa el cache cuando resuelve. Idempotente via
+// `_prefetchInFlight` — si ya hay una request en vuelo, no dispara otra.
+//
+// Usado desde el sidebar y BottomTabBar (cableado en componentes con
+// onMouseEnter / onTouchStart). Para el momento que el dedo llega al
+// click, el cache suele estar caliente → entry al apartado instantáneo
+// con datos frescos (no stale).
+//
+// Dynamic import de `../config/api` evita import cycle (api.js importa
+// supabase.js; historyCaches.js es util pura).
+let _prefetchInFlight = null;
+export const prefetchHistoryList = () => {
+    if (_prefetchInFlight) return _prefetchInFlight;
+    _prefetchInFlight = (async () => {
+        try {
+            const { getHistoryList } = await import('../config/api');
+            const response = await getHistoryList();
+            if (!response.ok) return;
+            const body = await response.json().catch(() => ({}));
+            const plans = Array.isArray(body && body.plans) ? body.plans : null;
+            if (plans) setCachedHistoryList(plans);
+        } catch (_e) {
+            // Best-effort. Si falla, el componente al montar disparará
+            // su propio fetch.
+        } finally {
+            _prefetchInFlight = null;
+        }
+    })();
+    return _prefetchInFlight;
+};
+
 // Helper de testing: limpia todos los caches. NO usar en código de
 // producción — el cleanup automático es vía TTL.
 export const _resetAllCachesForTests = () => {
@@ -175,4 +314,5 @@ export const _resetAllCachesForTests = () => {
     _blockedReasons.clear();
     _chunkMetrics.clear();
     _lifetimeLessons.clear();
+    _historyListEntry = null;
 };

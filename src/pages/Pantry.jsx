@@ -11,6 +11,8 @@ import { safeJSONParseObject } from '../utils/safeJSONParse';
 // `mealfit_disabled_ingredients` en el useEffect mount (línea 88+).
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
+// [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate del mount de Pantry
+import { getCachedInventory, setCachedInventory, getCachedMasterList, setCachedMasterList } from '../utils/pantryCache';
 
 const CATEGORY_ICONS = {
     'PROTEÍNAS': Beef,
@@ -60,15 +62,102 @@ const getCategoryIcon = (cat) => {
     return CATEGORY_ICONS[cat.toUpperCase().trim()] || Package;
 };
 
+// [P3-PANTRY-FRIDGE-LAYOUT · 2026-05-19] Mapping categoría master_ingredients
+// → zona física de la nevera real. Las 25 variantes de `master_ingredients.category`
+// caen en 7 zonas: 3 estantes interiores + 2 gavetas (crispers) + puerta + alacena
+// externa. Cierra el bucket "OTROS" como pantry (no nevera) — granos secos,
+// especias, conservas no se refrigeran en RD.
+const CATEGORY_TO_ZONE = {
+    // Estante 1 — Lácteos & Huevos (alto, productos delicados)
+    'LÁCTEOS': 'shelf_dairy',
+    'LACTEOS': 'shelf_dairy',
+    'QUESOS': 'shelf_dairy',
+    'HUEVOS': 'shelf_dairy',
+
+    // Estante 2 — Proteínas crudas (medio, evita drip sobre lácteos)
+    'PROTEÍNAS': 'shelf_proteins',
+    'PROTEINAS': 'shelf_proteins',
+    'CARNES': 'shelf_proteins',
+    'CARNES ROJAS': 'shelf_proteins',
+    'POLLO': 'shelf_proteins',
+    'AVES': 'shelf_proteins',
+    'PESCADO': 'shelf_proteins',
+    'PESCADOS': 'shelf_proteins',
+    'PESCADOS Y MARISCOS': 'shelf_proteins',
+    'MARISCOS': 'shelf_proteins',
+
+    // Estante 3 — Listos para comer (panadería, dulces, frutos secos)
+    'PANADERIA': 'shelf_ready',
+    'PANADERÍA': 'shelf_ready',
+    'PANES': 'shelf_ready',
+    'DULCES': 'shelf_ready',
+    'AZÚCARES': 'shelf_ready',
+    'AZUCARES': 'shelf_ready',
+    'FRUTOS SECOS': 'shelf_ready',
+
+    // Gavetas (crispers) inferiores
+    'FRUTAS': 'drawer_fruits',
+    'VEGETALES': 'drawer_veggies',
+    'VERDURAS': 'drawer_veggies',
+    'HORTALIZAS': 'drawer_veggies',
+    'HIERBAS': 'drawer_veggies',
+
+    // Puerta lateral — botellas y frasquitos
+    'BEBIDAS': 'door',
+    'GRASAS': 'door',
+    'ACEITES': 'door',
+    'CONDIMENTOS': 'door',
+
+    // Alacena externa (no se refrigera)
+    'CEREALES Y GRANOS': 'pantry',
+    'CEREALES': 'pantry',
+    'GRANOS': 'pantry',
+    'DESPENSA Y GRANOS': 'pantry',
+    'DESPENSA': 'pantry',
+    'LEGUMBRES': 'pantry',
+    'ESPECIAS': 'pantry',
+    'VÍVERES': 'pantry',
+    'VIVERES': 'pantry',
+    'OTROS': 'pantry',
+};
+
+const getZoneForCategory = (cat) => {
+    if (!cat) return 'pantry';
+    return CATEGORY_TO_ZONE[cat.toUpperCase().trim()] || 'pantry';
+};
+
+// Definiciones de zonas: orden de render + metadata visual. Cada zona se
+// muestra solo si tiene items (zonas vacías se ocultan automáticamente).
+// [P3-PANTRY-FRIDGE-POLISH · 2026-05-19] Drawers: labels sin "Gaveta de"
+// (la metáfora visual de crisper + asita + radius pronunciado ya comunica
+// que es una gaveta — el prefijo era ruido). Color per-zone añadido para
+// que cada categoría tenga identidad visual propia y rompa la monotonía
+// cyan que hacía sentir el rediseño homogéneo.
+const ZONE_DEFINITIONS = [
+    { key: 'shelf_dairy',    label: 'Lácteos & Huevos',          icon: Milk,       kind: 'shelf',  color: '#0EA5E9' },
+    { key: 'shelf_proteins', label: 'Proteínas',                 icon: Beef,       kind: 'shelf',  color: '#DC2626' },
+    { key: 'shelf_ready',    label: 'Listos para comer',         icon: Croissant,  kind: 'shelf',  color: '#F59E0B' },
+    { key: 'door',           label: 'Puerta · Bebidas & Condimentos', icon: GlassWater, kind: 'door', color: '#0891B2' },
+    { key: 'drawer_fruits',  label: 'Frutas',                    icon: Apple,      kind: 'drawer', color: '#EC4899' },
+    { key: 'drawer_veggies', label: 'Verduras',                  icon: Salad,      kind: 'drawer', color: '#16A34A' },
+    { key: 'pantry',         label: 'Alacena · Granos y secos',  icon: Package,    kind: 'pantry', color: '#92400E' },
+];
+
 // [P3-C · 2026-05-08] El helper `getEstimatedDailyConsumption` vive en
 // `frontend/src/utils/pantryConsumption.js` para que sea testeable sin
 // arrastrar este componente al bundle de tests.
 
 const Pantry = () => {
     const { session, userProfile, setPlanData } = useAssessment();
-    const [inventory, setInventory] = useState([]);
-    const [masterList, setMasterList] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate lazy-init.
+    // Si hay cache vigente (inventory TTL 30s, masterList TTL 24h), el
+    // primer render tiene rows visibles y skeleton oculto. El fetchData
+    // del useEffect mount sigue corriendo para pisar con datos frescos.
+    // Pre-fix: dos queries Supabase serializadas bloqueaban render con
+    // skeleton 300-1500ms cada entrada al apartado.
+    const [inventory, setInventory] = useState(() => getCachedInventory() || []);
+    const [masterList, setMasterList] = useState(() => getCachedMasterList() || []);
+    const [loading, setLoading] = useState(() => !getCachedInventory());
     const [savingItem, setSavingItem] = useState(null); // ID of item being saved
     const [searchQuery, setSearchQuery] = useState('');
     
@@ -97,11 +186,13 @@ const Pantry = () => {
     const [qtyEditSaving, setQtyEditSaving] = useState(false);
 
     // Unidades de envase/medida que un dominicano usa al hacer compras.
-    // Orden: discretas → pesos → volumen → containers. La cantidad de chips
-    // se mantiene ≤10 para que quepan en una sola fila scrolleable en móvil.
+    // Orden: discretas → pesos → volumen → containers.
+    // [P3-PANTRY-MARKET-CONTAINER · 2026-05-19] 'cartón' añadido para
+    // alinear con el `master_ingredients.market_container` que el PDF usa
+    // (leche, jugos, huevos vienen "en cartón" en RD).
     const COMMON_PURCHASE_UNITS = [
         'unidad', 'libra', 'kg', 'botella', 'paquete',
-        'lata', 'caja', 'bolsa', 'galón', 'sobre',
+        'lata', 'caja', 'cartón', 'bolsa', 'galón', 'sobre',
     ];
 
     // Resetear focus activo al cambiar búsqueda o cerrar modal
@@ -116,23 +207,37 @@ const Pantry = () => {
         setPickerUnit('');
     }, [addItemSearch, showAddMenu]);
 
-    const [disabledIngredients, setDisabledIngredients] = useState([]);
-
-    useEffect(() => {
-        const checkDisabled = () => {
-            // [P2-LOCALSTORAGE-GETITEM-DEFENSIVE · 2026-05-15] safeLocalStorageGet
-            // — iOS Private Mode lanza SecurityError en getItem y rompía
-            // este useEffect (Pantry no se hidrataba en initial mount).
+    // [P3-PANTRY-LOCALSTORAGE-LAZY · 2026-05-19] Hidratación lazy-init
+    // desde localStorage para evitar re-render post-mount. Pre-fix el
+    // useState arrancaba en `[]` y un useEffect[] hacía
+    // `setDisabledIngredients(JSON.parse(saved))` tras montar → re-render
+    // del componente completo (1100 líneas). El user reportó delay
+    // perceptible (~300-500ms) específico a Nevera; uno de los
+    // contribuyentes era esta cascada de setStates al mount. Con lazy
+    // init el valor inicial ya es el correcto desde el primer render.
+    const [disabledIngredients, setDisabledIngredients] = useState(() => {
+        try {
             const saved = safeLocalStorageGet('mealfit_disabled_ingredients', null);
             if (saved) {
-                try {
-                    setDisabledIngredients(JSON.parse(saved));
-                } catch(e) { }
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) return parsed;
+            }
+        } catch(e) {}
+        return [];
+    });
+
+    useEffect(() => {
+        // Solo el listener cross-tab sync — la hidratación inicial ya
+        // ocurrió en el lazy-init de useState. El `storage` event solo
+        // dispara cuando OTRA tab modifica el key.
+        const checkDisabled = () => {
+            const saved = safeLocalStorageGet('mealfit_disabled_ingredients', null);
+            if (saved) {
+                try { setDisabledIngredients(JSON.parse(saved)); } catch(e) {}
             } else {
                 setDisabledIngredients([]);
             }
         };
-        checkDisabled();
         window.addEventListener('storage', checkDisabled);
         return () => window.removeEventListener('storage', checkDisabled);
     }, []);
@@ -141,7 +246,18 @@ const Pantry = () => {
     // manualmente. Se guarda en localStorage (mismo patrón que disabledIngredients)
     // y NO toca la DB — semánticamente "agotado" === "ya no lo tengo", que es
     // idéntico para el backend a "eliminado". El visual es puramente client-side.
-    const [depletedItems, setDepletedItems] = useState([]);
+    // [P3-PANTRY-LOCALSTORAGE-LAZY · 2026-05-19] Mismo patrón que
+    // disabledIngredients — lazy init evita re-render post-mount.
+    const [depletedItems, setDepletedItems] = useState(() => {
+        try {
+            const saved = safeLocalStorageGet('mealfit_depleted_items', null);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) return parsed;
+            }
+        } catch(e) {}
+        return [];
+    });
 
     const _depletedKey = (entryOrItem) => {
         const masterId = entryOrItem?.master_ingredient_id;
@@ -186,6 +302,9 @@ const Pantry = () => {
         if (next.length !== depletedItems.length) _persistDepleted(next);
     };
 
+    // [P3-PANTRY-LOCALSTORAGE-LAZY · 2026-05-19] La hidratación inicial
+    // se hizo en el lazy-init de useState. Solo mantenemos el listener
+    // cross-tab para sincronizar si OTRA tab modifica el key.
     useEffect(() => {
         const hydrate = () => {
             const saved = safeLocalStorageGet('mealfit_depleted_items', null);
@@ -195,14 +314,17 @@ const Pantry = () => {
                 if (Array.isArray(parsed)) setDepletedItems(parsed);
             } catch (e) { setDepletedItems([]); }
         };
-        hydrate();
         window.addEventListener('storage', hydrate);
         return () => window.removeEventListener('storage', hydrate);
     }, []);
 
     // Lock/Debounce por item para el guardado 
     const pendingOps = useRef(new Map()); // id -> { baselineQty, targetQty, timeout }
-    const masterListLoaded = useRef(false);
+    // [P3-PANTRY-CACHE · 2026-05-19] Si el cache singleton tiene masterList
+    // vigente (TTL 24h, casi-inmutable), arrancamos el ref en `true` para
+    // skipear el fetch redundante. Lazy useRef init via callback no existe
+    // como `useState(() => ...)`, así que evaluamos directo.
+    const masterListLoaded = useRef(Boolean(getCachedMasterList()));
 
     // Refs para modo sostenido (velocímetro)
     const holdIntervalRef = useRef({});
@@ -223,20 +345,58 @@ const Pantry = () => {
     }, [inventory]);
 
     // 1. Fetch data on mount
+    // [P3-PANTRY-CACHE-SKIP-REFETCH · 2026-05-19] Si hay cache vigente
+    // (TTL 30s no expirado), SKIP el fetch background completo. Antes
+    // hacíamos fetch silencioso "para refrescar", pero ese fetch
+    // disparaba `setInventory(rows)` con array nuevo aunque el contenido
+    // fuera idéntico — React re-renderizaba el componente entero
+    // (1100 líneas + N item cards) ~200-500ms después del primer paint,
+    // sumado a los re-renders de `setDisabledIngredients` y
+    // `setDepletedItems` desde localStorage, daba una cascada de 3-5
+    // re-renders que el usuario percibía como "delay raro post-paint":
+    // contenido visible pero algo seguía "cargando" 300ms más.
+    //
+    // Trade-off: si el cache tiene data 25s vieja, vas a ver eso 25s
+    // viejo. Aceptable porque:
+    //   (a) Realtime channel suscrito a `user_inventory` (línea ~245)
+    //       empuja UPDATEs/INSERTs/DELETEs al state en tiempo real
+    //       sin pasar por fetchData — el cache fresh + realtime es
+    //       suficiente para mantener consistency.
+    //   (b) Mutaciones del propio user (delete, increment, restock)
+    //       invocan `fetchData(false)` o `setInventory` directo y
+    //       pisan el cache.
+    //   (c) TTL 30s significa peor caso 30s de staleness antes del
+    //       próximo cache miss → fetch normal.
     useEffect(() => {
         if (!session?.user?.id) return;
+        const _hasFreshCache = Boolean(getCachedInventory());
+        if (_hasFreshCache) {
+            // Cache fresh → trust it + realtime channel. Cero re-render
+            // adicional al mount. Datos cacheados quedan visibles snap.
+            return;
+        }
         fetchData(true);
     }, [session?.user?.id]);
 
     // 1b. Real-time sync: anula el "efecto eco" procesando el payload en vez de hacer refetch global
+    // [P3-PANTRY-RT-DEFER · 2026-05-19] Difiere el `supabase.channel(...).subscribe()`
+    // 200ms tras el mount. El WebSocket handshake + envío de auth + ACK
+    // del servidor Realtime son trabajo síncrono parcial que compite con
+    // el primer paint del componente. Diferirlo asegura que la UI se
+    // pinta antes que se establezca la conexión. UPDATE/INSERT/DELETE
+    // externos en ese gap de 200ms los recoge el próximo fetchData o
+    // cache miss.
     useEffect(() => {
         if (!session?.user?.id) return;
+
+        let channel = null;
+        let cancelled = false;
 
         const fetchAndAddSingleItem = async (itemId) => {
             try {
                 const { data, error } = await supabase
                     .from('user_inventory')
-                    .select('*, master_ingredients(name, category, default_unit, shelf_life_days)')
+                    .select('*, master_ingredients(name, category, default_unit, market_container, shelf_life_days)')
                     .eq('id', itemId)
                     .single();
                 if (error) throw error;
@@ -251,29 +411,49 @@ const Pantry = () => {
             }
         };
 
-        const channel = supabase
-            .channel('pantry-realtime')
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'user_inventory',
-                filter: `user_id=eq.${session.user.id}`
-            }, (payload) => {
-                if (payload.eventType === 'DELETE') {
-                    setInventory(prev => prev.filter(item => item.id !== payload.old.id));
-                } else if (payload.eventType === 'UPDATE') {
-                    setInventory(prev => prev.map(item => 
-                        item.id === payload.new.id ? { ...item, ...payload.new } : item
-                    ));
-                } else if (payload.eventType === 'INSERT') {
-                    if (!inventoryRef.current.some(item => item.id === payload.new.id)) {
-                        fetchAndAddSingleItem(payload.new.id);
+        const _subscribeRealtime = () => {
+            if (cancelled) return;
+            channel = supabase
+                .channel('pantry-realtime')
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'user_inventory',
+                    filter: `user_id=eq.${session.user.id}`
+                }, (payload) => {
+                    if (payload.eventType === 'DELETE') {
+                        setInventory(prev => prev.filter(item => item.id !== payload.old.id));
+                    } else if (payload.eventType === 'UPDATE') {
+                        setInventory(prev => prev.map(item =>
+                            item.id === payload.new.id ? { ...item, ...payload.new } : item
+                        ));
+                    } else if (payload.eventType === 'INSERT') {
+                        if (!inventoryRef.current.some(item => item.id === payload.new.id)) {
+                            fetchAndAddSingleItem(payload.new.id);
+                        }
                     }
-                }
-            })
-            .subscribe();
-            
-        return () => supabase.removeChannel(channel);
+                })
+                .subscribe();
+        };
+
+        // Diferir el subscribe hasta que el browser esté idle (o 200ms
+        // worst case). El idle callback corre tras el primer paint.
+        let _idleHandle = null;
+        let _fallbackTimer = null;
+        if (typeof window.requestIdleCallback === 'function') {
+            _idleHandle = window.requestIdleCallback(_subscribeRealtime, { timeout: 200 });
+        } else {
+            _fallbackTimer = setTimeout(_subscribeRealtime, 200);
+        }
+
+        return () => {
+            cancelled = true;
+            if (_idleHandle && typeof window.cancelIdleCallback === 'function') {
+                window.cancelIdleCallback(_idleHandle);
+            }
+            if (_fallbackTimer) clearTimeout(_fallbackTimer);
+            if (channel) supabase.removeChannel(channel);
+        };
     }, [session?.user?.id]);
 
     const fetchData = async (isInitial = true) => {
@@ -282,13 +462,19 @@ const Pantry = () => {
             // Fetch User Inventory
             const { data: invData, error: invError } = await supabase
                 .from('user_inventory')
-                .select('*, master_ingredients(name, category, default_unit, shelf_life_days)')
+                .select('*, master_ingredients(name, category, default_unit, market_container, shelf_life_days)')
                 .eq('user_id', session.user.id)
                 .gt('quantity', 0)
                 .order('ingredient_name', { ascending: true });
 
             if (invError) throw invError;
-            setInventory(invData || []);
+            const _invRows = invData || [];
+            setInventory(_invRows);
+            // [P3-PANTRY-CACHE · 2026-05-19] Persiste al singleton tras
+            // éxito. Próximo mount renderiza con cache vigente sin
+            // skeleton. Mutaciones (delete/increment/restock/realtime)
+            // siguen llamando fetchData → pisan el cache acá mismo.
+            setCachedInventory(_invRows);
 
             // Fetch Master List (solo una vez; cambios son rarísimos)
             if (!masterListLoaded.current) {
@@ -298,8 +484,23 @@ const Pantry = () => {
                     .order('name', { ascending: true });
 
                 if (masterError) throw masterError;
-                setMasterList(masterData || []);
+                const _masterRows = masterData || [];
+                setMasterList(_masterRows);
+                // [P3-PANTRY-CACHE · 2026-05-19] Catálogo cuasi-inmutable.
+                // Cache 24h cross-mount cubre toda la sesión típica del
+                // user sin bajar 19.8KB cada entrada al apartado.
+                setCachedMasterList(_masterRows);
                 masterListLoaded.current = true;
+            } else if (masterList.length === 0) {
+                // [P3-PANTRY-CACHE · 2026-05-19] Edge: masterListLoaded
+                // viene `true` del cache singleton pero el useState lazy
+                // arrancó vacío (cache invalidado entre el render y este
+                // punto). Releer del singleton; si sigue vigente lo
+                // setearemos. Sin esto el render queda con master vacío.
+                const _cachedMaster = getCachedMasterList();
+                if (Array.isArray(_cachedMaster) && _cachedMaster.length > 0) {
+                    setMasterList(_cachedMaster);
+                }
             }
         } catch (error) {
             console.error('Error fetching pantry:', error);
@@ -673,7 +874,7 @@ const Pantry = () => {
                         const { data, error } = await supabase
                             .from('user_inventory')
                             .insert([itemToInsert])
-                            .select('*, master_ingredients(name, category, default_unit, shelf_life_days)')
+                            .select('*, master_ingredients(name, category, default_unit, market_container, shelf_life_days)')
                             .single();
 
                         if (error) throw error;
@@ -769,10 +970,12 @@ const Pantry = () => {
             const safeQty = Math.max(1, Math.min(999, Math.round(Number(customQty) || 1)));
 
             // Para items nuevos: usa la unidad del picker si el caller la
-            // pasó, sino cae al default_unit del catálogo maestro.
+            // pasó, sino prioriza `market_container` (curado dominicano,
+            // mismo que el PDF) sobre `default_unit` (genérico).
+            // [P3-PANTRY-MARKET-CONTAINER · 2026-05-19]
             const finalUnit = (typeof customUnit === 'string' && customUnit.trim())
                 ? customUnit.trim()
-                : (masterItem.default_unit || 'unidad');
+                : (masterItem.market_container || masterItem.default_unit || 'unidad');
 
             // Detección de existing en 2 fases:
             //   1) Por `master_ingredient_id` (camino canónico).
@@ -807,7 +1010,7 @@ const Pantry = () => {
             const { data, error } = await supabase
                 .from('user_inventory')
                 .insert([newItem])
-                .select('*, master_ingredients(name, category, default_unit, shelf_life_days)')
+                .select('*, master_ingredients(name, category, default_unit, market_container, shelf_life_days)')
                 .single();
 
             if (error) {
@@ -882,7 +1085,7 @@ const Pantry = () => {
             const { data, error } = await supabase
                 .from('user_inventory')
                 .insert([newItem])
-                .select('*, master_ingredients(name, category, default_unit, shelf_life_days)')
+                .select('*, master_ingredients(name, category, default_unit, market_container, shelf_life_days)')
                 .single();
             if (error) {
                 // 23505 = unique_violation. El item ya existe en DB (race con
@@ -941,6 +1144,22 @@ const Pantry = () => {
         });
         return grouped;
     }, [inventory, searchQuery]);
+
+    // [P3-PANTRY-FRIDGE-LAYOUT · 2026-05-19] Proyección por zona física de
+    // la nevera real. Mantenemos `filteredInventory` (por categoría) para
+    // empty-state check y compatibilidad; este derivado agrupa items por
+    // zona (shelf_dairy, shelf_proteins, …, pantry) según CATEGORY_TO_ZONE.
+    const inventoryByZone = useMemo(() => {
+        const byZone = {};
+        Object.entries(filteredInventory).forEach(([category, items]) => {
+            const zone = getZoneForCategory(category);
+            if (!byZone[zone]) byZone[zone] = [];
+            // Anotamos category para mostrarla como sub-label si el usuario
+            // tiene varias categorías en la misma zona (ej. Lácteos + Huevos).
+            items.forEach(it => byZone[zone].push({ ...it, _zoneCategory: category }));
+        });
+        return byZone;
+    }, [filteredInventory]);
 
     // Items agotados visibles: excluye los que actualmente existen en
     // inventory (defensive — un INSERT externo podría dejar el item activo
@@ -1004,7 +1223,9 @@ const Pantry = () => {
             } else {
                 setPickerForId(targetItem.id);
                 setPickerQty(1);
-                setPickerUnit(targetItem.default_unit || 'unidad');
+                // [P3-PANTRY-MARKET-CONTAINER · 2026-05-19] prioriza
+                // market_container (curado) sobre default_unit (genérico).
+                setPickerUnit(targetItem.market_container || targetItem.default_unit || 'unidad');
             }
         } else if (e.key === 'Escape' && pickerForId) {
             e.preventDefault();
@@ -1085,25 +1306,175 @@ const Pantry = () => {
         );
     }
 
+    // [P3-PANTRY-FRIDGE-LAYOUT · 2026-05-19] Helper para renderizar una card
+    // de inventario. Extraído de inline para reusar en los 3 estantes, las
+    // 2 gavetas, la puerta y la alacena con identidad visual unificada.
+    // Cierra duplicación de ~125 líneas × 7 zonas que tendríamos si quedara
+    // inline en cada bucket de la nueva estructura tipo nevera.
+    const renderItemCard = (item) => {
+        const normalizedName = item.ingredient_name.toLowerCase().trim();
+        const isDisabled = disabledIngredients.includes(normalizedName);
+
+        // [P3-PANTRY-MARKET-CONTAINER · 2026-05-19] Display unit prefers
+        // `master_ingredients.market_container` (curado dominicano, el mismo
+        // que usa el PDF/lista de compras) sobre `item.unit` (que puede ser
+        // el `default_unit` genérico persistido en el pasado). Si master
+        // no tiene market_container, cae a item.unit.
+        const displayUnit = item.master_ingredients?.market_container || item.unit;
+
+        return (
+            <div
+                key={item.id}
+                className="nevera-item-card"
+                style={{ opacity: isDisabled ? 0.5 : 1 }}
+            >
+                <div style={{ flex: 1, marginRight: '1rem', textDecoration: isDisabled ? 'line-through' : 'none' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: isDisabled ? 'var(--danger)' : 'var(--text-main)', lineHeight: 1.2 }}>{item.ingredient_name}</h3>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span className="nevera-item-unit-tag" title={`Medida del item: ${displayUnit}`}>{displayUnit}</span>
+                        {(() => {
+                            const badge = getShelfLifeBadge(item);
+                            if (!badge) return null;
+                            const _style = getShelfLifeBadgeStyle(badge.severity);
+                            return (
+                                <span
+                                    title={`Tu plan priorizará este ingrediente. ${badge.label}.`}
+                                    aria-label={`Shelf-life: ${badge.label}`}
+                                    style={{
+                                        fontSize: '0.7rem',
+                                        background: _style.background,
+                                        color: _style.color,
+                                        border: `1px solid ${_style.borderColor}`,
+                                        padding: '2px 8px',
+                                        borderRadius: '999px',
+                                        fontWeight: 600,
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                >
+                                    ⚠ {badge.label}
+                                </span>
+                            );
+                        })()}
+                        {isDisabled && <span style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Trash2 size={12}/> Pendiente de eliminación</span>}
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                    <div className="nevera-item-counter">
+                        <button
+                            type="button"
+                            onPointerDown={(e) => item.quantity > 1 && startHolding(e, item.id, -1)}
+                            onPointerUp={(e) => stopHolding(e, item.id)}
+                            onPointerLeave={(e) => stopHolding(e, item.id)}
+                            onContextMenu={(e) => e.preventDefault()}
+                            disabled={item.quantity <= 1}
+                            aria-label={item.quantity <= 1
+                                ? 'Cantidad mínima — usa "Agotar" para eliminar'
+                                : `Disminuir cantidad de ${item.ingredient_name}`}
+                            title={item.quantity <= 1
+                                ? 'Para eliminar, usa el botón "Agotar"'
+                                : 'Mantener presionado para bajar rápido'}
+                            style={{
+                                border: 'none',
+                                background: 'none',
+                                padding: '0.5rem',
+                                color: item.quantity <= 1 ? 'var(--border)' : 'var(--text-muted)',
+                                cursor: item.quantity <= 1 ? 'not-allowed' : 'pointer',
+                                opacity: item.quantity <= 1 ? 0.5 : 1,
+                                userSelect: 'none',
+                                touchAction: 'manipulation',
+                            }}
+                        >
+                            <Minus size={16} strokeWidth={2.5}/>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setQtyEditItem(item);
+                                setQtyEditValue(item.quantity);
+                            }}
+                            title="Tocar para ajustar a cantidad exacta"
+                            aria-label={`Ajustar cantidad de ${item.ingredient_name}`}
+                            style={{
+                                width: '2.8rem', textAlign: 'center', fontSize: '1rem', fontWeight: 800,
+                                color: 'var(--text-main)', fontVariantNumeric: 'tabular-nums',
+                                background: 'none', border: 'none', padding: '0.4rem 0',
+                                cursor: 'pointer', borderRadius: '0.4rem',
+                                touchAction: 'manipulation',
+                            }}
+                        >
+                            {item.quantity}
+                        </button>
+
+                        <button
+                            className="nevera-plus-btn"
+                            onPointerDown={(e) => startHolding(e, item.id, 1)}
+                            onPointerUp={(e) => stopHolding(e, item.id)}
+                            onPointerLeave={(e) => stopHolding(e, item.id)}
+                            onContextMenu={(e) => e.preventDefault()}
+                        >
+                            <Plus size={16} strokeWidth={3}/>
+                        </button>
+                    </div>
+                    <button
+                        onClick={() => handleDeleteItem(item.id)}
+                        title="Marcar como agotado"
+                        aria-label={`Marcar ${item.ingredient_name} como agotado`}
+                        className="nevera-deplete-btn"
+                    >
+                        <PackageX size={13} strokeWidth={2.5} /> Agotar
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     return (
-        <div className="nevera-page-frame" style={{ padding: '0px', paddingBottom: '100px', backgroundColor: 'var(--bg-page)', minHeight: '100vh', position: 'relative', transition: 'background-color 0.3s' }}>
+        <div className="nevera-page-outer" style={{ padding: '0px', paddingBottom: '90px', backgroundColor: 'var(--bg-page)', minHeight: '100vh', position: 'relative', transition: 'background-color 0.3s' }}>
+        <div className="nevera-page-frame">
             <div className="nevera-overlay" />
 
             <style>{`
                 /* === FRIDGE ENCLOSURE FRAME === */
+                /* === [P3-PANTRY-FRIDGE-UNIT · 2026-05-19] === */
+                .nevera-page-outer {
+                    /* Wrapper de página — sin border. Hereda padding +
+                       min-height + bg desde el style inline. La estructura
+                       visual de "nevera completa" vive en .nevera-page-frame. */
+                    position: relative;
+                }
                 .nevera-page-frame {
-                    border: 2.5px solid rgba(125, 211, 252, 0.75);
-                    border-top: 3px solid rgba(186, 230, 253, 0.95);
-                    border-bottom: 3px solid rgba(56, 189, 248, 0.65);
+                    /* Marco UNIFICADO de toda la nevera — envuelve header
+                       (freezer area) + cuerpo principal. Pre-fix había DOS
+                       marcos anidados; ahora este es el único. */
+                    position: relative;
+                    border: 2.5px solid rgba(148, 163, 184, 0.4);
+                    border-top: 3.5px solid rgba(241, 245, 249, 1);
+                    border-bottom: 4px solid rgba(100, 116, 139, 0.5);
+                    border-left: 2.5px solid rgba(203, 213, 225, 0.6);
+                    border-right: 2.5px solid rgba(148, 163, 184, 0.55);
                     border-radius: 1.6rem;
+                    overflow: hidden;
+                    /* Fondo metálico perlado tipo "puerta de electrodoméstico" */
+                    background:
+                        linear-gradient(180deg,
+                            rgba(248, 250, 252, 0.6) 0%,
+                            rgba(241, 245, 249, 0.4) 50%,
+                            rgba(226, 232, 240, 0.5) 100%);
                     box-shadow:
+                        /* Highlight superior tipo "brillo metálico" */
                         inset 0 2px 0 rgba(255,255,255,1),
-                        inset 0 -2px 0 rgba(255,255,255,0.6),
-                        inset 0 0 0 1px rgba(255,255,255,0.65),
-                        inset 2px 0 6px -3px rgba(125, 211, 252, 0.35),
-                        inset -2px 0 6px -3px rgba(125, 211, 252, 0.35),
-                        0 14px 36px -10px rgba(14, 165, 233, 0.25),
-                        0 4px 10px -2px rgba(14, 165, 233, 0.12);
+                        inset 0 -3px 0 rgba(148, 163, 184, 0.3),
+                        inset 0 0 0 1px rgba(255,255,255,0.5),
+                        /* Reflejo lateral izquierdo (luz desde arriba-izq) */
+                        inset 4px 0 12px -6px rgba(255, 255, 255, 0.7),
+                        /* Sombra lateral derecha (donde NO hay luz) */
+                        inset -3px 0 10px -6px rgba(100, 116, 139, 0.18),
+                        /* Sombra externa proyectada — nevera apoyada */
+                        0 24px 48px -14px rgba(15, 23, 42, 0.25),
+                        0 8px 20px -6px rgba(15, 23, 42, 0.15),
+                        0 2px 6px -1px rgba(15, 23, 42, 0.08);
                 }
 
                 /* === ARCTIC OVERLAY (interior light from above) === */
@@ -1119,54 +1490,166 @@ const Pantry = () => {
                         radial-gradient(circle at 100% 0%, rgba(186, 230, 253, 0.18) 0%, transparent 40%);
                 }
 
-                /* === HEADER — frosted glass arctic ===
-                 * Position sticky + backdrop-filter es el combo más costoso
-                 * para scroll: el header re-blurea contenido por frame.
-                 * Mantenemos blur ligero (10px) y backdrop-filter solo en
-                 * pointer fino (desktop). En touch usamos bg opaco. */
+                /* === HEADER — "Puerta del freezer" (zona superior nevera) ===
+                 * [P3-PANTRY-FRIDGE-UNIT · 2026-05-19] Pre-fix era panel
+                 * frosted-cyan translúcido con border-radius arriba — flotaba
+                 * separado del cuerpo. Ahora es la "puerta superior" de la
+                 * nevera: fondo metálico perlado (no cyan), brand label tipo
+                 * "logo de electrodoméstico", border-bottom groove tipo
+                 * "unión entre puerta del freezer y puerta del cuerpo".
+                 * Sin border-radius — el page-frame externo da las esquinas
+                 * redondeadas; aquí queda recta para integrarse al unit. */
                 .nevera-header {
-                    padding: 2rem;
-                    background: linear-gradient(135deg, rgba(248,252,255,0.98) 0%, rgba(240, 249, 255, 0.96) 100%);
-                    border-bottom: 2.5px solid rgba(125, 211, 252, 0.7);
-                    border-radius: 1.45rem 1.45rem 0 0;
+                    padding: 3.3rem 3.2rem 1.8rem 2rem;
+                    background:
+                        /* Reflejo de luz desde arriba-centro */
+                        radial-gradient(ellipse 70% 50% at 50% 0%,
+                            rgba(255, 255, 255, 0.65) 0%,
+                            transparent 70%),
+                        /* Brillo izquierdo sutil */
+                        radial-gradient(ellipse 30% 100% at 0% 50%,
+                            rgba(255, 255, 255, 0.35) 0%,
+                            transparent 60%),
+                        /* Base metálica perlada */
+                        linear-gradient(180deg,
+                            rgba(255, 255, 255, 0.98) 0%,
+                            rgba(248, 250, 252, 0.95) 40%,
+                            rgba(241, 245, 249, 0.92) 80%,
+                            rgba(226, 232, 240, 0.88) 100%);
+                    border-bottom: 1px solid rgba(100, 116, 139, 0.35);
+                    /* Groove divisor entre "puerta freezer" y "cuerpo" */
                     box-shadow:
-                        inset 0 1px 0 rgba(255,255,255,0.95),
-                        0 4px 24px -8px rgba(14, 165, 233, 0.15);
-                    margin-bottom: 1.5rem;
-                    position: sticky;
-                    top: 0;
-                    z-index: 40;
+                        inset 0 2px 0 rgba(255, 255, 255, 1),
+                        inset 0 -3px 6px -2px rgba(100, 116, 139, 0.12),
+                        /* Groove inferior — línea oscura + línea clara */
+                        0 1px 0 rgba(255, 255, 255, 0.95),
+                        0 2px 0 rgba(148, 163, 184, 0.25),
+                        0 3px 0 rgba(255, 255, 255, 0.7);
+                    position: relative;
                     overflow: hidden;
-                    will-change: transform;
                 }
-                @media (hover: hover) and (pointer: fine) {
-                    .nevera-header {
-                        background: linear-gradient(135deg, rgba(255,255,255,0.78) 0%, rgba(240, 249, 255, 0.62) 100%);
-                        backdrop-filter: blur(10px);
-                        -webkit-backdrop-filter: blur(10px);
-                    }
-                }
-                .nevera-header::after {
-                    content: '';
-                    position: absolute;
-                    bottom: -2.5px;
-                    left: 0;
-                    right: 0;
-                    height: 1.5px;
-                    background: rgba(255,255,255,0.95);
-                    pointer-events: none;
-                }
+                /* Patrón "cepillado" muy sutil simula acero inoxidable */
                 .nevera-header::before {
                     content: '';
                     position: absolute;
-                    top: -40px;
-                    right: -30px;
-                    width: 220px;
-                    height: 220px;
-                    background:
-                        radial-gradient(circle, rgba(125, 211, 252, 0.18) 0%, transparent 60%);
+                    inset: 0;
+                    background: repeating-linear-gradient(
+                        90deg,
+                        rgba(255, 255, 255, 0) 0,
+                        rgba(255, 255, 255, 0) 2px,
+                        rgba(148, 163, 184, 0.025) 2px,
+                        rgba(148, 163, 184, 0.025) 3px
+                    );
                     pointer-events: none;
-                    filter: blur(8px);
+                    z-index: 0;
+                }
+                .nevera-header > * {
+                    position: relative;
+                    z-index: 1;
+                }
+
+                /* Etiqueta de marca tipo "logo discreto de electrodoméstico" */
+                .nevera-brand-label {
+                    position: absolute;
+                    top: 0.55rem;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    z-index: 2;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.4rem;
+                    font-size: 0.65rem;
+                    font-weight: 700;
+                    letter-spacing: 0.18em;
+                    text-transform: uppercase;
+                    color: rgba(71, 85, 105, 0.75);
+                    padding: 0.25rem 0.85rem;
+                    background: linear-gradient(180deg,
+                        rgba(241, 245, 249, 0.85) 0%,
+                        rgba(226, 232, 240, 0.7) 100%);
+                    border: 1px solid rgba(148, 163, 184, 0.35);
+                    border-top-color: rgba(255, 255, 255, 0.9);
+                    border-bottom-color: rgba(100, 116, 139, 0.4);
+                    border-radius: 0 0 0.55rem 0.55rem;
+                    box-shadow:
+                        inset 0 1px 0 rgba(255, 255, 255, 0.7),
+                        0 2px 4px -1px rgba(15, 23, 42, 0.12);
+                    pointer-events: none;
+                }
+                .nevera-brand-dot {
+                    width: 5px;
+                    height: 5px;
+                    border-radius: 50%;
+                    background: radial-gradient(circle at 30% 30%,
+                        #86EFAC 0%,
+                        #22C55E 50%,
+                        #15803D 100%);
+                    box-shadow:
+                        0 0 4px rgba(34, 197, 94, 0.8),
+                        inset 0 -1px 1px rgba(0, 0, 0, 0.25);
+                }
+
+                /* Manija propia del freezer (puerta superior) — espejo
+                   reducido de .nevera-fridge-handle del body. Alineada
+                   verticalmente con esta para que se vea como dos manijas
+                   de una nevera de dos puertas (top-mounted freezer). */
+                .nevera-header-handle {
+                    position: absolute;
+                    top: 25%;
+                    bottom: 25%;
+                    right: 10px;
+                    width: 22px;
+                    border-radius: 14px;
+                    background:
+                        linear-gradient(90deg,
+                            transparent 45%,
+                            rgba(255, 255, 255, 0.55) 49%,
+                            rgba(255, 255, 255, 0.85) 50%,
+                            rgba(255, 255, 255, 0.55) 51%,
+                            transparent 55%),
+                        linear-gradient(90deg,
+                            rgba(100, 116, 139, 0.95) 0%,
+                            rgba(148, 163, 184, 1) 18%,
+                            rgba(226, 232, 240, 1) 40%,
+                            rgba(241, 245, 249, 1) 50%,
+                            rgba(226, 232, 240, 1) 60%,
+                            rgba(148, 163, 184, 1) 82%,
+                            rgba(100, 116, 139, 0.95) 100%);
+                    box-shadow:
+                        inset 0 2px 0 rgba(255,255,255,0.95),
+                        inset 0 1px 4px rgba(255,255,255,0.5),
+                        inset 0 -2px 4px rgba(51, 65, 85, 0.5),
+                        inset -1px 0 2px rgba(100, 116, 139, 0.3),
+                        inset 1px 0 2px rgba(100, 116, 139, 0.3),
+                        4px 6px 14px -2px rgba(15, 23, 42, 0.4),
+                        2px 3px 6px -1px rgba(15, 23, 42, 0.25);
+                    pointer-events: none;
+                    z-index: 2;
+                }
+                .nevera-header-handle::before,
+                .nevera-header-handle::after {
+                    content: '';
+                    position: absolute;
+                    left: -4px;
+                    right: -4px;
+                    height: 11px;
+                    background:
+                        linear-gradient(180deg,
+                            #94A3B8 0%,
+                            #64748B 50%,
+                            #475569 100%);
+                    box-shadow:
+                        inset 0 1px 0 rgba(255,255,255,0.4),
+                        inset 0 -1px 2px rgba(15, 23, 42, 0.4),
+                        0 2px 4px rgba(15, 23, 42, 0.35);
+                }
+                .nevera-header-handle::before {
+                    top: -10px;
+                    border-radius: 5px 5px 3px 3px;
+                }
+                .nevera-header-handle::after {
+                    bottom: -10px;
+                    border-radius: 3px 3px 5px 5px;
                 }
 
                 .nevera-top {
@@ -1182,33 +1665,12 @@ const Pantry = () => {
                     align-items: center;
                     gap: 1rem;
                 }
-                .nevera-title-row {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.7rem;
-                }
-                .nevera-title {
-                    margin: 0;
-                    font-size: 2.4rem;
-                    font-weight: 900;
-                    letter-spacing: -0.04em;
-                    line-height: 1.1;
-                    background: linear-gradient(135deg, #0F172A 0%, #0369A1 100%);
-                    -webkit-background-clip: text;
-                    background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    color: transparent;
-                }
-                .nevera-snowflake-icon {
-                    color: #0EA5E9;
-                    filter: drop-shadow(0 0 10px rgba(14, 165, 233, 0.45));
-                    animation: nevera-frost-rotate 6s ease-in-out infinite;
-                    flex-shrink: 0;
-                }
-                @keyframes nevera-frost-rotate {
-                    0%, 100% { transform: rotate(0deg); opacity: 0.9; }
-                    50% { transform: rotate(40deg); opacity: 1; }
-                }
+                /* [P3-PANTRY-NO-TITLE · 2026-05-19] Eliminados:
+                   .nevera-title-row, .nevera-title, .nevera-snowflake-icon
+                   y la animation keyframes nevera-frost-rotate. El título
+                   "Nevera" + Snowflake del header se removieron del JSX
+                   (la sidebar ya muestra Nevera como pestaña activa; era
+                   redundante). */
 
                 .nevera-badge {
                     display: inline-flex;
@@ -1402,58 +1864,475 @@ const Pantry = () => {
                     box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
                 }
 
+                /* === [P3-PANTRY-FRIDGE-LAYOUT · 2026-05-19] ===
+                   Cuerpo de la nevera (marco realista) + alacena externa.
+                   El cuerpo agrupa 3 estantes + puerta + 2 gavetas dentro
+                   de un contenedor con manija lateral, sombra inferior tipo
+                   "piso" y patitas. La alacena (granos secos) vive afuera
+                   como sección separada con paleta cálida (madera/ámbar). */
+
+                .nevera-fridge-body {
+                    position: relative;
+                    /* [P3-PANTRY-FRIDGE-UNIT · 2026-05-19] Margen-top 0 para
+                       continuidad con header (groove divisor visible). Sin
+                       margin-bottom porque la sombra del piso ya está en el
+                       page-frame externo. Padding-right para acomodar manija. */
+                    margin: 0 0 1.5rem 0;
+                    padding-right: 44px;
+                }
+                .nevera-fridge-interior-wrap {
+                    position: relative;
+                    /* [P3-PANTRY-FRIDGE-UNIT · 2026-05-19] Sin border ni
+                       border-radius propios — el page-frame externo ya es el
+                       marco visual de la nevera. Mantenemos solo el fondo
+                       cyan claro tipo "interior frío iluminado" + sombras
+                       inset que dan profundidad sin duplicar contorno. */
+                    background:
+                        linear-gradient(180deg,
+                            rgba(240, 249, 255, 0.85) 0%,
+                            rgba(224, 242, 254, 0.7) 50%,
+                            rgba(186, 230, 253, 0.45) 100%);
+                    padding: 1.25rem 1.4rem 1.5rem 1.4rem;
+                    box-shadow:
+                        /* Sombra interior tipo "frío reflejado" */
+                        inset 0 4px 12px -4px rgba(255, 255, 255, 0.95),
+                        inset 0 -8px 16px -6px rgba(14, 165, 233, 0.22),
+                        inset 2px 0 6px -3px rgba(255, 255, 255, 0.6),
+                        inset -2px 0 6px -3px rgba(14, 165, 233, 0.15);
+                    /* Sutil "reflejo" en la esquina superior izquierda */
+                    background-image:
+                        linear-gradient(180deg,
+                            rgba(240, 249, 255, 0.85) 0%,
+                            rgba(224, 242, 254, 0.7) 50%,
+                            rgba(186, 230, 253, 0.45) 100%),
+                        radial-gradient(ellipse 60% 30% at 8% 4%,
+                            rgba(255,255,255,0.55) 0%,
+                            transparent 70%);
+                }
+
+                /* === Panel superior tipo "display de control" de nevera moderna === */
+                .nevera-fridge-control-panel {
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.8rem;
+                    padding: 0.5rem 0.8rem;
+                    margin: -0.6rem -0.4rem 1rem -0.4rem;
+                    background:
+                        linear-gradient(180deg,
+                            rgba(15, 23, 42, 0.92) 0%,
+                            rgba(30, 41, 59, 0.95) 100%);
+                    border-radius: 0.8rem;
+                    border: 1px solid rgba(51, 65, 85, 0.9);
+                    border-top: 1.5px solid rgba(71, 85, 105, 1);
+                    border-bottom: 2px solid rgba(2, 6, 23, 0.95);
+                    box-shadow:
+                        inset 0 1px 0 rgba(148, 163, 184, 0.3),
+                        inset 0 -2px 4px rgba(0, 0, 0, 0.4),
+                        0 4px 10px -2px rgba(15, 23, 42, 0.4);
+                }
+                .nevera-fridge-led-display {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.4rem;
+                    padding: 0.25rem 0.7rem;
+                    background:
+                        linear-gradient(180deg,
+                            rgba(8, 47, 73, 0.95) 0%,
+                            rgba(7, 89, 133, 0.9) 100%);
+                    border-radius: 0.4rem;
+                    border: 1px solid rgba(56, 189, 248, 0.6);
+                    box-shadow:
+                        inset 0 1px 2px rgba(0, 0, 0, 0.6),
+                        0 0 8px rgba(56, 189, 248, 0.35);
+                    /* Display monospace tipo LED */
+                    font-family: 'Courier New', monospace;
+                    font-weight: 700;
+                }
+                .nevera-fridge-led-icon {
+                    color: #7DD3FC;
+                    font-size: 0.85rem;
+                    text-shadow: 0 0 4px rgba(125, 211, 252, 0.8);
+                }
+                .nevera-fridge-led-temp {
+                    color: #BAE6FD;
+                    font-size: 0.78rem;
+                    letter-spacing: 0.05em;
+                    text-shadow: 0 0 4px rgba(186, 230, 253, 0.7);
+                }
+                /* Rejilla de ventilación al centro */
+                .nevera-fridge-vent {
+                    flex: 1;
+                    height: 14px;
+                    background: repeating-linear-gradient(
+                        90deg,
+                        rgba(71, 85, 105, 0.9) 0,
+                        rgba(71, 85, 105, 0.9) 2px,
+                        rgba(15, 23, 42, 0.95) 2px,
+                        rgba(15, 23, 42, 0.95) 4px
+                    );
+                    border-radius: 2px;
+                    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+                }
+                /* LED de encendido — verde pulsante */
+                .nevera-fridge-power-dot {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: radial-gradient(circle at 30% 30%,
+                        #86EFAC 0%,
+                        #22C55E 40%,
+                        #15803D 100%);
+                    box-shadow:
+                        0 0 6px rgba(34, 197, 94, 0.9),
+                        0 0 12px rgba(34, 197, 94, 0.5),
+                        inset 0 -1px 1px rgba(0, 0, 0, 0.3);
+                    flex-shrink: 0;
+                }
+
+                /* === Manija lateral derecha — barra vertical metálica realista === */
+                .nevera-fridge-handle {
+                    position: absolute;
+                    top: 16%;
+                    bottom: 20%;
+                    right: 10px;
+                    width: 22px;
+                    border-radius: 14px;
+                    background:
+                        /* Reflejo vertical central tipo "brillo de cromo" */
+                        linear-gradient(90deg,
+                            transparent 45%,
+                            rgba(255, 255, 255, 0.55) 49%,
+                            rgba(255, 255, 255, 0.85) 50%,
+                            rgba(255, 255, 255, 0.55) 51%,
+                            transparent 55%),
+                        /* Gradiente metálico base — cromado pulido */
+                        linear-gradient(90deg,
+                            rgba(100, 116, 139, 0.95) 0%,
+                            rgba(148, 163, 184, 1) 18%,
+                            rgba(226, 232, 240, 1) 40%,
+                            rgba(241, 245, 249, 1) 50%,
+                            rgba(226, 232, 240, 1) 60%,
+                            rgba(148, 163, 184, 1) 82%,
+                            rgba(100, 116, 139, 0.95) 100%);
+                    box-shadow:
+                        /* Highlight superior tipo "brillo metálico" */
+                        inset 0 2px 0 rgba(255,255,255,0.95),
+                        inset 0 1px 4px rgba(255,255,255,0.5),
+                        /* Sombra inferior interna para volumen */
+                        inset 0 -2px 4px rgba(51, 65, 85, 0.5),
+                        inset -1px 0 2px rgba(100, 116, 139, 0.3),
+                        inset 1px 0 2px rgba(100, 116, 139, 0.3),
+                        /* Sombra externa proyectada */
+                        4px 6px 14px -2px rgba(15, 23, 42, 0.4),
+                        2px 3px 6px -1px rgba(15, 23, 42, 0.25);
+                    pointer-events: none;
+                    z-index: 2;
+                }
+                /* Pivote superior — bloque de anclaje al marco */
+                .nevera-fridge-handle::before {
+                    content: '';
+                    position: absolute;
+                    left: -4px;
+                    right: -4px;
+                    top: -12px;
+                    height: 14px;
+                    background:
+                        linear-gradient(180deg,
+                            #94A3B8 0%,
+                            #64748B 50%,
+                            #475569 100%);
+                    border-radius: 5px 5px 3px 3px;
+                    box-shadow:
+                        inset 0 1px 0 rgba(255,255,255,0.4),
+                        inset 0 -1px 2px rgba(15, 23, 42, 0.4),
+                        0 2px 4px rgba(15, 23, 42, 0.35);
+                }
+                /* Pivote inferior — espejo del superior */
+                .nevera-fridge-handle::after {
+                    content: '';
+                    position: absolute;
+                    left: -4px;
+                    right: -4px;
+                    bottom: -12px;
+                    height: 14px;
+                    background:
+                        linear-gradient(180deg,
+                            #94A3B8 0%,
+                            #64748B 50%,
+                            #475569 100%);
+                    border-radius: 3px 3px 5px 5px;
+                    box-shadow:
+                        inset 0 1px 0 rgba(255,255,255,0.4),
+                        inset 0 -1px 2px rgba(15, 23, 42, 0.4),
+                        0 2px 4px rgba(15, 23, 42, 0.35);
+                }
+
+                /* === Patitas inferiores de la nevera — más prominentes === */
+                .nevera-fridge-feet {
+                    position: absolute;
+                    bottom: -16px;
+                    left: 0;
+                    right: 44px;
+                    height: 16px;
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 0 7%;
+                    pointer-events: none;
+                    z-index: 1;
+                }
+                .nevera-fridge-feet span {
+                    width: 44px;
+                    height: 16px;
+                    background:
+                        linear-gradient(180deg,
+                            #94A3B8 0%,
+                            #64748B 45%,
+                            #475569 75%,
+                            #334155 100%);
+                    border-radius: 0 0 8px 8px;
+                    box-shadow:
+                        inset 0 2px 0 rgba(255,255,255,0.35),
+                        inset 0 -2px 2px rgba(15, 23, 42, 0.5),
+                        0 4px 10px -2px rgba(15, 23, 42, 0.4),
+                        0 2px 4px rgba(15, 23, 42, 0.25);
+                    /* Sutil brillo metálico central */
+                    background-image:
+                        linear-gradient(180deg,
+                            #94A3B8 0%,
+                            #64748B 45%,
+                            #475569 75%,
+                            #334155 100%),
+                        linear-gradient(90deg,
+                            transparent 30%,
+                            rgba(255,255,255,0.2) 50%,
+                            transparent 70%);
+                }
+
+                /* === ZONA: estilo común === */
+                .nevera-zone {
+                    position: relative;
+                    padding: 1.1rem 0 1.4rem 0;
+                }
+                .nevera-zone + .nevera-zone {
+                    /* Divisor tipo "vidrio del estante" entre zonas */
+                    border-top: 1.5px solid rgba(125, 211, 252, 0.55);
+                    box-shadow:
+                        inset 0 1.5px 0 rgba(255,255,255,0.85),
+                        inset 0 -1px 2px rgba(14, 165, 233, 0.1);
+                }
+                .nevera-zone-header {
+                    font-size: 1.05rem;
+                    font-weight: 800;
+                    color: var(--text-main);
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin: 0 0 0.9rem 0;
+                    text-transform: uppercase;
+                    letter-spacing: 0.03em;
+                    font-size: 0.85rem;
+                }
+                .nevera-zone-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                    gap: 1rem;
+                }
+
+                /* === ZONA: PUERTA — fondo más oscuro tipo "compartimento" === */
+                .nevera-zone-door {
+                    background:
+                        linear-gradient(180deg,
+                            rgba(2, 132, 199, 0.08) 0%,
+                            rgba(125, 211, 252, 0.12) 100%);
+                    margin: 0.4rem -0.6rem;
+                    padding: 1rem 0.9rem 1.2rem 0.9rem;
+                    border-radius: 0.85rem;
+                    border: 1px dashed rgba(14, 165, 233, 0.35);
+                    /* Marca el "pliegue" de la puerta con borde lateral */
+                    border-left: 4px solid rgba(56, 189, 248, 0.55);
+                }
+                .nevera-zone-door + .nevera-zone {
+                    /* No queremos doble divisor cuando le sigue otra zona */
+                    border-top: none;
+                    box-shadow: none;
+                }
+
+                /* === GAVETAS (CRISPERS) — fila inferior === */
+                .nevera-drawers-row {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    /* [P3-PANTRY-FRIDGE-POLISH · 2026-05-19] align-items: start
+                       hace que cada gaveta crezca solo lo que su contenido
+                       necesita. Pre-fix grid estiraba la gaveta corta (Frutas
+                       con 3 items) a la altura de la larga (Verduras con 7),
+                       dejando un hueco vacío feo en el screenshot del user. */
+                    align-items: start;
+                    gap: 0.9rem;
+                    margin-top: 1.4rem;
+                    padding-top: 1.4rem;
+                    border-top: 1.5px solid rgba(125, 211, 252, 0.55);
+                    box-shadow:
+                        inset 0 1.5px 0 rgba(255,255,255,0.85);
+                }
+                .nevera-drawer {
+                    background:
+                        linear-gradient(180deg,
+                            rgba(255, 255, 255, 0.95) 0%,
+                            rgba(224, 242, 254, 0.75) 100%);
+                    border: 2px solid rgba(125, 211, 252, 0.7);
+                    border-top: 1.5px solid rgba(186, 230, 253, 0.95);
+                    border-bottom: 3px solid rgba(56, 189, 248, 0.55);
+                    /* Radius pronunciado abajo simula crisper real */
+                    border-radius: 0.6rem 0.6rem 1.4rem 1.4rem;
+                    padding: 1rem 1rem 1.2rem 1rem;
+                    box-shadow:
+                        inset 0 2px 0 rgba(255,255,255,0.9),
+                        inset 0 -6px 12px -4px rgba(14, 165, 233, 0.18),
+                        0 4px 10px -3px rgba(14, 165, 233, 0.18);
+                    position: relative;
+                }
+                /* Asita de la gaveta (línea horizontal arriba al centro) */
+                .nevera-drawer::before {
+                    content: '';
+                    position: absolute;
+                    top: 6px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 48px;
+                    height: 4px;
+                    background: linear-gradient(180deg, #94A3B8 0%, #64748B 100%);
+                    border-radius: 99px;
+                    box-shadow:
+                        inset 0 1px 0 rgba(255,255,255,0.45),
+                        0 1px 2px rgba(15, 23, 42, 0.2);
+                }
+                .nevera-drawer-header {
+                    margin-top: 0.6rem;
+                }
+                .nevera-drawer-grid {
+                    display: grid;
+                    /* Cards más compactas en gavetas */
+                    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                    gap: 0.8rem;
+                }
+
+                /* === ALACENA — fuera de la nevera, paleta ámbar === */
+                .nevera-pantry-section {
+                    /* [P3-PANTRY-BOTTOM-SPACE · 2026-05-19] margin-bottom
+                       2.5rem → 0.6rem. La alacena suele ser el último
+                       elemento y el paddingBottom del page-outer ya da
+                       espacio sobre el BottomTabBar. Pre-fix sumaban
+                       ~140px de espacio vacío. */
+                    margin: 0 0 0.6rem 0;
+                    padding: 1.4rem 1.4rem 1.6rem 1.4rem;
+                    background:
+                        linear-gradient(180deg,
+                            rgba(254, 243, 199, 0.55) 0%,
+                            rgba(253, 230, 138, 0.4) 100%);
+                    border: 2px solid rgba(217, 119, 6, 0.35);
+                    border-top: 3px solid rgba(245, 158, 11, 0.55);
+                    border-bottom: 3px solid rgba(180, 83, 9, 0.35);
+                    border-radius: 1.2rem;
+                    box-shadow:
+                        inset 0 2px 6px rgba(255,255,255,0.7),
+                        inset 0 -6px 14px -4px rgba(180, 83, 9, 0.12),
+                        0 12px 28px -10px rgba(180, 83, 9, 0.25);
+                    /* Sutil patrón "tablones de madera" via repeating gradient */
+                    background-image:
+                        linear-gradient(180deg,
+                            rgba(254, 243, 199, 0.55) 0%,
+                            rgba(253, 230, 138, 0.4) 100%),
+                        repeating-linear-gradient(90deg,
+                            transparent 0px,
+                            transparent 80px,
+                            rgba(180, 83, 9, 0.04) 80px,
+                            rgba(180, 83, 9, 0.04) 81px);
+                }
+                .nevera-pantry-header {
+                    color: #78350F;
+                }
+                .nevera-pantry-subtitle {
+                    margin: -0.4rem 0 1rem 0;
+                    color: #92400E;
+                    font-size: 0.82rem;
+                    font-style: italic;
+                }
+                .nevera-pantry-count {
+                    font-size: 0.75rem;
+                    background: linear-gradient(135deg, rgba(254, 243, 199, 0.85) 0%, rgba(253, 230, 138, 0.7) 100%);
+                    border: 1px solid rgba(217, 119, 6, 0.5);
+                    color: #78350F;
+                    padding: 0.15rem 0.6rem;
+                    border-radius: 99px;
+                    font-weight: 800;
+                    font-variant-numeric: tabular-nums;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+                }
+
                 /* === ITEM CARDS — fridge bin / drawer look ===
                  * NO backdrop-filter aquí: con 30+ items el navegador
                  * composita N capas blur por scroll frame y el listado
                  * empieza a janquear (sobre todo en mobile). Reemplazado
                  * por gradiente opaco que da el mismo look "frosted". */
+                /* [P3-PANTRY-CARD-STATIC · 2026-05-19] Card 100% estática
+                 * por pedido del user: cero animación + sin "brillo azul"
+                 * cyan que la rodeaba. Antes tenía:
+                 *   - 3 tonos cyan en border (top más claro, bottom más
+                 *     saturado) → glow effect.
+                 *   - box-shadow con tint cyan (rgba(14, 165, 233, 0.18))
+                 *     → halo azul alrededor.
+                 *   - background gradient con sky-blue tones → look
+                 *     "frosted".
+                 *   - ::before pseudo-element con shimmer blanco translúcido
+                 *     → highlight de superficie fría.
+                 *   - transition: transform + box-shadow + border-color
+                 *     0.2s → hover animaba.
+                 *   - :hover translateY(-2px) + glow extendido.
+                 * Ahora: card plana blanca con border slate neutro, sin
+                 * shadow, sin transition, sin hover effect, sin shimmer
+                 * overlay. Look limpio y predecible.
+                 */
                 .nevera-item-card {
-                    background: linear-gradient(180deg,
-                        rgba(255, 255, 255, 1) 0%,
-                        rgba(240, 249, 255, 0.98) 50%,
-                        rgba(224, 242, 254, 0.96) 100%);
-                    border: 2px solid rgba(125, 211, 252, 0.75);
-                    border-top-color: rgba(186, 230, 253, 0.95);
-                    border-bottom-color: rgba(56, 189, 248, 0.55);
+                    background: #FFFFFF;
+                    border: 1px solid #E2E8F0;
                     border-radius: 1rem;
                     padding: 1.2rem;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    position: relative;
-                    overflow: hidden;
-                    box-shadow:
-                        inset 0 1.5px 0 rgba(255,255,255,1),
-                        0 4px 12px -4px rgba(14, 165, 233, 0.18);
-                    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
                     contain: layout style paint;
                 }
-                /* Frost shimmer on top (cold surface highlight) */
-                .nevera-item-card::before {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    height: 35%;
-                    background: linear-gradient(180deg,
-                        rgba(255, 255, 255, 0.55) 0%,
-                        rgba(255, 255, 255, 0) 100%);
-                    pointer-events: none;
-                    border-radius: 0.85rem 0.85rem 0 0;
+                /* [P3-PANTRY-PLUS-HOVER · 2026-05-19] Botón '+' del counter
+                 * de cada card. Estilos movidos desde inline a class para
+                 * poder añadir :hover con sombra reforzada (no se podía con
+                 * styles inline puros). */
+                .nevera-plus-btn {
+                    border: none;
+                    background: linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%);
+                    color: white;
+                    border-radius: 99px;
+                    padding: 0.5rem;
+                    cursor: pointer;
+                    box-shadow:
+                        0 4px 12px -2px rgba(14, 165, 233, 0.45),
+                        inset 0 1px 0 rgba(255,255,255,0.2);
+                    user-select: none;
+                    touch-action: manipulation;
+                    transition: box-shadow 0.15s ease;
                 }
-                .nevera-item-card > * { position: relative; z-index: 1; }
-                /* Hover sólo en pointer fino (desktop). En touch el hover
-                 * se "pega" durante scroll y dispara box-shadow recompose
-                 * por cada item bajo el dedo → jank. */
                 @media (hover: hover) and (pointer: fine) {
-                    .nevera-item-card:hover {
-                        transform: translateY(-2px);
-                        border-color: rgba(56, 189, 248, 0.85);
+                    .nevera-plus-btn:hover {
                         box-shadow:
-                            inset 0 1.5px 0 rgba(255,255,255,1),
-                            0 8px 18px -6px rgba(14, 165, 233, 0.25);
+                            0 8px 20px -2px rgba(14, 165, 233, 0.65),
+                            0 0 0 4px rgba(14, 165, 233, 0.18),
+                            inset 0 1px 0 rgba(255,255,255,0.3);
                     }
+                }
+                .nevera-plus-btn:active {
+                    box-shadow:
+                        0 2px 6px -2px rgba(14, 165, 233, 0.5),
+                        inset 0 1px 0 rgba(255,255,255,0.15);
                 }
                 .nevera-item-unit-tag {
                     font-size: 0.78rem;
@@ -1826,48 +2705,235 @@ const Pantry = () => {
                     z-index: -1;
                 }
 
-                /* === DESKTOP — hide redundant title (sidebar already shows "Nevera") === */
-                @media (min-width: 641px) {
-                    .nevera-title-row {
-                        display: none;
-                    }
-                }
+                /* [P3-PANTRY-NO-TITLE · 2026-05-19] Bloque desktop
+                   "@media (min-width: 641px) { .nevera-title-row: display: none }"
+                   eliminado — el JSX ya no renderiza .nevera-title-row. */
 
-                /* === MOBILE === */
+                /* === MOBILE === [P3-PANTRY-MOBILE-POLISH · 2026-05-19] === */
                 @media (max-width: 640px) {
+                    /* === HEADER (puerta del freezer) compactado ===
+                       Pre-fix mobile: padding 1.6rem top + 1.25rem bottom →
+                       header gigante con gap visible al body. Ahora:
+                       1.1rem top / 0.7rem bottom + título y pills reducidos.
+                       Layout horizontal de pills en row evita altura excesiva. */
                     .nevera-header {
-                        padding: 1.25rem 1rem;
+                        /* [P3-PANTRY-BRAND-SPACING · 2026-05-19] padding-top
+                           generoso para que el brand label absoluto no pise
+                           el pill "Solo lo que tienes" debajo. */
+                        padding: 2.5rem 2rem 0.75rem 0.9rem;
                     }
+                    .nevera-brand-label {
+                        font-size: 0.55rem;
+                        padding: 0.16rem 0.55rem;
+                        letter-spacing: 0.12em;
+                        top: 0.4rem;
+                    }
+                    .nevera-header-handle {
+                        width: 14px;
+                        right: 6px;
+                        border-radius: 9px;
+                    }
+                    .nevera-header-handle::before,
+                    .nevera-header-handle::after {
+                        height: 9px;
+                        left: -3px;
+                        right: -3px;
+                    }
+                    .nevera-header-handle::before { top: -7px; }
+                    .nevera-header-handle::after  { bottom: -7px; }
+
                     .nevera-top {
                         flex-direction: column;
                         align-items: stretch;
-                        gap: 1.25rem;
+                        gap: 0.9rem;
                     }
                     .nevera-title-wrapper {
-                        gap: 0.75rem;
+                        gap: 0.5rem;
                     }
-                    .nevera-title {
-                        font-size: 2rem !important;
-                    }
+                    /* [P3-PANTRY-NO-TITLE · 2026-05-19] Reglas mobile de
+                       .nevera-title y .nevera-snowflake-icon eliminadas
+                       junto con el JSX que las usaba. */
                     .nevera-badge-text {
-                        font-size: 0.75rem !important;
+                        font-size: 0.7rem !important;
                         white-space: nowrap;
                     }
-                    .nevera-add-btn {
+
+                    /* Botones + búsqueda compactos */
+                    .nevera-add-btn,
+                    .nevera-delete-all-btn {
                         flex: 1;
+                        padding: 0.6rem 0.8rem;
+                        font-size: 0.85rem;
+                        white-space: nowrap;
+                    }
+                    .nevera-search-wrap {
+                        margin-top: 1rem;
+                    }
+                    .nevera-search-input {
+                        padding: 0.85rem 1rem 0.85rem 2.75rem;
+                        font-size: 0.95rem;
+                        border-radius: 0.85rem;
+                    }
+                    .nevera-search-icon {
+                        left: 0.9rem;
+                    }
+
+                    /* === BODY (cuerpo principal) más cerca del header === */
+                    .nevera-fridge-body {
+                        padding-right: 26px;
+                        margin: 0 0 1rem 0;
+                    }
+                    .nevera-fridge-interior-wrap {
+                        /* padding-top reducido para cerrar gap con header.
+                           Antes 1rem (~ resulta en gap visible); ahora 0.75rem. */
+                        padding: 0.75rem 0.75rem 1.25rem 0.75rem;
+                    }
+                    .nevera-fridge-control-panel {
+                        margin: -0.25rem -0.1rem 0.7rem -0.1rem;
+                        padding: 0.35rem 0.55rem;
+                        gap: 0.5rem;
+                        border-radius: 0.6rem;
+                    }
+                    .nevera-fridge-vent {
+                        display: none;
+                    }
+                    .nevera-fridge-led-display {
+                        flex: 1;
+                        justify-content: center;
+                        padding: 0.2rem 0.6rem;
+                    }
+                    .nevera-fridge-led-icon { font-size: 0.78rem; }
+                    .nevera-fridge-led-temp { font-size: 0.72rem; }
+                    .nevera-fridge-power-dot {
+                        width: 7px;
+                        height: 7px;
+                    }
+
+                    .nevera-fridge-handle {
+                        width: 14px;
+                        right: 6px;
+                        border-radius: 9px;
+                    }
+                    .nevera-fridge-handle::before,
+                    .nevera-fridge-handle::after {
+                        height: 9px;
+                        left: -3px;
+                        right: -3px;
+                    }
+                    .nevera-fridge-handle::before { top: -7px; }
+                    .nevera-fridge-handle::after  { bottom: -7px; }
+                    .nevera-fridge-feet {
+                        right: 26px;
+                        padding: 0 6%;
+                    }
+                    .nevera-fridge-feet span {
+                        width: 30px;
+                        height: 13px;
+                    }
+
+                    /* === ZONAS, CARDS, GAVETAS más compactas === */
+                    .nevera-zone {
+                        padding: 0.85rem 0 0.95rem 0;
+                    }
+                    .nevera-zone-header {
+                        font-size: 0.78rem !important;
+                        margin: 0 0 0.6rem 0 !important;
+                        gap: 0.4rem !important;
+                    }
+                    .nevera-zone-door {
+                        margin: 0.3rem -0.35rem;
+                        padding: 0.7rem 0.6rem 0.85rem 0.6rem;
+                        border-radius: 0.65rem;
+                    }
+                    .nevera-item-card {
+                        padding: 0.85rem 0.9rem;
+                        border-radius: 0.85rem;
+                    }
+                    .nevera-item-card h3 {
+                        font-size: 0.95rem !important;
+                    }
+                    .nevera-item-unit-tag {
+                        font-size: 0.72rem !important;
+                        padding: 0.15rem 0.5rem !important;
+                    }
+                    .nevera-deplete-btn {
+                        padding: 0.25rem 0.55rem !important;
+                        font-size: 0.66rem !important;
+                    }
+
+                    .nevera-drawers-row {
+                        grid-template-columns: 1fr;
+                        gap: 0.7rem;
+                        margin-top: 1rem;
+                        padding-top: 1rem;
+                    }
+                    .nevera-drawer {
+                        padding: 0.85rem 0.8rem 1rem 0.8rem;
+                        border-radius: 0.5rem 0.5rem 1.1rem 1.1rem;
+                    }
+                    .nevera-drawer-header {
+                        margin-top: 0.5rem;
+                    }
+                    .nevera-zone-grid,
+                    .nevera-drawer-grid {
+                        grid-template-columns: 1fr;
+                        gap: 0.7rem;
+                    }
+
+                    /* === ALACENA compactada === */
+                    .nevera-pantry-section {
+                        padding: 1rem 0.95rem 1.15rem 0.95rem;
+                        border-radius: 1rem;
+                    }
+                    .nevera-pantry-subtitle {
+                        font-size: 0.75rem !important;
+                        margin-bottom: 0.85rem !important;
+                    }
+                }
+
+                /* === EXTRA-SMALL (≤380px) — pantallas estrechas tipo iPhone SE === */
+                @media (max-width: 380px) {
+                    .nevera-header {
+                        padding: 2.35rem 1.6rem 0.7rem 0.75rem;
+                    }
+                    .nevera-add-btn,
+                    .nevera-delete-all-btn {
+                        padding: 0.55rem 0.65rem;
+                        font-size: 0.78rem;
+                    }
+                    /* Iconos solos cuando el espacio aprieta */
+                    .nevera-header-handle {
+                        width: 11px;
+                        right: 4px;
                     }
                 }
             `}</style>
             
-            {/* Header / Nav */}
+            {/* [P3-PANTRY-FRIDGE-UNIT · 2026-05-19] Header / Nav — Freezer area
+                (puerta superior de la nevera). El `.nevera-page-frame` exterior
+                actúa ahora como "marco de nevera completa" (border + sombras
+                3D) que envuelve solo header + fridge-body. La alacena vive
+                fuera (sibling del frame) — coherente con la decisión de
+                producto "lo seco no va en nevera". Pre-fix la alacena quedaba
+                atrapada dentro del marco cyan, contradiciendo el simbolismo. */}
             <header className="nevera-header">
+                {/* Etiqueta tipo "modelo de electrodoméstico" — refuerza
+                    la metáfora de aparato real con un nombre técnico. */}
+                <div className="nevera-brand-label" aria-hidden="true">
+                    <span className="nevera-brand-dot" />
+                    FRIO MAX
+                </div>
+                {/* Manija propia del freezer (puerta superior) — pequeña,
+                    alineada vertical con la manija del cuerpo principal. */}
+                <div className="nevera-header-handle" aria-hidden="true" />
                 <div className="nevera-top">
                     <div className="nevera-title-wrapper">
                         <div>
-                            <div className="nevera-title-row">
-                                <Snowflake size={30} strokeWidth={2.25} className="nevera-snowflake-icon" />
-                                <h1 className="nevera-title">Nevera</h1>
-                            </div>
+                            {/* [P3-PANTRY-NO-TITLE · 2026-05-19] Snowflake +
+                                "Nevera" eliminados. La sidebar ya muestra
+                                "Nevera" activo; aquí era redundante. El brand
+                                label "FRIO MAX" arriba mantiene la identidad
+                                de electrodoméstico sin duplicar el nombre. */}
                             <div className="nevera-badge">
                                 <span className="nevera-badge-text">Solo lo que tienes</span>
                                 <span style={{ fontSize: '0.85rem' }}>🔒</span>
@@ -1919,7 +2985,11 @@ const Pantry = () => {
             </header>
 
             {/* Listado de Inventario Groupped by Category */}
-            <div style={{ padding: '0 1.5rem' }}>
+            {/* [P3-PANTRY-FRIDGE-UNIT · 2026-05-19] padding 0 (no lateral)
+                para que el body llene el ancho del page-frame, alineado
+                con el header arriba. El interior-wrap tiene su propio
+                padding interno que mantiene aire alrededor de las cards. */}
+            <div style={{ padding: '0' }}>
 
                 {Object.keys(filteredInventory).length === 0 && visibleDepletedItems.length === 0 ? (
                   <div className="nevera-empty-wrapper">
@@ -1956,155 +3026,97 @@ const Pantry = () => {
                   </div>
                 ) : (
                     <>
-                    <AnimatePresence>
-                        {Object.keys(filteredInventory).sort().map(category => {
-                            const CategoryIcon = getCategoryIcon(category);
+                    {/* [P3-PANTRY-FRIDGE-LAYOUT · 2026-05-19] Marco de nevera
+                        física + alacena externa. Las categorías se mapean a
+                        zonas (3 estantes interiores + puerta + 2 gavetas) por
+                        CATEGORY_TO_ZONE. Zonas vacías se ocultan. Los granos
+                        secos/especias/conservas viven fuera de la nevera, en
+                        la "alacena" — refuerza el simbolismo de "qué se
+                        guarda dónde" en cocina dominicana real. */}
+                    {(() => {
+                        const fridgeZones = ZONE_DEFINITIONS.filter(z => z.kind !== 'pantry');
+                        const pantryZone  = ZONE_DEFINITIONS.find(z => z.kind === 'pantry');
+
+                        const shelfZones  = fridgeZones.filter(z => z.kind === 'shelf');
+                        const doorZone    = fridgeZones.find(z => z.kind === 'door');
+                        const drawerZones = fridgeZones.filter(z => z.kind === 'drawer');
+
+                        const drawersHaveItems = drawerZones.some(z => (inventoryByZone[z.key] || []).length > 0);
+                        const doorHasItems     = doorZone && (inventoryByZone[doorZone.key] || []).length > 0;
+                        const shelvesHaveItems = shelfZones.some(z => (inventoryByZone[z.key] || []).length > 0);
+                        const pantryHasItems   = pantryZone && (inventoryByZone[pantryZone.key] || []).length > 0;
+                        const fridgeHasAnyItem = shelvesHaveItems || doorHasItems || drawersHaveItems;
+
+                        const renderZoneShelf = (zone) => {
+                            const items = inventoryByZone[zone.key] || [];
+                            if (items.length === 0) return null;
+                            const Icon = zone.icon;
                             return (
-                            <motion.div
-                                key={category}
-                                className="nevera-shelf"
-                                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                            >
-                                <h2 className="nevera-shelf-header">
-                                    <CategoryIcon size={20} strokeWidth={2.25} style={{ color: '#0EA5E9', flexShrink: 0 }} />
-                                    {category}
-                                    <span className="nevera-shelf-count">{filteredInventory[category].length}</span>
-                                </h2>
-
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-                                    {filteredInventory[category].map(item => {
-                                        const normalizedName = item.ingredient_name.toLowerCase().trim();
-                                        const isDisabled = disabledIngredients.includes(normalizedName);
-
-                                        return (
-                                        <motion.div
-                                            key={item.id}
-                                            className="nevera-item-card"
-                                            exit={{ opacity: 0, scale: 0.9 }}
-                                            style={{
-                                                opacity: isDisabled ? 0.5 : 1,
-                                            }}
-                                        >
-                                            <div style={{ flex: 1, marginRight: '1rem', textDecoration: isDisabled ? 'line-through' : 'none' }}>
-                                                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: isDisabled ? 'var(--danger)' : 'var(--text-main)', lineHeight: 1.2 }}>{item.ingredient_name}</h3>
-                                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                                    <span className="nevera-item-unit-tag" title={`Medida del item: ${item.unit}`}>{item.unit}</span>
-                                                    {/* [P3-4 · 2026-05-10] Chip de shelf-life: el backend ya
-                                                        computaba urgency y lo incluía en el texto al LLM, pero
-                                                        el frontend no lo surfaceaba al usuario. Helper
-                                                        client-side computa days_left desde `created_at` +
-                                                        `master_ingredients.shelf_life_days`. Solo se muestra
-                                                        para items con urgency (≤3 días) — items frescos NO
-                                                        ven chip para evitar ruido visual. */}
-                                                    {(() => {
-                                                        const badge = getShelfLifeBadge(item);
-                                                        if (!badge) return null;
-                                                        const _style = getShelfLifeBadgeStyle(badge.severity);
-                                                        return (
-                                                            <span
-                                                                title={`Tu plan priorizará este ingrediente. ${badge.label}.`}
-                                                                aria-label={`Shelf-life: ${badge.label}`}
-                                                                style={{
-                                                                    fontSize: '0.7rem',
-                                                                    background: _style.background,
-                                                                    color: _style.color,
-                                                                    border: `1px solid ${_style.borderColor}`,
-                                                                    padding: '2px 8px',
-                                                                    borderRadius: '999px',
-                                                                    fontWeight: 600,
-                                                                    whiteSpace: 'nowrap',
-                                                                }}
-                                                            >
-                                                                ⚠ {badge.label}
-                                                            </span>
-                                                        );
-                                                    })()}
-                                                    {isDisabled && <span style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Trash2 size={12}/> Pendiente de eliminación</span>}
-                                                </div>
-                                            </div>
-
-                                            {/* Controlador + botón Agotar */}
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                                                <div className="nevera-item-counter">
-                                                    {/* [P3-PANTRY-MINUS-DISABLED · 2026-05-18] Cuando qty<=1, el botón
-                                                        '-' queda disabled (gris) — la eliminación va exclusivamente
-                                                        por 'Agotar' debajo del counter. Pre-fix había un trash icon
-                                                        aquí que disparaba el mismo path que 'Agotar' (handleDeleteItem),
-                                                        duplicando la acción y confundiendo al usuario sobre la
-                                                        diferencia entre ambos botones. */}
-                                                    <button
-                                                        type="button"
-                                                        onPointerDown={(e) => item.quantity > 1 && startHolding(e, item.id, -1)}
-                                                        onPointerUp={(e) => stopHolding(e, item.id)}
-                                                        onPointerLeave={(e) => stopHolding(e, item.id)}
-                                                        onContextMenu={(e) => e.preventDefault()}
-                                                        disabled={item.quantity <= 1}
-                                                        aria-label={item.quantity <= 1
-                                                            ? 'Cantidad mínima — usa "Agotar" para eliminar'
-                                                            : `Disminuir cantidad de ${item.ingredient_name}`}
-                                                        title={item.quantity <= 1
-                                                            ? 'Para eliminar, usa el botón "Agotar"'
-                                                            : 'Mantener presionado para bajar rápido'}
-                                                        style={{
-                                                            border: 'none',
-                                                            background: 'none',
-                                                            padding: '0.5rem',
-                                                            color: item.quantity <= 1 ? 'var(--border)' : 'var(--text-muted)',
-                                                            cursor: item.quantity <= 1 ? 'not-allowed' : 'pointer',
-                                                            opacity: item.quantity <= 1 ? 0.5 : 1,
-                                                            userSelect: 'none',
-                                                            touchAction: 'manipulation',
-                                                        }}
-                                                    >
-                                                        <Minus size={16} strokeWidth={2.5}/>
-                                                    </button>
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setQtyEditItem(item);
-                                                            setQtyEditValue(item.quantity);
-                                                        }}
-                                                        title="Tocar para ajustar a cantidad exacta"
-                                                        aria-label={`Ajustar cantidad de ${item.ingredient_name}`}
-                                                        style={{
-                                                            width: '2.8rem', textAlign: 'center', fontSize: '1rem', fontWeight: 800,
-                                                            color: 'var(--text-main)', fontVariantNumeric: 'tabular-nums',
-                                                            background: 'none', border: 'none', padding: '0.4rem 0',
-                                                            cursor: 'pointer', borderRadius: '0.4rem',
-                                                            touchAction: 'manipulation',
-                                                        }}
-                                                    >
-                                                        {item.quantity}
-                                                    </button>
-
-                                                    <button
-                                                        onPointerDown={(e) => startHolding(e, item.id, 1)}
-                                                        onPointerUp={(e) => stopHolding(e, item.id)}
-                                                        onPointerLeave={(e) => stopHolding(e, item.id)}
-                                                        onContextMenu={(e) => e.preventDefault()}
-                                                        style={{ border:'none', background:'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)', color:'white', borderRadius:'99px', padding:'0.5rem', cursor:'pointer', boxShadow:'0 4px 12px -2px rgba(14, 165, 233, 0.45), inset 0 1px 0 rgba(255,255,255,0.2)', userSelect: 'none', touchAction: 'manipulation' }}
-                                                    >
-                                                        <Plus size={16} strokeWidth={3}/>
-                                                    </button>
-                                                </div>
-                                                <button
-                                                    onClick={() => handleDeleteItem(item.id)}
-                                                    title="Marcar como agotado"
-                                                    aria-label={`Marcar ${item.ingredient_name} como agotado`}
-                                                    className="nevera-deplete-btn"
-                                                >
-                                                    <PackageX size={13} strokeWidth={2.5} /> Agotar
-                                                </button>
-                                            </div>
-                                        </motion.div>
-                                        );
-                                    })}
+                                <div key={zone.key} className={`nevera-zone nevera-zone-${zone.kind}`}>
+                                    <h2 className="nevera-zone-header">
+                                        <Icon size={18} strokeWidth={2.25} style={{ color: zone.color, flexShrink: 0 }} />
+                                        {zone.label}
+                                        <span className="nevera-shelf-count">{items.length}</span>
+                                    </h2>
+                                    <div className="nevera-zone-grid">
+                                        {items.map(renderItemCard)}
+                                    </div>
                                 </div>
-                            </motion.div>
                             );
-                        })}
-                    </AnimatePresence>
+                        };
+
+                        return (
+                            <>
+                                {fridgeHasAnyItem && (
+                                    <div className="nevera-fridge-body" aria-label="Interior de la nevera">
+                                        <div className="nevera-fridge-handle" aria-hidden="true" />
+                                        <div className="nevera-fridge-interior-wrap">
+                                            {/* Panel superior tipo "display de control" de nevera moderna */}
+                                            <div className="nevera-fridge-control-panel" aria-hidden="true">
+                                                <div className="nevera-fridge-led-display">
+                                                    <span className="nevera-fridge-led-icon">❄</span>
+                                                    <span className="nevera-fridge-led-temp">3°C</span>
+                                                </div>
+                                                <div className="nevera-fridge-vent" />
+                                                <div className="nevera-fridge-power-dot" title="Encendida" />
+                                            </div>
+                                            {shelfZones.map(renderZoneShelf)}
+                                            {doorZone && renderZoneShelf(doorZone)}
+                                            {drawersHaveItems && (
+                                                <div className="nevera-drawers-row">
+                                                    {drawerZones.map(zone => {
+                                                        const items = inventoryByZone[zone.key] || [];
+                                                        if (items.length === 0) return null;
+                                                        const Icon = zone.icon;
+                                                        return (
+                                                            <div key={zone.key} className="nevera-drawer">
+                                                                <h2 className="nevera-zone-header nevera-drawer-header">
+                                                                    <Icon size={18} strokeWidth={2.25} style={{ color: zone.color, flexShrink: 0 }} />
+                                                                    {zone.label}
+                                                                    <span className="nevera-shelf-count">{items.length}</span>
+                                                                </h2>
+                                                                <div className="nevera-drawer-grid">
+                                                                    {items.map(renderItemCard)}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="nevera-fridge-feet" aria-hidden="true">
+                                            <span /><span />
+                                        </div>
+                                    </div>
+                                )}
+                                {/* [P3-PANTRY-FRIDGE-UNIT · 2026-05-19] La
+                                    sección de alacena se renderiza FUERA del
+                                    page-frame (más abajo en el JSX) para que
+                                    no quede atrapada dentro del marco cyan de
+                                    nevera. Aquí solo retornamos el body. */}
+                            </>
+                        );
+                    })()}
 
                     {visibleDepletedItems.length > 0 && (
                         <section className="nevera-depleted-shelf">
@@ -2117,14 +3129,12 @@ const Pantry = () => {
                                 Ya no los tienes. Toca <strong>Reponer</strong> cuando vuelvas a comprarlos.
                             </p>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-                                <AnimatePresence>
-                                    {visibleDepletedItems.map(entry => (
-                                        <motion.div
+                                {/* [P3-PANTRY-STATIC-CARDS · 2026-05-19] Cards
+                                    Agotados también estáticas — mismo motivo. */}
+                                {visibleDepletedItems.map(entry => (
+                                        <div
                                             key={_depletedKey(entry)}
                                             className="nevera-depleted-card"
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0.9 }}
                                         >
                                             <div style={{ flex: 1, marginRight: '0.75rem', minWidth: 0 }}>
                                                 <span className="nevera-depleted-badge">
@@ -2156,15 +3166,44 @@ const Pantry = () => {
                                                     <X size={14} strokeWidth={2.5} />
                                                 </button>
                                             </div>
-                                        </motion.div>
+                                        </div>
                                     ))}
-                                </AnimatePresence>
                             </div>
                         </section>
                     )}
                     </>
                 )}
             </div>
+            </div>{/* /nevera-page-frame */}
+
+            {/* [P3-PANTRY-FRIDGE-UNIT · 2026-05-19] La alacena (granos secos,
+                especias, despensa) vive AQUÍ — fuera del marco de nevera —
+                porque conceptualmente no se refrigera en RD. La paleta ámbar
+                + el patrón sutil de "tablones de madera" la diferencia
+                visualmente como mueble distinto a la nevera. */}
+            {(() => {
+                const pantryZone = ZONE_DEFINITIONS.find(z => z.kind === 'pantry');
+                if (!pantryZone) return null;
+                const pantryItems = inventoryByZone[pantryZone.key] || [];
+                if (pantryItems.length === 0) return null;
+                return (
+                    <div style={{ padding: '0 1.5rem', marginTop: '1.5rem' }}>
+                        <section className="nevera-pantry-section" aria-label="Alacena">
+                            <h2 className="nevera-zone-header nevera-pantry-header">
+                                <pantryZone.icon size={18} strokeWidth={2.25} style={{ color: pantryZone.color, flexShrink: 0 }} />
+                                {pantryZone.label}
+                                <span className="nevera-pantry-count">{pantryItems.length}</span>
+                            </h2>
+                            <p className="nevera-pantry-subtitle">
+                                Lo seco no va en nevera — arroz, especias, conservas y granos viven aquí.
+                            </p>
+                            <div className="nevera-zone-grid">
+                                {pantryItems.map(renderItemCard)}
+                            </div>
+                        </section>
+                    </div>
+                );
+            })()}
 
             {/* Modal "Nuevo Alimento" Estilo App */}
             <AnimatePresence>
@@ -2236,7 +3275,8 @@ const Pantry = () => {
                                                 } else {
                                                     setPickerForId(item.id);
                                                     setPickerQty(1);
-                                                    setPickerUnit(item.default_unit || 'unidad');
+                                                    // [P3-PANTRY-MARKET-CONTAINER · 2026-05-19]
+                                                    setPickerUnit(item.market_container || item.default_unit || 'unidad');
                                                 }
                                             }}
                                             style={{
@@ -2340,9 +3380,12 @@ const Pantry = () => {
                                                                     ¿Cómo viene?
                                                                 </div>
                                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1rem' }}>
-                                                                    {/* Unión de COMMON + default_unit del catálogo (preserva la unidad recomendada
-                                                                        aunque no esté en la lista común — ej. "diente" para ajo). */}
+                                                                    {/* Unión de market_container + default_unit + COMMON. Preserva
+                                                                        la unidad recomendada del catálogo (ej. "diente" para ajo)
+                                                                        y prioriza el `market_container` curado (ej. "cartón"
+                                                                        para leche) — [P3-PANTRY-MARKET-CONTAINER · 2026-05-19]. */}
                                                                     {Array.from(new Set([
+                                                                        item.market_container || item.default_unit || 'unidad',
                                                                         item.default_unit || 'unidad',
                                                                         ...COMMON_PURCHASE_UNITS,
                                                                     ])).map(unit => {

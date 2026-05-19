@@ -6,6 +6,11 @@ import RecipesIcon from '../icons/RecipesIcon';
 import { useAssessment } from '../../context/AssessmentContext';
 import LogoutConfirmModal from './LogoutConfirmModal';
 import BottomTabBar from './BottomTabBar';
+// [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al hover/touch
+import { prefetchRoute } from '../../utils/routePreload';
+// [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del listado del Historial
+// al hover/touch del NavItem — el data llega antes que el click.
+import { prefetchHistoryList } from '../../utils/historyCaches';
 import styles from './DashboardLayout.module.css';
 
 const DashboardLayout = ({ children, noPaddingMobile = false }) => {
@@ -104,12 +109,24 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                             );
                         }
 
+                        // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Para
+                        // /history, además del chunk JS prefeteamos también
+                        // el data del listado. Por el tiempo que tarda el
+                        // dedo en hacer click, ambos suelen estar listos.
+                        const _isHistory = item.path === '/history';
+                        const _doPrefetch = () => {
+                            prefetchRoute(item.path);
+                            if (_isHistory) prefetchHistoryList();
+                        };
                         return (
                             <Link
                                 to={item.path}
                                 key={item.path}
                                 className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
                                 onClick={closeMenu}
+                                onMouseEnter={_doPrefetch}
+                                onFocus={_doPrefetch}
+                                onTouchStart={_doPrefetch}
                             >
                                 <Icon size={20} strokeWidth={item.iconStroke ?? 2} />
                                 {item.label}
@@ -125,6 +142,9 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 to="/dashboard/settings"
                                 className={styles.accountItem}
                                 onClick={() => { setIsAccountMenuOpen(false); closeMenu(); }}
+                                onMouseEnter={() => prefetchRoute('/dashboard/settings')}
+                                onFocus={() => prefetchRoute('/dashboard/settings')}
+                                onTouchStart={() => prefetchRoute('/dashboard/settings')}
                                 role="menuitem"
                             >
                                 <Settings size={16} strokeWidth={2.25} />
@@ -219,6 +239,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                             to="/dashboard/settings"
                             className={styles.mobileMoreItem}
                             onClick={() => setIsMobileMoreMenuOpen(false)}
+                            onTouchStart={() => prefetchRoute('/dashboard/settings')}
                             role="menuitem"
                         >
                             <Settings size={18} strokeWidth={2.5} />

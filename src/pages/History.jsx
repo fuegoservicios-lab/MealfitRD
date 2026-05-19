@@ -20,7 +20,7 @@ import { splitWithAbsorb, findChunkContaining, parseStartLocal } from '../utils/
 // Historial. Persisten cross-mount del componente <History> para
 // que un usuario que navega entre History ↔ Dashboard no dispare
 // los lazy fetches del modal de cero al volver.
-import { historyCaches, setCachedEntry, hydrateCacheDict, setCachedLifetimeEntry, hydrateLifetimeDict, invalidateCachesForPlan } from '../utils/historyCaches';
+import { historyCaches, setCachedEntry, hydrateCacheDict, setCachedLifetimeEntry, hydrateLifetimeDict, invalidateCachesForPlan, getCachedHistoryList, getCachedHistoryListStale, setCachedHistoryList, invalidateHistoryListCache } from '../utils/historyCaches';
 // [P2-HIST-AUDIT-13 · 2026-05-09] SSOT del set de coherence
 // anomalous actions. Mirror de `backend/constants.py::COHERENCE_ANOMALOUS_ACTIONS`.
 import { isAnomalousCoherenceAction } from '../utils/coherenceActions';
@@ -93,9 +93,25 @@ const _dayNameForGlobalIdx = (startMid, globalIdx) => {
 };
 
 const History = () => {
-    const [plans, setPlans] = useState([]);
+    // [P3-HIST-LIST-CACHE · 2026-05-19] Stale-while-revalidate del listado.
+    // Lazy-init lee el singleton del módulo `historyCaches`.
+    // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Usa la versión "stale"
+    // que retorna la última lista conocida AUNQUE el TTL de 60s haya
+    // expirado, y AUNQUE el cache venga de localStorage de una sesión
+    // pasada. El fetchHistory del useEffect mount refresca silencioso
+    // — la "frescura" se garantiza por stale-while-revalidate, no por
+    // bloqueo con skeleton.
+    //
+    // Trade-off: el usuario puede ver datos hasta ~minutos viejos al
+    // entrar tras una sesión larga / refresh / cold boot. Aceptable
+    // porque (a) el listado del Historial es low-volatility, (b) la
+    // lista se refresca en background en <1s típicamente, (c) las
+    // mutaciones (delete/restore/rename) invalidan el cache
+    // explícitamente, así que cambios del propio user nunca aparecen
+    // stale.
+    const [plans, setPlans] = useState(() => getCachedHistoryListStale() || []);
     const [searchQuery, setSearchQuery] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => !getCachedHistoryListStale());
     const [selectedPlan, setSelectedPlan] = useState(null);
     // [P3-HIST-FAST-OPEN · 2026-05-18] Flag de carga del plan_data del
     // plan abierto. El modal ahora abre INSTANTÁNEO con el summary
@@ -514,6 +530,11 @@ const History = () => {
             // ORDER BY, _effectiveModifiedAt sigue exportable para
             // re-sort defensivo.
             setPlans(plans);
+            // [P3-HIST-LIST-CACHE · 2026-05-19] Persiste al singleton para
+            // que el próximo mount renderice instantáneo. Solo si la
+            // request fue exitosa (estamos dentro del try, ya pasamos
+            // response.ok). El TTL del cache (60s) corre desde aquí.
+            setCachedHistoryList(plans);
             // [P0-HIST-VIS-REFRESH · 2026-05-09] Marca el último
             // fetch exitoso para que el listener de visibilitychange
             // pueda calcular staleness al volver al tab.
@@ -760,6 +781,10 @@ const History = () => {
             if (planRow && planRow.id) {
                 invalidateCachesForPlan(planRow.id);
             }
+            // [P3-HIST-LIST-CACHE · 2026-05-19] El restore cambia el
+            // bucket temporal del plan (pasa a "activo"), el listado
+            // cacheado mostraría el bucket viejo hasta el próximo fetch.
+            invalidateHistoryListCache();
             toast.success('¡Plan reactivado!', {
                 id: toastId,
                 description: 'Tu dashboard se ha actualizado.'
@@ -804,6 +829,11 @@ const History = () => {
             // ~KBs de jsonb (chunkMetrics rico) reservados para un
             // plan que el usuario nunca volverá a abrir.
             invalidateCachesForPlan(plan.id);
+            // [P3-HIST-LIST-CACHE · 2026-05-19] El cache del listado
+            // contiene la fila eliminada; el próximo mount la mostraría
+            // hasta que el fetch background la borre. Invalidar fuerza
+            // re-fetch limpio + evita el flash "card aparece y desaparece".
+            invalidateHistoryListCache();
 
             toast.success('Plan eliminado exitosamente', { id: toastId });
         } catch (err) {
@@ -873,6 +903,11 @@ const History = () => {
                         : p.plan_data,
                 };
             }).sort((a, b) => _effectiveModifiedAt(b) - _effectiveModifiedAt(a)));
+            // [P3-HIST-LIST-CACHE · 2026-05-19] El cache del listado
+            // tiene el nombre viejo; sin invalidar, el próximo mount
+            // mostraría el rename revertido visualmente hasta el fetch
+            // background. Invalidación explícita = consistency inmediata.
+            invalidateHistoryListCache();
             if (selectedPlan && selectedPlan.id === plan.id) {
                 setSelectedPlan({
                     ...selectedPlan,
@@ -1684,13 +1719,38 @@ const History = () => {
                                     {(() => {
                                         const _info = getStatusInfo(plan);
                                         if (_info.bucket === 'complete') return null;
+                                        // [P3-HIST-CHIP-DISPLAY-INCLUDE-EXPIRED · 2026-05-19]
+                                        // El chip "Parcial X/Y" debe contar TODOS los días
+                                        // que el sistema generó, incluyendo los que ya
+                                        // expiraron y fueron removidos visualmente del
+                                        // array `plan_data.days` por shift_plan. Pre-fix:
+                                        // chunk_1 generaba 3 días (lun-mié), pasaba el
+                                        // lunes → shift removía el lun del array →
+                                        // `days_generated=2` → chip "Parcial 2/7" cuando
+                                        // realmente el chunk_1 hizo su trabajo de 3 días.
+                                        // Inconsistencia adicional: el banner del modal
+                                        // (post P3-HIST-MISSING-DAYS-EXPIRED-CALENDAR)
+                                        // ya decía "3 de 7 listos" — la card mentía
+                                        // bajando el progreso real.
+                                        //
+                                        // Fórmula simétrica al banner: sumar
+                                        // dayIdx (calendar-based) al array length,
+                                        // clamped a (totalDays - daysGenerated) para no
+                                        // sobre-contar cuando dayIdx supera los días
+                                        // originalmente generados.
+                                        const _temp = getTemporalStatus(plan);
+                                        const _dayIdxC = (_temp && Number.isFinite(_temp.dayIdx))
+                                            ? Math.max(0, _temp.dayIdx) : 0;
+                                        const _maxExpired = Math.max(0, _info.totalDays - _info.daysGenerated);
+                                        const _expiredClamped = Math.min(_dayIdxC, _maxExpired);
+                                        const _displayDays = _info.daysGenerated + _expiredClamped;
                                         if (_info.bucket === 'failed') {
                                             return (
                                                 <span
                                                     className={styles.statusFailed}
-                                                    title={`${_info.daysGenerated}/${_info.totalDays} días generados — generación fallida`}
+                                                    title={`${_displayDays}/${_info.totalDays} días generados — generación fallida`}
                                                 >
-                                                    Falló {_info.daysGenerated}/{_info.totalDays}
+                                                    Falló {_displayDays}/{_info.totalDays}
                                                 </span>
                                             );
                                         }
@@ -1735,9 +1795,9 @@ const History = () => {
                                             return (
                                                 <span
                                                     className={styles.statusInProgress}
-                                                    title={`Generando ${_info.daysGenerated}/${_info.totalDays} días — el cron está procesando los chunks restantes`}
+                                                    title={`Generando ${_displayDays}/${_info.totalDays} días — el cron está procesando los chunks restantes`}
                                                 >
-                                                    Generando {_info.daysGenerated}/{_info.totalDays}
+                                                    Generando {_displayDays}/{_info.totalDays}
                                                 </span>
                                             );
                                         }
@@ -1760,9 +1820,9 @@ const History = () => {
                                         return (
                                             <span
                                                 className={styles.statusPartial}
-                                                title={`${_info.daysGenerated} de ${_info.totalDays} días generados`}
+                                                title={`${_displayDays} de ${_info.totalDays} días generados`}
                                             >
-                                                Parcial {_info.daysGenerated}/{_info.totalDays}
+                                                Parcial {_displayDays}/{_info.totalDays}
                                             </span>
                                         );
                                     })()}
@@ -1920,31 +1980,15 @@ const History = () => {
                                         ámbar (warn) coherente con simplifiedWeeksBadge
                                         — ambos comunican "se hizo lo mejor
                                         posible con info parcial". */}
-                                    {/* [P2-HIST-AUDIT-C · 2026-05-09] Chip
-                                        retroactivo de días corridos por
-                                        shift_plan (TZ resync, rollover por
-                                        inventario, etc). El backend persiste
-                                        `_shift_days_accumulated` en plan_data
-                                        y el SQL lo extrae. Útil para que el
-                                        usuario entienda que un plan archivado
-                                        que aparece "corrido" N días no es bug
-                                        visual — fue un ajuste deliberado.
-                                        Palette neutra (slate) — no es warn
-                                        ni info, es etiqueta histórica. */}
-                                    {(() => {
-                                        const _shift = plan.shift_days_accumulated;
-                                        if (typeof _shift !== 'number' || _shift === 0) return null;
-                                        const _abs = Math.abs(_shift);
-                                        const _dir = _shift > 0 ? '+' : '−';
-                                        return (
-                                            <span
-                                                className={styles.shiftDaysBadge}
-                                                title={`Plan corrido ${_dir}${_abs} ${_abs === 1 ? 'día' : 'días'} acumulados por shift_plan (TZ resync, rollover de inventario, etc).`}
-                                            >
-                                                {_dir}{_abs}d shift
-                                            </span>
-                                        );
-                                    })()}
+                                    {/* [P3-HIST-SHIFT-CHIP-REMOVED · 2026-05-19]
+                                        Chip "+Nd shift" removido — jerga técnica
+                                        (shift_plan, TZ resync, rollover de
+                                        inventario) que el usuario final no
+                                        necesita ver. Pre-fix se mostraba
+                                        retroactivamente desde
+                                        `plan.shift_days_accumulated`. Si se
+                                        requiere debug, leer el campo desde
+                                        DevTools sobre el row del plan. */}
 
                                     {(() => {
                                         const _count = (typeof plan.chunk_pantry_degraded_count === 'number')
@@ -4717,34 +4761,31 @@ const History = () => {
                                     ))}
                                 </div>
 
-                                {/* [P2-HIST-AUDIT-8 · 2026-05-09] Bloque de
-                                    días faltantes. Antes el modal solo
-                                    listaba los días generados — un plan con
-                                    `daysGenerated=2 / totalDaysRequested=6`
-                                    mostraba 2 días y el chip "Parcial 2/6"
-                                    fuera del modal era el único indicio de
-                                    los 4 días invisibles. Aquí los hacemos
-                                    visibles + comunicamos el motivo según
-                                    los counters del queue (P0-AUDIT-HIST-2,
-                                    P1-AUDIT-HIST-4 embedded counters).
-
-                                    Render solo cuando hay gap real:
-                                      - daysGenerated < totalDaysRequested
-                                      - O recovery_exhausted_count > 0
-                                        (chunks dead-lettered no listados).
-
-                                    Reason inferida con prioridad (mayor
-                                    severity primero):
-                                      1. recovery_exhausted_count > 0:
-                                         "fallaron, regenerar plan".
-                                      2. chunk_pending_user_action_count > 0:
-                                         "esperando acción del usuario".
-                                      3. chunk_failed_count > 0:
-                                         "fallaron, requieren regen".
-                                      4. chunk_in_flight_count > 0:
-                                         "en proceso (pending/processing/stale)".
-                                      5. fallback: "pendientes". */}
-                                {(() => {
+                                {/* [P3-HIST-MISSING-DAYS-REMOVED · 2026-05-19]
+                                    Banner "Faltan X días por generar / X de Y
+                                    listos" eliminado del modal del Historial.
+                                    Motivo (decisión del user, sesión UX
+                                    2026-05-19): el counter "X de Y" generaba
+                                    confusión entre "días que el sistema
+                                    generó originalmente" vs "días aún
+                                    visibles en el menú hoy" (afectado por
+                                    shift_plan que trimmea días pasados). El
+                                    intento de fix calendar-based
+                                    (P3-HIST-MISSING-DAYS-EXPIRED-CALENDAR /
+                                    P3-HIST-CHIP-DISPLAY-INCLUDE-EXPIRED)
+                                    cerraba el caso técnico pero el banner
+                                    seguía siendo ruido cognitivo para el
+                                    user. Decisión: ocultar el banner —
+                                    señales equivalentes siguen disponibles:
+                                      - Chip "Parcial X/Y" del listado de
+                                        cards (sigue mostrando progreso).
+                                      - El listado de días en el menú del
+                                        modal muestra los días reales.
+                                      - recovery_exhausted / failed / queue
+                                        states se surfacean en otros chips.
+                                    Si se necesita revivir, restaurar el IIFE
+                                    desde git history pre-2026-05-19. */}
+                                {false && (() => {
                                     const _plan = selectedPlan;
                                     const _planDaysLen = _plan.plan_data?.days?.length || 0;
                                     // [P0-HIST-FIX-3 · 2026-05-09] Dos
@@ -4780,10 +4821,43 @@ const History = () => {
                                         ? _plan.plan_data.totalDays
                                         : 0;
                                     const _displayTotal = Math.max(_activeTotal, _legacyTotalDays);
-                                    // Días expirados = diferencia entre el
-                                    // plan original y lo que queda activo.
-                                    // Solo > 0 cuando shift_plan trimmeó.
-                                    const _expiredDays = Math.max(0, _displayTotal - _activeTotal);
+                                    // [P3-HIST-MISSING-DAYS-EXPIRED-CALENDAR · 2026-05-19]
+                                    // Días expirados — DOS sources, tomamos el max:
+                                    //   (a) Active-delta: `_displayTotal - _activeTotal`.
+                                    //       Funciona SOLO si el backend decrementa
+                                    //       `total_days_requested` cuando shift_plan
+                                    //       trimmea — convención esperada del
+                                    //       comentario P0-HIST-FIX-3 original. En
+                                    //       prod (2026-05-19) el backend NO siempre
+                                    //       decrementa: el plan del user mostró
+                                    //       activeTotal=7 + planDaysLen=2 con un
+                                    //       día expirado real (lunes pasó, shift
+                                    //       removió 1 día del array), dando
+                                    //       expiredDays=0 cuando debía ser 1 →
+                                    //       missingDays=5 cuando debía ser 4.
+                                    //   (b) Calendar-based: `dayIdx` de
+                                    //       `getTemporalStatus` (días desde
+                                    //       grocery_start_date). Robusto contra el
+                                    //       backend no-decremento — se computa
+                                    //       client-side desde fechas, no depende
+                                    //       de campos jsonb que pueden no
+                                    //       actualizarse.
+                                    // Clamp final a `_maxPossibleExpired` para no
+                                    // sobre-contar cuando dayIdx > días originales
+                                    // generados (e.g. plan creado hace 5 días pero
+                                    // chunk_1 solo generó 3 — los 2 días previos
+                                    // al plan no expiraron, nunca existieron).
+                                    const _expiredDaysActiveDelta = Math.max(0, _displayTotal - _activeTotal);
+                                    const _temporalForMissing = getTemporalStatus(_plan);
+                                    const _dayIdxCalendar = (_temporalForMissing && Number.isFinite(_temporalForMissing.dayIdx))
+                                        ? _temporalForMissing.dayIdx
+                                        : 0;
+                                    const _expiredDaysCalendar = Math.max(0, _dayIdxCalendar);
+                                    const _maxPossibleExpired = Math.max(0, _activeTotal - _planDaysLen);
+                                    const _expiredDays = Math.min(
+                                        Math.max(_expiredDaysActiveDelta, _expiredDaysCalendar),
+                                        _maxPossibleExpired
+                                    );
                                     const _exhaustedCount = (
                                         typeof _plan.recovery_exhausted_count === 'number'
                                             ? _plan.recovery_exhausted_count

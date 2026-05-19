@@ -1,6 +1,10 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Bot, Clock, Refrigerator } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
+// [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al touchstart
+import { prefetchRoute } from '../../utils/routePreload';
+// [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del data del Historial
+import { prefetchHistoryList } from '../../utils/historyCaches';
 import styles from './BottomTabBar.module.css';
 
 const tabs = [
@@ -38,6 +42,17 @@ const BottomTabBar = () => {
                         key={tab.path}
                         className={`${styles.tab} ${isActive ? styles.tabActive : ''}`}
                         onClick={() => handleTap(tab.path)}
+                        onTouchStart={() => {
+                            prefetchRoute(tab.path);
+                            // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19]
+                            // /history prefetchea también el data del listado
+                            // — no solo el chunk JS.
+                            if (tab.path === '/history') prefetchHistoryList();
+                        }}
+                        onMouseEnter={() => {
+                            prefetchRoute(tab.path);
+                            if (tab.path === '/history') prefetchHistoryList();
+                        }}
                         aria-label={tab.label}
                     >
                         <Icon
