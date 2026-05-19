@@ -2131,29 +2131,48 @@ const Dashboard = () => {
         triggerShift();
     }, [userProfile?.id, daysSinceCreation, planDays.length, planData?.total_days_requested]);
 
-    // Ventana rolling de 3 días. Por defecto empieza en hoy (los días pasados
-    // se ocultan al cruzar la medianoche, así el tab activo coincide con el día
-    // actual sin click manual).
+    // [P3-DASH-WINDOW-FROM-TODAY · 2026-05-18] Ventana rolling que ARRANCA en
+    // hoy y avanza, NUNCA retrocede a días pasados. La ventana se achica al
+    // cruzar cada día hasta llegar al último día del chunk vivo, y se expande
+    // a 4 tabs cuando entra el chunk siguiente.
     //
-    // [P0-DASH-WINDOW-COLLAPSE · 2026-05-09] Anti-colapso al final del plan:
-    // si quedan <3 días desde hoy hasta el final, se desliza el inicio hacia
-    // atrás para preservar la ventana de 3. Sin esto, cuando hoy=último día
-    // (e.g., Sábado en plan 7d que termina sábado, o rolling refill atrasado
-    // sin chunks futuros aún persistidos), el slice colapsaba a 1 tab y el
-    // usuario veía el síntoma "Domingo desapareció" cuando lo que pasó es que
-    // la ventana perdió sus 2 slots futuros. Los días previos aparecen
-    // tachados vía `isPastDay` (comportamiento existente).
-    const _WINDOW_SIZE = 3;
-    const visibleStartIndex = Math.max(
-        0,
-        Math.min(todayPlanDayIndex, planDays.length - _WINDOW_SIZE)
+    // Comportamiento end-to-end (plan 7d con chunks [3, 4]):
+    //   - Lunes (día 1):  [L, M, Mi]          ventana 3 (chunk 2 aún no listo)
+    //   - Martes (día 2): [M, Mi]              ventana 2 (se achica)
+    //   - Miércoles (3):  [Mi]                  ventana 1 (último día del chunk 1)
+    //   - Jueves (4)*:    [J, V, S, D]          ventana 4 (chunk 2 ya está en planDays)
+    //   - Viernes (5):    [V, S, D]             ventana 3
+    //   ... y así sucesivamente.
+    //   *requiere que el cron del chunk 2 haya completado y `triggerShift` haya
+    //   re-hidratado `planData` con los 4 nuevos días.
+    //
+    // Tooltip-anchor: P3-DASH-WINDOW-FROM-TODAY.
+    //
+    // [P0-DASH-WINDOW-COLLAPSE · 2026-05-09] REMOVIDO el anti-colapso al final
+    // del plan. El user pidió explícitamente que la ventana se achicara al cruzar
+    // cada día (vs el comportamiento anterior que mantenía 3 tabs fijos
+    // retrocediendo el inicio para evitar el "colapso"). Decisión 2026-05-18:
+    // el colapso es feature, no bug — refleja exactamente el ciclo del usuario
+    // ("hoy es miércoles y este es mi último día antes del próximo bloque").
+    //
+    // El edge case que P0-DASH-WINDOW-COLLAPSE protegía (rolling refill atrasado
+    // sin chunks futuros aún persistidos) queda cubierto por el `triggerShift`
+    // useEffect arriba: si planDays.length <= todayPlanDayIndex, el shift API
+    // se invoca y re-hidrata el plan. Mientras tanto, el clamp del
+    // `visibleStartIndex` a `planDays.length - 1` evita slice vacío.
+    const _MAX_WINDOW = 4;
+    const visibleStartIndex = Math.min(
+        todayPlanDayIndex,
+        Math.max(0, planDays.length - 1)
     );
-    const visiblePlanDays = planDays.slice(visibleStartIndex, visibleStartIndex + _WINDOW_SIZE);
+    const visiblePlanDays = planDays.slice(visibleStartIndex, visibleStartIndex + _MAX_WINDOW);
 
-    // Auto-seleccionar el tab del día actual si queda fuera de la ventana visible
+    // Auto-seleccionar el tab del día actual si queda fuera de la ventana visible.
+    // [P3-DASH-WINDOW-FROM-TODAY · 2026-05-18] Renombrado `_WINDOW_SIZE` →
+    // `_MAX_WINDOW` para reflejar que ahora es un cap, no una ventana fija.
     useEffect(() => {
         if (!planData?.days || planData.days.length <= 1) return;
-        const windowEnd = visibleStartIndex + _WINDOW_SIZE;
+        const windowEnd = visibleStartIndex + _MAX_WINDOW;
         if (activeDayIndex < visibleStartIndex || activeDayIndex >= windowEnd) {
             setActiveDayIndex(todayPlanDayIndex);
         }
@@ -3393,7 +3412,16 @@ const Dashboard = () => {
                                                 o `_user_action_required` está set. */}
                                             {(() => {
                                                 if (weekIdx !== 0) return null;
-                                                const _missingSlots = _WINDOW_SIZE - visiblePlanDays.length;
+                                                // [P3-DASH-WINDOW-FROM-TODAY · 2026-05-18] Skeleton se calcula
+                                                // contra `_MAX_WINDOW` (4) en vez del antiguo `_WINDOW_SIZE` (3).
+                                                // El skeleton solo aparece cuando hay días "futuros" en el plan
+                                                // que aún no se generaron — NO cuando la ventana se achicó
+                                                // legítimamente al final del chunk vivo. La condición de
+                                                // `total_days_requested > planDays.length` (3 líneas abajo en
+                                                // `_isGenerating`) garantiza que el skeleton no se dispare por
+                                                // colapso natural (e.g., miércoles último día del chunk 1
+                                                // mostrando solo [Mi]).
+                                                const _missingSlots = _MAX_WINDOW - visiblePlanDays.length;
                                                 if (_missingSlots <= 0) return null;
                                                 const _genStatus = planData?.generation_status;
                                                 const _isGenerating = _genStatus === 'generating_next'

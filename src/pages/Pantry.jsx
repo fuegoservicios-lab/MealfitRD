@@ -80,9 +80,40 @@ const Pantry = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeletingAll, setIsDeletingAll] = useState(false);
 
+    // [P3-PANTRY-ADD-UX · 2026-05-18] Customizar cantidad + unidad antes de añadir.
+    // Reemplaza el flujo "click → +1 con default_unit" por un mini-form inline
+    // que permite "1 botella de vinagre", "2 libras de pollo", etc.
+    const [pickerForId, setPickerForId] = useState(null);   // master_ingredient_id en config
+    const [pickerQty, setPickerQty] = useState(1);
+    const [pickerUnit, setPickerUnit] = useState('');
+
+    // [P3-PANTRY-QTY-EDIT · 2026-05-18] Editor de cantidad exacta para items
+    // ya en la nevera. Cierra el gap UX "tengo 5 cartones, no quiero clickear
+    // + cinco veces ni mantener turbo presionado contando". Click en el número
+    // del counter abre este editor; `+` / `-` siguen siendo +1/-1 turbo
+    // (gestos rápidos para el caso común).
+    const [qtyEditItem, setQtyEditItem] = useState(null);   // row completo del inventory
+    const [qtyEditValue, setQtyEditValue] = useState(1);
+    const [qtyEditSaving, setQtyEditSaving] = useState(false);
+
+    // Unidades de envase/medida que un dominicano usa al hacer compras.
+    // Orden: discretas → pesos → volumen → containers. La cantidad de chips
+    // se mantiene ≤10 para que quepan en una sola fila scrolleable en móvil.
+    const COMMON_PURCHASE_UNITS = [
+        'unidad', 'libra', 'kg', 'botella', 'paquete',
+        'lata', 'caja', 'bolsa', 'galón', 'sobre',
+    ];
+
     // Resetear focus activo al cambiar búsqueda o cerrar modal
     useEffect(() => {
         setSelectedIndex(-1);
+    }, [addItemSearch, showAddMenu]);
+
+    // Reset del picker inline al cerrar el modal o cambiar la búsqueda.
+    useEffect(() => {
+        setPickerForId(null);
+        setPickerQty(1);
+        setPickerUnit('');
     }, [addItemSearch, showAddMenu]);
 
     const [disabledIngredients, setDisabledIngredients] = useState([]);
@@ -715,44 +746,96 @@ const Pantry = () => {
         }
     };
 
-    const handleAddNewItem = async (masterItem) => {
+    // [P3-PANTRY-ADD-UX · 2026-05-18] Acepta qty y unit explícitos para que
+    // el usuario pueda registrar "1 botella de vinagre", "2 libras de pollo",
+    // etc. desde el inline picker. Pre-existente flujo "+1 con default_unit"
+    // sigue funcionando si el caller no pasa overrides.
+    //
+    // [P3-PANTRY-ADD-UX-INSERT · 2026-05-18] Reemplazado upsert(onConflict:
+    // 'user_id,master_ingredient_id') por INSERT plano + manejo de 23505.
+    // El upsert apuntaba a una constraint que NO existe en `user_inventory`
+    // (Postgres 42P10) — el único UNIQUE real es (user_id, ingredient_name,
+    // unit). El path "+1 al existing" cliente sigue siendo el camino feliz;
+    // el INSERT+23505 cubre legacy rows con master_id null y races de
+    // múltiples pestañas. Mismo patrón que `handleRestoreDepleted` (línea ~820).
+    const handleAddNewItem = async (masterItem, customQty = 1, customUnit = null) => {
         setIsAdding(true);
         try {
             // Si estaba marcado como agotado, sale de la lista — el usuario
             // lo está reponiendo.
             _removeDepleted({ master_ingredient_id: masterItem.id, ingredient_name: masterItem.name });
 
-            // Check if already exists in User Inventory
-            const existing = inventory.find(i => i.master_ingredient_id === masterItem.id);
+            // Sanitizar qty: numero entero positivo, clamp [1, 999].
+            const safeQty = Math.max(1, Math.min(999, Math.round(Number(customQty) || 1)));
+
+            // Para items nuevos: usa la unidad del picker si el caller la
+            // pasó, sino cae al default_unit del catálogo maestro.
+            const finalUnit = (typeof customUnit === 'string' && customUnit.trim())
+                ? customUnit.trim()
+                : (masterItem.default_unit || 'unidad');
+
+            // Detección de existing en 2 fases:
+            //   1) Por `master_ingredient_id` (camino canónico).
+            //   2) Por `(ingredient_name, unit)` case-insensitive — captura
+            //      filas legacy con master_id NULL Y casos donde el catálogo
+            //      maestro fue re-importado y los IDs cambiaron pero los
+            //      nombres se preservaron.
+            const nameLc = (masterItem.name || '').toLowerCase();
+            let existing = inventory.find(i => i.master_ingredient_id === masterItem.id);
+            if (!existing) {
+                existing = inventory.find(i =>
+                    (i.ingredient_name || '').toLowerCase() === nameLc
+                    && (i.unit || '') === finalUnit
+                );
+            }
             if (existing) {
-                // Just add 1 to the existing
-                await handleUpdateQuantity(existing.id, existing.quantity + 1);
-                toast.success(`Añadido +1 a ${masterItem.name}`);
+                await handleUpdateQuantity(existing.id, existing.quantity + safeQty);
+                toast.success(`+${safeQty} ${existing.unit || ''} a ${masterItem.name}`.trim());
                 setShowAddMenu(false);
                 setAddItemSearch('');
                 return;
             }
 
-            // Unidad base desde el catálogo maestro (columna default_unit)
-            const defaultUnit = masterItem.default_unit || "unidad";
-
             const newItem = {
                 user_id: session.user.id,
                 ingredient_name: masterItem.name,
                 master_ingredient_id: masterItem.id,
-                quantity: 1,
-                unit: defaultUnit,
+                quantity: safeQty,
+                unit: finalUnit,
             };
 
             const { data, error } = await supabase
                 .from('user_inventory')
-                .upsert([newItem], { onConflict: 'user_id,master_ingredient_id' })
+                .insert([newItem])
                 .select('*, master_ingredients(name, category, default_unit, shelf_life_days)')
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                // 23505 = unique_violation. Race contra otra pestaña que ya
+                // insertó (user_id, ingredient_name, unit). Refetch y sumamos
+                // al row existente — UX consistente con click→+1.
+                if (error.code === '23505') {
+                    await fetchData(false);
+                    const dup = inventoryRef.current.find(i =>
+                        i.master_ingredient_id === masterItem.id
+                        || ((i.ingredient_name || '').toLowerCase() === nameLc
+                            && (i.unit || '') === finalUnit)
+                    );
+                    if (dup) {
+                        await handleUpdateQuantity(dup.id, dup.quantity + safeQty);
+                        toast.success(`+${safeQty} ${dup.unit || ''} a ${masterItem.name}`.trim());
+                    } else {
+                        toast.success(`${masterItem.name} ya estaba en tu nevera`, { icon: '✅' });
+                    }
+                    setShowAddMenu(false);
+                    setAddItemSearch('');
+                    _scheduleRecalcShoppingList();
+                    return;
+                }
+                throw error;
+            }
 
-            toast.success(`${masterItem.name} puesto en Nevera.`);
+            toast.success(`${safeQty} ${finalUnit} de ${masterItem.name} en la nevera`);
             setInventory(prev => [...prev, data].sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name)));
             setShowAddMenu(false);
             setAddItemSearch('');
@@ -900,7 +983,7 @@ const Pantry = () => {
 
     const handleKeyDown = (e) => {
         if (!suggestedMasterItems.length) return;
-        
+
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             setSelectedIndex(prev => (prev < suggestedMasterItems.length - 1 ? prev + 1 : prev));
@@ -909,12 +992,23 @@ const Pantry = () => {
             setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1));
         } else if (e.key === 'Enter') {
             e.preventDefault();
-            if (selectedIndex >= 0 && selectedIndex < suggestedMasterItems.length) {
-                handleAddNewItem(suggestedMasterItems[selectedIndex]);
-            } else if (suggestedMasterItems.length === 1) {
-                // Si solo hay una opción y presionan Enter, la agregamos por defecto
-                handleAddNewItem(suggestedMasterItems[0]);
+            const targetItem = selectedIndex >= 0
+                ? suggestedMasterItems[selectedIndex]
+                : suggestedMasterItems[0];
+            if (!targetItem) return;
+            // [P3-PANTRY-ADD-UX · 2026-05-18] 1er Enter abre el picker;
+            // 2do Enter (picker ya abierto para ese item) confirma con los
+            // valores actuales del picker. Permite flujo rápido teclado-only.
+            if (pickerForId === targetItem.id) {
+                handleAddNewItem(targetItem, pickerQty, pickerUnit);
+            } else {
+                setPickerForId(targetItem.id);
+                setPickerQty(1);
+                setPickerUnit(targetItem.default_unit || 'unidad');
             }
+        } else if (e.key === 'Escape' && pickerForId) {
+            e.preventDefault();
+            setPickerForId(null);
         }
     };
 
@@ -1134,13 +1228,15 @@ const Pantry = () => {
                     font-size: 0.85rem;
                 }
 
-                /* === BUTTONS — fridge control panel feel === */
-                .nevera-add-btn {
-                    background: linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%);
-                    color: #FFFFFF;
-                    border: 2px solid rgba(125, 211, 252, 0.5);
-                    border-top-color: rgba(186, 230, 253, 0.85);
-                    border-bottom-color: rgba(3, 105, 161, 0.7);
+                /* === BUTTONS — fridge control panel feel ===
+                   [P3-PANTRY-BTN-HOVER-GLOW-ONLY · 2026-05-18] Hover SIN
+                   movimiento. Solo el glow (box-shadow + border-color +
+                   background) responde al puntero. Antes el lift translateY
+                   se leía como inestable; reemplazado por intensificación
+                   pura de la sombra. Cero transform, cero scale, cero
+                   translateY — el botón se queda exactamente donde está. */
+                .nevera-add-btn,
+                .nevera-delete-all-btn {
                     padding: 0.75rem 1.4rem;
                     border-radius: 99px;
                     font-weight: 700;
@@ -1149,6 +1245,19 @@ const Pantry = () => {
                     justify-content: center;
                     gap: 0.5rem;
                     cursor: pointer;
+                    will-change: box-shadow;
+                    transition:
+                        box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+                        background 0.22s ease-out,
+                        border-color 0.22s ease-out;
+                }
+
+                .nevera-add-btn {
+                    background: linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%);
+                    color: #FFFFFF;
+                    border: 2px solid rgba(125, 211, 252, 0.5);
+                    border-top-color: rgba(186, 230, 253, 0.85);
+                    border-bottom-color: rgba(3, 105, 161, 0.7);
                     position: relative;
                     overflow: hidden;
                     box-shadow:
@@ -1156,19 +1265,16 @@ const Pantry = () => {
                         inset 0 -2px 4px -1px rgba(3, 105, 161, 0.4),
                         0 8px 20px -4px rgba(14, 165, 233, 0.5),
                         0 2px 5px rgba(14, 165, 233, 0.18);
-                    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
                 }
                 .nevera-add-btn:hover {
-                    transform: translateY(-1px);
-                    border-color: rgba(56, 189, 248, 0.8);
+                    border-color: rgba(56, 189, 248, 0.85);
                     border-top-color: rgba(186, 230, 253, 1);
                     box-shadow:
-                        inset 0 1.5px 0 rgba(255,255,255,0.5),
-                        inset 0 -2px 4px -1px rgba(3, 105, 161, 0.45),
-                        0 12px 26px -4px rgba(14, 165, 233, 0.55),
-                        0 3px 6px rgba(14, 165, 233, 0.22);
+                        inset 0 1.5px 0 rgba(255,255,255,0.55),
+                        inset 0 -2px 4px -1px rgba(3, 105, 161, 0.5),
+                        0 14px 32px -4px rgba(14, 165, 233, 0.65),
+                        0 4px 10px rgba(14, 165, 233, 0.3);
                 }
-                .nevera-add-btn:active { transform: scale(0.97); }
 
                 .nevera-delete-all-btn {
                     background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(254, 242, 242, 0.85) 100%);
@@ -1176,14 +1282,6 @@ const Pantry = () => {
                     border: 2px solid rgba(252, 165, 165, 0.6);
                     border-top-color: rgba(254, 202, 202, 0.95);
                     border-bottom-color: rgba(239, 68, 68, 0.45);
-                    padding: 0.75rem 1.4rem;
-                    border-radius: 99px;
-                    font-weight: 700;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 0.5rem;
-                    cursor: pointer;
                     backdrop-filter: blur(10px);
                     -webkit-backdrop-filter: blur(10px);
                     box-shadow:
@@ -1191,21 +1289,24 @@ const Pantry = () => {
                         inset 0 -2px 4px -1px rgba(252, 165, 165, 0.3),
                         0 4px 12px -2px rgba(220, 38, 38, 0.12),
                         0 1px 3px rgba(0, 0, 0, 0.03);
-                    transition: all 0.2s;
                 }
                 .nevera-delete-all-btn:hover:not(:disabled) {
                     background: linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(254, 226, 226, 0.95) 100%);
-                    border-color: rgba(248, 113, 113, 0.75);
+                    border-color: rgba(248, 113, 113, 0.8);
                     border-top-color: rgba(254, 202, 202, 1);
                     box-shadow:
                         inset 0 1.5px 0 rgba(255,255,255,1),
-                        inset 0 -2px 4px -1px rgba(248, 113, 113, 0.4),
-                        0 8px 18px -3px rgba(220, 38, 38, 0.2),
-                        0 2px 4px rgba(0, 0, 0, 0.04);
+                        inset 0 -2px 4px -1px rgba(248, 113, 113, 0.5),
+                        0 10px 24px -3px rgba(220, 38, 38, 0.28),
+                        0 3px 6px rgba(0, 0, 0, 0.05);
                 }
-                .nevera-delete-all-btn:active:not(:disabled) { transform: scale(0.97); }
 
-                /* === SEARCH === */
+                /* === SEARCH ===
+                   [P3-PANTRY-SEARCH-STATIC · 2026-05-18] Sin animaciones ni
+                   glows. Pre-fix el input tenía transition 0.2s en
+                   border-color/box-shadow/background, drop-shadow en el
+                   icono (aura constante) y :focus con anillo azul de 4px
+                   que pulsaba al click. Todo eliminado para look estático. */
                 .nevera-search-wrap {
                     position: relative;
                     margin-top: 1.5rem;
@@ -1216,7 +1317,6 @@ const Pantry = () => {
                     top: 50%;
                     transform: translateY(-50%);
                     color: #0EA5E9;
-                    filter: drop-shadow(0 0 6px rgba(14, 165, 233, 0.3));
                     pointer-events: none;
                     z-index: 2;
                 }
@@ -1225,32 +1325,20 @@ const Pantry = () => {
                     padding: 1rem 1rem 1rem 3rem;
                     border-radius: 1rem;
                     border: 2px solid rgba(125, 211, 252, 0.7);
-                    border-top-color: rgba(186, 230, 253, 0.95);
-                    border-bottom-color: rgba(56, 189, 248, 0.55);
                     outline: none;
                     font-size: 1rem;
                     font-weight: 500;
                     color: var(--text-main);
-                    background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(240, 249, 255, 0.95) 100%);
-                    box-shadow:
-                        inset 0 1.5px 0 rgba(255,255,255,1),
-                        0 4px 12px -3px rgba(14, 165, 233, 0.12);
-                    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+                    background: #FFFFFF;
                 }
                 .nevera-search-input::placeholder {
                     color: rgba(100, 116, 139, 0.85);
                     font-weight: 500;
                 }
                 .nevera-search-input:focus {
+                    /* Solo border-color para a11y; sin transition, sin glow,
+                       sin box-shadow extra. Cambio instantáneo. */
                     border-color: #0EA5E9;
-                    border-top-color: rgba(186, 230, 253, 1);
-                    border-bottom-color: #0369A1;
-                    background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(240, 249, 255, 0.95) 100%);
-                    box-shadow:
-                        inset 0 1.5px 0 rgba(255,255,255,1),
-                        inset 0 -2px 4px -1px rgba(125, 211, 252, 0.25),
-                        0 0 0 4px rgba(14, 165, 233, 0.15),
-                        0 6px 16px -4px rgba(14, 165, 233, 0.2);
                 }
 
                 /* === CATEGORY "SHELF" === */
@@ -1375,6 +1463,7 @@ const Pantry = () => {
                     padding: 0.18rem 0.6rem;
                     border-radius: 0.4rem;
                     font-weight: 600;
+                    text-transform: capitalize;
                     box-shadow:
                         inset 0 1px 0 rgba(255,255,255,0.85),
                         0 1px 2px rgba(14, 165, 233, 0.08);
@@ -1899,7 +1988,7 @@ const Pantry = () => {
                                             <div style={{ flex: 1, marginRight: '1rem', textDecoration: isDisabled ? 'line-through' : 'none' }}>
                                                 <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: isDisabled ? 'var(--danger)' : 'var(--text-main)', lineHeight: 1.2 }}>{item.ingredient_name}</h3>
                                                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                                    <span className="nevera-item-unit-tag">Unidad base: {item.unit}</span>
+                                                    <span className="nevera-item-unit-tag" title={`Medida del item: ${item.unit}`}>{item.unit}</span>
                                                     {/* [P3-4 · 2026-05-10] Chip de shelf-life: el backend ya
                                                         computaba urgency y lo incluía en el texto al LLM, pero
                                                         el frontend no lo surfaceaba al usuario. Helper
@@ -1937,28 +2026,57 @@ const Pantry = () => {
                                             {/* Controlador + botón Agotar */}
                                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
                                                 <div className="nevera-item-counter">
-                                                    {item.quantity <= 1 ? (
-                                                        <button
-                                                            onClick={() => handleUpdateQuantity(item.id, 0)}
-                                                            style={{ border:'none', background:'none', padding:'0.5rem', color:'var(--danger)', cursor:'pointer', touchAction: 'manipulation' }}
-                                                        >
-                                                            {savingItem === item.id ? <Loader2 size={16} className="spin-fast" /> : <Trash2 size={16} strokeWidth={2.5}/>}
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            onPointerDown={(e) => startHolding(e, item.id, -1)}
-                                                            onPointerUp={(e) => stopHolding(e, item.id)}
-                                                            onPointerLeave={(e) => stopHolding(e, item.id)}
-                                                            onContextMenu={(e) => e.preventDefault()}
-                                                            style={{ border:'none', background:'none', padding:'0.5rem', color:'var(--text-muted)', cursor:'pointer', userSelect: 'none', touchAction: 'manipulation' }}
-                                                        >
-                                                            <Minus size={16} strokeWidth={2.5}/>
-                                                        </button>
-                                                    )}
+                                                    {/* [P3-PANTRY-MINUS-DISABLED · 2026-05-18] Cuando qty<=1, el botón
+                                                        '-' queda disabled (gris) — la eliminación va exclusivamente
+                                                        por 'Agotar' debajo del counter. Pre-fix había un trash icon
+                                                        aquí que disparaba el mismo path que 'Agotar' (handleDeleteItem),
+                                                        duplicando la acción y confundiendo al usuario sobre la
+                                                        diferencia entre ambos botones. */}
+                                                    <button
+                                                        type="button"
+                                                        onPointerDown={(e) => item.quantity > 1 && startHolding(e, item.id, -1)}
+                                                        onPointerUp={(e) => stopHolding(e, item.id)}
+                                                        onPointerLeave={(e) => stopHolding(e, item.id)}
+                                                        onContextMenu={(e) => e.preventDefault()}
+                                                        disabled={item.quantity <= 1}
+                                                        aria-label={item.quantity <= 1
+                                                            ? 'Cantidad mínima — usa "Agotar" para eliminar'
+                                                            : `Disminuir cantidad de ${item.ingredient_name}`}
+                                                        title={item.quantity <= 1
+                                                            ? 'Para eliminar, usa el botón "Agotar"'
+                                                            : 'Mantener presionado para bajar rápido'}
+                                                        style={{
+                                                            border: 'none',
+                                                            background: 'none',
+                                                            padding: '0.5rem',
+                                                            color: item.quantity <= 1 ? 'var(--border)' : 'var(--text-muted)',
+                                                            cursor: item.quantity <= 1 ? 'not-allowed' : 'pointer',
+                                                            opacity: item.quantity <= 1 ? 0.5 : 1,
+                                                            userSelect: 'none',
+                                                            touchAction: 'manipulation',
+                                                        }}
+                                                    >
+                                                        <Minus size={16} strokeWidth={2.5}/>
+                                                    </button>
 
-                                                    <span style={{ width: '2.5rem', textAlign: 'center', fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', fontVariantNumeric: 'tabular-nums' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setQtyEditItem(item);
+                                                            setQtyEditValue(item.quantity);
+                                                        }}
+                                                        title="Tocar para ajustar a cantidad exacta"
+                                                        aria-label={`Ajustar cantidad de ${item.ingredient_name}`}
+                                                        style={{
+                                                            width: '2.8rem', textAlign: 'center', fontSize: '1rem', fontWeight: 800,
+                                                            color: 'var(--text-main)', fontVariantNumeric: 'tabular-nums',
+                                                            background: 'none', border: 'none', padding: '0.4rem 0',
+                                                            cursor: 'pointer', borderRadius: '0.4rem',
+                                                            touchAction: 'manipulation',
+                                                        }}
+                                                    >
                                                         {item.quantity}
-                                                    </span>
+                                                    </button>
 
                                                     <button
                                                         onPointerDown={(e) => startHolding(e, item.id, 1)}
@@ -2052,12 +2170,12 @@ const Pantry = () => {
             <AnimatePresence>
                 {showAddMenu && (
                     <>
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={() => { setShowAddMenu(false); setAddItemSearch(''); }}
                             style={{ position: 'fixed', inset: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(4px)', zIndex: 100 }}
                         />
-                        <motion.div 
+                        <motion.div
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                             style={{
                                 position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--bg-card)',
@@ -2066,15 +2184,18 @@ const Pantry = () => {
                             }}
                         >
                             <div style={{ width: '40px', height: '5px', background: 'var(--border)', borderRadius: '10px', margin: '0 auto 1.5rem', opacity: 0.8 }} />
-                            
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 1rem 0', color: 'var(--text-main)' }}>Registrar Nuevo Alimento</h2>
-                            
-                            <div style={{ position: 'relative', marginBottom: '1rem' }}>
+
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 0.4rem 0', color: 'var(--text-main)' }}>Añade a tu Nevera</h2>
+                            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1rem 0', lineHeight: 1.4 }}>
+                                Busca el alimento, ajusta la cantidad y elige cómo viene (botella, libra, paquete…).
+                            </p>
+
+                            <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
                                 <SearchIcon color="var(--text-light)" size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
-                                <input 
+                                <input
                                     autoFocus
-                                    type="text" 
-                                    placeholder="Buscar en el catálogo semántico..." 
+                                    type="text"
+                                    placeholder="¿Qué vas a añadir? (ej: vinagre, aceite, pollo)"
                                     value={addItemSearch}
                                     onChange={e => setAddItemSearch(e.target.value)}
                                     onKeyDown={handleKeyDown}
@@ -2085,45 +2206,423 @@ const Pantry = () => {
                                 />
                             </div>
 
-                            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem' }}>
-                                <AlertCircle size={14} /> El buscador utiliza el Catálogo Maestro para evitar redundancias.
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem' }}>
+                                <AlertCircle size={14} /> Si no aparece, prueba con otro nombre o sinónimo.
                             </p>
 
                             {/* Resultados de búsqueda (Scrollable) */}
                             <div style={{ overflowY: 'auto', flex: 1, paddingBottom: '2rem' }}>
-                                {suggestedMasterItems.map((item, index) => (
-                                    <div 
+                                {suggestedMasterItems.map((item, index) => {
+                                    const isPickerOpen = pickerForId === item.id;
+                                    const existing = inventory.find(i => i.master_ingredient_id === item.id);
+                                    return (
+                                    <div
                                         key={item.id}
-                                        onClick={() => handleAddNewItem(item)}
                                         onMouseEnter={() => setSelectedIndex(index)}
                                         style={{
-                                            padding: '1rem', borderBottom: '1px solid var(--bg-muted)', display: 'flex',
-                                            justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer',
-                                            backgroundColor: index === selectedIndex ? 'var(--bg-muted)' : 'transparent',
-                                            borderRadius: index === selectedIndex ? '0.5rem' : '0',
-                                            transition: 'background-color 0.2s'
+                                            borderBottom: '1px solid var(--bg-muted)',
+                                            backgroundColor: isPickerOpen
+                                                ? 'var(--bg-page)'
+                                                : (index === selectedIndex ? 'var(--bg-muted)' : 'transparent'),
+                                            borderRadius: isPickerOpen ? '1rem' : (index === selectedIndex ? '0.5rem' : '0'),
+                                            transition: 'background-color 0.2s',
+                                            marginBottom: isPickerOpen ? '0.5rem' : 0,
                                         }}
                                     >
-                                        <div>
-                                            <h4 style={{ margin: 0, fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>{item.name}</h4>
-                                            <span style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '0.2rem', display: 'block' }}>
-                                                Alias incl.: {item.aliases?.slice(0, 3).join(', ')}{item.aliases?.length > 3 ? '...' : ''}
-                                            </span>
+                                        <div
+                                            onClick={() => {
+                                                if (isPickerOpen) {
+                                                    setPickerForId(null);
+                                                } else {
+                                                    setPickerForId(item.id);
+                                                    setPickerQty(1);
+                                                    setPickerUnit(item.default_unit || 'unidad');
+                                                }
+                                            }}
+                                            style={{
+                                                padding: '1rem', display: 'flex',
+                                                justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer',
+                                            }}
+                                        >
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <h4 style={{ margin: 0, fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>{item.name}</h4>
+                                                {existing ? (
+                                                    <span style={{ fontSize: '0.8rem', color: 'var(--secondary)', marginTop: '0.2rem', display: 'block', fontWeight: 600 }}>
+                                                        Ya tienes {existing.quantity} {existing.unit} · sumará a tu existente
+                                                    </span>
+                                                ) : (
+                                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '0.2rem', display: 'block' }}>
+                                                        Alias incl.: {item.aliases?.slice(0, 3).join(', ')}{item.aliases?.length > 3 ? '...' : ''}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <button
+                                                disabled={isAdding}
+                                                style={{
+                                                    background: isPickerOpen
+                                                        ? 'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)'
+                                                        : 'var(--bg-muted)',
+                                                    color: isPickerOpen ? 'white' : 'var(--secondary)',
+                                                    border: isPickerOpen ? 'none' : '1px solid var(--border)',
+                                                    padding: '0.5rem 1rem',
+                                                    borderRadius: '99px', fontWeight: 700, cursor: 'pointer',
+                                                    boxShadow: isPickerOpen ? '0 4px 12px -2px rgba(14, 165, 233, 0.45)' : 'none',
+                                                    whiteSpace: 'nowrap',
+                                                }}
+                                            >
+                                                {isPickerOpen ? 'Cerrar' : 'Elegir'}
+                                            </button>
                                         </div>
-                                        <button disabled={isAdding} style={{
-                                            background: 'var(--bg-muted)', color: 'var(--secondary)', border: '1px solid var(--border)', padding: '0.5rem 1rem',
-                                            borderRadius: '99px', fontWeight: 700, cursor: 'pointer'
-                                        }}>
-                                            Elegir
-                                        </button>
+
+                                        <AnimatePresence initial={false}>
+                                            {isPickerOpen && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    transition={{ duration: 0.2 }}
+                                                    style={{ overflow: 'hidden' }}
+                                                >
+                                                    <div style={{ padding: '0 1rem 1.25rem 1rem' }}>
+                                                        {/* Counter de cantidad */}
+                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Cantidad</span>
+                                                            <div style={{
+                                                                display: 'inline-flex', alignItems: 'center', gap: '0.75rem',
+                                                                background: 'var(--bg-card)', borderRadius: '99px', padding: '0.35rem',
+                                                                border: '1px solid var(--border)',
+                                                            }}>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setPickerQty(q => Math.max(1, q - 1))}
+                                                                    disabled={pickerQty <= 1}
+                                                                    style={{
+                                                                        border: 'none', background: 'none', padding: '0.5rem',
+                                                                        color: pickerQty <= 1 ? 'var(--border)' : 'var(--text-muted)',
+                                                                        cursor: pickerQty <= 1 ? 'not-allowed' : 'pointer',
+                                                                        touchAction: 'manipulation',
+                                                                    }}
+                                                                    aria-label="Disminuir cantidad"
+                                                                >
+                                                                    <Minus size={18} strokeWidth={2.5} />
+                                                                </button>
+                                                                <span style={{
+                                                                    minWidth: '2.5rem', textAlign: 'center', fontSize: '1.15rem',
+                                                                    fontWeight: 800, color: 'var(--text-main)', fontVariantNumeric: 'tabular-nums',
+                                                                }}>
+                                                                    {pickerQty}
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setPickerQty(q => Math.min(999, q + 1))}
+                                                                    style={{
+                                                                        border: 'none',
+                                                                        background: 'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)',
+                                                                        color: 'white', borderRadius: '99px', padding: '0.5rem',
+                                                                        cursor: 'pointer', touchAction: 'manipulation',
+                                                                        boxShadow: '0 4px 12px -2px rgba(14, 165, 233, 0.45)',
+                                                                    }}
+                                                                    aria-label="Aumentar cantidad"
+                                                                >
+                                                                    <Plus size={18} strokeWidth={3} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Pills de unidades */}
+                                                        {existing ? (
+                                                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 1rem 0', fontStyle: 'italic' }}>
+                                                                Se sumará usando la unidad actual ({existing.unit}).
+                                                            </p>
+                                                        ) : (
+                                                            <>
+                                                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '0.5rem' }}>
+                                                                    ¿Cómo viene?
+                                                                </div>
+                                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1rem' }}>
+                                                                    {/* Unión de COMMON + default_unit del catálogo (preserva la unidad recomendada
+                                                                        aunque no esté en la lista común — ej. "diente" para ajo). */}
+                                                                    {Array.from(new Set([
+                                                                        item.default_unit || 'unidad',
+                                                                        ...COMMON_PURCHASE_UNITS,
+                                                                    ])).map(unit => {
+                                                                        const isActive = pickerUnit === unit;
+                                                                        return (
+                                                                            <button
+                                                                                type="button"
+                                                                                key={unit}
+                                                                                onClick={() => setPickerUnit(unit)}
+                                                                                style={{
+                                                                                    padding: '0.45rem 0.9rem',
+                                                                                    borderRadius: '99px',
+                                                                                    border: isActive ? '2px solid #0EA5E9' : '1px solid var(--border)',
+                                                                                    background: isActive ? 'rgba(14, 165, 233, 0.08)' : 'var(--bg-card)',
+                                                                                    color: isActive ? '#0369A1' : 'var(--text-main)',
+                                                                                    fontWeight: isActive ? 700 : 500,
+                                                                                    fontSize: '0.85rem',
+                                                                                    cursor: 'pointer',
+                                                                                    textTransform: 'capitalize',
+                                                                                    touchAction: 'manipulation',
+                                                                                    transition: 'all 0.15s',
+                                                                                }}
+                                                                            >
+                                                                                {unit}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </>
+                                                        )}
+
+                                                        {/* Preview + Botón confirmar */}
+                                                        <button
+                                                            type="button"
+                                                            disabled={isAdding}
+                                                            onClick={() => handleAddNewItem(item, pickerQty, pickerUnit)}
+                                                            style={{
+                                                                width: '100%',
+                                                                padding: '0.9rem 1rem',
+                                                                background: 'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)',
+                                                                color: 'white', border: 'none', borderRadius: '1rem',
+                                                                fontWeight: 800, fontSize: '1rem',
+                                                                cursor: isAdding ? 'wait' : 'pointer',
+                                                                opacity: isAdding ? 0.7 : 1,
+                                                                boxShadow: '0 6px 18px -4px rgba(14, 165, 233, 0.55)',
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                                                touchAction: 'manipulation',
+                                                            }}
+                                                        >
+                                                            {isAdding ? (
+                                                                <><Loader2 size={18} className="spin-fast" /> Añadiendo…</>
+                                                            ) : existing ? (
+                                                                <><Plus size={18} strokeWidth={3} /> Sumar {pickerQty} {existing.unit} a la nevera</>
+                                                            ) : (
+                                                                <><Plus size={18} strokeWidth={3} /> Añadir {pickerQty} {pickerUnit} a la nevera</>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
-                                ))}
-                                
+                                    );
+                                })}
+
                                 {addItemSearch.trim() && suggestedMasterItems.length === 0 && (
                                     <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-light)' }}>
-                                        No existe en el catálogo maestro todavía.
+                                        <Package size={32} style={{ opacity: 0.4, marginBottom: '0.5rem' }} />
+                                        <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>No encontramos "{addItemSearch.trim()}"</div>
+                                        <div style={{ fontSize: '0.85rem' }}>Prueba con otro nombre o un sinónimo más común.</div>
                                     </div>
                                 )}
+
+                                {!addItemSearch.trim() && (
+                                    <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-light)' }}>
+                                        <SearchIcon size={28} style={{ opacity: 0.4, marginBottom: '0.5rem' }} />
+                                        <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                                            Escribe el nombre del alimento para ver opciones.
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* [P3-PANTRY-QTY-EDIT · 2026-05-18] Modal de ajuste exacto de cantidad */}
+            <AnimatePresence>
+                {qtyEditItem && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            onClick={() => !qtyEditSaving && setQtyEditItem(null)}
+                            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)', zIndex: 150 }}
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.94, y: '-50%', x: '-50%' }}
+                            animate={{ opacity: 1, scale: 1, y: '-50%', x: '-50%' }}
+                            exit={{ opacity: 0, scale: 0.94, y: '-50%', x: '-50%' }}
+                            transition={{ type: 'spring', damping: 22, stiffness: 240 }}
+                            style={{
+                                position: 'fixed', top: '50%', left: '50%',
+                                background: 'var(--bg-card)', borderRadius: '1.5rem', padding: '2rem', zIndex: 151,
+                                width: '92%', maxWidth: '420px', boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+                            }}
+                        >
+                            <h2 style={{ margin: '0 0 0.3rem 0', fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                                Ajustar cantidad
+                            </h2>
+                            <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
+                                <strong style={{ color: 'var(--text-main)' }}>{qtyEditItem.ingredient_name}</strong>
+                                {' '}· medida: <span style={{ textTransform: 'capitalize' }}>{qtyEditItem.unit}</span>
+                            </p>
+
+                            {/* Counter grande */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem',
+                                marginBottom: '1.25rem',
+                            }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setQtyEditValue(v => Math.max(0, (Number(v) || 0) - 1))}
+                                    disabled={qtyEditSaving || qtyEditValue <= 0}
+                                    style={{
+                                        border: '1px solid var(--border)', background: 'var(--bg-card)',
+                                        borderRadius: '99px', width: '3rem', height: '3rem',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        color: qtyEditValue <= 0 ? 'var(--border)' : 'var(--text-main)',
+                                        cursor: qtyEditValue <= 0 || qtyEditSaving ? 'not-allowed' : 'pointer',
+                                        touchAction: 'manipulation',
+                                    }}
+                                    aria-label="Disminuir cantidad"
+                                >
+                                    <Minus size={20} strokeWidth={3} />
+                                </button>
+                                <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min="0"
+                                    max="999"
+                                    value={qtyEditValue}
+                                    onChange={(e) => {
+                                        const n = parseInt(e.target.value, 10);
+                                        if (isNaN(n)) {
+                                            setQtyEditValue('');
+                                            return;
+                                        }
+                                        setQtyEditValue(Math.max(0, Math.min(999, n)));
+                                    }}
+                                    onBlur={() => {
+                                        // Si quedó vacío al salir del input, restaura el valor previo.
+                                        if (qtyEditValue === '' || qtyEditValue === null) {
+                                            setQtyEditValue(qtyEditItem.quantity);
+                                        }
+                                    }}
+                                    style={{
+                                        width: '5.5rem', textAlign: 'center',
+                                        fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)',
+                                        background: 'var(--bg-page)', border: '2px solid var(--border)',
+                                        borderRadius: '1rem', padding: '0.6rem 0.5rem',
+                                        fontVariantNumeric: 'tabular-nums',
+                                        outline: 'none',
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setQtyEditValue(v => Math.min(999, (Number(v) || 0) + 1))}
+                                    disabled={qtyEditSaving || qtyEditValue >= 999}
+                                    style={{
+                                        border: 'none',
+                                        background: 'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)',
+                                        color: 'white', borderRadius: '99px', width: '3rem', height: '3rem',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        cursor: qtyEditSaving || qtyEditValue >= 999 ? 'not-allowed' : 'pointer',
+                                        boxShadow: '0 4px 14px -2px rgba(14, 165, 233, 0.5)',
+                                        touchAction: 'manipulation',
+                                    }}
+                                    aria-label="Aumentar cantidad"
+                                >
+                                    <Plus size={20} strokeWidth={3} />
+                                </button>
+                            </div>
+
+                            {/* Atajos rápidos */}
+                            <div style={{
+                                display: 'flex', flexWrap: 'wrap', gap: '0.4rem',
+                                justifyContent: 'center', marginBottom: '1.5rem',
+                            }}>
+                                {[1, 2, 5, 10, 20].map(preset => (
+                                    <button
+                                        type="button"
+                                        key={preset}
+                                        onClick={() => setQtyEditValue(preset)}
+                                        disabled={qtyEditSaving}
+                                        style={{
+                                            padding: '0.35rem 0.85rem',
+                                            borderRadius: '99px',
+                                            border: qtyEditValue === preset ? '2px solid #0EA5E9' : '1px solid var(--border)',
+                                            background: qtyEditValue === preset ? 'rgba(14, 165, 233, 0.08)' : 'var(--bg-card)',
+                                            color: qtyEditValue === preset ? '#0369A1' : 'var(--text-muted)',
+                                            fontWeight: qtyEditValue === preset ? 700 : 500,
+                                            fontSize: '0.85rem', cursor: 'pointer',
+                                            touchAction: 'manipulation',
+                                        }}
+                                    >
+                                        {preset}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {qtyEditValue === 0 && (
+                                <p style={{
+                                    margin: '0 0 1rem 0', padding: '0.6rem 0.8rem',
+                                    background: 'rgba(239, 68, 68, 0.08)',
+                                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                                    borderRadius: '0.6rem',
+                                    color: 'var(--danger, #ef4444)',
+                                    fontSize: '0.82rem', textAlign: 'center', fontWeight: 600,
+                                }}>
+                                    Al guardar con 0 se marcará como agotado.
+                                </p>
+                            )}
+
+                            {/* Botones */}
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setQtyEditItem(null)}
+                                    disabled={qtyEditSaving}
+                                    style={{
+                                        flex: 1, padding: '0.9rem', background: 'var(--bg-muted)',
+                                        color: 'var(--text-main)', border: 'none', borderRadius: '0.9rem',
+                                        fontWeight: 700, cursor: qtyEditSaving ? 'not-allowed' : 'pointer',
+                                    }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        const targetItem = qtyEditItem;
+                                        const target = Math.max(0, Math.min(999, Math.round(Number(qtyEditValue) || 0)));
+                                        if (target === targetItem.quantity) {
+                                            setQtyEditItem(null);
+                                            return;
+                                        }
+                                        setQtyEditSaving(true);
+                                        try {
+                                            await handleUpdateQuantity(targetItem.id, target);
+                                            if (target === 0) {
+                                                toast.success(`${targetItem.ingredient_name} marcado como agotado`);
+                                            } else {
+                                                toast.success(`${targetItem.ingredient_name}: ${target} ${targetItem.unit}`);
+                                            }
+                                        } catch (err) {
+                                            console.error('qty edit error', err);
+                                            toast.error('No se pudo actualizar la cantidad');
+                                        } finally {
+                                            setQtyEditSaving(false);
+                                            setQtyEditItem(null);
+                                        }
+                                    }}
+                                    disabled={qtyEditSaving || qtyEditValue === '' || qtyEditValue === null}
+                                    style={{
+                                        flex: 1.4, padding: '0.9rem',
+                                        background: 'linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)',
+                                        color: 'white', border: 'none', borderRadius: '0.9rem',
+                                        fontWeight: 800, cursor: qtyEditSaving ? 'wait' : 'pointer',
+                                        boxShadow: '0 6px 18px -4px rgba(14, 165, 233, 0.55)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                        opacity: qtyEditSaving ? 0.75 : 1,
+                                    }}
+                                >
+                                    {qtyEditSaving ? (
+                                        <><Loader2 size={16} className="spin-fast" /> Guardando…</>
+                                    ) : (
+                                        <>Guardar</>
+                                    )}
+                                </button>
                             </div>
                         </motion.div>
                     </>

@@ -97,6 +97,15 @@ const History = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [selectedPlan, setSelectedPlan] = useState(null);
+    // [P3-HIST-FAST-OPEN · 2026-05-18] Flag de carga del plan_data del
+    // plan abierto. El modal ahora abre INSTANTÁNEO con el summary
+    // (calories/macros/name/created_at del listado) y stream el
+    // plan_data en paralelo. Mientras el flag esté `true` Y el plan
+    // no tenga `plan_data.days`, el body del modal muestra un skeleton
+    // sutil donde van los meals (vs el bloqueo previo donde el modal
+    // no abría hasta resolverse el await — delay de 200-500ms en cada
+    // click).
+    const [planDataLoading, setPlanDataLoading] = useState(false);
     const [selectedDay, setSelectedDay] = useState(0);
     // [P1-HIST-1 · 2026-05-09] Índice del chunk visible en el modal.
     // Permite navegación read-only entre chunks (≤4 días por chunk).
@@ -1125,6 +1134,68 @@ const History = () => {
         return { bucket, daysGenerated, totalDays };
     };
 
+    // [P3-HIST-ACTIVE-CHIP · 2026-05-18] Bucket temporal del plan
+    // (ortogonal a `getStatusInfo`, que clasifica el estado de
+    // GENERACIÓN). El historial muestra todos los planes mezclados,
+    // pero solo UNO suele estar "vivo" (la fecha de hoy cae dentro
+    // de su ventana). Sin un chip que lo marque, el usuario no
+    // distingue de un vistazo cuál plan está rigiendo ahora.
+    //
+    // Fuente preferida: `grocery_start_date` (fecha date-only del
+    // ciclo de compras, resuelta por el cron `_resolve_grocery_start_date`
+    // o por POST /grocery-start-date). Fallback: `cycle_start_date`
+    // (fecha inmutable del primer día del plan original). Último
+    // fallback: `plan.created_at` (timestamp del INSERT).
+    //
+    // Ventana: [start, start + totalDays). Resolución por DÍA local
+    // del usuario (igual que P3-SHIFT-DATEONLY-LOCAL · 2026-05-18 +
+    // `_parseStartLocal` de Dashboard.jsx) — date-only strings
+    // semánticamente significan "calendario local", NUNCA UTC.
+    //
+    // Devuelve null cuando no podemos resolver totalDays > 0 (plan
+    // legacy sin metadata, plan corrupto) — el chip se omite en vez
+    // de mostrar info incorrecta.
+    const getTemporalStatus = (plan) => {
+        if (!plan) return null;
+        const _info = getStatusInfo(plan);
+        const totalDays = _info.totalDays;
+        if (!Number.isFinite(totalDays) || totalDays <= 0) return null;
+
+        // Fallback chain del start. `grocery_start_date` y
+        // `cycle_start_date` ahora vienen top-level del summary
+        // (P3-HIST-ACTIVE-CHIP backend). Legacy: leer del plan_data
+        // anidado (planes lazy-cargados via _loadPlanDataLazy).
+        const startRaw = plan.grocery_start_date
+            || plan.cycle_start_date
+            || (plan.plan_data && (plan.plan_data.grocery_start_date || plan.plan_data.cycle_start_date))
+            || plan.created_at;
+        if (!startRaw || typeof startRaw !== 'string') return null;
+
+        // Detect date-only `YYYY-MM-DD` para parsear como fecha
+        // LOCAL del usuario (cero TZ dance — espeja
+        // P3-SHIFT-DATEONLY-LOCAL del backend). Timestamps con TZ
+        // se parsean directos y se truncan a su fecha local.
+        let startMid;
+        const _dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(startRaw);
+        if (_dateOnly) {
+            const [y, m, d] = startRaw.split('-').map((s) => parseInt(s, 10));
+            startMid = new Date(y, m - 1, d, 0, 0, 0, 0);
+        } else {
+            const parsed = new Date(startRaw);
+            if (Number.isNaN(parsed.getTime())) return null;
+            startMid = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 0, 0, 0, 0);
+        }
+
+        const now = new Date();
+        const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        const _msPerDay = 86400000;
+        const dayIdx = Math.round((todayMid.getTime() - startMid.getTime()) / _msPerDay);
+
+        if (dayIdx < 0) return { bucket: 'future', dayIdx, totalDays };
+        if (dayIdx >= totalDays) return { bucket: 'past', dayIdx, totalDays };
+        return { bucket: 'active', dayIdx, totalDays };
+    };
+
     // [P2-HIST-3 · 2026-05-09] Etiqueta retroactiva de semanas
     // simplificadas. `plan_data._user_forced_simplified_weeks` es un
     // dict `{ "<week_number>": "<iso_ts>" }` que el backend persiste
@@ -1395,14 +1466,23 @@ const History = () => {
                         </div>
                     )}
                     <AnimatePresence>
-                        {filteredPlans.map((plan) => (
+                        {filteredPlans.map((plan) => {
+                            // [P3-HIST-ACTIVE-CHIP · 2026-05-18] Resolvemos
+                            // el bucket temporal una sola vez por card; lo
+                            // usamos tanto para la clase del wrapper (borde
+                            // verde sutil) como para el chip "Activo" del
+                            // cardActions. Null cuando no se puede derivar
+                            // (plan legacy sin start/totalDays).
+                            const _temporal = getTemporalStatus(plan);
+                            const _isActive = _temporal && _temporal.bucket === 'active';
+                            return (
                             <motion.div
                                 key={plan.id}
                                 variants={itemVariants}
                                 layout
                                 exit={{ opacity: 0, x: -100, transition: { duration: 0.25 } }}
-                                className={styles.card}
-                                onClick={async () => {
+                                className={`${styles.card} ${_isActive ? styles.cardActive : ''}`}
+                                onClick={() => {
                                     if (isEditing !== plan.id) {
                                         // [P1-HIST-1 · 2026-05-09] Reset a primer día +
                                         // primer chunk al abrir el modal. El selector
@@ -1418,41 +1498,44 @@ const History = () => {
                                         // y luego abre el plan B vería "Lecciones" del
                                         // plan B antes del menú (UX confusa).
                                         setActiveModalTab('menu');
-                                        // [P1-HIST-AUDIT-4 · 2026-05-09] Lazy-load del
-                                        // plan_data al abrir el modal. La lista summary
-                                        // del endpoint history-list NO trae days/meals
-                                        // (donde está el bandwidth pesado); aquí
-                                        // pedimos solo el plan_data del plan abierto.
-                                        // Si el plan ya trae plan_data (compat con
-                                        // tests / paths legacy), el helper lo retorna
-                                        // sin re-fetch.
-                                        const fullPlanData = await _loadPlanDataLazy(plan);
-                                        if (fullPlanData == null) {
-                                            // Error ya logueado + toast en el helper.
-                                            return;
-                                        }
-                                        setSelectedPlan({ ...plan, plan_data: fullPlanData });
-                                        // [P2-HIST-AUDIT-9 · 2026-05-09] Lazy
-                                        // fetch de reasons per-chunk solo si
-                                        // hay drift (counters embedded del
-                                        // LEFT JOIN o exhausted > 0).
-                                        // Sin drift, el endpoint devolvería
-                                        // `reasons: []` — waste innecesario.
+
+                                        // [P3-HIST-FAST-OPEN · 2026-05-18]
+                                        // Optimistic open: abrir el modal AL INSTANTE
+                                        // con el summary del listado (calories/macros/
+                                        // name/created_at top-level del /history-list).
+                                        // Si el plan ya trae plan_data adentro (tests
+                                        // legacy / paths que pasan rows completos), lo
+                                        // preservamos. Si no, queda `plan_data: null`
+                                        // y el render del menú muestra skeleton mientras
+                                        // el fetch resuelve.
                                         //
-                                        // [P1-HIST-BLOCKED-STUCK · 2026-05-09]
-                                        // Sumamos `chunk_in_flight_count > 0`
-                                        // para detectar chunks `processing`/
-                                        // `stale` atascados (lag >
-                                        // MEALFIT_BLOCKED_REASONS_STUCK_LAG_HOURS).
-                                        // El backend filtra por lag, así que
-                                        // un plan con chunks healthy in-flight
-                                        // recibe `reasons: []` y el banner
-                                        // stuck no se renderiza — pero pagamos
-                                        // 1 roundtrip extra cuando hay generación
-                                        // en progreso. Trade-off aceptable: sin
-                                        // este disparo, chunks atascados >3h
-                                        // serían invisibles hasta que el cron
-                                        // los escalara a failed (≥1h más).
+                                        // Antes: `await _loadPlanDataLazy(plan)` ANTES
+                                        // de `setSelectedPlan` — el modal no abría hasta
+                                        // resolverse el roundtrip a Supabase (200-500ms
+                                        // típico), causando perceived delay del click.
+                                        const _hasInlinePlanData = !!(plan.plan_data
+                                            && typeof plan.plan_data === 'object'
+                                            && Array.isArray(plan.plan_data.days));
+                                        setSelectedPlan({
+                                            ...plan,
+                                            plan_data: _hasInlinePlanData ? plan.plan_data : null,
+                                        });
+
+                                        // [P2-HIST-AUDIT-9 · 2026-05-09] Lazy fetch de
+                                        // reasons per-chunk solo si hay drift (counters
+                                        // embedded del LEFT JOIN o exhausted > 0). Sin
+                                        // drift, el endpoint devolvería `reasons: []` —
+                                        // waste innecesario.
+                                        //
+                                        // [P1-HIST-BLOCKED-STUCK · 2026-05-09] Sumamos
+                                        // `chunk_in_flight_count > 0` para detectar
+                                        // chunks `processing`/`stale` atascados (lag >
+                                        // MEALFIT_BLOCKED_REASONS_STUCK_LAG_HOURS). Trade-off
+                                        // aceptable: pagamos 1 roundtrip extra cuando
+                                        // hay generación en progreso, pero sin este
+                                        // disparo los chunks atascados >3h serían
+                                        // invisibles hasta que el cron los escalara
+                                        // a failed (≥1h más).
                                         const _puac = (typeof plan.chunk_pending_user_action_count === 'number')
                                             ? plan.chunk_pending_user_action_count : 0;
                                         const _fc = (typeof plan.chunk_failed_count === 'number')
@@ -1463,6 +1546,24 @@ const History = () => {
                                             ? plan.chunk_in_flight_count : 0;
                                         if (_puac > 0 || _fc > 0 || _exh > 0 || _inFlight > 0) {
                                             _ensureBlockedReasons(plan.id);
+                                        }
+
+                                        // [P3-HIST-FAST-OPEN · 2026-05-18]
+                                        // Si no teníamos plan_data inline, lo cargamos
+                                        // en paralelo y lo enchufamos en `selectedPlan`
+                                        // cuando llegue. Defensa: si el usuario cerró
+                                        // el modal antes de resolverse o abrió OTRO plan
+                                        // (`prev.id !== plan.id`), no pisamos su state.
+                                        if (!_hasInlinePlanData) {
+                                            setPlanDataLoading(true);
+                                            _loadPlanDataLazy(plan).then((fullPlanData) => {
+                                                setPlanDataLoading(false);
+                                                if (fullPlanData == null) return; // toast + log ya en helper
+                                                setSelectedPlan((prev) => {
+                                                    if (!prev || prev.id !== plan.id) return prev;
+                                                    return { ...prev, plan_data: fullPlanData };
+                                                });
+                                            }).catch(() => setPlanDataLoading(false));
                                         }
                                     }
                                 }}
@@ -1538,6 +1639,29 @@ const History = () => {
                                 </div>
 
                                 <div className={styles.cardActions}>
+                                    {/* [P3-HIST-ACTIVE-CHIP · 2026-05-18]
+                                        Chip temporal "Activo" — primer
+                                        chip del cardActions cuando el plan
+                                        está corriendo HOY (today ∈ [start,
+                                        start + totalDays)). Ortogonal al
+                                        chip de generación (Parcial/Falló/
+                                        Generando): un plan puede estar
+                                        "Activo + Parcial" (vivo pero
+                                        algunos chunks no terminaron) o
+                                        "Activo + Completo" (caso happy
+                                        path). Planes pasados/futuros no
+                                        muestran chip — el estado por
+                                        defecto del listado YA es "no
+                                        activo". */}
+                                    {_isActive && (
+                                        <span
+                                            className={styles.statusActive}
+                                            title={`Plan activo hoy — día ${_temporal.dayIdx + 1} de ${_temporal.totalDays}`}
+                                        >
+                                            Activo
+                                        </span>
+                                    )}
+
                                     {/* [P2-HIST-1 · 2026-05-09] Calories Badge
                                         oculto cuando plan.calories es falsy o
                                         ≤0. Antes la card mostraba "0" o NaN
@@ -1916,7 +2040,8 @@ const History = () => {
                                     </div>
                                 </div>
                             </motion.div>
-                        ))}
+                            );
+                        })}
                     </AnimatePresence>
                 </motion.div>
             )}
@@ -2187,11 +2312,24 @@ const History = () => {
                                                     >
                                                         {_cta}
                                                     </button>
-                                                ) : (
-                                                    <p className={styles.actionBannerCta}>
-                                                        Pulsa <strong>Reactivar este Plan</strong> abajo para retomar la generación desde el Dashboard.
-                                                    </p>
-                                                )}
+                                                ) : (() => {
+                                                    // [P3-HIST-ACTIVE-NO-REACTIVATE · 2026-05-18]
+                                                    // El texto "Pulsa Reactivar este Plan abajo"
+                                                    // asumía que el botón siempre estaba visible.
+                                                    // Ahora se oculta para planes activos/futuros.
+                                                    // Si estamos en uno de esos buckets, redirigimos
+                                                    // al Dashboard (donde el banner de recovery del
+                                                    // plan activo surface el chunk bloqueado).
+                                                    const _t = getTemporalStatus(selectedPlan);
+                                                    const _hideRestore = !!(_t && (_t.bucket === 'active' || _t.bucket === 'future'));
+                                                    return (
+                                                        <p className={styles.actionBannerCta}>
+                                                            {_hideRestore
+                                                                ? (<>Vuelve al <strong>Dashboard</strong> para retomar la generación de los chunks bloqueados.</>)
+                                                                : (<>Pulsa <strong>Reactivar este Plan</strong> abajo para retomar la generación desde el Dashboard.</>)}
+                                                        </p>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     );
@@ -4363,6 +4501,43 @@ const History = () => {
                                     activeModalTab === 'menu'. */}
                                 {activeModalTab === 'menu' && (
                                 <>
+                                {/* [P3-HIST-FAST-OPEN · 2026-05-18] Skeleton del
+                                    menú mientras `plan_data` se carga en paralelo
+                                    tras el optimistic open. Render solo cuando:
+                                      1. El modal está abierto (selectedPlan truthy
+                                         — garantizado por el wrapper).
+                                      2. NO hay plan_data.days (helper devolverá
+                                         [] cuando plan_data sea null).
+                                      3. El fetch está en vuelo (`planDataLoading`)
+                                         — si ya resolvió con plan vacío real (plan
+                                         legacy corrupto sin days), NO mostramos
+                                         skeleton perpetuo: el banner missingDays
+                                         abajo se encarga.
+                                    El skeleton imita el layout final (3-4 tabs
+                                    pill + 4 meal cards) para que el swap sea
+                                    fluido cuando llegue el data. */}
+                                {planDataLoading && !(selectedPlan.plan_data && Array.isArray(selectedPlan.plan_data.days) && selectedPlan.plan_data.days.length > 0) && (
+                                    <div className={styles.menuSkeleton}>
+                                        <div className={styles.menuSkeletonTabs}>
+                                            <div className={`${styles.menuSkeletonTab} ${styles.menuSkeletonTabActive}`} />
+                                            <div className={styles.menuSkeletonTab} />
+                                            <div className={styles.menuSkeletonTab} />
+                                        </div>
+                                        <div className={styles.menuSkeletonMeals}>
+                                            {[0, 1, 2, 3].map((i) => (
+                                                <div key={i} className={styles.menuSkeletonMeal}>
+                                                    <div className={styles.menuSkeletonMealIcon} />
+                                                    <div className={styles.menuSkeletonMealText}>
+                                                        <div className={styles.menuSkeletonMealLine} />
+                                                        <div className={`${styles.menuSkeletonMealLine} ${styles.menuSkeletonMealLineShort}`} />
+                                                    </div>
+                                                    <div className={styles.menuSkeletonMealKcal} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* [P1-HIST-1 · 2026-05-09] Day tabs chunk-aware con
                                     navegación read-only entre chunks. Cap por chunk
                                     se mantiene (≤4 días visibles a la vez); las flechas
@@ -4672,6 +4847,31 @@ const History = () => {
                                         ? _plan.chunk_in_flight_count
                                         : ((_summaryEntry && typeof _summaryEntry.in_flight_count === 'number')
                                             ? _summaryEntry.in_flight_count : 0);
+                                    // [P3-HIST-CHUNK-SCHEDULED · 2026-05-18]
+                                    // Split del in_flight_count para mostrar
+                                    // copy preciso. Pre-fix: cualquier chunk
+                                    // pending/processing/stale (in_flight > 0)
+                                    // → copy "Mealfit los está generando AHORA
+                                    // en segundo plano". Pero el worker filtra
+                                    // por `execute_after <= NOW()`; un chunk
+                                    // pending con execute_after en 3 días NO
+                                    // está corriendo, está dormido. El backend
+                                    // ahora devuelve dos counters separados:
+                                    //   - chunk_scheduled_count: pending/stale
+                                    //     con execute_after > NOW() (dormidos).
+                                    //   - chunk_running_now_count: processing
+                                    //     + pending/stale con execute_after
+                                    //     vencido (elegibles ya).
+                                    // Branch priority: running_now > 0 = "ahora"
+                                    // (incluye el caso mixto donde algunos corren
+                                    // y otros duermen — el mensaje "ahora" gana
+                                    // porque al menos PARTE está corriendo).
+                                    const _scheduled = (typeof _plan.chunk_scheduled_count === 'number')
+                                        ? _plan.chunk_scheduled_count
+                                        : 0;
+                                    const _runningNow = (typeof _plan.chunk_running_now_count === 'number')
+                                        ? _plan.chunk_running_now_count
+                                        : 0;
 
                                     // [P0-HIST-FIX-2 · 2026-05-09] Copy
                                     // re-escrita en es-DO claro. Antes
@@ -4683,25 +4883,78 @@ const History = () => {
                                     // un emoji que comunica visualmente el
                                     // estado, y el body indica claramente
                                     // qué hacer y cuándo.
+                                    // [P3-HIST-ACTIVE-NO-REACTIVATE · 2026-05-18]
+                                    // Copy de cada tono depende de si el botón
+                                    // "Reactivar este Plan" sigue visible. Para
+                                    // planes activos/futuros el botón se oculta
+                                    // (no aplica conceptualmente — el usuario
+                                    // YA está usando ese plan), así que las
+                                    // sentencias "Pulsa 'Reactivar este Plan'
+                                    // abajo…" quedan rotas y hay que pivotar
+                                    // al Dashboard como punto de recovery.
+                                    const _temp = getTemporalStatus(_plan);
+                                    const _hideRestore = !!(_temp && (_temp.bucket === 'active' || _temp.bucket === 'future'));
+                                    const _ctaText = _hideRestore
+                                        ? 'Vuelve al Dashboard para retomar la generación.'
+                                        : 'Pulsa "Reactivar este Plan" abajo para retomar la generación.';
+                                    const _ctaRetry = _hideRestore
+                                        ? 'Vuelve al Dashboard para reintentarlo.'
+                                        : 'Pulsa "Reactivar este Plan" abajo para reintentarlo.';
+                                    const _ctaRetryWithInfo = _hideRestore
+                                        ? 'Vuelve al Dashboard para reintentarlo con la información actualizada.'
+                                        : 'Pulsa "Reactivar este Plan" abajo para reintentarlo con la información actualizada.';
+
                                     let _reason;
                                     let _tone; // 'bad' | 'warn' | 'info'
                                     let _icon; // emoji por tono
                                     if (_exhaustedCount > 0) {
-                                        _reason = 'No fue posible generar estos días automáticamente. Pulsa "Reactivar este Plan" abajo para reintentarlo con la información actualizada.';
+                                        _reason = `No fue posible generar estos días automáticamente. ${_ctaRetryWithInfo}`;
                                         _tone = 'bad';
                                         _icon = '⚠️';
                                     } else if (_puac > 0) {
-                                        _reason = 'Mealfit está esperando que actualices algo (tu nevera, tu registro de comidas, o la fecha del plan). Pulsa "Reactivar este Plan" abajo para retomar la generación.';
+                                        _reason = `Mealfit está esperando que actualices algo (tu nevera, tu registro de comidas, o la fecha del plan). ${_ctaText}`;
                                         _tone = 'warn';
                                         _icon = '⏸️';
                                     } else if (_failedC > 0) {
-                                        _reason = 'Hubo un error al generar estos días. Pulsa "Reactivar este Plan" abajo para reintentarlo.';
+                                        _reason = `Hubo un error al generar estos días. ${_ctaRetry}`;
                                         _tone = 'bad';
                                         _icon = '⚠️';
-                                    } else if (_inFlight > 0) {
-                                        _reason = 'Mealfit los está generando ahora en segundo plano. Cierra el modal y vuelve a abrirlo en 2 a 5 minutos para verlos listos.';
+                                    } else if (_runningNow > 0) {
+                                        // [P3-HIST-CHUNK-SCHEDULED · 2026-05-18]
+                                        // Genuinamente "generando ahora": al menos
+                                        // un chunk está `processing` o `pending`/
+                                        // `stale` con execute_after vencido. El
+                                        // worker lo recogerá en el próximo tick
+                                        // (≤1 min) o ya lo recogió. Si _scheduled
+                                        // > 0 también, mencionar que hay más
+                                        // dormidos para no engañar.
+                                        if (_scheduled > 0) {
+                                            _reason = `Mealfit está generando algunos ahora en segundo plano. El resto (${_scheduled} ${_scheduled === 1 ? 'chunk' : 'chunks'}) se generará automáticamente cuando llegue su momento — no tienes que hacer nada.`;
+                                        } else {
+                                            _reason = 'Mealfit los está generando ahora en segundo plano. Cierra el modal y vuelve a abrirlo en 2 a 5 minutos para verlos listos.';
+                                        }
                                         _tone = 'info';
                                         _icon = '🔄';
+                                    } else if (_scheduled > 0) {
+                                        // [P3-HIST-CHUNK-SCHEDULED · 2026-05-18]
+                                        // Todos los chunks pendientes están
+                                        // DORMIDOS (execute_after > NOW()). El
+                                        // worker no los está tocando — los
+                                        // generará automáticamente cuando llegue
+                                        // su día programado. Este es el caso del
+                                        // user que reportó "no debería generarlos
+                                        // ahora ya que no ha llegado su tiempo".
+                                        _reason = 'Estos días se generarán automáticamente cuando llegue su momento. No tienes que hacer nada — los verás listos un par de días antes de comerlos.';
+                                        _tone = 'info';
+                                        _icon = '⏳';
+                                    } else if (_inFlight > 0) {
+                                        // Fallback: backend pre-P3-HIST-CHUNK-SCHEDULED
+                                        // sin el split nuevo. Copy neutro
+                                        // (NO "generando ahora") para no
+                                        // mentir.
+                                        _reason = 'Mealfit los generará automáticamente cuando llegue su momento. No necesitas hacer nada.';
+                                        _tone = 'info';
+                                        _icon = '⏳';
                                     } else {
                                         _reason = 'Estos días aún no se han generado.';
                                         _tone = 'info';
@@ -4767,20 +5020,50 @@ const History = () => {
                             </div>
 
                             {/* Footer */}
-                            <div className={styles.modalFooter}>
-                                <button
-                                    onClick={() => setSelectedPlan(null)}
-                                    className={styles.modalCloseBtn}
-                                >
-                                    Cerrar
-                                </button>
-                                <button
-                                    onClick={handleRestoreRequest}
-                                    className={styles.modalActionBtn}
-                                >
-                                    <RotateCcw size={18} /> Reactivar este Plan
-                                </button>
-                            </div>
+                            {/* [P3-HIST-ACTIVE-NO-REACTIVATE · 2026-05-18]
+                                "Reactivar este Plan" SOLO tiene sentido para
+                                planes pasados (today >= start + totalDays):
+                                ese flujo copia el plan archivado como el
+                                nuevo plan activo del usuario. Para el plan
+                                que YA es activo (today ∈ [start, +totalDays))
+                                el botón confunde — el usuario está literalmente
+                                comiendo de ese plan ahora mismo. Para planes
+                                futuros (start > today, raro) tampoco aplica
+                                — el plan ya está agendado, no hay nada que
+                                "reactivar". Solo el bucket `past` (o null
+                                cuando no podemos derivar el bucket, e.g.
+                                planes legacy sin grocery_start_date)
+                                conserva el CTA.
+
+                                [P3-HIST-NO-CERRAR-BTN · 2026-05-18]
+                                El botón "Cerrar" del footer se removió: la X
+                                del modalHeader hace exactamente lo mismo
+                                (`setSelectedPlan(null)`). Mantener ambos era
+                                ruido visual sin valor — dos affordances para
+                                la misma acción + el click fuera del modal
+                                (overlay) también cierra. Consecuencia: cuando
+                                `_hideRestore=true` el footer queda vacío y
+                                lo renderizamos `null` (no white band sin
+                                contenido). Para planes pasados el footer
+                                solo muestra el CTA Reactivar full-width. */}
+                            {(() => {
+                                const _t = getTemporalStatus(selectedPlan);
+                                const _hideRestore = !!(_t && (_t.bucket === 'active' || _t.bucket === 'future'));
+                                if (_hideRestore) {
+                                    // Footer vacío — la X del header cierra.
+                                    return null;
+                                }
+                                return (
+                                    <div className={`${styles.modalFooter} ${styles.modalFooterSingle}`}>
+                                        <button
+                                            onClick={handleRestoreRequest}
+                                            className={styles.modalActionBtn}
+                                        >
+                                            <RotateCcw size={18} /> Reactivar este Plan
+                                        </button>
+                                    </div>
+                                );
+                            })()}
                         </motion.div>
                     </motion.div>
                 )}

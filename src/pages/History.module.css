@@ -362,6 +362,39 @@
     border-top: 1px solid rgba(226, 232, 240, 0.7);
 }
 
+/* [P3-HIST-ACTIVE-CHIP · 2026-05-18] Resaltado sutil de la card del
+   plan ACTIVO (today ∈ [start, start + totalDays)). 3 capas para que
+   destaque sin volverse ruido visual:
+     - Fondo de gradiente verde MUY sutil (alpha 0.40-0.55): se nota
+       sin opacar el contenido. Se preserva en hover combinándose.
+     - Borde izquierdo verde permanente (4px): refuerza la "barra
+       lateral" que el .card::before normalmente solo muestra en
+       hover — aquí la fijamos para el plan activo, ahora en verde.
+     - Hairline divider con el plan siguiente sigue activo
+       (`.card + .card` arriba) — no lo reseteamos. */
+.cardActive {
+    background: linear-gradient(90deg,
+        rgba(209, 250, 229, 0.45) 0%,
+        rgba(236, 253, 245, 0.30) 70%,
+        transparent 100%);
+}
+
+.cardActive::before {
+    /* Reusa el slot ::before del .card pero lo fija visible en verde. */
+    transform: scaleY(1) !important;
+    background: linear-gradient(180deg, #10B981 0%, #059669 100%) !important;
+    width: 4px !important;
+}
+
+@media (hover: hover) {
+    .cardActive:hover {
+        background: linear-gradient(90deg,
+            rgba(167, 243, 208, 0.55) 0%,
+            rgba(236, 253, 245, 0.40) 70%,
+            rgba(248, 250, 252, 0.5) 100%);
+    }
+}
+
 /* Acento vertical izquierdo que aparece en hover/focus — sutil pero da identidad */
 .card::before {
     content: '';
@@ -624,7 +657,8 @@
 .statusFailed,
 .statusActionRequired,
 .statusInProgress,
-.statusUnknown {
+.statusUnknown,
+.statusActive {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
@@ -636,6 +670,39 @@
     white-space: nowrap;
     flex-shrink: 0;
     box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* [P3-HIST-ACTIVE-CHIP · 2026-05-18] Chip temporal: plan corriendo
+   HOY (today ∈ [start, start + totalDays)). Palette verde emerald
+   para diferenciar de los chips de generación (amber=falta,
+   red=error, blue=in_progress backend, gray=unknown). Pulse muy
+   sutil (≤8% spread) para evitar competir visualmente con
+   statusInProgress (que sí tiene actividad activa) o
+   statusActionRequired (que es CTA crítica). El chip se renderiza
+   PRIMERO en cardActions — el estado temporal es la pregunta más
+   importante para el usuario ("¿cuál plan estoy comiendo ahora?")
+   antes que el estado de generación. */
+.statusActive {
+    background: #ECFDF5;
+    color: #047857;
+    border: 1px solid #A7F3D0;
+    position: relative;
+}
+
+.statusActive::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10B981;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+    animation: statusActiveDotPulse 2.2s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+@keyframes statusActiveDotPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.45); }
+    50% { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
 }
 
 .statusPartial {
@@ -1370,22 +1437,29 @@
     gap: 1rem;
 }
 
-.modalCloseBtn {
-    flex: 1;
-    padding: 0.85rem;
-    border-radius: 0.75rem;
-    border: 1px solid #E2E8F0;
-    background: white;
-    color: #64748B;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s;
+/* [P3-HIST-ACTIVE-NO-REACTIVATE · 2026-05-18 · P3-HIST-NO-CERRAR-BTN
+   · 2026-05-18] Modificador del footer cuando solo queda el CTA
+   primario "Reactivar este Plan" (planes pasados, sin botón Cerrar
+   tras P3-HIST-NO-CERRAR-BTN). El default `.modalActionBtn` tiene
+   `flex: 2` heredado del layout 2-botones; aquí lo dejamos
+   centrado con ancho generoso (320px) — es el CTA primario, debe
+   tener presencia visual sin estirarse al 100% del modal (que se
+   sentiría desproporcionado). */
+.modalFooterSingle {
+    justify-content: center;
 }
 
-.modalCloseBtn:hover {
-    background: #F8FAFC;
-    border-color: #CBD5E1;
+.modalFooterSingle .modalActionBtn {
+    flex: 0 1 320px;
+    max-width: 320px;
 }
+
+/* [P3-HIST-NO-CERRAR-BTN · 2026-05-18] `.modalCloseBtn` eliminado:
+   el botón "Cerrar" se removió del modalFooter porque la X del
+   modalHeader (.closeButton) hace exactamente lo mismo. La media
+   query responsive aún referencia ambas reglas; .modalCloseBtn queda
+   solo en el selector compuesto del breakpoint (no-op porque no
+   matchea ningún elemento). */
 
 .modalActionBtn {
     flex: 2;
@@ -1674,7 +1748,7 @@
         flex-direction: column;
     }
 
-    .modalCloseBtn, .modalActionBtn {
+    .modalActionBtn {
         width: 100%;
         flex: none;
     }
@@ -2281,4 +2355,124 @@
     color: #64748B;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+}
+
+/* [P3-HIST-FAST-OPEN · 2026-05-18] Skeleton del menú del modal mientras
+   `plan_data.days` se carga en paralelo tras el optimistic open. Layout
+   imita el tab strip + 4 meal cards del menú real para que el swap a
+   contenido real sea visualmente fluido (mismo tamaño + posición, solo
+   cambian texturas pulsantes a texto). Usa shimmer suave (no spinner —
+   los spinners en lista de N items se sienten "cargando todo a la vez";
+   el shimmer per-card comunica "cada uno llega cuando esté listo").
+
+   Palette: gris cálido (slate-100 → slate-200) que no compite con
+   ningún chip de status. Animación 1.4s con suspense razonable;
+   prefers-reduced-motion: la respetamos abajo. */
+.menuSkeleton {
+    display: flex;
+    flex-direction: column;
+}
+
+.menuSkeletonTabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    background: #F1F5F9;
+    padding: 0.3rem;
+    border-radius: 0.75rem;
+}
+
+.menuSkeletonTab {
+    flex: 1;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    background: linear-gradient(90deg, #E2E8F0 0%, #F1F5F9 50%, #E2E8F0 100%);
+    background-size: 200% 100%;
+    animation: menuSkeletonShimmer 1.4s ease-in-out infinite;
+}
+
+/* Primer tab "activo" — mismo box-shadow del .dayTabActive real para que
+   el ojo del usuario ya pre-localice el indicador del día seleccionado. */
+.menuSkeletonTabActive {
+    background: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    animation: none;
+}
+
+.menuSkeletonMeals {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.menuSkeletonMeal {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: 0.85rem;
+    background: white;
+    border: 1px solid #E2E8F0;
+}
+
+.menuSkeletonMealIcon {
+    width: 44px;
+    height: 44px;
+    border-radius: 0.75rem;
+    background: linear-gradient(90deg, #E2E8F0 0%, #F1F5F9 50%, #E2E8F0 100%);
+    background-size: 200% 100%;
+    animation: menuSkeletonShimmer 1.4s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+.menuSkeletonMealText {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.menuSkeletonMealLine {
+    height: 0.7rem;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #E2E8F0 0%, #F1F5F9 50%, #E2E8F0 100%);
+    background-size: 200% 100%;
+    animation: menuSkeletonShimmer 1.4s ease-in-out infinite;
+}
+
+/* Primera línea ~60% width (el title del meal), segunda línea ~85% (el
+   nombre de la receta más largo). Asimetría natural — vs dos líneas
+   100% que se sentirían "block placeholder", la versión con widths
+   distintos pre-comunica que va a haber texto variable. */
+.menuSkeletonMealLine:first-child {
+    width: 35%;
+}
+
+.menuSkeletonMealLineShort {
+    width: 75%;
+}
+
+.menuSkeletonMealKcal {
+    width: 64px;
+    height: 1.5rem;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #FED7AA 0%, #FFEDD5 50%, #FED7AA 100%);
+    background-size: 200% 100%;
+    animation: menuSkeletonShimmer 1.4s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+@keyframes menuSkeletonShimmer {
+    0%   { background-position: -100% 0; }
+    100% { background-position: 100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .menuSkeletonTab,
+    .menuSkeletonMealIcon,
+    .menuSkeletonMealLine,
+    .menuSkeletonMealKcal {
+        animation: none;
+    }
 }
