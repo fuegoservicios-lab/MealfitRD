@@ -393,6 +393,14 @@ const Settings = () => {
     const [saveStatus, setSaveStatus] = useState(''); // '', 'success', 'error'
     const [nameError, setNameError] = useState('');
     const [confirmReset, setConfirmReset] = useState(false);
+    // [P3-PROFILE-DISCARD-CONFIRM · 2026-05-20] Modal de confirmación cuando
+    // el user click "Volver" con drafts pendientes de peso/altura. El banner
+    // amarillo `AlertCircle` ya advierte mientras está en Profile, pero el
+    // click en "Volver" antes solo disparaba `_revertBodyMetricsToOriginal`
+    // silenciosamente vía el cleanup useEffect — sin nada que confirme la
+    // intención de descartar. Defensa adicional contra "tipeé pero salí
+    // por error y perdí mis nuevos números".
+    const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
     // [P3-RESET-BUTTON-LOADING-STATE · 2026-05-16] Loading state inmediato
     // del botón "Sí, empezar desde cero". Sin esto, el user clickeaba y
     // el botón NO cambiaba visualmente durante los ~5-8s del backend
@@ -524,6 +532,22 @@ const Settings = () => {
         } else {
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
         }
+    };
+
+    // [P3-PROFILE-DISCARD-CONFIRM · 2026-05-20] Helper SSOT del flujo de
+    // salida desde Settings (Volver). Mismo destino que el handler inline
+    // previo: móvil+sección → listado; móvil-listado/desktop → dashboard.
+    // Extraído para que el modal de discard pueda invocarlo desde el
+    // botón "Descartar y salir" sin duplicar lógica.
+    const _doExitNavigation = () => {
+        const isMobileViewport = typeof window !== 'undefined'
+            && window.matchMedia
+            && window.matchMedia('(max-width: 768px)').matches;
+        if (isMobileViewport && activeSection) {
+            navigateToSection(null);
+            return;
+        }
+        navigate('/dashboard');
     };
 
     const sectionsConfig = [
@@ -1027,25 +1051,91 @@ const Settings = () => {
                     - Móvil + dentro de una sección: vuelve al listado de Ajustes.
                     - Móvil en listado / Desktop siempre: sale al dashboard.
                       Destino fijo (no `navigate(-1)`) — el historial puede tener
-                      entradas previas que desorientan al usuario. */}
+                      entradas previas que desorientan al usuario.
+
+                    [P3-PROFILE-DISCARD-CONFIRM · 2026-05-20] Si el user tiene
+                    drafts pendientes de peso/altura en Profile, intercepta
+                    con modal `showDiscardConfirm` antes de navegar. El cleanup
+                    useEffect ya revertía silenciosamente — pero un click
+                    accidental en "Volver" perdía los nuevos números sin aviso.
+                    El banner amarillo sigue siendo la primera línea (visible
+                    mientras se edita), el modal es la segunda. */}
                 <button
                     type="button"
                     className={styles.exitSettingsBtn}
                     onClick={() => {
-                        const isMobileViewport = typeof window !== 'undefined'
-                            && window.matchMedia
-                            && window.matchMedia('(max-width: 768px)').matches;
-                        if (isMobileViewport && activeSection) {
-                            navigateToSection(null);
+                        if (bodyMetricsChanged && activeSection === 'profile') {
+                            setShowDiscardConfirm(true);
                             return;
                         }
-                        navigate('/dashboard');
+                        _doExitNavigation();
                     }}
                     aria-label="Volver"
                 >
                     <ArrowLeft size={20} strokeWidth={2.5} />
                     <span>Volver</span>
                 </button>
+
+                {/* [P3-PROFILE-DISCARD-CONFIRM · 2026-05-20] Modal de
+                    confirmación. "Descartar y salir" revierte drafts (vía
+                    cleanup useEffect tras el navigate) y sale. "Seguir
+                    editando" cierra el modal sin tocar nada. */}
+                <Modal
+                    isOpen={showDiscardConfirm}
+                    onClose={() => setShowDiscardConfirm(false)}
+                    titleId="discard-confirm-title"
+                    maxWidth="420px"
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                        <div style={{ background: '#FEF3C7', color: '#B45309', padding: '0.75rem', borderRadius: '50%', flexShrink: 0 }}>
+                            <AlertCircle size={22} strokeWidth={2.5} />
+                        </div>
+                        <h3 id="discard-confirm-title" style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0F172A' }}>
+                            Tienes cambios sin guardar
+                        </h3>
+                    </div>
+                    <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.55, margin: '0 0 1.5rem 0' }}>
+                        Editaste tu peso o altura pero no actualizaste tu plan. Si sales ahora,
+                        los nuevos valores se <strong>descartarán</strong>.
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                        <button
+                            type="button"
+                            onClick={() => setShowDiscardConfirm(false)}
+                            style={{
+                                background: '#F1F5F9',
+                                color: '#475569',
+                                border: 'none',
+                                padding: '0.65rem 1.15rem',
+                                borderRadius: '0.6rem',
+                                fontWeight: 600,
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            Seguir editando
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShowDiscardConfirm(false);
+                                _doExitNavigation();
+                            }}
+                            style={{
+                                background: '#EF4444',
+                                color: 'white',
+                                border: 'none',
+                                padding: '0.65rem 1.15rem',
+                                borderRadius: '0.6rem',
+                                fontWeight: 700,
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            Descartar y salir
+                        </button>
+                    </div>
+                </Modal>
 
                 <Modal
                     isOpen={showCancelModal}
