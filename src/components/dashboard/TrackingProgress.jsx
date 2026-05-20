@@ -197,8 +197,8 @@ const TrackingProgress = ({ planData, userId }) => {
 
             <div className={styles.content}>
                 {/* Calorías (Main Bar) */}
-                <ProgressBar 
-                    label="Calorías Consumidas"
+                <ProgressBar
+                    label="Calorías"
                     consumed={consumed.calories} goal={goalCal} unit="kcal"
                     perc={percCal} icon={Flame} color="#F59E0B" gradient="linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%)"
                     large
@@ -298,7 +298,14 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
                         background: gradient,
                         boxShadow: isComplete ? `0 0 12px ${color}66` : 'none'
                     }}
-                />
+                >
+                    {/* [P3-TRACKING-BAR-INLINE-PERC · 2026-05-20] % blanco dentro
+                        del fill (estilo carga de batería). Mobile-only via CSS
+                        — desktop sigue usando la pill `.percRow` debajo. */}
+                    {!isEmpty && (
+                        <span className={styles.fillPerc}>{perc}%</span>
+                    )}
+                </div>
             </div>
 
             {!isEmpty && (

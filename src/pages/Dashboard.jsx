@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAssessment } from '../context/AssessmentContext';
 import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -2842,7 +2842,7 @@ const Dashboard = () => {
                                 whiteSpace: 'nowrap'
                             }}>
                                 {remainingCredits === '∞'
-                                    ? <InfinityIcon size={20} strokeWidth={2.5} style={{ color: 'var(--text-main)', marginRight: '10px' }} />
+                                    ? <InfinityIcon size={20} strokeWidth={2.5} style={{ color: 'var(--text-main)', marginRight: '4px' }} />
                                     : remainingCredits}
                                 {userPlanLimit !== 'Ilimitado' && <span style={{ color: '#94A3B8', fontSize: '0.85rem', fontWeight: 600 }}>/ {userPlanLimit}</span>}
                             </div>
