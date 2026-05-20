@@ -1087,8 +1087,18 @@ const Settings = () => {
                     maxWidth="420px"
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                        <div style={{ background: '#FEF3C7', color: '#B45309', padding: '0.75rem', borderRadius: '50%', flexShrink: 0 }}>
-                            <AlertCircle size={22} strokeWidth={2.5} />
+                        <div style={{
+                            background: '#FEF3C7',
+                            color: '#B45309',
+                            width: '42px',
+                            height: '42px',
+                            borderRadius: '50%',
+                            flexShrink: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <AlertCircle size={22} strokeWidth={2.5} style={{ transform: 'translateY(1.5px)' }} />
                         </div>
                         <h3 id="discard-confirm-title" style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0F172A' }}>
                             Tienes cambios sin guardar
@@ -1146,8 +1156,18 @@ const Settings = () => {
                 >
                                 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
-                                    <div style={{ background: '#FEF2F2', color: '#EF4444', padding: '0.75rem', borderRadius: '50%' }}>
-                                        <AlertTriangle size={24} strokeWidth={2.5} />
+                                    <div style={{
+                                        background: '#FEF2F2',
+                                        color: '#EF4444',
+                                        width: '44px',
+                                        height: '44px',
+                                        borderRadius: '50%',
+                                        flexShrink: 0,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}>
+                                        <AlertTriangle size={24} strokeWidth={2.5} style={{ transform: 'translateY(1px)' }} />
                                     </div>
                                     <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0F172A' }}>
                                         Cancelar Suscripción
@@ -1205,8 +1225,20 @@ const Settings = () => {
                             disableClose={isNavigatingRef.current}
                         >
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '1.75rem' }}>
-                                <div style={{ background: '#FEE2E2', color: '#EF4444', padding: '1rem', borderRadius: '50%', marginBottom: '1.25rem', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)' }}>
-                                    <AlertTriangle size={28} strokeWidth={2.5} />
+                                <div style={{
+                                    background: '#FEE2E2',
+                                    color: '#EF4444',
+                                    width: '60px',
+                                    height: '60px',
+                                    borderRadius: '50%',
+                                    flexShrink: 0,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    marginBottom: '1.25rem',
+                                    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)'
+                                }}>
+                                    <AlertTriangle size={28} strokeWidth={2.5} style={{ transform: 'translateY(1.5px)' }} />
                                 </div>
                                 <h3 id="reset-confirm-modal" style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
                                     ¿Empezar desde cero?
