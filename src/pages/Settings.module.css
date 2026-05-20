@@ -288,16 +288,9 @@
         0 0 0 4px rgba(255, 255, 255, 0.7),
         0 0 0 5px rgba(79, 70, 229, 0.15);
     flex-shrink: 0;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.avatar:hover {
-    transform: scale(1.04);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.35),
-        0 12px 32px rgba(79, 70, 229, 0.45),
-        0 0 0 4px rgba(255, 255, 255, 0.7),
-        0 0 0 5px rgba(79, 70, 229, 0.25);
+    /* [P3-AVATAR-NO-MOTION · 2026-05-20] Eliminadas transition + hover scale
+       — el user reportó la animación al pasar el mouse como ruido visual
+       innecesario en un avatar puramente decorativo (no clickeable). */
 }
 
 .emailContainer {
@@ -456,6 +449,80 @@
 }
 .actionBtn:active {
     transform: translateY(0);
+}
+
+/* Premium Button Hover Glows */
+.updatePlanBtn {
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+}
+
+.updatePlanBtn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5), 0 0 12px rgba(245, 158, 11, 0.3);
+}
+
+.updatePlanBtn:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+}
+
+.updatePlanBtn:disabled {
+    cursor: wait;
+    opacity: 0.8;
+    transform: scale(0.98);
+}
+
+.saveChangesBtn {
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.saveChangesBtnDefault {
+    background: var(--primary);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.saveChangesBtnDefault:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.45), 0 0 12px rgba(59, 130, 246, 0.25);
+}
+
+.saveChangesBtnSuccess {
+    background: #10B981;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.saveChangesBtnSuccess:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45), 0 0 12px rgba(16, 185, 129, 0.25);
+}
+
+.saveChangesBtn:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+}
+
+.saveChangesBtn:disabled {
+    cursor: wait;
+    opacity: 0.8;
+    transform: scale(0.98);
 }
 
 

@@ -214,7 +214,12 @@ export const QMeasurements = ({ onManualAdvance }) => {
     // re-arrancaba 'cm' por default al remontar, perdiendo la elección
     // explícita del usuario que había tipeado en ft/in. AHORA persiste a
     // localStorage vía `_heightInputUnit` en `initialFormData`.
-    const unit = formData._heightInputUnit || 'cm';
+    // [P3-DEFAULT-IMPERIAL · 2026-05-20] Default 'ft' (imperial) en lugar
+    // de 'cm'. El user puede cambiar a cm via el toggle si prefiere métrico.
+    // Solo aplica al PRIMER visit (cuando no hay `_heightInputUnit` aún en
+    // formData/localStorage). Si el user ya guardó 'cm' explícitamente,
+    // ese valor persiste por el || left-side.
+    const unit = formData._heightInputUnit || 'ft';
     const setUnit = (newUnit) => updateData('_heightInputUnit', newUnit);
     const [feet, setFeet] = useState('');
     const [inches, setInches] = useState('');

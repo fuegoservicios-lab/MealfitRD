@@ -33,7 +33,7 @@ import { trackEvent } from '../utils/analytics';
 // con `inventory = getCachedInventory()` ya poblado → cero skeleton + cero
 // fetch dup. Pre-fix Pantry hacía su propio fetch al mount (~300-800ms)
 // pese a que Dashboard ya había hecho refetch para `setLiveInventory`.
-import { setCachedInventory, invalidateInventoryCache } from '../utils/pantryCache';
+import { getCachedInventory, setCachedInventory, invalidateInventoryCache } from '../utils/pantryCache';
 import { safeJSONParse } from '../utils/safeJSONParse';
 import { getActiveShoppingList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
@@ -189,19 +189,42 @@ const Dashboard = () => {
 
     // Guard contra race condition: evita que la rotación automática dispare handleNewPlan()
     // al mismo tiempo que una acción manual del usuario (movido a useRegeneratePlan)
-    
+
     // GAP 5: Helper asíncrono para validar créditos usando estado fresco del backend
+    //
+    // [P1-CREDITS-CHECK-TTL · 2026-05-20] TTL subido 5s → 120s. El bug del
+    // delay al clickear "Actualizar platos" reportado 2026-05-20 venía de
+    // este fetch de ~200-500ms al backend `/api/user/credits/<id>`. El cache
+    // de 5s era demasiado corto — cada interacción del user con el botón
+    // pagaba fetch fresco. El `planCount` solo cambia al regenerar plan
+    // (mutación que invalida el cache manualmente vía `checkPlanLimit`
+    // post-success) o al month rollover (que pasa una vez/mes, no en
+    // sesión activa). 120s captura clicks rápidos sin perder correctness.
+    //
+    // [P1-CREDITS-OPTIMISTIC · 2026-05-20] El check optimista lee primero
+    // del `planCount` del context (que se hidrata al login del context y
+    // se mantiene fresh por mutaciones explícitas). Solo si el cache local
+    // de quota expiró Y el context no tiene valor confiable, hace fetch
+    // bloqueante. Resultado: 99% de los clicks son síncronos, modal abre
+    // instantáneo.
     const validateCreditsAsync = async () => {
         try {
             const now = Date.now();
-            let freshPlanCount = window.__cachedQuota || 0;
-            if (now - (window.__lastQuotaCheckTime || 0) > 5000) {
+            // Fast path: context tiene planCount fresco (cargado al login).
+            // userPlanLimit '∞' o 'Ilimitado' → siempre dejar pasar.
+            if (userPlanLimit === '∞' || userPlanLimit === 'Ilimitado' || typeof userPlanLimit !== 'number') {
+                return true;
+            }
+            // Si el cache local está vigente (<120s), validar SIN fetch.
+            let freshPlanCount = window.__cachedQuota;
+            const _CACHE_TTL_MS = 120 * 1000; // 2 min (era 5s)
+            if (typeof freshPlanCount !== 'number' || now - (window.__lastQuotaCheckTime || 0) > _CACHE_TTL_MS) {
                 freshPlanCount = await checkPlanLimit(userProfile?.id);
                 window.__cachedQuota = freshPlanCount;
                 window.__lastQuotaCheckTime = now;
             }
-            
-            if (typeof userPlanLimit === 'number' && freshPlanCount >= userPlanLimit) {
+
+            if (freshPlanCount >= userPlanLimit) {
                 toast.error('Sin créditos', { description: 'No tienes créditos de regeneración disponibles.' });
                 return false;
             }
@@ -213,8 +236,20 @@ const Dashboard = () => {
     };
     
     // Inventario real (user_inventory en DB) — sincronizado con la Nevera física
-    const [liveInventory, setLiveInventory] = useState(null);
-    const [isLoadingInventory, setIsLoadingInventory] = useState(true);
+    //
+    // [P1-DASHBOARD-CACHE-INVENTORY · 2026-05-20] Lazy initializer lee del
+    // cache singleton de Pantry. Pre-fix: `useState(null)` arrancaba sin
+    // datos → spinner visible cada vez que el user navegaba Plan/Agente →
+    // Dashboard. El cache `pantryCache.js` ya almacenaba el inventory tras
+    // cada visita a Nevera (P3-PANTRY-CACHE) PERO Dashboard NO lo leía al
+    // mount — Dashboard solo guardaba (setCachedInventory) sin leer.
+    //
+    // Fix: hidratar desde el cache singleton. Si Pantry tiene cache fresco
+    // (<10min tras P1-PANTRY-TTL-BUMP), arranca con datos → cero flash.
+    // Si no, queda en null y el fetchInventory normal lo popula.
+    const _cachedInv = getCachedInventory();
+    const [liveInventory, setLiveInventory] = useState(_cachedInv || null);
+    const [isLoadingInventory, setIsLoadingInventory] = useState(!_cachedInv);
 
     // [P3-PLAN-BTN-STABLE · 2026-05-19] Cache del último conteo conocido del
     // inventario en localStorage, keyed por user_id. Bootstrap del primer paint
@@ -486,9 +521,17 @@ const Dashboard = () => {
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('focus', refreshInventoryOnFocus);
+        // [P1-CHAT-UI-ACTION-INVENTORY · 2026-05-20] Listener del custom event
+        // que AgentPage dispara cuando el LLM emite `[UI_ACTION: REFRESH_INVENTORY]`
+        // tras `log_consumed_meal`/`modify_pantry_inventory`/`mark_shopping_list_purchased`.
+        // Refetch instantáneo del `liveInventory` evita stale visual de la Nevera
+        // mientras el user sigue mirando el Dashboard sin navegar a Pantry.
+        // Análogo al patrón `mealfit:refresh-hydration` del WaterTracker.
+        window.addEventListener('mealfit:refresh-inventory', refreshInventoryOnFocus);
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('focus', refreshInventoryOnFocus);
+            window.removeEventListener('mealfit:refresh-inventory', refreshInventoryOnFocus);
         };
     }, [userProfile?.id]);
 
@@ -2789,12 +2832,17 @@ const Dashboard = () => {
                                 fontWeight: 800,
                                 color: 'var(--text-main)',
                                 display: 'flex',
-                                alignItems: 'baseline',
+                                alignItems: 'center',
+                                // [P3-CREDITS-INFINITY-CENTER · 2026-05-20] Centrar
+                                // horizontalmente cuando es ilimitado (solo icono ∞).
+                                // Para usuarios con plan (formato "5 / 50") mantener
+                                // alineación natural a la izquierda.
+                                justifyContent: remainingCredits === '∞' ? 'center' : 'flex-start',
                                 gap: '3px',
                                 whiteSpace: 'nowrap'
                             }}>
                                 {remainingCredits === '∞'
-                                    ? <InfinityIcon size={20} strokeWidth={2.5} style={{ color: 'var(--text-main)' }} />
+                                    ? <InfinityIcon size={20} strokeWidth={2.5} style={{ color: 'var(--text-main)', marginRight: '10px' }} />
                                     : remainingCredits}
                                 {userPlanLimit !== 'Ilimitado' && <span style={{ color: '#94A3B8', fontSize: '0.85rem', fontWeight: 600 }}>/ {userPlanLimit}</span>}
                             </div>

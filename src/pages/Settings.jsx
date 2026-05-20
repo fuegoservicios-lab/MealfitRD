@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
     User, Bell, Shield, ChevronRight, ArrowLeft,
-    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat, GlassWater
+    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat, GlassWater, Cog
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -31,7 +31,7 @@ const Settings = () => {
     // Obtenemos userProfile y updateUserProfile del contexto global
     // [P1-FORM-9] `session` necesario para el guard de hidratación cifrada en
     // `buildHealthProfilePayload`.
-    const { planData, formData, resetApp, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session, isPremium } = useAssessment();
+    const { planData, formData, resetApp, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session, isPremium, updateData } = useAssessment();
 
     // [P1-FORM-9] Wrapper análogo al de Dashboard.jsx: filtra flags `_*` y
     // bloquea si la hidratación cifrada del formData parece estar in-flight.
@@ -223,6 +223,172 @@ const Settings = () => {
         userProfile?.full_name || planData?.userParams?.name || ''
     );
 
+    // [P3-PROFILE-BODY-METRICS · 2026-05-20] Inputs editables de peso/altura
+    // en el card Perfil. Persisten en `health_profile.weight`/`height` via
+    // `safeUpdateHealthProfile`. Al cambiarlos NO se recalculan los targets
+    // del card "Progreso en Tiempo Real" (esos vienen del `planData.calories/
+    // macros` fijos del plan generado — recalcular desincronizaría con las
+    // porciones de las recetas vigentes). Toast post-save invita a regenerar
+    // plan para que las comidas reflejen los nuevos datos.
+    //
+    // [P3-PROFILE-UNITS-TOGGLE · 2026-05-20] Toggles de unidad:
+    //   - Peso: kg ↔ lb (formData.weightUnit ya existe, default depende del
+    //     locale browser).
+    //   - Altura: cm ↔ ft (UI only; siempre persiste en cm canonical).
+    //
+    // Conversión canónica al persistir:
+    //   - weight stored siempre en la unit que el user ve (formData.weightUnit
+    //     refleja la preferencia, el backend interpreta según ese campo).
+    //   - height SIEMPRE en cm. Si user elige ft, convertimos antes de save.
+    // [P3-DEFAULT-IMPERIAL · 2026-05-20] Defaults imperial (lb + ft).
+    // weightUnit lee de formData (que ya defaultea 'lb' tras el cambio en
+    // AssessmentContext); fallback 'lb' explícito. heightUnit arranca en
+    // 'ft' siempre — si hay altura previa en cm, se pre-convierte abajo
+    // a ft+inches para que el user vea su altura en la unit imperial sin
+    // necesidad de togglear primero.
+    const [weightUnit, setWeightUnit] = useState(
+        () => formData?.weightUnit || userProfile?.health_profile?.weightUnit || 'lb'
+    );
+    const [heightUnit, setHeightUnit] = useState('ft');
+    const _initialWeight = formData?.weight ?? userProfile?.health_profile?.weight ?? '';
+    const _initialHeightCm = formData?.height ?? userProfile?.health_profile?.height ?? '';
+    const [weightInput, setWeightInput] = useState(() => String(_initialWeight));
+    const [heightInput, setHeightInput] = useState(() => String(_initialHeightCm));
+
+    // Pre-conversión cm → ft+in para que los inputs imperiales arranquen
+    // poblados si el user tenía altura en cm previa. Cálculo en initializer
+    // del useState (sin dispatch extra).
+    const _ftInitial = (() => {
+        const cm = parseFloat(_initialHeightCm);
+        if (isNaN(cm) || cm <= 0) return { ft: '', in: '' };
+        const totalIn = cm / 2.54;
+        const ft = Math.floor(totalIn / 12);
+        return { ft: String(ft), in: String(Math.round(totalIn - ft * 12)) };
+    })();
+    const [heightFeet, setHeightFeet] = useState(() => _ftInitial.ft);
+    const [heightInches, setHeightInches] = useState(() => _ftInitial.in);
+
+    // [P3-PROFILE-METRICS-COMMIT · 2026-05-20] Snapshot de los valores
+    // originales al mount. Sirve para:
+    //   1. Detectar si los body metrics cambiaron (mostrar botón "Actualizar
+    //      Plan" en lugar de "Guardar Cambios").
+    //   2. Revertir los inputs a originales si el user sale de la sección
+    //      o desmonta el componente sin haber click "Actualizar Plan"
+    //      (descartar cambios no-comprometidos).
+    //
+    // Comportamiento UX: los body metrics solo se persisten si el user
+    // explícitamente click "Actualizar Plan con Nuevos Datos" (que regenera
+    // el plan al mismo tiempo). "Guardar Cambios" normal solo guarda el
+    // nombre — body metrics se ignoran/revierten al salir.
+    const _bodyMetricsOriginalRef = useRef({
+        weight: String(_initialWeight),
+        height: String(_initialHeightCm),
+        weightUnit: formData?.weightUnit || userProfile?.health_profile?.weightUnit || 'kg',
+    });
+    const [isRegeneratingFromMetrics, setIsRegeneratingFromMetrics] = useState(false);
+
+    // Computed: ¿cambiaron los body metrics respecto al snapshot original?
+    const _resolveCurrentHeightCm = () => {
+        if (heightUnit === 'ft') {
+            const ft = parseFloat(heightFeet) || 0;
+            const inches = parseFloat(heightInches) || 0;
+            return (ft > 0 || inches > 0) ? Math.round(ft * 30.48 + inches * 2.54) : '';
+        }
+        return heightInput;
+    };
+    const bodyMetricsChanged = (() => {
+        const orig = _bodyMetricsOriginalRef.current;
+        const currentHeightCm = String(_resolveCurrentHeightCm());
+        return (
+            String(weightInput) !== orig.weight
+            || currentHeightCm !== orig.height
+            || weightUnit !== orig.weightUnit
+        );
+    })();
+
+    // Reset de body metrics a originales (descarte de cambios no comprometidos).
+    // [P3-DEFAULT-IMPERIAL · 2026-05-20] Revertir al default imperial 'ft'
+    // con ft/in pre-poblados desde la altura cm original (consistente con
+    // el initial mount). Sin esto, tras revert el toggle aparecía en 'cm'
+    // por default y el user perdía su elección imperial.
+    const _revertBodyMetricsToOriginal = () => {
+        const orig = _bodyMetricsOriginalRef.current;
+        setWeightInput(orig.weight);
+        setHeightInput(orig.height);
+        setWeightUnit(orig.weightUnit);
+        setHeightUnit('ft');
+        const cm = parseFloat(orig.height);
+        if (!isNaN(cm) && cm > 0) {
+            const totalIn = cm / 2.54;
+            const ft = Math.floor(totalIn / 12);
+            setHeightFeet(String(ft));
+            setHeightInches(String(Math.round(totalIn - ft * 12)));
+        } else {
+            setHeightFeet('');
+            setHeightInches('');
+        }
+    };
+
+    // Helper: convertir cm → ft + in (con redondeo).
+    const _cmToFtIn = (cm) => {
+        const n = parseFloat(cm);
+        if (isNaN(n) || n <= 0) return { ft: '', in: '' };
+        const totalIn = n / 2.54;
+        const ft = Math.floor(totalIn / 12);
+        const inches = Math.round(totalIn - ft * 12);
+        return { ft: String(ft), in: String(inches) };
+    };
+
+    // [P3-PROFILE-WEIGHT-UNIT-AUTOCONVERT · 2026-05-20] Toggle kg↔lb DEBE
+    // auto-convertir el valor numérico al cambiar la unidad. Pre-fix solo
+    // cambiaba `weightUnit` y dejaba el literal del input intacto — e.g.
+    // 70 kg al togglear a lb se quedaba "70" (interpretado como 70 lb =
+    // 31.7 kg → BMR significativamente bajo). La validación de rango
+    // (55-660 lb / 25-300 kg) bloqueaba extremos pero valores mid-range
+    // pasaban silenciosos. Espejo del comportamiento ya implementado en
+    // `handleHeightUnitToggle` (cm↔ft+in).
+    //
+    // Conversión: 1 kg = 2.20462 lb. Redondeo a 1 decimal (match con
+    // `step="0.1"` del input). NaN/0/empty se preserva sin tocar.
+    const _WEIGHT_LB_PER_KG = 2.20462;
+    const handleWeightUnitToggle = (newUnit) => {
+        if (newUnit === weightUnit) return;
+        const n = parseFloat(weightInput);
+        if (!isNaN(n) && n > 0) {
+            let converted;
+            if (newUnit === 'lb' && weightUnit === 'kg') {
+                converted = Math.round(n * _WEIGHT_LB_PER_KG * 10) / 10;
+            } else if (newUnit === 'kg' && weightUnit === 'lb') {
+                converted = Math.round((n / _WEIGHT_LB_PER_KG) * 10) / 10;
+            }
+            if (typeof converted === 'number' && !isNaN(converted)) {
+                setWeightInput(String(converted));
+            }
+        }
+        setWeightUnit(newUnit);
+    };
+
+    // Cuando el user cambia heightUnit, sincronizar los inputs visibles
+    // desde el valor canonical (heightInput en cm o derivado).
+    const handleHeightUnitToggle = (newUnit) => {
+        if (newUnit === heightUnit) return;
+        if (newUnit === 'ft') {
+            // cm → ft + in
+            const { ft, in: inches } = _cmToFtIn(heightInput);
+            setHeightFeet(ft);
+            setHeightInches(inches);
+        } else {
+            // ft + in → cm
+            const ft = parseFloat(heightFeet) || 0;
+            const inches = parseFloat(heightInches) || 0;
+            if (ft > 0 || inches > 0) {
+                const cm = Math.round(ft * 30.48 + inches * 2.54);
+                setHeightInput(String(cm));
+            }
+        }
+        setHeightUnit(newUnit);
+    };
+
     const [isSaving, setIsSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState(''); // '', 'success', 'error'
     const [nameError, setNameError] = useState('');
@@ -278,6 +444,28 @@ const Settings = () => {
         return null;
     };
     const [activeSection, setActiveSection] = useState(computeInitialSection);
+
+    // [P3-PROFILE-METRICS-COMMIT · 2026-05-20] Revertir body metrics no
+    // comprometidos cuando el user navega FUERA de la sección Perfil sin
+    // haber click "Actualizar Plan con Nuevos Datos". Para el user, los
+    // body metrics son "draft" hasta que regenere el plan — salir sin
+    // commit descarta el draft.
+    useEffect(() => {
+        if (activeSection !== 'profile') {
+            _revertBodyMetricsToOriginal();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeSection]);
+
+    // Cleanup al desmontar el componente (navegación fuera de Settings).
+    // Asegura que body metrics no persistidos NO queden cached en estado
+    // residual si el user vuelve a Settings desde otra ruta.
+    useEffect(() => {
+        return () => {
+            _revertBodyMetricsToOriginal();
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // En desktop, limpiar cualquier hash residual de la URL al mount. Sin esto
     // el browser bar muestra e.g. `/dashboard/settings#preferences` mientras
@@ -339,7 +527,7 @@ const Settings = () => {
     };
 
     const sectionsConfig = [
-        { id: 'profile', label: 'Perfil', description: 'Nombre, correo y avatar', Icon: User, iconBg: '#EFF6FF', iconColor: '#3B82F6' },
+        { id: 'profile', label: 'General', description: 'Nombre, correo y datos básicos', Icon: Cog, iconBg: '#EFF6FF', iconColor: '#3B82F6' },
         { id: 'notifications', label: 'Notificaciones', description: 'Alertas inteligentes', Icon: Bell, iconBg: '#F3E8FF', iconColor: '#9333EA' },
         { id: 'preferences', label: 'Preferencias', description: 'Modo automático, memoria y datos del agente', Icon: SlidersHorizontal, iconBg: '#FCE7F3', iconColor: '#DB2777' },
         { id: 'plan', label: 'Plan & Objetivo', description: 'Meta principal y calorías', Icon: Trophy, iconBg: '#DCFCE7', iconColor: '#166534' },
@@ -525,9 +713,14 @@ const Settings = () => {
         }
     };
 
+    // [P3-PROFILE-METRICS-COMMIT · 2026-05-20] `handleSaveProfile` ahora
+    // SOLO persiste el nombre. Los body metrics (peso/altura/weightUnit)
+    // requieren el flow separado `handleUpdatePlanWithMetrics` que regenera
+    // el plan automáticamente con los nuevos datos — sin regenerar, los
+    // body metrics quedan en draft y se descartan al salir.
     const handleSaveProfile = async () => {
         if (isSaving) return;
-        
+
         const trimmedName = userName.trim();
         if (!trimmedName) {
             setNameError("Por favor, ingresa tu nombre.");
@@ -538,20 +731,157 @@ const Settings = () => {
         setIsSaving(true);
         setSaveStatus('');
 
-        // Actualizamos en Supabase
-        const result = await updateUserProfile({
-            full_name: trimmedName
-        });
+        const fullNameResult = await updateUserProfile({ full_name: trimmedName });
 
         setIsSaving(false);
 
-        if (result.success) {
+        if (fullNameResult.success) {
             setSaveStatus('success');
             toast.success("Perfil actualizado con éxito.");
             setTimeout(() => setSaveStatus(''), 3000);
         } else {
             setSaveStatus('error');
             toast.error("Hubo un error al guardar. Por favor verifica tu conexión.");
+        }
+    };
+
+    // [P3-PROFILE-METRICS-COMMIT · 2026-05-20] Persistir body metrics +
+    // regenerar plan en un solo flujo. Solo se invoca desde el botón
+    // "Actualizar Plan con Nuevos Datos" cuando bodyMetricsChanged===true.
+    const handleUpdatePlanWithMetrics = async () => {
+        if (isSaving || isRegeneratingFromMetrics) return;
+
+        // Validación (mismo bloque que estaba en handleSaveProfile).
+        const parsedWeight = parseFloat(weightInput);
+        const _weightMin = weightUnit === 'lb' ? 55 : 25;
+        const _weightMax = weightUnit === 'lb' ? 660 : 300;
+        const weightValid = !isNaN(parsedWeight) && parsedWeight >= _weightMin && parsedWeight <= _weightMax;
+
+        let heightCm = null;
+        if (heightUnit === 'ft') {
+            const ft = parseFloat(heightFeet) || 0;
+            const inches = parseFloat(heightInches) || 0;
+            if (ft > 0 || inches > 0) heightCm = Math.round(ft * 30.48 + inches * 2.54);
+        } else {
+            const n = parseFloat(heightInput);
+            if (!isNaN(n)) heightCm = n;
+        }
+        const heightValid = heightCm !== null && heightCm >= 100 && heightCm <= 250;
+
+        if (weightInput && !weightValid) {
+            toast.error(`Peso fuera de rango (${_weightMin}-${_weightMax} ${weightUnit}).`);
+            return;
+        }
+        if ((heightUnit === 'cm' ? heightInput : (heightFeet || heightInches)) && !heightValid) {
+            toast.error("Altura fuera de rango (100-250 cm equivalente).");
+            return;
+        }
+
+        // [P3-PROFILE-METRICS-QUOTA-GATE · 2026-05-20] Pre-check del quota
+        // ANTES de persistir body metrics. Sin este gate, regeneratePlan
+        // abortaría con toast "Límite alcanzado" DESPUÉS de que la RPC
+        // `update_health_profile_merge` ya mutó la columna → user queda
+        // con health_profile nuevo pero plan vigente con macros stale
+        // hasta el próximo ciclo de billing.
+        //
+        // Cache `window.__cachedQuota` (TTL 5s) compartido con
+        // `useRegeneratePlan.regeneratePlan` para no duplicar roundtrip si
+        // Dashboard ya consultó hace <5s. Fail-open en error de red:
+        // `regeneratePlan` hará su propio check downstream y abortará si
+        // realmente está al tope; la peor consecuencia de un falso
+        // negativo acá es que la persistencia + regenerate se inicien y
+        // regeneratePlan emita el toast — igual que el comportamiento
+        // pre-fix, pero solo en el camino de network failure.
+        try {
+            const _nowQuota = Date.now();
+            let _freshCount = (typeof window !== 'undefined' && window.__cachedQuota) || planCount;
+            if (_nowQuota - ((typeof window !== 'undefined' && window.__lastQuotaCheckTime) || 0) > 5000) {
+                _freshCount = await checkPlanLimit(userProfile?.id);
+                if (typeof window !== 'undefined') {
+                    window.__cachedQuota = _freshCount;
+                    window.__lastQuotaCheckTime = _nowQuota;
+                }
+            }
+            if (typeof userPlanLimit === 'number' && _freshCount >= userPlanLimit) {
+                toast.error('Límite de regeneraciones alcanzado', {
+                    description: 'Tus nuevos datos no se guardaron porque requieren regenerar el plan, y has usado todos tus créditos este mes.',
+                    duration: 6000,
+                });
+                return;
+            }
+        } catch {
+            // Network error en checkPlanLimit → fail-open. regeneratePlan
+            // hará el check downstream con su propio try/catch.
+        }
+
+        setIsRegeneratingFromMetrics(true);
+
+        // 1) Actualizar `formData` del context con los nuevos valores ANTES
+        //    de regenerar. `regeneratePlan` (useRegeneratePlan hook) lee de
+        //    `formData` para construir el payload completo del backend —
+        //    incluye gender, age, allergies, mainGoal, dietType, etc. del
+        //    assessment original. Si NO actualizo formData primero, el
+        //    payload llevaría weight/height/weightUnit viejos.
+        //
+        //    `updateData(field, value)` actualiza formData + marca el campo
+        //    como touched (cubre los 3 paths de hidratación async del context
+        //    para que no sobrescriban con valores stale).
+        if (weightValid) {
+            updateData('weight', parsedWeight);
+            if (weightUnit !== formData?.weightUnit) {
+                updateData('weightUnit', weightUnit);
+            }
+        }
+        if (heightValid) {
+            updateData('height', heightCm);
+        }
+
+        // 2) Persistir body metrics en health_profile (jsonb merge backend).
+        //    El resto de campos del assessment ya están en health_profile
+        //    desde el flujo original — este RPC solo mergea, no reemplaza.
+        const overrides = {};
+        if (weightValid) {
+            overrides.weight = parsedWeight;
+            overrides.weightUnit = weightUnit;
+        }
+        if (heightValid) overrides.height = heightCm;
+        const healthOk = safeUpdateHealthProfile(overrides);
+
+        if (!healthOk) {
+            setIsRegeneratingFromMetrics(false);
+            return;
+        }
+
+        // 3) Actualizar el snapshot de "originales" para que bodyMetricsChanged
+        //    pase a false (botón vuelva a su estado normal) y que el cleanup
+        //    NO revierta estos valores ya comprometidos al salir.
+        _bodyMetricsOriginalRef.current = {
+            weight: String(weightInput),
+            height: String(heightCm),
+            weightUnit,
+        };
+
+        // 4) Disparar regenerate del plan. `regeneratePlan` lee `formData`
+        //    fresh (ya actualizado en paso 1) → envía al backend payload
+        //    completo con TODOS los datos del assessment original +
+        //    weight/height/weightUnit nuevos. El LLM recalcula macros con
+        //    Mifflin-St Jeor sobre los nuevos valores y genera comidas
+        //    coherentes.
+        toast.success("Datos guardados. Regenerando plan…", {
+            description: "Tu plan se actualizará con los nuevos cálculos de macros en unos segundos.",
+            duration: 4000,
+        });
+
+        try {
+            await regeneratePlan({
+                reason: 'body_metrics_changed',
+                entry_point: 'settings_profile_body_metrics',
+            });
+        } catch (err) {
+            console.error('Error regenerando plan tras update body metrics:', err);
+            toast.error('No se pudo regenerar el plan. Tus datos se guardaron — reintenta el regenerate desde el Dashboard.');
+        } finally {
+            setIsRegeneratingFromMetrics(false);
         }
     };
 
@@ -1113,10 +1443,7 @@ const Settings = () => {
                     {activeSection === 'profile' && (
                     <section className={styles.section}>
                         <h2 className={styles.sectionTitle}>
-                            <div style={{ background: '#EFF6FF', padding: '0.5rem', borderRadius: '0.5rem', color: '#3B82F6' }}>
-                                <User size={20} />
-                            </div>
-                            Perfil de Usuario
+                            Perfil
                         </h2>
 
                         <div className={styles.profileFlex}>
@@ -1171,7 +1498,138 @@ const Settings = () => {
                                         </div>
                                     )}
                                 </div>
-                                
+
+                                {/* [P3-PROFILE-BODY-METRICS · 2026-05-20] Peso + Altura.
+                                    [P3-PROFILE-UNITS-TOGGLE · 2026-05-20] Toggle kg/lb + cm/ft.
+                                    Persisten en health_profile (jsonb merge via RPC).
+                                    weight persiste en la unit visible; height SIEMPRE en cm canonical. */}
+                                {(() => {
+                                    const _inputStyle = {
+                                        width: '100%',
+                                        padding: '0.875rem 1.25rem',
+                                        borderRadius: '0.75rem',
+                                        border: '2px solid transparent',
+                                        outline: 'none',
+                                        fontSize: '1rem',
+                                        transition: 'all 0.3s ease',
+                                        background: '#F1F5F9',
+                                        color: 'var(--text-main)',
+                                        fontWeight: 500,
+                                    };
+                                    const _onFocus = (e) => {
+                                        e.target.style.background = 'white';
+                                        e.target.style.borderColor = '#3B82F6';
+                                        e.target.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.1)';
+                                    };
+                                    const _onBlur = (e) => {
+                                        e.target.style.background = '#F1F5F9';
+                                        e.target.style.borderColor = 'transparent';
+                                        e.target.style.boxShadow = 'none';
+                                    };
+                                    const _UnitToggle = ({ unit, options, onChange }) => (
+                                        <div style={{ display: 'inline-flex', gap: 2, background: '#E2E8F0', padding: 2, borderRadius: '0.5rem', marginLeft: '0.5rem' }}>
+                                            {options.map((opt) => (
+                                                <button
+                                                    key={opt}
+                                                    type="button"
+                                                    onClick={() => onChange(opt)}
+                                                    style={{
+                                                        padding: '0.2rem 0.55rem',
+                                                        borderRadius: '0.4rem',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        fontSize: '0.7rem',
+                                                        fontWeight: 700,
+                                                        textTransform: 'uppercase',
+                                                        letterSpacing: '0.03em',
+                                                        background: unit === opt ? 'white' : 'transparent',
+                                                        color: unit === opt ? '#1E293B' : '#64748B',
+                                                        boxShadow: unit === opt ? '0 1px 3px rgba(15, 23, 42, 0.12)' : 'none',
+                                                        transition: 'all 0.15s ease',
+                                                    }}
+                                                >
+                                                    {opt}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    );
+                                    return (
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                            {/* PESO */}
+                                            <div>
+                                                <label style={{ display: 'flex', alignItems: 'center', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                                                    Peso
+                                                    <_UnitToggle unit={weightUnit} options={['kg', 'lb']} onChange={handleWeightUnitToggle} />
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    inputMode="decimal"
+                                                    min={weightUnit === 'lb' ? '55' : '25'}
+                                                    max={weightUnit === 'lb' ? '660' : '300'}
+                                                    step="0.1"
+                                                    value={weightInput}
+                                                    onChange={(e) => setWeightInput(e.target.value)}
+                                                    placeholder={weightUnit === 'lb' ? '165' : '75'}
+                                                    style={_inputStyle}
+                                                    onFocus={_onFocus}
+                                                    onBlur={_onBlur}
+                                                />
+                                            </div>
+                                            {/* ALTURA */}
+                                            <div>
+                                                <label style={{ display: 'flex', alignItems: 'center', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                                                    Altura
+                                                    <_UnitToggle unit={heightUnit} options={['cm', 'ft']} onChange={handleHeightUnitToggle} />
+                                                </label>
+                                                {heightUnit === 'cm' ? (
+                                                    <input
+                                                        type="number"
+                                                        inputMode="numeric"
+                                                        min="100"
+                                                        max="250"
+                                                        step="1"
+                                                        value={heightInput}
+                                                        onChange={(e) => setHeightInput(e.target.value)}
+                                                        placeholder="175"
+                                                        style={_inputStyle}
+                                                        onFocus={_onFocus}
+                                                        onBlur={_onBlur}
+                                                    />
+                                                ) : (
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                                        <input
+                                                            type="number"
+                                                            inputMode="numeric"
+                                                            min="3"
+                                                            max="8"
+                                                            step="1"
+                                                            value={heightFeet}
+                                                            onChange={(e) => setHeightFeet(e.target.value)}
+                                                            placeholder="5 ft"
+                                                            style={_inputStyle}
+                                                            onFocus={_onFocus}
+                                                            onBlur={_onBlur}
+                                                        />
+                                                        <input
+                                                            type="number"
+                                                            inputMode="numeric"
+                                                            min="0"
+                                                            max="11"
+                                                            step="1"
+                                                            value={heightInches}
+                                                            onChange={(e) => setHeightInches(e.target.value)}
+                                                            placeholder="9 in"
+                                                            style={_inputStyle}
+                                                            onFocus={_onFocus}
+                                                            onBlur={_onBlur}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
                                 {/* Campo de Email (Solo Lectura) */}
                                 <div className={styles.emailContainer}>
                                     <div style={{ background: 'white', padding: '0.5rem', borderRadius: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', flexShrink: 0 }}>
@@ -1188,34 +1646,60 @@ const Settings = () => {
 
                             </div>
 
-                            {/* Botón Guardar */}
+                            {/* [P3-PROFILE-METRICS-COMMIT · 2026-05-20]
+                                Botón condicional: si body metrics cambiaron, mostrar
+                                "Actualizar Plan con Nuevos Datos" (persist + regenerate).
+                                Si no, mostrar "Guardar Cambios" normal (solo nombre).
+                                Aviso visible cuando hay draft de body metrics. */}
+                            {bodyMetricsChanged && (
+                                <div style={{
+                                    marginTop: '0.25rem',
+                                    padding: '0.85rem 1rem',
+                                    background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+                                    borderRadius: '0.75rem',
+                                    border: '1px solid #F59E0B',
+                                    color: '#78350F',
+                                    fontSize: '0.85rem',
+                                    lineHeight: 1.5,
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    gap: '0.5rem',
+                                }}>
+                                    <AlertCircle size={18} style={{ flexShrink: 0, marginTop: 1 }} />
+                                    <div>
+                                        <strong>Cambios pendientes en peso/altura.</strong>{' '}
+                                        Para que se apliquen, debes regenerar el plan. Si sales sin hacerlo, los nuevos valores se descartarán.
+                                    </div>
+                                </div>
+                            )}
                             <div className={styles.saveBtnContainer} style={{ marginTop: '0.5rem' }}>
-                                <button
-                                    onClick={handleSaveProfile}
-                                    disabled={isSaving}
-                                    style={{
-                                        background: saveStatus === 'success' ? '#10B981' : 'var(--primary)',
-                                        color: 'white',
-                                        border: 'none',
-                                        padding: '0.75rem 1.5rem',
-                                        borderRadius: '0.75rem',
-                                        fontWeight: 600,
-                                        cursor: isSaving ? 'wait' : 'pointer',
-                                        display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        opacity: isSaving ? 0.8 : 1,
-                                        transform: isSaving ? 'scale(0.98)' : 'scale(1)',
-                                        boxShadow: saveStatus === 'success' ? '0 4px 12px rgba(16, 185, 129, 0.3)' : '0 4px 12px rgba(59, 130, 246, 0.3)'
-                                    }}
-                                >
-                                    {isSaving ? (
-                                        <>Guardando...</>
-                                    ) : saveStatus === 'success' ? (
-                                        <>¡Cambios Guardados!</>
-                                    ) : (
-                                        <><Save size={18} /> Guardar Cambios</>
-                                    )}
-                                </button>
+                                {bodyMetricsChanged ? (
+                                    <button
+                                        onClick={handleUpdatePlanWithMetrics}
+                                        disabled={isRegeneratingFromMetrics}
+                                        className={styles.updatePlanBtn}
+                                    >
+                                        {isRegeneratingFromMetrics ? (
+                                            <><Loader2 size={18} className="animate-spin" /> Regenerando…</>
+                                        ) : (
+                                            <><RefreshCw size={18} /> Actualizar Plan con Nuevos Datos</>
+                                        )}
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleSaveProfile}
+                                        disabled={isSaving}
+                                        className={`${styles.saveChangesBtn} ${saveStatus === 'success' ? styles.saveChangesBtnSuccess : styles.saveChangesBtnDefault}`}
+                                    >
+                                        {isSaving ? (
+                                            <>Guardando...</>
+                                        ) : saveStatus === 'success' ? (
+                                            <>¡Cambios Guardados!</>
+                                        ) : (
+                                            <>Guardar Cambios</>
+                                        )}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </section>
@@ -1225,9 +1709,6 @@ const Settings = () => {
                     {activeSection === 'notifications' && (
                         <section className={styles.section}>
                             <h2 className={styles.sectionTitle}>
-                                <div style={{ background: '#F3E8FF', padding: '0.5rem', borderRadius: '0.5rem', color: '#9333EA' }}>
-                                    <Bell size={20} />
-                                </div>
                                 Notificaciones
                             </h2>
 
@@ -1332,9 +1813,6 @@ const Settings = () => {
                     {activeSection === 'preferences' && (
                         <section className={styles.section}>
                             <h2 className={styles.sectionTitle}>
-                                <div style={{ background: '#FCE7F3', padding: '0.5rem', borderRadius: '0.5rem', color: '#DB2777' }}>
-                                    <SlidersHorizontal size={20} />
-                                </div>
                                 Comportamiento del agente
                             </h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
@@ -1545,15 +2023,15 @@ const Settings = () => {
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '0.6rem',
-                                    fontSize: '1rem',
+                                    fontSize: '1.15rem',
                                     fontWeight: 800,
                                     color: 'var(--text-main)',
-                                    margin: '0 0 0.4rem 0',
-                                    letterSpacing: '-0.01em',
+                                    margin: '0 0 0.5rem 0',
+                                    letterSpacing: '-0.015em',
+                                    paddingLeft: '0.75rem',
+                                    borderLeft: '3px solid #4F46E5',
+                                    lineHeight: 1.2,
                                 }}>
-                                    <div style={{ background: '#FEF3C7', padding: '0.4rem', borderRadius: '0.5rem', color: '#CA8A04', display: 'flex' }}>
-                                        <Brain size={16} />
-                                    </div>
                                     Lo que el agente recuerda
                                 </h3>
                                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.1rem', lineHeight: 1.5 }}>
@@ -1632,9 +2110,6 @@ const Settings = () => {
                     {activeSection === 'plan' && (
                         <section className={styles.section}>
                             <h2 className={styles.sectionTitle}>
-                                <div style={{ background: '#DCFCE7', padding: '0.5rem', borderRadius: '0.5rem', color: '#166534' }}>
-                                    <Trophy size={20} />
-                                </div>
                                 Tu Objetivo Actual
                             </h2>
 
@@ -1711,9 +2186,6 @@ const Settings = () => {
                     {activeSection === 'subscription' && (
                     <section className={styles.section} id="subscription">
                         <h2 className={styles.sectionTitle} style={{ marginBottom: '1rem' }}>
-                            <div style={{ background: '#E0E7FF', padding: '0.5rem', borderRadius: '0.5rem', color: '#4F46E5' }}>
-                                <CreditCard size={20} />
-                            </div>
                             Suscripción y Pagos
                         </h2>
                         

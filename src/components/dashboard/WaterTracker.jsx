@@ -29,6 +29,13 @@ const DEFAULT_GOAL = 8;
 const GOAL_MIN = 6;
 const GOAL_MAX = 14;
 const LS_ENABLED_KEY = 'mealfit_water_tracker_enabled';
+// [P1-WATER-CACHE-STATE · 2026-05-20] Cache local del state (glasses,
+// goal, goalBasis) para arranque instantáneo al re-mount del Dashboard.
+// Bug observado 2026-05-20: el card de Hidratación muestra "0 de 8 vasos"
+// momentáneamente cuando el user navega Nevera → Dashboard, antes del
+// fetch a /api/plans/water-intake. Mismo patrón que P1-TRACKING-CACHE-CONSUMED.
+// Key incluye fecha → invalidación automática en rollover de medianoche.
+const LS_WATER_CACHE_PREFIX = 'mealfit_water_state_';
 
 // Fecha local YYYY-MM-DD (NO UTC). Evita off-by-one cerca de medianoche
 // en timezones con offset > 0.
@@ -59,16 +66,47 @@ const readEnabledFromCache = () => {
     }
 };
 
+// [P1-WATER-CACHE-STATE · 2026-05-20] Lee el state cacheado para HOY.
+// Retorna `null` si no hay cache, parse falla, o es de otra fecha (rollover).
+const readWaterStateFromCache = () => {
+    try {
+        const key = LS_WATER_CACHE_PREFIX + getLocalDateString();
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed.glasses !== 'number' || typeof parsed.goal !== 'number') return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+};
+
 const WaterTracker = () => {
     // [Fix 3] Pre-render basado en cache local. Si el usuario desactivo el
     // tracker en Settings, el state inicial ya es false → no flash.
     const [enabled, setEnabled] = useState(readEnabledFromCache);
-    const [glasses, setGlasses] = useState(0);
-    const [goal, setGoal] = useState(DEFAULT_GOAL);
-    const [goalBasis, setGoalBasis] = useState(null);
-    const [loading, setLoading] = useState(true);
+    // [P1-WATER-CACHE-STATE · 2026-05-20] Lazy initializer leyendo cache
+    // de hoy. Si el user navegó Nevera → Dashboard, arranca con valores
+    // reales (no "0 de 8 vasos" momentáneo). Refetch en background corre
+    // silencioso y sincroniza si difiere del servidor.
+    const _cachedState = readWaterStateFromCache();
+    const [glasses, setGlasses] = useState(() => _cachedState?.glasses ?? 0);
+    const [goal, setGoal] = useState(() => _cachedState?.goal ?? DEFAULT_GOAL);
+    const [goalBasis, setGoalBasis] = useState(() => _cachedState?.goalBasis ?? null);
+    // Loading false si hidratamos del cache (no spinner cuando hay datos).
+    const [loading, setLoading] = useState(() => _cachedState === null);
     const [currentDate, setCurrentDate] = useState(getLocalDateString());
     const inFlightRef = useRef(false);
+
+    // [P1-WATER-CACHE-STATE · 2026-05-20] Persistir state al cada change.
+    // Key con fecha → TTL implícito 24h + invalidación automática en
+    // rollover de medianoche.
+    useEffect(() => {
+        try {
+            const key = LS_WATER_CACHE_PREFIX + currentDate;
+            localStorage.setItem(key, JSON.stringify({ glasses, goal, goalBasis }));
+        } catch { /* QuotaExceeded etc — fail-open */ }
+    }, [glasses, goal, goalBasis, currentDate]);
 
     // Cargar conteo + goal + enabled del backend.
     //

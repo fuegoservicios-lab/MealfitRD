@@ -3,20 +3,87 @@ import { Flame, Dumbbell, Wheat, Droplet, Activity } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { useAssessment } from '../../context/AssessmentContext';
 import { fetchWithAuth } from '../../config/api';
+import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import ProteinIcon from '../icons/ProteinIcon';
 import styles from './TrackingProgress.module.css';
+
+// [P1-TRACKING-CACHE-CONSUMED · 2026-05-20] Cache local del card
+// "Progreso en Tiempo Real" para arranque instantáneo al re-mount.
+//
+// Bug observado: cuando el user navega Dashboard → Nevera/Plan → Dashboard,
+// el componente se desmonta (React Router) y re-monta con
+// `consumed={calories:0, protein:0, carbs:0, fats:0}` → flash visible
+// de macros en 0 durante los ~200-500ms del fetch. Reportado 2026-05-20:
+// "cada vez que cambio de aparto y vuelvo aparecen las macros vacías".
+//
+// Fix: persistir `consumed` en localStorage con sessionId del user + fecha.
+// Initializer del useState lee cache si match (user + fecha de hoy) →
+// arranca con datos reales → refetch silencioso en background.
+//
+// Clave compuesta por user+date evita servir datos stale de OTRO user
+// (logout/login) o de OTRO día (rollover medianoche). TTL implícito
+// 24h porque la key tiene la fecha de hoy.
+//
+// Tooltip-anchor: P1-TRACKING-CACHE-CONSUMED.
+const _CONSUMED_CACHE_KEY_PREFIX = 'mealfit_tracking_consumed_';
+const _CONSUMED_DEFAULT = { calories: 0, protein: 0, carbs: 0, fats: 0, meals: [] };
+
+const _getConsumedCacheKey = (userId) => {
+    if (!userId) return null;
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return `${_CONSUMED_CACHE_KEY_PREFIX}${userId}_${dateStr}`;
+};
 
 const TrackingProgress = ({ planData, userId }) => {
     const { userProfile } = useAssessment();
 
-    const [consumed, setConsumed] = useState({
-        calories: 0,
-        protein: 0,
-        carbs: 0,
-        fats: 0,
-        meals: []
+    const [consumed, setConsumed] = useState(() => {
+        // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20] Hidratar desde localStorage
+        // si hay cache válido para este user+fecha. Sin esto, el initial state
+        // es {0,0,0,0} y el user ve flash de macros vacías cada vez que
+        // re-monta el componente (navegación entre tabs del dashboard).
+        try {
+            const key = _getConsumedCacheKey(userId);
+            if (key) {
+                const raw = safeLocalStorageGet(key, null);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && typeof parsed.calories === 'number') {
+                        return parsed;
+                    }
+                }
+            }
+        } catch (_e) { /* fail-open al default */ }
+        return _CONSUMED_DEFAULT;
     });
-    const [loading, setLoading] = useState(true);
+    // Loading inicial false si hidratamos del cache (no mostrar spinner si
+    // ya hay datos visibles); true solo si arrancamos con default vacío.
+    const [loading, setLoading] = useState(() => {
+        try {
+            const key = _getConsumedCacheKey(userId);
+            if (key) {
+                const raw = safeLocalStorageGet(key, null);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && typeof parsed.calories === 'number') return false;
+                }
+            }
+        } catch (_e) { /* ignore */ }
+        return true;
+    });
+
+    // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20] Persist consumed al change.
+    useEffect(() => {
+        const key = _getConsumedCacheKey(userId);
+        if (!key) return;
+        // No persistir el default vacío — bloquearía la hidratación de un
+        // próximo mount con datos frescos del servidor.
+        if (!consumed || (consumed.calories === 0 && consumed.protein === 0 && consumed.carbs === 0 && consumed.fats === 0)) return;
+        try {
+            safeLocalStorageSet(key, JSON.stringify(consumed));
+        } catch (_e) { /* ignore */ }
+    }, [consumed, userId]);
 
     useEffect(() => {
         let isMounted = true;
@@ -56,13 +123,39 @@ const TrackingProgress = ({ planData, userId }) => {
 
         // Fetch immediately on mount
         fetchConsumed();
-        
-        // Polling para "Tiempo Real" cada 15 segundos
-        const intervalId = setInterval(fetchConsumed, 15000);
+
+        // [P1-TRACKING-POLLING-REMOVED · 2026-05-20] Polling cada 15s
+        // eliminado. Causa documentada del bug "se la pasa refrescándose":
+        // cada setConsumed({...}) crea un objeto nuevo → React rerender
+        // del card, aunque los 4 valores numéricos sean iguales. Resultado
+        // visible: flicker sutil cada 15s sin razón aparente, molestia UX
+        // reportada 2026-05-20.
+        //
+        // Reemplazo: 2 triggers reactivos (sin polling):
+        //   - `mealfit:refresh-inventory` custom event que AgentPage dispara
+        //     cuando el LLM emite `[UI_ACTION: REFRESH_INVENTORY]` tras
+        //     log_consumed_meal/modify_pantry_inventory/mark_shopping_list_purchased.
+        //     Cubre el caso "user registra comida desde el chat" (~99% del uso).
+        //   - `visibilitychange` cuando el tab vuelve a ser visible. Cubre
+        //     mutaciones cross-tab/cross-device (user logueó comida desde
+        //     otro browser, o desde el endpoint /api/diary/consumed directo).
+        //
+        // Mismo patrón que `WaterTracker.jsx` (P3-WATER-TRACKER).
+        const onAgentRefreshInventory = () => {
+            if (isMounted) fetchConsumed();
+        };
+        const onVisibilityChange = () => {
+            if (isMounted && document.visibilityState === 'visible') {
+                fetchConsumed();
+            }
+        };
+        window.addEventListener('mealfit:refresh-inventory', onAgentRefreshInventory);
+        document.addEventListener('visibilitychange', onVisibilityChange);
 
         return () => {
             isMounted = false;
-            clearInterval(intervalId);
+            window.removeEventListener('mealfit:refresh-inventory', onAgentRefreshInventory);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
         };
     }, [userId]);
 

@@ -171,12 +171,12 @@ export const AssessmentProvider = ({ children }) => {
     // usuarios)" a "kg (correcto para 99% de usuarios)". El touched-tracking
     // (`_weightUnitTouched`, ver abajo) cubre los edge cases.
     const _getDefaultWeightUnit = () => {
-        if (typeof navigator === 'undefined') return 'lb';
-        const lang = (navigator.language || '').toLowerCase();
-        if (lang.startsWith('en-us') || lang.startsWith('en-lr') || lang.startsWith('my')) {
-            return 'lb';
-        }
-        return 'kg';
+        // [P3-DEFAULT-IMPERIAL · 2026-05-20] Default unificado a 'lb' para
+        // todos los locales. Pre-fix branchaba por locale del navegador
+        // (en-US/en-LR/my → lb, resto → kg). Decisión de producto: imperial
+        // como default global; el user puede cambiar a kg via el toggle en
+        // assessment o Settings.
+        return 'lb';
     };
 
     const initialFormData = {

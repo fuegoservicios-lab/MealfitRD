@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Layout from './components/layout/Layout';
@@ -74,16 +74,61 @@ const AnimatedLayout = () => {
 // Trade-off aceptado: cero animation cue al cambiar de apartado. El
 // active state del NavItem (sidebar/bottomtabbar) sigue dando feedback
 // visual del click.
+// [P1-AGENT-KEEP-ALIVE · 2026-05-20] AgentPage NO se desmonta al navegar.
+//
+// Bug cerrado: "Cada vez que entro en Nevera y vuelvo a Agente se refresca y
+// molesta" (reportado 2026-05-20). React Router por default desmonta el
+// componente al cambiar de ruta, lo cual reseteaba: chatSessions, messages,
+// scroll position, listeners SSE, lazy-load chunks. Los fixes #9 (persistir
+// sessionId) y #10 (cache messages) mitigaban con localStorage pero el flash
+// del re-mount seguía visible.
+//
+// Solución: keep-alive con `display: none`. AgentPage se monta UNA VEZ al
+// primer visit (lazy-load del chunk) y queda residente en el árbol React
+// mientras el user está en cualquier ruta /dashboard/*. Cuando navega a
+// /dashboard/pantry, AgentPage se OCULTA con display:none — su state,
+// listeners, scroll, animation, todo se preserva en memoria. Al volver a
+// /dashboard/agent, aparece instantáneo SIN re-mount, SIN refetch, SIN flash.
+//
+// `hasVisitedAgentRef` evita pagar el coste de montar AgentPage si el user
+// nunca entra al chat (lazy-load del chunk de ~300KB). Una vez visitado,
+// queda persistente hasta logout/page-reload.
+//
+// Trade-off aceptado: AgentPage residente consume ~5-10MB de heap mientras
+// el user navega por Nevera/Plan/Recetas/Settings. A cambio: cero flash visible
+// al cambiar de tab. Pollings/intervals de AgentPage siguen activos durante
+// display:none (cada cleanup useEffect requiere desmount real). Verificado
+// que ninguno es destructive — el polling de title se autoinhibe cuando NO
+// hay session generando.
 const DashboardAnimatedLayout = () => {
   const location = useLocation();
   useThemeColor();
   const isAgent = location.pathname.includes('/agent');
 
+  // Lazy keep-alive: solo montar AgentPage si el user ha visitado al menos
+  // una vez. Evita pagar el chunk de 300KB si nunca entra al chat.
+  const hasVisitedAgentRef = useRef(false);
+  if (isAgent) hasVisitedAgentRef.current = true;
+
   return (
     <DashboardLayout noPaddingMobile={isAgent}>
-      <Suspense fallback={<PageLoader />}>
-        <Outlet />
-      </Suspense>
+      {/* AgentPage residente — visible cuando isAgent, oculto cuando no.
+          NO se desmonta al navegar a otras dashboard routes. */}
+      {hasVisitedAgentRef.current && (
+        <div style={{ display: isAgent ? 'block' : 'none', height: isAgent ? 'auto' : 0, overflow: isAgent ? 'visible' : 'hidden' }}>
+          <Suspense fallback={isAgent ? <PageLoader /> : null}>
+            <AgentPage />
+          </Suspense>
+        </div>
+      )}
+      {/* Outlet renderiza Dashboard/Pantry/Recipes/Settings/History cuando
+          NO estamos en /dashboard/agent. La Route de /dashboard/agent es un
+          trampolin vacío (<></>) porque AgentPage ya está residente arriba. */}
+      {!isAgent && (
+        <Suspense fallback={<PageLoader />}>
+          <Outlet />
+        </Suspense>
+      )}
     </DashboardLayout>
   );
 };
@@ -127,7 +172,14 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/dashboard/pantry" element={<Pantry />} />
               <Route path="/dashboard/recipes" element={<Recipes />} />
-              <Route path="/dashboard/agent" element={<AgentPage />} />
+              {/* [P1-AGENT-KEEP-ALIVE · 2026-05-20] AgentPage vive residente
+                  en DashboardAnimatedLayout (keep-alive). Esta route es solo
+                  un trampolin para que React Router matchee el path y NO
+                  caiga al fallback "*" → Navigate("/"). El element vacío es
+                  intencional: AgentPage ya está renderizado en el layout
+                  arriba del Outlet. Sin esta route, /dashboard/agent
+                  matchearía el wildcard y redirigiría a /. */}
+              <Route path="/dashboard/agent" element={<></>} />
               <Route path="/dashboard/settings" element={<Settings />} />
               <Route path="/history" element={<History />} />
             </Route>

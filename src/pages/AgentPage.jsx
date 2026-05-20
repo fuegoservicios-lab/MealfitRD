@@ -19,7 +19,7 @@ import { safeJSONParse } from '../utils/safeJSONParse';
 // [P2-NEW-LOCALSTORAGE-MIGRATION-DEBT · 2026-05-15] Ver ChatWidget.jsx para
 // rationale (QuotaExceededError silente). Migración del setItem raw al
 // helper P2-AUDIT-3 que atrapa errores y devuelve boolean.
-import { safeLocalStorageSet } from '../utils/safeLocalStorage';
+import { safeLocalStorageSet, safeLocalStorageGet } from '../utils/safeLocalStorage';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P2-AGENTPAGE-ERROR-SENTRY · 2026-05-15] Capture estructurada de los catch
 // blocks del agent page. ANTES: solo `console.error(...)` — esbuild conserva
@@ -342,8 +342,14 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
         }
     }
 
-    const timeStr = now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true });
-    return `${timeGreeting}${firstName}! Son las ${timeStr}. ${goalContext}${mealContext}`;
+    // [P1-AGENT-WELCOME-NO-TIME · 2026-05-20] Removida la hora literal
+    // ("Son las 04:29 a. m..") del welcome. Razón UX: el welcome se
+    // regenera cada 30min (no en cada navegación), por lo que la hora
+    // mostrada podría desfasarse ±30min de la hora real y se ve raro
+    // ("dice 04:29 pero son las 04:55"). El `timeGreeting` ya da
+    // contexto temporal grueso ("Buenas madrugadas/días/tardes/noches")
+    // sin precisión innecesaria.
+    return `${timeGreeting}${firstName}! ${goalContext}${mealContext}`.trim().replace(/\s+/g, ' ');
 };
 
 const compressImageFile = (file, maxWidth = 1200, quality = 0.8) => {
@@ -490,6 +496,21 @@ const AgentPage = () => {
     });
 
     const [currentSessionId, _setCurrentSessionId] = useState(() => {
+        // [P1-AGENT-PERSIST-SESSION · 2026-05-20] Leer la sesión activa de
+        // localStorage ANTES de generar UUID nuevo. Pre-fix: cada vez que el
+        // user navegaba Nevera/Plan/Recetas → Agente, el componente re-montaba,
+        // este useState ejecutaba el initializer, creaba un UUID nuevo, lo
+        // persistía sobrescribiendo la sesión activa, y mostraba un chat
+        // vacío con welcome screen. El user reportó "se refresca y molesta"
+        // (2026-05-20) — perdía el chat en curso al volver.
+        //
+        // Fix: leer `mealfit_current_session` primero. Validación mínima
+        // (string no-vacío con shape de UUID v4). Solo crear nuevo si no hay
+        // sesión válida persistida.
+        const stored = safeLocalStorageGet('mealfit_current_session', null);
+        if (stored && typeof stored === 'string' && /^[0-9a-f-]{30,}$/i.test(stored)) {
+            return stored;
+        }
         const newId = crypto.randomUUID();
         safeLocalStorageSet('mealfit_current_session', newId);
         return newId;
@@ -508,25 +529,144 @@ const AgentPage = () => {
                 safeLocalStorageSet('mealfit_guest_session', newId);
                 setLocalSessionId(newId);
                 setCurrentSessionId(newId);
-                setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
+                setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true, welcomeAt: Date.now() }]);
                 setChatSessions([]);
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session?.user?.id, userProfile?.id]);
 
-    const [chatSessions, setChatSessions] = useState([]);
-    const [isLoadingSessions, setIsLoadingSessions] = useState(true);
+    // [P1-AGENT-CACHE-SIDEBAR · 2026-05-20] Cache local de la sidebar de
+    // sesiones recientes. Síntoma cerrado: "el historial aparece cargando"
+    // cada vez que el user navegaba Nevera/Plan → Agente. Pre-fix:
+    // `chatSessions=[]` inicial + `isLoadingSessions=true` mostraban
+    // skeleton/spinner durante los ~200-500ms del fetchChatSessions, flash
+    // visible reportado 2026-05-20.
+    //
+    // Fix: persistir array de sessions en localStorage; al mount, leer
+    // como initial state → sidebar arranca con datos del cache, refetch
+    // en background sin spinner visible. TTL 24h. isLoadingSessions
+    // inicializa en false cuando hay cache (no mostrar spinner).
+    const _CHAT_SESSIONS_CACHE_KEY = 'mealfit_chat_sessions_cache_v1';
+    const _SESSIONS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+    const [chatSessions, setChatSessions] = useState(() => {
+        try {
+            const rawCache = safeLocalStorageGet(_CHAT_SESSIONS_CACHE_KEY, null);
+            if (rawCache) {
+                const cache = JSON.parse(rawCache);
+                const fresh = (Date.now() - (cache.cachedAt || 0)) < _SESSIONS_CACHE_TTL_MS;
+                if (cache && Array.isArray(cache.sessions) && cache.sessions.length > 0 && fresh) {
+                    return cache.sessions;
+                }
+            }
+        } catch (_e) {
+            // ignore — fail-open al array vacío
+        }
+        return [];
+    });
+    // isLoadingSessions arranca false si hay cache (no mostrar spinner) —
+    // el refetch en background actualiza sin flash. Si no hay cache, true
+    // para mostrar loading state inicial natural.
+    const [isLoadingSessions, setIsLoadingSessions] = useState(() => {
+        try {
+            const rawCache = safeLocalStorageGet(_CHAT_SESSIONS_CACHE_KEY, null);
+            if (rawCache) {
+                const cache = JSON.parse(rawCache);
+                if (cache && Array.isArray(cache.sessions) && cache.sessions.length > 0) {
+                    return false;
+                }
+            }
+        } catch (_e) { /* ignore */ }
+        return true;
+    });
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : true);
 
-    const [messages, setMessages] = useState([
-        { role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }
-    ]);
+    // [P1-AGENT-CACHE-SIDEBAR · 2026-05-20] Persistir chatSessions al change.
+    // Misma estrategia que el cache de messages (P1-AGENT-CACHE-MESSAGES).
+    useEffect(() => {
+        if (!Array.isArray(chatSessions) || chatSessions.length === 0) return;
+        try {
+            safeLocalStorageSet(_CHAT_SESSIONS_CACHE_KEY, JSON.stringify({
+                sessions: chatSessions,
+                cachedAt: Date.now(),
+            }));
+        } catch (_e) { /* ignore */ }
+    }, [chatSessions]);
+
+    // [P1-AGENT-CACHE-MESSAGES · 2026-05-20] Cache local de los messages
+    // de la sesión activa. Cierra el "flash" molesto del welcome screen
+    // durante los ~200-500ms del refetch al re-mount (al navegar Nevera →
+    // Agente). Pre-fix #9 (P1-AGENT-PERSIST-SESSION) preservaba el
+    // currentSessionId pero el `messages` state iniciaba con `[welcome]`
+    // y el user veía esa transición visible.
+    //
+    // Diseño: single key `mealfit_chat_messages_cache_v1` con shape
+    // `{sessionId, messages, cachedAt}`. Al mount:
+    //   - Si `cache.sessionId === currentSessionId` y `cachedAt < 24h`,
+    //     usar `cache.messages` como initial state (arranque instantáneo).
+    //   - Si no, usar welcome screen (chat nuevo o session distinta).
+    // Refresh en background corre normal — si los messages cambiaron
+    // server-side (e.g., summarize_and_prune corrió en otra tab),
+    // setMessages los reemplaza sin flash perceptible (mismo tamaño,
+    // mismo orden mayormente).
+    //
+    // Cap defensivo: max 50 messages persistidos para no saturar
+    // localStorage. Los chats activos típicos rondan 10-30 messages.
+    const _CHAT_CACHE_KEY = 'mealfit_chat_messages_cache_v1';
+    const _CHAT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+    const _CHAT_CACHE_MAX_MSGS = 50;
+
+    const [messages, setMessages] = useState(() => {
+        try {
+            const rawCache = safeLocalStorageGet(_CHAT_CACHE_KEY, null);
+            if (rawCache) {
+                const cache = JSON.parse(rawCache);
+                const fresh = (Date.now() - (cache.cachedAt || 0)) < _CHAT_CACHE_TTL_MS;
+                if (
+                    cache
+                    && cache.sessionId === currentSessionId
+                    && Array.isArray(cache.messages)
+                    && cache.messages.length > 0
+                    && fresh
+                ) {
+                    return cache.messages;
+                }
+            }
+        } catch (_e) {
+            // safeLocalStorageGet retorna fallback en error, pero JSON.parse
+            // puede tirar — fail-open al welcome screen.
+        }
+        return [{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true, welcomeAt: Date.now() }];
+    });
     const messagesRef = useRef(messages);
     useEffect(() => {
         messagesRef.current = messages;
     }, [messages]);
+
+    // [P1-AGENT-CACHE-MESSAGES · 2026-05-20] Persist messages en cada change.
+    // Best-effort: safeLocalStorageSet swallow errores de cuota.
+    useEffect(() => {
+        if (!currentSessionId) return;
+        // No persistir el welcome screen vacío — el flag isWelcome indica
+        // "primera vez, sin conversación real" y queremos que el initializer
+        // del próximo mount NO encuentre cache (fallback al welcome regenerado
+        // con datos frescos del profile).
+        if (messages.length === 1 && messages[0]?.isWelcome) return;
+        try {
+            const capped = messages.length > _CHAT_CACHE_MAX_MSGS
+                ? messages.slice(-_CHAT_CACHE_MAX_MSGS)
+                : messages;
+            safeLocalStorageSet(_CHAT_CACHE_KEY, JSON.stringify({
+                sessionId: currentSessionId,
+                messages: capped,
+                cachedAt: Date.now(),
+            }));
+        } catch (_e) {
+            // ignore — cache es best-effort, no afecta funcionalidad
+        }
+    }, [messages, currentSessionId]);
 
     // Re-generate welcome when planData/formData become available (they load async)
     const hasHydratedWelcome = useRef(false);
@@ -535,7 +675,7 @@ const AgentPage = () => {
         // Only regenerate if we actually have plan data now AND the current messages are just the initial welcome
         if ((planData || formData?.name) && messages.length === 1 && messages[0]?.isWelcome) {
             hasHydratedWelcome.current = true;
-            setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
+            setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true, welcomeAt: Date.now() }]);
         }
     }, [planData, formData, userProfile]);
     const [input, setInput] = useState('');
@@ -1060,8 +1200,61 @@ const AgentPage = () => {
         }
     }, [session?.user?.id, userProfile?.id, localSessionId, currentSessionId]);
 
+    // [P1-AGENT-WELCOME-STABLE · 2026-05-20 · refined: regenerar c/30min]
+    // Helper que setea/refresca el welcome screen sin causar el bug
+    // "se refresca varias veces" reportado 2026-05-20.
+    //
+    // Trade-off resuelto:
+    //   - Fijar welcome PARA SIEMPRE (P1-AGENT-WELCOME-STABLE original) →
+    //     el saludo "Buenas madrugadas" queda obsoleto si el user
+    //     deja el tab abierto al amanecer ("Buenos días" sería correcto).
+    //   - Regenerar en cada re-render (pre-fix) → user veía la hora
+    //     literal cambiando ("04:25 → 04:26 → ...") como flash visible.
+    //
+    // Solución: regenerar cada 30 minutos (suficiente para que el
+    // greeting siga el reloj sin spam visible) Y removida la hora
+    // literal de `generateIntelligentWelcome` (P1-AGENT-WELCOME-NO-TIME).
+    //
+    // Si `prev[0].welcomeAt` es <30min, mantener `prev` (misma ref →
+    // React skip rerender). Si es >=30min (o no existe), regenerar.
+    //
+    // Tooltip-anchor: P1-AGENT-WELCOME-STABLE.
+    const _WELCOME_REFRESH_MS = 30 * 60 * 1000;
+    const _setWelcomeIfAbsent = useCallback(() => {
+        setMessages(prev => {
+            if (Array.isArray(prev) && prev.length === 1 && prev[0]?.isWelcome) {
+                const ageMs = Date.now() - (prev[0]?.welcomeAt || 0);
+                if (ageMs < _WELCOME_REFRESH_MS) {
+                    return prev; // welcome fresco (<30min) — mantener referencia → no rerender
+                }
+            }
+            return [{
+                role: 'model',
+                content: generateIntelligentWelcome(userProfile, formData, planData),
+                isWelcome: true,
+                welcomeAt: Date.now(),
+            }];
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setMessages, userProfile, formData, planData]);
+
     const fetchSessionMessages = useCallback(async (sessionId, retryCount = 0) => {
-        setIsLoadingHistory(true);
+        // [P1-AGENT-LOADING-SKIP-IF-FRESH · 2026-05-20] Solo mostrar
+        // loading si NO hay NADA en memoria. Pre-fix: cada vez que el
+        // callback se invocaba (incluso por re-disparo del useEffect
+        // cuando _setWelcomeIfAbsent cambia ref), seteaba
+        // `isLoadingHistory=true` → spinner visible. User reportó
+        // 2026-05-20 "sigue cargando y no debería" tras keep-alive.
+        //
+        // Regla: si ya hay ALGÚN content visible (welcome o mensajes
+        // reales), el refetch corre SILENCIOSO en background. Si la
+        // response trae mensajes nuevos, setMessages actualiza sin que
+        // el user vea spinner intermedio.
+        const _hasAnyContent = Array.isArray(messagesRef.current)
+            && messagesRef.current.length > 0;
+        if (!_hasAnyContent) {
+            setIsLoadingHistory(true);
+        }
         let response;
         try {
             response = await fetchWithAuth(`/api/chat/history/${sessionId}`);
@@ -1126,7 +1319,9 @@ const AgentPage = () => {
                         };
                     }));
                 } else {
-                    setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
+                    // [P1-AGENT-WELCOME-STABLE · 2026-05-20] Preservar welcome
+                    // existente — evita regenerar la hora visible.
+                    _setWelcomeIfAbsent();
                 }
             } else {
                 // [P2-FETCH-RETRY-ADAPTIVE · 2026-05-19] Clasificación
@@ -1144,7 +1339,8 @@ const AgentPage = () => {
                 if (policy.retryable) {
                     console.warn(`⚠️ No se pudo cargar historial de ${sessionId} tras ${policy.maxRetries} intentos (${response.status}).`);
                 }
-                setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
+                // [P1-AGENT-WELCOME-STABLE · 2026-05-20]
+                _setWelcomeIfAbsent();
             }
         } catch (error) {
             // [P2-FETCH-RETRY-ADAPTIVE · 2026-05-19] Network error (fetch
@@ -1159,7 +1355,8 @@ const AgentPage = () => {
                 return;
             }
             _captureAgentPageException(error, { action: 'fetchSessionMessages', retried: 'true' });
-            setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
+            // [P1-AGENT-WELCOME-STABLE · 2026-05-20]
+            _setWelcomeIfAbsent();
         } finally {
             // [P2-FETCH-RETRY-ADAPTIVE · 2026-05-19] Cierra el loader si
             // (a) éxito, o (b) llegamos al cap máximo de cualquier bucket
@@ -1170,7 +1367,7 @@ const AgentPage = () => {
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setMessages, setIsLoadingHistory, userProfile, formData, planData]);
+    }, [setMessages, setIsLoadingHistory, _setWelcomeIfAbsent]);
 
     const handleDeleteChat = async (sessionIdToDelete, e) => {
         if (e) e.stopPropagation();
@@ -1241,7 +1438,7 @@ const AgentPage = () => {
             return newList;
         });
         setCurrentSessionId(newId);
-        setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
+        setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true, welcomeAt: Date.now() }]);
         setInput('');
         clearSelectedFile();
         fetchChatSessions();
@@ -1506,6 +1703,17 @@ const AgentPage = () => {
                                             fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_HYDRATION\]/g, '');
                                             window.dispatchEvent(new CustomEvent('mealfit:refresh-hydration'));
                                         }
+                                        // [P1-CHAT-UI-ACTION-INVENTORY · 2026-05-20] REFRESH_INVENTORY:
+                                        // el agente mutó consumed_meals (log_consumed_meal) o user_inventory
+                                        // (modify_pantry_inventory / mark_shopping_list_purchased) → notificar
+                                        // al card de Progreso (TrackingProgress, lee consumed_meals) y al
+                                        // refresh de inventory del Dashboard. Sin esto, el tag se renderiza
+                                        // tal cual al user (bug visible reportado 2026-05-20) + nadie refetchea
+                                        // hasta el próximo polling de 15s. Custom event análogo a refresh-hydration.
+                                        if (fullText.includes('[UI_ACTION: REFRESH_INVENTORY]')) {
+                                            fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_INVENTORY\]/g, '');
+                                            window.dispatchEvent(new CustomEvent('mealfit:refresh-inventory'));
+                                        }
                                         // Ocultar fragmento incompleto del token temporalmente en la UI
                                         // (idempotente — si ya fue procesado arriba, no queda nada que ocultar).
                                         displayContent = fullText.replace(/\[UI_ACT[^\]]*$/g, '');
@@ -1567,6 +1775,14 @@ const AgentPage = () => {
                                         if (fullText.includes('[UI_ACTION: REFRESH_HYDRATION]')) {
                                             fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_HYDRATION\]/g, '');
                                             window.dispatchEvent(new CustomEvent('mealfit:refresh-hydration'));
+                                        }
+                                        // [P1-CHAT-UI-ACTION-INVENTORY · 2026-05-20] Misma limpieza
+                                        // final para REFRESH_INVENTORY. Defense-in-depth: si el chunk
+                                        // streaming no contenía el tag completo (race), el evento `done`
+                                        // trae el response completo donde sí está.
+                                        if (fullText.includes('[UI_ACTION: REFRESH_INVENTORY]')) {
+                                            fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_INVENTORY\]/g, '');
+                                            window.dispatchEvent(new CustomEvent('mealfit:refresh-inventory'));
                                         }
 
                                         if (callModeRef.current) {
@@ -1702,7 +1918,8 @@ const AgentPage = () => {
                 updated[modelMsgIndex] = {
                     role: 'model',
                     content: generateIntelligentWelcome(userProfile, formData, planData),
-                    isWelcome: true
+                    isWelcome: true,
+                    welcomeAt: Date.now()
                 };
                 return updated;
             });
