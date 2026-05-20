@@ -165,7 +165,12 @@ const TrackingProgress = ({ planData, userId }) => {
     const goalCarb = parseInt(planData?.macros?.carbs) || 200;
     const goalFat = parseInt(planData?.macros?.fats) || 60;
 
-    const calcPerc = (val, max) => Math.min(Math.round((val / max) * 100) || 0, 100);
+    // [P3-TRACKING-OVER-LIMIT · 2026-05-20] Pre-fix `calcPerc` capeaba al 100%
+    // con `Math.min(..., 100)` — ocultaba visualmente cuando el usuario excedía
+    // la meta. Ahora retornamos el % real (sin cap); el ProgressBar internamente
+    // recorta el ancho del fill a 100% pero usa el % real para signaling de
+    // exceso (gradient rojo + número rojo + badge "+excess unit").
+    const calcPerc = (val, max) => Math.round((val / max) * 100) || 0;
 
     const percCal = calcPerc(consumed.calories, goalCal);
     const percPro = calcPerc(consumed.protein, goalPro);
@@ -237,7 +242,25 @@ TrackingProgress.propTypes = {
 // --- Componente Interno para Barra Individual ---
 const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gradient, large }) => {
     const isEmpty = perc === 0;
+    // [P3-TRACKING-OVER-LIMIT · 2026-05-20 · badge removido P3-TRACKING-OVER-NO-BADGE]
+    // `isOver` (perc > 100, user excedió la meta) y `isComplete` (perc >= 100,
+    // llegó o pasó) son conceptos separados. `isComplete` activa el glow
+    // celebración a 100% exactos. `isOver` switche a gradient rojo + número rojo
+    // + % uncapped dentro del fill. El badge inline "+exceso unit" del cierre
+    // original fue removido por feedback del user el mismo día: el color +
+    // el % uncapped (e.g., "107%") ya comunican el exceso sin texto adicional.
+    const isOver = perc > 100;
     const isComplete = perc >= 100;
+    const fillWidth = Math.min(perc, 100); // ancho visual cap al 100%
+
+    // Paleta rojo (Tailwind red-300/600) sobre meta excedida.
+    const OVER_GRADIENT = 'linear-gradient(90deg, #FCA5A5 0%, #DC2626 100%)';
+    const OVER_COLOR = '#DC2626';
+    const effectiveGradient = isOver ? OVER_GRADIENT : gradient;
+    const effectiveGlowColor = isOver ? OVER_COLOR : color;
+    const consumedTextColor = isOver
+        ? OVER_COLOR
+        : (isEmpty ? '#CBD5E1' : '#0F172A');
 
     return (
         <div className={large ? styles.barLarge : styles.barSmall}>
@@ -253,9 +276,9 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
                             boxShadow: `inset 0 0 0 1px ${color}26`
                         }}
                     >
-                        <Icon 
-                            size={large ? 19 : 16} 
-                            strokeWidth={2.5} 
+                        <Icon
+                            size={large ? 19 : 16}
+                            strokeWidth={2.5}
                         />
                     </div>
                     <span
@@ -270,7 +293,7 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
                         className={styles.barConsumed}
                         style={{
                             fontSize: large ? '1.5rem' : '1.2rem',
-                            color: isEmpty ? '#CBD5E1' : '#0F172A'
+                            color: consumedTextColor
                         }}
                     >
                         {consumed}
@@ -288,20 +311,28 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
                 className={styles.track}
                 style={{
                     height: large ? 12 : 10,
-                    background: '#E2E8F0'
+                    background: '#E2E8F0',
+                    // [P3-TRACKING-OVER-LIMIT · 2026-05-20] Ring rojo sutil
+                    // alrededor del track cuando over — refuerza el signaling
+                    // sin sobrecargar la card con un border permanente.
+                    borderColor: isOver ? 'rgba(220, 38, 38, 0.35)' : undefined,
                 }}
             >
                 <div
                     className={styles.fill}
                     style={{
-                        width: `${perc}%`,
-                        background: gradient,
-                        boxShadow: isComplete ? `0 0 12px ${color}66` : 'none'
+                        width: `${fillWidth}%`,
+                        background: effectiveGradient,
+                        boxShadow: isOver
+                            ? `0 0 14px rgba(220, 38, 38, 0.45)`
+                            : (isComplete ? `0 0 12px ${effectiveGlowColor}66` : 'none')
                     }}
                 >
                     {/* [P3-TRACKING-BAR-INLINE-PERC · 2026-05-20] % blanco dentro
-                        del fill (estilo carga de batería). Mobile-only via CSS
-                        — desktop sigue usando la pill `.percRow` debajo. */}
+                        del fill (estilo carga de batería). Aplicado universalmente
+                        (desktop + mobile) tras P3-TRACKING-PERC-DESKTOP.
+                        [P3-TRACKING-OVER-LIMIT · 2026-05-20] El % mostrado es el
+                        real (uncapped) — ej. "107%" cuando se excedió. */}
                     {!isEmpty && (
                         <span className={styles.fillPerc}>{perc}%</span>
                     )}
@@ -313,8 +344,10 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
                     <span
                         className={styles.percChip}
                         style={{
-                            color: color,
-                            background: `${color}14`
+                            color: effectiveGlowColor,
+                            background: isOver
+                                ? 'rgba(220, 38, 38, 0.10)'
+                                : `${color}14`
                         }}
                     >
                         {perc}%
