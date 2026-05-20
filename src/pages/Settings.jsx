@@ -1165,11 +1165,11 @@ const Settings = () => {
                                         style={{
                                             padding: '0.75rem 1.25rem', borderRadius: '0.75rem', border: 'none',
                                             background: '#F1F5F9', color: '#475569', fontWeight: 600, 
-                                            cursor: isCancelling ? 'not-allowed' : 'pointer', transition: 'all 0.2s',
+                                            cursor: isCancelling ? 'not-allowed' : 'pointer', transition: 'none',
                                             opacity: isCancelling ? 0.7 : 1
                                         }}
-                                        onMouseOver={(e) => { if (!isCancelling) e.currentTarget.style.background = '#E2E8F0'; }}
-                                        onMouseOut={(e) => { if (!isCancelling) e.currentTarget.style.background = '#F1F5F9'; }}
+                                        onMouseOver={(e) => { if (!isCancelling) { e.currentTarget.style.background = '#E2E8F0'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(148, 163, 184, 0.3)'; } }}
+                                        onMouseOut={(e) => { if (!isCancelling) { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.boxShadow = 'none'; } }}
                                     >
                                         Mantener Plan
                                     </button>
@@ -1181,11 +1181,11 @@ const Settings = () => {
                                             padding: '0.75rem 1.25rem', borderRadius: '0.75rem', border: 'none',
                                             background: '#EF4444', color: '#FFFFFF', fontWeight: 600, 
                                             cursor: isCancelling ? 'wait' : 'pointer',
-                                            transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
+                                            transition: 'none', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
                                             opacity: isCancelling ? 0.8 : 1
                                         }}
-                                        onMouseOver={(e) => { if (!isCancelling) e.currentTarget.style.background = '#DC2626'; }}
-                                        onMouseOut={(e) => { if (!isCancelling) e.currentTarget.style.background = '#EF4444'; }}
+                                        onMouseOver={(e) => { if (!isCancelling) { e.currentTarget.style.background = '#DC2626'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.45), 0 0 12px rgba(239, 68, 68, 0.25)'; } }}
+                                        onMouseOut={(e) => { if (!isCancelling) { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.25)'; } }}
                                     >
                                         {isCancelling ? 'Cancelando...' : 'Sí, Cancelar'}
                                     </button>
@@ -1336,13 +1336,13 @@ const Settings = () => {
                                         background: isResetting ? '#FCA5A5' : '#EF4444',
                                         color: 'white',
                                         cursor: isResetting ? 'wait' : 'pointer',
-                                        transition: 'all 0.2s',
+                                        transition: 'none',
                                         fontWeight: 700, fontSize: '1rem', textAlign: 'center',
                                         boxShadow: isResetting ? '0 2px 6px rgba(239, 68, 68, 0.15)' : '0 4px 14px rgba(239, 68, 68, 0.28)',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.625rem'
                                     }}
-                                    onMouseOver={(e) => { if (!isResetting) { e.currentTarget.style.background = '#DC2626'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
-                                    onMouseOut={(e) => { if (!isResetting) { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.transform = 'translateY(0)'; } }}
+                                    onMouseOver={(e) => { if (!isResetting) { e.currentTarget.style.background = '#DC2626'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.45), 0 0 12px rgba(239, 68, 68, 0.25)'; } }}
+                                    onMouseOut={(e) => { if (!isResetting) { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(239, 68, 68, 0.28)'; } }}
                                 >
                                     {/* [P3-RESET-BUTTON-LOADING-STATE · 2026-05-16]
                                         Sin spinner: el keyframe `mfSpin` vive en
@@ -2180,7 +2180,7 @@ const Settings = () => {
                                                         display: 'flex',
                                                         alignItems: 'center',
                                                         justifyContent: 'center',
-                                                        transition: 'background 0.2s',
+                                                        transition: 'none',
                                                     }}
                                                     onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'}
                                                     onMouseOut={(e) => e.currentTarget.style.background = 'none'}
@@ -2329,14 +2329,15 @@ const Settings = () => {
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: '0.5rem',
-                                                transition: 'all 0.2s',
+                                                transition: 'none',
+                                                boxShadow: '0 4px 12px rgba(220, 38, 38, 0.05)',
                                                 opacity: isCancelling ? 0.7 : 1
                                             }}
                                             onMouseOver={(e) => {
-                                                if(!isCancelling) e.currentTarget.style.background = '#FEE2E2';
+                                                if(!isCancelling) { e.currentTarget.style.background = '#FEE2E2'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(220, 38, 38, 0.18)'; }
                                             }}
                                             onMouseOut={(e) => {
-                                                if(!isCancelling) e.currentTarget.style.background = '#FEF2F2';
+                                                if(!isCancelling) { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 38, 38, 0.05)'; }
                                             }}
                                         >
                                             {isCancelling ? 'Cancelando...' : 'Cancelar Suscripción'}

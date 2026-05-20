@@ -76,7 +76,7 @@
     text-align: left;
     cursor: pointer;
     font-family: inherit;
-    transition: background 0.18s cubic-bezier(0.4, 0, 0.2, 1), transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: none;
 }
 
 .sidebarItem:hover {
@@ -129,12 +129,10 @@
 .sidebarChevron {
     flex-shrink: 0;
     color: #CBD5E1;
-    transition: transform 0.2s ease;
 }
 
 .sidebarItem:hover .sidebarChevron {
     color: #94A3B8;
-    transform: translateX(2px);
 }
 
 .sidebarItemActive .sidebarChevron {
@@ -358,7 +356,7 @@
     background: rgba(248, 250, 252, 0.6);
     border-radius: 0.85rem;
     border: 1px solid rgba(226, 232, 240, 0.7);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: none;
     gap: 1rem;
 }
 
@@ -441,14 +439,13 @@
 
 /* Base button animations */
 .actionBtn {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: none;
 }
 .actionBtn:hover {
-    transform: translateY(-2px);
     box-shadow: 0 6px 15px rgba(79, 70, 229, 0.18);
 }
 .actionBtn:active {
-    transform: translateY(0);
+    /* No active movement */
 }
 
 /* Premium Button Hover Glows */
