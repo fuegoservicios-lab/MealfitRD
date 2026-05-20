@@ -1098,7 +1098,7 @@ const Settings = () => {
                             alignItems: 'center',
                             justifyContent: 'center'
                         }}>
-                            <AlertCircle size={22} strokeWidth={2.5} style={{ transform: 'translateY(1.5px)' }} />
+                            <AlertCircle size={22} strokeWidth={2.5} style={{ transform: 'translateY(0.5px)' }} />
                         </div>
                         <h3 id="discard-confirm-title" style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0F172A' }}>
                             Tienes cambios sin guardar
@@ -1167,7 +1167,7 @@ const Settings = () => {
                                         alignItems: 'center',
                                         justifyContent: 'center'
                                     }}>
-                                        <AlertTriangle size={24} strokeWidth={2.5} style={{ transform: 'translateY(1px)' }} />
+                                        <AlertTriangle size={24} strokeWidth={2.5} style={{ transform: 'translateY(0px)' }} />
                                     </div>
                                     <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0F172A' }}>
                                         Cancelar Suscripción
@@ -1238,7 +1238,7 @@ const Settings = () => {
                                     marginBottom: '1.25rem',
                                     boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)'
                                 }}>
-                                    <AlertTriangle size={28} strokeWidth={2.5} style={{ transform: 'translateY(1.5px)' }} />
+                                    <AlertTriangle size={28} strokeWidth={2.5} style={{ transform: 'translateY(0.5px)' }} />
                                 </div>
                                 <h3 id="reset-confirm-modal" style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
                                     ¿Empezar desde cero?
