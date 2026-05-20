@@ -5,11 +5,14 @@
       "destination": "/index.html"
     }
   ],
-  "//": "[P1-VERCEL-SECURITY-HEADERS · 2026-05-12] Headers de defensa-en-profundidad para mealfitrd.com. Pre-fix solo tenía rewrites — sin HSTS un downgrade attack en redes hostiles roba la sesión Supabase; sin X-Frame-Options el dashboard se podía iframe-embedar para clickjacking; sin CSP cualquier reflected-XSS escalaba a exfiltración. CSP arranca en Report-Only para evitar romper PayPal/Sentry/GA si falta whitelistear un host — promover a Content-Security-Policy enforced tras 1 semana de observación de los reports. Tooltip-anchor: P1-VERCEL-SECURITY-HEADERS. [P2-AUDIT-4 · 2026-05-15] Removidos `fonts.googleapis.com` y `fonts.gstatic.com` de `connect-src` y `font-src` por incoherencia documental con P3-SELF-HOST-FONTS (E2E test rechaza requests a esos hosts).",
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
+        {
+          "key": "X-Mealfit-Config-Anchor",
+          "value": "P1-VERCEL-SECURITY-HEADERS"
+        },
         {
           "key": "Strict-Transport-Security",
           "value": "max-age=63072000; includeSubDomains; preload"
