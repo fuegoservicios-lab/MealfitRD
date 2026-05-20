@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import {
     User, Bell, Shield, ChevronRight, ArrowLeft,
-    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat, GlassWater, Cog
+    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat, GlassWater, Cog,
+    Dumbbell, TrendingDown, Target, Activity, ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -1044,6 +1045,25 @@ const Settings = () => {
     const userGoal = formData?.mainGoal || "Mejorar Salud";
     const displayEmail = userProfile?.email || "Cargando correo...";
 
+    // [P3-PROFILE-PLAN-CARD-REDESIGN · 2026-05-20] Mapping es-DO + icon +
+    // accent color por meta. El enum backend (`mainGoal` en formValidation.js)
+    // usa labels en inglés (`gain_muscle`, `lose_fat`, etc.) — se renderizan
+    // capitalizados como "Gain Muscle" cuando llegan al UI, lo que rompe
+    // i18n del producto (CLAUDE.md → "i18n: es-DO permanente"). El mapping
+    // canónico vive aquí y se aplica al render del card Plan & Objetivo.
+    const _GOAL_META = {
+        gain_muscle: { label: 'Ganar músculo', Icon: Dumbbell, accent: '#10B981', tint: '#D1FAE5' },
+        lose_fat:    { label: 'Perder grasa', Icon: TrendingDown, accent: '#F43F5E', tint: '#FFE4E6' },
+        maintenance: { label: 'Mantenimiento', Icon: Target, accent: '#4F46E5', tint: '#E0E7FF' },
+        performance: { label: 'Rendimiento', Icon: Activity, accent: '#F59E0B', tint: '#FEF3C7' },
+    };
+    const _goalMeta = _GOAL_META[String(userGoal).toLowerCase()] || {
+        label: String(userGoal).replace(/_/g, ' '),
+        Icon: Trophy,
+        accent: '#4F46E5',
+        tint: '#E0E7FF',
+    };
+
     return (
         <>
             <div className={styles.wrapper}>
@@ -1085,6 +1105,7 @@ const Settings = () => {
                     onClose={() => setShowDiscardConfirm(false)}
                     titleId="discard-confirm-title"
                     maxWidth="420px"
+                    isBottomSheetOnMobile={true}
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
                         <div style={{
@@ -1108,20 +1129,11 @@ const Settings = () => {
                         Editaste tu peso o altura pero no actualizaste tu plan. Si sales ahora,
                         los nuevos valores se <strong>descartarán</strong>.
                     </p>
-                    <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <div className={styles.modalButtons}>
                         <button
                             type="button"
                             onClick={() => setShowDiscardConfirm(false)}
-                            style={{
-                                background: '#F1F5F9',
-                                color: '#475569',
-                                border: 'none',
-                                padding: '0.65rem 1.15rem',
-                                borderRadius: '0.6rem',
-                                fontWeight: 600,
-                                fontSize: '0.9rem',
-                                cursor: 'pointer',
-                            }}
+                            className={styles.modalBtnCancel}
                         >
                             Seguir editando
                         </button>
@@ -1131,16 +1143,7 @@ const Settings = () => {
                                 setShowDiscardConfirm(false);
                                 _doExitNavigation();
                             }}
-                            style={{
-                                background: '#EF4444',
-                                color: 'white',
-                                border: 'none',
-                                padding: '0.65rem 1.15rem',
-                                borderRadius: '0.6rem',
-                                fontWeight: 700,
-                                fontSize: '0.9rem',
-                                cursor: 'pointer',
-                            }}
+                            className={styles.modalBtnConfirm}
                         >
                             Descartar y salir
                         </button>
@@ -1153,6 +1156,7 @@ const Settings = () => {
                     titleId="cancel-modal-title"
                     maxWidth="420px"
                     disableClose={isCancelling}
+                    isBottomSheetOnMobile={true}
                 >
                                 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
@@ -1178,34 +1182,20 @@ const Settings = () => {
                                     ¿Estás seguro de que deseas cancelar tu suscripción? Perderás todos tus beneficios premium al finalizar tu ciclo actual. <strong>Esta acción no se puede deshacer.</strong>
                                 </p>
                                 
-                                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                                <div className={styles.modalButtons}>
                                     <button 
                                         onClick={() => setShowCancelModal(false)}
                                         disabled={isCancelling}
-                                        style={{
-                                            padding: '0.75rem 1.25rem', borderRadius: '0.75rem', border: 'none',
-                                            background: '#F1F5F9', color: '#475569', fontWeight: 600, 
-                                            cursor: isCancelling ? 'not-allowed' : 'pointer', transition: 'none',
-                                            opacity: isCancelling ? 0.7 : 1
-                                        }}
-                                        onMouseOver={(e) => { if (!isCancelling) { e.currentTarget.style.background = '#E2E8F0'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(148, 163, 184, 0.3)'; } }}
-                                        onMouseOut={(e) => { if (!isCancelling) { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.boxShadow = 'none'; } }}
+                                        className={styles.modalBtnCancel}
+                                        style={{ opacity: isCancelling ? 0.7 : 1, cursor: isCancelling ? 'not-allowed' : 'pointer' }}
                                     >
                                         Mantener Plan
                                     </button>
                                     <button 
                                         onClick={runCancelSubscription}
                                         disabled={isCancelling}
-                                        style={{
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                            padding: '0.75rem 1.25rem', borderRadius: '0.75rem', border: 'none',
-                                            background: '#EF4444', color: '#FFFFFF', fontWeight: 600, 
-                                            cursor: isCancelling ? 'wait' : 'pointer',
-                                            transition: 'none', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
-                                            opacity: isCancelling ? 0.8 : 1
-                                        }}
-                                        onMouseOver={(e) => { if (!isCancelling) { e.currentTarget.style.background = '#DC2626'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.45), 0 0 12px rgba(239, 68, 68, 0.25)'; } }}
-                                        onMouseOut={(e) => { if (!isCancelling) { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.25)'; } }}
+                                        className={styles.modalBtnConfirm}
+                                        style={{ opacity: isCancelling ? 0.8 : 1, cursor: isCancelling ? 'wait' : 'pointer' }}
                                     >
                                         {isCancelling ? 'Cancelando...' : 'Sí, Cancelar'}
                                     </button>
@@ -2229,77 +2219,194 @@ const Settings = () => {
                     )}
 
                     {/* SECCIÓN 3: PLAN & OBJETIVO */}
+                    {/* [P3-PROFILE-PLAN-CARD-REDESIGN · 2026-05-20]
+                        Minimal outline + accent icon. Reemplaza el gradient
+                        indigo→verde + sombra emerald saturada (no usaba tokens
+                        del design system + sombra se clipeaba por overflow:hidden
+                        del .grid wrapper en mobile). Mismo pattern visual que
+                        P3-RESTOCK-MINIMAL-CTA del Dashboard: card blanco border
+                        slate-200, icon container coloreado por meta, texto
+                        slate-900, CTA slate-900 con ArrowRight + microinteracción
+                        translateX hover. */}
                     {activeSection === 'plan' && (
                         <section className={styles.section}>
+                            <style>{`
+                                .plan-goal-card {
+                                    background: #FFFFFF;
+                                    border: 1px solid #E2E8F0;
+                                    border-radius: 1.125rem;
+                                    padding: 1.5rem;
+                                    display: flex;
+                                    flex-direction: column;
+                                    gap: 1.5rem;
+                                }
+                                .plan-goal-row {
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 1rem;
+                                }
+                                .plan-goal-icon {
+                                    width: 64px;
+                                    height: 64px;
+                                    border-radius: 0.875rem;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    flex-shrink: 0;
+                                }
+                                .plan-goal-label {
+                                    font-size: 0.7rem;
+                                    color: #64748B;
+                                    font-weight: 700;
+                                    letter-spacing: 0.08em;
+                                    text-transform: uppercase;
+                                    margin-bottom: 0.35rem;
+                                }
+                                .plan-goal-name {
+                                    font-size: 1.625rem;
+                                    font-weight: 800;
+                                    color: #0F172A;
+                                    letter-spacing: -0.02em;
+                                    line-height: 1.1;
+                                    word-break: break-word;
+                                }
+                                .plan-goal-divider {
+                                    height: 1px;
+                                    background: #F1F5F9;
+                                }
+                                .plan-goal-kcal-row {
+                                    display: flex;
+                                    align-items: baseline;
+                                    justify-content: space-between;
+                                    gap: 0.75rem;
+                                }
+                                .plan-goal-kcal-label {
+                                    font-size: 0.95rem;
+                                    color: #64748B;
+                                    font-weight: 500;
+                                }
+                                .plan-goal-kcal-value {
+                                    font-size: 2rem;
+                                    font-weight: 800;
+                                    color: #0F172A;
+                                    letter-spacing: -0.025em;
+                                    line-height: 1;
+                                }
+                                .plan-goal-kcal-unit {
+                                    font-size: 0.95rem;
+                                    font-weight: 500;
+                                    color: #64748B;
+                                    margin-left: 0.35rem;
+                                }
+                                .plan-goal-cta {
+                                    width: 100%;
+                                    padding: 1.125rem 1rem;
+                                    background: #0F172A;
+                                    color: #FFFFFF;
+                                    border: none;
+                                    border-radius: 0.875rem;
+                                    font-weight: 600;
+                                    font-size: 1.02rem;
+                                    cursor: pointer;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    gap: 0.55rem;
+                                    transition: background 0.15s ease;
+                                    font-family: inherit;
+                                }
+                                .plan-goal-cta:hover { background: #1E293B; }
+                                .plan-goal-cta:focus-visible {
+                                    outline: 2px solid #4F46E5;
+                                    outline-offset: 2px;
+                                }
+                                .plan-goal-cta[disabled] {
+                                    background: #F1F5F9;
+                                    color: #94A3B8;
+                                    cursor: not-allowed;
+                                }
+                                .plan-goal-arrow {
+                                    transition: transform 0.18s ease;
+                                }
+                                .plan-goal-cta:hover .plan-goal-arrow {
+                                    transform: translateX(3px);
+                                }
+                                .plan-goal-cta[disabled] .plan-goal-arrow {
+                                    display: none;
+                                }
+                                @media (max-width: 480px) {
+                                    .plan-goal-card {
+                                        padding: 1.375rem 1.25rem;
+                                        gap: 1.375rem;
+                                    }
+                                    .plan-goal-icon { width: 60px; height: 60px; }
+                                    .plan-goal-name { font-size: 1.5rem; }
+                                    .plan-goal-kcal-value { font-size: 1.875rem; }
+                                }
+                                @media (prefers-reduced-motion: reduce) {
+                                    .plan-goal-arrow { transition: none; }
+                                    .plan-goal-cta:hover .plan-goal-arrow { transform: none; }
+                                }
+                            `}</style>
+
                             <h2 className={styles.sectionTitle}>
                                 Tu Objetivo Actual
                             </h2>
 
-                            <div style={{
-                                background: 'linear-gradient(135deg, var(--primary) 0%, #16a34a 100%)',
-                                color: 'white',
-                                padding: '1.5rem',
-                                borderRadius: '1rem',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '1rem',
-                                boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.4)'
-                            }}>
-                                <div>
-                                    <div style={{ fontSize: '0.9rem', opacity: 0.9, marginBottom: '0.25rem' }}>Meta Principal</div>
-                                    <div style={{ fontSize: '1.75rem', fontWeight: 800, textTransform: 'capitalize', letterSpacing: '-0.02em' }}>
-                                        {userGoal.replace(/_/g, ' ')}
+                            <div className="plan-goal-card">
+                                {/* Row 1: icon + meta label/name */}
+                                <div className="plan-goal-row">
+                                    <div className="plan-goal-icon" style={{ background: _goalMeta.tint }}>
+                                        <_goalMeta.Icon size={30} color={_goalMeta.accent} strokeWidth={2} />
                                     </div>
-                                    <div style={{ fontSize: '0.9rem', marginTop: '0.5rem', opacity: 0.9 }}>
-                                        <span style={{ fontWeight: 700 }}>{Math.round(planData?.calories || 2000)}</span> kcal diarios
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div className="plan-goal-label">Meta principal</div>
+                                        <div className="plan-goal-name">{_goalMeta.label}</div>
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
-                                    <>
-                                        <button
-                                            onClick={() => {
-                                                if (!isLimitReached) {
-                                                    setShowEvaluateModal(true);
-                                                }
-                                            }}
-                                            className={styles.actionBtn}
-                                            disabled={isLimitReached}
-                                            style={{
-                                                width: '100%',
-                                                padding: '0.75rem',
-                                                border: '1px solid rgba(255, 255, 255, 0.4)',
-                                                borderRadius: '0.75rem',
-                                                background: isLimitReached ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.15)',
-                                                color: isLimitReached ? 'rgba(255, 255, 255, 0.5)' : 'white',
-                                                fontWeight: 600,
-                                                cursor: isLimitReached ? 'not-allowed' : 'pointer',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                                backdropFilter: 'blur(10px)',
-                                                opacity: isLimitReached ? 0.7 : 1
-                                            }}
-                                            onMouseOver={(e) => { if (!isLimitReached) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)' }}
-                                            onMouseOut={(e) => { if (!isLimitReached) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)' }}
-                                        >
-                                            {isLimitReached ? 'Límite de Plan Alcanzado' : 'Evaluar de Nuevo'} { !isLimitReached && <ChevronRight size={18} /> }
-                                        </button>
-                                        
-                                        {isLimitReached && (
-                                            <div style={{ textAlign: 'center' }}>
-                                                <a 
-                                                    href="#subscription" 
-                                                    style={{ color: '#E0E7FF', fontSize: '0.85rem', textDecoration: 'underline', cursor: 'pointer' }}
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        document.querySelector('#subscription')?.scrollIntoView({ behavior: 'smooth' });
-                                                    }}
-                                                >
-                                                    Actualiza tu suscripción para continuar
-                                                </a>
-                                            </div>
-                                        )}
-                                    </>
+                                <div className="plan-goal-divider" />
+
+                                {/* Row 2: kcal */}
+                                <div className="plan-goal-kcal-row">
+                                    <span className="plan-goal-kcal-label">Calorías diarias</span>
+                                    <span className="plan-goal-kcal-value">
+                                        {Math.round(planData?.calories || 2000).toLocaleString('es-DO')}
+                                        <span className="plan-goal-kcal-unit">kcal</span>
+                                    </span>
                                 </div>
+
+                                {/* CTA */}
+                                <button
+                                    type="button"
+                                    onClick={() => { if (!isLimitReached) setShowEvaluateModal(true); }}
+                                    disabled={isLimitReached}
+                                    className="plan-goal-cta"
+                                >
+                                    {isLimitReached ? 'Límite de plan alcanzado' : 'Evaluar de Nuevo'}
+                                    <ArrowRight size={19} strokeWidth={2.25} className="plan-goal-arrow" />
+                                </button>
+
+                                {isLimitReached && (
+                                    <div style={{ textAlign: 'center', marginTop: '-0.5rem' }}>
+                                        <a
+                                            href="#subscription"
+                                            style={{
+                                                color: '#4F46E5',
+                                                fontSize: '0.9rem',
+                                                fontWeight: 500,
+                                                textDecoration: 'underline',
+                                                cursor: 'pointer',
+                                            }}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                document.querySelector('#subscription')?.scrollIntoView({ behavior: 'smooth' });
+                                            }}
+                                        >
+                                            Actualiza tu suscripción para continuar
+                                        </a>
+                                    </div>
+                                )}
                             </div>
                         </section>
                     )}

@@ -744,3 +744,74 @@
         gap: 0;
     }
 }
+
+/* --- RESPONSIVE MODAL BUTTONS & SHEETS --- */
+.modalButtons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 1.5rem;
+}
+
+.modalBtnCancel {
+    background: #F1F5F9;
+    color: #475569;
+    border: none;
+    padding: 0.7rem 1.25rem;
+    border-radius: 0.7rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: none;
+}
+
+.modalBtnCancel:hover {
+    background: #E2E8F0;
+    box-shadow: 0 4px 12px rgba(148, 163, 184, 0.25);
+}
+
+.modalBtnConfirm {
+    background: #EF4444;
+    color: white;
+    border: none;
+    padding: 0.7rem 1.25rem;
+    border-radius: 0.7rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    transition: none;
+}
+
+.modalBtnConfirm:hover {
+    background: #DC2626;
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.35);
+}
+
+@media (max-width: 640px) {
+    .modalButtons {
+        flex-direction: column-reverse;
+        gap: 0.75rem;
+        width: 100%;
+        margin-top: 1.25rem;
+    }
+    .modalBtnCancel,
+    .modalBtnConfirm {
+        width: 100% !important;
+        padding: 0.85rem 1.5rem !important;
+        font-size: 1rem !important;
+        border-radius: 0.85rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+}
+
