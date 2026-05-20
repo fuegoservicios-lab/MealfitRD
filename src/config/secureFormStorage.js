@@ -410,12 +410,42 @@ const _isHydrationLikelyPending = (formData, session) => {
  * @returns {object|null} payload listo para `health_profile`, o `null` si
  *   detectamos race de hidratación (caller debe abortar + dar feedback).
  */
+// [P3-PROFILE-NUMERIC-COERCE · 2026-05-20] Campos del health_profile que
+// son semánticamente numéricos. El wizard `InteractiveQuestions` los
+// guarda en formData como strings (`e.target.value` es string) y, sin
+// coerce, terminaban en el JSONB como strings (`{"weight": "70"}` en
+// lugar de `{"weight": 70}`). Todos los lectores hacen coerción al
+// reinterpretar, así que era cosmetic — pero la inspección/queries en
+// DB (e.g. `WHERE health_profile->'weight' > 80`) requería casts manuales.
+// Coerce aquí (capa de persistencia) garantiza que toda escritura nueva
+// produce JSON-numbers. Migración SSOT [`p3_profile_numeric_coerce_2026_05_20.sql`]
+// normaliza las filas legacy.
+const NUMERIC_HEALTH_FIELDS = ['weight', 'height', 'age', 'bodyFat'];
+
+const _coerceNumericHealthFields = (payload) => {
+    if (!payload || typeof payload !== 'object') return payload;
+    for (const field of NUMERIC_HEALTH_FIELDS) {
+        const v = payload[field];
+        // Solo coerce strings con contenido (no '' ni null ni ya-number).
+        if (typeof v === 'string' && v.trim() !== '') {
+            const n = parseFloat(v);
+            // Validamos isFinite para rechazar 'NaN', 'Infinity', '12abc' →
+            // dejamos el string como está (el backend re-validará o fallará).
+            if (Number.isFinite(n)) {
+                payload[field] = n;
+            }
+        }
+    }
+    return payload;
+};
+
 export const buildHealthProfilePayload = (formData, overrides = {}, session = null) => {
     if (_isHydrationLikelyPending(formData, session)) {
         // Caller decide cómo notificar — devolvemos null para fallar explícito.
         return null;
     }
-    return { ...stripInternalFlags(formData), ...(overrides || {}) };
+    const merged = { ...stripInternalFlags(formData), ...(overrides || {}) };
+    return _coerceNumericHealthFields(merged);
 };
 
 
