@@ -10,6 +10,10 @@ import { toast } from 'sonner';
 // muerto. El uso real vive en MessageBubble + ChatWidget vía LazyMarkdown
 // wrapper que mueve la lib a un chunk async separado.
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
+// [P1-CHAT-VIRTUALIZE · 2026-05-19] Lista virtualizada para sesiones
+// >VIRTUALIZE_THRESHOLD mensajes (default 100). El componente exporta
+// el threshold para que AgentPage haga el switch arriba.
+import { VirtualizedMessageList, VIRTUALIZE_THRESHOLD } from '../components/agent/VirtualizedMessageList';
 import { SidebarRecientes } from '../components/agent/SidebarRecientes';
 import { safeJSONParse } from '../utils/safeJSONParse';
 // [P2-NEW-LOCALSTORAGE-MIGRATION-DEBT · 2026-05-15] Ver ChatWidget.jsx para
@@ -32,6 +36,165 @@ const _captureAgentPageException = (err, tags) => {
         });
     } catch (_e) { /* swallow */ }
 };
+
+// [P3-CHAT-FOCUS-TELEM · 2026-05-19] Telemetría client-side de latencia
+// del chat stream. Cierre del P3 pendiente del audit prod-readiness del
+// Agente (2026-05-19): pre-fix el backend ciega ante UX real
+// (latencia visible al usuario, retry count, errores de red). Acá
+// emitimos como Sentry breadcrumb (NO captureMessage — saturaría cuota)
+// + console.info estructurado para debug local.
+//
+// Métricas:
+//   - ttfb_ms: time-to-first-chunk (latencia "el LLM empezó a responder")
+//   - stream_total_ms: del fetch al `done` event
+//   - chunk_count: total chunks SSE recibidos
+//   - is_call_mode: feature flag (modo voz tiene budget de latencia distinto)
+//   - session_id: bucket para análisis post-hoc en Sentry
+//
+// El breadcrumb aparece en próximo error de Sentry capturado, dando
+// contexto sobre el último stream antes del fallo — útil para
+// diagnosticar "el usuario reportó lentitud antes del crash".
+const _emitChatPerfTelemetry = ({ ttfbMs, streamTotalMs, chunkCount, isCallMode, sessionId }) => {
+    try {
+        Sentry.addBreadcrumb({
+            category: 'chat',
+            message: 'stream_completed',
+            level: 'info',
+            data: {
+                ttfb_ms: typeof ttfbMs === 'number' ? Math.round(ttfbMs) : null,
+                stream_total_ms: typeof streamTotalMs === 'number' ? Math.round(streamTotalMs) : null,
+                chunk_count: chunkCount,
+                is_call_mode: !!isCallMode,
+                session_id: sessionId,
+            },
+        });
+    } catch (_e) { /* swallow */ }
+    // eslint-disable-next-line no-console
+    console.info('[CHAT-PERF]', {
+        ttfb_ms: typeof ttfbMs === 'number' ? Math.round(ttfbMs) : null,
+        stream_total_ms: typeof streamTotalMs === 'number' ? Math.round(streamTotalMs) : null,
+        chunk_count: chunkCount,
+        is_call_mode: !!isCallMode,
+        session_id: sessionId,
+    });
+};
+
+// [P1-CHAT-ERROR-DIFF · 2026-05-19] Mapea status HTTP del backend a copy
+// es-DO específico + flag retryable. Cierra el gap del audit 2026-05-19:
+// pre-fix todos los fallos mostraban "❌ Error al comunicarse con la IA"
+// sin distinguir entre timeout LLM (504 P0-CHAT-LLM-TIMEOUT, retryable
+// inmediato), circuit breaker abierto (503 P1-CHAT-CB, retryable tras
+// espera), quota mensual (402, NO retryable), auth (401/403, NO retryable)
+// y network/offline (status=0, retryable). El frontend NO reintenta auto
+// — preserva la decisión explícita del backend de "no amplificar la
+// condición" (ver comentarios en routers/chat.py:631-654). El botón en
+// MessageBubble da control al usuario.
+//
+// Telemetría: cada error pasa por _captureAgentPageException con tag
+// `chat_error_status` para correlación Sentry. NO se loguea `detail` raw
+// (puede incluir info sensible del backend); el copy mostrado al usuario
+// es siempre el canónico es-DO.
+const _AGENT_ERROR_COPY = {
+    504: {
+        icon: '⏱',
+        text: 'El asistente tardó más de la cuenta en responder. Puedes reintentar ahora.',
+        retryable: true,
+    },
+    503: {
+        icon: '🚦',
+        text: 'El asistente está temporalmente saturado. Espera unos segundos y reintenta.',
+        retryable: true,
+    },
+    429: {
+        icon: '🚦',
+        text: 'Demasiadas solicitudes seguidas. Espera un momento y reintenta.',
+        retryable: true,
+    },
+    402: {
+        icon: '🔒',
+        text: 'Llegaste al límite mensual de tu plan. Actualiza para seguir conversando.',
+        retryable: false,
+    },
+    401: {
+        icon: '🔐',
+        text: 'Tu sesión expiró. Vuelve a iniciar sesión para continuar.',
+        retryable: false,
+    },
+    403: {
+        icon: '🔐',
+        text: 'Tu sesión expiró. Vuelve a iniciar sesión para continuar.',
+        retryable: false,
+    },
+    0: {
+        icon: '📡',
+        text: 'Sin conexión al servidor. Verifica tu internet y reintenta.',
+        retryable: true,
+    },
+};
+
+const _buildAgentErrorMessage = ({ status, detail, retryPrompt, retryImageUrl, isAgentError }) => {
+    let entry = _AGENT_ERROR_COPY[status];
+    if (!entry) {
+        // 500/502/otros — copy genérico retryable. Server problem.
+        entry = {
+            icon: '⚠',
+            text: isAgentError
+                ? 'El asistente tuvo un problema procesando tu mensaje. Puedes reintentar.'
+                : 'El servidor tuvo un problema inesperado. Puedes reintentar en un momento.',
+            retryable: true,
+        };
+    }
+    _captureAgentPageException(new Error(`chat_error_status_${status}`), {
+        chat_error_status: String(status),
+        chat_error_kind: isAgentError ? 'agent_stream' : 'http',
+    });
+    const canRetry = entry.retryable && Boolean(retryPrompt || retryImageUrl);
+    return {
+        role: 'model',
+        content: `${entry.icon} ${entry.text}`,
+        errorType: status === 0 ? 'network' : `http_${status}`,
+        errorStatus: status,
+        retryable: canRetry,
+        retryPrompt: canRetry ? retryPrompt : null,
+        retryImageUrl: canRetry ? retryImageUrl : null,
+        _isErrorBubble: true,
+    };
+};
+
+// [P2-FETCH-RETRY-ADAPTIVE · 2026-05-19] Política de reintento por tipo
+// de error para `fetchSessionMessages`. Pre-fix: hardcoded `retryCount < 2`
+// con delays fijos (800ms para 4xx, 600ms para network) sin diferenciar
+// entre token-hydration (401/403, retryable), errores transitorios del
+// server (5xx, retryable), rate-limit (429, retryable con baseDelay
+// alto), y 4xx genuinos (404, 400, etc — NO retryable, son bugs).
+//
+// Backoff exponencial con jitter ±10% evita thundering herd cuando
+// múltiples clientes recargan tras un downtime del backend.
+//
+// maxRetries por bucket:
+//   - network (fetch fail / offline): 3 — la conexión puede estabilizarse
+//   - 401/403 (token hydration): 2 — suficiente para que el Authorization
+//     header se actualice tras login fresco
+//   - 5xx (server error): 3 — transitorio, ej. cold-start del backend
+//   - 429 (rate-limit): 2 — baseDelay alto (2s) respeta el rate-limit
+//   - 4xx restantes: 0 — son bugs del cliente, reintentar no resuelve.
+const _classifyFetchSessionRetry = (status, isNetworkError) => {
+    if (isNetworkError) return { retryable: true, maxRetries: 3, baseDelayMs: 500 };
+    if (status === 401 || status === 403) return { retryable: true, maxRetries: 2, baseDelayMs: 600 };
+    if (typeof status === 'number' && status >= 500 && status < 600) {
+        return { retryable: true, maxRetries: 3, baseDelayMs: 800 };
+    }
+    if (status === 429) return { retryable: true, maxRetries: 2, baseDelayMs: 2000 };
+    return { retryable: false, maxRetries: 0, baseDelayMs: 0 };
+};
+
+const _computeFetchBackoffMs = (baseDelayMs, attempt) => {
+    // Exponencial: base * 2^attempt + jitter ±10%
+    const exp = baseDelayMs * Math.pow(2, attempt);
+    const jitter = exp * (Math.random() * 0.2 - 0.1);
+    return Math.max(100, Math.round(exp + jitter));
+};
+
 const generateIntelligentWelcome = (userProfile, formData, planData) => {
     const nameStr = formData?.name || userProfile?.name || userProfile?.first_name || '';
     const nameParts = nameStr.split(' ');
@@ -386,6 +549,34 @@ const AgentPage = () => {
     const [previewUrl, setPreviewUrl] = useState(null);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
+    // [P3-CHAT-FOCUS-TELEM · 2026-05-19] Ref al textarea para refocus
+    // post-send (solo cuando tenía focus pre-send — preserva mobile UX
+    // donde tap del botón send NO debe abrir keyboard).
+    const chatInputRef = useRef(null);
+    // [P2-CHAT-SCROLL-RACE · 2026-05-19] Refs del scroll-race guard.
+    //
+    // Pre-fix: `useEffect(() => scrollToBottom(), [messages])` saltaba
+    // al fondo en CADA cambio del array de messages — incluyendo cada
+    // chunk SSE del LLM streaming. Si el user scrolleaba arriba para
+    // releer un mensaje pasado mientras el bot streameaba la respuesta,
+    // cada chunk lo arrojaba al fondo → imposible leer historial mid-stream.
+    //
+    // Fix:
+    //   - `messagesContainerRef` apunta al `<div className="messages-container">`
+    //     (elemento scrollable, NO al messagesEndRef que es solo el target).
+    //   - `userScrolledUpRef` es un ref (NO state) para evitar re-renders
+    //     en cada scroll tick. Lo lee `scrollToBottom` para decidir si
+    //     hacer no-op.
+    //   - `handleMessagesScroll` se monta como `onScroll` del container y
+    //     actualiza el ref con un umbral 120px desde el bottom — cubre
+    //     overshoot por scroll momentum en mobile.
+    //   - El send-handler resetea `userScrolledUpRef.current = false`
+    //     cuando el user manda un mensaje (acción afirmativa = quiere ver
+    //     la respuesta abajo).
+    //
+    // Tooltip-anchor: P2-CHAT-SCROLL-RACE.
+    const messagesContainerRef = useRef(null);
+    const userScrolledUpRef = useRef(false);
 
     const [isListening, setIsListening] = useState(false);
     const [micErrorMsg, setMicErrorMsg] = useState(null);
@@ -782,9 +973,35 @@ const AgentPage = () => {
         }
     };
 
-    const scrollToBottom = () => {
+    // [P2-CHAT-SCROLL-RACE · 2026-05-19] Auto-scroll respeta el intent
+    // del usuario. Si el user scrolleó arriba (userScrolledUpRef = true),
+    // skip silencioso — confía en que el user verá los chunks nuevos
+    // cuando regrese al fondo manualmente. `force=true` ignora el ref
+    // (caso: el user acaba de enviar un mensaje, queremos que vea su
+    // mensaje + la respuesta entrando).
+    // Tooltip-anchor: P2-CHAT-SCROLL-RACE.
+    const scrollToBottom = (force = false) => {
+        if (userScrolledUpRef.current && !force) return;
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
+
+    // [P2-CHAT-SCROLL-RACE · 2026-05-19] Listener montado en el container
+    // scrollable. Umbral 120px desde el bottom: cubre el overshoot natural
+    // por scroll momentum en mobile + zona neutral donde un microscroll
+    // accidental no marca "scrolled up". Cálculo: si distanceFromBottom
+    // > 120, el user está claramente leyendo historial; <= 120 cuenta
+    // como "engaged con el fondo" (auto-scroll seguro).
+    const handleMessagesScroll = useCallback(() => {
+        const el = messagesContainerRef.current;
+        if (!el) return;
+        try {
+            const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+            userScrolledUpRef.current = distanceFromBottom > 120;
+        } catch (_e) {
+            // Defensivo contra browsers raros que devuelvan NaN o lancen
+            // en getters. NO afecta el flow del chat.
+        }
+    }, []);
 
     const fetchChatSessions = useCallback(async () => {
         try {
@@ -911,29 +1128,44 @@ const AgentPage = () => {
                 } else {
                     setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
                 }
-            } else if (response.status === 403 || response.status === 401) {
-                // Reintentar un par de veces por si hay un retraso en la hidratación del token
-                if (retryCount < 2) {
-                    console.warn(`⏳ [fetchSessionMessages] Esperando autenticación para ${sessionId}... (intento ${retryCount + 1})`);
-                    setTimeout(() => fetchSessionMessages(sessionId, retryCount + 1), 800);
+            } else {
+                // [P2-FETCH-RETRY-ADAPTIVE · 2026-05-19] Clasificación
+                // por status: 401/403 (token hydration), 5xx (server
+                // transitorio), 429 (rate-limit), default 4xx (no
+                // retryable — bug del cliente, e.g. 404). Backoff
+                // exponencial con jitter — ver _classifyFetchSessionRetry.
+                const policy = _classifyFetchSessionRetry(response.status, false);
+                if (policy.retryable && retryCount < policy.maxRetries) {
+                    const delayMs = _computeFetchBackoffMs(policy.baseDelayMs, retryCount);
+                    console.warn(`⏳ [fetchSessionMessages] retry ${retryCount + 1}/${policy.maxRetries} en ${delayMs}ms (status=${response.status} session=${sessionId})`);
+                    setTimeout(() => fetchSessionMessages(sessionId, retryCount + 1), delayMs);
                     return;
                 }
-                // Después de reintentos, simplemente mostrar vacío sin destruir la sesión
-                console.warn(`⚠️ No se pudo cargar historial de ${sessionId} (${response.status}).`);
-                setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
-            } else {
+                if (policy.retryable) {
+                    console.warn(`⚠️ No se pudo cargar historial de ${sessionId} tras ${policy.maxRetries} intentos (${response.status}).`);
+                }
                 setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
             }
         } catch (error) {
+            // [P2-FETCH-RETRY-ADAPTIVE · 2026-05-19] Network error (fetch
+            // failure / offline / DNS). Política propia: 3 retries con
+            // baseDelay 500ms — la conexión puede estabilizarse.
             console.error("Error fetching session messages:", error);
-            if (retryCount < 2) {
-                setTimeout(() => fetchSessionMessages(sessionId, retryCount + 1), 600);
+            const policy = _classifyFetchSessionRetry(null, true);
+            if (policy.retryable && retryCount < policy.maxRetries) {
+                const delayMs = _computeFetchBackoffMs(policy.baseDelayMs, retryCount);
+                console.warn(`⏳ [fetchSessionMessages] retry network ${retryCount + 1}/${policy.maxRetries} en ${delayMs}ms`);
+                setTimeout(() => fetchSessionMessages(sessionId, retryCount + 1), delayMs);
                 return;
             }
             _captureAgentPageException(error, { action: 'fetchSessionMessages', retried: 'true' });
             setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true }]);
         } finally {
-            if (retryCount >= 2 || (response && response.ok)) {
+            // [P2-FETCH-RETRY-ADAPTIVE · 2026-05-19] Cierra el loader si
+            // (a) éxito, o (b) llegamos al cap máximo de cualquier bucket
+            // (3, según el clasificador). NO cierra si vamos a reintentar.
+            const _MAX_RETRIES_GLOBAL = 3;
+            if (retryCount >= _MAX_RETRIES_GLOBAL || (response && response.ok)) {
                 setIsLoadingHistory(false);
             }
         }
@@ -1054,9 +1286,38 @@ const AgentPage = () => {
         const currentFile = selectedFile;
         const currentPreview = previewUrl;
 
+        // [P3-CHAT-FOCUS-TELEM · 2026-05-19] Capturar si el textarea tenía
+        // focus ANTES del setInput. Si sí (keyboard send con Enter), tras
+        // limpiar input restauramos focus — typing flow continuo. Si NO
+        // (tap del botón send en mobile), no refocus — abrir keyboard
+        // post-tap es UX agresiva. Heurística usa document.activeElement
+        // que es cross-browser.
+        const _hadFocusPreSend = (
+            typeof document !== 'undefined'
+            && chatInputRef.current
+            && document.activeElement === chatInputRef.current
+        );
+
         setInput('');
         clearSelectedFile();
         setIsLoading(true);
+
+        // [P2-CHAT-SCROLL-RACE · 2026-05-19] Reset del guard: el user
+        // acaba de mandar un mensaje, es señal afirmativa de que quiere
+        // ver la respuesta entrando al fondo. Si había scrolleado arriba
+        // para releer historial antes de mandar, ese intent ya quedó
+        // cumplido — ahora queremos auto-scroll en la respuesta del bot.
+        userScrolledUpRef.current = false;
+
+        // [P3-CHAT-FOCUS-TELEM · 2026-05-19] Restore focus async para que
+        // React termine el render del setInput('') antes — sino el focus
+        // se pierde con el re-render del textarea. NO restaurar si modo
+        // llamada (el voice flow no escribe).
+        if (_hadFocusPreSend && !callModeRef.current) {
+            setTimeout(() => {
+                try { chatInputRef.current?.focus(); } catch (_e) { /* swallow */ }
+            }, 0);
+        }
 
         const newMessages = options.truncateIndex !== undefined
             ? messages.slice(0, options.truncateIndex)
@@ -1073,9 +1334,13 @@ const AgentPage = () => {
 
         setMessages(newMessages);
 
+        // [P1-CHAT-ERROR-DIFF · 2026-05-19] Declarados arriba del try para que
+        // el catch outer (network error) pueda referenciarlos al construir el
+        // mensaje retryable.
+        let uploadedImageUrl = null;
+
         try {
             let visionDescription = null;
-            let uploadedImageUrl = null;
 
             // Manejar subida de imagen si existe
             if (currentFile) {
@@ -1161,6 +1426,16 @@ const AgentPage = () => {
                 setAbortController(controller);
                 abortControllerRef.current = controller;
 
+                // [P3-CHAT-FOCUS-TELEM · 2026-05-19] Performance markers
+                // del stream. `_streamStartedAt` baseline para TTFB +
+                // total duration; `_firstChunkAt` se setea con el primer
+                // dataObj.type === 'chunk' recibido.
+                const _streamStartedAt = (typeof performance !== 'undefined' && performance.now)
+                    ? performance.now()
+                    : Date.now();
+                let _firstChunkAt = null;
+                let _chunkCount = 0;
+
                 const response = await fetchWithAuth('/api/chat/stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1203,6 +1478,16 @@ const AgentPage = () => {
                                     if (dataObj.type === 'progress') {
                                         setStreamingStatus(dataObj.message);
                                     } else if (dataObj.type === 'chunk') {
+                                        // [P3-CHAT-FOCUS-TELEM · 2026-05-19]
+                                        // Marcar TTFB la primera vez que
+                                        // llega un chunk. Subsiguientes
+                                        // increment count para emitir en done.
+                                        if (_firstChunkAt === null) {
+                                            _firstChunkAt = (typeof performance !== 'undefined' && performance.now)
+                                                ? performance.now()
+                                                : Date.now();
+                                        }
+                                        _chunkCount += 1;
                                         fullText += dataObj.text;
 
                                         let displayContent = fullText;
@@ -1253,6 +1538,20 @@ const AgentPage = () => {
                                             });
                                         }
                                     } else if (dataObj.type === 'done') {
+                                        // [P3-CHAT-FOCUS-TELEM · 2026-05-19]
+                                        // Emitir telemetría de latencia +
+                                        // chunk count. Sentry breadcrumb +
+                                        // console.info estructurado.
+                                        const _doneAt = (typeof performance !== 'undefined' && performance.now)
+                                            ? performance.now()
+                                            : Date.now();
+                                        _emitChatPerfTelemetry({
+                                            ttfbMs: _firstChunkAt !== null ? _firstChunkAt - _streamStartedAt : null,
+                                            streamTotalMs: _doneAt - _streamStartedAt,
+                                            chunkCount: _chunkCount,
+                                            isCallMode: !!callModeRef.current,
+                                            sessionId: currentSessionId,
+                                        });
                                         setIsLoading(false);
                                         setStreamingStatus(null);
                                         fullText = dataObj.response;
@@ -1323,9 +1622,18 @@ const AgentPage = () => {
                                         }, 1000);
 
                                     } else if (dataObj.type === 'error') {
+                                        // [P1-CHAT-ERROR-DIFF · 2026-05-19]
+                                        // Error emitido por el LangGraph mid-stream
+                                        // (tool falló, exception interna). Retryable.
                                         setIsLoading(false);
                                         setStreamingStatus(null);
-                                        setMessages(prev => [...prev, { role: 'model', content: `❌ Error de agente: ${dataObj.message}` }]);
+                                        setMessages(prev => [...prev, _buildAgentErrorMessage({
+                                            status: 500,
+                                            detail: dataObj.message,
+                                            retryPrompt: userMsg,
+                                            retryImageUrl: uploadedImageUrl,
+                                            isAgentError: true,
+                                        })]);
                                     }
                                 } catch (e) {
                                     // Ignorar lineas JSON rotas temporalmente
@@ -1334,9 +1642,20 @@ const AgentPage = () => {
                         }
                     }
                 } else {
+                    // [P1-CHAT-ERROR-DIFF · 2026-05-19] Diferenciación de status
+                    // del backend: 504 (timeout LLM, P0-CHAT-LLM-TIMEOUT) y 503
+                    // (circuit breaker abierto, P1-CHAT-CB) merecen copy
+                    // específico — el usuario debe saber si el problema es
+                    // transitorio (reintentar pronto) o necesita esperar más
+                    // (saturación). Quota/auth NO son retryables.
                     let errData = {};
-                    try { errData = await response.json(); } catch (error) { }
-                    setMessages(prev => [...prev, { role: 'model', content: `❌ Error al comunicarse con la IA: ${errData.detail || ''}` }]);
+                    try { errData = await response.json(); } catch (e) { /* ignore */ }
+                    setMessages(prev => [...prev, _buildAgentErrorMessage({
+                        status: response.status,
+                        detail: errData?.detail,
+                        retryPrompt: userMsg,
+                        retryImageUrl: uploadedImageUrl,
+                    })]);
                 }
             }
         } catch (error) {
@@ -1345,7 +1664,15 @@ const AgentPage = () => {
                 return;
             }
             console.error("Chat Error:", error);
-            setMessages(prev => [...prev, { role: 'model', content: '❌ Error de conexión al servidor.' }]);
+            // [P1-CHAT-ERROR-DIFF · 2026-05-19] Network errors (fetch failure,
+            // DNS, offline) llegan acá como TypeError; status=0 dispara el
+            // copy "Sin conexión" + botón Reintentar.
+            setMessages(prev => [...prev, _buildAgentErrorMessage({
+                status: 0,
+                detail: error?.message,
+                retryPrompt: userMsg,
+                retryImageUrl: uploadedImageUrl,
+            })]);
         } finally {
             setIsLoading(false);
             setStreamingStatus(null);
@@ -1409,15 +1736,35 @@ const AgentPage = () => {
 
     const renderInputArea = (isCentered = false) => (
         <div className="input-wrapper" ref={inputWrapperRef} style={{
-            padding: isCentered ? '1.5rem 1.25rem 2.5rem 1.25rem' : '1.25rem 2rem',
+            // [P3-AGENT-INPUT-CENTER · 2026-05-19] Lift del input desktop
+            // para que no toque el borde inferior del card.
+            // Pre-fix: `bottom: 0` pegaba el wrapper al fondo del scroll
+            // container — combinado con el border-radius bottom del card
+            // (1.5rem) producía la sensación visual de "input sobresale
+            // del card" en desktop (el wrapper ocupaba la zona del radius
+            // y se veía recortado/desbordado).
+            // Fix: `bottom: 1.25rem` en desktop deja 20px de respiración
+            // entre el input box y el borde inferior del card; padding
+            // top/bottom balanceado a 1.5rem cada lado para que el input
+            // esté centralizado dentro de su wrapper. Mobile intacto:
+            // sticky bottom 0 es crítico para el cooperativo con el
+            // visualViewport handler que levanta el wrapper con el
+            // teclado virtual iOS.
+            // Histórico relacionado: P3-AGENT-INPUT-BOTTOM-PAD,
+            // P3-AGENT-DESKTOP-CLIP (mismo día).
+            padding: isMobile
+                ? (isCentered ? '1.5rem 1.25rem 2.5rem 1.25rem' : '1.25rem 2rem 1.75rem 2rem')
+                : (isCentered ? '2rem 3rem 3rem 3rem' : '1.5rem 3rem 1.5rem 3rem'),
             background: isCentered ? '#ffffff' : 'rgba(255, 255, 255, 0.9)',
             backdropFilter: isCentered ? 'none' : 'blur(12px)',
             borderTopLeftRadius: isCentered ? '2rem' : '0',
             borderTopRightRadius: isCentered ? '2rem' : '0',
+            borderBottomLeftRadius: isMobile ? '0' : '1.5rem',
+            borderBottomRightRadius: isMobile ? '0' : '1.5rem',
             borderTop: isCentered ? 'none' : '1px solid rgba(226, 232, 240, 0.8)',
             boxShadow: isCentered ? '0 -2px 20px rgba(0,0,0,0.04)' : 'none',
             position: isCentered ? 'absolute' : 'sticky',
-            bottom: 0,
+            bottom: isCentered ? 0 : (isMobile ? 0 : '1.25rem'),
             left: 0,
             right: 0,
             width: '100%',
@@ -1553,6 +1900,7 @@ const AgentPage = () => {
                             look single-line; Shift+Enter = newline (handleKeyDown
                             ya respeta esto). */}
                         <textarea
+                            ref={chatInputRef}
                             rows={1}
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
@@ -1652,11 +2000,25 @@ const AgentPage = () => {
 
 
     // --- Standard Viewport Sizing ---
+    // [P3-AGENT-DESKTOP-CLIP · 2026-05-19] En desktop (> 1024px), el container
+    // del AgentPage se renderiza DENTRO de `DashboardLayout.mainContent` que
+    // ya aplica `padding: 2.5rem` arriba y abajo, y además el container suma
+    // `margin: '2.25rem auto 0'` (línea ~1792). Pre-fix el cálculo era
+    // `calc(100dvh - 4rem)` — restaba solo 64px sin contabilizar el padding
+    // del parent ni el margin-top propio, así que el container desbordaba
+    // el viewport por (40 + 36 + 40 - 64) = 52px → el padding inferior del
+    // `input-wrapper` (sticky bottom: 0) quedaba fuera del área visible y
+    // el usuario veía el chat "cortado" en la parte inferior.
+    //
+    // Cálculo correcto: `100dvh - (padding-top mainContent + margin-top
+    // AgentPage + padding-bottom mainContent) = 100dvh - (2.5 + 2.25 + 2.5)
+    // = 100dvh - 7.25rem`. Esto deja el bottom del card visible con ~40px
+    // de breathing room (el padding-bottom del mainContent).
     useEffect(() => {
         const root = document.documentElement;
         const handleResize = () => {
             if (window.innerWidth > 1024) {
-                root.style.setProperty('--app-height', 'calc(100dvh - 4rem)');
+                root.style.setProperty('--app-height', 'calc(100dvh - 7.25rem)');
             } else {
                 root.style.removeProperty('--app-height');
             }
@@ -1783,7 +2145,7 @@ const AgentPage = () => {
                 style={{
                     display: 'flex',
                     flexDirection: 'row',
-                    height: isMobile ? 'var(--app-height, 100dvh)' : 'var(--app-height, calc(100dvh - 4rem))',
+                    height: isMobile ? 'var(--app-height, 100dvh)' : 'var(--app-height, calc(100dvh - 7.25rem))',  // [P3-AGENT-DESKTOP-CLIP · 2026-05-19] ver useEffect arriba
                     background: '#ffffff',
                     borderRadius: isMobile ? '0' : '1.5rem',
                     boxShadow: isMobile ? 'none' : '0 10px 40px -10px rgba(0,0,0,0.08)',
@@ -1900,6 +2262,12 @@ const AgentPage = () => {
                         </button>
 
                         {/* Center: Title */}
+                        {/* [P3-AGENT-HEADER-TITLE · 2026-05-19] Título del header
+                            del chat. Cambio de marca interna "MealfitRD" → "Mealfit V1.0"
+                            (versioning visible al usuario; pre-fix solo el marketing
+                            site lo nombraba así). Mantenido independiente del sidebar logo
+                            del DashboardLayout que conserva el branding completo
+                            "MealfitRD" con gradient en el "RD". */}
                         <span className="agent-header-title" style={{
                             fontSize: '1.25rem',
                             fontWeight: 400,
@@ -1909,7 +2277,7 @@ const AgentPage = () => {
                             transform: 'translateX(-50%)',
                             letterSpacing: '-0.02em'
                         }}>
-                            MealfitRD
+                            Mealfit <span style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', letterSpacing: 'normal' }}>V1.0</span>
                         </span>
 
                         {/* Right: 3-dot nav menu (mobile) */}
@@ -1991,17 +2359,31 @@ const AgentPage = () => {
                     </div>
 
                     {/* Mensajes o Pantalla Principal (Gemini Style) */}
-                    <div className="messages-container" style={{
-                        flex: 1,
-                        padding: messages.length === 0 ? 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 1.5rem 0 1.5rem' : 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 2rem 0.5rem 2rem',
-                        overflowY: 'auto',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'flex-start',
-                        alignItems: messages.length === 0 ? 'flex-start' : 'center',
-                        background: messages.length === 0 ? '#ffffff' : '#ffffff',
-                        scrollBehavior: 'smooth'
-                    }}>
+                    {/* [P1-CHAT-VIRTUALIZE · 2026-05-19] Cuando virtualizado
+                        cedemos el scroll a Virtuoso (overflowY:hidden en el
+                        padre) — Virtuoso maneja viewport internamente. Path
+                        simple preserva overflowY:auto para sesiones <= 100. */}
+                    {/* [P2-CHAT-SCROLL-RACE · 2026-05-19] ref + onScroll
+                        activan el guard que respeta el intent del user
+                        cuando scrollea arriba durante el streaming. Tooltip-anchor:
+                        P2-CHAT-SCROLL-RACE. */}
+                    <div
+                        className="messages-container"
+                        ref={messagesContainerRef}
+                        onScroll={handleMessagesScroll}
+                        style={{
+                            flex: 1,
+                            padding: messages.length === 0 ? 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 1.5rem 0 1.5rem' : 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 2rem 0.5rem 2rem',
+                            overflowY: messages.length > VIRTUALIZE_THRESHOLD ? 'hidden' : 'auto',
+                            minHeight: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'flex-start',
+                            alignItems: messages.length === 0 ? 'flex-start' : 'center',
+                            background: messages.length === 0 ? '#ffffff' : '#ffffff',
+                            scrollBehavior: 'smooth'
+                        }}
+                    >
                         {messages.length === 0 && !isLoadingHistory ? (
                             <div className="empty-state-wrapper" style={{ width: '100%', maxWidth: '850px', display: 'flex', flexDirection: 'column' }}>
                                 <div style={{
@@ -2081,14 +2463,73 @@ const AgentPage = () => {
                                 </div>
                             </div>
                         ) : (
-                            <div style={{
-                                maxWidth: '800px',
-                                width: '100%',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '2rem',
-                                paddingBottom: '0.5rem'
-                            }}>
+                            // [P1-CHAT-A11Y-LIVE · 2026-05-19] role="log" +
+                            // aria-live="polite" hace que screen readers
+                            // anuncien mensajes nuevos del asistente sin
+                            // interrumpir. aria-relevant="additions text"
+                            // captura tanto inserts de bubbles nuevos como
+                            // updates de texto durante streaming (el bubble
+                            // streaming usa aria-busy=true mientras llega
+                            // el chunk para suprimir announcements parciales,
+                            // y aria-busy=false al final dispara el anuncio
+                            // del mensaje completo). Cierre P1 pendiente del
+                            // audit prod-readiness del Agente (2026-05-19).
+                            //
+                            // [P1-CHAT-VIRTUALIZE · 2026-05-19] Cuando
+                            // messages.length > VIRTUALIZE_THRESHOLD (100)
+                            // delegamos render a <VirtualizedMessageList>
+                            // (react-virtuoso) — mide alturas con
+                            // ResizeObserver y follow-tail nativo. Path
+                            // simple preservado para sesiones cortas (99%
+                            // del uso) — cero overhead Virtuoso, cero
+                            // riesgo de regresión visual.
+                            messages.length > VIRTUALIZE_THRESHOLD && !isLoadingHistory ? (
+                                <div
+                                    role="log"
+                                    aria-live="polite"
+                                    aria-relevant="additions text"
+                                    aria-label="Historial de conversación con el asistente"
+                                    style={{
+                                        maxWidth: '800px',
+                                        width: '100%',
+                                        flex: 1,
+                                        minHeight: 0,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                    }}
+                                >
+                                    <VirtualizedMessageList
+                                        messages={messages}
+                                        currentSessionId={currentSessionId}
+                                        onRegenerate={handleRegenerate}
+                                        onErrorRetry={(msg) => {
+                                            // [P1-CHAT-ERROR-DIFF · 2026-05-19]
+                                            // El virtualizer pasa el msg al
+                                            // handler — re-emit del prompt.
+                                            if (!msg?.retryPrompt && !msg?.retryImageUrl) return;
+                                            handleSend(msg.retryPrompt || '', { overrideImageUrl: msg.retryImageUrl || undefined });
+                                        }}
+                                        isLoading={isLoading}
+                                        streamingStatus={streamingStatus}
+                                        loadingPhrases={loadingPhrases}
+                                        loadingPhraseIdx={loadingPhraseIdx}
+                                    />
+                                </div>
+                            ) : (
+                            <div
+                                role="log"
+                                aria-live="polite"
+                                aria-relevant="additions text"
+                                aria-label="Historial de conversación con el asistente"
+                                style={{
+                                    maxWidth: '800px',
+                                    width: '100%',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2rem',
+                                    paddingBottom: '0.5rem'
+                                }}
+                            >
                                 {isLoadingHistory ? (
                                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem', color: '#94A3B8', gap: '0.5rem' }}>
                                         <Loader2 className="spin-fast" size={20} /> Cargando mensajes...
@@ -2101,6 +2542,15 @@ const AgentPage = () => {
                                             index={i}
                                             currentSessionId={currentSessionId}
                                             onRegenerate={handleRegenerate}
+                                            onErrorRetry={() => {
+                                                // [P1-CHAT-ERROR-DIFF · 2026-05-19]
+                                                // Re-emite el prompt original
+                                                // como si el user lo enviara de
+                                                // nuevo. handleSend re-construye
+                                                // enriquecedor + setea Conectando.
+                                                if (!msg.retryPrompt && !msg.retryImageUrl) return;
+                                                handleSend(msg.retryPrompt || '', { overrideImageUrl: msg.retryImageUrl || undefined });
+                                            }}
                                         />
                                     ))
                                 )}
@@ -2140,6 +2590,7 @@ const AgentPage = () => {
                                 )}
                                 <div ref={messagesEndRef} />
                             </div>
+                            )
                         )}
                     </div>
 

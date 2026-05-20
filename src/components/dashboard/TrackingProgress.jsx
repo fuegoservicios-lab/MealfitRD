@@ -160,7 +160,10 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
                             boxShadow: `inset 0 0 0 1px ${color}26`
                         }}
                     >
-                        <Icon size={large ? 19 : 16} strokeWidth={2.5} />
+                        <Icon 
+                            size={large ? 19 : 16} 
+                            strokeWidth={2.5} 
+                        />
                     </div>
                     <span
                         className={styles.barLabel}

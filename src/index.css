@@ -556,3 +556,34 @@ button {
   outline: 3px solid rgba(79, 70, 229, 0.65);
   outline-offset: 2px;
 }
+
+/* [P2-REDUCED-MOTION · 2026-05-19] Respetar el setting del SO/browser
+ * `prefers-reduced-motion: reduce`. WCAG 2.3.3 (AAA) y Apple/Microsoft
+ * accessibility guidelines: usuarios con vestibular disorders o
+ * sensibilidad a movimiento pueden activar este preference; el chat
+ * actualmente corre múltiples animaciones (typing dots pulse, shimmer
+ * del loading text, fadeInUp del empty state, spin del loader, animate
+ * pulse del bot avatar) que sin esta regla disparan el malestar.
+ *
+ * Por qué `0.01ms` y no `0`:
+ *     Animations terminan instantáneamente pero los `onAnimationEnd`
+ *     handlers siguen disparándose — no rompe lógica que escucha el
+ *     evento (typing dots, autoscroll triggers). Convención del W3C.
+ *
+ * Por qué `scroll-behavior: auto`:
+ *     `.messages-container` tiene `scrollBehavior: 'smooth'` inline.
+ *     Smooth scroll puede inducir motion sickness; este override lo
+ *     fuerza a instant scroll cuando el usuario lo solicita.
+ *
+ * Cierre del P2 pendiente del audit prod-readiness del Agente
+ * (2026-05-19). Tooltip-anchor: P2-REDUCED-MOTION. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

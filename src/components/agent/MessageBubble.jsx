@@ -92,7 +92,45 @@ const MessageActions = ({ content, sessionId, onRegenerate }) => {
     );
 };
 
-export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId, onRegenerate }) => {
+// [P1-CHAT-ERROR-DIFF · 2026-05-19] Botón inline "Reintentar" para los
+// bubbles de error generados por _buildAgentErrorMessage. Solo se renderiza
+// si msg.retryable === true (errores no-retryables como 402 quota o 401/403
+// auth muestran solo el copy explicativo). Sin styles inline pesados; el
+// botón hereda paleta error (rojo).
+const ErrorRetryButton = ({ onClick }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        aria-label="Reintentar el último mensaje"
+        style={{
+            marginTop: '0.75rem',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            background: '#ffffff',
+            border: '1px solid #fca5a5',
+            color: '#b91c1c',
+            padding: '0.45rem 0.9rem',
+            borderRadius: '0.5rem',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'background 0.15s ease, border-color 0.15s ease',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = '#fef2f2'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = '#ffffff'; }}
+    >
+        <RefreshCw size={15} strokeWidth={2.2} />
+        Reintentar
+    </button>
+);
+
+export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId, onRegenerate, onErrorRetry }) => {
+    // [P1-CHAT-ERROR-DIFF · 2026-05-19] Variante visual para errores:
+    // role="alert" (anuncio a screen readers — defensa-en-profundidad
+    // mientras el aria-live container-level sigue pendiente), borde rojo
+    // sutil, NO MessageActions (thumbs/regenerate no aplican).
+    const isErrorBubble = msg.role === 'model' && msg._isErrorBubble === true;
     return (
         <div style={{
             display: 'flex',
@@ -114,33 +152,38 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
             )}
 
             {/* Mensaje */}
-            <div className={msg.role === 'user' ? 'msg-bubble-user' : 'msg-bubble-bot'} style={{
-                flex: msg.role === 'user' ? '0 1 auto' : 1,
-                maxWidth: msg.role === 'user' ? '80%' : '100%',
-                width: msg.role === 'user' ? 'fit-content' : 'auto',
-                color: msg.role === 'user' ? '#0f172a' : '#1e293b',
-                fontSize: '0.95rem',
-                lineHeight: 1.6,
-                whiteSpace: 'pre-wrap',
-                background: msg.role === 'user' ? '#f0f4f8' : '#ffffff',
-                padding: msg.role === 'user' ? '0.85rem 1.4rem' : '1rem 0',
-                borderRadius: msg.role === 'user' ? '1.5rem 1.5rem 0.25rem 1.5rem' : '0',
-                border: msg.role === 'user' ? '1px solid #e2e8f0' : 'none',
-                boxShadow: 'none'
-            }}>
+            <div
+                {...(isErrorBubble ? { role: 'alert' } : {})}
+                {...(msg.role === 'model' && msg.isStreaming ? { 'aria-busy': true } : {})}
+                className={msg.role === 'user' ? 'msg-bubble-user' : 'msg-bubble-bot'}
+                style={{
+                    flex: msg.role === 'user' ? '0 1 auto' : 1,
+                    maxWidth: msg.role === 'user' ? '80%' : '100%',
+                    width: msg.role === 'user' ? 'fit-content' : 'auto',
+                    color: msg.role === 'user' ? '#0f172a' : (isErrorBubble ? '#7f1d1d' : '#1e293b'),
+                    fontSize: '0.95rem',
+                    lineHeight: 1.6,
+                    whiteSpace: 'pre-wrap',
+                    background: msg.role === 'user' ? '#f0f4f8' : (isErrorBubble ? '#fef2f2' : '#ffffff'),
+                    padding: msg.role === 'user' ? '0.85rem 1.4rem' : (isErrorBubble ? '0.9rem 1.1rem' : '1rem 0'),
+                    borderRadius: msg.role === 'user' ? '1.5rem 1.5rem 0.25rem 1.5rem' : (isErrorBubble ? '0.85rem' : '0'),
+                    border: msg.role === 'user' ? '1px solid #e2e8f0' : (isErrorBubble ? '1px solid #fecaca' : 'none'),
+                    boxShadow: 'none'
+                }}
+            >
                 {msg.isImage && msg.imageUrl && (
                     <div style={{ marginBottom: msg.content ? '0.5rem' : 0 }}>
-                        <img 
-                            src={msg.imageUrl} 
-                            alt="Imagen enviada" 
-                            style={{ 
-                                maxWidth: '280px', 
+                        <img
+                            src={msg.imageUrl}
+                            alt="Imagen enviada"
+                            style={{
+                                maxWidth: '280px',
                                 width: '100%',
-                                borderRadius: '0.75rem', 
-                                maxHeight: '280px', 
+                                borderRadius: '0.75rem',
+                                maxHeight: '280px',
                                 objectFit: 'cover',
                                 display: 'block'
-                            }} 
+                            }}
                         />
                     </div>
                 )}
@@ -149,13 +192,19 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                         <LazyMarkdown>{msg.content}</LazyMarkdown>
                     </div>
                 )}
-                
-                {/* Action bar for model messages */}
-                {msg.role === 'model' && !msg.isStreaming && (
-                    <MessageActions 
-                        content={msg.content} 
+
+                {/* [P1-CHAT-ERROR-DIFF · 2026-05-19] Botón retry solo si
+                    msg.retryable; el copy del bubble ya comunica el por qué */}
+                {isErrorBubble && msg.retryable && typeof onErrorRetry === 'function' && (
+                    <ErrorRetryButton onClick={onErrorRetry} />
+                )}
+
+                {/* Action bar for model messages — oculto en errores */}
+                {msg.role === 'model' && !msg.isStreaming && !isErrorBubble && (
+                    <MessageActions
+                        content={msg.content}
                         sessionId={currentSessionId}
-                        onRegenerate={() => onRegenerate(index)} 
+                        onRegenerate={() => onRegenerate(index)}
                     />
                 )}
             </div>
@@ -166,6 +215,8 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
     return (
         prevProps.msg.content === nextProps.msg.content &&
         prevProps.msg.isStreaming === nextProps.msg.isStreaming &&
+        prevProps.msg._isErrorBubble === nextProps.msg._isErrorBubble &&
+        prevProps.msg.retryable === nextProps.msg.retryable &&
         prevProps.currentSessionId === nextProps.currentSessionId
     );
 });

@@ -28,6 +28,12 @@ import { supabase } from '../supabase';
 // descarguen PDF. Tooltip-anchor: P2-LAZY-PDF.
 import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
 import { trackEvent } from '../utils/analytics';
+// [P3-RESTOCK-FLOW-SPEED · 2026-05-20] Cache compartido de inventory. Tras
+// el restock, Dashboard populá este singleton de modo que Pantry.jsx monta
+// con `inventory = getCachedInventory()` ya poblado → cero skeleton + cero
+// fetch dup. Pre-fix Pantry hacía su propio fetch al mount (~300-800ms)
+// pese a que Dashboard ya había hecho refetch para `setLiveInventory`.
+import { setCachedInventory, invalidateInventoryCache } from '../utils/pantryCache';
 import { safeJSONParse } from '../utils/safeJSONParse';
 import { getActiveShoppingList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
@@ -159,25 +165,12 @@ const Dashboard = () => {
     // Estados para Compras con 1 clic
     const [showRestockModal, setShowRestockModal] = useState(false);
     const [isRestocking, setIsRestocking] = useState(false);
-    // Contador 0→100 driven por rAF — sincronizado con la barra (mismo easing
-    // y duración). Sirve al label "67%" y a los checkmarks de los pasos para
-    // que se enciendan en porcentajes reales (no en delays hardcoded).
-    const [restockPercent, setRestockPercent] = useState(0);
-    useEffect(() => {
-        if (!isRestocking) { setRestockPercent(0); return; }
-        const duration = 3600; // ms — coincide con la barra
-        const start = performance.now();
-        let raf = 0;
-        const tick = (now) => {
-            const t = Math.min((now - start) / duration, 1);
-            // ease-out cubic: arranca rápido, decelera al final → "premium feel"
-            const eased = 1 - Math.pow(1 - t, 3);
-            setRestockPercent(Math.round(eased * 100));
-            if (t < 1) raf = requestAnimationFrame(tick);
-        };
-        raf = requestAnimationFrame(tick);
-        return () => cancelAnimationFrame(raf);
-    }, [isRestocking]);
+    // [P3-RESTOCK-NO-BAR · 2026-05-20] State acoplado a la barra REMOVIDO:
+    // contador rAF de progreso, trigger fast-finish, constantes de duración,
+    // useEffect rAF driver, useEffect watcher modal-close. Decisión de
+    // producto: el modal ahora muestra solo icon spinner + título +
+    // descripción; cierra directamente post-response success. Bundle
+    // Dashboard.jsx bajó ~8KB. Tooltip-anchor: P3-RESTOCK-NO-BAR.
 
     // Estados para GAP 8 (Bandas informativas de modales)
     const [hoveredUpdateOption, setHoveredUpdateOption] = useState(null);
@@ -1984,39 +1977,10 @@ const Dashboard = () => {
             // items en la despensa. Asimétrico con `handleDownloadShoppingList`
             // (PDF) que ya estaba hardenizado por P1-PDF-1.
             //
-            // Ahora:
-            //   1. `fetchFreshInventoryWithTimeout` carrera contra 2000ms.
-            //   2. Si timeout/error/empty_response: usa `liveInventory` cacheado,
-            //      muestra toast.warning visible al usuario ANTES del POST, y
-            //      emite `restock_stale_inventory_fallback` para telemetría.
-            //   3. NUNCA bloquea indefinidamente — si Supabase cuelga el helper
-            //      retorna a los 2s y procedemos con caché en lugar de dejar
-            //      al usuario congelado en "Guardando ingredientes...".
             // [P3-RESTOCK-STALE-FALLBACK-EMPTY · 2026-05-18] Cuando el fresh
             // fetch de user_inventory falla (timeout/error), NO usar liveInventory
-            // cacheado como fallback — usar [] (lista vacía).
-            //
-            // Razón: liveInventory puede estar stale post-Borrar-Todos.
-            // Escenario reproducido (plan dfb03329, user angelobrito500):
-            //   1. Usuario en Pantry: Borrar Todos → user_inventory = [] en DB.
-            //   2. Pantry.setInventory([]) — Dashboard.liveInventory NO se sincroniza.
-            //   3. Usuario navega a Dashboard, clic Compré todo.
-            //   4. fetchFreshInventoryWithTimeout falla/timeout.
-            //   5. Fallback antiguo: freshInventoryForRestock = liveInventory (35 items stale).
-            //   6. buildDeltaShoppingList compara shoppingList vs 35 stale →
-            //      dedup descarta 28, solo 7 sobreviven.
-            //   7. POST /restock con 7 items → backend self-heal correcto pero
-            //      solo registra 7 en restocked_items. Usuario ve 7 de 35.
-            //
-            // Defensa: cuando el fetch falla, fallback a [] hace que
-            // buildDeltaShoppingList haga early-return sin dedup (línea 663
-            // `if (...inventoryToUse.length === 0) return shoppingList;`).
-            // El backend ya tiene self-heal: si user_inventory está vacío en
-            // DB al momento del /restock, resetea is_restocked + restocked_items
-            // antes del dedup (plans.py:4255+). Y la constraint UNIQUE
-            // (user_id, ingredient_name, unit) previene duplicados físicos.
-            // Conclusión: pasar [] al frontend es seguro y deja que la DB
-            // sea la fuente de verdad.
+            // cacheado como fallback — usar [] (lista vacía). El backend tiene
+            // self-heal P3-RESTOCK-STALE-DEDUP que cubre el caso.
             let freshInventoryForRestock = liveInventory;
             const _restockFreshFetch = await fetchFreshInventoryWithTimeout(
                 () => supabase
@@ -2030,11 +1994,8 @@ const Dashboard = () => {
             if (!_restockFreshFetch.stale) {
                 freshInventoryForRestock = _restockFreshFetch.data;
                 setLiveInventory(_restockFreshFetch.data);
-                // [P1-5] Restock validado contra datos vivos → bajamos el chip
-                // ámbar persistente in-app si estaba activo.
                 setInventoryStale(false);
             } else {
-                // [P3-RESTOCK-STALE-FALLBACK-EMPTY] Fallback seguro: [] no stale data.
                 freshInventoryForRestock = [];
                 setInventoryStale(true);
                 toast.warning('Tu Nevera puede estar desactualizada', {
@@ -2049,18 +2010,8 @@ const Dashboard = () => {
             }
 
             // Fuente Verdadera: Solo enviar a la BD lo que es estrictamente NUEVO de la Lista de Compras del Plan!
-            // No enviar todo el 'allPlanIngredients' ya que duplicaría el liveInventory que el usuario ya poseía.
             const duration = formData?.groceryDuration || 'weekly';
             const rawActiveShoppingList = getActiveShoppingList(planData, duration) || allPlanIngredients || [];
-
-            // [P3-RESTOCK-STALE-DEDUP-CAPA3-REMOVED · 2026-05-17] Workaround
-            // pre-flight (2 POSTs a /recalculate-shopping-list con toggle
-            // householdSize) removido por fluidez. Capa 1 backend self-heal
-            // (routers/plans.py P3-RESTOCK-STALE-DEDUP-START) cierra el bug en
-            // un solo /restock cuando user_inventory está vacío. El costo de
-            // Capa 3 (~600-1000ms extra antes del POST real) no se justifica
-            // mientras Capa 1 esté activa. Si Capa 1 se desactiva o regresa,
-            // restaurar este pre-flight desde el git log.
 
             // 🔄 Delta Shopping: solo enviar lo que NO está ya en la Nevera
             const activeShoppingList = buildDeltaShoppingList(rawActiveShoppingList, freshInventoryForRestock);
@@ -2071,16 +2022,9 @@ const Dashboard = () => {
                 let raw = '';
                 if (typeof ing === 'object' && ing !== null) {
                     name = ing.name || ing.display_name || ing.display_string || String(ing);
-                    // Send structured data directly to bypass display_string re-parsing
-                    // (display_string contains Unicode fractions like ½ that _parse_quantity can't handle)
                     if (ing.name && (ing.market_qty !== undefined || ing.market_qty_numeric !== undefined || ing.display_qty)) {
-                        // [P0-2] Antes había parser fraccional inline duplicado
-                        // aquí; ahora usamos `resolveShopQty` (que prefiere
-                        // `market_qty_numeric` cuando existe) → semántica
-                        // unificada con el delta de la línea 705.
                         let mqNum = resolveShopQty(ing);
                         if (mqNum === 0) {
-                            // Fallback al display_qty si tampoco hay market_qty parseable.
                             mqNum = parseMarketQty(ing.display_qty) || 1;
                         }
                         structured = {
@@ -2142,29 +2086,38 @@ const Dashboard = () => {
                         groceryDuration: formData?.groceryDuration || groceryDuration || 'weekly'
                     }));
                 }
+
+                // [P3-RESTOCK-NO-BAR · 2026-05-20] Sin barra de progreso, el
+                // modal cierra DIRECTO al success — no esperamos animaciones.
                 setShowRestockModal(false);
-                
-                // P1-1: Obligar await estricto en la recarga del liveInventory post-compra ANTES del ruteo
-                // Removemos el setLiveInventory(null) que causaba destellos/crash
-                try {
-                    const { data: freshInv } = await supabase
-                        .from('user_inventory')
-                        .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
-                        .eq('user_id', userProfile.id)
-                        .gt('quantity', 0)
-                        .order('ingredient_name', { ascending: true });
-                    if (freshInv) {
-                        setLiveInventory(freshInv);
-                    }
-                } catch (e) { /* non-blocking */ }
-                
+
+                // [P3-RESTOCK-FLOW-SPEED · 2026-05-20] Invalidar cache stale
+                // PRE-refetch.
+                invalidateInventoryCache();
+
+                // [P3-RESTOCK-FLOW-SPEED · 2026-05-20] Refetch + cache populate
+                // en paralelo. Sin `await`, el navigate no se bloquea.
+                supabase
+                    .from('user_inventory')
+                    .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
+                    .eq('user_id', userProfile.id)
+                    .gt('quantity', 0)
+                    .order('ingredient_name', { ascending: true })
+                    .then(({ data: freshInv }) => {
+                        if (freshInv) {
+                            setLiveInventory(freshInv);
+                            // Popula el cache singleton — Pantry monta con
+                            // `getCachedInventory()` poblado → cero skeleton.
+                            setCachedInventory(freshInv);
+                        }
+                    })
+                    .catch(() => { /* non-blocking — Pantry hará su propio fetch */ });
+
                 // Limpiar ingredientes deshabilitados ya que la despensa se actualizó
                 setDisabledIngredients([]);
-                
-                // Retraso intencional de 100ms para asegurar propagación de estado React antes de montar Pantry
-                setTimeout(() => {
-                    navigate('/dashboard/pantry');
-                }, 100);
+
+                // [P3-RESTOCK-FLOW-SPEED · 2026-05-20] Navigate síncrono.
+                navigate('/dashboard/pantry');
             } else {
                 toast.error(data.message || 'Error al actualizar la despensa.');
             }
@@ -2477,6 +2430,127 @@ const Dashboard = () => {
                 .new-plan-btn:active:not(:disabled) {
                     box-shadow: var(--active-shadow, 0 5px 15px -5px rgba(0,0,0,0.1)) !important;
                     filter: brightness(0.95);
+                }
+
+                /* [P3-RESTOCK-MINIMAL-CTA · 2026-05-20] Estilos del botón
+                   "Ya compré todo" rediseñado (outline + accent dot). El
+                   dot emerald es el ÚNICO acento de color — preserva la
+                   semántica "success ready" sin el ruido del gradient.
+                   Hover: borde slate-900 + dot ring ampliado.
+                   Tooltip-anchor: P3-RESTOCK-MINIMAL-CTA. */
+                .restock-cta-minimal {
+                    position: relative;
+                }
+                .restock-cta-minimal:hover:not(:disabled) {
+                    border-color: #0F172A !important;
+                    box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.12) !important;
+                    transform: translateY(-1px);
+                }
+                .restock-cta-minimal:active:not(:disabled) {
+                    transform: translateY(0);
+                    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
+                }
+                .restock-cta-minimal:focus-visible {
+                    outline: 2px solid #4F46E5;
+                    outline-offset: 2px;
+                }
+                .restock-cta-dot {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: #10B981;
+                    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55);
+                    animation: restock-cta-pulse 2.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+                    flex-shrink: 0;
+                }
+                /* Pulse subtle — ring grows + fades out, dot core stays solid */
+                @keyframes restock-cta-pulse {
+                    0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+                    70%  { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+                }
+                .restock-cta-minimal:hover .restock-cta-dot {
+                    /* Hover: dot ring más grande + un poco más opaco */
+                    animation-duration: 1.4s;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .restock-cta-dot {
+                        animation: none;
+                        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+                    }
+                    .restock-cta-minimal:hover:not(:disabled) {
+                        transform: none;
+                    }
+                }
+
+                /* [P3-RESTOCK-MINIMAL-CTA · 2026-05-20] Estilos del modal de
+                   confirmación rediseñado. CTA principal slate-900 (text-main)
+                   con flecha que se desliza horizontalmente en hover — micro-
+                   interacción minimal que comunica acción. Cancel como text-link
+                   sin background ni padding pesado (no compite con CTA). */
+                .restock-modal-confirm {
+                    background: #0F172A;
+                    color: #FFFFFF;
+                    border: none;
+                    padding: 0.95rem 1.25rem;
+                    border-radius: 0.85rem;
+                    font-weight: 600;
+                    font-size: 0.95rem;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.55rem;
+                    transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+                    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15);
+                    letter-spacing: -0.005em;
+                }
+                .restock-modal-confirm:hover:not(:disabled) {
+                    background: #1E293B; /* slate-800 — sutilmente más claro */
+                    box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.3);
+                }
+                .restock-modal-confirm:hover:not(:disabled) .restock-modal-arrow {
+                    transform: translateX(4px);
+                }
+                .restock-modal-confirm:active:not(:disabled) {
+                    transform: translateY(1px);
+                    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
+                }
+                .restock-modal-confirm:focus-visible {
+                    outline: 2px solid #4F46E5;
+                    outline-offset: 2px;
+                }
+                .restock-modal-confirm:disabled {
+                    opacity: 0.6;
+                    cursor: wait;
+                }
+                .restock-modal-arrow {
+                    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .restock-modal-confirm:hover .restock-modal-arrow {
+                        transform: none;
+                    }
+                }
+
+                .restock-modal-cancel {
+                    background: transparent;
+                    color: #94A3B8;
+                    border: none;
+                    padding: 0.7rem;
+                    font-weight: 500;
+                    font-size: 0.88rem;
+                    cursor: pointer;
+                    transition: color 0.18s ease;
+                    letter-spacing: -0.005em;
+                }
+                .restock-modal-cancel:hover {
+                    color: #475569; /* slate-600 — más oscuro on hover */
+                }
+                .restock-modal-cancel:focus-visible {
+                    outline: 2px solid #4F46E5;
+                    outline-offset: 2px;
+                    border-radius: 6px;
                 }
 
                 @media (max-width: 768px) {
@@ -3067,31 +3141,42 @@ const Dashboard = () => {
                               * inicial del fetch queda absorbido como "no mostrar nada"
                               * en vez de "mostrar estado falso de carga". */}
                             {hasPendingShoppingItems && (
+                                /* [P3-RESTOCK-MINIMAL-CTA · 2026-05-20] Rediseño del
+                                   botón "Ya compré todo": de gradient verde saturado
+                                   con sombra colorida a outline minimalista con dot
+                                   verde pulsante. Trade-off: pierde "loud premium"
+                                   look, gana coherencia con paleta web (--text-main
+                                   #0F172A, slate borders) y se distingue del 95% de
+                                   UIs verdes saturadas. La semántica positiva la
+                                   carga el dot emerald-500 lateral (pulse animation
+                                   indica "acción disponible"). Hover oscurece borde
+                                   a slate-900 + dot ring más visible. */
                                 <button
                                     onClick={() => setShowRestockModal(true)}
-                                    className="new-plan-btn"
+                                    className="restock-cta-minimal"
                                     style={{
-                                        background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                                        color: 'white',
+                                        background: '#FFFFFF',
+                                        color: '#0F172A',
                                         cursor: 'pointer',
-                                        '--hover-shadow': '0 20px 40px -5px rgba(16, 185, 129, 0.5), inset 0 0 0 1px rgba(255,255,255,0.2)',
-                                        '--active-shadow': '0 5px 15px -5px rgba(16, 185, 129, 0.2)',
-                                        boxShadow: '0 10px 20px -5px rgba(16, 185, 129, 0.4)',
+                                        border: '1px solid #E2E8F0',
                                         flex: '1 1 auto',
                                         width: 'auto',
                                         justifyContent: 'center',
-                                        padding: '0.75rem 0.75rem',
-                                        border: 'none',
-                                        borderRadius: '1rem',
-                                        fontWeight: '700',
+                                        padding: '0.7rem 1rem',
+                                        borderRadius: '0.85rem',
+                                        fontWeight: 600,
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '0.4rem',
-                                        whiteSpace: 'nowrap'
+                                        gap: '0.55rem',
+                                        whiteSpace: 'nowrap',
+                                        fontSize: '0.85rem',
+                                        boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+                                        transition: 'border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease',
                                     }}
                                 >
-                                    <CheckCircle size={18} />
-                                    <span style={{ fontSize: '0.85rem' }}>Ya compré todo</span>
+                                    {/* Dot pulsante emerald — semántica "ready to act" */}
+                                    <span className="restock-cta-dot" aria-hidden="true" />
+                                    <span>Ya compré todo</span>
                                 </button>
                             )}
 
@@ -4244,7 +4329,11 @@ const Dashboard = () => {
                         >
                             <AnimatePresence mode="wait">
                                 {!isRestocking ? (
-                                    /* === ESTADO: CONFIRMACIÓN === */
+                                    /* === ESTADO: CONFIRMACIÓN — [P3-RESTOCK-MINIMAL-CTA · 2026-05-20]
+                                       Rediseño minimalista: icon outline-only (sin BG colorido pesado),
+                                       título sin signos interrogativos, copy directo, botón principal
+                                       slate-900 con flecha que se desliza en hover (microinteracción),
+                                       cancelar como link text en lugar de botón con padding. */
                                     <motion.div
                                         key="confirm"
                                         initial={{ opacity: 0, y: 10 }}
@@ -4252,62 +4341,80 @@ const Dashboard = () => {
                                         exit={{ opacity: 0, y: -10 }}
                                         transition={{ duration: 0.2 }}
                                     >
+                                        {/* Icon outline sin background — flotante, minimal.
+                                            Ring slate-200 alrededor en lugar del cuadro verde
+                                            saturado. Dot emerald pequeño tipo "status" en la
+                                            esquina inferior derecha — preserva semántica
+                                            "ready/success" del verde sin saturar. */}
                                         <div style={{
-                                            width: '64px', height: '64px', borderRadius: '20px',
-                                            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                                            position: 'relative',
+                                            width: '56px', height: '56px',
+                                            borderRadius: '16px',
+                                            border: '1.5px solid #E2E8F0',
+                                            background: '#FFFFFF',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            margin: '0 auto 1.5rem auto', boxShadow: '0 8px 16px rgba(16, 185, 129, 0.3)'
+                                            margin: '0 auto 1.5rem auto',
+                                            boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)'
                                         }}>
-                                            <ShoppingCart size={28} color="#FFFFFF" strokeWidth={2} />
+                                            <ShoppingCart size={24} color="#0F172A" strokeWidth={1.75} />
+                                            {/* Status dot — emerald punto pequeño, lateral */}
+                                            <span style={{
+                                                position: 'absolute',
+                                                bottom: '-3px', right: '-3px',
+                                                width: '14px', height: '14px',
+                                                borderRadius: '50%',
+                                                background: '#10B981',
+                                                border: '2.5px solid #FFFFFF',
+                                                boxShadow: '0 1px 2px rgba(16, 185, 129, 0.4)'
+                                            }} aria-hidden="true" />
                                         </div>
 
-                                        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.75rem' }}>
-                                            ¿Confirmar Compra?
+                                        <h2 style={{
+                                            fontSize: '1.35rem', fontWeight: 700, color: '#0F172A',
+                                            marginBottom: '0.5rem', letterSpacing: '-0.015em'
+                                        }}>
+                                            Confirmar compra
                                         </h2>
-                                        <p style={{ color: '#64748B', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: isShoppingListStale ? '1rem' : '2rem' }}>
-                                            Esto agregará todos los ingredientes de la lista de compras directamente a tu Nevera Virtual.
+                                        <p style={{
+                                            color: '#64748B', fontSize: '0.92rem', lineHeight: '1.55',
+                                            marginBottom: isShoppingListStale ? '1.25rem' : '1.75rem',
+                                            maxWidth: '320px', margin: isShoppingListStale ? '0 auto 1.25rem' : '0 auto 1.75rem',
+                                        }}>
+                                            Agregaremos todos los ingredientes de tu lista a la Nevera Virtual.
                                         </p>
 
                                         {isShoppingListStale && (
                                             <div style={{
-                                                display: 'flex', alignItems: 'flex-start', gap: '0.4rem',
-                                                padding: '0.5rem 0.75rem', marginBottom: '1rem',
+                                                display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                                                padding: '0.6rem 0.8rem', marginBottom: '1.25rem',
                                                 background: '#FFFBEB', border: '1px solid #FCD34D',
                                                 borderRadius: '0.75rem', textAlign: 'left'
                                             }}>
-                                                <AlertCircle size={14} color="#D97706" style={{ flexShrink: 0, marginTop: '1px' }} />
-                                                <span style={{ fontSize: '0.8rem', color: '#92400E', lineHeight: 1.4 }}>
+                                                <AlertCircle size={14} color="#D97706" style={{ flexShrink: 0, marginTop: '2px' }} />
+                                                <span style={{ fontSize: '0.78rem', color: '#92400E', lineHeight: 1.45 }}>
                                                     La lista puede estar desactualizada. Si cambiaste el ciclo, recalcula antes de comprar.
                                                 </span>
                                             </div>
                                         )}
 
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                            {/* CTA principal: slate-900 solid, flecha que se desliza
+                                                hacia la derecha en hover. Microinteracción que
+                                                comunica "vamos a hacerlo". */}
                                             <button
                                                 onClick={handleRestock}
                                                 disabled={isRestocking}
-                                                style={{
-                                                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                                                    color: '#FFFFFF', border: 'none', padding: '1rem', borderRadius: '1rem',
-                                                    fontWeight: 700, fontSize: '1rem', cursor: isRestocking ? 'wait' : 'pointer',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
-                                                    transition: 'all 0.2s', transform: 'scale(1)',
-                                                    opacity: isRestocking ? 0.7 : 1
-                                                }}
-                                                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
-                                                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                                                className="restock-modal-confirm"
                                             >
-                                                <CheckCircle size={20} /> Añadir a mi Nevera
+                                                <span>Añadir a mi Nevera</span>
+                                                <ArrowRight size={17} strokeWidth={2.25} className="restock-modal-arrow" />
                                             </button>
 
+                                            {/* Cancelar como link text — no compite visualmente
+                                                con el CTA principal. */}
                                             <button
                                                 onClick={() => setShowRestockModal(false)}
-                                                style={{
-                                                    background: 'transparent', color: '#94A3B8', border: 'none',
-                                                    padding: '0.75rem', borderRadius: '1rem', fontWeight: 600, fontSize: '0.9rem',
-                                                    cursor: 'pointer', transition: 'color 0.2s'
-                                                }}
+                                                className="restock-modal-cancel"
                                             >
                                                 Cancelar
                                             </button>
@@ -4378,120 +4485,17 @@ const Dashboard = () => {
                                         <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.4rem', letterSpacing: '-0.01em' }}>
                                             Registrando compras
                                         </h2>
-                                        <p style={{ color: '#64748B', fontSize: '0.88rem', lineHeight: '1.45', marginBottom: '1.6rem' }}>
+                                        <p style={{ color: '#64748B', fontSize: '0.88rem', lineHeight: '1.45', marginBottom: '0' }}>
                                             Estamos organizando tus ingredientes en la Nevera
                                         </p>
-
-                                        {/* Barra de progreso premium — llega a 100% con ease-out cubic.
-                                          * 3 capas: base con inner-shadow / fill con glow verde /
-                                          * sheen sweep diagonal animado encima. */}
-                                        <div style={{ marginBottom: '1.4rem' }}>
-                                            <div style={{
-                                                width: '100%', height: '10px', borderRadius: '99px',
-                                                background: 'linear-gradient(180deg, #EEF2F7 0%, #DDE3EC 100%)',
-                                                boxShadow: 'inset 0 1.5px 3px rgba(15,23,42,0.08), inset 0 -1px 0 rgba(255,255,255,0.55)',
-                                                overflow: 'hidden', position: 'relative'
-                                            }}>
-                                                <motion.div
-                                                    initial={{ width: '0%' }}
-                                                    animate={{ width: '100%' }}
-                                                    transition={{ duration: 3.6, ease: [0.33, 1, 0.68, 1] }}
-                                                    style={{
-                                                        height: '100%', borderRadius: '99px',
-                                                        background: 'linear-gradient(90deg, #34D399 0%, #10B981 45%, #059669 100%)',
-                                                        boxShadow: '0 0 14px rgba(16,185,129,0.55), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -1px 0 rgba(4,120,87,0.35)',
-                                                        position: 'relative', overflow: 'hidden'
-                                                    }}
-                                                >
-                                                    {/* Sheen sweep — luz diagonal que pasa por la barra */}
-                                                    <div style={{
-                                                        position: 'absolute', inset: 0,
-                                                        background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)',
-                                                        backgroundSize: '200% 100%',
-                                                        animation: 'shimmer 1.4s ease-in-out infinite',
-                                                        pointerEvents: 'none'
-                                                    }} />
-                                                </motion.div>
-                                            </div>
-
-                                            {/* Indicador % + label de estado */}
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '0.6rem' }}>
-                                                <span style={{
-                                                    fontSize: '0.76rem', color: '#94A3B8', fontWeight: 700,
-                                                    textTransform: 'uppercase', letterSpacing: '0.08em'
-                                                }}>
-                                                    {restockPercent >= 100 ? '¡Listo!' : 'En proceso'}
-                                                </span>
-                                                <span style={{
-                                                    fontSize: '1.05rem', color: '#059669', fontWeight: 900,
-                                                    fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em'
-                                                }}>
-                                                    {restockPercent}%
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Pasos de progreso — sincronizados con el % real (no delays hardcoded).
-                                          * Cada paso muestra estado "pending" (gris) hasta cruzar su threshold,
-                                          * después transiciona a "complete" (verde con check + spring). */}
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', textAlign: 'left' }}>
-                                            {[
-                                                { label: 'Verificando ingredientes', threshold: 20 },
-                                                { label: 'Actualizando inventario', threshold: 55 },
-                                                { label: 'Sincronizando Nevera', threshold: 90 }
-                                            ].map((step) => {
-                                                const isDone = restockPercent >= step.threshold;
-                                                return (
-                                                    <motion.div
-                                                        key={step.label}
-                                                        initial={{ opacity: 0, x: -8 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ duration: 0.35 }}
-                                                        style={{
-                                                            display: 'flex', alignItems: 'center', gap: '0.7rem',
-                                                            fontSize: '0.88rem',
-                                                            color: isDone ? '#0F172A' : '#94A3B8',
-                                                            fontWeight: isDone ? 600 : 500,
-                                                            transition: 'color 0.3s ease'
-                                                        }}
-                                                    >
-                                                        <motion.div
-                                                            animate={isDone
-                                                                ? { scale: [0.6, 1.18, 1] }
-                                                                : { scale: 1 }
-                                                            }
-                                                            transition={{ duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
-                                                            style={{
-                                                                width: '22px', height: '22px', borderRadius: '50%',
-                                                                background: isDone
-                                                                    ? 'linear-gradient(135deg, #10B981, #059669)'
-                                                                    : 'linear-gradient(135deg, #E2E8F0, #CBD5E1)',
-                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                flexShrink: 0,
-                                                                boxShadow: isDone
-                                                                    ? '0 4px 10px -2px rgba(16,185,129,0.55), inset 0 1px 0 rgba(255,255,255,0.35)'
-                                                                    : 'inset 0 1px 0 rgba(255,255,255,0.6)',
-                                                                transition: 'background 0.3s ease, box-shadow 0.3s ease'
-                                                            }}
-                                                        >
-                                                            {isDone ? (
-                                                                <CheckCircle size={13} color="#fff" strokeWidth={3} />
-                                                            ) : (
-                                                                <motion.div
-                                                                    animate={{ opacity: [0.4, 1, 0.4] }}
-                                                                    transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
-                                                                    style={{
-                                                                        width: '6px', height: '6px', borderRadius: '50%',
-                                                                        background: '#94A3B8'
-                                                                    }}
-                                                                />
-                                                            )}
-                                                        </motion.div>
-                                                        {step.label}
-                                                    </motion.div>
-                                                );
-                                            })}
-                                        </div>
+                                        {/* [P3-RESTOCK-NO-BAR · 2026-05-20] Barra de progreso, indicador
+                                          * % y los 3 pasos REMOVIDOS por decisión de producto del user:
+                                          * "no quiero que tenga una barra de carga ya que lo veo
+                                          * innecesario". El flow post-P3-RESTOCK-FLOW-SPEED toma
+                                          * ~500-1100ms perceptibles — la barra "premium" añadía ruido
+                                          * visual sin valor informativo en un flow tan corto. El
+                                          * spinner circular del header + título + descripción ya dan
+                                          * feedback "estamos trabajando". Tooltip-anchor: P3-RESTOCK-NO-BAR. */}
                                     </motion.div>
                                 )}
                             </AnimatePresence>
