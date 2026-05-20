@@ -537,17 +537,21 @@ export const AssessmentProvider = ({ children }) => {
                     latestPlan.id = planId;
                 }
 
+                // Leemos y parseamos el plan local una sola vez para optimizar el rendimiento
+                const localSavedStr = localStorage.getItem('mealfit_plan');
+                let localSavedParsed = null;
+                if (localSavedStr) {
+                    try {
+                        localSavedParsed = JSON.parse(localSavedStr);
+                    } catch(e) {
+                        console.warn("⚠️ Error parseando plan local, forzando sincronización con la nube.");
+                    }
+                }
+
                 // FIX: Asegurar que el plan de la BD tenga una fecha de inicio de compras para el contador de Dashboard
                 let didInjectGroceryDate = false;
                 if (!latestPlan.grocery_start_date) {
-                    const localSaved = localStorage.getItem('mealfit_plan');
-                    let localGroceryStartDate = null;
-                    if (localSaved) {
-                        try {
-                            const parsed = JSON.parse(localSaved);
-                            localGroceryStartDate = parsed.grocery_start_date;
-                        } catch(e) {}
-                    }
+                    const localGroceryStartDate = localSavedParsed?.grocery_start_date || null;
 
                     // Si el plan vino de la IA/Chat, no trae esta fecha.
                     // Priorizamos mantener la local, si no existe usamos la de creación.
@@ -560,33 +564,15 @@ export const AssessmentProvider = ({ children }) => {
                 // no sirve para medir cuántos días lleva activo el ciclo. Backfill para planes
                 // existentes con la fecha de creación de la fila DB.
                 if (!latestPlan.cycle_start_date) {
-                    const localSaved = localStorage.getItem('mealfit_plan');
-                    let localCycleStartDate = null;
-                    if (localSaved) {
-                        try {
-                            const parsed = JSON.parse(localSaved);
-                            localCycleStartDate = parsed.cycle_start_date;
-                        } catch(e) {}
-                    }
+                    const localCycleStartDate = localSavedParsed?.cycle_start_date || null;
                     latestPlan.cycle_start_date = localCycleStartDate || planCreatedAt;
                     didInjectGroceryDate = true;
                 }
 
-                // Leemos directamente del localStorage para la comparación
-                const localSavedForCompare = localStorage.getItem('mealfit_plan');
-
-                let localSavedParsed = null;
-                if (localSavedForCompare) {
-                    try {
-                        localSavedParsed = JSON.parse(localSavedForCompare);
-                    } catch(e) {
-                        console.warn("⚠️ Error parseando plan local, forzando sincronización con la nube.");
-                    }
-                }
-
                 // Solo actualizamos si el plan en la nube es diferente al local
-                if (!localSavedParsed || JSON.stringify(localSavedParsed) !== JSON.stringify(latestPlan)) {
-
+                // ⚡ Bolt: Comparamos el plan de la nube convertido a string directamente contra el string
+                // ya obtenido del localStorage. Esto ahorra una serialización (JSON.stringify) adicional.
+                if (!localSavedStr || localSavedStr !== JSON.stringify(latestPlan)) {
                     setPlanData(latestPlan);
                     safeLocalStorageSet('mealfit_plan', latestPlan);
                 } else {
