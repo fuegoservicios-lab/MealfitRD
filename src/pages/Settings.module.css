@@ -463,23 +463,21 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+    transition: none;
 }
 
 .updatePlanBtn:hover:not(:disabled) {
-    transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5), 0 0 12px rgba(245, 158, 11, 0.3);
 }
 
 .updatePlanBtn:active:not(:disabled) {
-    transform: translateY(0) scale(0.98);
+    /* No active movement */
 }
 
 .updatePlanBtn:disabled {
     cursor: wait;
     opacity: 0.8;
-    transform: scale(0.98);
 }
 
 .saveChangesBtn {
@@ -492,7 +490,7 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: none;
 }
 
 .saveChangesBtnDefault {
@@ -501,7 +499,6 @@
 }
 
 .saveChangesBtnDefault:hover:not(:disabled) {
-    transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(59, 130, 246, 0.45), 0 0 12px rgba(59, 130, 246, 0.25);
 }
 
@@ -511,18 +508,16 @@
 }
 
 .saveChangesBtnSuccess:hover:not(:disabled) {
-    transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45), 0 0 12px rgba(16, 185, 129, 0.25);
 }
 
 .saveChangesBtn:active:not(:disabled) {
-    transform: translateY(0) scale(0.98);
+    /* No active movement */
 }
 
 .saveChangesBtn:disabled {
     cursor: wait;
     opacity: 0.8;
-    transform: scale(0.98);
 }
 
 
