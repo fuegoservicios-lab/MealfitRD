@@ -3315,6 +3315,43 @@ const Dashboard = () => {
             {/* --- BANNER: GENERACIÓN EN BACKGROUND (Semanas 2-4) --- */}
             {/* Banner de Chunking Background eliminado para alinearse con la experiencia visual "silenciosa" */}
 
+            {/* [P1-LOW-SIGNAL-FALLBACK · 2026-05-21] Banner cuando la IA agotó los
+                3 intentos sin lograr un plan que aprobara el revisor. El plan se
+                entrega igual (mejor versión disponible) pero el usuario debe
+                saber que el sistema "se rindió" y que puede usar Cambiar Plato
+                para iterar manualmente. Flag viene de `plan_data._quality_degraded`
+                seteado en `should_retry` cuando `attempt >= MAX_ATTEMPTS=3`. */}
+            {planData?._quality_degraded && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+                        border: '1.5px solid #FCD34D',
+                        borderRadius: '1rem',
+                        padding: '1rem 1.25rem',
+                        marginBottom: '1.5rem',
+                        boxShadow: '0 4px 12px -2px rgba(217,119,6,0.15)',
+                        flexWrap: 'wrap'
+                    }}
+                    role="status"
+                    aria-live="polite"
+                >
+                    <AlertCircle size={22} color="#D97706" style={{ flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                        <span style={{ fontWeight: 700, color: '#92400E', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
+                            La IA no logró un plan óptimo tras {planData?._quality_degraded_attempts || 3} intentos
+                        </span>
+                        <span style={{ color: '#B45309', fontSize: '0.85rem' }}>
+                            Te entregamos la mejor versión que produjo. Si alguna comida no te cuadra, usa <strong>Cambiar Plato</strong> para reemplazarla individualmente o regenera el plan completo.
+                        </span>
+                    </div>
+                </motion.div>
+            )}
+
             {/* --- DAILY TRACKER UI (incluye objetivo + progreso fusionados) --- */}
             <TrackingProgress
                 planData={planData}
