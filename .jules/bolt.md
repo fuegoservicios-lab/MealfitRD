@@ -1,0 +1,3 @@
+## 2024-05-22 - Optimize Sequential String Replacements
+**Learning:** In React components that iterate over lists (like processing ingredients), evaluating multiple sequential string replacements against static dictionaries or "stop words" within the loop causes significant performance drops due to repeatedly parsing strings and creating dynamic regular expressions (e.g. `O(M * N)` RegExp instantiations).
+**Action:** When evaluating multiple string replacements, aggregate them into a single pre-compiled `RegExp` object (e.g., using `join('|')`) outside of the React component and iteration loop to optimize execution time and reduce instantiation overhead from `O(N)` to `O(1)`. Similarly, hoist any static mappings outside the component body.
