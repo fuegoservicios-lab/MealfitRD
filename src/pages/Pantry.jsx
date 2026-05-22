@@ -1385,7 +1385,7 @@ const Pantry = () => {
                                 touchAction: 'manipulation',
                             }}
                         >
-                            <Minus size={16} strokeWidth={2.5}/>
+                            <Minus size={16} strokeWidth={2.5} aria-hidden="true" />
                         </button>
 
                         <button
@@ -1413,8 +1413,10 @@ const Pantry = () => {
                             onPointerUp={(e) => stopHolding(e, item.id)}
                             onPointerLeave={(e) => stopHolding(e, item.id)}
                             onContextMenu={(e) => e.preventDefault()}
+                            aria-label={`Aumentar cantidad de ${item.ingredient_name}`}
+                            title="Mantener presionado para subir rápido"
                         >
-                            <Plus size={16} strokeWidth={3}/>
+                            <Plus size={16} strokeWidth={3} aria-hidden="true" />
                         </button>
                     </div>
                     <button
@@ -3603,7 +3605,7 @@ const Pantry = () => {
                                                                     }}
                                                                     aria-label="Disminuir cantidad"
                                                                 >
-                                                                    <Minus size={18} strokeWidth={2.5} />
+                                                                    <Minus size={18} strokeWidth={2.5} aria-hidden="true" />
                                                                 </button>
                                                                 <span style={{
                                                                     minWidth: '2.5rem', textAlign: 'center', fontSize: '1.15rem',
@@ -3623,7 +3625,7 @@ const Pantry = () => {
                                                                     }}
                                                                     aria-label="Aumentar cantidad"
                                                                 >
-                                                                    <Plus size={18} strokeWidth={3} />
+                                                                    <Plus size={18} strokeWidth={3} aria-hidden="true" />
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -3779,7 +3781,7 @@ const Pantry = () => {
                                     }}
                                     aria-label="Disminuir cantidad"
                                 >
-                                    <Minus size={20} strokeWidth={3} />
+                                    <Minus size={20} strokeWidth={3} aria-hidden="true" />
                                 </button>
                                 <input
                                     type="number"
@@ -3825,7 +3827,7 @@ const Pantry = () => {
                                     }}
                                     aria-label="Aumentar cantidad"
                                 >
-                                    <Plus size={20} strokeWidth={3} />
+                                    <Plus size={20} strokeWidth={3} aria-hidden="true" />
                                 </button>
                             </div>
 
