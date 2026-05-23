@@ -52,6 +52,28 @@ import { buildHealthProfilePayload } from '../config/secureFormStorage';
 // 3 permite construir 1-2 platos variados sin ser restrictivo.
 const PANTRY_MIN_ITEMS_FOR_UPDATE = 3;
 
+// Stop words: réplica exacta del backend (shopping_calculator.py línea 103)
+// Elimina descriptores que no forman parte del nombre base del ingrediente.
+const STOPS = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada',
+    'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada',
+    'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados',
+    'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones',
+    'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada',
+    'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
+    'horneado', 'grandes', 'firme'];
+
+const STOPS_REGEX = new RegExp('\\b(' + STOPS.join('|') + ')\\b', 'gi');
+
+const IRREGULARS = {
+    'nueces': 'nuez',
+    'aves': 'ave',
+    'maices': 'maiz',
+    'arroces': 'arroz',
+    'peces': 'pez',
+    'carnes': 'carne',
+    'tomates': 'tomate'
+};
+
 const Dashboard = () => {
     // 1. Obtenemos estado y funciones del Contexto Global
     const {
@@ -837,31 +859,11 @@ const Dashboard = () => {
             // para que "chuleta de cerdo" haga match con el master ingredient "cerdo" guardado.
             n = n.replace(/^(pechuga|filete|muslo|trozo|chuleta|pieza|corte|ración|racion|porción|porcion|filetico|medallón|medallones|carne)s?\s+(de|del)\s+/i, '').trim();
 
-            // Stop words: réplica exacta del backend (shopping_calculator.py línea 103)
-            // Elimina descriptores que no forman parte del nombre base del ingrediente.
-            const stops = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada', 
-                'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada', 
-                'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados', 
-                'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones', 
-                'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada', 
-                'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
-                'horneado', 'grandes', 'firme'];
-            for (const s of stops) {
-                n = n.replace(new RegExp('\\b' + s + '\\b', 'gi'), '');
-            }
+            n = n.replace(STOPS_REGEX, '');
             n = n.replace(/,/g, '').replace(/\s+/g, ' ').trim();
 
             return n.split(/\s+/).map(w => {
-                 const irregulars = {
-                     'nueces': 'nuez',
-                     'aves': 'ave',
-                     'maices': 'maiz',
-                     'arroces': 'arroz',
-                     'peces': 'pez',
-                     'carnes': 'carne',
-                     'tomates': 'tomate'
-                 };
-                 if (irregulars[w]) return irregulars[w];
+                 if (IRREGULARS[w]) return IRREGULARS[w];
                  
                  if (w.length <= 4) {
                      if (w.endsWith('s') && !w.endsWith('es') && !w.endsWith('is')) return w.slice(0, -1);
