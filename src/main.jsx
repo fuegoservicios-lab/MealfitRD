@@ -1,6 +1,18 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import * as Sentry from "@sentry/react";
+// [P2-SENTRY-TREESHAKE · 2026-05-23] Named imports vs `import * as Sentry`.
+// El star-import bloqueaba tree-shaking — esbuild conservaba TODO `@sentry/react`
+// (profiling, feedback, captureFeedback, etc.) en bundle aunque solo usemos
+// init + 2 integrations. Símbolos usados acá:
+//   - init: bootstrap del SDK
+//   - browserTracingIntegration: integration de trazas browser
+//   - replayIntegration: session replay con masking
+// `captureException` se importa solo en AgentPage.jsx donde se usa de verdad.
+import {
+    init as sentryInit,
+    browserTracingIntegration,
+    replayIntegration,
+} from "@sentry/react";
 import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.jsx'
@@ -136,11 +148,11 @@ const _sentryBeforeBreadcrumb = (crumb) => {
   return crumb;
 };
 
-Sentry.init({
+sentryInit({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   integrations: [
-    Sentry.browserTracingIntegration(),
-    Sentry.replayIntegration({
+    browserTracingIntegration(),
+    replayIntegration({
       maskAllText: true,
       blockAllMedia: true,
     }),

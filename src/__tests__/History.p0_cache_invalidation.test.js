@@ -178,9 +178,14 @@ describe('[P0-HIST-CACHE-INVALIDATION] visibilitychange listener', () => {
         // [P0-HIST-VIS-REFRESH] aparece 3 veces (declaración del ref,
         // el useEffect, bump en fetchHistory). Usar `_onVisibilityChange`
         // como anchor — solo aparece dentro del cuerpo del useEffect.
+        // [P1-HISTORY-ABORT · 2026-05-23] Slice back ampliado de 800
+        // a 1500 chars: `_STALE_MS = 60 * 1000` está a ~22 líneas
+        // (~1100 chars) por encima de `_onVisibilityChange` —
+        // separadas por el bloque `_isHistoryDirtySinceLastFetch`
+        // + comentarios load-bearing.
         const useEffectIdx = src.indexOf('_onVisibilityChange');
         expect(useEffectIdx).toBeGreaterThan(-1);
-        const block = src.slice(Math.max(0, useEffectIdx - 800), useEffectIdx + 4500);
+        const block = src.slice(Math.max(0, useEffectIdx - 1500), useEffectIdx + 4500);
         // _STALE_MS = 60 * 1000 (un cron transición típica > 5min).
         expect(block).toMatch(/_STALE_MS\s*=\s*60\s*\*\s*1000/);
         // Guard que retorna sin acción si _stale < _STALE_MS.
@@ -195,7 +200,8 @@ describe('[P0-HIST-CACHE-INVALIDATION] visibilitychange listener', () => {
         expect(useEffectIdx).toBeGreaterThan(-1);
         const block = src.slice(Math.max(0, useEffectIdx - 800), useEffectIdx + 4500);
         // Re-fetch del listado.
-        expect(block).toMatch(/fetchHistory\(\)/);
+        // [P1-HISTORY-ABORT · 2026-05-23] Call site pasa `{ signal: _vSignal }`.
+        expect(block).toMatch(/fetchHistory\(\s*(?:\{[^}]*\})?\s*\)/);
         // Invalidar cache del plan abierto si selectedPlan != null.
         expect(block).toMatch(/selectedPlan\s*&&\s*selectedPlan\.id/);
         expect(block).toMatch(/invalidateCachesForPlan\s*\(\s*selectedPlan\.id\s*\)/);
@@ -222,9 +228,14 @@ describe('[P0-HIST-CACHE-INVALIDATION] visibilitychange listener', () => {
     it('fetchHistory bumpea _lastFetchedAtRef.current al éxito', () => {
         // Sin esto, el listener se dispararía en cada vuelta a la
         // pestaña aunque el listado se acabe de cargar.
+        // [P1-HISTORY-ABORT · 2026-05-23] Slice ampliado de 3500 a
+        // 5000 chars: el body de `fetchHistory` creció con los guards
+        // `signal.aborted` antes de cada setter + el catch AbortError
+        // + el comentario load-bearing. El bump del ref vive cerca
+        // del final del try (~90 líneas dentro del body).
         const fhIdx = src.indexOf('const fetchHistory');
         expect(fhIdx).toBeGreaterThan(-1);
-        const block = src.slice(fhIdx, fhIdx + 3500);
+        const block = src.slice(fhIdx, fhIdx + 5000);
         expect(block).toMatch(/_lastFetchedAtRef\.current\s*=\s*Date\.now\(\)/);
     });
 });

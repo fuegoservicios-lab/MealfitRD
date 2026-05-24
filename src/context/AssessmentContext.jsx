@@ -140,7 +140,11 @@ export const AssessmentProvider = ({ children }) => {
     });
 
     // Estado de Dislikes Persistente (permanente — sin expiración)
-    const savedDislikes = localStorage.getItem('mealfit_dislikes');
+    // [P1-FRONTEND-HARDEN · 2026-05-23] safeLocalStorageGet vs raw getItem:
+    // en iOS Safari Private Mode getItem lanza SecurityError. Como este call
+    // está FUERA del callback del useState (no se ejecuta lazy), el throw
+    // corta el render del provider entero → pantalla blanca sin recuperación.
+    const savedDislikes = safeLocalStorageGet('mealfit_dislikes', null);
     const [dislikedMeals, setDislikedMeals] = useState(() => {
         if (!savedDislikes) return {};
         try {
@@ -538,9 +542,14 @@ export const AssessmentProvider = ({ children }) => {
                 }
 
                 // FIX: Asegurar que el plan de la BD tenga una fecha de inicio de compras para el contador de Dashboard
+                // [P1-FRONTEND-HARDEN · 2026-05-23] los 3 getItem('mealfit_plan')
+                // pasaron a safeLocalStorageGet: en iOS Private Mode el throw
+                // dejaba localGroceryStartDate/localCycleStartDate undefined y
+                // el backfill se aplicaba con planCreatedAt aunque el localStorage
+                // tuviera fechas válidas — drift cosmético del contador del Dashboard.
                 let didInjectGroceryDate = false;
                 if (!latestPlan.grocery_start_date) {
-                    const localSaved = localStorage.getItem('mealfit_plan');
+                    const localSaved = safeLocalStorageGet('mealfit_plan', null);
                     let localGroceryStartDate = null;
                     if (localSaved) {
                         try {
@@ -560,7 +569,7 @@ export const AssessmentProvider = ({ children }) => {
                 // no sirve para medir cuántos días lleva activo el ciclo. Backfill para planes
                 // existentes con la fecha de creación de la fila DB.
                 if (!latestPlan.cycle_start_date) {
-                    const localSaved = localStorage.getItem('mealfit_plan');
+                    const localSaved = safeLocalStorageGet('mealfit_plan', null);
                     let localCycleStartDate = null;
                     if (localSaved) {
                         try {
@@ -573,7 +582,7 @@ export const AssessmentProvider = ({ children }) => {
                 }
 
                 // Leemos directamente del localStorage para la comparación
-                const localSavedForCompare = localStorage.getItem('mealfit_plan');
+                const localSavedForCompare = safeLocalStorageGet('mealfit_plan', null);
 
                 let localSavedParsed = null;
                 if (localSavedForCompare) {
@@ -817,7 +826,14 @@ export const AssessmentProvider = ({ children }) => {
                 const userId = currentSession.user.id;
                 safeLocalStorageSet('mealfit_user_id', userId);
 
-                const lastOwner = localStorage.getItem('mealfit_last_form_owner');
+                // [P1-FRONTEND-HARDEN · 2026-05-23] safeLocalStorageGet vs raw
+                // getItem: en iOS Private Mode el throw del raw getItem hacía
+                // que la rama de detección user-switch nunca corriera. Modo de
+                // fallo: User-A logout → User-B login en mismo browser → datos
+                // médicos cifrados de A persistían bajo `mealfit_form_secure`
+                // hasta el primer clearFormStorage manual. Fallback null fuerza
+                // el path "no last owner conocido" sin crash del provider.
+                const lastOwner = safeLocalStorageGet('mealfit_last_form_owner', null);
                 if (lastOwner && lastOwner !== 'guest' && lastOwner !== userId) {
                     // Los datos pertenecen a un usuario diferente, por lo que limpiamos para el usuario nuevo/diferente
                     // [P1-B7] limpiar AMBAS keys (public plain + secure cifrado).
@@ -1233,7 +1249,12 @@ export const AssessmentProvider = ({ children }) => {
         try {
             // 1. LLAMADA A LA IA
             const API_SWAP_URL = '/api/plans/swap-meal';
-            const sessionId = localStorage.getItem('mealfit_user_id') || 'guest_session';
+            // [P1-FRONTEND-HARDEN · 2026-05-23] safeLocalStorageGet con fallback
+            // 'guest_session' — el raw getItem en Private Mode lanzaba y abortaba
+            // la swap-meal con TypeError sin que el caller pudiera distinguir
+            // fallo de storage vs fallo de red. Fallback explícito preserva
+            // semántica original ("|| 'guest_session'") sin path de excepción.
+            const sessionId = safeLocalStorageGet('mealfit_user_id', 'guest_session');
             const response = await fetchWithAuth(API_SWAP_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1254,9 +1275,46 @@ export const AssessmentProvider = ({ children }) => {
                 })
             });
 
-            if (!response.ok) throw new Error("Error conectando con la IA");
+            if (!response.ok) {
+                // [P2-SWAP-422-UX-COPY · 2026-05-22 · revisado P3-SWAP-SOFT-FAIL-200 · 2026-05-23]
+                // Path para 5xx / network errors. Los swap failures ahora vienen
+                // como 200 con `swap_failed:true` flag (manejado abajo). Si llega
+                // 422/4xx significa que el backend está corriendo en modo
+                // legacy (knob MEALFIT_SWAP_HARD_FAIL_HTTP_422=true) — preservamos
+                // el handler legacy como fallback de compatibility.
+                let errorBody = null;
+                try { errorBody = await response.json(); } catch (_) { /* body vacío o no-JSON */ }
+                const code = errorBody?.detail?.code || null;
+                const userMessage = errorBody?.detail?.message
+                    || (typeof errorBody?.detail === 'string' ? errorBody.detail : null)
+                    || "Error conectando con la IA";
+                const err = new Error(userMessage);
+                err.status = response.status;
+                err.code = code;
+                err.detailMessage = userMessage;
+                throw err;
+            }
 
             const newMealData = await response.json();
+
+            // [P3-SWAP-SOFT-FAIL-200 · 2026-05-23] Backend retorna 200 con
+            // flag `swap_failed:true` cuando el swap no produjo un plato real
+            // (LLM agotó retries O strict-pantry sin inventario). Detectamos
+            // ANTES de procesar como plato exitoso. Mismo UX que el 422
+            // legacy (toast + preserva plato original) pero sin ruido rojo
+            // en DevTools del browser.
+            if (newMealData?.swap_failed === true) {
+                const errCode = newMealData.error_code || 'unknown';
+                const errMsg = newMealData.error_message || 'No se pudo generar una alternativa.';
+                if (errCode === 'swap_strict_pantry_no_inventory') {
+                    toast.error('Nevera vacía', { description: errMsg });
+                } else if (errCode === 'swap_llm_retries_exhausted') {
+                    toast.error('Chef IA sin alternativa', { description: errMsg });
+                } else {
+                    toast.error('No se pudo cambiar el plato', { description: errMsg });
+                }
+                return currentName;  // preserva plato original (NO setPlanData)
+            }
 
 
             // 2. ACTUALIZAR ESTADO LOCAL
@@ -1462,6 +1520,25 @@ export const AssessmentProvider = ({ children }) => {
             return newMealData.name;
 
         } catch (error) {
+            // [P2-SWAP-422-UX-COPY · 2026-05-22] Si el backend rechazó por
+            // strict-pantry sin inventario, NO degradar a fallback local
+            // (que produciría un plato genérico ignorando la razón del user).
+            // Mostrar toast con el copy específico y preservar el plato actual.
+            if (error?.status === 422 && error?.code === 'swap_strict_pantry_no_inventory') {
+                toast.error('Nevera vacía', { description: error.detailMessage });
+                return currentName;
+            }
+
+            // [P3-SWAP-LLM-RETRIES-422 · 2026-05-23] El backend ya NO emite
+            // un "Plato Fallback" engañoso cuando el LLM agota retries —
+            // ahora devuelve 422 con code='swap_llm_retries_exhausted'.
+            // Preserva el plato original (NO setPlanData) y muestra toast
+            // amigable con el copy del backend.
+            if (error?.status === 422 && error?.code === 'swap_llm_retries_exhausted') {
+                toast.error('Chef IA sin alternativa', { description: error.detailMessage });
+                return currentName;
+            }
+
             // CORRECCIÓN DEL ERROR DE LINTER: Usamos la variable 'error'
             console.error("❌ Falló IA, usando fallback local...", error);
 

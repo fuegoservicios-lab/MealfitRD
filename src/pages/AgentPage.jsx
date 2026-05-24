@@ -27,11 +27,14 @@ import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // crashes mid-chat (network, token expiry, server 5xx) eran invisibles en
 // observabilidad backend. Best-effort try/catch para que un Sentry KO no
 // rompa el caller.
-import * as Sentry from '@sentry/react';
+// [P2-SENTRY-TREESHAKE · 2026-05-23] Named imports vs `import * as Sentry`.
+// AgentPage solo usa `captureException` + `addBreadcrumb`; el star-import
+// bloqueaba tree-shaking de los ~12 símbolos restantes del SDK.
+import { captureException, addBreadcrumb } from '@sentry/react';
 
 const _captureAgentPageException = (err, tags) => {
     try {
-        Sentry.captureException(err, {
+        captureException(err, {
             tags: { component: 'AgentPage', ...(tags || {}) },
         });
     } catch (_e) { /* swallow */ }
@@ -56,7 +59,7 @@ const _captureAgentPageException = (err, tags) => {
 // diagnosticar "el usuario reportó lentitud antes del crash".
 const _emitChatPerfTelemetry = ({ ttfbMs, streamTotalMs, chunkCount, isCallMode, sessionId }) => {
     try {
-        Sentry.addBreadcrumb({
+        addBreadcrumb({
             category: 'chat',
             message: 'stream_completed',
             level: 'info',
@@ -1831,6 +1834,76 @@ const AgentPage = () => {
                                         // P2-COHERENCE-1). Toast no-bloqueante
                                         // — silencio si lista vacía o ausente.
                                         emitCoherenceToast(toast, dataObj.coherence_warnings);
+
+                                        // [P3-PANTRY-INVALIDATE-FROM-CHAT · 2026-05-22]
+                                        // Si el backend marcó que una tool del agente
+                                        // mutó `user_inventory` (modify_pantry_inventory
+                                        // o log_consumed_meal con ingredients), setear
+                                        // la key localStorage que Pantry.jsx escucha
+                                        // para invalidar su cache TTL=30s al próximo
+                                        // mount o storage event. Defensa en profundidad
+                                        // sobre el canal Realtime (puede tener lag o
+                                        // estar cerrado si el user navega entre tabs
+                                        // durante la conversación con el agente).
+                                        if (dataObj.pantry_modified_at) {
+                                            try {
+                                                window.localStorage.setItem(
+                                                    'mealfit_pantry_dirty_at',
+                                                    String(dataObj.pantry_modified_at)
+                                                );
+                                            } catch (_lsErr) {
+                                                // QuotaExceeded / private mode — silencioso.
+                                            }
+                                            // [P3-PANTRY-INVALIDATE-MISMO-TAB · 2026-05-22]
+                                            // El `storage` event NO se dispara en el
+                                            // mismo tab que escribió la key — solo cross-tab.
+                                            // Si el user tiene Pantry montado en el mismo
+                                            // tab (SPA navigation, modal del chat, widget),
+                                            // el listener storage de Pantry.jsx no se
+                                            // entera. Disparamos también un CustomEvent
+                                            // intra-tab que Pantry.jsx escucha y refetchea.
+                                            try {
+                                                window.dispatchEvent(new CustomEvent(
+                                                    'mealfit:pantry-dirty',
+                                                    { detail: { at: dataObj.pantry_modified_at } }
+                                                ));
+                                            } catch (_evtErr) { /* CustomEvent unsupported edge — skip */ }
+                                        }
+
+                                        // [P3-AGENT-DEPLETE · 2026-05-22 · simplified
+                                        // P3-DEPLETED-BD · 2026-05-22] Cuando el agente
+                                        // marca items como AGOTADOS, el backend YA los
+                                        // persiste en la tabla BD `user_depleted_items`
+                                        // (tool helper `add_depleted_item`). El realtime
+                                        // channel de Pantry.jsx sincroniza cross-device.
+                                        // Solo mantenemos un best-effort merge al cache
+                                        // localStorage (sin dedupe complejo) para que
+                                        // mismo-tab pre-realtime-sync vea el cambio al
+                                        // navegar a /pantry. El fetch desde BD en el
+                                        // mount de Pantry pisa el cache stale.
+                                        if (Array.isArray(dataObj.pantry_depleted_items) && dataObj.pantry_depleted_items.length > 0) {
+                                            try {
+                                                const raw = window.localStorage.getItem('mealfit_depleted_items');
+                                                const current = raw ? (JSON.parse(raw) || []) : [];
+                                                const keyOf = (e) => String(
+                                                    e?.master_ingredient_id ||
+                                                    (e?.ingredient_name || '').toString().trim().toLowerCase()
+                                                );
+                                                const incomingKeys = new Set(
+                                                    dataObj.pantry_depleted_items.map(keyOf)
+                                                );
+                                                const merged = [
+                                                    ...(Array.isArray(current) ? current : []).filter(e => !incomingKeys.has(keyOf(e))),
+                                                    ...dataObj.pantry_depleted_items,
+                                                ];
+                                                window.localStorage.setItem(
+                                                    'mealfit_depleted_items',
+                                                    JSON.stringify(merged)
+                                                );
+                                            } catch (_lsErr) {
+                                                // QuotaExceeded / private mode / parse fail — silencioso.
+                                            }
+                                        }
 
                                         // Actualizar contador de créditos en tiempo real
                                         setTimeout(async () => {

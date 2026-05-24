@@ -13,7 +13,7 @@
 //
 // Fix:
 //   - Estado `chunkStatusSummary` poblado vía
-//     `getHistoryStatusSummary()` en mount.
+//     `getHistoryStatusSummary({ signal })` en mount.
 //   - `getStatusInfo` reconcilia: si el plan tiene
 //     `pending_user_action_count > 0` o `failed_count > 0` en el
 //     summary, eleva el bucket a `action_required` aunque
@@ -68,8 +68,12 @@ describe('[P0-AUDIT-HIST-2] anchor + import wiring', () => {
     });
 
     it('config/api.js exporta getHistoryStatusSummary apuntando al endpoint correcto', () => {
+        // [P1-HISTORY-ABORT · 2026-05-23] Firma evolucionó a
+        // `(options = {})` con forwarding al fetchWithAuth. Regex
+        // relajado: parens permiten args, segundo arg a fetchWithAuth
+        // opcional.
         expect(apiSrc).toMatch(
-            /export\s+const\s+getHistoryStatusSummary\s*=\s*\(\s*\)\s*=>\s*fetchWithAuth\(\s*['"]\/api\/plans\/history-status-summary['"]\s*\)/
+            /export\s+const\s+getHistoryStatusSummary\s*=\s*\([^)]*\)\s*=>\s*fetchWithAuth\(\s*['"]\/api\/plans\/history-status-summary['"]/
         );
     });
 });
@@ -87,7 +91,7 @@ describe('[P0-AUDIT-HIST-2] state + fetch wiring', () => {
     });
 
     it('useEffect dispara getHistoryStatusSummary con Promise.race + timeout 12s', () => {
-        const fetchIdx = src.indexOf('getHistoryStatusSummary()');
+        const fetchIdx = src.indexOf('getHistoryStatusSummary({ signal })');
         expect(fetchIdx).toBeGreaterThan(-1);
         const block = src.slice(Math.max(0, fetchIdx - 400), fetchIdx + 600);
         expect(block).toMatch(/Promise\.race/);
@@ -97,14 +101,14 @@ describe('[P0-AUDIT-HIST-2] state + fetch wiring', () => {
     });
 
     it('setChunkStatusSummary solo se invoca con shape válido (typeof body.summary === object)', () => {
-        const fetchIdx = src.indexOf('getHistoryStatusSummary()');
+        const fetchIdx = src.indexOf('getHistoryStatusSummary({ signal })');
         const block = src.slice(fetchIdx, fetchIdx + 1200);
         expect(block).toMatch(/typeof\s+body\.summary\s*===\s*['"]object['"]/);
         expect(block).toMatch(/setChunkStatusSummary\s*\(\s*body\.summary\s*\)/);
     });
 
     it('falla del fetch degrada silente (.catch sin toast.error)', () => {
-        const fetchIdx = src.indexOf('getHistoryStatusSummary()');
+        const fetchIdx = src.indexOf('getHistoryStatusSummary({ signal })');
         const block = src.slice(fetchIdx, fetchIdx + 1500);
         expect(block).toMatch(/\.catch\(\s*\(\)\s*=>\s*\{[^}]*\}\s*\)/);
         // El comentario debe aclarar que es silencioso.
@@ -131,9 +135,13 @@ describe('[P0-AUDIT-HIST-2] reconciliación bucket en getStatusInfo', () => {
         // `in_progress` (lectura de chunk_in_flight_count vía
         // chunkStatusSummary). `_embeddedPuac` sigue siendo único de
         // la rama de reconciliación PUAC/failed.
+        // [P1-HISTORY-ABORT · 2026-05-23] Slice ampliado de 1500 a
+        // 3500 chars: el bloque `_embeddedPuac` → `bucket = 'action_required'`
+        // creció con guards adicionales del fallback summary; los ~55
+        // líneas entre ambos puntos exceden 1500 chars.
         const reconcileIdx = src.indexOf('_embeddedPuac');
         expect(reconcileIdx).toBeGreaterThan(-1);
-        const reconcileBlock = src.slice(reconcileIdx, reconcileIdx + 1500);
+        const reconcileBlock = src.slice(reconcileIdx, reconcileIdx + 3500);
         expect(reconcileBlock).toMatch(/bucket\s*=\s*['"]action_required['"]/);
     });
 
@@ -141,8 +149,9 @@ describe('[P0-AUDIT-HIST-2] reconciliación bucket en getStatusInfo', () => {
         // [P0-HIST-IN-PROGRESS · 2026-05-09] Mismo cambio de anchor
         // que la aserción anterior — `_embeddedPuac` apunta solo a la
         // reconciliación PUAC/failed.
+        // [P1-HISTORY-ABORT · 2026-05-23] Slice ampliado idem (3500).
         const reconcileIdx = src.indexOf('_embeddedPuac');
-        const reconcileBlock = src.slice(reconcileIdx, reconcileIdx + 1500);
+        const reconcileBlock = src.slice(reconcileIdx, reconcileIdx + 3500);
         expect(reconcileBlock).toMatch(/failed_count/);
     });
 

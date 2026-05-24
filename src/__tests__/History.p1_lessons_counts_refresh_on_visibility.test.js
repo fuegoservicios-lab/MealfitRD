@@ -48,7 +48,10 @@ describe('[P1-HIST-NEW-3] anchor + helper extraído', () => {
         // El helper debe ser una función declarada en el componente,
         // accesible desde mount Y visibilitychange. Inline en cada
         // useEffect duplicaría la lógica + diverge silently.
-        expect(src).toMatch(/const\s+_fetchLessonsCounts\s*=\s*\(\s*\)\s*=>/);
+        // [P1-HISTORY-ABORT · 2026-05-23] Firma evolucionó a
+        // `({ signal } = {})` para soportar cancelación on unmount.
+        // Regex relajado: paréntesis permiten args.
+        expect(src).toMatch(/const\s+_fetchLessonsCounts\s*=\s*\([^)]*\)\s*=>/);
     });
 
     it('helper invoca getLessonsCounts dentro de Promise.race', () => {
@@ -56,7 +59,8 @@ describe('[P1-HIST-NEW-3] anchor + helper extraído', () => {
         expect(idx).toBeGreaterThan(-1);
         const block = src.slice(idx, idx + 2500);
         expect(block).toMatch(/Promise\.race\(/);
-        expect(block).toMatch(/getLessonsCounts\(\)/);
+        // [P1-HISTORY-ABORT · 2026-05-23] Call site pasa `{ signal }`.
+        expect(block).toMatch(/getLessonsCounts\(\s*(?:\{[^}]*\})?\s*\)/);
     });
 
     it('helper preserva timeout 12s + reject pattern', () => {
@@ -88,18 +92,22 @@ describe('[P1-HIST-NEW-3] mount useEffect llama al helper', () => {
     it('useEffect de mount invoca _fetchLessonsCounts en lugar de inline', () => {
         // El mount useEffect ya no debe tener Promise.race(getLessonsCounts())
         // duplicado — solo la llamada al helper.
-        // Pattern tolerante a CRLF (Windows) y LF (Unix).
-        const mountIdx = src.search(/useEffect\(\(\)\s*=>\s*\{[\s\r\n]+fetchHistory\(\);/);
+        // [P1-HISTORY-ABORT · 2026-05-23] Mount ahora invoca
+        // `fetchHistory({ signal })`. Anclamos al primer call site del
+        // helper porque la firma del fetchHistory cambió.
+        const mountIdx = src.search(/fetchHistory\(\s*\{\s*signal\s*\}\s*\)/);
         expect(mountIdx).toBeGreaterThan(-1);
         const block = src.slice(mountIdx, mountIdx + 3000);
-        expect(block).toMatch(/_fetchLessonsCounts\(\s*\)/);
+        // [P1-HISTORY-ABORT · 2026-05-23] Helper call site puede pasar args.
+        expect(block).toMatch(/_fetchLessonsCounts\(\s*(?:\{[^}]*\})?\s*\)/);
     });
 
     it('mount NO duplica el Promise.race de getLessonsCounts inline', () => {
         // Drift detection: si alguien re-inline el fetch en el mount,
         // un cambio en el helper se desincroniza con el inline.
         // Buscamos `Promise.race([\s+getLessonsCounts` (raw) en el mount.
-        const mountIdx = src.search(/useEffect\(\(\)\s*=>\s*\{[\s\r\n]+fetchHistory\(\);/);
+        // [P1-HISTORY-ABORT · 2026-05-23] Anchor al call site con signal.
+        const mountIdx = src.search(/fetchHistory\(\s*\{\s*signal\s*\}\s*\)/);
         const block = src.slice(mountIdx, mountIdx + 1500);
         // Mount NO debe contener Promise.race con getLessonsCounts directamente
         // (debe pasar por el helper). El helper sí lo tiene.
@@ -117,7 +125,9 @@ describe('[P1-HIST-NEW-3] visibilitychange handler refresca lessons counts', () 
         expect(visIdx).toBeGreaterThan(-1);
         // Slice hasta el cierre del listener.
         const block = src.slice(visIdx, visIdx + 4500);
-        expect(block).toMatch(/_fetchLessonsCounts\(\s*\)/);
+        // [P1-HISTORY-ABORT · 2026-05-23] Handler reusa el signal del
+        // _abortControllerRef → call site es `_fetchLessonsCounts({ signal: _vSignal })`.
+        expect(block).toMatch(/_fetchLessonsCounts\(\s*\{[^}]*signal/);
     });
 
     it('llamada al helper ocurre DESPUÉS de fetchHistory', () => {
@@ -127,8 +137,9 @@ describe('[P1-HIST-NEW-3] visibilitychange handler refresca lessons counts', () 
         // chips de lecciones.
         const visIdx = src.indexOf('const _onVisibilityChange');
         const block = src.slice(visIdx, visIdx + 4500);
-        const fetchHistoryIdx = block.indexOf('fetchHistory();');
-        const lessonsIdx = block.indexOf('_fetchLessonsCounts(');
+        // [P1-HISTORY-ABORT · 2026-05-23] Ambos call sites pasan signal.
+        const fetchHistoryIdx = block.search(/fetchHistory\(\s*\{[^}]*signal/);
+        const lessonsIdx = block.search(/_fetchLessonsCounts\(\s*\{[^}]*signal/);
         expect(fetchHistoryIdx).toBeGreaterThan(-1);
         expect(lessonsIdx).toBeGreaterThan(-1);
         expect(lessonsIdx).toBeGreaterThan(fetchHistoryIdx);

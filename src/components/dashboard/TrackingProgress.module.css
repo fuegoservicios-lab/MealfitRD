@@ -207,22 +207,40 @@
 }
 
 /* [P3-TRACKING-PERC-DESKTOP · 2026-05-20] % blanco dentro del fill — base
-   visible (desktop + mobile). El text-shadow garantiza legibilidad sobre
-   los 4 gradients (amber/blue/emerald/pink). */
+   visible (desktop + mobile).
+   [P3-TRACKING-PERC-INSIDE-ALWAYS · 2026-05-22] Posicionamiento absolute
+   dentro del `.track` (con `overflow: hidden` que sirve de clip universal).
+   `left: ${fillWidth}%` + `transform: translateX(-100%)` alinea el borde
+   DERECHO del badge al borde DERECHO del fill — siempre. Cuando el fill
+   es estrecho (proteína 7%), el texto desborda HACIA LA IZQUIERDA del
+   fill quedando parcialmente sobre el track gris claro (#E2E8F0). El
+   text-shadow es DOBLE LAYER: una capa fuerte cercana (1px blur, opacity
+   0.65) que da contorno legible sobre el track gris, + una capa difusa
+   (4px blur, opacity 0.35) que añade un "halo" sobre los 4 gradients
+   del fill. Eliminada la variante `.fillPercOutside` del fix narrow
+   original — el user rechazó el badge separado del fill ("no me gusta
+   que esté separado, me gustaba más cuando estaba dentro"). */
 .fillPerc {
+    position: absolute;
+    top: 0;
+    height: 100%;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    height: 100%;
-    padding-right: 0.5rem;
+    padding: 0 0.5rem;
     color: white;
     font-size: 0.72rem;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
-    text-shadow: 0 1px 1.5px rgba(15, 23, 42, 0.35);
+    text-shadow:
+        0 1px 1px rgba(15, 23, 42, 0.65),
+        0 0 4px rgba(15, 23, 42, 0.35);
     white-space: nowrap;
     line-height: 1;
     letter-spacing: 0.01em;
+    transform: translateX(-100%);
+    transition: left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+    z-index: 1;
 }
 
 /* ====== MOBILE RESPONSIVE ====== */

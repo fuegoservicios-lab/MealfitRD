@@ -176,7 +176,8 @@ describe('[P1-AUDIT-HIST-4] comentario load-bearing cita motivación', () => {
         // El comentario del fetch del summary debe marcarlo como
         // fallback (vivo durante deploy lag pero ignorado en feliz
         // path). Sin esto, futuro dev no sabe que se puede remover.
-        const summaryFetchIdx = src.indexOf('getHistoryStatusSummary()');
+        // [P1-HISTORY-ABORT · 2026-05-23] Call site ahora pasa `{ signal }`.
+        const summaryFetchIdx = src.indexOf('getHistoryStatusSummary({ signal })');
         const block = src.slice(
             Math.max(0, summaryFetchIdx - 1500),
             summaryFetchIdx

@@ -190,7 +190,8 @@ describe('[P1-HIST-4] History.jsx — sort aplicado en fetchHistory', () => {
         const setPlansIdx = src.indexOf('setPlans(plans)', fetchIdx);
         expect(setPlansIdx).toBeGreaterThan(-1);
         const block = src.slice(fetchIdx, setPlansIdx);
-        expect(block).toMatch(/getHistoryList\(\)/);
+        // [P1-HISTORY-ABORT · 2026-05-23] Call site pasa `{ signal }`.
+        expect(block).toMatch(/getHistoryList\(\s*(?:\{[^}]*\})?\s*\)/);
         // El response shape es `{plans: [...]}`.
         expect(block).toMatch(/body\.plans/);
     });

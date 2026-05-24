@@ -911,8 +911,16 @@ const Settings = () => {
     };
 
     const handleDeleteFact = async (factId) => {
-        if (!confirm("¿Seguro que deseas olvidar esta información?")) return;
-        
+        // [P1-FRONTEND-HARDEN · 2026-05-23] Reemplazado `window.confirm` nativo
+        // por `confirmToast` (Promise-based, sonner). El nativo bloqueaba el
+        // event loop, rompía dark theme y no era a11y. Mismo helper que ya
+        // usaba el resto de Settings.jsx (P2-NEW-WINDOW-CONFIRM-SETTINGS).
+        const ok = await confirmToast("¿Seguro que deseas olvidar esta información?", {
+            confirmLabel: 'Olvidar',
+            cancelLabel: 'Cancelar',
+        });
+        if (!ok) return;
+
         setIsDeletingFact(factId);
         try {
             const response = await fetchWithAuth(`/api/user-facts/${factId}`, {

@@ -71,8 +71,10 @@ describe('[P2-NEW-4] visibilitychange listener — invalidaciones completas', ()
 
     it('listener llama fetchHistory + _fetchLessonsCounts', () => {
         const body = extractVisibilityChangeListenerBody(src);
-        expect(body).toMatch(/fetchHistory\(\)/);
-        expect(body).toMatch(/_fetchLessonsCounts\(\)/);
+        // [P1-HISTORY-ABORT · 2026-05-23] Ambos call sites pasan
+        // `{ signal: _vSignal }` desde el _abortControllerRef del mount.
+        expect(body).toMatch(/fetchHistory\(\s*(?:\{[^}]*\})?\s*\)/);
+        expect(body).toMatch(/_fetchLessonsCounts\(\s*(?:\{[^}]*\})?\s*\)/);
     });
 
     it('listener llama invalidateCachesForPlan para singleton caches', () => {

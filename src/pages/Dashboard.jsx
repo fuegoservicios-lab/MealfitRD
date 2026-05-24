@@ -3352,6 +3352,44 @@ const Dashboard = () => {
                 </motion.div>
             )}
 
+            {/* [P1-SWAP-COHERENCE-ESCALATE · 2026-05-22] Banner cuando un
+                swap interno (assemble_plan_node swap-to-best) dejó divergencias
+                severas entre recetas y lista de compras (cap_swallowed_modifier
+                o magnitud >30% off). Pre-fix: cron diario P3-B alertaba 6-24h
+                después; el usuario veía la inconsistencia sin contexto. Ahora
+                el plan_data trae inline `_swap_coherence_warnings` y el
+                Dashboard lo renderea en el primer paint del plan entregado. */}
+            {planData?._swap_coherence_warnings?.critical_count > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+                        border: '1.5px solid #FCD34D',
+                        borderRadius: '1rem',
+                        padding: '1rem 1.25rem',
+                        marginBottom: '1.5rem',
+                        boxShadow: '0 4px 12px -2px rgba(217,119,6,0.15)',
+                        flexWrap: 'wrap'
+                    }}
+                    role="status"
+                    aria-live="polite"
+                >
+                    <AlertCircle size={22} color="#D97706" style={{ flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                        <span style={{ fontWeight: 700, color: '#92400E', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
+                            Revisa tu lista de compras
+                        </span>
+                        <span style={{ color: '#B45309', fontSize: '0.85rem' }}>
+                            Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista ({planData._swap_coherence_warnings.critical_count} {planData._swap_coherence_warnings.critical_count === 1 ? 'detalle' : 'detalles'}). Usa <strong>Cambiar Plato</strong> en las comidas que te parezcan inconsistentes.
+                        </span>
+                    </div>
+                </motion.div>
+            )}
+
             {/* --- DAILY TRACKER UI (incluye objetivo + progreso fusionados) --- */}
             <TrackingProgress
                 planData={planData}
@@ -4621,9 +4659,16 @@ const Dashboard = () => {
                         ? { id: 'weekend', icon: Zap, label: 'Fin de semana especial', color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)' }
                         : { id: 'weekend', icon: Zap, label: 'Fin de semana especial', color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)', disabled: true, disabledDesc: `Disponible en ${daysUntilSat} ${daysUntilSat === 1 ? 'día' : 'días'} (sábado)` };
                     return [
+                        // [P3-SWAP-PANTRY-DEFAULT · 2026-05-22] Opción 'budget'
+                        // ("Usar solo lo que tengo") removida — el comportamiento
+                        // que prometía es el DEFAULT del swap-meal: todos los
+                        // reasons base respetan estrictamente la nevera + lista
+                        // de compras. Solo 'cravings' y 'weekend' permiten 1-2
+                        // ingredientes externos (capricho/premium explícito).
+                        // Exponer la opción al usuario era redundante y sugería
+                        // (falsamente) que los demás reasons NO usaban la nevera.
                         { id: 'variety',      icon: Shuffle,      label: 'Quiero variedad',        color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me gusta, pero quiero algo diferente' },
                         { id: 'time',         icon: Clock,        label: 'No tengo tiempo hoy',    color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco algo más rápido de preparar' },
-                        { id: 'budget',       icon: Wallet,       label: 'Opciones económicas',    color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', desc: 'Ingredientes de bajo costo' },
                         { id: 'cravings',     icon: Heart,        label: 'Tengo un antojo',        color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Un capricho que encaja en tu plan' },
                         weekendOpt,
                         { id: 'similar',      icon: Copy,         label: 'Ya comí algo similar',   color: '#F97316', bg: '#FFF7ED', border: '#FED7AA', desc: 'Hoy ya tuve un plato parecido' },
@@ -4710,10 +4755,19 @@ const Dashboard = () => {
                     const weekendOption = isWeekend
                         ? { id: 'weekend', icon: Zap, label: 'Fin de semana especial', color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)' }
                         : { id: 'weekend', icon: Zap, label: 'Fin de semana especial', color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)', disabled: true, disabledDesc: (() => { const d = 6 - todayDow; return `Disponible en ${d} ${d === 1 ? 'día' : 'días'} (sábado)`; })() };
+                    // [P3-NEWPLAN-NO-BUDGET-MODAL · 2026-05-23] Opción 'budget'
+                    // ("Opciones económicas / Ingredientes de bajo costo")
+                    // removida — el regenerate ya respeta la nevera por
+                    // default (el frontend pasa `current_pantry_ingredients`
+                    // a `/api/plans/generate`). El hint "ECONÓMICAS" del
+                    // prompt era ortogonal a la restricción real (que es
+                    // pantry/shopping-list) y sugería falsamente al user
+                    // que los demás reasons NO usaban su nevera. Mirror
+                    // del removal análogo en el modal swap-meal
+                    // (P3-SWAP-PANTRY-DEFAULT · 2026-05-22).
                     return isPlanExpired ? [
                         { id: 'variety',  icon: Shuffle,    label: 'Quiero variedad',       color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me apetecen platos distintos esta semana' },
                         { id: 'time',     icon: Clock,      label: 'Semana ocupada',       color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco preparaciones más rápidas' },
-                        { id: 'budget',   icon: Wallet,     label: 'Opciones económicas',   color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', desc: 'Priorizar ingredientes de bajo costo' },
                         { id: 'cravings', icon: Heart,      label: 'Tengo un antojo',       color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Un capricho que encaja en tu plan semanal' },
                         weekendOption,
                         { id: 'similar',  icon: Copy,       label: 'Se parece al ciclo anterior', color: '#F97316', bg: '#FFF7ED', border: '#FED7AA', desc: 'Evitar sugerencias muy parecidas a la semana pasada' },
@@ -4721,7 +4775,6 @@ const Dashboard = () => {
                     ] : [
                         { id: 'variety',  icon: Shuffle,    label: 'Quiero más variedad',       color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me apetecen platos distintos hoy' },
                         { id: 'time',     icon: Clock,      label: 'No tengo tiempo hoy',       color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco algo más rápido de preparar' },
-                        { id: 'budget',   icon: Wallet,     label: 'Opciones más económicas',   color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', desc: 'Ingredientes de bajo costo' },
                         { id: 'cravings', icon: Heart,      label: 'Tengo un antojo distinto',  color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Un capricho que encaja en tu plan' },
                         weekendOption,
                         { id: 'dislike',  icon: ThumbsDown, label: 'No me gustan estos platos', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'Evitar sugerencias similares en el futuro' }
@@ -4759,8 +4812,6 @@ const Dashboard = () => {
                                 <><strong>Variedad:</strong> platos de diferentes cocinas y perfiles de sabor.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
                             ) : hoveredOption === 'time' ? (
                                 <><strong>Rapidez:</strong> platos con ≤20 min de preparación aproximada.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
-                            ) : hoveredOption === 'budget' ? (
-                                <><strong>Económico:</strong> ingredientes accesibles sin salir de tus macros.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
                             ) : hoveredOption === 'cravings' ? (
                                 <><strong>Antojo:</strong> opciones más indulgentes dentro de tus objetivos.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
                             ) : hoveredOption === 'weekend' ? (

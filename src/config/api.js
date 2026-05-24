@@ -95,8 +95,11 @@ export const deletePlanFromHistory = (planId) =>
 // Response shape: `{ counts: { "<plan_id>": <count>, ... } }`.
 // Planes sin entradas no aparecen en el dict — el frontend trata
 // "sin entrada" como cero.
-export const getLessonsCounts = () =>
-    fetchWithAuth('/api/plans/lessons-counts');
+// [P1-HISTORY-ABORT · 2026-05-23] options se forwardea a fetchWithAuth →
+// permite pasar `{ signal }` desde History.jsx para cancelar in-flight
+// requests on unmount. Backward-compat: getLessonsCounts() sigue funcionando.
+export const getLessonsCounts = (options = {}) =>
+    fetchWithAuth('/api/plans/lessons-counts', options);
 
 // [P1-HIST-5 · 2026-05-09] Renombrado atómico de un plan archivado.
 // El backend actualiza la columna top-level `name` Y `plan_data.name`
@@ -125,8 +128,9 @@ export const renamePlan = (planId, newName) =>
 //
 // Response shape: ver docstring de `api_plans_history_list` en
 // `backend/routers/plans.py` (~línea 4140).
-export const getHistoryList = () =>
-    fetchWithAuth('/api/plans/history-list');
+// [P1-HISTORY-ABORT · 2026-05-23] options forwardea a fetchWithAuth (signal).
+export const getHistoryList = (options = {}) =>
+    fetchWithAuth('/api/plans/history-list', options);
 
 // [P2-HIST-AUDIT-2 · 2026-05-09] Detalle por-plan de lecciones del
 // aprendizaje continuo (`chunk_lesson_telemetry`). Complementa
@@ -158,8 +162,9 @@ export const getPlanCoherenceHistory = (planId) =>
 // failed_count, in_flight_count, completed_count, total } } }`.
 // Planes sin chunks no aparecen en el dict — el frontend los trata
 // como "sin info de queue, confiar en plan_data".
-export const getHistoryStatusSummary = () =>
-    fetchWithAuth('/api/plans/history-status-summary');
+// [P1-HISTORY-ABORT · 2026-05-23] options forwardea a fetchWithAuth (signal).
+export const getHistoryStatusSummary = (options = {}) =>
+    fetchWithAuth('/api/plans/history-status-summary', options);
 
 // [P2-HIST-AUDIT-9 · 2026-05-09] Reasons per-chunk de un plan (lazy
 // fetch al abrir el modal del Historial). Llama al endpoint existente

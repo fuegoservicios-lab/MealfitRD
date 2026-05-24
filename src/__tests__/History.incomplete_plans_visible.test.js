@@ -57,7 +57,8 @@ describe('[P2-HIST-1] filter relajado — planes incompletos visibles', () => {
         const fetchIdx = src.indexOf('const fetchHistory = async');
         expect(fetchIdx).toBeGreaterThan(-1);
         const block = src.slice(fetchIdx, fetchIdx + 2500);
-        expect(block).toMatch(/getHistoryList\(\)/);
+        // [P1-HISTORY-ABORT · 2026-05-23] Call site pasa `{ signal }`.
+        expect(block).toMatch(/getHistoryList\(\s*(?:\{[^}]*\})?\s*\)/);
         // Defensa: ningún `.filter(... calories ... > 0)` post-fetch.
         expect(block).not.toMatch(/\.filter\([^)]*calories[^)]*>\s*0/);
     });

@@ -40,8 +40,11 @@ const css = readFileSync(_CSS_PATH, 'utf8');
 
 describe('[P1-HIST-3] api.js — getLessonsCounts helper', () => {
     it('exporta getLessonsCounts apuntando a /api/plans/lessons-counts', () => {
+        // [P1-HISTORY-ABORT · 2026-05-23] Regex relajado: la firma evolucionó
+        // a `(options = {})` para soportar { signal } desde History.jsx.
+        // Backward-compat: getLessonsCounts() raw sigue funcionando.
         expect(apiSrc).toMatch(
-            /export\s+const\s+getLessonsCounts\s*=\s*\(\s*\)\s*=>/
+            /export\s+const\s+getLessonsCounts\s*=\s*\([^)]*\)\s*=>/
         );
         expect(apiSrc).toMatch(
             /['"]\/api\/plans\/lessons-counts['"]/
@@ -84,16 +87,22 @@ describe('[P1-HIST-3] History.jsx — fetch + state', () => {
     it('useEffect llama getLessonsCounts() junto a fetchHistory()', () => {
         // Mismo useEffect que dispara fetchHistory: una pasada al
         // montar el componente.
-        const useEffectIdx = src.indexOf('fetchHistory();');
+        // [P1-HISTORY-ABORT · 2026-05-23] El mount ahora invoca
+        // `fetchHistory({ signal })` — anchor cambia, pero el helper
+        // _fetchLessonsCounts sigue siendo el siguiente sibling.
+        const useEffectIdx = src.indexOf('fetchHistory({ signal });');
         expect(useEffectIdx).toBeGreaterThan(-1);
         const around = src.slice(useEffectIdx, useEffectIdx + 800);
-        expect(around).toMatch(/getLessonsCounts\(\s*\)/);
+        expect(around).toMatch(/_fetchLessonsCounts\s*\(/);
     });
 
     it('procesa response.ok y popula state via setLessonsCounts', () => {
-        const useEffectIdx = src.indexOf('getLessonsCounts()');
-        expect(useEffectIdx).toBeGreaterThan(-1);
-        const around = src.slice(useEffectIdx, useEffectIdx + 600);
+        // [P1-HISTORY-ABORT · 2026-05-23] El call site del helper ahora
+        // es `_fetchLessonsCounts({ signal })`. Buscamos la declaración
+        // del helper para anclar el bloque del .then.
+        const helperIdx = src.indexOf('const _fetchLessonsCounts');
+        expect(helperIdx).toBeGreaterThan(-1);
+        const around = src.slice(helperIdx, helperIdx + 1500);
         expect(around).toMatch(/res\.ok/);
         expect(around).toMatch(/setLessonsCounts/);
         // Defensa: el body debe ser objeto (no array, no null).
@@ -103,8 +112,8 @@ describe('[P1-HIST-3] History.jsx — fetch + state', () => {
     it('errores del endpoint son silenciosos (feature opcional)', () => {
         // Si el endpoint falla, lessonsCounts queda en {} y los chips
         // simplemente no aparecen. NO toast, NO throw.
-        const useEffectIdx = src.indexOf('getLessonsCounts()');
-        const around = src.slice(useEffectIdx, useEffectIdx + 800);
+        const helperIdx = src.indexOf('const _fetchLessonsCounts');
+        const around = src.slice(helperIdx, helperIdx + 1500);
         expect(around).toMatch(/\.catch\(/);
         // El catch debe ser noop o solo log — no toast.error ni throw.
         expect(around).not.toMatch(/toast\.error/);

@@ -255,6 +255,17 @@ const History = () => {
     // mostrando su estado viejo hasta refresh manual.
     const _lastFetchedAtRef = useRef(Date.now());
 
+    // [P1-HISTORY-ABORT · 2026-05-23] AbortController component-scoped.
+    // Cubre la ventana donde un usuario premium navega fuera de /history
+    // mientras los 3 fetches del mount (history-list 12s + lessons-counts
+    // 12s + history-status-summary 12s) están en flight: sin esto, las
+    // promesas resuelven post-unmount y disparan setState-on-unmounted +
+    // memory leak suave (~1KB body parsed + retenido) + warning Sentry.
+    // Una sola instancia por mount: el listener de visibilitychange
+    // reusa la misma signal — abort en cleanup cancela TODOS los
+    // in-flight (mount + re-fetches por visibility) atomicamente.
+    const _abortControllerRef = useRef(null);
+
     const navigate = useNavigate();
     // [P0-HIST-1 · 2026-05-09] Usamos `restorePlanFromHistory` (no
     // `restorePlan`) para que el flujo desde Historial pase por el
@@ -277,14 +288,18 @@ const History = () => {
     // Mismo patrón Promise.race + timeout 12s + best-effort silent.
     // Si falla, los conteos previos se preservan (no se borran a {}
     // — eso parpadearía los chips).
-    const _fetchLessonsCounts = () => {
+    // [P1-HISTORY-ABORT · 2026-05-23] options.signal cancela la request
+    // si el componente desmonta. AbortError cae al catch silencioso.
+    const _fetchLessonsCounts = ({ signal } = {}) => {
         Promise.race([
-            getLessonsCounts(),
+            getLessonsCounts({ signal }),
             new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_LESSONS_COUNTS')), 12000)),
         ])
             .then(async (res) => {
+                if (signal && signal.aborted) return;
                 if (!res.ok) return;
                 const body = await res.json().catch(() => ({}));
+                if (signal && signal.aborted) return;
                 if (body && typeof body.counts === 'object' && body.counts !== null) {
                     setLessonsCounts(body.counts);
                 }
@@ -298,11 +313,20 @@ const History = () => {
                     setLessonsCountsByQuality(body.counts_by_quality);
                 }
             })
-            .catch(() => { /* silencioso */ });
+            .catch(() => { /* silencioso (incluye AbortError) */ });
     };
 
     useEffect(() => {
-        fetchHistory();
+        // [P1-HISTORY-ABORT · 2026-05-23] Controller component-scoped.
+        // Cubre los 3 fetches del mount + los re-fetches del listener
+        // visibilitychange. Cleanup abort() cancela TODOS los in-flight
+        // sincronamente — el browser cierra el TCP/HTTP request en vuelo
+        // y los .then no se disparan post-unmount.
+        const controller = new AbortController();
+        _abortControllerRef.current = controller;
+        const signal = controller.signal;
+
+        fetchHistory({ signal });
         // [P1-HIST-3 · 2026-05-09] Best-effort: si falla, lessonsCounts
         // queda en {} y los chips simplemente no aparecen. No bloqueamos
         // ni mostramos toast de error — es feature opcional, no crítica.
@@ -313,7 +337,7 @@ const History = () => {
         // que el del fetchHistory pero mismo patrón.
         // [P1-HIST-NEW-3 · 2026-05-09] Helper extraído arriba para
         // permitir reuso en visibilitychange.
-        _fetchLessonsCounts();
+        _fetchLessonsCounts({ signal });
 
         // [P0-AUDIT-HIST-2 · 2026-05-09] Summary de queue states para
         // reconciliación bucket en `getStatusInfo`. Mismo patrón
@@ -332,17 +356,28 @@ const History = () => {
         // en UX, un roundtrip extra). Removible en futura iteración
         // tras confirmar adopción 100%.
         Promise.race([
-            getHistoryStatusSummary(),
+            getHistoryStatusSummary({ signal }),
             new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_HISTORY_STATUS_SUMMARY')), 12000)),
         ])
             .then(async (res) => {
+                if (signal.aborted) return;
                 if (!res.ok) return;
                 const body = await res.json().catch(() => ({}));
+                if (signal.aborted) return;
                 if (body && typeof body.summary === 'object' && body.summary !== null) {
                     setChunkStatusSummary(body.summary);
                 }
             })
-            .catch(() => { /* silencioso */ });
+            .catch(() => { /* silencioso (incluye AbortError) */ });
+
+        return () => {
+            // [P1-HISTORY-ABORT · 2026-05-23] Aborta los 3 fetches en
+            // flight cuando el usuario navega fuera de /history antes
+            // de que resuelvan. Sin esto, las .then sobreviven al
+            // unmount y disparan setState-on-unmounted-component
+            // (warning React + leak de body parseado retenido).
+            try { controller.abort(); } catch { /* noop */ }
+        };
     },[]);
 
     // [P2-HIST-NEW-5 · 2026-05-09] Reset de la expansión del lifetime
@@ -417,13 +452,17 @@ const History = () => {
             if (_stale < _STALE_MS && !_dirty) return;
             // 1) Refrescar listado completo. fetchHistory sobreescribe
             //    plans state + bumpea _lastFetchedAtRef al éxito.
-            fetchHistory();
+            // [P1-HIST-ABORT · 2026-05-23] Reusa el signal del controller
+            //    del mount — abort en unmount cancela también estos
+            //    re-fetches en flight, no solo los del mount inicial.
+            const _vSignal = _abortControllerRef.current?.signal;
+            fetchHistory({ signal: _vSignal });
             // 2) [P1-HIST-NEW-3 · 2026-05-09] Refrescar lessons-counts.
             //    Sin esto, el chip "X lecciones" mostraba conteo
             //    pre-mutación tras background generation. Best-effort
             //    silent — si falla, los conteos previos se preservan
             //    (no se borran a {}, eso parpadearía los chips).
-            _fetchLessonsCounts();
+            _fetchLessonsCounts({ signal: _vSignal });
             // 3) Limpiar caches del plan abierto SOLO si hay señal
             //    explícita de mutación (_dirty) — antes invalidábamos
             //    en cada visibilitychange con _stale>60s aunque NO
@@ -482,7 +521,12 @@ const History = () => {
         // valor actual al disparar (sino captura el undefined inicial).
     }, [selectedPlan]);
 
-    const fetchHistory = async () => {
+    // [P1-HISTORY-ABORT · 2026-05-23] options.signal cancela la fetch
+    // si el componente desmonta mientras está en flight. AbortError
+    // cae al catch silencioso (no toast — el usuario navegó, no es
+    // una falla genuina). Guards `signal.aborted` antes de setLoading
+    // / setPlans / setCachedHistoryList previenen state-on-unmount.
+    const fetchHistory = async ({ signal } = {}) => {
         try {
             // [P1-HIST-AUDIT-4 · 2026-05-09] Endpoint backend
             // `/api/plans/history-list` con projection mínima vía
@@ -514,13 +558,15 @@ const History = () => {
             // de loading=true). El timeout fuerza al usuario a un empty
             // state + toast en vez de un spinner perpetuo.
             const response = await Promise.race([
-                getHistoryList(),
+                getHistoryList({ signal }),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_HISTORY_LIST')), 12000)),
             ]);
+            if (signal && signal.aborted) return;
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
             const body = await response.json();
+            if (signal && signal.aborted) return;
             const plans = Array.isArray(body && body.plans) ? body.plans : [];
             // El filter `name IS NOT NULL` ya está en el SQL backend
             // (espeja la convención post-P2-HIST-1 del cliente legacy).
@@ -540,13 +586,21 @@ const History = () => {
             // pueda calcular staleness al volver al tab.
             _lastFetchedAtRef.current = Date.now();
         } catch (error) {
+            // [P1-HISTORY-ABORT · 2026-05-23] AbortError = unmount
+            // intencional (usuario navegó fuera mid-fetch). Silencioso:
+            // ni log ni toast. El AbortController.abort() del cleanup
+            // dispara DOMException name='AbortError' en fetch.
+            if (error && error.name === 'AbortError') return;
+            if (signal && signal.aborted) return;
             console.error('Error fetching history:', error);
             const _isTimeout = error && error.message === 'TIMEOUT_HISTORY_LIST';
             toast.error(_isTimeout
                 ? 'El historial tardó demasiado en cargar. Intenta refrescar.'
                 : 'No se pudo cargar el historial.');
         } finally {
-            setLoading(false);
+            // [P1-HISTORY-ABORT · 2026-05-23] No tocar loading si ya
+            // desmontamos — evita React warning state-on-unmounted.
+            if (!signal || !signal.aborted) setLoading(false);
         }
     };
 

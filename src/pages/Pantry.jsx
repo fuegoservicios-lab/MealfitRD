@@ -12,7 +12,7 @@ import { safeJSONParseObject } from '../utils/safeJSONParse';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate del mount de Pantry
-import { getCachedInventory, setCachedInventory, getCachedMasterList, setCachedMasterList } from '../utils/pantryCache';
+import { getCachedInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache } from '../utils/pantryCache';
 
 const CATEGORY_ICONS = {
     'PROTEÍNAS': Beef,
@@ -266,6 +266,10 @@ const Pantry = () => {
         return `n:${String(name).toLowerCase().trim()}`;
     };
 
+    // [P3-DEPLETED-BD · 2026-05-22] persist a localStorage como CACHE local.
+    // La fuente de verdad es la tabla `user_depleted_items` en BD (cross-device).
+    // Los wrappers `_addDepleted` / `_removeDepleted` hacen API calls + caen
+    // al localStorage si el API falla (degradación graceful, no rompe UX).
     const _persistDepleted = (next) => {
         setDepletedItems(next);
         if (next.length === 0) {
@@ -294,17 +298,46 @@ const Pantry = () => {
         const k = _depletedKey(entry);
         const next = [...depletedItems.filter(e => _depletedKey(e) !== k), entry];
         _persistDepleted(next);
+        // [P3-DEPLETED-BD · 2026-05-22] Persist a BD (cross-device). Best-effort:
+        // si el endpoint falla, el state local + localStorage queda como
+        // fallback. El realtime channel sincronizará si el POST eventualmente
+        // ocurre (e.g., reintento manual del user).
+        (async () => {
+            try {
+                await fetchWithAuth('/api/plans/depleted-items', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items: [entry] }),
+                });
+            } catch (e) {
+                console.warn('[P3-DEPLETED-BD] POST depleted-items falló (cache local persiste):', e);
+            }
+        })();
     };
 
     const _removeDepleted = (entryOrItem) => {
         const k = _depletedKey(entryOrItem);
         const next = depletedItems.filter(e => _depletedKey(e) !== k);
-        if (next.length !== depletedItems.length) _persistDepleted(next);
+        if (next.length === depletedItems.length) return;
+        _persistDepleted(next);
+        // [P3-DEPLETED-BD · 2026-05-22] DELETE de la BD vía id. Si el entry
+        // no tiene id (rows legacy del localStorage pre-migration), saltamos
+        // el DELETE — el next POST sobrescribirá vía upsert si re-aparece.
+        const itemId = entryOrItem?.id;
+        if (itemId) {
+            (async () => {
+                try {
+                    await fetchWithAuth(`/api/plans/depleted-items/${itemId}`, { method: 'DELETE' });
+                } catch (e) {
+                    console.warn('[P3-DEPLETED-BD] DELETE depleted-items falló:', e);
+                }
+            })();
+        }
     };
 
     // [P3-PANTRY-LOCALSTORAGE-LAZY · 2026-05-19] La hidratación inicial
     // se hizo en el lazy-init de useState. Solo mantenemos el listener
-    // cross-tab para sincronizar si OTRA tab modifica el key.
+    // cross-tab para sincronizar si OTRA tab modifica el key (cache local).
     useEffect(() => {
         const hydrate = () => {
             const saved = safeLocalStorageGet('mealfit_depleted_items', null);
@@ -317,6 +350,107 @@ const Pantry = () => {
         window.addEventListener('storage', hydrate);
         return () => window.removeEventListener('storage', hydrate);
     }, []);
+
+    // [P3-DEPLETED-BD · 2026-05-22] Cross-device sync: la fuente de verdad
+    // es la tabla `user_depleted_items` en BD. Flow al mount:
+    //   1. One-shot migration: si hay items en localStorage + flag
+    //      `mealfit_depleted_items_migrated_at` NO existe → POST batch a BD
+    //      para que items pre-existentes (single-device legacy) entren a la
+    //      tabla cross-device. Set el flag para que solo corra una vez.
+    //   2. Fetch desde BD → mergear con state actual (BD gana en conflictos).
+    //   3. Suscripción realtime al canal `user_depleted_items` (filtered by
+    //      user_id) — INSERT/UPDATE/DELETE propagados de otros tabs o
+    //      devices se reflejan en vivo.
+    useEffect(() => {
+        const uid = session?.user?.id;
+        if (!uid) return;
+        let cancelled = false;
+        let channel = null;
+
+        const _normalizeForState = (rows) => (Array.isArray(rows) ? rows : []).map(r => ({
+            id: r.id,
+            master_ingredient_id: r.master_ingredient_id || null,
+            ingredient_name: r.ingredient_name,
+            quantity: typeof r.quantity === 'number' ? r.quantity : Number(r.quantity || 1),
+            unit: r.unit || 'unidad',
+            category: r.category || 'OTROS',
+            shelf_life_days: r.shelf_life_days || null,
+            depleted_at: r.depleted_at || new Date().toISOString(),
+        }));
+
+        const _fetchAndApply = async () => {
+            try {
+                const resp = await fetchWithAuth('/api/plans/depleted-items');
+                if (!resp?.ok) return;
+                const json = await resp.json();
+                const items = _normalizeForState(json?.items);
+                if (cancelled) return;
+                _persistDepleted(items);
+            } catch (e) {
+                console.warn('[P3-DEPLETED-BD] fetch /depleted-items falló (cache local sigue activo):', e);
+            }
+        };
+
+        const _runOneShotMigration = async () => {
+            const flagKey = 'mealfit_depleted_items_migrated_at';
+            const flag = safeLocalStorageGet(flagKey, null);
+            if (flag) return; // ya migrado
+            const saved = safeLocalStorageGet('mealfit_depleted_items', null);
+            if (!saved) {
+                // Nada que migrar — set flag para no re-evaluar.
+                try { safeLocalStorageSet(flagKey, String(Date.now())); } catch (e) {}
+                return;
+            }
+            let legacy;
+            try {
+                legacy = JSON.parse(saved);
+                if (!Array.isArray(legacy) || legacy.length === 0) {
+                    try { safeLocalStorageSet(flagKey, String(Date.now())); } catch (e) {}
+                    return;
+                }
+            } catch (e) {
+                try { safeLocalStorageSet(flagKey, String(Date.now())); } catch (_) {}
+                return;
+            }
+            try {
+                const resp = await fetchWithAuth('/api/plans/depleted-items', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items: legacy }),
+                });
+                if (resp?.ok) {
+                    try { safeLocalStorageSet(flagKey, String(Date.now())); } catch (e) {}
+                    console.log(`[P3-DEPLETED-BD] migration one-shot: ${legacy.length} items migrados desde localStorage a BD.`);
+                }
+            } catch (e) {
+                console.warn('[P3-DEPLETED-BD] migration one-shot falló (reintentará al próximo mount):', e);
+            }
+        };
+
+        (async () => {
+            await _runOneShotMigration();
+            await _fetchAndApply();
+
+            if (cancelled || !supabase?.channel) return;
+            channel = supabase
+                .channel(`user_depleted_items_${uid}`)
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'user_depleted_items', filter: `user_id=eq.${uid}` },
+                    () => {
+                        if (!cancelled) _fetchAndApply();
+                    }
+                )
+                .subscribe();
+        })();
+
+        return () => {
+            cancelled = true;
+            if (channel && supabase?.removeChannel) {
+                try { supabase.removeChannel(channel); } catch (e) {}
+            }
+        };
+    }, [session?.user?.id]);
 
     // Lock/Debounce por item para el guardado 
     const pendingOps = useRef(new Map()); // id -> { baselineQty, targetQty, timeout }
@@ -344,6 +478,68 @@ const Pantry = () => {
         inventoryRef.current = inventory;
     }, [inventory]);
 
+    // [P3-PANTRY-INVALIDATE-FROM-CHAT · 2026-05-22] Consumir la key
+    // `mealfit_pantry_dirty_at` que AgentPage.jsx escribe cuando el chat
+    // agent ejecuta `modify_pantry_inventory` o `log_consumed_meal` con
+    // ingredients. Cierra el gap "user chatea → cambia nevera vía agente
+    // → navega a /pantry y ve stale data" causado por (a) cache TTL=10min
+    // que pisa el primer paint, (b) Realtime channel puede tener lag o
+    // estar cerrado mientras el componente Pantry NO está montado.
+    //
+    // Pattern: mount + storage event listener. El `storage` event NO
+    // dispara en el mismo tab que escribió la key — eso lo cubre el check
+    // al mount cuando el user navega de /agent a /pantry. Cross-tab
+    // (usuario con Pantry abierta en otro tab mientras chatea) sí dispara
+    // storage event y la rama lo refetcheá inline.
+    //
+    // One-shot: tras consumir el dirty, `removeItem` la key para no
+    // re-invalidar perpetuamente en próximos mounts.
+    const _consumePantryDirtyFromChat = (source) => {
+        // [P1-FRONTEND-HARDEN · 2026-05-23] Migrado de window.localStorage raw
+        // a safeLocalStorageGet/Remove. El try/catch externo cubría el get
+        // pero los dos removeItem internos seguían siendo raw → en iOS Private
+        // Mode el throw del primer removeItem deja la key envenenada y los
+        // siguientes mounts re-invalidaban perpetuamente la cache.
+        const raw = safeLocalStorageGet('mealfit_pantry_dirty_at', null);
+        if (!raw) return false;
+        const dirtyAt = Number(raw);
+        if (!Number.isFinite(dirtyAt) || dirtyAt <= 0) {
+            safeLocalStorageRemove('mealfit_pantry_dirty_at');
+            return false;
+        }
+        safeLocalStorageRemove('mealfit_pantry_dirty_at');
+        console.log(`[P3-PANTRY-INVALIDATE-FROM-CHAT] dirty_at=${dirtyAt} source=${source}`);
+        invalidateInventoryCache();
+        return true;
+    };
+
+    useEffect(() => {
+        if (!session?.user?.id) return;
+        const onStorage = (e) => {
+            if (e.key !== 'mealfit_pantry_dirty_at') return;
+            if (_consumePantryDirtyFromChat('storage_event')) {
+                fetchData(false);
+            }
+        };
+        // [P3-PANTRY-INVALIDATE-MISMO-TAB · 2026-05-22] Custom event para
+        // cobertura intra-tab. El `storage` event NO se dispara en el mismo
+        // tab que escribió la key — solo cross-tab. Si user está en Pantry
+        // y abre el chat en el mismo tab (modal, widget, SPA navigation
+        // sin destruir Pantry), AgentPage dispara este evento que SÍ se
+        // captura en mismo tab.
+        const onPantryDirty = (_e) => {
+            if (_consumePantryDirtyFromChat('custom_event')) {
+                fetchData(false);
+            }
+        };
+        window.addEventListener('storage', onStorage);
+        window.addEventListener('mealfit:pantry-dirty', onPantryDirty);
+        return () => {
+            window.removeEventListener('storage', onStorage);
+            window.removeEventListener('mealfit:pantry-dirty', onPantryDirty);
+        };
+    }, [session?.user?.id]);
+
     // 1. Fetch data on mount
     // [P3-PANTRY-CACHE-SKIP-REFETCH · 2026-05-19] Si hay cache vigente
     // (TTL 30s no expirado), SKIP el fetch background completo. Antes
@@ -367,9 +563,18 @@ const Pantry = () => {
     //       pisan el cache.
     //   (c) TTL 30s significa peor caso 30s de staleness antes del
     //       próximo cache miss → fetch normal.
+    //   (d) [P3-PANTRY-INVALIDATE-FROM-CHAT · 2026-05-22] La key
+    //       `mealfit_pantry_dirty_at` que AgentPage.jsx setea tras
+    //       tool calls del agente fuerza invalidación al mount.
     useEffect(() => {
         if (!session?.user?.id) return;
-        const _hasFreshCache = Boolean(getCachedInventory());
+        // [P3-PANTRY-INVALIDATE-FROM-CHAT · 2026-05-22] Si el agente mutó
+        // pantry mientras Pantry NO estaba montado (caso común: user
+        // navega de /agent a /pantry tras una conversación), invalidar
+        // antes de leer cache para que el `getCachedInventory()` no
+        // devuelva el snapshot viejo.
+        const _chatDirty = _consumePantryDirtyFromChat('mount');
+        const _hasFreshCache = !_chatDirty && Boolean(getCachedInventory());
         if (_hasFreshCache) {
             // Cache fresh → trust it + realtime channel. Cero re-render
             // adicional al mount. Datos cacheados quedan visibles snap.
@@ -1328,6 +1533,20 @@ const Pantry = () => {
                 className="nevera-item-card"
                 style={{ opacity: isDisabled ? 0.5 : 1 }}
             >
+                {/* [P3-PANTRY-DELETE-X · 2026-05-22] X de borrado definitivo
+                   per-item. Distinto de "Agotar" (soft → va a agotados,
+                   recuperable como "tenías X"). La X hace hard delete sin
+                   marcar como agotado; el toast de deshacer de 5s actúa
+                   como confirmación reversible (no necesita modal extra). */}
+                <button
+                    type="button"
+                    onClick={() => handleDeleteItem(item.id, { markAsDepleted: false })}
+                    className="nevera-item-delete-x"
+                    title="Eliminar definitivamente"
+                    aria-label={`Eliminar ${item.ingredient_name} definitivamente`}
+                >
+                    <X size={13} strokeWidth={3} />
+                </button>
                 <div style={{ flex: 1, marginRight: '1rem', textDecoration: isDisabled ? 'line-through' : 'none' }}>
                     <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: isDisabled ? 'var(--danger)' : 'var(--text-main)', lineHeight: 1.2 }}>{item.ingredient_name}</h3>
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -2307,11 +2526,42 @@ const Pantry = () => {
                     border: 1px solid #E2E8F0;
                     border-radius: 1rem;
                     padding: 1.2rem;
+                    padding-right: 2.6rem;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
                     contain: layout style paint;
+                    position: relative;
                 }
+                /* [P3-PANTRY-DELETE-X · 2026-05-22] X de borrado definitivo
+                   anclada a la esquina TOP-RIGHT de cada card. Tono neutro
+                   (slate) — la acción destructiva real está en el toast de
+                   deshacer; el botón solo dispara. Hover rojo tenue señala
+                   destructividad sin ser agresivo visualmente. */
+                .nevera-item-delete-x {
+                    position: absolute;
+                    top: 0.5rem;
+                    right: 0.5rem;
+                    width: 1.6rem;
+                    height: 1.6rem;
+                    border-radius: 99px;
+                    border: 1px solid rgba(203, 213, 225, 0.7);
+                    background: rgba(248, 250, 252, 0.85);
+                    color: #94A3B8;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    padding: 0;
+                    transition: all 0.15s;
+                    z-index: 1;
+                }
+                .nevera-item-delete-x:hover {
+                    background: #FEE2E2;
+                    border-color: rgba(248, 113, 113, 0.65);
+                    color: #DC2626;
+                }
+                .nevera-item-delete-x:active { transform: scale(0.9); }
                 /* [P3-PANTRY-PLUS-HOVER · 2026-05-19] Botón '+' del counter
                  * de cada card. Estilos movidos desde inline a class para
                  * poder añadir :hover con sombra reforzada (no se podía con
@@ -2612,7 +2862,7 @@ const Pantry = () => {
                 /* === DEPLETED SHELF (agotados) === */
                 .nevera-depleted-shelf {
                     margin-top: 2.5rem;
-                    padding-top: 1.5rem;
+                    padding: 1.5rem 2rem 2.5rem 2rem;
                     border-top: 2px dashed rgba(252, 165, 165, 0.45);
                 }
                 .nevera-depleted-header {
@@ -2640,19 +2890,40 @@ const Pantry = () => {
                     font-variant-numeric: tabular-nums;
                     box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
                 }
+                /* [P3-DEPLETED-CARD-VERTICAL · 2026-05-22] Tercera iteración
+                   del styling. Pre-fix v2 (BREATHE): layout horizontal 2-col
+                   con badge+info izq y Reponer+X der. Crear visual desequilibrio:
+                   Reponer flotaba TOP-derecha mientras X quedaba BOTTOM-derecha,
+                   con ~40px de espacio vacío entre ellos. User feedback "sigue
+                   viéndose igual visualmente". Fix: layout VERTICAL clásico de
+                   card con CTA principal abajo (patrón de e-commerce / material).
+                   Top row: badge AGOTADO (left) + X dismiss (right). Middle:
+                   nombre tachado + caption "Tenías". Bottom: Reponer FULL-WIDTH
+                   como CTA principal centrado. */
                 .nevera-depleted-card {
                     background: linear-gradient(180deg, #FAFAFA 0%, #F1F5F9 100%);
                     border: 2px dashed rgba(203, 213, 225, 0.9);
                     border-radius: 1rem;
-                    padding: 1.2rem;
+                    padding: 1.25rem 1.4rem 1.4rem 1.4rem;
                     display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    gap: 1rem;
+                    flex-direction: column;
+                    gap: 0.95rem;
                     box-shadow: 0 2px 6px rgba(0,0,0,0.03);
                     position: relative;
                     overflow: hidden;
                     contain: layout style paint;
+                }
+                .nevera-depleted-card__top {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+                .nevera-depleted-card__info {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.3rem;
+                    min-width: 0;
                 }
                 .nevera-depleted-card::before {
                     content: '';
@@ -2690,17 +2961,22 @@ const Pantry = () => {
                     text-decoration-color: rgba(220, 38, 38, 0.45);
                     line-height: 1.2;
                 }
+                /* [P3-DEPLETED-CARD-VERTICAL · 2026-05-22] CTA principal
+                   full-width abajo de la card. Pre-fix era inline pill
+                   pequeño top-derecha — visualmente desbalanceado. */
                 .nevera-restore-btn {
                     display: inline-flex;
                     align-items: center;
-                    gap: 0.35rem;
+                    justify-content: center;
+                    gap: 0.4rem;
+                    width: 100%;
                     background: linear-gradient(135deg, #10B981 0%, #047857 100%);
                     color: white;
                     border: 1px solid rgba(167, 243, 208, 0.65);
-                    padding: 0.5rem 0.95rem;
+                    padding: 0.65rem 1rem;
                     border-radius: 99px;
                     font-weight: 700;
-                    font-size: 0.82rem;
+                    font-size: 0.88rem;
                     cursor: pointer;
                     box-shadow:
                         inset 0 1px 0 rgba(255,255,255,0.3),
@@ -3098,7 +3374,14 @@ const Pantry = () => {
                     }
                     .nevera-item-card {
                         padding: 0.85rem 0.9rem;
+                        padding-right: 2.2rem;
                         border-radius: 0.85rem;
+                    }
+                    .nevera-item-delete-x {
+                        width: 1.4rem;
+                        height: 1.4rem;
+                        top: 0.4rem;
+                        right: 0.4rem;
                     }
                     .nevera-item-card h3 {
                         font-size: 0.95rem !important;
@@ -3140,10 +3423,18 @@ const Pantry = () => {
                         font-size: 0.75rem !important;
                         margin-bottom: 0.85rem !important;
                     }
+                    /* === DEPLETED SHELF mobile === */
+                    .nevera-depleted-shelf {
+                        padding: 1.25rem 1.2rem 2rem 1.2rem;
+                    }
                 }
 
                 /* === EXTRA-SMALL (≤380px) — pantallas estrechas tipo iPhone SE === */
                 @media (max-width: 380px) {
+                    /* === DEPLETED SHELF extra-small === */
+                    .nevera-depleted-shelf {
+                        padding: 1.25rem 0.9rem 2rem 0.9rem;
+                    }
                     .nevera-header {
                         padding: 2.35rem 1.6rem 0.7rem 0.75rem;
                     }
@@ -3387,35 +3678,23 @@ const Pantry = () => {
                             <p className="nevera-depleted-subtitle">
                                 Ya no los tienes. Toca <strong>Reponer</strong> cuando vuelvas a comprarlos.
                             </p>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
                                 {/* [P3-PANTRY-STATIC-CARDS · 2026-05-19] Cards
-                                    Agotados también estáticas — mismo motivo. */}
+                                    Agotados también estáticas — mismo motivo.
+                                    [P3-DEPLETED-CARD-VERTICAL · 2026-05-22]
+                                    Layout vertical: badge AGOTADO + X arriba,
+                                    nombre + "Tenías" middle, Reponer full-width
+                                    abajo como CTA principal. Patrón clásico
+                                    e-commerce / material card. */}
                                 {visibleDepletedItems.map(entry => (
                                         <div
                                             key={_depletedKey(entry)}
                                             className="nevera-depleted-card"
                                         >
-                                            <div style={{ flex: 1, marginRight: '0.75rem', minWidth: 0 }}>
+                                            <div className="nevera-depleted-card__top">
                                                 <span className="nevera-depleted-badge">
                                                     <PackageX size={10} strokeWidth={3} /> AGOTADO
                                                 </span>
-                                                <h3 className="nevera-depleted-name" style={{ marginTop: '0.5rem' }}>
-                                                    {entry.ingredient_name}
-                                                </h3>
-                                                <span style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '0.25rem', display: 'inline-block' }}>
-                                                    Tenías: <strong style={{ color: '#475569', fontWeight: 700 }}>
-                                                        {entry.quantity || 1} {entry.unit || 'unidad'}
-                                                    </strong>
-                                                </span>
-                                            </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'flex-end' }}>
-                                                <button
-                                                    onClick={() => handleRestoreDepleted(entry)}
-                                                    className="nevera-restore-btn"
-                                                    title="Reponer este alimento"
-                                                >
-                                                    <RotateCcw size={14} strokeWidth={2.5} /> Reponer
-                                                </button>
                                                 <button
                                                     onClick={() => handleDismissDepleted(entry)}
                                                     className="nevera-dismiss-btn"
@@ -3425,6 +3704,23 @@ const Pantry = () => {
                                                     <X size={14} strokeWidth={2.5} />
                                                 </button>
                                             </div>
+                                            <div className="nevera-depleted-card__info">
+                                                <h3 className="nevera-depleted-name">
+                                                    {entry.ingredient_name}
+                                                </h3>
+                                                <span style={{ fontSize: '0.74rem', color: '#94A3B8' }}>
+                                                    Tenías: <strong style={{ color: '#475569', fontWeight: 700 }}>
+                                                        {entry.quantity || 1} {entry.unit || 'unidad'}
+                                                    </strong>
+                                                </span>
+                                            </div>
+                                            <button
+                                                onClick={() => handleRestoreDepleted(entry)}
+                                                className="nevera-restore-btn"
+                                                title="Reponer este alimento"
+                                            >
+                                                <RotateCcw size={15} strokeWidth={2.5} /> Reponer
+                                            </button>
                                         </div>
                                     ))}
                             </div>

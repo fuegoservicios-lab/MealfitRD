@@ -66,7 +66,10 @@ describe('[P1-HIST-AUDIT-4] fetchHistory usa endpoint backend, no select(*)', ()
     const fetchBlock = src.slice(fetchIdx, fetchEnd);
 
     it('fetchHistory invoca getHistoryList()', () => {
-        expect(fetchBlock).toMatch(/getHistoryList\(\)/);
+        // [P1-HISTORY-ABORT · 2026-05-23] El call site ahora pasa
+        // `{ signal }` desde el AbortController del mount. Regex
+        // relajado: paréntesis permiten args (vacíos o no).
+        expect(fetchBlock).toMatch(/getHistoryList\(\s*(?:\{[^}]*\})?\s*\)/);
     });
 
     it('fetchHistory NO usa select("*") sobre meal_plans', () => {
@@ -110,19 +113,32 @@ describe('[P1-HIST-AUDIT-4] _loadPlanDataLazy: lazy-load del plan_data', () => {
 });
 
 
-describe('[P1-HIST-AUDIT-4] onClick del card invoca _loadPlanDataLazy antes de setSelectedPlan', () => {
-    it('handler async que await del lazy-load', () => {
-        // Buscar el bloque del onClick del card.
-        const onClickIdx = src.indexOf('onClick={async () => {');
-        expect(onClickIdx).toBeGreaterThan(-1);
-        // Ventana grande: el handler tiene comentarios docstring de
-        // P1-HIST-1, P1-HIST-AUDIT-4 + lazy-load logic + condicional
-        // antes del setSelectedPlan.
-        const block = src.slice(onClickIdx, onClickIdx + 3500);
-        // El handler llama _loadPlanDataLazy con await.
-        expect(block).toMatch(/await\s+_loadPlanDataLazy\(plan\)/);
-        // Y SOLO entonces setSelectedPlan con el plan_data fresh.
-        expect(block).toMatch(/setSelectedPlan\(\s*\{\s*\.\.\.\s*plan\s*,\s*plan_data:\s*fullPlanData\s*\}\s*\)/);
+describe('[P1-HIST-AUDIT-4] onClick del card invoca _loadPlanDataLazy', () => {
+    it('handler usa _loadPlanDataLazy en fire-and-forget post setSelectedPlan', () => {
+        // [P3-HIST-FAST-OPEN · 2026-05-18] El handler ya NO usa
+        // `onClick={async () => { await _loadPlanDataLazy(...) }`
+        // (pattern legacy P1-HIST-AUDIT-4 original). Ahora hace
+        // setSelectedPlan PRIMERO (modal abre instant con skeleton)
+        // y dispara `_loadPlanDataLazy(plan).then(...)` en paralelo,
+        // pisando `selectedPlan.plan_data` cuando resuelve.
+        // Reason: roundtrip Supabase ~200-500ms causaba perceived
+        // delay del click visible al usuario.
+        // [P1-HISTORY-ABORT · 2026-05-23] Test actualizado para
+        // reflejar el contract post-P3-HIST-FAST-OPEN.
+        const fastOpenIdx = src.indexOf('_loadPlanDataLazy(plan).then');
+        expect(fastOpenIdx).toBeGreaterThan(-1);
+        // Back-slice 3500 cubre desde setSelectedPlan({...plan, plan_data: ...})
+        // (~40 líneas antes) hasta el fire-and-forget — comentarios
+        // load-bearing inflan la distancia.
+        const block = src.slice(Math.max(0, fastOpenIdx - 3500), fastOpenIdx + 1000);
+        // El setSelectedPlan ocurre ANTES del fire-and-forget.
+        expect(block).toMatch(/setSelectedPlan\(\s*\{\s*\.\.\.\s*plan/);
+        // El .then pisa el plan_data resuelto via callback que
+        // valida `prev.id === plan.id` (no piso si el user cerró el
+        // modal o abrió otro plan mientras tanto).
+        expect(block).toMatch(/setSelectedPlan\(\(prev\)\s*=>/);
+        expect(block).toMatch(/prev\.id\s*!==\s*plan\.id/);
+        expect(block).toMatch(/plan_data:\s*fullPlanData/);
     });
 });
 

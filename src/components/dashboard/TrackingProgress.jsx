@@ -251,7 +251,26 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
     // el % uncapped (e.g., "107%") ya comunican el exceso sin texto adicional.
     const isOver = perc > 100;
     const isComplete = perc >= 100;
-    const fillWidth = Math.min(perc, 100); // ancho visual cap al 100%
+    // [P3-TRACKING-FILL-MIN-VISUAL · 2026-05-22] Piso visual del fillWidth.
+    // Pre-fix: `Math.min(perc, 100)` mapeaba 1:1 entre % y ancho del fill.
+    // Cuando perc era bajo (proteína 7% inicio del día), el fill mide ~7% del
+    // track (~25-30px en desktop) y el badge "7%" no cabía cómodo aunque el
+    // texto se desbordara hacia el track con text-shadow doble layer
+    // (P3-TRACKING-PERC-INSIDE-ALWAYS) — el user reportó que aún se veía mal.
+    //
+    // Fix: si el % real es > 0 pero el fillWidth proporcional es menor a
+    // `_FILL_VISUAL_MIN` (18%), el fill se renderea con 18% visual width —
+    // suficiente para que el badge `{perc}%` quepa dentro cómodo. El número
+    // mostrado SIGUE siendo el real (e.g., "7%"), no la magnitud falseada.
+    //
+    // Trade-off: visual deja de ser 1:1 entre % y ancho. Aceptable porque:
+    //   (a) El número numérico ("11 / 158 g") muestra la magnitud real cruda.
+    //   (b) El badge "7%" dentro del fill comunica el % real con precisión.
+    //   (c) El user explícitamente pidió esta solución: "subir la barra de
+    //       los números mínimos para que se pueda visualizar".
+    const _FILL_VISUAL_MIN = 18;
+    const _percCapped = Math.min(perc, 100);
+    const fillWidth = perc <= 0 ? 0 : Math.max(_percCapped, _FILL_VISUAL_MIN);
 
     // Paleta rojo (Tailwind red-300/600) sobre meta excedida.
     const OVER_GRADIENT = 'linear-gradient(90deg, #FCA5A5 0%, #DC2626 100%)';
@@ -327,16 +346,31 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
                             ? `0 0 14px rgba(220, 38, 38, 0.45)`
                             : (isComplete ? `0 0 12px ${effectiveGlowColor}66` : 'none')
                     }}
-                >
-                    {/* [P3-TRACKING-BAR-INLINE-PERC · 2026-05-20] % blanco dentro
-                        del fill (estilo carga de batería). Aplicado universalmente
-                        (desktop + mobile) tras P3-TRACKING-PERC-DESKTOP.
-                        [P3-TRACKING-OVER-LIMIT · 2026-05-20] El % mostrado es el
-                        real (uncapped) — ej. "107%" cuando se excedió. */}
-                    {!isEmpty && (
-                        <span className={styles.fillPerc}>{perc}%</span>
-                    )}
-                </div>
+                />
+                {/* [P3-TRACKING-BAR-INLINE-PERC · 2026-05-20] % blanco dentro
+                    del fill (estilo carga de batería). Aplicado universalmente
+                    (desktop + mobile) tras P3-TRACKING-PERC-DESKTOP.
+                    [P3-TRACKING-OVER-LIMIT · 2026-05-20] El % mostrado es el
+                    real (uncapped) — ej. "107%" cuando se excedió.
+                    [P3-TRACKING-PERC-INSIDE-ALWAYS · 2026-05-22] El badge se
+                    mantiene como sibling del `.fill` (dentro del `.track` con
+                    overflow hidden), posicionado absoluto con `left: ${fillWidth}%`
+                    + `transform: translateX(-100%)` que ALINEA su borde derecho
+                    al borde derecho del fill. Cuando el fill es estrecho
+                    (proteína 7% inicio del día), el texto desborda hacia la
+                    IZQUIERDA del fill quedando parcialmente sobre el track
+                    gris — un text-shadow fuerte (doble layer dark) garantiza
+                    contraste sobre el track gris claro (#E2E8F0) y sobre los 4
+                    gradients del fill. Eliminada la variante outside que el
+                    user rechazó visualmente — battery style consistente. */}
+                {!isEmpty && (
+                    <span
+                        className={styles.fillPerc}
+                        style={{ left: `${fillWidth}%` }}
+                    >
+                        {perc}%
+                    </span>
+                )}
             </div>
 
             {!isEmpty && (
