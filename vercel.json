@@ -34,7 +34,7 @@
           "value": "camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=(self \"https://www.paypal.com\")"
         },
         {
-          "key": "Content-Security-Policy-Report-Only",
+          "key": "Content-Security-Policy",
           "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://*.paypal.com https://www.paypalobjects.com https://*.posthog.com https://*.sentry.io; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://api-m.paypal.com https://*.paypal.com https://www.google-analytics.com https://*.posthog.com; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src 'self' https://www.paypal.com https://*.paypal.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
         }
       ]

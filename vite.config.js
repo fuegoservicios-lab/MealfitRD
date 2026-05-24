@@ -98,6 +98,31 @@ export default defineConfig(({ mode }) => ({
     target: 'es2020',
     // Enable CSS code splitting
     cssCodeSplit: true,
+    // [P0-PROD-AUDIT-1 · 2026-05-23] `sourcemap: false` explícito.
+    //
+    // Pre-fix: el config no declaraba `sourcemap`, que en Vite default es
+    // `false` — pero un cambio silencioso en versión futura o en un PR
+    // mal-revisado podría flippear a `true` o `'inline'`, exponiendo:
+    //   - Stack traces legibles en DevTools (mapping a archivos source).
+    //   - Code reverse-engineering trivial (`.js.map` accesible vía
+    //     `view-source:` o fetch directo a `app-XXXX.js.map`).
+    //   - Scouting de vulnerabilidades (variables internas, comments con
+    //     anchors P-fix que revelan defensive logic, imports de utils
+    //     sensibles como `secureFormStorage.js`).
+    //
+    // Decisión: `false` literal en lugar de relying on default. Un PR que
+    // habilite source maps debería ser visible en review.
+    //
+    // Si en futuro se quiere upload a Sentry para mejorar stack traces de
+    // errores sin leak público:
+    //   - Cambiar a `'hidden'` (genera maps pero NO emite `//#
+    //     sourceMappingURL=` comment → DevTools no los auto-carga).
+    //   - Añadir `@sentry/vite-plugin` con `release` + `authToken` para
+    //     upload + delete local post-build.
+    //   - Configurar Vercel para servir `.map` con `404` (defensa contra
+    //     fetch directo si delete fallara).
+    // Follow-up: `P1-SENTRY-SOURCE-MAPS`.
+    sourcemap: false,
     // Chunk strategy for optimal caching
     rollupOptions: {
       output: {
@@ -124,5 +149,25 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     setupFiles: './src/setupTests.js',
     css: true,
+    // [F-P1-1 · 2026-05-23] Coverage config minimalista — habilitar via
+    // `npm run test:coverage`. Sin gate `--coverage.thresholds.*` (decisión
+    // MVP <100 MAU, análoga a backend P3-COVERAGE-HEATMAP). Cuando crucemos
+    // 500 MAU + medición baseline, añadir `thresholds: { lines: 60, ... }`
+    // y activar job CI dedicado. Test
+    // `src/__tests__/coverage_gate_decision.test.js` ancla la decisión.
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'json-summary'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{js,jsx,ts,tsx}'],
+      exclude: [
+        'src/__tests__/**',
+        'src/setupTests.js',
+        'src/custom-sw.js',
+        '**/*.d.ts',
+        '**/*.config.js',
+      ],
+      // NO `thresholds` por ahora (decisión MVP <100 MAU).
+    },
   },
 }))
