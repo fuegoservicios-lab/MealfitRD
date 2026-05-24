@@ -149,5 +149,25 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     setupFiles: './src/setupTests.js',
     css: true,
+    // [F-P1-1 · 2026-05-23] Coverage config minimalista — habilitar via
+    // `npm run test:coverage`. Sin gate `--coverage.thresholds.*` (decisión
+    // MVP <100 MAU, análoga a backend P3-COVERAGE-HEATMAP). Cuando crucemos
+    // 500 MAU + medición baseline, añadir `thresholds: { lines: 60, ... }`
+    // y activar job CI dedicado. Test
+    // `src/__tests__/coverage_gate_decision.test.js` ancla la decisión.
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'json-summary'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{js,jsx,ts,tsx}'],
+      exclude: [
+        'src/__tests__/**',
+        'src/setupTests.js',
+        'src/custom-sw.js',
+        '**/*.d.ts',
+        '**/*.config.js',
+      ],
+      // NO `thresholds` por ahora (decisión MVP <100 MAU).
+    },
   },
 }))

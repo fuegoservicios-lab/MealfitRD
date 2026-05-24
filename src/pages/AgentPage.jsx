@@ -2059,7 +2059,7 @@ const AgentPage = () => {
                                 border: '1px solid #e2e8f0',
                                 animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
                             }}>
-                                <img src={previewUrl} alt="Preview" style={{ width: '48px', height: '48px', borderRadius: '6px', opacity: isLoading ? 0.5 : 1, objectFit: 'cover' }} />
+                                <img src={previewUrl} alt="Preview" loading="lazy" decoding="async" style={{ width: '48px', height: '48px', borderRadius: '6px', opacity: isLoading ? 0.5 : 1, objectFit: 'cover' }} />
                                 <button
                                     type="button"
                                     aria-label="Quitar imagen"

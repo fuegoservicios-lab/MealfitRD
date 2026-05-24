@@ -560,10 +560,12 @@ const ChatWidget = () => {
                                         }}>
                                             {msg.isImage && msg.imageUrl && (
                                                 <div style={{ marginBottom: msg.content ? '0.5rem' : 0 }}>
-                                                    <img 
-                                                        src={msg.imageUrl} 
-                                                        alt="Imagen enviada" 
-                                                        style={{ 
+                                                    <img
+                                                        src={msg.imageUrl}
+                                                        alt="Imagen enviada"
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                        style={{
                                                             maxWidth: '220px', 
                                                             width: '100%',
                                                             borderRadius: '0.5rem', 

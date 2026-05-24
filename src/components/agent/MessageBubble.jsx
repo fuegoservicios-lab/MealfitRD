@@ -176,6 +176,8 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                         <img
                             src={msg.imageUrl}
                             alt="Imagen enviada"
+                            loading="lazy"
+                            decoding="async"
                             style={{
                                 maxWidth: '280px',
                                 width: '100%',
