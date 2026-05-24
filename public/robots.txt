@@ -1,0 +1,63 @@
+# [F-P2-4 · 2026-05-23] robots.txt para MealfitRD frontend (Vercel).
+#
+# Convención: app pública monolítica con auth gate (la mayoría del contenido
+# vive detrás de /login). Solo las rutas públicas / legales deberían
+# indexarse.
+#
+# Rutas públicas indexables:
+#   /           landing
+#   /login      formulario login
+#   /register   formulario signup
+#   /privacy    privacy policy
+#   /terms      terms of service
+#   /cookies    cookies policy
+#   /medical    medical disclaimer
+#
+# Rutas protegidas (excluir):
+#   /dashboard*, /history, /assessment, /plan, /reset-password
+#
+# Si en el futuro se añaden landing pages SEO específicas (e.g. /blog/*,
+# /casos-de-exito/*), añadirlas explícitamente y bumpear sitemap.xml.
+
+User-agent: *
+
+# Permitir rutas públicas + legales
+Allow: /$
+Allow: /login
+Allow: /register
+Allow: /privacy
+Allow: /terms
+Allow: /cookies
+Allow: /medical
+
+# Bloquear el resto del app (rutas autenticadas)
+Disallow: /dashboard
+Disallow: /history
+Disallow: /assessment
+Disallow: /plan
+Disallow: /reset-password
+
+# Bloquear API + assets internos
+Disallow: /api/
+Disallow: /sw.js
+Disallow: /custom-sw.js
+Disallow: /workbox-
+
+# Sitemap location
+Sitemap: https://mealfitrd.com/sitemap.xml
+
+# Bots agresivos / scrapers conocidos
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
