@@ -35,6 +35,17 @@ import { trackEvent } from '../utils/analytics';
 // pese a que Dashboard ya había hecho refetch para `setLiveInventory`.
 import { getCachedInventory, setCachedInventory, invalidateInventoryCache } from '../utils/pantryCache';
 import { safeJSONParse } from '../utils/safeJSONParse';
+// [P1-FRONTEND-LEGACY-LOCALSTORAGE-CRITICAL · 2026-05-23] safeLocalStorageGet
+// para el effect de onboarding de push (línea ~1139). Pre-fix era raw
+// `localStorage.getItem(...)` sin try/catch → iOS Private Mode lanzaba
+// SecurityError y el useEffect callback crasheaba silenciosamente, dejando
+// a usuarios nuevos sin el modal de onboarding push.
+import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
+// [P2-CUSTOM-MODALS-A11Y · 2026-05-24] Hook SSOT para el restock modal inline
+// (4470-4580): role/aria-modal/focus trap/ESC/restore focus/body overflow.
+// Pre-fix el modal era keyboard-inaccesible (Tab escapaba al fondo, ESC no
+// cerraba) y screen readers no lo anunciaban como dialog.
+import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import { getActiveShoppingList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P1-FORM-9] Helper que filtra flags internos `_*` y bloquea cuando la
@@ -165,6 +176,16 @@ const Dashboard = () => {
     // Estados para Compras con 1 clic
     const [showRestockModal, setShowRestockModal] = useState(false);
     const [isRestocking, setIsRestocking] = useState(false);
+
+    // [P2-CUSTOM-MODALS-A11Y · 2026-05-24] Hook a11y para el restock modal
+    // inline (renderizado en JSX línea ~4475). `disableClose=isRestocking`
+    // evita que ESC cierre el modal mid-flight (operación POST /restock
+    // ya iniciada; cerrar mid-request deja state inconsistente con BD).
+    const { containerRef: restockModalRef } = useModalAccessibility({
+        isOpen: showRestockModal,
+        onClose: () => setShowRestockModal(false),
+        disableClose: isRestocking,
+    });
     // [P3-RESTOCK-NO-BAR · 2026-05-20] State acoplado a la barra REMOVIDO:
     // contador rAF de progreso, trigger fast-finish, constantes de duración,
     // useEffect rAF driver, useEffect watcher modal-close. Decisión de
@@ -558,18 +579,30 @@ const Dashboard = () => {
             || status === 'rolling'
         );
 
+        // [P1-DASHBOARD-POLLING-ABORT · 2026-05-23] AbortController scoped
+        // al useEffect — cancela TODOS los fetches in-flight (inicial +
+        // los del setInterval) cuando el usuario navega fuera del Dashboard.
+        // Pre-fix, el clearInterval del cleanup solo prevenía nuevos polls
+        // pero los fetches ya lanzados completaban post-unmount y disparaban
+        // setChunkStatusInfo() sobre componente desmontado (warning React +
+        // body parseado retenido). Mismo patrón que P1-HISTORY-ABORT.
+        const controller = new AbortController();
+        const signal = controller.signal;
+
         if (_isActiveForChunkPoll && planData?.id) {
             // Fetch inicial y también a través del polling normal de
             // 30s que ya refresca el plan. El response es chico
             // (counters + paused_chunks resumido), no requiere su
             // propio interval — piggyback al refresh del plan.
-            getPlanChunkStatus(planData.id)
+            getPlanChunkStatus(planData.id, { signal })
                 .then(async (r) => {
+                    if (signal.aborted) return;
                     if (!r || !r.ok) return;
                     const body = await r.json().catch(() => null);
+                    if (signal.aborted) return;
                     if (body && typeof body === 'object') setChunkStatusInfo(body);
                 })
-                .catch(() => { /* best-effort: el chip cae al fallback plan_data-only */ });
+                .catch(() => { /* best-effort (incluye AbortError): el chip cae al fallback plan_data-only */ });
         } else if (chunkStatusInfo !== null && status === 'complete') {
             // Plan completado: limpiar el snapshot stale para que el
             // render no muestre paused chunks viejos.
@@ -579,15 +612,18 @@ const Dashboard = () => {
         if (status === 'partial') {
             setShowChunkBanner(true);
             pollInterval = setInterval(() => {
+                if (signal.aborted) return;
                 refreshProfileAndPlan();
                 if (planData?.id) {
-                    getPlanChunkStatus(planData.id)
+                    getPlanChunkStatus(planData.id, { signal })
                         .then(async (r) => {
+                            if (signal.aborted) return;
                             if (!r || !r.ok) return;
                             const body = await r.json().catch(() => null);
+                            if (signal.aborted) return;
                             if (body && typeof body === 'object') setChunkStatusInfo(body);
                         })
-                        .catch(() => {});
+                        .catch(() => { /* incluye AbortError post-unmount */ });
                 }
             }, 30000);
         } else if (status === 'complete' && showChunkBanner) {
@@ -618,6 +654,11 @@ const Dashboard = () => {
 
         return () => {
             if (pollInterval) clearInterval(pollInterval);
+            // [P1-DASHBOARD-POLLING-ABORT · 2026-05-23] Cancela fetches
+            // in-flight para evitar setState-on-unmounted. Si el browser
+            // ya cerró el request (AbortError) el .catch silencioso lo
+            // absorbe — cero noise post-unmount.
+            try { controller.abort(); } catch { /* noop */ }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planData?.generation_status, refreshProfileAndPlan]);
@@ -1136,7 +1177,12 @@ const Dashboard = () => {
             // ya que está entrando por primera vez con su primer plan.
             const isNewUser = formData?.isNewUser || planCount === 1;
 
-            const hasSeenOnboarding = localStorage.getItem('mealfit_push_onboarding_seen');
+            // [P1-FRONTEND-LEGACY-LOCALSTORAGE-CRITICAL · 2026-05-23]
+            // safeLocalStorageGet en lugar de raw getItem: iOS Private Mode
+            // lanzaba SecurityError aquí y el callback del useEffect moría
+            // silenciosamente. Onboarding push nunca se disparaba para
+            // usuarios nuevos en Private Mode.
+            const hasSeenOnboarding = safeLocalStorageGet('mealfit_push_onboarding_seen');
 
             if (isNewUser && !hasSeenOnboarding && Notification.permission === 'default') {
                 // Pequeño retraso para que la interfaz se asiente primero antes de mostrar el modal
@@ -1168,13 +1214,17 @@ const Dashboard = () => {
         } finally {
             setIsPushEnabling(false);
             setShowPushOnboarding(false);
-            localStorage.setItem('mealfit_push_onboarding_seen', 'true');
+            // [P1-PROD-FINAL-3 · 2026-05-24] safeLocalStorageSet — raw setItem
+            // dentro del finally lanzaba uncaught en iOS Private Mode tras
+            // habilitar push, dejando el modal re-disparable en mount.
+            safeLocalStorageSet('mealfit_push_onboarding_seen', 'true');
         }
     };
 
     const handleDismissPushOnboarding = () => {
         setShowPushOnboarding(false);
-        localStorage.setItem('mealfit_push_onboarding_seen', 'true');
+        // [P1-PROD-FINAL-3 · 2026-05-24] safeLocalStorageSet — ver finally arriba.
+        safeLocalStorageSet('mealfit_push_onboarding_seen', 'true');
     };
 
     const handleDownloadShoppingList = async () => {
@@ -4431,6 +4481,10 @@ const Dashboard = () => {
             </AnimatePresence>
 
             {/* --- MODAL CONFIRMACIÓN ONE-CLICK RESTOCK --- */}
+            {/* [P2-CUSTOM-MODALS-A11Y · 2026-05-24] ref + role/aria-modal/
+                aria-labelledby + tabIndex={-1} sobre el contenido del modal.
+                El hook useModalAccessibility (declarado ~línea 180) instala
+                focus trap + ESC + restore focus + body overflow. */}
             <AnimatePresence>
                 {showRestockModal && (
                     <div style={{
@@ -4439,6 +4493,11 @@ const Dashboard = () => {
                         background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', padding: '1rem'
                     }}>
                         <motion.div
+                            ref={restockModalRef}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="restock-modal-title"
+                            tabIndex={-1}
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -4492,10 +4551,13 @@ const Dashboard = () => {
                                             }} aria-hidden="true" />
                                         </div>
 
-                                        <h2 style={{
-                                            fontSize: '1.35rem', fontWeight: 700, color: '#0F172A',
-                                            marginBottom: '0.5rem', letterSpacing: '-0.015em'
-                                        }}>
+                                        <h2
+                                            id="restock-modal-title"
+                                            style={{
+                                                fontSize: '1.35rem', fontWeight: 700, color: '#0F172A',
+                                                marginBottom: '0.5rem', letterSpacing: '-0.015em'
+                                            }}
+                                        >
                                             Confirmar compra
                                         </h2>
                                         <p style={{

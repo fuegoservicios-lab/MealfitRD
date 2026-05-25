@@ -466,7 +466,14 @@ const AgentPage = () => {
     }, []);
 
     const [localSessionId, setLocalSessionId] = useState(() => {
-        const saved = localStorage.getItem('mealfit_guest_session');
+        // [P1-AGENT-LAZY-INIT-PRIVATE-MODE · 2026-05-24] safeLocalStorageGet
+        // vs raw localStorage.getItem. En iOS Private Mode el getter lanza
+        // SecurityError durante mount → throw en lazy init → AgentPage entero
+        // no rendea → cae al GlobalErrorBoundary. Mismo modo de fallo que
+        // P1-PROD-FINAL-1 cerró en Settings/Dashboard lazy initializers;
+        // AgentPage quedó fuera del scope original. Línea 476-480
+        // (guestSessionIds) ya tiene try/catch (P2-B), no requiere acción.
+        const saved = safeLocalStorageGet('mealfit_guest_session', null);
         if (saved) return saved;
         const newId = crypto.randomUUID();
         safeLocalStorageSet('mealfit_guest_session', newId);

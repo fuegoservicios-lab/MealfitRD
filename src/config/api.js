@@ -56,7 +56,13 @@ export const fetchWithAuth = async (url, options = {}) => {
     });
 };
 
-export const getPlanChunkStatus = (planId) => fetchWithAuth(`/api/plans/${planId}/chunk-status`);
+// [P1-DASHBOARD-POLLING-ABORT · 2026-05-23] options se forwardea a fetchWithAuth
+// → permite pasar `{ signal }` desde Dashboard.jsx para cancelar la fetch
+// in-flight cuando el usuario navega fuera del Dashboard mid-poll (el
+// setInterval cleanup ya hacía clearInterval, pero los fetches lanzados
+// segundos antes seguían vivos y disparaban setState-on-unmounted).
+// Backward-compat: callsites legacy sin options siguen funcionando.
+export const getPlanChunkStatus = (planId, options = {}) => fetchWithAuth(`/api/plans/${planId}/chunk-status`, options);
 export const retryPlanChunk = (planId, chunkId) => fetchWithAuth(`/api/plans/${planId}/retry-chunk/${chunkId}`, { method: 'POST' });
 // [P1-ζ] Re-encola un chunk dead-lettered forzando flexible_mode + advisory_only.
 // Cubre el último escalón cuando la cascada de recovery agotó sus reintentos

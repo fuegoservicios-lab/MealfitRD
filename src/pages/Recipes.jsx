@@ -8,7 +8,7 @@ import React, { useRef, useState, useEffect } from 'react';
 // dentro del handler `handleDownloadPDF` — ver `await import('html2pdf.js')`
 // más abajo. Mismo patrón que Dashboard.jsx para evitar eager load del
 // chunk a usuarios que solo navegan recetas sin descargar PDF.
-import { fetchWithAuth, API_BASE } from '../config/api';
+import { fetchWithAuth } from '../config/api';
 // [P-RECIPES-CHUNK-WINDOW] Helpers chunk-aware extraídos a utils para
 // reutilizar desde otras páginas (Plan.jsx, Dashboard.jsx) y testear
 // independientemente. Sincronizados con `split_with_absorb` del backend.
@@ -474,18 +474,20 @@ const Recipes = () => {
 
         const toastId = toast.loading(`Registrando ${recipe.name}...`);
         try {
-            const token = localStorage.getItem('supabase.auth.token');
-            let jwt = "";
-            if (token) {
-                const parsed = JSON.parse(token);
-                jwt = parsed?.currentSession?.access_token || parsed?.access_token || token;
-            }
-
-            const response = await fetch(`${API_BASE}/api/diary/consumed`, {
+            // [P1-FRONTEND-RECIPES-LEGACY-AUTH · 2026-05-23] Reemplazado el
+            // fetch manual + token extraction legacy por fetchWithAuth (SSOT
+            // en config/api.js).
+            //
+            // Pre-fix: leía una key del Supabase JS v1 que ya no existe en v2
+            // (v2 usa sb-<project-ref>-auth-token con shape distinto), así
+            // que el access_token quedaba undefined → Bearer vacío → backend
+            // 401 silencioso → user veía "Error registrando" sin diagnóstico.
+            // fetchWithAuth obtiene el access_token vía supabase.auth.getSession()
+            // y maneja el timeout P0-FETCH-AUTH-TIMEOUT.
+            const response = await fetchWithAuth('/api/diary/consumed', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${jwt}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     user_id: formData.id,

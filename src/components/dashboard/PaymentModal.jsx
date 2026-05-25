@@ -5,6 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
+// [P2-CUSTOM-MODALS-A11Y · 2026-05-24] Hook SSOT de defenses a11y mínimas.
+// PaymentModal es CRÍTICO: surface de pago PayPal sin focus trap dejaba
+// Tab escapar al fondo durante el flujo de checkout. Layout split-screen
+// full-bleed (100vh × 100vw) NO encaja en Modal.jsx (maxWidth 460px) —
+// el hook aplica las defenses inline sin refactor de layout.
+import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 
 /* ─── Plan Feature Map ─── */
 const PLAN_FEATURES = {
@@ -54,6 +60,16 @@ const PaymentModal = ({
         window.addEventListener('resize', handler);
         return () => window.removeEventListener('resize', handler);
     }, []);
+
+    // [P2-CUSTOM-MODALS-A11Y · 2026-05-24] focus trap + ESC + restore focus +
+    // body overflow lock. `disableClose=false` — el flujo de pago NO bloquea
+    // ESC (el user puede abortar antes de submit; tras submit el flow es
+    // server-driven via onSuccess y no depende de este modal).
+    const { containerRef: paymentModalRef } = useModalAccessibility({
+        isOpen,
+        onClose,
+        disableClose: false,
+    });
 
     // [P3-NEW-PAYPAL-FALLBACK · 2026-05-15] Anti-pattern eliminado: el
     // fallback hardcoded a un client_id de PayPal real (no placeholder)
@@ -155,7 +171,15 @@ const PaymentModal = ({
     return (
         <AnimatePresence>
             {/* Overlay */}
+            {/* [P2-CUSTOM-MODALS-A11Y · 2026-05-24] role/aria-modal/aria-labelledby
+                + ref del hook para focus trap. tabIndex={-1} permite focus
+                programático al mount (screen readers anuncian dialog). */}
             <motion.div
+                ref={paymentModalRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="payment-modal-title"
+                tabIndex={-1}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -207,11 +231,14 @@ const PaymentModal = ({
                         background: '#0a0a0a',
                     }}>
                         <div style={{ maxWidth: '480px', width: '100%' }}>
-                            <h2 style={{
-                            fontFamily: "'Outfit', sans-serif",
-                            fontSize: '1.35rem', fontWeight: 700,
-                            color: '#fff', marginBottom: '0.35rem',
-                        }}>
+                            <h2
+                                id="payment-modal-title"
+                                style={{
+                                    fontFamily: "'Outfit', sans-serif",
+                                    fontSize: '1.35rem', fontWeight: 700,
+                                    color: '#fff', marginBottom: '0.35rem',
+                                }}
+                            >
                             Forma de pago
                         </h2>
                         <p style={{

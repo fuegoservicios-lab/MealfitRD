@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Share, X } from 'lucide-react';
+// [P1-PROD-FINAL-3 · 2026-05-24] safeLocalStorage SSOT — irónicamente este
+// componente solo se muestra en iOS, donde Private Mode hace crash con raw
+// setItem.
+import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
 
 const IOSInstallPrompt = () => {
     const [showPrompt, setShowPrompt] = useState(false);
@@ -13,7 +17,7 @@ const IOSInstallPrompt = () => {
         const isStandaloneMode = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
 
         // Check if user previously dismissed
-        const hasDismissed = localStorage.getItem('dismissed_ios_prompt');
+        const hasDismissed = safeLocalStorageGet('dismissed_ios_prompt', null);
 
         if (isIOSDevice && !isStandaloneMode && !hasDismissed) {
             // Show after a small delay
@@ -26,7 +30,7 @@ const IOSInstallPrompt = () => {
 
     const dismissPrompt = () => {
         setShowPrompt(false);
-        localStorage.setItem('dismissed_ios_prompt', 'true');
+        safeLocalStorageSet('dismissed_ios_prompt', 'true');
     };
 
     if (!showPrompt) return null;

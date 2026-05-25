@@ -20,7 +20,10 @@ import { trackEvent } from '../utils/analytics';
 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] Helper defensivo para removeItem
 // — iOS Private Mode lanza SecurityError y corta el cleanup del reset
 // preferences (líneas ~775+).
-import { safeLocalStorageRemove } from '../utils/safeLocalStorage';
+// [P1-FRONTEND-LEGACY-LOCALSTORAGE-CRITICAL · 2026-05-23] safeLocalStorageGet
+// para el lazy initializer de `notifications` (era único raw getItem sin
+// try/catch en este archivo; las líneas 73-78 y 91-96 ya estaban envueltas).
+import { safeLocalStorageRemove, safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
 // [P1-FORM-9] Helper para construir el payload de health_profile sin filtrar
@@ -64,8 +67,11 @@ const Settings = () => {
     const isLimitReached = typeof userPlanLimit === 'number' && planCount >= userPlanLimit;
     
     // Estado para las notificaciones (Avisos de comidas)
+    // [P1-FRONTEND-LEGACY-LOCALSTORAGE-CRITICAL · 2026-05-23] safeLocalStorageGet
+    // evita SecurityError en iOS Private Mode dentro del lazy initializer.
+    // Pre-fix, un throw aquí crasheaba el mount completo de Settings (página blanca).
     const [notifications, setNotifications] = useState(() => {
-        return localStorage.getItem('mealfit_notifications') === 'true';
+        return safeLocalStorageGet('mealfit_notifications') === 'true';
     });
 
     // Estado para las Notificaciones Web Push (IA)
@@ -578,9 +584,12 @@ const Settings = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile, planData]); // Quitamos 'userName' de las dependencias intencionalmente
 
-    // Persistir preferencia de notificaciones
+    // [P1-PROD-FINAL-3 · 2026-05-24] safeLocalStorageSet — raw setItem
+    // lanzaba SecurityError/QuotaExceededError en iOS Private Mode dentro
+    // del useEffect → toggle de notificaciones no persistía y el callback
+    // rompía la cadena de side-effects del effect.
     useEffect(() => {
-        localStorage.setItem('mealfit_notifications', notifications);
+        safeLocalStorageSet('mealfit_notifications', notifications);
     }, [notifications]);
 
     // Cargar los "hechos" del Cerebro de la IA

@@ -478,6 +478,32 @@ const Pantry = () => {
         inventoryRef.current = inventory;
     }, [inventory]);
 
+    // [P2-PANTRY-TURBO-HOLD-CLEANUP · 2026-05-23] Unmount cleanup para los
+    // refs del turbo de cantidad (+ / -). Cierra el edge case donde
+    // `stopHolding(id)` solo limpia el id específico (line ~727), así que si
+    // el componente desmonta mientras (a) un setTimeout(400ms) de delay
+    // sigue pending, o (b) un setInterval(80ms) está firing, los handlers
+    // sobreviven al unmount e invocan handleUpdateQuantity sobre estado
+    // stale → React warning + posible mutation post-unmount. El cleanup
+    // itera AMBOS objetos ref y clears each entry independientemente del id
+    // que invocó stopHolding (que solo cubre los pointer events del item).
+    useEffect(() => {
+        return () => {
+            try {
+                const _timeouts = holdTimeoutRef.current || {};
+                Object.values(_timeouts).forEach((tid) => {
+                    if (tid) { try { clearTimeout(tid); } catch { /* noop */ } }
+                });
+                holdTimeoutRef.current = {};
+                const _intervals = holdIntervalRef.current || {};
+                Object.values(_intervals).forEach((iid) => {
+                    if (iid) { try { clearInterval(iid); } catch { /* noop */ } }
+                });
+                holdIntervalRef.current = {};
+            } catch { /* noop — el cleanup es best-effort */ }
+        };
+    }, []);
+
     // [P3-PANTRY-INVALIDATE-FROM-CHAT · 2026-05-22] Consumir la key
     // `mealfit_pantry_dirty_at` que AgentPage.jsx escribe cuando el chat
     // agent ejecuta `modify_pantry_inventory` o `log_consumed_meal` con
@@ -814,9 +840,11 @@ const Pantry = () => {
                         // hace falta sobreescribirlas con columnas inexistentes.
                         fresh.id = latest.id;
                         fresh.updated_at = latest.updated_at;
-                        try {
-                            localStorage.setItem('mealfit_plan', JSON.stringify(fresh));
-                        } catch (_lsErr) { /* localStorage best-effort */ }
+                        // [P1-PROD-FINAL-3 · 2026-05-24] safeLocalStorageSet
+                        // SSOT — el try/catch ad-hoc previo cubría el throw,
+                        // pero homogenizar contra el helper SSOT es necesario
+                        // para que el lint warn ESLint no marque este sitio.
+                        safeLocalStorageSet('mealfit_plan', JSON.stringify(fresh));
                         planData = fresh;
                         try { setPlanData(fresh); } catch (_setErr) { /* setter best-effort */ }
                     }
@@ -875,7 +903,11 @@ const Pantry = () => {
                     // sigue siendo válido).
                     delete result.plan_data.is_restocked;
                 }
-                localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
+                // [P1-PROD-FINAL-3 · 2026-05-24] safeLocalStorageSet — raw
+                // setItem post-recalc lanzaba en iOS Private Mode; el plan
+                // recién recibido del backend no se persistía y el setPlanData
+                // local divergía del próximo reload.
+                safeLocalStorageSet('mealfit_plan', JSON.stringify(result.plan_data));
                 setPlanData(result.plan_data);
                 if (!silentSuccess) {
                     toast.success('Lista de compras actualizada', { icon: '🛒', duration: 3000 });

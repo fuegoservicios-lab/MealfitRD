@@ -12,6 +12,10 @@ import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation
 import { stripInternalFlags } from '../config/secureFormStorage';
 import { trackEvent } from '../utils/analytics';
 import { safeJSONParseObject } from '../utils/safeJSONParse';
+// [P1-PROD-FINAL-3 · 2026-05-24] safeLocalStorage SSOT — el guest session
+// id se persiste en setup del flow de plan; raw setItem rompe golden path
+// guest en iOS Private Mode.
+import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
 
 // [P1-B10] Default conservador para countdown de 429 cuando el backend no
 // envía `Retry-After`. El RateLimiter del backend usa period=60s con
@@ -585,13 +589,18 @@ const Plan = () => {
                 // FASE 2: Llamada a la IA con Streaming SSE
                 setStatus('generating');
 
-                let userId = localStorage.getItem('mealfit_user_id');
+                // [P1-PROD-FINAL-3 · 2026-05-24] safeLocalStorage SSOT — raw
+                // setItem del guest session id rompía golden path guest en iOS
+                // Private Mode (uncaught SecurityError → handler abortaba,
+                // SSE nunca empezaba). Lectura también vía wrapper para
+                // simetría y SSR-safety.
+                let userId = safeLocalStorageGet('mealfit_user_id', null);
                 if (userId === 'guest') userId = null;
 
-                let guestSessionId = localStorage.getItem('mealfit_guest_session_id');
+                let guestSessionId = safeLocalStorageGet('mealfit_guest_session_id', null);
                 if (!userId && !guestSessionId) {
                     guestSessionId = crypto.randomUUID();
-                    localStorage.setItem('mealfit_guest_session_id', guestSessionId);
+                    safeLocalStorageSet('mealfit_guest_session_id', guestSessionId);
                 }
 
                 const totalDays = getTotalDaysByGroceryDuration(formData?.groceryDuration);
@@ -1165,17 +1174,30 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // [P1-PLAN-CHUNK-POLL-ABORT · 2026-05-24] AbortController component-scoped.
+    // Pre-fix el polling cada 5s NO usaba AbortController: el cleanup solo
+    // limpiaba `clearInterval`, pero la fetch en-vuelo al desmontar seguía
+    // ejecutando + llamaba `setFailedChunks`/`setUserActionRequired`/
+    // `setRecoveryExhausted` sobre componente desmontado → warning React +
+    // memory retention. Mismo bug exacto que P1-PROD-FINAL-1 cerró en
+    // Dashboard.jsx y P1-HISTORY-ABORT en History.jsx — Plan.jsx era el
+    // último polling sin abort.
     useEffect(() => {
         if (!newPlan?.id || newPlan?.generation_status !== 'partial') return;
 
         let previousDays = newPlan?.days?.length || 0;
+        const controller = new AbortController();
+        const signal = controller.signal;
 
         const intervalId = setInterval(async () => {
+            if (signal.aborted) return;
             try {
-                const res = await getPlanChunkStatus(newPlan.id);
+                const res = await getPlanChunkStatus(newPlan.id, { signal });
+                if (signal.aborted) return;
                 if (!res.ok) return;
                 const data = await res.json();
-                
+                if (signal.aborted) return;
+
                 if (data.failed_chunks && data.failed_chunks.length > 0) {
                     setFailedChunks(data.failed_chunks);
                 }
@@ -1209,11 +1231,16 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                     clearInterval(intervalId);
                 }
             } catch (error) {
+                // AbortError silencioso: cleanup esperado, no es bug real.
+                if (error?.name === 'AbortError' || signal.aborted) return;
                 console.error('Error polling chunk status:', error);
             }
         }, 5000);
 
-        return () => clearInterval(intervalId);
+        return () => {
+            controller.abort();
+            clearInterval(intervalId);
+        };
     }, [newPlan?.id, newPlan?.generation_status, isRetrying]);
 
     // [P1-ζ] Forzar regeneración de un chunk dead-lettered en flexible_mode +
