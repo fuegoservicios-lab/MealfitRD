@@ -78,7 +78,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
                     </div>
                     {/* Close button for mobile inside sidebar */}
-                    <button className={styles.menuBtn} onClick={closeMenu} style={{ marginBottom: '3rem', display: 'none' }}>
+                    <button className={styles.menuBtn} onClick={closeMenu} style={{ marginBottom: '3rem', display: 'none' }} aria-label="Cerrar menú">
                         {/* We hide this by default and could show via media query if we wanted an internal close button, 
                             but clicking overlay is usually enough. Adding X just in case for clarity on mobile logic if needed. 
                             actually let's just use the Menu/X logic in the header or overlay.
@@ -205,7 +205,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         onClick={() => setIsMobileMoreMenuOpen(true)}
                         aria-label="Abrir menú"
                     >
-                        <Menu size={22} />
+                        <Menu size={22} aria-hidden="true" />
                     </button>
                 </header>
                 )}

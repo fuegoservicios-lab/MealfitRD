@@ -193,6 +193,7 @@ const PaymentModal = ({
                 {/* Close */}
                 <button
                     onClick={onClose}
+                    aria-label="Cerrar ventana de pago"
                     style={{
                         position: 'fixed', top: '1.5rem', right: '1.5rem', zIndex: 10000,
                         background: 'rgba(255,255,255,0.06)',
@@ -205,7 +206,7 @@ const PaymentModal = ({
                     onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#fff'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#ccc'; }}
                 >
-                    <X size={20} />
+                    <X size={20} aria-hidden="true" />
                 </button>
 
                 {/* Modal Container */}

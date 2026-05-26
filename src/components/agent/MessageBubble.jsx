@@ -61,32 +61,38 @@ const MessageActions = ({ content, sessionId, onRegenerate }) => {
                 style={actionBtnStyle(feedback === 'up')}
                 onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
                 title="Buena respuesta"
+                aria-label="Marcar como buena respuesta"
+                aria-pressed={feedback === 'up'}
             >
-                <ThumbsUp size={18} strokeWidth={2} fill={feedback === 'up' ? 'currentColor' : 'none'} />
+                <ThumbsUp size={18} strokeWidth={2} fill={feedback === 'up' ? 'currentColor' : 'none'} aria-hidden="true" />
             </button>
             <button 
                 onClick={() => handleFeedback('down')} 
                 style={actionBtnStyle(feedback === 'down')}
                 onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
                 title="Mala respuesta"
+                aria-label="Marcar como mala respuesta"
+                aria-pressed={feedback === 'down'}
             >
-                <ThumbsDown size={18} strokeWidth={2} fill={feedback === 'down' ? 'currentColor' : 'none'} />
+                <ThumbsDown size={18} strokeWidth={2} fill={feedback === 'down' ? 'currentColor' : 'none'} aria-hidden="true" />
             </button>
             <button 
                 onClick={onRegenerate} 
                 style={actionBtnStyle()}
                 onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
                 title="Regenerar respuesta"
+                aria-label="Regenerar respuesta"
             >
-                <RefreshCw size={18} strokeWidth={2} />
+                <RefreshCw size={18} strokeWidth={2} aria-hidden="true" />
             </button>
             <button 
                 onClick={handleCopy} 
                 style={actionBtnStyle(copied)}
                 onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
                 title="Copiar"
+                aria-label="Copiar mensaje"
             >
-                {copied ? <Check size={18} strokeWidth={2.5} /> : <Copy size={18} strokeWidth={2} />}
+                {copied ? <Check size={18} strokeWidth={2.5} aria-hidden="true" /> : <Copy size={18} strokeWidth={2} aria-hidden="true" />}
             </button>
         </div>
     );

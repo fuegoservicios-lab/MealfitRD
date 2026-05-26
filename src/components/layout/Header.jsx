@@ -67,7 +67,7 @@ const Header = () => {
                                 fontFamily: 'inherit'
                             }}
                         >
-                            <LogOut size={16} strokeWidth={2.5} /> Cerrar Sesión
+                            <LogOut size={16} strokeWidth={2.5} aria-hidden="true" /> Cerrar Sesión
                         </button>
                     )}
                 </nav>
@@ -83,7 +83,7 @@ const Header = () => {
                         aria-label={isMenuOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
                         aria-expanded={isMenuOpen}
                     >
-                        {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                        {isMenuOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
                     </button>
                 )}
 
@@ -121,7 +121,7 @@ const Header = () => {
                                 }}
                                 className={styles.logoutBtnMobile}
                             >
-                                <LogOut size={18} /> Cerrar Sesión
+                                <LogOut size={18} aria-hidden="true" /> Cerrar Sesión
                             </button>
                         )}
                     </nav>
