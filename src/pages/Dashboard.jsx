@@ -48,6 +48,29 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStor
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import { getActiveShoppingList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
+
+// ⚡ Bolt: Hoist static dictionary and precompile regex to prevent recreating
+// them on every render or array iteration, optimizing string replacement
+// execution time from O(N) regex creations to O(1).
+const STOP_WORDS = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada',
+    'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada',
+    'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados',
+    'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones',
+    'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada',
+    'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
+    'horneado', 'grandes', 'firme'];
+const STOP_WORDS_REGEX = new RegExp('\\b(' + STOP_WORDS.join('|') + ')\\b', 'gi');
+
+const IRREGULARS_MAP = {
+    'nueces': 'nuez',
+    'aves': 'ave',
+    'maices': 'maiz',
+    'arroces': 'arroz',
+    'peces': 'pez',
+    'carnes': 'carne',
+    'tomates': 'tomate'
+};
+
 // [P1-FORM-9] Helper que filtra flags internos `_*` y bloquea cuando la
 // hidratación cifrada del formData (post-login) parece estar en curso —
 // evita que el spread `{...formData}` envíe campos sensibles vacíos a DB,
@@ -880,29 +903,11 @@ const Dashboard = () => {
 
             // Stop words: réplica exacta del backend (shopping_calculator.py línea 103)
             // Elimina descriptores que no forman parte del nombre base del ingrediente.
-            const stops = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada', 
-                'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada', 
-                'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados', 
-                'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones', 
-                'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada', 
-                'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
-                'horneado', 'grandes', 'firme'];
-            for (const s of stops) {
-                n = n.replace(new RegExp('\\b' + s + '\\b', 'gi'), '');
-            }
+            n = n.replace(STOP_WORDS_REGEX, '');
             n = n.replace(/,/g, '').replace(/\s+/g, ' ').trim();
 
             return n.split(/\s+/).map(w => {
-                 const irregulars = {
-                     'nueces': 'nuez',
-                     'aves': 'ave',
-                     'maices': 'maiz',
-                     'arroces': 'arroz',
-                     'peces': 'pez',
-                     'carnes': 'carne',
-                     'tomates': 'tomate'
-                 };
-                 if (irregulars[w]) return irregulars[w];
+                 if (IRREGULARS_MAP[w]) return IRREGULARS_MAP[w];
                  
                  if (w.length <= 4) {
                      if (w.endsWith('s') && !w.endsWith('es') && !w.endsWith('is')) return w.slice(0, -1);
