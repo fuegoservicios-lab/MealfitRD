@@ -4131,8 +4131,9 @@ const Dashboard = () => {
                                                         transition: 'all 0.2s'
                                                     }}
                                                     title="Ver paso a paso"
+                                                    aria-label="Ver receta"
                                                 >
-                                                    <BookOpen size={20} color="#3B82F6" />
+                                                    <BookOpen size={20} color="#3B82F6" aria-hidden="true" />
                                                 </button>
 
                                                 {/* REGENERATE BUTTON (AI SWAP) — Abre modal de razón */}
@@ -4191,8 +4192,9 @@ const Dashboard = () => {
                                                         boxShadow: isLiked ? '0 2px 5px rgba(239, 68, 68, 0.2)' : 'none'
                                                     }}
                                                     title="Me gusta"
+                                                    aria-label={isLiked ? "Quitar me gusta" : "Me gusta"}
                                                 >
-                                                    <Heart size={20} color={isLiked ? '#EF4444' : '#EC4899'} fill={isLiked ? '#EF4444' : 'none'} />
+                                                    <Heart size={20} color={isLiked ? '#EF4444' : '#EC4899'} fill={isLiked ? '#EF4444' : 'none'} aria-hidden="true" />
                                                 </button>
                                             </div>
                                         </div>
