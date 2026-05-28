@@ -27,6 +27,43 @@
     padding: 3rem;
 }
 
+/* [P3-LEGAL-BACK-LINK · 2026-05-26] Back-button arriba del título.
+   Estilo discreto: gris suave, hover oscurece + indent del icon. */
+.backButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: transparent;
+    border: none;
+    color: #64748B;
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    padding: 0.5rem 0.75rem;
+    margin: 0 0 1.25rem -0.75rem;  /* compensa padding-left para alinear con border del card */
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.backButton:hover {
+    background: rgba(79, 70, 229, 0.06);
+    color: #4338CA;
+}
+
+.backButton:hover svg {
+    transform: translateX(-2px);
+}
+
+.backButton svg {
+    transition: transform 0.15s ease;
+}
+
+.backButton:focus-visible {
+    outline: 2px solid #4F46E5;
+    outline-offset: 2px;
+}
+
 /* Header Section */
 .header {
     margin-bottom: 3rem;

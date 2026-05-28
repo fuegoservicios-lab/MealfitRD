@@ -25,6 +25,11 @@ const Settings = lazy(() => import('./pages/Settings'));
 const History = lazy(() => import('./pages/History'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const AgentPage = lazy(() => import('./pages/AgentPage'));
+// [P3-UPGRADE-PAGE · 2026-05-26] Página de comparación de planes accesible
+// desde el chip de plan tier del Dashboard. Lazy porque solo se carga cuando
+// el usuario hace click explícito (no es golden path) — patrón espejo de
+// Settings/History.
+const Upgrade = lazy(() => import('./pages/Upgrade'));
 const Privacy = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Privacy })));
 const Terms = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Terms })));
 const Cookies = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Cookies })));
@@ -183,6 +188,19 @@ function App() {
               <Route path="/dashboard/settings" element={<Settings />} />
               <Route path="/history" element={<History />} />
             </Route>
+
+            {/* [P3-UPGRADE-PAGE · 2026-05-26 · revisada 2026-05-26 fullscreen]
+                Comparación de planes — FUERA de `DashboardAnimatedLayout`
+                para que NO herede sidebar (Plan/Agente/Nevera/Recetas/
+                Historial) ni nav-tabs. Decisión de UX: la página tiene su
+                propio sticky header con back-link "Volver al Dashboard"
+                — funciona mejor sin layout dashboard que pelea por el
+                viewport con la grilla de planes + tabla comparativa.
+                Sigue ProtectedRoute (logged-in only) y mantiene el path
+                `/dashboard/upgrade` para no romper bookmarks. */}
+            <Route path="/dashboard/upgrade" element={
+              <ProtectedRoute><Upgrade /></ProtectedRoute>
+            } />
 
             {/* Rutas Legales (Públicas) */}
             <Route path="/privacy" element={<Layout><Privacy /></Layout>} />

@@ -10,7 +10,7 @@ import {
     RefreshCw, ChefHat, Heart, Pill, Lock,
     Brain, Wallet, AlertCircle, Dumbbell,
     Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, ChevronDown,
-    ThumbsDown, Shuffle, X, Utensils, Copy, Infinity as InfinityIcon
+    ThumbsDown, Shuffle, X, Utensils, Copy, Infinity as InfinityIcon, ChevronRight, Crown, Refrigerator
 } from 'lucide-react';
 import { toast } from 'sonner';
 import TrackingProgress from '../components/dashboard/TrackingProgress';
@@ -778,6 +778,33 @@ const Dashboard = () => {
     // para planes aún generándose, pero no debe inflar el contador visible al usuario.
     const daysLeft = Math.max(0, maxDays - daysSinceCycleStart);
 
+    // [BADGE-HOURS] El badge del ciclo deja de mostrar "0d" (confuso: ¿terminó o no?).
+    //   - Último día (daysLeft===1): horas reales restantes hasta el fin del ciclo.
+    //   - Ciclo terminado (daysLeft===0): estado "Finalizado" + CTA reiniciar.
+    // cycleEndMs = medianoche local tras el último día del ciclo (cycleStart + maxDays).
+    const cycleEndMs = cycleStartMidnight.getTime() + maxDays * 24 * 60 * 60 * 1000;
+    const hoursUntilCycleEnd = Math.max(1, Math.ceil((cycleEndMs - Date.now()) / (60 * 60 * 1000)));
+    const planFinished = daysLeft === 0;
+
+    // [P3-PLAN-CORRUPTED-BANNER · 2026-05-27] Detecta planes que entraron al
+    // localStorage en estado inválido y nunca se autorrecuperaron. Dos modos
+    // canónicos del fallo (audit P0-AUDIT 2026-05-25, plan 884bd00a):
+    //   (a) `generation_status === 'failed'` — SQL forensic ya marcó el plan
+    //       como inválido pero el cliente sigue cargándolo desde localStorage.
+    //   (b) `generation_status === 'partial'` + `days=[]` — el chunk worker T1
+    //       no produjo días (corrupción silente). Sin este flag, el botón PDF
+    //       falla silente porque `aggregated_shopping_list*` está vacío.
+    // El banner ofrece CTA directo a /assessment para regenerar — más eficaz
+    // que un toast que aparece solo al clickear PDF.
+    const isPlanCorrupted = !!planData && (
+        planData.generation_status === 'failed'
+        || (
+            planData.generation_status === 'partial'
+            && Array.isArray(planData.days)
+            && planData.days.length === 0
+        )
+    );
+
 
 
     // Pre-calcular ingredientes de la despensa para mostrarlos en UI
@@ -1438,8 +1465,29 @@ const Dashboard = () => {
                     emptyMessageDesc = 'La Nevera Inteligente detectó que ya tienes en casa los ingredientes necesarios. Te has ahorrado hacer compras para este ciclo.';
                     toast.success('¡Ya tienes todo en tu Nevera!', { icon: '✅' });
                 } else {
+                    // [P3-PDF-EMPTY-LIST-VISIBLE · 2026-05-27] Toast más visible
+                    // cuando el plan no tiene aggregated_shopping_list. Pre-fix
+                    // el toast.error genérico (2s, top-right) era invisible para
+                    // usuarios con DevTools abierto y no daba pista accionable.
+                    // Post-fix: 8s top-center con copy explícito apuntando al
+                    // origen real (plan incompleto/corrupto) y la acción concreta.
                     toast.dismiss(loadingToast);
-                    toast.error('No se encontró una lista de despensa activa.');
+                    toast.error(
+                        'Tu plan no tiene lista de compras todavía. Esto suele pasar cuando la generación quedó incompleta. Genera un plan nuevo desde el formulario.',
+                        {
+                            duration: 8000,
+                            position: 'top-center',
+                            icon: '⚠️',
+                            style: {
+                                fontSize: '0.95rem',
+                                maxWidth: '480px',
+                                padding: '14px 18px',
+                                borderRadius: '12px',
+                                fontWeight: 500,
+                                lineHeight: 1.45,
+                            },
+                        }
+                    );
                     return;
                 }
             }
@@ -2757,21 +2805,32 @@ const Dashboard = () => {
                         flex-direction: column;
                         gap: 1.5rem;
                     }
+                    /* [P3-MOBILE-ACTIONS-STACK · 2026-05-26] En mobile el
+                       .actions-group debe stackear vertical, no row. Pre-fix
+                       quedaba en flex-direction:row (default) con CREDITOS
+                       sola a la izquierda y new-plan-wrapper apilada a la
+                       derecha — layout disonante respecto al header centered
+                       de arriba. Ahora todo column, full width, centrado. */
                     .actions-group {
                         width: 100%;
-                        align-items: flex-start;
+                        flex-direction: column;
+                        align-items: stretch;
+                        gap: 0.75rem;
+                    }
+                    .credits-badge {
+                        width: 100%;
+                        flex: none;
+                        justify-content: center;
                     }
                     .new-plan-wrapper {
-                        flex: 1.1;
+                        flex: none;
+                        width: 100%;
                     }
                     .new-plan-btn {
                         width: 100%;
                         justify-content: center;
                         padding: 0.75rem 1.25rem;
                         font-size: 0.88rem;
-                    }
-                    .credits-badge {
-                        flex: 1;
                     }
                 }
 
@@ -2811,36 +2870,310 @@ const Dashboard = () => {
                         gap: 0.5rem !important;
                     }
                 }
+
+                /* [P3-CHIP-MOBILE-PREMIUM · 2026-05-27] Chip del plan tier
+                   con polish premium: gradient dorado de 3 stops + shimmer
+                   sutil + shadow doble + Crown icon + CTA pill embebida.
+                   Visible solo en mobile/tablet (≤1024px); en desktop el
+                   surface es el popover del user menu. */
+                .plan-tier-badge {
+                    /* Base styles — antes inline, ahora controlados por CSS */
+                    display: none;
+                    align-items: center;
+                    gap: 0.4rem;
+                    padding: 0.35rem 0.55rem 0.35rem 0.75rem;
+                    border-radius: 9999px;
+                    font-size: 0.65rem;
+                    font-weight: 800;
+                    letter-spacing: 0.06em;
+                    text-transform: uppercase;
+                    cursor: pointer;
+                    font-family: inherit;
+                    line-height: 1;
+                    position: relative;
+                    overflow: hidden;
+                    transition: transform 0.18s ease, box-shadow 0.22s ease;
+                    isolation: isolate;
+                }
+
+                /* [P3-CHIP-MOBILE-TIER-COLORS · 2026-05-27] Paletas por tier:
+                   free → slate, basic → emerald, plus → indigo, ultra → amber.
+                   Ultra es el único con shimmer animation. */
+
+                /* GRATUITO — slate gris sobrio */
+                .plan-tier-badge--free {
+                    background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+                    color: #64748B;
+                    border: 1.5px solid #CBD5E1;
+                    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+                }
+
+                /* BÁSICO — emerald esmeralda (entry tier de pago) */
+                .plan-tier-badge--basic {
+                    background: linear-gradient(135deg,
+                        #ECFDF5 0%,
+                        #D1FAE5 40%,
+                        #A7F3D0 100%);
+                    color: #065F46;
+                    border: 1.5px solid #10B981;
+                    box-shadow:
+                        0 2px 6px rgba(6, 95, 70, 0.15),
+                        0 0 0 0.5px rgba(255, 255, 255, 0.4) inset;
+                }
+
+                /* PLUS — indigo (pro, intermediate) */
+                .plan-tier-badge--plus {
+                    background: linear-gradient(135deg,
+                        #EEF2FF 0%,
+                        #E0E7FF 40%,
+                        #C7D2FE 100%);
+                    color: #3730A3;
+                    border: 1.5px solid #6366F1;
+                    box-shadow:
+                        0 2px 6px rgba(99, 102, 241, 0.18),
+                        0 0 0 0.5px rgba(255, 255, 255, 0.4) inset;
+                }
+
+                /* ULTRA — amber dorado con shimmer (premium top exclusivo) */
+                .plan-tier-badge--ultra {
+                    background: linear-gradient(135deg,
+                        #FEF3C7 0%,
+                        #FDE68A 35%,
+                        #FCD34D 65%,
+                        #FBBF24 100%);
+                    color: #78350F;
+                    border: 1.5px solid #F59E0B;
+                    box-shadow:
+                        0 2px 6px rgba(180, 83, 9, 0.18),
+                        0 0 0 0.5px rgba(255, 255, 255, 0.4) inset;
+                }
+
+                /* Shimmer SOLO en Ultra — distintivo del tier máximo */
+                .plan-tier-badge--ultra::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: -50%;
+                    width: 40%;
+                    height: 100%;
+                    background: linear-gradient(90deg,
+                        transparent 0%,
+                        rgba(255, 255, 255, 0.65) 50%,
+                        transparent 100%);
+                    animation: planTierShimmer 5s ease-in-out infinite;
+                    pointer-events: none;
+                    z-index: 1;
+                }
+
+                @keyframes planTierShimmer {
+                    0%, 88%, 100% { left: -50%; }
+                    94% { left: 110%; }
+                }
+
+                /* Hover lift universal + shadow color-matched */
+                .plan-tier-badge:hover {
+                    transform: translateY(-1.5px);
+                }
+                .plan-tier-badge--free:hover {
+                    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+                }
+                .plan-tier-badge--basic:hover {
+                    box-shadow:
+                        0 6px 14px rgba(6, 95, 70, 0.25),
+                        0 0 0 0.5px rgba(255, 255, 255, 0.5) inset;
+                }
+                .plan-tier-badge--plus:hover {
+                    box-shadow:
+                        0 6px 14px rgba(99, 102, 241, 0.28),
+                        0 0 0 0.5px rgba(255, 255, 255, 0.5) inset;
+                }
+                .plan-tier-badge--ultra:hover {
+                    box-shadow:
+                        0 6px 14px rgba(180, 83, 9, 0.28),
+                        0 0 0 0.5px rgba(255, 255, 255, 0.5) inset;
+                }
+                .plan-tier-badge:hover .plan-tier-badge-chevron {
+                    transform: translateX(2px);
+                }
+                .plan-tier-badge:active {
+                    transform: translateY(0);
+                }
+                .plan-tier-badge:focus-visible {
+                    outline: 2px solid #6366F1;
+                    outline-offset: 2px;
+                }
+
+                /* Crown icon (solo premium) */
+                .plan-tier-badge-crown {
+                    flex-shrink: 0;
+                    color: currentColor;
+                    margin-top: -1px;
+                    z-index: 2;
+                    position: relative;
+                }
+
+                /* Tier name protagonista */
+                .plan-tier-badge-label {
+                    font-weight: 900;
+                    letter-spacing: 0.08em;
+                    z-index: 2;
+                    position: relative;
+                }
+
+                /* CTA "Ver planes" como pill embebida con su propio bg
+                   color-matched a cada tier */
+                .plan-tier-badge-cta {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.2rem;
+                    text-transform: none;
+                    letter-spacing: 0;
+                    font-weight: 700;
+                    font-size: 0.7rem;
+                    padding: 0.25rem 0.55rem 0.25rem 0.6rem;
+                    margin-left: 0.15rem;
+                    border-radius: 9999px;
+                    background: rgba(255, 255, 255, 0.55);
+                    z-index: 2;
+                    position: relative;
+                    transition: background 0.18s ease, color 0.18s ease;
+                }
+                .plan-tier-badge--free .plan-tier-badge-cta {
+                    background: rgba(255, 255, 255, 0.85);
+                    color: #475569;
+                }
+                .plan-tier-badge--basic .plan-tier-badge-cta {
+                    color: #047857;
+                }
+                .plan-tier-badge--plus .plan-tier-badge-cta {
+                    color: #4338CA;
+                }
+                .plan-tier-badge--ultra .plan-tier-badge-cta {
+                    color: #92400E;
+                }
+                .plan-tier-badge:hover .plan-tier-badge-cta {
+                    background: rgba(255, 255, 255, 0.85);
+                }
+
+                .plan-tier-badge-chevron {
+                    transition: transform 0.18s ease;
+                    flex-shrink: 0;
+                }
+
+                @media (max-width: 1024px) {
+                    /* Mobile/tablet: el sidebar lateral cambia a BottomTabBar
+                       — sin popover del avatar disponible, el chip es el
+                       único acceso a /dashboard/upgrade. */
+                    .plan-tier-badge {
+                        display: inline-flex;
+                    }
+                }
+                @media (max-width: 380px) {
+                    /* En viewports muy estrechos (iPhone SE, etc.) la CTA
+                       "Ver planes" desaparece pero conservamos chevron — el
+                       chevron solo + el badge dorado + crown ya implican
+                       "tap aquí". */
+                    .plan-tier-badge-cta {
+                        display: none;
+                    }
+                    .plan-tier-badge {
+                        padding-right: 0.5rem;
+                    }
+                }
             `}</style>
 
             {/* --- HEADER PREMIUM --- */}
             <header className="dashboard-header">
                 <div className="header-text-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
 
-                    {/* PLAN TIER BADGE */}
+                    {/* [P3-UPGRADE-FUSION-MOBILE · 2026-05-26] Chip del plan
+                        tier RESTAURADO solo en mobile (≤1024px). En desktop la
+                        fusión del popover sigue activa — el chip está oculto
+                        (CSS `display: none`) porque el popover del user menu
+                        provee el mismo entry point con menos clutter visual.
+                        En mobile/tablet, el sidebar lateral cambia a
+                        BottomTabBar (sin avatar popover visible) → el chip es
+                        la única forma rápida de acceder a /dashboard/upgrade.
+
+                        [P3-UPGRADE-CHIP-CTA · 2026-05-26] Chip enriquecido con
+                        "· Ver planes ›" para señalizar claramente que es
+                        clickeable. Sin este hint, el usuario interpreta el
+                        badge como ornament visual de status (no actionable). */}
                     <div style={{ marginBottom: '0.25rem' }}>
-                        <span style={{
-                            display: 'inline-flex', alignItems: 'center',
-                            padding: '0.25rem 0.75rem',
-                            borderRadius: '9999px',
-                            fontSize: '0.65rem',
-                            fontWeight: '800',
-                            letterSpacing: '0.05em',
-                            textTransform: 'uppercase',
-                            background: isPremium ? 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' : '#F8FAFC',
-                            color: isPremium ? '#B45309' : '#64748B',
-                            border: `1.5px solid ${isPremium ? '#FCD34D' : '#CBD5E1'}`,
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
-                        }}>
-                            {isPremium ? (userProfile?.plan_tier === 'ultra' ? 'ULTRA' : userProfile?.plan_tier === 'basic' ? 'BÁSICO' : 'PLUS') : 'GRATUITO'}
-                        </span>
+                        {/* [P3-CHIP-MOBILE-TIER-COLORS · 2026-05-27] Cada tier
+                            tiene paleta distintiva: free=slate, basic=emerald,
+                            plus=indigo, ultra=amber con shimmer + Crown.
+                            Refuerza la jerarquía visual del upgrade path. */}
+                        {(() => {
+                            const tierVariant = !isPremium
+                                ? 'free'
+                                : userProfile?.plan_tier === 'ultra' ? 'ultra'
+                                : userProfile?.plan_tier === 'plus' ? 'plus'
+                                : 'basic';
+                            const tierLabel = !isPremium
+                                ? 'GRATUITO'
+                                : userProfile?.plan_tier === 'ultra' ? 'ULTRA'
+                                : userProfile?.plan_tier === 'plus' ? 'PLUS'
+                                : 'BÁSICO';
+                            return (
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/dashboard/upgrade')}
+                                    aria-label={`Plan actual: ${tierLabel}. Click para ver todos los planes.`}
+                                    className={`plan-tier-badge plan-tier-badge--${tierVariant}`}
+                                >
+                                    {/* Crown solo en Ultra — máximo tier */}
+                                    {tierVariant === 'ultra' && (
+                                        <Crown
+                                            size={11}
+                                            strokeWidth={2.5}
+                                            className="plan-tier-badge-crown"
+                                            aria-hidden="true"
+                                        />
+                                    )}
+                                    <span className="plan-tier-badge-label">
+                                        {tierLabel}
+                                    </span>
+                                    <span className="plan-tier-badge-cta">Ver planes</span>
+                                    <ChevronRight
+                                        size={12}
+                                        strokeWidth={2.75}
+                                        className="plan-tier-badge-chevron"
+                                        aria-hidden="true"
+                                    />
+                                </button>
+                            );
+                        })()}
                     </div>
 
                     <h1 className="dashboard-title">
                         Hola, <span style={{
                             background: 'linear-gradient(to right, #3B82F6, #8B5CF6)',
                             WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent'
+                            WebkitTextFillColor: 'transparent',
+                            backgroundClip: 'text',
+                            // [P3-GRADIENT-NAME-CLIP-FIX · 2026-05-26]
+                            // `background-clip: text` recorta el gradient al
+                            // bounding box del span, NO al outline real del
+                            // glyph. Eso causa 2 modos de truncamiento:
+                            //   1. Horizontal: `letter-spacing: -0.03em` del
+                            //      .dashboard-title encoge el bounding box
+                            //      → último glyph (e.g. "O" de "Angelo") se
+                            //      corta por la derecha. Fix: paddingRight.
+                            //   2. Vertical: `line-height: 1.1` del title es
+                            //      muy apretado → descenders ("g", "j", "p",
+                            //      "y") se cortan por abajo. Fix: paddingBottom
+                            //      + lineHeight propio del span.
+                            // `display: inline-block` es necesario para que
+                            // el padding y el lineHeight tomen efecto en un
+                            // span inline. `verticalAlign: baseline` mantiene
+                            // la alineación con "Hola," intacta. El gradient
+                            // visual NO cambia (sigue clipped al glyph).
+                            display: 'inline-block',
+                            paddingRight: '0.08em',
+                            paddingBottom: '0.06em',
+                            lineHeight: 1.2,
+                            verticalAlign: 'baseline',
                         }}>
                             {userProfile?.full_name?.split(' ')[0] || formData?.name || 'Nutrifit'}
                         </span>
@@ -2978,7 +3311,30 @@ const Dashboard = () => {
                                             <span>caché</span>
                                         </div>
                                     )}
-                                    {!isPlanExpired ? (
+                                    {planFinished ? (
+                                        // [BADGE-HOURS] Ciclo terminado → "Finalizado" (antes "0d"/"Exp.",
+                                        // ambos confusos). El CTA de reiniciar vive en el botón primario abajo.
+                                        <div style={{
+                                            background: '#FEE2E2', color: '#DC2626',
+                                            padding: '0.2rem 0.5rem', borderRadius: '6px',
+                                            fontSize: '0.65rem', fontWeight: 800,
+                                            display: 'flex', alignItems: 'center', gap: '0.2rem'
+                                        }}>
+                                            <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#DC2626' }} />
+                                            Finalizado
+                                        </div>
+                                    ) : daysLeft === 1 ? (
+                                        // [BADGE-HOURS] Último día → horas reales restantes en vez de "1d"/"0d".
+                                        <div style={{
+                                            background: '#FEE2E2', color: '#DC2626',
+                                            padding: '0.2rem 0.5rem', borderRadius: '6px',
+                                            fontSize: '0.65rem', fontWeight: 800,
+                                            display: 'flex', alignItems: 'center', gap: '0.2rem'
+                                        }}>
+                                            <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#DC2626' }} />
+                                            {hoursUntilCycleEnd}h
+                                        </div>
+                                    ) : (
                                         <div style={{
                                             background: daysLeft <= 2 ? '#FEE2E2' : '#DBEAFE',
                                             color: daysLeft <= 2 ? '#DC2626' : '#2563EB',
@@ -2990,14 +3346,6 @@ const Dashboard = () => {
                                         }}>
                                             <div style={{ width: 4, height: 4, borderRadius: '50%', background: daysLeft <= 2 ? '#DC2626' : '#2563EB' }} />
                                             {daysLeft}d
-                                        </div>
-                                    ) : (
-                                        <div style={{
-                                            background: '#FEE2E2', color: '#DC2626',
-                                            padding: '0.2rem 0.5rem', borderRadius: '6px',
-                                            fontSize: '0.65rem', fontWeight: 800
-                                        }}>
-                                            Exp.
                                         </div>
                                     )}
                                     <motion.div animate={{ rotate: showDespensaDropdown ? 180 : 0 }} transition={{ duration: 0.2 }}>
@@ -3148,27 +3496,21 @@ const Dashboard = () => {
                                 return (
                                     <button
                                         onClick={async () => {
-                                            if (isPlanExpired) {
+                                            if (planFinished) {
                                                 navigate('/assessment');
                                                 return;
                                             }
                                             // [P3-UPDATE-PLATOS-REQUIRES-PANTRY · 2026-05-17]
-                                            // Gate antes del credit check: si la Nevera no tiene
-                                            // mínimo de alimentos, abrir el modal sería un dead-end
-                                            // (regeneración no tiene ingredientes con qué trabajar).
-                                            // Toast informativo + CTA hacia /pantry para que el
-                                            // usuario llene la Nevera y vuelva.
+                                            // [P3-LLENA-NEVERA-DIRECT-CTA · 2026-05-27]
+                                            // Pre-fix: el botón mostraba "Llena tu Nevera" en gris
+                                            // disabled y al clickear emitía un toast.info con
+                                            // sub-CTA "Ir a Nevera". UX confuso — visualmente
+                                            // bloqueado pero técnicamente clickeable con doble click.
+                                            // Post-fix: cuando la Nevera está vacía/escasa, el
+                                            // botón es CTA real (azul accent, cursor pointer,
+                                            // icon Refrigerator) que navega DIRECTO a /pantry.
                                             if (isPantryTooEmpty) {
-                                                const msg = pantryItemCount === 0
-                                                    ? `Tu Nevera está vacía. Añade al menos ${PANTRY_MIN_ITEMS_FOR_UPDATE} alimentos para actualizar platos.`
-                                                    : `Tu Nevera tiene ${pantryItemCount} alimento${pantryItemCount === 1 ? '' : 's'}. Necesitas mínimo ${PANTRY_MIN_ITEMS_FOR_UPDATE} para actualizar platos.`;
-                                                toast.info(msg, {
-                                                    duration: 5000,
-                                                    action: {
-                                                        label: 'Ir a Nevera',
-                                                        onClick: () => navigate('/pantry'),
-                                                    },
-                                                });
+                                                navigate('/dashboard/pantry');
                                                 return;
                                             }
                                             const hasCredits = await validateCreditsAsync();
@@ -3176,25 +3518,35 @@ const Dashboard = () => {
                                             setShowUpdatePlanModal(true);
                                         }}
                                         className="new-plan-btn"
-                                        aria-disabled={isLimitReached || isPantryTooEmpty}
-                                        title={isPantryTooEmpty ? `Llena tu Nevera (mínimo ${PANTRY_MIN_ITEMS_FOR_UPDATE} alimentos) para actualizar platos` : undefined}
+                                        aria-disabled={isLimitReached}
+                                        title={isPantryTooEmpty ? `Tu Nevera necesita al menos ${PANTRY_MIN_ITEMS_FOR_UPDATE} alimentos. Tap para añadirlos.` : undefined}
                                         style={{
-                                            background: (isLimitReached || isPantryTooEmpty)
+                                            background: isLimitReached
                                                 ? '#E2E8F0'
-                                                : isPlanExpired
+                                                : planFinished
                                                     ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)'
-                                                    : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
-                                            color: (isLimitReached || isPantryTooEmpty) ? '#94A3B8' : 'white',
-                                            cursor: (isLimitReached || isPantryTooEmpty) ? 'not-allowed' : 'pointer',
-                                            '--hover-shadow': isPlanExpired
+                                                    : isPantryTooEmpty
+                                                        ? 'linear-gradient(135deg, #3B82F6 0%, #06B6D4 100%)'
+                                                        : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
+                                            color: isLimitReached ? '#94A3B8' : 'white',
+                                            cursor: isLimitReached ? 'not-allowed' : 'pointer',
+                                            '--hover-shadow': planFinished
                                                 ? '0 20px 40px -5px rgba(239, 68, 68, 0.5), inset 0 0 0 1px rgba(255,255,255,0.1)'
-                                                : '0 20px 40px -5px rgba(15, 23, 42, 0.45), inset 0 0 0 1px rgba(255,255,255,0.1)',
-                                            '--active-shadow': isPlanExpired
+                                                : isPantryTooEmpty
+                                                    ? '0 20px 40px -5px rgba(37, 99, 235, 0.45), inset 0 0 0 1px rgba(255,255,255,0.1)'
+                                                    : '0 20px 40px -5px rgba(15, 23, 42, 0.45), inset 0 0 0 1px rgba(255,255,255,0.1)',
+                                            '--active-shadow': planFinished
                                                 ? '0 5px 15px -5px rgba(239, 68, 68, 0.2)'
-                                                : '0 5px 15px -5px rgba(15, 23, 42, 0.2)',
-                                            boxShadow: (isLimitReached || isPantryTooEmpty) ? 'none' : isPlanExpired
-                                                ? '0 10px 20px -5px rgba(239, 68, 68, 0.4)'
-                                                : '0 10px 20px -5px rgba(15, 23, 42, 0.35)',
+                                                : isPantryTooEmpty
+                                                    ? '0 5px 15px -5px rgba(37, 99, 235, 0.25)'
+                                                    : '0 5px 15px -5px rgba(15, 23, 42, 0.2)',
+                                            boxShadow: isLimitReached
+                                                ? 'none'
+                                                : planFinished
+                                                    ? '0 10px 20px -5px rgba(239, 68, 68, 0.4)'
+                                                    : isPantryTooEmpty
+                                                        ? '0 10px 20px -5px rgba(37, 99, 235, 0.35)'
+                                                        : '0 10px 20px -5px rgba(15, 23, 42, 0.35)',
                                             flex: '1 1 auto',
                                             width: 'auto',
                                             justifyContent: 'center',
@@ -3210,18 +3562,18 @@ const Dashboard = () => {
                                     >
                                         {isLimitReached
                                             ? <AlertCircle size={18} />
-                                            : isPlanExpired
+                                            : planFinished
                                                 ? <RefreshCw size={18} />
                                                 : isPantryTooEmpty
-                                                    ? <Lock size={18} />
+                                                    ? <Refrigerator size={18} />
                                                     : <Wand2 size={18} />}
                                         <span style={{ fontSize: '0.85rem' }}>
                                             {isLimitReached
                                                 ? 'Límite'
-                                                : isPlanExpired
-                                                    ? 'Evaluar de Nuevo'
+                                                : planFinished
+                                                    ? 'Reiniciar plan'
                                                     : isPantryTooEmpty
-                                                        ? 'Llena tu Nevera'
+                                                        ? 'Añadir alimentos'
                                                         : 'Actualizar platos'}
                                         </span>
                                     </button>
@@ -3310,6 +3662,70 @@ const Dashboard = () => {
                 </div>
             </header>
 
+
+            {/* [P3-PLAN-CORRUPTED-BANNER · 2026-05-27] Banner persistente para
+                planes que quedaron en estado inválido. Va PRIMERO (antes que
+                expired/quality_degraded) porque corrupción bloquea TODAS las
+                acciones derivadas: PDF empty, swap meals null, recipes vacías.
+                CTA directo a /assessment evita que el usuario pegue comandos
+                en console o llame soporte. */}
+            {isPlanCorrupted && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        background: 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)',
+                        border: '1.5px solid #FCA5A5',
+                        borderRadius: '1rem',
+                        padding: '1rem 1.25rem',
+                        marginBottom: '1.5rem',
+                        boxShadow: '0 4px 12px -2px rgba(220,38,38,0.12)',
+                        flexWrap: 'wrap'
+                    }}
+                    role="alert"
+                    aria-live="assertive"
+                >
+                    <AlertCircle size={22} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                        <span style={{ fontWeight: 700, color: '#991B1B', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
+                            Tu plan quedó incompleto
+                        </span>
+                        <span style={{ color: '#B91C1C', fontSize: '0.85rem' }}>
+                            La generación no terminó correctamente — no hay menú ni lista de compras disponibles. Genera un plan nuevo para continuar.
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => {
+                            try {
+                                localStorage.removeItem('mealfit_plan');
+                                localStorage.removeItem('mealfit_plan_id');
+                            } catch (_lsErr) { /* best-effort */ }
+                            navigate('/assessment');
+                        }}
+                        style={{
+                            background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                            color: 'white',
+                            border: 'none',
+                            padding: '0.6rem 1.2rem',
+                            borderRadius: '0.75rem',
+                            fontWeight: 700,
+                            fontSize: '0.85rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)',
+                            whiteSpace: 'nowrap'
+                        }}
+                    >
+                        <RefreshCw size={16} />
+                        Generar Nuevo Plan
+                    </button>
+                </motion.div>
+            )}
 
             {/* --- BANNER: PLAN EXPIRADO --- */}
             {isPlanExpired && planData?.generation_status !== 'partial' && (

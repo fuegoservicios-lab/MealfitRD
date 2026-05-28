@@ -609,6 +609,17 @@ const Pantry = () => {
         fetchData(true);
     }, [session?.user?.id]);
 
+    // [P3-PANTRY-SYNC-CACHE · 2026-05-27] Sincronizar el estado local `inventory`
+    // con el cache singleton (in-memory + localStorage) de forma proactiva.
+    // Evita inconsistencias y el bug donde vaciar la despensa ("Borrar Todos")
+    // o mutaciones individuales dejaban el cache viejo activo, lo que volvía
+    // a llenar la nevera al navegar o refrescar la página.
+    useEffect(() => {
+        if (!loading && Array.isArray(inventory)) {
+            setCachedInventory(inventory);
+        }
+    }, [inventory, loading]);
+
     // 1b. Real-time sync: anula el "efecto eco" procesando el payload en vez de hacer refetch global
     // [P3-PANTRY-RT-DEFER · 2026-05-19] Difiere el `supabase.channel(...).subscribe()`
     // 200ms tras el mount. El WebSocket handshake + envío de auth + ACK
@@ -1478,7 +1489,7 @@ const Pantry = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                style={{ padding: '0px', paddingBottom: '100px', backgroundColor: '#F8FAFC', minHeight: '100vh' }}
+                style={{ padding: '0px', paddingBottom: '100px', backgroundColor: 'transparent', minHeight: '100vh' }}
             >
                 <style>{`
                     @keyframes shimmer {
@@ -1682,7 +1693,7 @@ const Pantry = () => {
     };
 
     return (
-        <div className="nevera-page-outer" style={{ padding: '0px', paddingBottom: '64px', backgroundColor: 'var(--bg-page)', minHeight: '100vh', position: 'relative', transition: 'background-color 0.3s' }}>
+        <div className="nevera-page-outer" style={{ padding: '0px', paddingBottom: '64px', backgroundColor: 'transparent', minHeight: '100vh', position: 'relative', transition: 'background-color 0.3s' }}>
         <div className="nevera-page-frame">
             <div className="nevera-overlay" />
 

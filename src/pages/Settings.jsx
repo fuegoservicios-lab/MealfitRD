@@ -1011,8 +1011,8 @@ const Settings = () => {
             setWaterTrackerEnabled(Boolean(data.water_tracker_enabled));
             toast.success(
                 next
-                    ? 'Tracker de hidratacion activado.'
-                    : 'Tracker de hidratacion oculto. Tu historial se conserva.',
+                    ? 'Hidratación activada.'
+                    : 'Hidratación oculta. Tu historial se conserva.',
                 { duration: 3500 }
             );
         } catch (error) {
@@ -1948,33 +1948,22 @@ const Settings = () => {
                                 Ajusta cómo el agente registra tus comidas y aprende de ti.
                             </p>
 
-                            {/* Toggle: Modo automático (todos los tiers) */}
-                            <div style={{
-                                background: 'linear-gradient(135deg, #F8F7FF 0%, #F0EEFF 50%, #EEF2FF 100%)',
-                                borderRadius: '1rem',
-                                padding: '1.25rem',
-                                border: '1px solid #E0E7FF',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: '1rem',
-                                marginBottom: '1rem'
-                            }}>
-                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
-                                    <div style={{
-                                        background: 'linear-gradient(135deg, #F59E0B 0%, #F97316 100%)',
-                                        padding: '0.75rem',
-                                        borderRadius: '0.75rem',
-                                        flexShrink: 0,
-                                        boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)'
-                                    }}>
+                            {/* [P3-PREFERENCES-CARD-POLISH · 2026-05-27]
+                                Refactor inline-styles → CSS module con
+                                clases compartidas. Card 1: Modo automático
+                                (naranja, visible para todos los tiers). */}
+                            <div
+                                className={`${styles.preferenceCard} ${styles.preferenceCardOrange} ${loggingPreference === 'auto_proxy' ? styles.preferenceCardActive : ''}`}
+                            >
+                                <div className={styles.preferenceCardBody}>
+                                    <div className={styles.preferenceCardIcon}>
                                         <Zap size={20} color="#FFFFFF" />
                                     </div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem' }}>
+                                    <div className={styles.preferenceCardText}>
+                                        <div className={styles.preferenceCardTitle}>
                                             Modo automático
                                         </div>
-                                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.45', marginTop: '0.25rem' }}>
+                                        <div className={styles.preferenceCardDesc}>
                                             Si confías en el plan y prefieres no loguear cada comida, actívalo. No pausaremos tu plan aunque dejes de registrar comidas.
                                         </div>
                                     </div>
@@ -1990,111 +1979,43 @@ const Settings = () => {
                                 </label>
                             </div>
 
-                            {/* [P3-WATER-TRACKER · 2026-05-16] Toggle: Tracker de
-                                hidratacion. Disponible para todos los usuarios
-                                autenticados (sin gate de tier). Default TRUE. */}
-                            {waterTrackerEnabled !== null && (
-                                <div style={{
-                                    background: waterTrackerEnabled ? 'linear-gradient(135deg, #EFF6FF 0%, #FFFFFF 100%)' : '#F8FAFC',
-                                    borderRadius: '1rem',
-                                    padding: '1.25rem',
-                                    border: `1px solid ${waterTrackerEnabled ? '#93C5FD' : '#CBD5E1'}`,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    gap: '1rem',
-                                    marginBottom: '1rem',
-                                    transition: 'all 0.2s ease',
-                                }}>
-                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
-                                        <div style={{
-                                            background: 'linear-gradient(135deg, #3B82F6 0%, #06B6D4 100%)',
-                                            padding: '0.75rem',
-                                            borderRadius: '0.75rem',
-                                            flexShrink: 0,
-                                            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
-                                        }}>
-                                            <GlassWater size={20} color="#FFFFFF" />
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem' }}>
-                                                Tracker de hidratacion
-                                            </div>
-                                            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.45', marginTop: '0.25rem' }}>
-                                                {waterTrackerEnabled
-                                                    ? 'Visible en tu Dashboard. Marca tus vasos diarios; la meta se calcula segun tu peso.'
-                                                    : 'Oculto del Dashboard. Tu historial de vasos se conserva si lo reactivas.'}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={handleToggleWaterTracker}
-                                        disabled={isWaterTrackerToggling}
-                                        role="switch"
-                                        aria-checked={waterTrackerEnabled}
-                                        aria-label="Activar o desactivar el tracker de hidratacion"
-                                        style={{
-                                            position: 'relative',
-                                            width: '52px',
-                                            height: '30px',
-                                            borderRadius: '999px',
-                                            border: 'none',
-                                            background: waterTrackerEnabled ? '#10B981' : '#CBD5E1',
-                                            cursor: isWaterTrackerToggling ? 'wait' : 'pointer',
-                                            transition: 'background 0.2s ease',
-                                            flexShrink: 0,
-                                            padding: 0,
-                                            opacity: isWaterTrackerToggling ? 0.6 : 1,
-                                        }}
-                                    >
-                                        <span
-                                            style={{
-                                                position: 'absolute',
-                                                top: '3px',
-                                                left: waterTrackerEnabled ? '25px' : '3px',
-                                                width: '24px',
-                                                height: '24px',
-                                                borderRadius: '50%',
-                                                background: '#FFFFFF',
-                                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
-                                                transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                            }}
-                                        />
-                                    </button>
-                                </div>
-                            )}
+                            {/* [P3-HIDRATACION-MOVED-OUT · 2026-05-27] Card de
+                                Hidratación movida fuera de esta sección — ya
+                                no es "comportamiento del agente" sino una
+                                preferencia de visualización del Dashboard.
+                                Vive ahora en sub-sección "Módulos del Dashboard"
+                                debajo de "Lo que el agente recuerda". */}
 
                             {/* Toggle: Memoria a Largo Plazo (solo Básico+).
-                                [LONG-TERM-MEMORY-TOGGLE · 2026-05-13] Reutiliza state
-                                ltmEnabled + handler handleToggleLtm definidos arriba. */}
+                                [LONG-TERM-MEMORY-TOGGLE · 2026-05-13] Reutiliza
+                                state ltmEnabled + handler handleToggleLtm.
+                                [P3-PREFERENCES-CARD-POLISH · 2026-05-27]
+                                Card con icon Brain siempre purple (representa
+                                la feature). Cuando ltmEnabled el wrapper usa
+                                la variante Green para que accent stripe +
+                                border + bg active sean verdes (consistencia
+                                con las otras cards que usan green como su
+                                "active"). */}
                             {isPremium && ltmEnabled !== null && (
-                                <div style={{
-                                    background: ltmEnabled ? 'linear-gradient(135deg, #F0FDF4 0%, #FFFFFF 100%)' : '#F8FAFC',
-                                    borderRadius: '1rem',
-                                    padding: '1.25rem',
-                                    border: `1px solid ${ltmEnabled ? '#86EFAC' : '#CBD5E1'}`,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    gap: '1rem',
-                                    transition: 'all 0.2s ease',
-                                }}>
-                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
-                                        <div style={{
-                                            background: 'linear-gradient(135deg, #8B5CF6 0%, #4F46E5 100%)',
-                                            padding: '0.75rem',
-                                            borderRadius: '0.75rem',
-                                            flexShrink: 0,
-                                            boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)'
-                                        }}>
+                                <div
+                                    className={`${styles.preferenceCard} ${ltmEnabled ? styles.preferenceCardGreen : styles.preferenceCardPurple} ${ltmEnabled ? styles.preferenceCardActive : ''}`}
+                                >
+                                    <div className={styles.preferenceCardBody}>
+                                        <div
+                                            className={styles.preferenceCardIcon}
+                                            style={{
+                                                /* Icon siempre purple (brain) — independiente del active state */
+                                                background: 'linear-gradient(135deg, #8B5CF6 0%, #4F46E5 100%)',
+                                                boxShadow: '0 4px 12px -2px rgba(79, 70, 229, 0.4), inset 0 0 0 0.5px rgba(255, 255, 255, 0.35)',
+                                            }}
+                                        >
                                             <Brain size={20} color="#FFFFFF" />
                                         </div>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem' }}>
+                                        <div className={styles.preferenceCardText}>
+                                            <div className={styles.preferenceCardTitle}>
                                                 Memoria a Largo Plazo
                                             </div>
-                                            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.45', marginTop: '0.25rem' }}>
+                                            <div className={styles.preferenceCardDesc}>
                                                 {ltmEnabled
                                                     ? 'Activa. La IA aprende de tus conversaciones y recuerda lo importante.'
                                                     : 'Pausada. La IA no aprende ni consulta lo aprendido. Tus datos guardados se conservan.'}
@@ -2231,6 +2152,105 @@ const Settings = () => {
                                         ))
                                     )}
                                 </div>
+                            </div>
+
+                            {/* [P3-HIDRATACION-MOVED-OUT · 2026-05-27]
+                                Sub-sección "Módulos del Dashboard" — separada
+                                de "Comportamiento del agente" porque Hidratación
+                                es una preferencia de visualización (mostrar/
+                                ocultar un módulo del Dashboard), NO un toggle
+                                del comportamiento del agente IA. Mismo patrón
+                                visual que "Lo que el agente recuerda" (h3 con
+                                accent border-left), pero accent color azul
+                                para diferenciar visualmente del verde de la
+                                otra sub-sección. */}
+                            <div style={{
+                                marginTop: '1.5rem',
+                                paddingTop: '1.5rem',
+                                borderTop: '1px solid rgba(15, 23, 42, 0.08)',
+                            }}>
+                                <h3 style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.6rem',
+                                    fontSize: '1.15rem',
+                                    fontWeight: 800,
+                                    color: 'var(--text-main)',
+                                    margin: '0 0 0.5rem 0',
+                                    letterSpacing: '-0.015em',
+                                    paddingLeft: '0.75rem',
+                                    borderLeft: '3px solid #3B82F6',
+                                    lineHeight: 1.2,
+                                }}>
+                                    Personaliza tu panel
+                                </h3>
+                                <p style={{
+                                    color: 'var(--text-muted)',
+                                    fontSize: '0.9rem',
+                                    marginBottom: '1.25rem',
+                                    paddingLeft: '0.75rem',
+                                }}>
+                                    Elige qué secciones quieres ver al entrar.
+                                </p>
+
+                                {/* Toggle: Hidratación — visible/oculta el
+                                    módulo del Dashboard. Default TRUE. */}
+                                {waterTrackerEnabled !== null && (
+                                    <div
+                                        className={`${styles.preferenceCard} ${styles.preferenceCardBlue} ${waterTrackerEnabled ? styles.preferenceCardActive : ''}`}
+                                    >
+                                        <div className={styles.preferenceCardBody}>
+                                            <div className={styles.preferenceCardIcon}>
+                                                <GlassWater size={20} color="#FFFFFF" />
+                                            </div>
+                                            <div className={styles.preferenceCardText}>
+                                                <div className={styles.preferenceCardTitle}>
+                                                    Hidratación
+                                                </div>
+                                                <div className={styles.preferenceCardDesc}>
+                                                    {waterTrackerEnabled
+                                                        ? 'Visible en tu Dashboard. Marca tus vasos diarios; la meta se calcula segun tu peso.'
+                                                        : 'Oculto del Dashboard. Tu historial de vasos se conserva si lo reactivas.'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleToggleWaterTracker}
+                                            disabled={isWaterTrackerToggling}
+                                            role="switch"
+                                            aria-checked={waterTrackerEnabled}
+                                            aria-label="Activar o desactivar la hidratacion del Dashboard"
+                                            style={{
+                                                position: 'relative',
+                                                width: '52px',
+                                                height: '30px',
+                                                borderRadius: '999px',
+                                                border: 'none',
+                                                background: waterTrackerEnabled ? '#10B981' : '#CBD5E1',
+                                                cursor: isWaterTrackerToggling ? 'wait' : 'pointer',
+                                                transition: 'background 0.2s ease',
+                                                flexShrink: 0,
+                                                padding: 0,
+                                                opacity: isWaterTrackerToggling ? 0.6 : 1,
+                                            }}
+                                        >
+                                            <span
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: '3px',
+                                                    left: waterTrackerEnabled ? '25px' : '3px',
+                                                    width: '24px',
+                                                    height: '24px',
+                                                    borderRadius: '50%',
+                                                    background: '#FFFFFF',
+                                                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
+                                                    transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                }}
+                                            />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </section>
                     )}

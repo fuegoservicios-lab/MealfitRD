@@ -30,7 +30,7 @@
     width: 100%;
     height: 100%;
     z-index: -1;
-    background-image: url('/dashboard_bg.webp');
+    background-image: url('/dashboard_bg.png');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -238,17 +238,21 @@
     position: absolute;
     left: 0;
     right: 0;
-    bottom: calc(100% + 0.4rem);
+    bottom: calc(100% + 0.5rem);
     background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 0.85rem;
-    box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.18);
-    padding: 0.4rem;
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    border-radius: 1rem;
+    box-shadow:
+        0 20px 40px -12px rgba(15, 23, 42, 0.18),
+        0 4px 12px -2px rgba(15, 23, 42, 0.06),
+        0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+    padding: 0.5rem;
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
+    gap: 0.2rem;
     z-index: 60;
-    animation: accountPopoverIn 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: accountPopoverIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
 }
 
 @keyframes accountPopoverIn {
@@ -287,6 +291,191 @@
 .accountItemDanger:hover {
     background: #FEF2F2;
     color: #B91C1C;
+}
+
+/* [P3-UPGRADE-FUSION-V2 · 2026-05-26] Mini-sección "Tu plan" arriba del
+   popover. Polish iteration 2:
+     - Gradient background sutil (varía si premium vs gratis)
+     - Shimmer animation suave sobre el badge premium
+     - CTA convertida a mini-pill con bg purple/8% al hover
+     - Divider gradient en vez de solid line
+     - Crown icon junto al tier badge si premium
+*/
+.accountPlanHeader {
+    position: relative;
+    padding: 0.7rem 0.85rem 0.85rem;
+    margin: -0.5rem -0.5rem 0.5rem;
+    background: linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%);
+    border-bottom: 1px solid transparent;
+    background-clip: padding-box;
+}
+
+/* Divider con gradient sutil — más sofisticado que solid #F1F5F9 */
+.accountPlanHeader::after {
+    content: '';
+    position: absolute;
+    left: 0.6rem;
+    right: 0.6rem;
+    bottom: -1px;
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(203, 213, 225, 0.6) 20%,
+        rgba(203, 213, 225, 0.6) 80%,
+        transparent 100%);
+}
+
+/* Variante premium del header: tinta dorada extra-sutil */
+.accountPlanHeaderPremium {
+    background: linear-gradient(180deg,
+        rgba(254, 243, 199, 0.35) 0%,
+        rgba(255, 251, 235, 0.18) 50%,
+        #FFFFFF 100%);
+}
+
+.accountPlanLabel {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #94A3B8;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.55rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* [P3-UPGRADE-FUSION-V3 · 2026-05-26] Wrapper neutro NO clickeable.
+   Antes era `<Link>` envolvente — todo el row navegaba al click. Ahora
+   solo el CTA "Ver Planes" es link; el badge queda como `<span>` inerte
+   visualmente alineado con el CTA en una fila. */
+.accountPlanRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+/* [P3-CHIP-TIER-COLORS-DESKTOP · 2026-05-27] Paleta diferenciada por tier
+   en el popover del avatar (desktop). Paridad con el chip mobile. */
+.accountPlanBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.7rem 0.3rem 0.55rem;
+    border-radius: 9999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+    line-height: 1;
+    /* Inerte: sin cursor pointer, sin hover effect */
+    cursor: default;
+    user-select: text;
+}
+
+.accountPlanBadgeIcon {
+    color: currentColor;
+    flex-shrink: 0;
+    margin-top: -1px;
+}
+
+/* GRATUITO — slate gris sobrio */
+.accountPlanBadgeFree {
+    background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+    color: #64748B;
+    border: 1.5px solid #CBD5E1;
+}
+
+/* BÁSICO — emerald esmeralda (entry tier de pago) */
+.accountPlanBadgeBasic {
+    background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 40%, #A7F3D0 100%);
+    color: #065F46;
+    border: 1.5px solid #10B981;
+    box-shadow:
+        0 1px 2px rgba(6, 95, 70, 0.15),
+        0 0 0 0.5px rgba(255, 255, 255, 0.4) inset;
+}
+
+/* PLUS — indigo (pro, intermediate) */
+.accountPlanBadgePlus {
+    background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 40%, #C7D2FE 100%);
+    color: #3730A3;
+    border: 1.5px solid #6366F1;
+    box-shadow:
+        0 1px 2px rgba(99, 102, 241, 0.18),
+        0 0 0 0.5px rgba(255, 255, 255, 0.4) inset;
+}
+
+/* ULTRA — amber dorado con Crown + shimmer (premium top exclusivo) */
+.accountPlanBadgeUltra {
+    background: linear-gradient(135deg, #FEF3C7 0%, #FCD34D 50%, #FBBF24 100%);
+    color: #78350F;
+    border: 1.5px solid #F59E0B;
+    box-shadow:
+        0 1px 2px rgba(180, 83, 9, 0.18),
+        0 0 0 0.5px rgba(255, 255, 255, 0.4) inset;
+}
+
+/* Shimmer SOLO en Ultra — distintivo del tier máximo (cada 6s) */
+.accountPlanBadgeUltra::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -50%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.6) 50%,
+        transparent 100%);
+    animation: badgeShimmer 6s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes badgeShimmer {
+    0%, 88%, 100% { left: -50%; }
+    94% { left: 110%; }
+}
+
+/* [P3-UPGRADE-FUSION-V3 · 2026-05-26] El CTA "Ver Planes" es ahora el
+   único elemento clickeable. Como `<Link>` tiene sus propios hover/focus
+   states (antes dependían de .accountPlanLink:hover envolvente). */
+.accountPlanCta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #6366F1;
+    white-space: nowrap;
+    padding: 0.3rem 0.6rem;
+    border-radius: 9999px;
+    background: rgba(99, 102, 241, 0.04);
+    transition: background 0.18s ease, color 0.18s ease;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.accountPlanCta:hover {
+    background: rgba(99, 102, 241, 0.12);
+    color: #4F46E5;
+}
+
+.accountPlanCta:hover svg {
+    transform: translateX(2px);
+}
+
+.accountPlanCta:focus-visible {
+    outline: 2px solid #6366F1;
+    outline-offset: 2px;
+}
+
+.accountPlanCta svg {
+    transition: transform 0.18s ease;
 }
 
 /* Mobile Header (Hidden on Desktop) */

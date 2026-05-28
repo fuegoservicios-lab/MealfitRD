@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, User, Menu, X, Clock, Bot, Refrigerator, Home, ChevronUp } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, User, Menu, X, Clock, Bot, Refrigerator, Home, ChevronUp, ChevronRight, Crown } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import { useAssessment } from '../../context/AssessmentContext';
 import LogoutConfirmModal from './LogoutConfirmModal';
@@ -138,6 +138,81 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 <div className={styles.accountSection} ref={accountMenuRef}>
                     {isAccountMenuOpen && (
                         <div className={styles.accountPopover} role="menu">
+                            {/* [P3-UPGRADE-FUSION · 2026-05-26] Mini-sección
+                                del plan tier fusionada con el popover. Antes
+                                el chip ULTRA/PLUS/etc. vivía en el header del
+                                Dashboard (clickeable → /dashboard/upgrade).
+                                Movido aquí para consolidar todas las acciones
+                                de cuenta en un único surface. */}
+                            {/* [P3-CHIP-TIER-COLORS-DESKTOP · 2026-05-27] El tinte
+                                dorado del header se aplica SOLO cuando el tier
+                                es Ultra (max premium). Basic/Plus tienen su
+                                color en el badge pero NO tiñen todo el popover
+                                — evita "ruido visual" en el surface compartido
+                                con los items Ajustes/Inicio/Cerrar. */}
+                            <div className={`${styles.accountPlanHeader} ${userProfile?.plan_tier === 'ultra' ? styles.accountPlanHeaderPremium : ''}`}>
+                                <div className={styles.accountPlanLabel}>Tu plan</div>
+                                {/* [P3-UPGRADE-FUSION-V3 · 2026-05-26] Badge
+                                    ULTRA/PLUS/etc. desacoplado del Link. El
+                                    badge es un `<span>` inerte (cursor default,
+                                    no clickeable, sin role) que solo muestra
+                                    el tier. El CTA "Ver Planes" sigue siendo
+                                    el único elemento clickeable que navega a
+                                    /dashboard/upgrade. Diseño claro: badge =
+                                    estado, link = acción.
+
+                                    [P3-CHIP-TIER-COLORS-DESKTOP · 2026-05-27]
+                                    Paleta diferenciada por tier (paridad con
+                                    mobile): free=slate, basic=emerald,
+                                    plus=indigo, ultra=amber+shimmer+Crown. */}
+                                {(() => {
+                                    const tierVariant = !isPremium
+                                        ? 'free'
+                                        : userProfile?.plan_tier === 'ultra' ? 'ultra'
+                                        : userProfile?.plan_tier === 'plus' ? 'plus'
+                                        : 'basic';
+                                    const tierLabel = !isPremium
+                                        ? 'GRATUITO'
+                                        : userProfile?.plan_tier === 'ultra' ? 'ULTRA'
+                                        : userProfile?.plan_tier === 'plus' ? 'PLUS'
+                                        : 'BÁSICO';
+                                    const badgeClass = [
+                                        styles.accountPlanBadge,
+                                        styles[`accountPlanBadge${tierVariant.charAt(0).toUpperCase() + tierVariant.slice(1)}`],
+                                    ].filter(Boolean).join(' ');
+                                    return (
+                                        <div className={styles.accountPlanRow}>
+                                            <span
+                                                className={badgeClass}
+                                                aria-label={`Plan actual: ${tierLabel}`}
+                                            >
+                                                {tierVariant === 'ultra' && (
+                                                    <Crown
+                                                        size={11}
+                                                        strokeWidth={2.5}
+                                                        className={styles.accountPlanBadgeIcon}
+                                                        aria-hidden="true"
+                                                    />
+                                                )}
+                                                {tierLabel}
+                                            </span>
+                                            <Link
+                                                to="/dashboard/upgrade"
+                                                className={styles.accountPlanCta}
+                                                onClick={() => { setIsAccountMenuOpen(false); closeMenu(); }}
+                                                onMouseEnter={() => prefetchRoute('/dashboard/upgrade')}
+                                                onFocus={() => prefetchRoute('/dashboard/upgrade')}
+                                                onTouchStart={() => prefetchRoute('/dashboard/upgrade')}
+                                                role="menuitem"
+                                                aria-label="Comparar planes"
+                                            >
+                                                Ver Planes
+                                                <ChevronRight size={13} strokeWidth={2.5} />
+                                            </Link>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
                             <Link
                                 to="/dashboard/settings"
                                 className={styles.accountItem}

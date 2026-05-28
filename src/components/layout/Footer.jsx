@@ -1,8 +1,23 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Instagram, Youtube, Facebook } from 'lucide-react';
 import styles from './Footer.module.css';
 
+// [P3-LEGAL-BACK-LINK · 2026-05-26 · 4ª iter] Si el path actual es una
+// página legal, NO usar ese path como `from` del próximo Link (eso haría
+// que "Volver" regrese de Términos→Privacidad→Términos...). Mejor preservar
+// el `state.from` heredado de cuando el user entró por primera vez a las
+// legales — su origen real (landing, dashboard, etc).
+const LEGAL_PATHS = ['/privacy', '/terms', '/cookies', '/medical'];
+
 const Footer = () => {
+    const location = useLocation();
+    const isOnLegalPage = LEGAL_PATHS.includes(location.pathname);
+    // Path origen real: si estoy en una legal, hereda el `from` previo;
+    // si no, uso el path actual.
+    const fromPath = isOnLegalPage
+        ? (location.state?.from || '/')
+        : location.pathname;
+
     return (
         <footer className={styles.footer}>
             <div className={styles.container}>
@@ -49,10 +64,14 @@ const Footer = () => {
 
                 <div className={styles.col}>
                     <h4>Legal</h4>
-                    <Link to="/privacy">Política de Privacidad</Link>
-                    <Link to="/terms">Términos de Servicio</Link>
-                    <Link to="/cookies">Política de Cookies</Link>
-                    <Link to="/medical">Aviso Médico</Link>
+                    {/* [P3-LEGAL-BACK-LINK · 2026-05-26 · 4ª iter] Pasamos
+                        `state.from` con el path origen (landing, dashboard,
+                        etc.) para que el back-link en LegalLayout sepa a
+                        dónde volver con precisión. */}
+                    <Link to="/privacy" state={{ from: fromPath }}>Política de Privacidad</Link>
+                    <Link to="/terms" state={{ from: fromPath }}>Términos de Servicio</Link>
+                    <Link to="/cookies" state={{ from: fromPath }}>Política de Cookies</Link>
+                    <Link to="/medical" state={{ from: fromPath }}>Aviso Médico</Link>
                 </div>
 
                 <div className={styles.bottom}>

@@ -39,10 +39,15 @@ const TrackingProgress = ({ planData, userId }) => {
     const { userProfile } = useAssessment();
 
     const [consumed, setConsumed] = useState(() => {
-        // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20] Hidratar desde localStorage
-        // si hay cache válido para este user+fecha. Sin esto, el initial state
-        // es {0,0,0,0} y el user ve flash de macros vacías cada vez que
-        // re-monta el componente (navegación entre tabs del dashboard).
+        // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20]
+        // [P3-TRACKING-CACHE-EMPTY-FETCH · 2026-05-27]
+        // Hidratar desde localStorage si hay cache válido para este user+fecha.
+        // Antes solo se persistía cuando había macros >0 — caso "user sin
+        // comidas hoy" volvía a mostrar "Cargando registros..." cada vez que
+        // navegaba entre tabs porque el cache nunca existía. Ahora persistimos
+        // SIEMPRE tras un fetch exitoso (incluso si macros=0), usando un flag
+        // `_fetched` para distinguir "datos fetcheados que dan 0" vs "default
+        // initial state pre-fetch".
         try {
             const key = _getConsumedCacheKey(userId);
             if (key) {
@@ -59,6 +64,9 @@ const TrackingProgress = ({ planData, userId }) => {
     });
     // Loading inicial false si hidratamos del cache (no mostrar spinner si
     // ya hay datos visibles); true solo si arrancamos con default vacío.
+    // [P3-TRACKING-CACHE-EMPTY-FETCH · 2026-05-27] Chequea `_fetched` flag —
+    // así un cache con macros=0 pero _fetched=true cuenta como "ya sé que es 0
+    // para hoy, no muestro loading".
     const [loading, setLoading] = useState(() => {
         try {
             const key = _getConsumedCacheKey(userId);
@@ -66,20 +74,23 @@ const TrackingProgress = ({ planData, userId }) => {
                 const raw = safeLocalStorageGet(key, null);
                 if (raw) {
                     const parsed = JSON.parse(raw);
-                    if (parsed && typeof parsed.calories === 'number') return false;
+                    if (parsed && parsed._fetched) return false;
                 }
             }
         } catch (_e) { /* ignore */ }
         return true;
     });
 
-    // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20] Persist consumed al change.
+    // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20]
+    // [P3-TRACKING-CACHE-EMPTY-FETCH · 2026-05-27]
+    // Persist consumed al change. Persistimos SIEMPRE cuando el objeto tiene
+    // el flag `_fetched: true` (post-fetch del server). El default initial
+    // state NO tiene ese flag → no se persiste → no se sobreescribe el cache
+    // real con un placeholder vacío.
     useEffect(() => {
         const key = _getConsumedCacheKey(userId);
         if (!key) return;
-        // No persistir el default vacío — bloquearía la hidratación de un
-        // próximo mount con datos frescos del servidor.
-        if (!consumed || (consumed.calories === 0 && consumed.protein === 0 && consumed.carbs === 0 && consumed.fats === 0)) return;
+        if (!consumed || !consumed._fetched) return;
         try {
             safeLocalStorageSet(key, JSON.stringify(consumed));
         } catch (_e) { /* ignore */ }
@@ -111,7 +122,11 @@ const TrackingProgress = ({ planData, userId }) => {
                         protein: data.totals.protein || 0,
                         carbs: data.totals.carbs || 0,
                         fats: data.totals.healthy_fats || 0,
-                        meals: data.meals || []
+                        meals: data.meals || [],
+                        // [P3-TRACKING-CACHE-EMPTY-FETCH · 2026-05-27] Marker
+                        // que distingue "datos fetcheados (aunque sean 0)" del
+                        // default initial state. El persist effect lo respeta.
+                        _fetched: true,
                     });
                 }
             } catch (err) {
