@@ -1,0 +1,3 @@
+## 2024-05-22 - RegExp Instantiation in Loop Optimization
+**Learning:** Instantiating `RegExp` objects inside a loop that is called per-item in a large array (like `shoppingList` or `inventoryMap` elements via `normalizeNameAlt`) creates a significant O(N*M) performance overhead. Creating a combined static RegExp string to replace stop words outside the React component completely eliminates the `new RegExp` allocations.
+**Action:** When finding iterative string replacements against static dictionaries or "stop words" inside a list processing routine, hoist the regex creation and combine tokens `('(' + arr.join('|') + ')')` outside the component body.
