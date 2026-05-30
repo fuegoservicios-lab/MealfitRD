@@ -1,0 +1,3 @@
+## 2026-05-30 - Optimize Sequential String Replacements
+**Learning:** Sequential `.replace(new RegExp(..., 'gi'), '')` inside a loop over an array of 39 "stop words" performs poorly (O(M) string traversals per call).
+**Action:** Aggregate static arrays into a single compiled regular expression `new RegExp('\\b(' + STOPS_ARRAY.join('|') + ')\\b', 'gi')` outside the component scope to change the complexity from O(N * M) to O(N) where N is the number of ingredient strings and M is the number of stop words. Similarly, hoist static `map` dictionaries outside the `.map()` loop to avoid memory re-allocations on each array iteration.
