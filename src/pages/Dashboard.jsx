@@ -868,6 +868,25 @@ const Dashboard = () => {
             }).join(' ');
         };
 
+        const STOPS_ARRAY = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada',
+            'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada',
+            'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados',
+            'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones',
+            'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada',
+            'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
+            'horneado', 'grandes', 'firme'];
+        const STOPS_REGEX = new RegExp('\\b(' + STOPS_ARRAY.join('|') + ')\\b', 'gi');
+
+        const IRREGULARS_MAP = {
+            'nueces': 'nuez',
+            'aves': 'ave',
+            'maices': 'maiz',
+            'arroces': 'arroz',
+            'peces': 'pez',
+            'carnes': 'carne',
+            'tomates': 'tomate'
+        };
+
         const normalizeNameAlt = (name) => {
             if (!name) return '';
             let n = name.toLowerCase().trim();
@@ -880,29 +899,11 @@ const Dashboard = () => {
 
             // Stop words: réplica exacta del backend (shopping_calculator.py línea 103)
             // Elimina descriptores que no forman parte del nombre base del ingrediente.
-            const stops = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada', 
-                'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada', 
-                'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados', 
-                'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones', 
-                'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada', 
-                'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
-                'horneado', 'grandes', 'firme'];
-            for (const s of stops) {
-                n = n.replace(new RegExp('\\b' + s + '\\b', 'gi'), '');
-            }
+            n = n.replace(STOPS_REGEX, '');
             n = n.replace(/,/g, '').replace(/\s+/g, ' ').trim();
 
             return n.split(/\s+/).map(w => {
-                 const irregulars = {
-                     'nueces': 'nuez',
-                     'aves': 'ave',
-                     'maices': 'maiz',
-                     'arroces': 'arroz',
-                     'peces': 'pez',
-                     'carnes': 'carne',
-                     'tomates': 'tomate'
-                 };
-                 if (irregulars[w]) return irregulars[w];
+                 if (IRREGULARS_MAP[w]) return IRREGULARS_MAP[w];
                  
                  if (w.length <= 4) {
                      if (w.endsWith('s') && !w.endsWith('es') && !w.endsWith('is')) return w.slice(0, -1);
