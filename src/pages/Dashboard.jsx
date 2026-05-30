@@ -4131,8 +4131,9 @@ const Dashboard = () => {
                                                         transition: 'all 0.2s'
                                                     }}
                                                     title="Ver paso a paso"
+                                                    aria-label="Ver paso a paso para la receta"
                                                 >
-                                                    <BookOpen size={20} color="#3B82F6" />
+                                                    <BookOpen size={20} color="#3B82F6" aria-hidden="true" />
                                                 </button>
 
                                                 {/* REGENERATE BUTTON (AI SWAP) — Abre modal de razón */}
