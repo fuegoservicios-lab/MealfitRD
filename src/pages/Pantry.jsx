@@ -1577,7 +1577,7 @@ const Pantry = () => {
                     title="Eliminar definitivamente"
                     aria-label={`Eliminar ${item.ingredient_name} definitivamente`}
                 >
-                    <X size={13} strokeWidth={3} />
+                    <X size={13} strokeWidth={3} aria-hidden="true" />
                 </button>
                 <div style={{ flex: 1, marginRight: '1rem', textDecoration: isDisabled ? 'line-through' : 'none' }}>
                     <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: isDisabled ? 'var(--danger)' : 'var(--text-main)', lineHeight: 1.2 }}>{item.ingredient_name}</h3>
@@ -1636,7 +1636,7 @@ const Pantry = () => {
                                 touchAction: 'manipulation',
                             }}
                         >
-                            <Minus size={16} strokeWidth={2.5}/>
+                            <Minus size={16} strokeWidth={2.5} aria-hidden="true" />
                         </button>
 
                         <button
@@ -1659,13 +1659,16 @@ const Pantry = () => {
                         </button>
 
                         <button
+                            type="button"
                             className="nevera-plus-btn"
                             onPointerDown={(e) => startHolding(e, item.id, 1)}
                             onPointerUp={(e) => stopHolding(e, item.id)}
                             onPointerLeave={(e) => stopHolding(e, item.id)}
                             onContextMenu={(e) => e.preventDefault()}
+                            aria-label={`Aumentar cantidad de ${item.ingredient_name}`}
+                            title="Mantener presionado para subir rápido"
                         >
-                            <Plus size={16} strokeWidth={3}/>
+                            <Plus size={16} strokeWidth={3} aria-hidden="true" />
                         </button>
                     </div>
                     <button
@@ -1674,7 +1677,7 @@ const Pantry = () => {
                         aria-label={`Marcar ${item.ingredient_name} como agotado`}
                         className="nevera-deplete-btn"
                     >
-                        <PackageX size={13} strokeWidth={2.5} /> Agotar
+                        <PackageX size={13} strokeWidth={2.5} aria-hidden="true" /> Agotar
                     </button>
                 </div>
             </div>
