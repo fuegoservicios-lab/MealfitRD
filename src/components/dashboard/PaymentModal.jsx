@@ -202,7 +202,9 @@ const PaymentModal = ({
                     onClick={onClose}
                     aria-label="Cerrar ventana modal"
                     style={{
-                        position: 'fixed', top: '1.5rem', right: '1.5rem', zIndex: 10000,
+                        // [P3-PAYMENT-MODAL-SAFE-AREA · 2026-06-01] +env(safe-area-inset-top): la X
+                        // no debe quedar bajo la barra de estado / notch en iOS. env()=0 sin notch.
+                        position: 'fixed', top: 'calc(1.5rem + env(safe-area-inset-top, 0px))', right: '1.5rem', zIndex: 10000,
                         background: 'rgba(255,255,255,0.06)',
                         border: '1px solid rgba(255,255,255,0.1)',
                         borderRadius: '50%', width: 40, height: 40,
@@ -233,7 +235,9 @@ const PaymentModal = ({
                     <div style={{
                         flex: 1,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        padding: isMobile ? '5rem 1.5rem 2rem' : '4rem 5%',
+                        // [P3-PAYMENT-MODAL-SAFE-AREA · 2026-06-01] padding-top móvil suma el
+                        // inset para que el contenido baje junto con la X (no bajo el notch).
+                        padding: isMobile ? 'calc(5rem + env(safe-area-inset-top, 0px)) 1.5rem 2rem' : '4rem 5%',
                         borderRight: isMobile ? 'none' : '1px solid rgba(255,255,255,0.06)',
                         borderBottom: isMobile ? '1px solid rgba(255,255,255,0.06)' : 'none',
                         background: '#0a0a0a',
