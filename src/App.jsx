@@ -182,7 +182,23 @@ function App() {
             archivos que llaman `toast.*` quedaban en no-op silencioso.
             `richColors` colorea success/error; `theme="system"` sigue el modo
             del SO; `top-center` para visibilidad en mobile-first es-DO. */}
-        <Toaster richColors position="top-center" theme="system" closeButton />
+        {/* [P3-TOAST-SAFE-AREA · 2026-06-01] offset/mobileOffset suman
+            env(safe-area-inset-top) al `top` para que el toast NO quede debajo
+            de la barra de estado / notch / Dynamic Island en iOS (se veía
+            cortado y encimado con la hora/wifi/batería). env()=0 en desktop o
+            pantallas sin notch → cae al default, sin regresión. Sonner v2
+            (assignOffset, index.js:863): con offset-object los lados no
+            especificados quedan en su default (24px desktop / 16px mobile) y el
+            string pasa verbatim al CSS var --offset-top / --mobile-offset-top
+            (styles.css L74 / L452). */}
+        <Toaster
+          richColors
+          position="top-center"
+          theme="system"
+          closeButton
+          offset={{ top: 'calc(env(safe-area-inset-top, 0px) + 24px)' }}
+          mobileOffset={{ top: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
+        />
         {/* [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Headless: poll background
             pipeline status si el user tiene plan pendiente en localStorage. */}
         <PendingPipelineRecovery />
