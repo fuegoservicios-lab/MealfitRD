@@ -260,7 +260,11 @@ const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
                 outline: 'none',
             }}
         >
-            <div style={{ padding: isMobile ? '1.25rem 1rem' : '1.5rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border)', gap: '1rem' }}>
+            {/* [P3-COOKING-MODE-SAFE-AREA · 2026-06-01] Header del overlay full-screen
+                (position:fixed, top:0): el padding-top suma env(safe-area-inset-top) para
+                que el título + la X no queden bajo la barra de estado / notch en iOS.
+                env()=0 sin notch → padding original, sin regresión. */}
+            <div style={{ padding: isMobile ? 'calc(1.25rem + env(safe-area-inset-top, 0px)) 1rem 1.25rem' : 'calc(1.5rem + env(safe-area-inset-top, 0px)) 2rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border)', gap: '1rem' }}>
                 <div style={{ flex: 1, paddingRight: isMobile ? '0' : '1rem' }}>
                     <h3 id="cooking-mode-title" style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.25rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.3 }}>{recipe.name}</h3>
                     <p style={{ margin: 0, color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.9rem', marginTop: '0.25rem' }}>Paso {currentStep + 1} de {steps.length}</p>
