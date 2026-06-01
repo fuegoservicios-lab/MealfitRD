@@ -101,6 +101,11 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
     font-size: 0.95rem;
+    /* [P3-HEADER-CTA-MOBILE · 2026-06-01] Un CTA nunca debe partirse en 2 líneas.
+       En el header móvil estrecho (logo + CTA sticky + hamburguesa) el flex
+       comprimía "Ver mi Plan" → 2 líneas → píldora alta que se encimaba con el
+       logo. nowrap lo mantiene en una línea; la compactación móvil va abajo. */
+    white-space: nowrap;
 }
 
 .ctaButton:hover {
@@ -276,6 +281,31 @@
 
     .mobileToggle {
         display: none;
+    }
+}
+
+/* [P3-HEADER-CTA-MOBILE · 2026-06-01] Compactación del header en móvil: el CTA
+   sticky ("Ver mi Plan" / "Crear mi Plan Ahora") debe caber junto al logo y la
+   hamburguesa SIN encimarse. Reduce padding/fuente del CTA, evita que se encoja
+   (flex-shrink:0), achica un punto el logo para liberar ancho y aprieta el gap.
+   Solo <768px; el header de escritorio queda intacto. */
+@media (max-width: 767px) {
+    .ctaButton.stickyCtaEnter {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.82rem;
+        flex-shrink: 0;
+    }
+    .ctaButton.stickyCtaEnter svg {
+        width: 15px;
+        height: 15px;
+    }
+    .logo {
+        font-size: 1.55rem;
+        flex-shrink: 0;
+    }
+    .headerRight {
+        gap: 0.6rem;
+        min-width: 0;
     }
 }
 
