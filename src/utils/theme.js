@@ -15,13 +15,17 @@
 const STORAGE_KEY = 'mealfit_theme';
 const VALID_PREFS = ['system', 'light', 'dark'];
 
-/** Lee la preferencia persistida; cae a 'system' si falta o es inválida. */
+/** Lee la preferencia persistida; cae a 'dark' si falta o es inválida.
+ *  [P3-DEFAULT-DARK · 2026-06-01] Default cambiado de 'system' a 'dark'
+ *  (decisión de producto: app oscura por defecto). 'system' sigue siendo una
+ *  opción explícita seleccionable; la migración one-time del boot script
+ *  (index.html) convierte un 'system' previo a 'dark' una sola vez. */
 export function getStoredThemePref() {
     try {
         const v = localStorage.getItem(STORAGE_KEY);
-        return VALID_PREFS.includes(v) ? v : 'system';
+        return VALID_PREFS.includes(v) ? v : 'dark';
     } catch {
-        return 'system';
+        return 'dark';
     }
 }
 

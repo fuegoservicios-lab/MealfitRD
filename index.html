@@ -21,17 +21,27 @@
        dark — y la resuelve a un valor concreto (system → prefers-color-scheme).
        El motor JS (src/utils/theme.js) re-aplica esto en runtime y escucha
        cambios del sistema; este script solo evita el flash de tema claro→oscuro
-       en el arranque en frío. Defensivo: cualquier excepción cae a 'light'. -->
+       en el arranque en frío. [P3-DEFAULT-DARK] Default = 'dark'; un 'system' previo
+       migra a 'dark' one-time. Defensivo: cualquier excepción cae a 'dark'. -->
   <script>
     (function () {
       try {
-        var pref = localStorage.getItem('mealfit_theme') || 'system';
+        // [P3-DEFAULT-DARK · 2026-06-01] Migración one-time: un 'system' previo
+        // pasa a 'dark' una sola vez (decisión: oscuro por defecto). Tras esto,
+        // re-elegir "Sistema" persiste normal. Sin preferencia → 'dark' por default.
+        if (!localStorage.getItem('mealfit_theme_dark_default_v1')) {
+          if (localStorage.getItem('mealfit_theme') === 'system') {
+            localStorage.setItem('mealfit_theme', 'dark');
+          }
+          localStorage.setItem('mealfit_theme_dark_default_v1', '1');
+        }
+        var pref = localStorage.getItem('mealfit_theme') || 'dark';
         var dark = pref === 'dark' ? true
           : pref === 'light' ? false
           : !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
       } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'light');
+        document.documentElement.setAttribute('data-theme', 'dark');
       }
     })();
   </script>
