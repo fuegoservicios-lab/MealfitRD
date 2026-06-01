@@ -237,11 +237,12 @@ const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
                 </div>
                 <button
                     onClick={onClose}
+                    aria-label="Cerrar receta"
                     style={{ flexShrink: 0, background: 'var(--bg-page)', border: 'none', width: isMobile ? '40px' : '48px', height: isMobile ? '40px' : '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', transition: 'all 0.2s' }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'var(--border)'; e.currentTarget.style.color = 'var(--text-main)'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-page)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
                 >
-                    <X size={isMobile ? 20 : 24} strokeWidth={2.5} />
+                    <X size={isMobile ? 20 : 24} strokeWidth={2.5} aria-hidden="true" />
                 </button>
             </div>
 
