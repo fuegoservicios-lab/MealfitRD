@@ -185,6 +185,19 @@ const DashboardInner = () => {
     const [showDespensaDropdown, setShowDespensaDropdown] = useState(false);
     const despensaDropdownRef = useRef(null);
 
+    // [P3-DASH-SCROLL-TOP · 2026-06-01] Al montar el Dashboard, resetea el scroll
+    // arriba. React Router (BrowserRouter) NO restaura scroll en cambios de ruta:
+    // al venir del landing (donde el CTA sticky "Ver mi Plan" aparece tras
+    // scrollear hacia abajo) el window conservaba esa posición → el dashboard
+    // aparecía scrolleado al fondo. Triple reset window/documentElement/body por
+    // robustez en iOS Safari (mismo patrón que Recipes.jsx:395 y BottomTabBar.jsx:30).
+    // El dashboard scrollea el window, no un contenedor interno.
+    useEffect(() => {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+    }, []);
+
     // Cierra los dropdowns custom si el usuario hace clic fuera de ellos
     useEffect(() => {
         function handleClickOutside(event) {
