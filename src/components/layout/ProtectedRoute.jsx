@@ -48,8 +48,24 @@ const ProtectedRoute = ({ children }) => {
     //      puro — no muta nada, no side-effects en render, StrictMode-safe.
     //      'POP' captura cold-start + refresh + browser back; 'PUSH'/
     //      'REPLACE' captura Link clicks + navigate() programatico.
-    if (isOnLanding && hasCompletedAssessment && navigationType === 'POP') {
-        return <Navigate to="/dashboard" replace />;
+    //
+    // [LANDING-SKIP-NO-PLAN-FLASH · 2026-06-01] El destino se decide AQUÍ sin pasar
+    // por /dashboard. Pre-fix la condición era `hasCompletedAssessment` (que es
+    // `health_profile` O plan): un usuario con perfil PERO SIN plan saltaba a
+    // /dashboard, que rebota a /assessment por su propio guard `!planData` → el
+    // usuario veía un "flash" del dashboard de unos ms en cada refresh de la
+    // landing. Ahora:
+    //   - Con PLAN real → /dashboard (el dashboard lo requiere; no rebota).
+    //   - Con assessment completo pero SIN plan → /assessment directo (su destino
+    //     real es el formulario; antes llegaba ahí igual pero pasando por el flash).
+    //   - Sin assessment → no se redirige (cae al `return children` → ve la landing).
+    if (isOnLanding && navigationType === 'POP') {
+        if (planData) {
+            return <Navigate to="/dashboard" replace />;
+        }
+        if (hasCompletedAssessment) {
+            return <Navigate to="/assessment" replace />;
+        }
     }
 
     return children;

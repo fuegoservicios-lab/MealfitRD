@@ -9,7 +9,24 @@
    ============================================================ */
 .root {
     min-height: 100vh;
-    background: linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 70%);
+    /* [UPGRADE-LIGHT-BG · 2026-05-31] Mismo fondo de burbujas del Dashboard claro
+       (public/dashboard_bg.png; ya cacheada porque el dashboard la usa). El overlay
+       blanco translúcido la suaviza un poco (equivale al opacity:0.85 que el dashboard
+       aplica vía su ::before). Fijo al viewport. El modo oscuro usa glows+curvas
+       (override `:global(html[data-theme="dark"]) .root` más abajo). */
+    background-color: #F8FAFC;
+    /* [P6-SPEED-IMG · 2026-06-01] WebP (18.9KB) con fallback PNG vía image-set
+       en la 2ª capa (la 1ª es el overlay blanco translúcido). */
+    background-image:
+        linear-gradient(rgba(248, 250, 252, 0.06), rgba(248, 250, 252, 0.06)),
+        url('/dashboard_bg.png');
+    background-image:
+        linear-gradient(rgba(248, 250, 252, 0.06), rgba(248, 250, 252, 0.06)),
+        image-set(url('/dashboard_bg.webp') type('image/webp'), url('/dashboard_bg.png') type('image/png'));
+    background-size: cover, cover;
+    background-position: center, center;
+    background-repeat: no-repeat, no-repeat;
+    background-attachment: fixed, fixed;
     padding-bottom: 5rem;
 }
 
@@ -68,7 +85,9 @@
 .hero {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 1.5rem 1.5rem 1.5rem;
+    /* [UPGRADE-HERO-TOP-SPACING · 2026-05-31] Más aire arriba del título para
+       despegarlo del header sticky / borde superior (top era 1.5rem). */
+    padding: 3.25rem 1.5rem 1.5rem;
     text-align: center;
 }
 
@@ -284,9 +303,14 @@
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
+/* [P3-PRICING-CARDS-STATIC · 2026-05-30] Cards ESTÁTICAS: hover sin lift
+   (translateY) ni glow (box-shadow). Hermano omitido del fix del home Pricing
+   (APPEARANCE-THEME · 2026-05-29, Pricing.module.css `.card:hover{transform:none}`)
+   que la página de Upgrade no recibió. Al no overridear el box-shadow, las
+   tarjetas Popular/Current conservan su anillo de color en hover (antes el
+   shadow genérico lo pisaba). */
 .planCard:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+    transform: none;
 }
 
 .planCardCurrent {
@@ -294,9 +318,16 @@
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
+/* [PRICING-POPULAR-GLOW · 2026-05-31] Halo morado NOTABLE alrededor de la tarjeta
+   Plus (antes el anillo al 10% era casi imperceptible): borde violeta + anillo
+   cercano + glow difuso. OJO: en oscuro hay que repetirlo con mayor especificidad
+   (ver `:global(html[data-theme="dark"]) .planCardPopular` abajo) porque el override
+   oscuro de `.planCard` pisa el border-color. */
 .planCardPopular {
     border-color: #8B5CF6;
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    box-shadow:
+        0 0 0 4px rgba(139, 92, 246, 0.16),
+        0 14px 40px -10px rgba(139, 92, 246, 0.45);
 }
 
 .planCardBadge {
@@ -412,11 +443,12 @@
     margin-top: 0.5rem;
 }
 
+/* [P3-PRICING-CARDS-STATIC · 2026-05-30] Botón estático: sin lift (transform).
+   Conserva el cambio de color como feedback de clic (no es movimiento ni glow). */
 .planButton:hover:not(:disabled) {
     background: #0F172A;
     color: white;
     border-color: #0F172A;
-    transform: translateY(-1px);
 }
 
 .planButton:focus-visible {
@@ -431,10 +463,11 @@
     box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 }
 
+/* [P3-PRICING-CARDS-STATIC · 2026-05-30] Botón primario estático: sin lift
+   (transform) ni aumento de glow (box-shadow) en hover — conserva su sombra
+   base de .planButtonPrimary. Solo cambia el gradiente como feedback de clic. */
 .planButtonPrimary:hover:not(:disabled) {
     background: linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
     color: white;
     border-color: transparent;
 }
@@ -471,7 +504,10 @@
 
 .sectionSubtitle {
     text-align: center;
-    color: #64748B;
+    /* [UPGRADE-SUBTITLE-NITIDEZ · 2026-05-31] Sobre el fondo de burbujas el slate-500
+       se lavaba. Slate-700 + un halo blanco sutil lo despegan del fondo → más nítido. */
+    color: #334155;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.55);
     font-size: 1rem;
     margin: 0 auto 2.5rem;
     max-width: 600px;
@@ -584,13 +620,12 @@
     background: linear-gradient(180deg, rgba(139, 92, 246, 0.07) 0%, rgba(139, 92, 246, 0.03) 100%);
 }
 
-.compTable tbody tr:hover td {
-    background: #F8FAFC;
-}
-
-.compTable tbody tr:hover td.compTableCellHighlight {
-    background: linear-gradient(180deg, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
-}
+/* [P3-PRICING-TABLE-STATIC · 2026-05-30] Tabla comparativa ESTÁTICA: las filas
+   NO cambian de fondo al pasar el ratón (consistente con las tarjetas de
+   precios, ahora estáticas). El striping nth-child(even) y el highlight de la
+   columna Plus (.compTableCellHighlight) se conservan en su estado base sin
+   alteración. Se eliminaron las reglas `.compTable tbody tr:hover td` y
+   `...td.compTableCellHighlight`. */
 
 /* Columna Plus en el cuerpo: highlight con bordes laterales para destacar */
 .compTableCellHighlight {
@@ -873,8 +908,12 @@
     margin: 0 auto;
     padding: 2rem 1.5rem 1rem;
     text-align: center;
-    border-top: 1px solid #E2E8F0;
-    color: #64748B;
+    /* [UPGRADE-FOOTER-RULE · 2026-05-31] Raya más nítida: sobre el fondo de burbujas
+       el #E2E8F0 (gris muy claro) se lavaba y casi desaparecía. Slate semi-opaco
+       (+ realce blanco inferior) la define sobre cualquier color del fondo. */
+    border-top: 1px solid rgba(51, 65, 85, 0.32);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    color: #475569;
     font-size: 0.85rem;
     line-height: 1.7;
 }
@@ -926,7 +965,8 @@
 @media (max-width: 768px) {
     /* ---- Hero compacto ---- */
     .hero {
-        padding: 2rem 1rem 1.25rem;
+        /* [UPGRADE-HERO-TOP-SPACING · 2026-05-31] Más aire arriba en móvil (top era 2rem). */
+        padding: 3rem 1rem 1.25rem;
     }
 
     .heroBadge {
@@ -1141,4 +1181,274 @@
     .heroTitle {
         font-size: 1.65rem;
     }
+}
+
+/* ============================================================
+   [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — Upgrade
+   ============================================================ */
+
+/* --- ROOT --- */
+/* [UPGRADE-DARK-BG · 2026-05-31] Fondo ambiental en oscuro: los MISMOS glows
+   indigo/púrpura del Dashboard/Formulario (cohesión de color) pero con la textura en
+   CURVAS — repeating-radial-gradient = anillos concéntricos sutiles desde la esquina
+   superior derecha — en vez de las rayas diagonales 45°, como variación pedida por el
+   usuario. `background-attachment: fixed` fija el fondo al viewport (el contenido
+   scrollea sobre él). Para volver a las RAYAS clásicas, sustituir el
+   repeating-radial-gradient por:
+   repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 52px) */
+:global(html[data-theme="dark"]) .root {
+    background-color: var(--bg-page);
+    background-image:
+        repeating-radial-gradient(circle at 88% -8%, rgba(255, 255, 255, 0.05) 0, rgba(255, 255, 255, 0.05) 1px, transparent 1px, transparent 58px),
+        radial-gradient(ellipse 70% 55% at 6% -8%, rgba(99, 102, 241, 0.26) 0%, transparent 55%),
+        radial-gradient(ellipse 58% 50% at 100% 2%, rgba(129, 140, 248, 0.18) 0%, transparent 52%),
+        radial-gradient(ellipse 60% 50% at 96% 100%, rgba(139, 92, 246, 0.16) 0%, transparent 55%),
+        radial-gradient(ellipse 75% 55% at 18% 104%, rgba(79, 70, 229, 0.16) 0%, transparent 55%);
+    background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+    background-attachment: fixed;
+}
+
+/* --- STICKY HEADER --- */
+:global(html[data-theme="dark"]) .stickyHeader {
+    background: rgba(11, 17, 32, 0.88);
+    border-bottom-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .backButton {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .backButton:hover {
+    background: var(--bg-muted);
+    color: var(--text-main);
+}
+
+/* --- HERO --- */
+:global(html[data-theme="dark"]) .heroTitle {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .heroSubtitle {
+    color: var(--text-muted);
+}
+
+/* --- USER CONTEXT CARD --- */
+:global(html[data-theme="dark"]) .userContextCard {
+    background: var(--bg-card);
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .userContextLabel {
+    color: var(--text-light);
+}
+
+:global(html[data-theme="dark"]) .userContextValue {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .userContextCreditsNum {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .userContextCreditsLabel {
+    color: var(--text-muted);
+}
+
+/* --- BILLING TOGGLE --- */
+:global(html[data-theme="dark"]) .toggle {
+    background: var(--bg-muted);
+}
+
+:global(html[data-theme="dark"]) .toggleOption {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .toggleOption:hover {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .toggleActive {
+    background: var(--bg-card);
+    color: var(--text-main);
+}
+
+/* --- PLAN CARDS --- */
+:global(html[data-theme="dark"]) .planCard {
+    background: var(--bg-card);
+    border-color: var(--border);
+}
+
+/* [PRICING-POPULAR-GLOW · 2026-05-31] El override de .planCard de arriba pisa el
+   border-color violeta de .planCardPopular (misma especificidad → ganaba por orden).
+   Lo restauramos aquí, DESPUÉS, + el halo morado (un punto más intenso que en claro
+   para que destaque sobre el fondo oscuro). Era la causa de "sigue igual". */
+:global(html[data-theme="dark"]) .planCardPopular {
+    border-color: #8B5CF6;
+    box-shadow:
+        0 0 0 4px rgba(139, 92, 246, 0.2),
+        0 14px 40px -10px rgba(139, 92, 246, 0.5);
+}
+
+:global(html[data-theme="dark"]) .planName {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .planPriceCurrency {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .planPriceAmount {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .planPricePeriod {
+    color: var(--text-light);
+}
+
+:global(html[data-theme="dark"]) .planDescription {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .planFeatureItem {
+    color: var(--text-muted);
+}
+
+/* planButton base (dark-slate sobre claro → se convierte en primary) */
+:global(html[data-theme="dark"]) .planButton {
+    background: var(--bg-muted);
+    border-color: var(--border);
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .planButton:hover:not(:disabled) {
+    background: var(--primary);
+    color: #0B1120;
+    border-color: transparent;
+}
+
+/* planButtonDisabled: preservar el estado, solo ajustar superficie */
+:global(html[data-theme="dark"]) .planButtonDisabled:hover {
+    background: var(--bg-muted) !important;
+    color: var(--text-muted) !important;
+}
+
+/* --- COMPARATIVE TABLE --- */
+:global(html[data-theme="dark"]) .sectionTitle {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .sectionSubtitle {
+    color: var(--text-muted);
+    /* El halo blanco (claro) no aplica sobre el fondo oscuro. */
+    text-shadow: none;
+}
+
+:global(html[data-theme="dark"]) .tableWrapper {
+    background: var(--bg-card);
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .compTable thead th {
+    background: linear-gradient(180deg, var(--bg-muted) 0%, #1A2234 100%);
+    color: var(--text-main);
+    border-bottom-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .compTable thead th:first-child {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .compTable tbody td {
+    border-bottom-color: var(--border);
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .compTable tbody td:first-child {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .compTable tbody tr:nth-child(even) td {
+    background: rgba(30, 41, 59, 0.4);
+}
+
+/* [P3-PRICING-TABLE-STATIC · 2026-05-30] Filas estáticas en dark mode: sin
+   cambio de fondo al hover (regla `.compTable tbody tr:hover td` eliminada). */
+
+:global(html[data-theme="dark"]) .compTableCategoryRow td {
+    background: linear-gradient(90deg, var(--bg-muted) 0%, rgba(30, 41, 59, 0.5) 100%);
+    border-bottom-color: var(--border);
+    border-top-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .compTableCategoryRow:hover td {
+    background: linear-gradient(90deg, var(--bg-muted) 0%, rgba(30, 41, 59, 0.5) 100%);
+}
+
+:global(html[data-theme="dark"]) .compTableFeatureName {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .compTableFeatureDesc {
+    color: var(--text-light);
+}
+
+/* --- FAQ --- */
+:global(html[data-theme="dark"]) .faqItem {
+    background: var(--bg-card);
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .faqItemOpen {
+    background: linear-gradient(180deg, rgba(139, 92, 246, 0.05) 0%, var(--bg-card) 100%);
+}
+
+:global(html[data-theme="dark"]) .faqQuestion {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .faqAnswer {
+    color: var(--text-muted);
+}
+
+/* --- TRUST BADGES --- */
+:global(html[data-theme="dark"]) .trustItem {
+    background: var(--bg-card);
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .trustTitle {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .trustDesc {
+    color: var(--text-muted);
+}
+
+/* [APPEARANCE-THEME · 2026-05-31] El cuadro del ícono usaba un gradiente lavanda MUY
+   claro (#EEF2FF→#DBEAFE) sin variante oscura → bloques brillantes y chocantes sobre
+   el fondo oscuro. Tinte indigo translúcido + ícono indigo claro (primary-light). */
+:global(html[data-theme="dark"]) .trustIcon {
+    background: linear-gradient(135deg, rgba(129, 140, 248, 0.18) 0%, rgba(99, 102, 241, 0.12) 100%);
+    color: var(--primary-light);
+}
+
+/* --- FOOTER --- */
+:global(html[data-theme="dark"]) .footerLinks {
+    border-top-color: var(--border);
+    /* El realce blanco de la raya (claro) no aplica sobre el fondo oscuro. */
+    box-shadow: none;
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .footerLinks a {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .footerLinks a:hover {
+    color: var(--text-main);
+}
+
+/* --- TRUST LINE MOBILE --- */
+:global(html[data-theme="dark"]) .trustLineMobile {
+    color: var(--text-muted);
 }

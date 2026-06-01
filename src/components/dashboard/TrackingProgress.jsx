@@ -1,10 +1,16 @@
-import { useState, useEffect } from 'react';
-import { Flame, Dumbbell, Wheat, Droplet, Activity } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Flame, Dumbbell, Wheat, Droplet, Activity, Camera } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { useAssessment } from '../../context/AssessmentContext';
 import { fetchWithAuth } from '../../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import ProteinIcon from '../icons/ProteinIcon';
+import WheatFilledIcon from '../icons/WheatFilledIcon';
+import FlameMacroIcon from '../icons/FlameMacroIcon';
+import FatDropIcon from '../icons/FatDropIcon';
+import { isDarkActive } from '../../utils/theme';
+// [P2-DIARY-SCAN-MACROS · 2026-05-30] Modal "Escanear comida → registrar macros".
+import ScanMealModal from './ScanMealModal';
 import styles from './TrackingProgress.module.css';
 
 // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20] Cache local del card
@@ -37,6 +43,23 @@ const _getConsumedCacheKey = (userId) => {
 
 const TrackingProgress = ({ planData, userId }) => {
     const { userProfile } = useAssessment();
+
+    // [P2-DIARY-SCAN-MACROS · 2026-05-30] Estado del modal de escaneo. Al
+    // registrar una comida el modal dispara `mealfit:refresh-inventory`, que
+    // el effect de abajo ya escucha → las barras se actualizan solas.
+    const [scanOpen, setScanOpen] = useState(false);
+    const isLoggedIn = !!userId && userId !== 'guest';
+
+    // [P2-DASH-SCAN-ONCLOSE-MEMO · 2026-05-30] `onClose` memoizado. Pre-fix se
+    // pasaba un arrow inline `() => setScanOpen(false)` a <ScanMealModal>, que
+    // crea una identidad nueva en CADA render de TrackingProgress. El hook
+    // useModalAccessibility tiene `onClose` en sus deps (useModalAccessibility.js)
+    // → mientras el modal está abierto y el usuario edita las macros, cualquier
+    // re-render del padre (visibilitychange/`mealfit:refresh-inventory`→fetchConsumed,
+    // o un re-render de Dashboard) re-ejecutaba el effect del hook: re-armaba el
+    // focusTimeout que hace containerRef.focus() → ROBABA el foco del input a media
+    // escritura. Misma clase que P2-HIST-MODALS-A11Y (onClose memoizado con useCallback).
+    const handleScanClose = useCallback(() => setScanOpen(false), []);
 
     const [consumed, setConsumed] = useState(() => {
         // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20]
@@ -208,7 +231,17 @@ const TrackingProgress = ({ planData, userId }) => {
                     </div>
                 </div>
                 
-                {(!userId || userId === 'guest') && (
+                {isLoggedIn ? (
+                    // [P2-DIARY-SCAN-MACROS · 2026-05-30] Botón de escaneo.
+                    <button
+                        className={styles.scanBtn}
+                        onClick={() => setScanOpen(true)}
+                        type="button"
+                    >
+                        <Camera size={18} strokeWidth={2.5} />
+                        Escanear comida
+                    </button>
+                ) : (
                     <div className={styles.guestBadge}>
                         Inicia sesión para registrar comidas
                     </div>
@@ -220,31 +253,54 @@ const TrackingProgress = ({ planData, userId }) => {
                 <ProgressBar
                     label="Calorías"
                     consumed={consumed.calories} goal={goalCal} unit="kcal"
-                    perc={percCal} icon={Flame} color="#F59E0B" gradient="linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%)"
+                    perc={percCal} icon={Flame} darkIcon={FlameMacroIcon}
+                    color="#F59E0B" lightColor="#FCD34D" gradient="linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%)"
+                    fillIcon
                     large
                 />
 
                 <div className={styles.macroGrid}>
                     {/* Proteína */}
+                    {/* [APPEARANCE-THEME · 2026-05-29] Mismo patrón que Calorías/Grasas:
+                        en modo CLARO el glifo es el lucide `Dumbbell` (outline, consistente
+                        con Flame/Wheat/Droplet outline); en OSCURO el `ProteinIcon`
+                        (mancuerna sólida custom). Pre-fix usaba `icon={ProteinIcon}` sin
+                        darkIcon → la mancuerna sólida se mostraba TAMBIÉN en claro,
+                        desentonando con los demás macros outline. */}
                     <ProgressBar
                         label="Proteína"
                         consumed={consumed.protein} goal={goalPro} unit="g"
-                        perc={percPro} icon={ProteinIcon} color="#3B82F6" gradient="linear-gradient(90deg, #93C5FD 0%, #3B82F6 100%)"
+                        perc={percPro} icon={Dumbbell} darkIcon={ProteinIcon}
+                        color="#3B82F6" lightColor="#93C5FD" gradient="linear-gradient(90deg, #93C5FD 0%, #3B82F6 100%)"
                     />
                     {/* Carbohidratos */}
                     <ProgressBar
                         label="Carbohidratos"
                         consumed={consumed.carbs} goal={goalCarb} unit="g"
-                        perc={percCarb} icon={Wheat} color="#10B981" gradient="linear-gradient(90deg, #6EE7B7 0%, #10B981 100%)"
+                        perc={percCarb} icon={Wheat} color="#10B981" lightColor="#6EE7B7" gradient="linear-gradient(90deg, #6EE7B7 0%, #10B981 100%)"
+                        fillWhiteStroke
                     />
                     {/* Grasas */}
                     <ProgressBar
                         label="Grasas"
                         consumed={consumed.fats} goal={goalFat} unit="g"
-                        perc={percFat} icon={Droplet} color="#EC4899" gradient="linear-gradient(90deg, #F9A8D4 0%, #EC4899 100%)"
+                        perc={percFat} icon={Droplet} darkIcon={FatDropIcon}
+                        color="#EC4899" lightColor="#F9A8D4" gradient="linear-gradient(90deg, #F9A8D4 0%, #EC4899 100%)"
+                        fillIcon
                     />
                 </div>
             </div>
+
+            {/* [P2-DIARY-SCAN-MACROS · 2026-05-30] Modal de escaneo. Solo se
+                renderiza para usuarios logueados (el botón no aparece para
+                invitados). */}
+            {isLoggedIn && (
+                <ScanMealModal
+                    isOpen={scanOpen}
+                    onClose={handleScanClose}
+                    userId={userId}
+                />
+            )}
         </div>
     );
 };
@@ -255,8 +311,15 @@ TrackingProgress.propTypes = {
 };
 
 // --- Componente Interno para Barra Individual ---
-const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gradient, large }) => {
+const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: DarkIcon, color, lightColor, gradient, large, fillIcon, fillWhiteStroke }) => {
     const isEmpty = perc === 0;
+    // [APPEARANCE-THEME · 2026-05-29] Los rellenos de iconos (llama/gota sólidos,
+    // trigo verde-con-líneas-blancas) son SOLO para modo oscuro. En claro se
+    // conserva el diseño anterior (iconos outline). El toggle vive en Settings
+    // (otra ruta) y el Dashboard re-monta al volver → snapshot siempre fresco.
+    const isDark = isDarkActive();
+    const doFillSolid = fillIcon && isDark;
+    const doFillWhite = fillWhiteStroke && isDark;
     // [P3-TRACKING-OVER-LIMIT · 2026-05-20 · badge removido P3-TRACKING-OVER-NO-BADGE]
     // `isOver` (perc > 100, user excedió la meta) y `isComplete` (perc >= 100,
     // llegó o pasó) son conceptos separados. `isComplete` activa el glow
@@ -294,7 +357,35 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
     const effectiveGlowColor = isOver ? OVER_COLOR : color;
     const consumedTextColor = isOver
         ? OVER_COLOR
-        : (isEmpty ? '#CBD5E1' : '#0F172A');
+        // [APPEARANCE-THEME · 2026-05-29] En oscuro, el "0" vacío en text-light
+        // (#64748B) quedaba muy apagado → text-muted (#94A3B8) se lee mejor sin
+        // perder el matiz de "sin progreso". En claro se mantiene text-light.
+        : (isEmpty ? (isDark ? 'var(--text-muted)' : 'var(--text-light)') : 'var(--text-main)');
+
+    // [APPEARANCE-THEME · 2026-05-29] Selección del glifo (extraída a variable
+    // por legibilidad y para evitar el falso positivo de jsx-uses-vars con
+    // ternario anidado). Modos:
+    //   · doFillWhite (trigo, solo dark) → WheatFilledIcon two-tone.
+    //   · darkIcon (llama/gota, solo dark) → glifo custom de dos tonos glossy.
+    //   · default / modo claro → icono lucide outline original.
+    // [APPEARANCE-THEME · 2026-05-29] Tamaño ÚNICO para todos los glifos (todos
+    // los íconos custom llenan el viewBox 24×24, así que un mismo `size` los
+    // hace lucir del mismo tamaño). large = barra principal de Calorías.
+    const iconSize = large ? 22 : 18;
+    let renderedIcon;
+    if (doFillWhite) {
+        renderedIcon = <WheatFilledIcon size={iconSize} />;
+    } else if (isDark && DarkIcon) {
+        renderedIcon = <DarkIcon size={iconSize} />;
+    } else {
+        renderedIcon = (
+            <Icon
+                size={iconSize}
+                strokeWidth={2.5}
+                fill={doFillSolid ? 'currentColor' : 'none'}
+            />
+        );
+    }
 
     return (
         <div className={large ? styles.barLarge : styles.barSmall}>
@@ -305,15 +396,22 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
                         style={{
                             width: large ? 38 : 32,
                             height: large ? 38 : 32,
-                            background: `linear-gradient(135deg, ${color}1A 0%, ${color}26 100%)`,
-                            color: color,
-                            boxShadow: `inset 0 0 0 1px ${color}26`
+                            // [APPEARANCE-THEME · 2026-05-29] Chip más vibrante en
+                            // oscuro: gradiente con más saturación (20→30% vs 10→15%)
+                            // + ring/glow del color → resalta sobre el fondo slate.
+                            // En claro se conserva el tinte sutil original.
+                            background: isDark
+                                ? `linear-gradient(135deg, ${color}33 0%, ${color}4D 100%)`
+                                : `linear-gradient(135deg, ${color}1A 0%, ${color}26 100%)`,
+                            // En oscuro el icono usa el tono CLARO del macro → más
+                            // brillo y contraste contra el chip. En claro, el color base.
+                            color: (isDark && lightColor) ? lightColor : color,
+                            boxShadow: isDark
+                                ? `inset 0 0 0 1px ${color}66, 0 3px 12px -3px ${color}80`
+                                : `inset 0 0 0 1px ${color}26`,
                         }}
                     >
-                        <Icon
-                            size={large ? 19 : 16}
-                            strokeWidth={2.5}
-                        />
+                        {renderedIcon}
                     </div>
                     <span
                         className={styles.barLabel}
@@ -345,7 +443,7 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, color, gra
                 className={styles.track}
                 style={{
                     height: large ? 12 : 10,
-                    background: '#E2E8F0',
+                    background: 'var(--bg-muted)',
                     // [P3-TRACKING-OVER-LIMIT · 2026-05-20] Ring rojo sutil
                     // alrededor del track cuando over — refuerza el signaling
                     // sin sobrecargar la card con un border permanente.
@@ -414,9 +512,13 @@ ProgressBar.propTypes = {
     unit: PropTypes.string,
     perc: PropTypes.number,
     icon: PropTypes.elementType,
+    darkIcon: PropTypes.elementType,
     color: PropTypes.string,
+    lightColor: PropTypes.string,
     gradient: PropTypes.string,
-    large: PropTypes.bool
+    large: PropTypes.bool,
+    fillIcon: PropTypes.bool,
+    fillWhiteStroke: PropTypes.bool
 };
 
 export default TrackingProgress;

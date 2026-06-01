@@ -284,11 +284,24 @@
   /* Slate 200 */
   --border-light: rgba(255, 255, 255, 0.2);
 
+  /* Toggle switches — track apagado (genérico, reutilizable por todos los switches) */
+  --toggle-track-off: #CBD5E1;          /* slate-300 */
+
+  /* Acento "Suplementos" (violet). Aclarado en oscuro para contraste AA. */
+  --supplement-accent: #8B5CF6;         /* violet-500 */
+  --supplement-accent-strong: #7C3AED;  /* violet-600 — texto de chip seleccionado */
+  --supplement-tint: rgba(139, 92, 246, 0.10);
+  --supplement-tint-soft: rgba(139, 92, 246, 0.02);
+
   /* Semantic UI Colors */
   --danger: #EF4444;
   --danger-bg: #FEF2F2;
   --danger-text: #B91C1C;
+  --danger-border: #FCA5A5;
   --warning: #F59E0B;
+  --warning-bg: #FFFBEB;
+  --warning-text: #78350F;
+  --warning-border: #FDE68A;
 
   /* Typography */
   --font-heading: 'Outfit', sans-serif;
@@ -314,6 +327,174 @@
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
+
+  /* [APPEARANCE-THEME · 2026-05-28] color-scheme guía a los controles nativos
+     (scrollbars, inputs date/checkbox, autofill) hacia la variante clara por
+     defecto. El override oscuro vive en html[data-theme="dark"] abajo. */
+  color-scheme: light;
+}
+
+/* ============================================================================
+ * [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — "Slate profundo"
+ * ----------------------------------------------------------------------------
+ * El motor (src/utils/theme.js + boot script en index.html) fija
+ * html[data-theme="dark"]. Aquí SOLO re-mapeamos las variables de :root a la
+ * paleta oscura — todo componente que use var(--*) hereda el tema gratis.
+ *
+ * Filosofía minimalista: fondo casi-negro azulado (slate-950), superficies
+ * slate-900, bordes slate-800 sutiles, texto slate-100, acento indigo aclarado
+ * para contraste AA sobre oscuro. Sombras → glows negros (en oscuro las
+ * sombras grises no se ven; se reemplazan por sombras negras más profundas).
+ * ==========================================================================*/
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Marca — indigo/emerald aclarados para contraste sobre fondos oscuros */
+  --primary: #818CF8;          /* Indigo 400 */
+  --primary-dark: #6366F1;     /* Indigo 500 */
+  --primary-light: #A5B4FC;    /* Indigo 300 */
+
+  --secondary: #34D399;        /* Emerald 400 */
+  --secondary-dark: #10B981;   /* Emerald 500 */
+  --secondary-light: #6EE7B7;  /* Emerald 300 */
+
+  --accent: #FB7185;           /* Rose 400 */
+
+  /* Neutros — Slate profundo */
+  --bg-page: #0B1120;          /* casi-negro azulado (slate-950 custom) */
+  --bg-card: #111827;          /* superficie de tarjeta */
+  --bg-muted: #1E293B;         /* slate-800 — chips, inputs, hovers */
+  --bg-glass: rgba(17, 24, 39, 0.72);
+
+  --text-main: #F1F5F9;        /* slate-100 */
+  --text-muted: #94A3B8;       /* slate-400 */
+  --text-light: #64748B;       /* slate-500 */
+
+  --border: #1F2937;           /* slate-800 sutil */
+  --border-light: rgba(148, 163, 184, 0.14);
+
+  /* Toggle track apagado: slate-600 — visible sobre slate-900 sin el bloque
+     blanquecino que producía #CBD5E1 (slate-300) hardcodeado. */
+  --toggle-track-off: #475569;
+
+  /* Acento "Suplementos" aclarado: violet-400/300 para contraste AA sobre oscuro
+     + tints con más presencia (el 0.02/0.10 sobre claro casi desaparece en oscuro). */
+  --supplement-accent: #A78BFA;         /* violet-400 */
+  --supplement-accent-strong: #C4B5FD;  /* violet-300 */
+  --supplement-tint: rgba(167, 139, 250, 0.16);
+  --supplement-tint-soft: rgba(167, 139, 250, 0.07);
+
+  /* Semánticos */
+  --danger: #F87171;           /* Red 400 */
+  --danger-bg: #2A1517;
+  --danger-text: #FCA5A5;      /* Red 300 */
+  --danger-border: rgba(248, 113, 113, 0.32);  /* borde rojo sutil sobre oscuro */
+  --warning: #FBBF24;          /* Amber 400 */
+  --warning-bg: #2A2009;       /* ámbar profundo — fondo de banner sutil sobre oscuro */
+  --warning-text: #FCD34D;     /* Amber 300 — legible sobre oscuro (era #78350F invisible) */
+  --warning-border: rgba(251, 191, 36, 0.32);  /* borde ámbar sutil sobre oscuro */
+
+  /* Sombras → negras profundas (las grises desaparecen sobre oscuro) */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.45);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.55), 0 2px 4px -2px rgb(0 0 0 / 0.55);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.55), 0 4px 6px -4px rgb(0 0 0 / 0.5);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.55);
+
+  --shadow-glow-primary: 0 0 24px rgba(129, 140, 248, 0.28);
+  --shadow-glow-secondary: 0 0 24px rgba(52, 211, 153, 0.25);
+}
+
+/* Glass panel: en oscuro el borde blanco + el inset blanco delatan el tema
+ * claro. Re-mapear a borde slate translúcido + inset sutil. */
+html[data-theme="dark"] .glass-panel {
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* [CTA-HOVER-GLOW · 2026-05-31] Botón CTA primario del formulario (NextButton /
+   "Finalizar y Generar"). El box-shadow vive aquí (no inline) para que :hover
+   pueda intensificarlo. El gradiente azul→verde, padding y resto siguen inline
+   en el componente. Hover = lift sutil + glow bicolor (azul y verde, los dos
+   extremos del gradiente) + brillo leve. Funciona idéntico en claro y oscuro:
+   el glow es de color, no gris, así que se ve sobre ambos fondos. */
+.mf-cta-btn {
+  box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);
+}
+.mf-cta-btn:disabled {
+  box-shadow: none;
+}
+.mf-cta-btn:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 18px 38px -8px rgba(37, 99, 235, 0.55),
+    0 8px 22px -8px rgba(16, 185, 129, 0.42);
+  filter: brightness(1.06);
+}
+.mf-cta-btn:not(:disabled):active {
+  transform: translateY(0);
+  box-shadow: 0 8px 18px -6px rgba(37, 99, 235, 0.45);
+  filter: brightness(0.99);
+}
+/* Anillo de foco para teclado (a11y) — conserva la sombra base + ring indigo. */
+.mf-cta-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 10px 25px -5px rgba(37, 99, 235, 0.4),
+    0 0 0 3px rgba(129, 140, 248, 0.55);
+}
+/* Reduced-motion: sin desplazamiento; el glow/brillo (estáticos) se conservan. */
+@media (prefers-reduced-motion: reduce) {
+  .mf-cta-btn:not(:disabled):hover,
+  .mf-cta-btn:not(:disabled):active {
+    transform: none;
+  }
+}
+
+/* [CTA-HOVER-GLOW · 2026-05-31] CTA pill de EmptyState ("Generar nuevo plan", etc.,
+   reutilizado en Dashboard/Historial/Recetas). Indigo var(--primary); el box-shadow
+   vive aquí (no inline) para que :hover lo intensifique. Hover = glow indigo + brillo,
+   SIN desplazamiento (el botón no se mueve — pedido del usuario). El glow es de color
+   → se ve en claro y oscuro. */
+.mf-empty-cta {
+  box-shadow: 0 8px 16px -4px rgba(79, 70, 229, 0.35);
+  transition: box-shadow 0.2s ease, filter 0.2s ease;
+}
+.mf-empty-cta:hover {
+  box-shadow: 0 14px 28px -6px rgba(79, 70, 229, 0.5);
+  filter: brightness(1.07);
+}
+.mf-empty-cta:active {
+  box-shadow: 0 6px 12px -4px rgba(79, 70, 229, 0.4);
+  filter: brightness(0.98);
+}
+.mf-empty-cta:focus-visible {
+  outline: none;
+  box-shadow:
+    0 8px 16px -4px rgba(79, 70, 229, 0.35),
+    0 0 0 3px rgba(129, 140, 248, 0.55);
+}
+
+/* [CTA-HOVER-GLOW · 2026-05-31] CTA de banner destructivo/urgente "Generar Nuevo
+   Plan" (Dashboard: plan incompleto / plan expirado). Gradiente rojo; el box-shadow
+   vive aquí (no inline) para que :hover lo intensifique. Hover = glow rojo + brillo,
+   SIN desplazamiento (el botón no se mueve — pedido del usuario). */
+.mf-danger-cta {
+  box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
+  transition: box-shadow 0.2s ease, filter 0.2s ease;
+}
+.mf-danger-cta:hover {
+  box-shadow: 0 10px 24px -4px rgba(239, 68, 68, 0.5);
+  filter: brightness(1.06);
+}
+.mf-danger-cta:active {
+  box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4);
+  filter: brightness(0.98);
+}
+.mf-danger-cta:focus-visible {
+  outline: none;
+  box-shadow:
+    0 4px 10px rgba(239, 68, 68, 0.3),
+    0 0 0 3px rgba(248, 113, 113, 0.5);
 }
 
 
@@ -336,6 +517,17 @@ body {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+}
+
+/* [P2-OVERFLOW-X-CLIP · 2026-05-31] Red de seguridad contra scroll horizontal.
+   `clip` (NO `hidden`) no crea un scroll container → no rompe position:sticky
+   (ej. el featureList del DashboardShowcase en desktop, que sí se rompería con
+   overflow-x:hidden). Defensa-en-profundidad: cada sección del landing ya clipea
+   sus elementos de offset negativo, esto evita regresiones si alguien quita un
+   overflow por-sección. */
+html,
+body {
+  overflow-x: clip;
 }
 
 /* Noise Texture Overlay for "Premium/Paper" feel */
@@ -378,7 +570,9 @@ button {
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 1.5rem;
+  /* [P3-SAFE-AREA-X · 2026-05-31] En landscape con notch, respetar el inset
+     lateral sin reducir el padding base de 1.5rem. */
+  padding: 0 max(1.5rem, env(safe-area-inset-right)) 0 max(1.5rem, env(safe-area-inset-left));
 }
 
 /* Scrollbar */

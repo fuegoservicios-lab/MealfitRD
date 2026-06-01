@@ -35,6 +35,17 @@ import { trackEvent } from '../utils/analytics';
 // pese a que Dashboard ya había hecho refetch para `setLiveInventory`.
 import { getCachedInventory, setCachedInventory, invalidateInventoryCache } from '../utils/pantryCache';
 import { safeJSONParse } from '../utils/safeJSONParse';
+// [P3-DASH-WINDOW-TEST · 2026-05-29] Lógica pura de la ventana rolling +
+// estado de ciclo, extraída de este componente para poder testearla con
+// fechas fijas (ver src/__tests__/planWindow.test.js).
+import {
+    parseStartLocal,
+    daysSinceMidnight,
+    computeRollingWindow,
+    computeCycleStatus,
+    resolveActiveDayIndex,
+    MAX_WINDOW,
+} from '../utils/planWindow';
 // [P1-FRONTEND-LEGACY-LOCALSTORAGE-CRITICAL · 2026-05-23] safeLocalStorageGet
 // para el effect de onboarding de push (línea ~1139). Pre-fix era raw
 // `localStorage.getItem(...)` sin try/catch → iOS Private Mode lanzaba
@@ -54,6 +65,11 @@ import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/rende
 // pisando datos médicos previos. Ver `secureFormStorage.js` para el
 // rationale completo.
 import { buildHealthProfilePayload } from '../config/secureFormStorage';
+// [APPEARANCE-THEME · 2026-05-29] Snapshot del tema para botones inline-styled
+// cuyo color pastel se ve lavado en oscuro. El Dashboard re-monta al navegar
+// (no es keep-alive), así que el snapshot siempre está fresco; el toggle vive
+// en Settings (otra ruta) → no hay caso de cambio en vivo sobre esta vista.
+import { isDarkActive } from '../utils/theme';
 
 // [P3-UPDATE-PLATOS-REQUIRES-PANTRY · 2026-05-17] Mínimo de alimentos en la
 // Nevera para desbloquear "Actualizar platos". Con menos ítems el LLM no
@@ -63,7 +79,53 @@ import { buildHealthProfilePayload } from '../config/secureFormStorage';
 // 3 permite construir 1-2 platos variados sin ser restrictivo.
 const PANTRY_MIN_ITEMS_FOR_UPDATE = 3;
 
-const Dashboard = () => {
+// [P5-SPEED-DELTA-CONSTS-HOIST · 2026-06-01] Constantes estáticas de
+// `buildDeltaShoppingList` izadas a module-scope. Antes vivían DENTRO del
+// useCallback → se reconstruían en cada invocación, y `buildDeltaShoppingList`
+// corre en el camino caliente de sync del inventario (el useMemo
+// `computedHasPendingShoppingItems` lo llama en cada push realtime, focus-refresh,
+// swap optimista y recalc-success). Lo más costoso era recompilar ~38 regex de
+// stop-words por ítem (≈ items × 38 `new RegExp` por invocación); ahora se
+// compilan UNA vez aquí. Las regex usan flag `g` → `String.replace` resetea
+// lastIndex tras cada llamada, así que reusar la instancia compartida es seguro.
+// Cero cambio de comportamiento: mismas tablas, mismas regex, misma lógica.
+const MASS_TO_G = { 'g': 1, 'gr': 1, 'gramos': 1, 'kg': 1000, 'lb': 453.592, 'lbs': 453.592, 'oz': 28.3495, 'onza': 28.3495, 'onzas': 28.3495 };
+const VOL_TO_ML = { 'ml': 1, 'l': 1000, 'taza': 240, 'tazas': 240, 'cda': 15, 'cdta': 5 };
+const NAME_STOP_WORDS = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada',
+    'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada',
+    'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados',
+    'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones',
+    'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada',
+    'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
+    'horneado', 'grandes', 'firme'];
+const STOP_WORD_REGEXES = NAME_STOP_WORDS.map(s => new RegExp('\\b' + s + '\\b', 'gi'));
+const NAME_IRREGULARS = {
+    'nueces': 'nuez', 'aves': 'ave', 'maices': 'maiz', 'arroces': 'arroz',
+    'peces': 'pez', 'carnes': 'carne', 'tomates': 'tomate'
+};
+const DRY_GOODS = ['arroz', 'pasta', 'fideo', 'espagueti', 'macarrón', 'macarron', 'lenteja', 'habichuela', 'frijol', 'garbanzo', 'gandul', 'moro', 'avena', 'quinoa', 'cuscús', 'cuscus', 'bulgur', 'cebada', 'harina', 'azúcar', 'azucar', 'sal', 'bicarbonato', 'levadura', 'cacao', 'café', 'cafe', 'infusión', 'especia', 'condimento', 'maíz seco', 'maiz seco', 'palomita', 'cereal'];
+const PANTRY_STAPLES_DELTA = new Set([
+    'sal y ajo en polvo', 'aceite de oliva', 'aceite de coco',
+    'aceite de sésamo o maní', 'salsa de soya', 'orégano',
+    'canela', 'pimienta', 'sal', 'vinagre', 'ajo en polvo'
+]);
+
+// [P1-DASH-HOOKS-ORDER · 2026-05-31] `DashboardInner` contiene TODOS los hooks
+// del Dashboard SIN early-returns. Los dos guards (loadingData / !planData) que
+// antes vivían dentro de este componente (tras ~80 hooks) violaban
+// react-hooks/rules-of-hooks: cuando `loadingData` flipeaba true→false con
+// planData presente, el conteo de hooks cambiaba entre renders → React lanzaría
+// "rendered more hooks than during the previous render". El bug estaba dormido
+// porque `ProtectedRoute` solo monta Dashboard ya-cargado, pero era frágil. Los
+// guards se movieron al wrapper `Dashboard` (abajo), que lee SOLO context y
+// monta `DashboardInner` cuando los datos están listos. Comportamiento idéntico
+// en el camino común; estrictamente más seguro en el borde (unmount limpio en
+// vez de crash). Hooks ahora incondicionales → contrato de orden estable.
+const DashboardInner = () => {
+    // [APPEARANCE-THEME · 2026-05-29] Tema activo para los botones de acción de
+    // cada comida (Ver receta / Cambiar Plato / Like): en oscuro sus fondos
+    // pastel claros se ven lavados, así que usamos variantes vívidas/notorias.
+    const isDark = isDarkActive();
     // 1. Obtenemos estado y funciones del Contexto Global
     const {
         planData,
@@ -137,6 +199,11 @@ const Dashboard = () => {
     // Estado local para la navegación por pestañas (Días)
     const [activeDayIndex, setActiveDayIndex] = useState(0);
     const [isRecalculating, setIsRecalculating] = useState(false);
+    // [P3-DASH-WINDOW-AUTOSELECT · 2026-05-30] Track del índice de "hoy" del render
+    // anterior, para detectar cuándo el día avanza (medianoche / re-index del shift)
+    // y seguir a hoy. Ref declarado aquí (top-level hooks) — NO dentro del effect,
+    // para no añadir un hook tras el early-return de carga del componente.
+    const _prevTodayPlanDayIndexRef = useRef(null);
 
     // [P3-WATER-TRACKER · 2026-05-16] Detector de viewport mobile (≤768px,
     // mismo breakpoint que el resto de las media queries del Dashboard).
@@ -167,7 +234,11 @@ const Dashboard = () => {
         // Validator estricto: array DE STRINGS (regresión histórica: si entró algún
         // payload con shape incorrecto, el `every(i => typeof i === 'string')`
         // lo filtraba; preservamos esa garantía explícitamente).
-        const saved = localStorage.getItem('mealfit_disabled_ingredients');
+        // [P4-LOCALSTORAGE-LAZY-INIT] getItem crudo aquí lanzaba SecurityError
+        // en iOS Private Mode / storage deshabilitado → crash del lazy initializer
+        // → Dashboard al GlobalErrorBoundary. safeLocalStorageGet absorbe el throw
+        // (hermano del P1-AGENT-LAZY-INIT-PRIVATE-MODE). safeJSONParse maneja null→[].
+        const saved = safeLocalStorageGet('mealfit_disabled_ingredients', null);
         return safeJSONParse(saved, [], {
             validator: (v) => Array.isArray(v) && v.every(i => typeof i === 'string'),
         });
@@ -181,9 +252,15 @@ const Dashboard = () => {
     // inline (renderizado en JSX línea ~4475). `disableClose=isRestocking`
     // evita que ESC cierre el modal mid-flight (operación POST /restock
     // ya iniciada; cerrar mid-request deja state inconsistente con BD).
+    // [P2-DASH-SCAN-ONCLOSE-MEMO · 2026-05-30] onClose memoizado (era arrow inline).
+    // Misma clase que TrackingProgress/push-onboarding: identidad estable → el effect
+    // de useModalAccessibility no se re-arma en cada render de Dashboard mientras el
+    // modal está abierto. Benigno aquí (solo botones confirm/cancel, sin input de
+    // texto) pero cierra la clase de forma consistente.
+    const closeRestockModal = useCallback(() => setShowRestockModal(false), []);
     const { containerRef: restockModalRef } = useModalAccessibility({
         isOpen: showRestockModal,
-        onClose: () => setShowRestockModal(false),
+        onClose: closeRestockModal,
         disableClose: isRestocking,
     });
     // [P3-RESTOCK-NO-BAR · 2026-05-20] State acoplado a la barra REMOVIDO:
@@ -207,6 +284,25 @@ const Dashboard = () => {
     // Estado para el modal de Onboarding de Alertas Inteligentes
     const [showPushOnboarding, setShowPushOnboarding] = useState(false);
     const [isPushEnabling, setIsPushEnabling] = useState(false);
+
+    // [P3-DASH-MODALS-A11Y · 2026-05-30] a11y SSOT para el modal de Onboarding
+    // Push. Era el ÚNICO modal del Dashboard sin useModalAccessibility (el restock
+    // modal inline ~línea 209 sí lo usa): overlay full-screen sin role=dialog/ESC/
+    // focus-trap/restore. Dismiss memoizado (identidad estable → el effect del hook
+    // no se re-arma robando foco); ESC = dismiss = marca "visto" (misma semántica
+    // que el botón "Quizá más tarde"). `disableClose=isPushEnabling` evita cerrar
+    // mid-request. Declarado ARRIBA de los early-returns (~731/754) para cumplir
+    // rules-of-hooks. SSOT del dismiss — reemplaza al viejo handleDismissPushOnboarding.
+    const dismissPushOnboarding = useCallback(() => {
+        setShowPushOnboarding(false);
+        // safeLocalStorageSet — raw setItem lanza en iOS Private Mode (P1-PROD-FINAL-3).
+        safeLocalStorageSet('mealfit_push_onboarding_seen', 'true');
+    }, []);
+    const { containerRef: pushOnboardingRef } = useModalAccessibility({
+        isOpen: showPushOnboarding,
+        onClose: dismissPushOnboarding,
+        disableClose: isPushEnabling,
+    });
 
     // Guard contra race condition: evita que la rotación automática dispare handleNewPlan()
     // al mismo tiempo que una acción manual del usuario (movido a useRegeneratePlan)
@@ -331,21 +427,60 @@ const Dashboard = () => {
     const [todayDate, setTodayDate] = useState(() => {
         const d = new Date(); d.setHours(0, 0, 0, 0); return d;
     });
+    // [P3-DASH-WINDOW-WAKE · 2026-05-29] El tick por setTimeout no basta por sí
+    // solo: si el dispositivo se suspende cruzando la medianoche (laptop
+    // cerrada, móvil en background), el navegador throttlea/pospone el timer y
+    // `todayDate` queda stale → la ventana rolling de días no avanza al día
+    // correcto hasta que el timer despierta. Re-sincronizamos al volver a primer
+    // plano (visibilitychange/focus/pageshow): recalculamos la medianoche local
+    // y, si cambió de día, actualizamos el state y reprogramamos el próximo tick.
     useEffect(() => {
+        let timerId = null;
+
+        const computeMidnight = () => {
+            const d = new Date(); d.setHours(0, 0, 0, 0); return d;
+        };
+
+        // Functional update: evita un re-render si seguimos en el mismo día
+        // (focus/visibilitychange disparan a menudo sin cruce de medianoche).
+        const syncToday = () => {
+            const d = computeMidnight();
+            setTodayDate(prev => (prev && prev.getTime() === d.getTime() ? prev : d));
+        };
+
         const scheduleNextMidnight = () => {
             const now = new Date();
             const nextMidnight = new Date(now);
             nextMidnight.setDate(nextMidnight.getDate() + 1);
             nextMidnight.setHours(0, 0, 0, 0);
             const msUntilMidnight = nextMidnight - now;
-            return setTimeout(() => {
-                const d = new Date(); d.setHours(0, 0, 0, 0);
-                setTodayDate(d);
+            timerId = setTimeout(() => {
+                syncToday();
                 scheduleNextMidnight();
             }, msUntilMidnight);
         };
-        const timer = scheduleNextMidnight();
-        return () => clearTimeout(timer);
+
+        const onWake = () => {
+            // visibilitychange también dispara al OCULTAR la pestaña: ignorar.
+            if (document.visibilityState === 'hidden') return;
+            syncToday();
+            // Tras una suspensión larga el timer pendiente puede traer un delay
+            // desfasado; lo reseteamos para apuntar a la próxima medianoche real.
+            if (timerId !== null) clearTimeout(timerId);
+            scheduleNextMidnight();
+        };
+
+        scheduleNextMidnight();
+        document.addEventListener('visibilitychange', onWake);
+        window.addEventListener('focus', onWake);
+        window.addEventListener('pageshow', onWake);
+
+        return () => {
+            if (timerId !== null) clearTimeout(timerId);
+            document.removeEventListener('visibilitychange', onWake);
+            window.removeEventListener('focus', onWake);
+            window.removeEventListener('pageshow', onWake);
+        };
     }, []);
 
     const restockLock = useRef(false);
@@ -418,6 +553,13 @@ const Dashboard = () => {
         }, 800);
     }, [disabledIngredients]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // [P3-DASH-DISABLED-SYNC-TIMER-CLEANUP · 2026-06-01] Cancelar el debounce de
+    // disabled_ingredients al desmontar DashboardInner (route change SPA dentro de
+    // la ventana de 800ms): sin esto el setTimeout sobrevivía al unmount y disparaba
+    // safeUpdateHealthProfile sobre un componente desmontado (write fantasma + warning
+    // React). Misma clase ya cerrada para _recalcDebounceTimer/pendingOps en Pantry.
+    useEffect(() => () => { clearTimeout(disabledSyncTimer.current); }, []);
+
     // [P3-PLAN-BTN-STABLE · 2026-05-19] Sync del cache localStorage cada vez que
     // `liveInventory` cambia (cubre fetch inicial + realtime postgres_changes +
     // restock). Centralizar acá evita duplicar la escritura del cache en cada
@@ -440,6 +582,12 @@ const Dashboard = () => {
             setIsLoadingInventory(false);
             return;
         }
+        // [P2-DASH-INVENTORY-FETCH-RACE · 2026-06-01] ignore-flag: dos setPlanData
+        // rápidos (swap optimista seguido de recalc-success) podían lanzar dos
+        // fetchLiveInventory concurrentes y resolver fuera de orden → setLiveInventory
+        // last-writer-wins con datos no-latest. El flag descarta resoluciones obsoletas
+        // (mismo patrón AbortController del effect hermano P1-DASHBOARD-POLLING-ABORT).
+        let ignore = false;
         const fetchLiveInventory = async () => {
             setIsLoadingInventory(true);
             const result = await fetchFreshInventoryWithTimeout(
@@ -451,6 +599,7 @@ const Dashboard = () => {
                     .order('ingredient_name', { ascending: true }),
                 getInventoryFetchTimeoutMs(),
             );
+            if (ignore) return;
             if (!result.stale) {
                 setLiveInventory(result.data);
                 setInventoryStale(false);
@@ -467,7 +616,14 @@ const Dashboard = () => {
             setIsLoadingInventory(false);
         };
         fetchLiveInventory();
-    }, [userProfile?.id, planData]);
+        return () => { ignore = true; };
+        // [P2-DASH-INVENTORY-FETCH-RACE · 2026-06-01] Dep estrechada de `planData`
+        // (objeto completo, ref nueva en cada chunk realtime / swap / recalc) a
+        // `id`+`generation_status`. La frescura del inventario ya la cubren el canal
+        // realtime de user_inventory, el refresh on visibilitychange/focus y el
+        // custom-event mealfit:refresh-inventory; mantener generation_status preserva
+        // el único caso no cubierto (transición partial→complete llena la nevera).
+    }, [userProfile?.id, planData?.id, planData?.generation_status]);
 
     // Real-time sync: si la Nevera o el chat-agent modifican el inventario, el Dashboard se actualiza solo
     useEffect(() => {
@@ -613,6 +769,11 @@ const Dashboard = () => {
             setShowChunkBanner(true);
             pollInterval = setInterval(() => {
                 if (signal.aborted) return;
+                // [P2-DASH-POLL-VISIBILITY · 2026-05-31] Pausar el poll de 30s
+                // cuando la pestaña está oculta (ahorra red/batería en sesiones
+                // background largas). El listener de visibilitychange ya refresca
+                // al volver a la pestaña, así que no se pierde frescura.
+                if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
                 refreshProfileAndPlan();
                 if (planData?.id) {
                     getPlanChunkStatus(planData.id, { signal })
@@ -663,33 +824,10 @@ const Dashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planData?.generation_status, refreshProfileAndPlan]);
 
-    // 2. ESTADO DE CARGA: Si estamos recuperando datos de la DB, mostramos loader
-    if (loadingData) {
-        return (
-            <div style={{
-                height: '100vh',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexDirection: 'column',
-                gap: '1rem',
-                color: '#64748B',
-                background: '#F8FAFC'
-            }}>
-                <Loader2 className="spin-fast" size={48} color="var(--primary)" />
-                <p style={{ fontWeight: 600 }}>Sincronizando tu plan...</p>
-                <style>{`
-                    .spin-fast { animation: spin 1s linear infinite; } 
-                    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-                `}</style>
-            </div>
-        );
-    }
-
-    // 3. Protección de Ruta: Si terminó de cargar y NO hay plan, mandar al formulario de evaluación
-    if (!planData) {
-        return <Navigate to="/assessment" replace />;
-    }
+    // [P1-DASH-HOOKS-ORDER · 2026-05-31] Los guards `loadingData` / `!planData`
+    // se movieron al wrapper `Dashboard` (final del archivo). Aquí ya NO hay
+    // early-returns antes de los hooks → orden de hooks estable. `DashboardInner`
+    // solo se monta cuando los datos están listos (loadingData=false && planData).
 
     // Cálculos para la UI de límites
     const isLimitReached = typeof userPlanLimit === 'number' && planCount >= userPlanLimit;
@@ -719,33 +857,18 @@ const Dashboard = () => {
     // Normalizar fechas a medianoche — usa todayDate (state) para que se recalcule automáticamente a las 12AM
     const todayMidnight = todayDate;
 
-    // [GROCERY-START-DATE-LOCAL-PARSE 2026-05-06] Parser local-aware.
-    //
-    // Bug: el backend persiste `grocery_start_date` como "YYYY-MM-DD" (date-only,
-    // sin TZ — ver `_ensure_grocery_start_date` en `db_plans.py`). JavaScript
-    // interpreta `new Date("2026-05-06")` como UTC midnight → en TZ -4 cae
-    // en local 2026-05-05T20:00 → setHours(0,0,0,0) → local 5-may 00:00.
-    // Si hoy es local 6-may, daysSinceCreation = 1 → shift-plan dispara →
-    // pierde el primer día del plan recién generado.
-    //
-    // Fix: si la fecha es solo "YYYY-MM-DD", parsear como local midnight
-    // directamente. Si es ISO timestamp completo, mantener parse + setHours
-    // (el setHours convierte el timestamp local a local midnight, OK).
-    const _parseStartLocal = (raw) => {
-        if (!raw) return new Date();
-        if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-            const [y, m, d] = raw.split('-').map(Number);
-            return new Date(y, m - 1, d); // Local midnight
-        }
-        const dt = new Date(raw);
-        dt.setHours(0, 0, 0, 0);
-        return dt;
-    };
+    // [GROCERY-START-DATE-LOCAL-PARSE 2026-05-06] Parser local-aware +
+    // diferencia en días-calendario. La implementación (y el detalle del bug
+    // UTC-midnight que cierra) vive ahora en utils/planWindow.js, testeada con
+    // fechas fijas. `_parseStartLocal` se conserva como alias local porque lo
+    // usan los dos call sites de fecha de abajo.
+    // [P3-DASH-WINDOW-TEST · 2026-05-29]
+    const _parseStartLocal = parseStartLocal;
 
     const rawStartDate = planData?.grocery_start_date || planData?.created_at;
     const startMidnight = _parseStartLocal(rawStartDate);
 
-    const daysSinceCreation = Math.round((todayMidnight - startMidnight) / (1000 * 60 * 60 * 24));
+    const daysSinceCreation = daysSinceMidnight(todayMidnight, startMidnight);
 
     // cycle_start_date: fecha inmutable de inicio del ciclo (no la rota el backend).
     // Se usa solo para el contador "daysLeft" del badge; daysSinceCreation se mantiene
@@ -753,38 +876,33 @@ const Dashboard = () => {
     // de día actual en planDays, etc.) depende de ese desplazamiento.
     const rawCycleStart = planData?.cycle_start_date || rawStartDate;
     const cycleStartMidnight = _parseStartLocal(rawCycleStart);
-    const daysSinceCycleStart = Math.round((todayMidnight - cycleStartMidnight) / (1000 * 60 * 60 * 24));
+    const daysSinceCycleStart = daysSinceMidnight(todayMidnight, cycleStartMidnight);
 
-    let isPlanExpired = false;
-    let maxDays = 7;
-    if (groceryDuration === 'weekly') { maxDays = 7; }
-    if (groceryDuration === 'biweekly') { maxDays = 15; }
-    if (groceryDuration === 'monthly') { maxDays = 30; }
-
+    // [P3-DASH-WINDOW-TEST · 2026-05-29] maxDays/expiryExtension/totalAllowedDays/
+    // isPlanExpired/daysLeft/planFinished se derivan en utils/planWindow.js
+    // (computeCycleStatus), testeado con fechas fijas: incluye la extensión de
+    // expiración por generación incompleta (GAP 8 — no marcar expirado un plan
+    // que aún se completa por chunks) y la expiración contra el ciclo inmutable
+    // cycle_start_date (daysSinceCycleStart), no el rolling grocery_start_date.
     const generated_days = planData?.days?.length || 0;
-    
-    // GAP 8: Expiración de plan no considera tiempo de generación
-    // Fix: extender expiry por (requested_days - generated_days)
-    const expiryExtension = Math.max(0, maxDays - generated_days);
-    const totalAllowedDays = maxDays + expiryExtension;
-
-    // Expiración basada en el ciclo inmutable (cycle_start_date), no en el rolling
-    // grocery_start_date — sino el plan nunca expira.
-    if (daysSinceCycleStart >= totalAllowedDays) isPlanExpired = true;
-
-    // daysLeft: días reales restantes del ciclo, calculado contra cycle_start_date
-    // (inmutable) para que decremente naturalmente sin importar los rollings del backend
-    // sobre grocery_start_date. totalAllowedDays solo extiende la ventana de expiración
-    // para planes aún generándose, pero no debe inflar el contador visible al usuario.
-    const daysLeft = Math.max(0, maxDays - daysSinceCycleStart);
+    const {
+        maxDays,
+        isPlanExpired,
+        daysLeft,
+        planFinished,
+    } = computeCycleStatus({
+        groceryDuration,
+        generatedDays: generated_days,
+        daysSinceCycleStart,
+    });
 
     // [BADGE-HOURS] El badge del ciclo deja de mostrar "0d" (confuso: ¿terminó o no?).
     //   - Último día (daysLeft===1): horas reales restantes hasta el fin del ciclo.
     //   - Ciclo terminado (daysLeft===0): estado "Finalizado" + CTA reiniciar.
     // cycleEndMs = medianoche local tras el último día del ciclo (cycleStart + maxDays).
+    // Quedan inline (no en planWindow.js) porque dependen de Date.now() (no-puro).
     const cycleEndMs = cycleStartMidnight.getTime() + maxDays * 24 * 60 * 60 * 1000;
     const hoursUntilCycleEnd = Math.max(1, Math.ceil((cycleEndMs - Date.now()) / (60 * 60 * 1000)));
-    const planFinished = daysLeft === 0;
 
     // [P3-PLAN-CORRUPTED-BANNER · 2026-05-27] Detecta planes que entraron al
     // localStorage en estado inválido y nunca se autorrecuperaron. Dos modos
@@ -860,9 +978,9 @@ const Dashboard = () => {
         );
         const isPostRestockRotation = !!planData?.is_restocked && !_staleDedup;
 
-        const MASS_TO_G = { 'g': 1, 'gr': 1, 'gramos': 1, 'kg': 1000, 'lb': 453.592, 'lbs': 453.592, 'oz': 28.3495, 'onza': 28.3495, 'onzas': 28.3495 };
-        const VOL_TO_ML = { 'ml': 1, 'l': 1000, 'taza': 240, 'tazas': 240, 'cda': 15, 'cdta': 5 };
-
+        // [P5-SPEED-DELTA-CONSTS-HOIST · 2026-06-01] MASS_TO_G / VOL_TO_ML izados a
+        // module-scope (arriba). Las referencias aquí abajo resuelven a la constante
+        // module-level (mismas tablas).
         const toBaseUnit = (qty, unit) => {
             let u = unit.toLowerCase().trim().replace(/\.$/, ''); // remove trailing dot from 'ud.'
             if (MASS_TO_G[u]) return { value: qty * MASS_TO_G[u], type: 'mass', ratio: MASS_TO_G[u] };
@@ -905,32 +1023,20 @@ const Dashboard = () => {
             // para que "chuleta de cerdo" haga match con el master ingredient "cerdo" guardado.
             n = n.replace(/^(pechuga|filete|muslo|trozo|chuleta|pieza|corte|ración|racion|porción|porcion|filetico|medallón|medallones|carne)s?\s+(de|del)\s+/i, '').trim();
 
-            // Stop words: réplica exacta del backend (shopping_calculator.py línea 103)
-            // Elimina descriptores que no forman parte del nombre base del ingrediente.
-            const stops = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 'rallada', 
-                'magra', 'magro', 'para rebozar', 'en hojuelas', 'hervida', 'desmenuzada', 
-                'fresco', 'fresca', 'cocido', 'cocida', 'pelada', 'pelado', 'en dados', 
-                'al gusto', 'en aros', 'en trozos', 'en rodajas', 'en porciones', 
-                'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada', 
-                'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
-                'horneado', 'grandes', 'firme'];
-            for (const s of stops) {
-                n = n.replace(new RegExp('\\b' + s + '\\b', 'gi'), '');
+            // Stop words: réplica exacta del backend (shopping_calculator.py línea 103).
+            // [P5-SPEED-DELTA-CONSTS-HOIST · 2026-06-01] STOP_WORD_REGEXES precompiladas
+            // a module-scope (antes: `new RegExp` por palabra por ítem). Flag `g` →
+            // replace resetea lastIndex tras cada llamada → seguro reusar la instancia.
+            for (const re of STOP_WORD_REGEXES) {
+                n = n.replace(re, '');
             }
             n = n.replace(/,/g, '').replace(/\s+/g, ' ').trim();
 
             return n.split(/\s+/).map(w => {
-                 const irregulars = {
-                     'nueces': 'nuez',
-                     'aves': 'ave',
-                     'maices': 'maiz',
-                     'arroces': 'arroz',
-                     'peces': 'pez',
-                     'carnes': 'carne',
-                     'tomates': 'tomate'
-                 };
-                 if (irregulars[w]) return irregulars[w];
-                 
+                 // [P5-SPEED-DELTA-CONSTS-HOIST · 2026-06-01] NAME_IRREGULARS izado a
+                 // module-scope (antes se reconstruía por cada palabra de cada ítem).
+                 if (NAME_IRREGULARS[w]) return NAME_IRREGULARS[w];
+
                  if (w.length <= 4) {
                      if (w.endsWith('s') && !w.endsWith('es') && !w.endsWith('is')) return w.slice(0, -1);
                      return w;
@@ -943,16 +1049,12 @@ const Dashboard = () => {
             }).join(' ');
         };
 
-        const PANTRY_STAPLES_DELTA = new Set([
-            'sal y ajo en polvo', 'aceite de oliva', 'aceite de coco',
-            'aceite de sésamo o maní', 'salsa de soya', 'orégano',
-            'canela', 'pimienta', 'sal', 'vinagre', 'ajo en polvo'
-        ]);
-
+        // [P5-SPEED-DELTA-CONSTS-HOIST · 2026-06-01] PANTRY_STAPLES_DELTA y DRY_GOODS
+        // izados a module-scope (arriba); las referencias resuelven a las constantes
+        // module-level.
         const inferShelfLifeDays = (name, category) => {
             const n = (name || '').toLowerCase();
             const c = (category || '').toLowerCase();
-            const DRY_GOODS = ['arroz', 'pasta', 'fideo', 'espagueti', 'macarrón', 'macarron', 'lenteja', 'habichuela', 'frijol', 'garbanzo', 'gandul', 'moro', 'avena', 'quinoa', 'cuscús', 'cuscus', 'bulgur', 'cebada', 'harina', 'azúcar', 'azucar', 'sal', 'bicarbonato', 'levadura', 'cacao', 'café', 'cafe', 'infusión', 'especia', 'condimento', 'maíz seco', 'maiz seco', 'palomita', 'cereal'];
             if (DRY_GOODS.some(k => n.includes(k))) return 180;
             if (n.includes('congelado') || c.includes('congelad') || c.includes('frozen')) return 60;
             if (c.includes('hoja') || n.includes('lechuga') || n.includes('espinaca') || n.includes('cilantro')) return 5;
@@ -1119,7 +1221,15 @@ const Dashboard = () => {
         deltaList._isAdjusted = itemsRemoved > 0 || deltaList.some(i => i?._adjustedFromInventory);
 
         return deltaList;
-    }, [liveInventory, planData]);
+        // [P3-BUILD-DELTA-DEP-ARRAY · 2026-05-30] maxDays/daysLeft añadidos al
+        // dep array: el callback los cierra (degradationRatio, ~líneas 1069-1070)
+        // pero al cruzar la medianoche `daysLeft` baja 1 sin que planData cambie
+        // → el closure retenía el daysLeft pre-medianoche → un PDF/restock
+        // generado tras medianoche escalaba el delta con el ciclo viejo
+        // (off-by-one-día, ~14% sobre-escala). Son primitivos numéricos
+        // (comparados por valor → sin re-creación espuria). groceryDuration/
+        // todayDate quedan subsumidos (maxDays/daysLeft derivan de ellos).
+    }, [liveInventory, planData, maxDays, daysLeft]);
 
     // Calcular si la delta list de esta sesión actual todavia requiere compras
     // GUARD: No calcular hasta que liveInventory se haya cargado (evita flash del botón).
@@ -1248,11 +1358,9 @@ const Dashboard = () => {
         }
     };
 
-    const handleDismissPushOnboarding = () => {
-        setShowPushOnboarding(false);
-        // [P1-PROD-FINAL-3 · 2026-05-24] safeLocalStorageSet — ver finally arriba.
-        safeLocalStorageSet('mealfit_push_onboarding_seen', 'true');
-    };
+    // [P3-DASH-MODALS-A11Y · 2026-05-30] `handleDismissPushOnboarding` reemplazado
+    // por `dismissPushOnboarding` (useCallback memoizado, declarado arriba junto al
+    // hook useModalAccessibility del modal). SSOT único del dismiss.
 
     const handleDownloadShoppingList = async () => {
         // [P1-6] Early return si ya hay una descarga en vuelo. `disabled` del
@@ -1701,15 +1809,21 @@ const Dashboard = () => {
                 </div>
 
                 ${freshInventoryStale ? `
-                <!-- [P1-PDF-1] Stale Inventory Banner: el fetch fresco falló o
-                     timeoutó; usamos liveInventory cacheado y avisamos al usuario.
-                     Color amber/warning (no rojo) para diferenciarlo de error duro. -->
+                <!-- [P1-PDF-1 · banner copy corregido P3-PDF-STALE-BANNER-COPY · 2026-05-30]
+                     Stale Inventory Banner: el fetch fresco de la Nevera falló o
+                     timeoutó. Desde [P3-RESTOCK-STALE-FALLBACK-EMPTY] el fallback NO
+                     usa liveInventory cacheado sino [] → buildDeltaShoppingList
+                     retorna la lista COMPLETA sin deducir (dirección segura: el peor
+                     caso es re-comprar lo que ya tienes, no quedarte corto). El copy
+                     viejo decía "usa datos en caché... para evitar duplicados", que
+                     era factualmente incorrecto en el 100% de los casos donde se
+                     muestra el banner. Color amber/warning (no rojo). -->
                 <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-left: 3px solid #f59e0b; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; align-items: flex-start; gap: 8px;">
                     <svg style="flex-shrink: 0; width: 14px; height: 14px; color: #f59e0b; margin-top: 1px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <p style="margin: 0; font-size: ${isUltraDense ? '9.5px' : '11px'}; color: #78350f; line-height: 1.3;">
-                        <strong>Aviso:</strong> Esta lista usa datos en caché de tu Nevera (no pudimos validar el inventario en vivo). <strong>Verifica antes de comprar</strong> para evitar duplicados.
+                        <strong>Aviso:</strong> No pudimos validar tu Nevera en vivo, así que esta lista incluye <strong>todos</strong> los ingredientes del plan. Revisa qué ya tienes en casa antes de comprar.
                     </p>
                 </div>
                 ` : ''}
@@ -2217,12 +2331,12 @@ const Dashboard = () => {
                 if (planData) {
                     const updatedPlan = { ...planData, is_restocked: true };
                     setPlanData(updatedPlan);
-                    localStorage.setItem('mealfit_plan', JSON.stringify(updatedPlan));
+                    safeLocalStorageSet('mealfit_plan', JSON.stringify(updatedPlan));
                 }
 
                 // Guardar la configuración con la que se registraron las compras
                 if (userProfile?.id) {
-                    localStorage.setItem(`mealfit_restock_config_${userProfile.id}`, JSON.stringify({
+                    safeLocalStorageSet(`mealfit_restock_config_${userProfile.id}`, JSON.stringify({
                         householdSize: formData?.householdSize || 1,
                         groceryDuration: formData?.groceryDuration || groceryDuration || 'weekly'
                     }));
@@ -2276,13 +2390,26 @@ const Dashboard = () => {
     // Retrocompatibilidad y extracción de días
     const planDays = planData?.days || [{ day: 1, meals: planData?.meals || planData?.perfectDay || [] }];
     
-    // Rolling Window: calcular el índice del día de hoy dentro del plan
-    // daysSinceCreation ya está calculado arriba a partir de grocery_start_date
-    const todayPlanDayIndex = Math.max(0, Math.min(daysSinceCreation, planDays.length - 1));
+    // Rolling Window: índice del día de hoy + inicio de la ventana visible.
+    // [P3-DASH-WINDOW-TEST · 2026-05-29] computeRollingWindow (utils/planWindow.js)
+    // encapsula el clamp a [0, length-1] y el cálculo de visibleStartIndex,
+    // testeado con fechas fijas. daysSinceCreation ya está calculado arriba a
+    // partir de grocery_start_date.
+    const { todayPlanDayIndex, visibleStartIndex } = computeRollingWindow(
+        planDays.length,
+        daysSinceCreation,
+        MAX_WINDOW
+    );
     
     // Mostrar todos los d\u00edas pero marcar cu\u00e1les son pasados/hoy/futuros
     // Si hay d\u00edas de retraso (el cron no corri\u00f3) o si faltan d\u00edas (plan roto), llamar a /shift-plan on-demand
     useEffect(() => {
+        // [P3-DASH-TRIGGERSHIFT-ABORT · 2026-06-01] Guard de cancelación: las deps
+        // (daysSinceCreation al cruzar medianoche, planDays.length/total_days_requested
+        // al completar un chunk) pueden cambiar con un POST in-flight → 2 requests
+        // concurrentes; si el más viejo resuelve después, su setPlanData clobbea el plan
+        // fresco. El flag descarta la resolución obsoleta (patrón P1-DASHBOARD-POLLING-ABORT).
+        let cancelled = false;
         const triggerShift = async () => {
             const requestedDays = Math.max(3, parseInt(planData?.total_days_requested) || 3);
             const needsShift = daysSinceCreation > 0;
@@ -2307,7 +2434,7 @@ const Dashboard = () => {
                 
                 if (response.ok) {
                     const resData = await response.json();
-                    if (resData.success && resData.plan_data && !resData.message.includes("completo")) {
+                    if (!cancelled && resData.success && resData.plan_data && !resData.message.includes("completo")) {
                         // console.log('\ud83d\udd04 [ROLLING WINDOW] Shift/Fill completado on-demand:', resData.message);
                         setPlanData(resData.plan_data);
                     }
@@ -2318,6 +2445,7 @@ const Dashboard = () => {
         };
         
         triggerShift();
+        return () => { cancelled = true; };
     }, [userProfile?.id, daysSinceCreation, planDays.length, planData?.total_days_requested]);
 
     // [P3-DASH-WINDOW-FROM-TODAY · 2026-05-18] Ventana rolling que ARRANCA en
@@ -2349,22 +2477,40 @@ const Dashboard = () => {
     // useEffect arriba: si planDays.length <= todayPlanDayIndex, el shift API
     // se invoca y re-hidrata el plan. Mientras tanto, el clamp del
     // `visibleStartIndex` a `planDays.length - 1` evita slice vacío.
-    const _MAX_WINDOW = 4;
-    const visibleStartIndex = Math.min(
-        todayPlanDayIndex,
-        Math.max(0, planDays.length - 1)
-    );
+    // `visibleStartIndex` y `todayPlanDayIndex` ya vienen de computeRollingWindow
+    // (arriba). `_MAX_WINDOW` se conserva como alias local porque otros sitios
+    // (skeleton tabs, auto-select del tab activo) lo referencian.
+    const _MAX_WINDOW = MAX_WINDOW;
     const visiblePlanDays = planDays.slice(visibleStartIndex, visibleStartIndex + _MAX_WINDOW);
 
-    // Auto-seleccionar el tab del día actual si queda fuera de la ventana visible.
+    // Auto-seleccionar el tab del día actual.
     // [P3-DASH-WINDOW-FROM-TODAY · 2026-05-18] Renombrado `_WINDOW_SIZE` →
     // `_MAX_WINDOW` para reflejar que ahora es un cap, no una ventana fija.
+    // [P3-DASH-WINDOW-TEST · 2026-05-29] La decisión out-of-window se delega a
+    // shouldReselectActiveDay (utils/planWindow.js), testeada con casos fijos.
+    //
+    // [P3-DASH-WINDOW-AUTOSELECT · 2026-05-30] FIX: "seguir a hoy" cuando el día
+    // de hoy avanza. Antes SOLO se re-seleccionaba si el día activo caía FUERA de
+    // la ventana — pero cuando un día finaliza, `triggerShift` llama a /shift-plan
+    // que re-hidrata `planData` RE-INDEXANDO (hoy pasa a índice 0). Tras ese
+    // re-index el `activeDayIndex` viejo (p.ej. 2) seguía DENTRO de la nueva
+    // ventana [0,4) pero apuntando a otro día → shouldReselectActiveDay devolvía
+    // false → la selección NO seguía a hoy y el usuario veía un día equivocado /
+    // sin comidas y tenía que clickear hoy manualmente cada vez que finalizaba
+    // un día. Ahora, cuando `todayPlanDayIndex` CAMBIA (cruce de medianoche o
+    // re-index del shift), saltamos a hoy. Dentro de un mismo día (todayPlanDayIndex
+    // estable) se respeta la selección manual, salvo que caiga fuera de la ventana.
     useEffect(() => {
         if (!planData?.days || planData.days.length <= 1) return;
-        const windowEnd = visibleStartIndex + _MAX_WINDOW;
-        if (activeDayIndex < visibleStartIndex || activeDayIndex >= windowEnd) {
-            setActiveDayIndex(todayPlanDayIndex);
-        }
+        const next = resolveActiveDayIndex({
+            activeDayIndex,
+            prevTodayPlanDayIndex: _prevTodayPlanDayIndexRef.current,
+            todayPlanDayIndex,
+            visibleStartIndex,
+            maxWindow: _MAX_WINDOW,
+        });
+        _prevTodayPlanDayIndexRef.current = todayPlanDayIndex;
+        if (next !== null) setActiveDayIndex(next);
     }, [planData?.days, todayPlanDayIndex, visibleStartIndex]);
 
     const currentDayMeals = planDays[activeDayIndex]?.meals || [];
@@ -2397,10 +2543,10 @@ const Dashboard = () => {
                     line-height: 1.1;
                     letter-spacing: -0.03em;
                     margin-bottom: 0.25rem;
-                    color: #1E293B;
+                    color: var(--text-main);
                 }
                 .dashboard-subtitle {
-                    color: #64748B;
+                    color: var(--text-muted);
                     font-size: 1.1rem;
                     font-weight: 500;
                 }
@@ -2474,7 +2620,7 @@ const Dashboard = () => {
                 .meals-container {
                     background-color: #FDFCF8;
                     border-radius: 0.5rem 1.75rem 1.75rem 0.5rem;
-                    border: 1px solid #E2E8F0;
+                    border: 1px solid var(--border);
                     border-left: 20px solid #1E293B;
                     box-shadow: 4px 4px 0px rgba(0,0,0,0.02), 8px 8px 0px rgba(0,0,0,0.01), 0 25px 50px -12px rgba(0,0,0,0.15), inset 8px 0px 8px -4px rgba(0,0,0,0.2);
                     display: flex;
@@ -2565,6 +2711,7 @@ const Dashboard = () => {
                     cursor: pointer;
                 }
                 .new-plan-btn:hover:not(:disabled) {
+                    border-color: var(--hover-border, var(--border)) !important;
                     box-shadow: var(--hover-shadow, 0 15px 30px -5px rgba(0,0,0,0.15)) !important;
                     filter: brightness(1.1);
                 }
@@ -2579,13 +2726,43 @@ const Dashboard = () => {
                    semántica "success ready" sin el ruido del gradient.
                    Hover: borde slate-900 + dot ring ampliado.
                    Tooltip-anchor: P3-RESTOCK-MINIMAL-CTA. */
+                /* [RESTOCK-CTA-COLOR · 2026-06-01] "Ya compré la lista" en emerald
+                   (acción positiva "ya lo compré", combina con el dot verde) en vez
+                   del card-color plano que se perdía sobre el fondo oscuro. Tinte
+                   suave on-brand en ambos temas — NO el verde saturado loud del
+                   diseño viejo. Colores movidos de inline a CSS para poder
+                   tematizar por data-theme. */
                 .restock-cta-minimal {
                     position: relative;
+                    background: rgba(16, 185, 129, 0.10);
+                    color: #047857;
+                    border: 1px solid rgba(16, 185, 129, 0.35);
                 }
+                /* [RESTOCK-CTA-HOVER-GLOW · 2026-06-01] Sin movimiento: se quitó el
+                   translateY (que además se filtraba al modo oscuro, donde la regla
+                   dark no lo reseteaba). El hover ahora es SOLO un brillo —glow
+                   emerald del box-shadow + tinte intensificado—, análogo al hover del
+                   botón "Actualizar platos". En claro NO usamos filter:brightness para
+                   no lavar el tinte a blanco; el glow lo da el box-shadow. */
                 .restock-cta-minimal:hover:not(:disabled) {
-                    border-color: #0F172A !important;
-                    box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.12) !important;
-                    transform: translateY(-1px);
+                    background: rgba(16, 185, 129, 0.18);
+                    border-color: rgba(16, 185, 129, 0.6) !important;
+                    /* [RESTOCK-HOVER-DIM · 2026-06-01] glow más tenue en hover. */
+                    box-shadow: 0 3px 12px -2px rgba(16, 185, 129, 0.26) !important;
+                }
+                html[data-theme="dark"] .restock-cta-minimal {
+                    background: rgba(52, 211, 153, 0.13);
+                    color: #6EE7B7;
+                    border-color: rgba(52, 211, 153, 0.34);
+                }
+                html[data-theme="dark"] .restock-cta-minimal:hover:not(:disabled) {
+                    background: rgba(52, 211, 153, 0.24);
+                    border-color: rgba(52, 211, 153, 0.6) !important;
+                    box-shadow: 0 3px 13px -2px rgba(16, 185, 129, 0.28) !important;
+                    /* [RESTOCK-HOVER-DIM · 2026-06-01] Brillo más sutil en hover (el
+                       usuario lo quería menos): brightness 1.1 → 1.05 + glow más tenue.
+                       Sigue avivando el emerald sin lavarlo. Sin transform = sin movimiento. */
+                    filter: brightness(1.05);
                 }
                 .restock-cta-minimal:active:not(:disabled) {
                     transform: translateY(0);
@@ -2676,7 +2853,7 @@ const Dashboard = () => {
 
                 .restock-modal-cancel {
                     background: transparent;
-                    color: #94A3B8;
+                    color: var(--text-muted);
                     border: none;
                     padding: 0.7rem;
                     font-weight: 500;
@@ -2692,6 +2869,25 @@ const Dashboard = () => {
                     outline: 2px solid #4F46E5;
                     outline-offset: 2px;
                     border-radius: 6px;
+                }
+
+                /* [RESTOCK-MODAL-DARK · 2026-06-01] En oscuro el CTA slate-900
+                   (#0F172A) quedaba casi invisible sobre la tarjeta oscura
+                   (--bg-card ≈ #111827) → se veía como texto suelto sin botón. Lo
+                   pasamos a indigo de marca con texto oscuro (mismo lenguaje que
+                   los CTA dark del Header). "Cancelar" aclara en hover (en claro
+                   oscurecía, lo cual en dark era ilegible). */
+                html[data-theme="dark"] .restock-modal-confirm {
+                    background: var(--primary);
+                    color: #0B1120;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+                }
+                html[data-theme="dark"] .restock-modal-confirm:hover:not(:disabled) {
+                    background: var(--primary-light);
+                    box-shadow: 0 8px 22px -4px rgba(0, 0, 0, 0.55);
+                }
+                html[data-theme="dark"] .restock-modal-cancel:hover {
+                    color: var(--text-main);
                 }
 
                 @media (max-width: 768px) {
@@ -2795,15 +2991,43 @@ const Dashboard = () => {
                         align-items: center !important;
                         justify-content: space-between;
                         width: 100%;
-                        border-top: 1px solid #F1F5F9;
+                        border-top: 1px solid var(--border);
                         padding-top: 0.75rem;
                     }
                     .meal-right-side > div:first-child {
                         text-align: left !important;
                     }
+                    /* [P3-MENU-MOBILE-ACTIONS · 2026-05-30] Fila de acciones
+                       balanceada: el grupo de botones llena el espacio restante
+                       y "Cambiar Plato" (2º botón = acción primaria) crece para
+                       ocupar el centro entre los dos circulares. Pre-fix: la kcal
+                       quedaba aislada a la izquierda y el cluster apretado a la
+                       derecha con la CTA primaria comprimida. */
+                    .meal-right-side > div:last-child {
+                        flex: 1;
+                        justify-content: flex-end;
+                    }
+                    .meal-right-side .meal-act-btn:nth-child(2) {
+                        flex: 1;
+                        max-width: 260px;
+                    }
                     .main-grid {
                         flex-direction: column;
                         gap: 1.5rem;
+                    }
+                    /* [DASH-MOBILE-MENU-OVERFLOW · 2026-06-01] El .meals-container
+                       (cuaderno) trae inline alignSelf 'start' pensado para el layout
+                       ROW de desktop (top-align). En mobile el .main-grid pasa a
+                       COLUMNA y align-self controla el eje HORIZONTAL: 'start' hacia
+                       que el cuaderno tomara el ancho de su CONTENIDO (las pestanas de
+                       dia, que no encogen) en vez de estirarse al viewport. Con 3
+                       pestanas cabia; con 4+ la tarjeta se salia y recortaba el texto y
+                       las pestanas a la derecha. stretch la fija al ancho disponible:
+                       las pestanas vuelven a scrollear dentro (overflow-x auto) y las
+                       comidas envuelven. !important para ganarle al style inline. */
+                    .meals-container {
+                        align-self: stretch !important;
+                        max-width: 100%;
                     }
                     /* [P3-MOBILE-ACTIONS-STACK · 2026-05-26] En mobile el
                        .actions-group debe stackear vertical, no row. Pre-fix
@@ -2919,6 +3143,26 @@ const Dashboard = () => {
                     box-shadow:
                         0 2px 6px rgba(6, 95, 70, 0.15),
                         0 0 0 0.5px rgba(255, 255, 255, 0.4) inset;
+                }
+                /* [PLAN-TIER-BADGE-BASIC-DARK · 2026-06-01] El chip "BÁSICO" del header
+                   MÓVIL usaba el gradiente verde MUY claro sin override dark → pill
+                   brillante/lavado sobre el fondo oscuro. Variante oscura: tinte
+                   esmeralda translúcido + texto verde claro + el CTA "Ver planes" a tono.
+                   (Es un elemento distinto al badge del menú de cuenta del sidebar.) */
+                html[data-theme="dark"] .plan-tier-badge--basic {
+                    background: rgba(16, 185, 129, 0.16);
+                    color: #6EE7B7;
+                    border-color: rgba(16, 185, 129, 0.5);
+                    box-shadow: none;
+                }
+                html[data-theme="dark"] .plan-tier-badge--basic .plan-tier-badge-cta {
+                    background: rgba(16, 185, 129, 0.28);
+                    color: #D1FAE5;
+                    /* El separador y la sombra del CTA eran BLANCOS (border-left
+                       rgba(255,255,255,0.55) + box-shadow claro) → se veían como un
+                       contorno blanco en oscuro. A tono esmeralda + sin sombra clara. */
+                    border-left-color: rgba(16, 185, 129, 0.4);
+                    box-shadow: none;
                 }
 
                 /* PLUS — indigo (pro, intermediate) */
@@ -3067,6 +3311,33 @@ const Dashboard = () => {
                     .plan-tier-badge {
                         display: inline-flex;
                     }
+
+                    /* [P3-CHIP-MOBILE-POLISH · 2026-05-30] Polish del chip en
+                       mobile: área táctil más cómoda (≈40px alto), tipografía
+                       más legible y CTA "Ver planes" con separador + sombra
+                       sutil para que lea claramente como botón, no como adorno. */
+                    .plan-tier-badge {
+                        gap: 0.5rem;
+                        padding: 0.5rem 0.65rem 0.5rem 0.95rem;
+                        min-height: 38px;
+                        font-size: 0.72rem;
+                    }
+                    .plan-tier-badge-label {
+                        font-size: 0.74rem;
+                        letter-spacing: 0.07em;
+                    }
+                    .plan-tier-badge-cta {
+                        font-size: 0.74rem;
+                        padding: 0.3rem 0.6rem;
+                        margin-left: 0.35rem;
+                        background: rgba(255, 255, 255, 0.78);
+                        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+                        /* separador sutil entre el tier y la CTA */
+                        border-left: 1px solid rgba(255, 255, 255, 0.55);
+                    }
+                    .plan-tier-badge-chevron {
+                        margin-left: -0.1rem;
+                    }
                 }
                 @media (max-width: 380px) {
                     /* En viewports muy estrechos (iPhone SE, etc.) la CTA
@@ -3078,6 +3349,126 @@ const Dashboard = () => {
                     }
                     .plan-tier-badge {
                         padding-right: 0.5rem;
+                    }
+                }
+
+                /* [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — overrides de
+                   superficies glassmorphism que en claro usan gradients de
+                   blanco translúcido (no overridables desde inline). En oscuro
+                   las repintamos a superficie sólida slate para que no queden
+                   tarjetas blancas sobre el fondo profundo. El tema claro
+                   queda intacto: estas reglas solo aplican bajo data-theme. */
+                html[data-theme="dark"] .dashboard-header {
+                    background: var(--bg-card);
+                    border: 1px solid var(--border);
+                }
+                html[data-theme="dark"] .macros-card {
+                    background: var(--bg-card);
+                    border: 1px solid var(--border);
+                    box-shadow: var(--shadow-lg);
+                }
+                html[data-theme="dark"] .macros-grid > div:not(:last-child) {
+                    border-right: 1px solid var(--border);
+                }
+                html[data-theme="dark"] .meals-container {
+                    background-color: var(--bg-card);
+                    /* [APPEARANCE-THEME · 2026-05-29] El "lomo" del cuaderno
+                       (border-left #1E293B en claro) se fundía con el papel
+                       oscuro var(--bg-card)=#111827 — el cuaderno perdía su
+                       identidad y quedaba como una tarjeta plana. Repintamos el
+                       lomo a un slate claramente más claro (encuadernado de
+                       cuero oscuro) y reemplazamos las sombras (calibradas para
+                       el crema, invisibles en oscuro) por: un hairline de luz en
+                       el pliegue del lomo, una sombra de valle que hunde la
+                       página hacia el encuadernado, y una sombra de elevación
+                       profunda que despega el cuaderno del fondo de página. */
+                    border-left-color: #3A4358;
+                    box-shadow:
+                        inset 1px 0 0 0 rgba(148, 163, 184, 0.22),
+                        inset 10px 0 12px -7px rgba(0, 0, 0, 0.6),
+                        0 24px 50px -12px rgba(0, 0, 0, 0.7);
+                }
+                html[data-theme="dark"] .meals-container::before {
+                    /* Línea de margen roja del cuaderno: +brillo y alpha para
+                       que lea sobre el papel oscuro (en claro era 248,113,113
+                       @ 0.4; aquí el accent oscuro #FB7185 @ 0.55). */
+                    border-left-color: rgba(251, 113, 133, 0.55);
+                    border-right-color: rgba(251, 113, 133, 0.55);
+                }
+                html[data-theme="dark"] .option-buttons {
+                    /* La "línea de rasgado" punteada bajo los días: en claro es
+                       #94A3B8 (sólido), que en oscuro choca duro contra el papel.
+                       La bajamos a un slate translúcido más suave y a tono. */
+                    border-bottom-color: rgba(148, 163, 184, 0.4);
+                }
+                @media (max-width: 768px) {
+                    html[data-theme="dark"] .stat-item {
+                        border-bottom: 1px solid var(--border);
+                    }
+                    html[data-theme="dark"] .stat-item:nth-child(odd) {
+                        border-right: 1px solid var(--border) !important;
+                    }
+                }
+
+                /* [DASH-MOBILE-CLEAN-CARD · 2026-06-01] En móvil el menú deja de ser un
+                   "cuaderno" (lomo oscuro grueso a la izquierda + línea roja de margen +
+                   esquinas asimétricas + sombras de encuadernado) y pasa a una tarjeta
+                   limpia y moderna. El escritorio conserva el cuaderno. Los paddings
+                   izquierdos grandes existían para librar el lomo → se normalizan.
+                   !important para ganarle a los overrides de tema oscuro del notebook
+                   (.meals-container dark, ::before, .option-buttons), de mayor
+                   especificidad. */
+                @media (max-width: 768px) {
+                    .meals-container {
+                        border: 1px solid var(--border) !important;
+                        border-radius: 1.25rem !important;
+                        box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.30) !important;
+                    }
+                    .meals-container::before {
+                        display: none !important;
+                    }
+                    .option-buttons {
+                        border-bottom: 1px solid var(--border) !important;
+                        /* [DASH-MOBILE-TABS-PADDING · 2026-06-01] +separación de los
+                           bordes: las pestañas se estiran (flex-grow) y llenan el ancho,
+                           así que la única holgura lateral es este padding. Subido a 2rem
+                           + gap reducido para que la 1ª/última pestaña no queden pegadas
+                           a los bordes en iPhone. */
+                        padding-left: 2rem !important;
+                        padding-right: 2rem !important;
+                        gap: 0.5rem !important;
+                    }
+                    .menu-section-header {
+                        padding-left: 1.25rem !important;
+                        padding-right: 1.25rem !important;
+                    }
+                    .meal-card,
+                    .skipped-lunch {
+                        padding-left: 1.25rem !important;
+                    }
+                    .meal-card:not(:last-child)::after,
+                    .skipped-lunch:not(:last-child)::after {
+                        left: 1.25rem !important;
+                        right: 1.25rem !important;
+                    }
+                }
+
+                /* [DASH-NARROW-TABS-FIT · 2026-06-01] En pantallas angostas (iPhone 12
+                   Pro 390px, SE/mini 375px, etc.) las 4 pestañas de día + el padding de
+                   2rem ya NO caben → se desbordan y el navegador ignora el padding, así
+                   que se pegan a los bordes (en Pro Max 430px sí caben = perfecto).
+                   Achicamos texto + padding interno de las pestañas SOLO aquí para que
+                   quepan CON el margen de 2rem. >400px (Pro Max) no entra en esta regla. */
+                @media (max-width: 400px) {
+                    /* [DASH-NARROW-TABS-FIT · 2026-06-01] Tamaño que entra en 390px CON
+                       el margen de 2rem: texto 0.8rem + alto 0.6rem (más grandes que el
+                       0.75rem inicial, que se veían muy chicos) sin desbordar. */
+                    .option-btn {
+                        font-size: 0.8rem !important;
+                        padding: 0.6rem 0.5rem !important;
+                    }
+                    .option-buttons {
+                        gap: 0.35rem !important;
                     }
                 }
             `}</style>
@@ -3188,10 +3579,10 @@ const Dashboard = () => {
 
                     {/* VISUALIZADOR DE CRÉDITOS */}
                     <div className="credits-badge" style={{
-                        background: '#FFFFFF',
+                        background: 'var(--bg-card)',
                         padding: '0.6rem 1rem',
                         borderRadius: '1rem',
-                        border: '2px solid #E2E8F0',
+                        border: '2px solid var(--border)',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.875rem',
@@ -3199,15 +3590,17 @@ const Dashboard = () => {
                     }}>
                         <div style={{
                             width: 36, height: 36,
-                            background: isLimitReached ? '#FEF2F2' : '#EFF6FF',
-                            color: isLimitReached ? '#EF4444' : '#3B82F6',
+                            background: isDark
+                                ? (isLimitReached ? 'rgba(239, 68, 68, 0.16)' : 'rgba(59, 130, 246, 0.16)')
+                                : (isLimitReached ? '#FEF2F2' : '#EFF6FF'),
+                            color: isLimitReached ? (isDark ? '#F87171' : '#EF4444') : (isDark ? '#60A5FA' : '#3B82F6'),
                             borderRadius: '0.75rem',
                             display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}>
-                            <Zap size={18} fill={isLimitReached ? '#EF4444' : '#3B82F6'} />
+                            <Zap size={18} fill={isLimitReached ? (isDark ? '#F87171' : '#EF4444') : (isDark ? '#60A5FA' : '#3B82F6')} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', WebkitTextStroke: '0.5px #334155' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.04em', WebkitTextStroke: isDark ? '0' : '0.5px var(--text-main)' }}>
                                 Créditos
                             </span>
                             <div style={{
@@ -3227,7 +3620,7 @@ const Dashboard = () => {
                                 {remainingCredits === '∞'
                                     ? <InfinityIcon size={20} strokeWidth={2.5} style={{ color: 'var(--text-main)', marginRight: '4px' }} />
                                     : remainingCredits}
-                                {userPlanLimit !== 'Ilimitado' && <span style={{ color: '#94A3B8', fontSize: '0.85rem', fontWeight: 600 }}>/ {userPlanLimit}</span>}
+                                {userPlanLimit !== 'Ilimitado' && <span style={{ color: 'var(--text-light)', fontSize: '0.85rem', fontWeight: 600 }}>/ {userPlanLimit}</span>}
                             </div>
                         </div>
                     </div>
@@ -3244,11 +3637,16 @@ const Dashboard = () => {
                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                     gap: '0.5rem',
                                     background: showDespensaDropdown
-                                        ? 'linear-gradient(135deg, #F1F5F9 0%, #E8EDF3 100%)'
-                                        : 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
+                                        // [APPEARANCE-THEME · 2026-05-29] Estado "abierto":
+                                        // en claro el gradient termina en #E8EDF3 (gris claro
+                                        // = look "presionado"). En oscuro eso volvía la barra
+                                        // medio-blanca/brillosa y tapaba el texto → usar un
+                                        // slate sólido sutil.
+                                        ? (isDark ? 'var(--bg-muted)' : 'linear-gradient(135deg, var(--bg-muted) 0%, #E8EDF3 100%)')
+                                        : 'linear-gradient(135deg, var(--bg-page) 0%, var(--bg-muted) 100%)',
                                     padding: '0.45rem 0.75rem',
                                     borderRadius: '10px',
-                                    border: `1.5px solid ${showDespensaDropdown ? '#94A3B8' : '#E2E8F0'}`,
+                                    border: `1.5px solid ${showDespensaDropdown ? 'var(--text-light)' : 'var(--border)'}`,
                                     boxShadow: showDespensaDropdown
                                         ? '0 0 0 2px rgba(148, 163, 184, 0.1)'
                                         : '0 1px 3px rgba(0,0,0,0.04)',
@@ -3267,10 +3665,10 @@ const Dashboard = () => {
                                         ) : (
                                             <Clock size={13} color="#059669" strokeWidth={2.5} />
                                         )}
-                                        <span style={{ fontWeight: 700, color: '#334155' }}>
+                                        <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
                                             {{ weekly: '7d', biweekly: '15d', monthly: '30d' }[groceryDuration] || '7d'}
                                         </span>
-                                        <span style={{ color: '#94A3B8', fontWeight: 500 }}>
+                                        <span style={{ color: 'var(--text-light)', fontWeight: 500 }}>
                                             {{ weekly: 'semanal', biweekly: 'quincenal', monthly: 'mensual' }[groceryDuration] || 'semanal'}
                                         </span>
                                     </span>
@@ -3295,13 +3693,13 @@ const Dashboard = () => {
                                             title="Tu Nevera puede estar desactualizada. Estamos usando datos en caché. Verifica antes de comprar para evitar duplicados."
                                             onClick={(e) => e.stopPropagation()}
                                             style={{
-                                                background: '#FFFBEB',
-                                                color: '#78350F',
+                                                background: isDark ? 'rgba(245, 158, 11, 0.16)' : '#FFFBEB',
+                                                color: isDark ? '#FCD34D' : '#78350F',
                                                 padding: '0.2rem 0.45rem',
                                                 borderRadius: '6px',
                                                 fontSize: '0.65rem',
                                                 fontWeight: 800,
-                                                border: '1px solid #FDE68A',
+                                                border: isDark ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid #FDE68A',
                                                 display: 'flex', alignItems: 'center', gap: '0.25rem',
                                                 whiteSpace: 'nowrap',
                                                 cursor: 'help',
@@ -3315,41 +3713,47 @@ const Dashboard = () => {
                                         // [BADGE-HOURS] Ciclo terminado → "Finalizado" (antes "0d"/"Exp.",
                                         // ambos confusos). El CTA de reiniciar vive en el botón primario abajo.
                                         <div style={{
-                                            background: '#FEE2E2', color: '#DC2626',
+                                            background: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2',
+                                            color: isDark ? '#F87171' : '#DC2626',
                                             padding: '0.2rem 0.5rem', borderRadius: '6px',
                                             fontSize: '0.65rem', fontWeight: 800,
                                             display: 'flex', alignItems: 'center', gap: '0.2rem'
                                         }}>
-                                            <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#DC2626' }} />
+                                            <div style={{ width: 4, height: 4, borderRadius: '50%', background: isDark ? '#F87171' : '#DC2626' }} />
                                             Finalizado
                                         </div>
                                     ) : daysLeft === 1 ? (
                                         // [BADGE-HOURS] Último día → horas reales restantes en vez de "1d"/"0d".
                                         <div style={{
-                                            background: '#FEE2E2', color: '#DC2626',
+                                            background: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2',
+                                            color: isDark ? '#F87171' : '#DC2626',
                                             padding: '0.2rem 0.5rem', borderRadius: '6px',
                                             fontSize: '0.65rem', fontWeight: 800,
                                             display: 'flex', alignItems: 'center', gap: '0.2rem'
                                         }}>
-                                            <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#DC2626' }} />
+                                            <div style={{ width: 4, height: 4, borderRadius: '50%', background: isDark ? '#F87171' : '#DC2626' }} />
                                             {hoursUntilCycleEnd}h
                                         </div>
                                     ) : (
                                         <div style={{
-                                            background: daysLeft <= 2 ? '#FEE2E2' : '#DBEAFE',
-                                            color: daysLeft <= 2 ? '#DC2626' : '#2563EB',
+                                            background: isDark
+                                                ? (daysLeft <= 2 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(37, 99, 235, 0.24)')
+                                                : (daysLeft <= 2 ? '#FEE2E2' : '#DBEAFE'),
+                                            color: isDark
+                                                ? (daysLeft <= 2 ? '#F87171' : '#93C5FD')
+                                                : (daysLeft <= 2 ? '#DC2626' : '#2563EB'),
                                             padding: '0.2rem 0.5rem',
                                             borderRadius: '6px',
                                             fontSize: '0.65rem',
                                             fontWeight: 800,
                                             display: 'flex', alignItems: 'center', gap: '0.2rem'
                                         }}>
-                                            <div style={{ width: 4, height: 4, borderRadius: '50%', background: daysLeft <= 2 ? '#DC2626' : '#2563EB' }} />
+                                            <div style={{ width: 4, height: 4, borderRadius: '50%', background: isDark ? (daysLeft <= 2 ? '#F87171' : '#93C5FD') : (daysLeft <= 2 ? '#DC2626' : '#2563EB') }} />
                                             {daysLeft}d
                                         </div>
                                     )}
                                     <motion.div animate={{ rotate: showDespensaDropdown ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                                        <ChevronDown size={13} color="#94A3B8" strokeWidth={2.5} />
+                                        <ChevronDown size={13} color="var(--text-light)" strokeWidth={2.5} />
                                     </motion.div>
                                 </div>
                             </div>
@@ -3376,9 +3780,9 @@ const Dashboard = () => {
                                         style={{
                                             position: 'absolute', top: 'calc(100% + 6px)', left: '-4px', right: '-4px',
                                             zIndex: 9999,
-                                            background: '#FFFFFF',
+                                            background: 'var(--bg-card)',
                                             borderRadius: '12px',
-                                            border: '1.5px solid #CBD5E1',
+                                            border: '1.5px solid var(--border)',
                                             boxShadow: '0 20px 40px -10px rgba(0,0,0,0.15)',
                                             overflow: 'hidden',
                                             padding: '6px'
@@ -3386,7 +3790,7 @@ const Dashboard = () => {
                                     >
                                         {/* Despensa Section */}
                                         <div style={{ padding: '4px 8px 2px' }}>
-                                            <span style={{ fontSize: '0.62rem', color: '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                            <span style={{ fontSize: '0.62rem', color: isDark ? '#34D399' : '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                                                 <Clock size={10} /> Duración del Plan
                                             </span>
                                         </div>
@@ -3449,9 +3853,12 @@ const Dashboard = () => {
                                                                 const result = await response.json();
                                                                 if (result.success && result.plan_data) {
                                                                     const rk = `mealfit_restock_cache_${userProfile?.id}_${result.plan_data.grocery_start_date || 'latest'}_${formData?.householdSize || 1}_${opt.value}`;
-                                                                    if (result.plan_data.is_restocked == null && localStorage.getItem(rk)) result.plan_data.is_restocked = true;
-                                                                    localStorage.setItem('mealfit_plan', JSON.stringify(result.plan_data));
+                                                                    // [P4-RECALC-LOCALSTORAGE] setPlanData ANTES de tocar storage:
+                                                                    // en iOS Private Mode / quota un throw de localStorage no debe
+                                                                    // descartar el recalc del backend. Helpers safe absorben el throw.
+                                                                    if (result.plan_data.is_restocked == null && safeLocalStorageGet(rk, null)) result.plan_data.is_restocked = true;
                                                                     setPlanData(result.plan_data);
+                                                                    safeLocalStorageSet('mealfit_plan', JSON.stringify(result.plan_data));
                                                                     toast.success('Lista actualizada', { id: recalcToast });
                                                                     // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir
                                                                     // `_coherence_warnings` post-recalc (silencio
@@ -3469,18 +3876,22 @@ const Dashboard = () => {
                                                 style={{
                                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                                     padding: '0.4rem 0.6rem', borderRadius: '7px', cursor: 'pointer',
-                                                    background: groceryDuration === opt.value ? 'linear-gradient(135deg, #F0FDF4, #DCFCE7)' : 'transparent',
-                                                    border: groceryDuration === opt.value ? '1px solid #BBF7D0' : '1px solid transparent',
+                                                    background: groceryDuration === opt.value
+                                                        ? (isDark ? 'rgba(16, 185, 129, 0.14)' : 'linear-gradient(135deg, #F0FDF4, #DCFCE7)')
+                                                        : 'transparent',
+                                                    border: groceryDuration === opt.value
+                                                        ? (isDark ? '1px solid rgba(52, 211, 153, 0.45)' : '1px solid #BBF7D0')
+                                                        : '1px solid transparent',
                                                     transition: 'all 0.15s ease', margin: '1px 0'
                                                 }}
-                                                onMouseEnter={e => { if (groceryDuration !== opt.value) e.currentTarget.style.background = '#F8FAFC'; }}
+                                                onMouseEnter={e => { if (groceryDuration !== opt.value) e.currentTarget.style.background = 'var(--bg-muted)'; }}
                                                 onMouseLeave={e => { if (groceryDuration !== opt.value) e.currentTarget.style.background = 'transparent'; }}
                                             >
                                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: groceryDuration === opt.value ? '#059669' : '#334155' }}>{opt.label}</span>
-                                                    <span style={{ fontSize: '0.6rem', color: '#94A3B8' }}>{opt.sub}</span>
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: groceryDuration === opt.value ? (isDark ? '#34D399' : '#059669') : 'var(--text-main)' }}>{opt.label}</span>
+                                                    <span style={{ fontSize: '0.6rem', color: isDark ? 'var(--text-muted)' : 'var(--text-light)' }}>{opt.sub}</span>
                                                 </div>
-                                                {groceryDuration === opt.value && <CheckCircle size={13} color="#059669" strokeWidth={2.5} />}
+                                                {groceryDuration === opt.value && <CheckCircle size={13} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.5} />}
                                             </div>
                                         ))}
 
@@ -3493,6 +3904,18 @@ const Dashboard = () => {
                         {/* BOTONES LADO A LADO */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', width: '100%' }}>
                             {(() => {
+                                // [UX-PANTRY-CTA-DISAMBIG · 2026-05-28] (B) Ocultar el CTA
+                                // manual "Ir a mi Nevera" cuando HAY lista de compras
+                                // pendiente: "Ya compré la lista" es el camino rápido para
+                                // llenar la Nevera de golpe, así que el botón manual es
+                                // redundante en ese estado (ambos terminaban llenando la
+                                // Nevera → confusión). La Nevera sigue accesible por el nav
+                                // lateral. Solo aplica al estado "Ir a mi Nevera"
+                                // (isPantryTooEmpty sin limit/plan-finished, que tienen
+                                // prioridad de label).
+                                if (!isLimitReached && !planFinished && isPantryTooEmpty && hasPendingShoppingItems) {
+                                    return null;
+                                }
                                 return (
                                     <button
                                         onClick={async () => {
@@ -3513,40 +3936,56 @@ const Dashboard = () => {
                                                 navigate('/dashboard/pantry');
                                                 return;
                                             }
-                                            const hasCredits = await validateCreditsAsync();
-                                            if (!hasCredits) return;
+                                            // [2026-05-29] Abrir el modal AL INSTANTE (sin
+                                            // esperar la validación de cuota, que en cache-miss
+                                            // hace fetch y metía delay). Validamos en paralelo y
+                                            // solo cerramos si no hay créditos (validateCreditsAsync
+                                            // ya muestra el toast explicativo). Caso sin-créditos
+                                            // es raro → flash open/close aceptable.
                                             setShowUpdatePlanModal(true);
+                                            validateCreditsAsync().then((hasCredits) => {
+                                                if (!hasCredits) setShowUpdatePlanModal(false);
+                                            });
                                         }}
                                         className="new-plan-btn"
                                         aria-disabled={isLimitReached}
                                         title={isPantryTooEmpty ? `Tu Nevera necesita al menos ${PANTRY_MIN_ITEMS_FOR_UPDATE} alimentos. Tap para añadirlos.` : undefined}
                                         style={{
                                             background: isLimitReached
-                                                ? '#E2E8F0'
+                                                ? 'var(--bg-muted)'
                                                 : planFinished
                                                     ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)'
                                                     : isPantryTooEmpty
                                                         ? 'linear-gradient(135deg, #3B82F6 0%, #06B6D4 100%)'
-                                                        : 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
-                                            color: isLimitReached ? '#94A3B8' : 'white',
+                                                        // [2026-05-30] "Actualizar platos" (acción PRIMARIA con
+                                                        // IA, icono Wand2) usa el acento violeta/índigo de la
+                                                        // marca para diferenciarse del botón "PDF" (neutro).
+                                                        // Violeta-600→índigo-600 (no el 400→500 más claro): menos
+                                                        // brilloso y mejor contraste del texto/icono blancos
+                                                        // (~5.5:1, AA) — el violet-400 #8B5CF6 daba ~3.6:1.
+                                                        : 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)',
+                                            color: isLimitReached ? 'var(--text-light)' : 'white',
                                             cursor: isLimitReached ? 'not-allowed' : 'pointer',
+                                            // [2026-05-29] Mismo efecto de hover que el botón PDF:
+                                            // anillo interno nítido (antes era rgba 0.1, casi
+                                            // invisible). Ring blanco visible sobre el gradiente.
                                             '--hover-shadow': planFinished
-                                                ? '0 20px 40px -5px rgba(239, 68, 68, 0.5), inset 0 0 0 1px rgba(255,255,255,0.1)'
+                                                ? '0 20px 40px -5px rgba(239, 68, 68, 0.5), inset 0 0 0 1.5px rgba(255,255,255,0.45)'
                                                 : isPantryTooEmpty
-                                                    ? '0 20px 40px -5px rgba(37, 99, 235, 0.45), inset 0 0 0 1px rgba(255,255,255,0.1)'
-                                                    : '0 20px 40px -5px rgba(15, 23, 42, 0.45), inset 0 0 0 1px rgba(255,255,255,0.1)',
+                                                    ? '0 20px 40px -5px rgba(37, 99, 235, 0.45), inset 0 0 0 1.5px rgba(255,255,255,0.45)'
+                                                    : '0 14px 30px -8px rgba(79, 70, 229, 0.4), inset 0 0 0 1.5px rgba(255,255,255,0.3)',
                                             '--active-shadow': planFinished
-                                                ? '0 5px 15px -5px rgba(239, 68, 68, 0.2)'
+                                                ? '0 5px 15px -5px rgba(239, 68, 68, 0.2), inset 0 0 0 1.5px rgba(255,255,255,0.45)'
                                                 : isPantryTooEmpty
-                                                    ? '0 5px 15px -5px rgba(37, 99, 235, 0.25)'
-                                                    : '0 5px 15px -5px rgba(15, 23, 42, 0.2)',
+                                                    ? '0 5px 15px -5px rgba(37, 99, 235, 0.25), inset 0 0 0 1.5px rgba(255,255,255,0.45)'
+                                                    : '0 4px 12px -6px rgba(79, 70, 229, 0.22), inset 0 0 0 1.5px rgba(255,255,255,0.3)',
                                             boxShadow: isLimitReached
                                                 ? 'none'
                                                 : planFinished
                                                     ? '0 10px 20px -5px rgba(239, 68, 68, 0.4)'
                                                     : isPantryTooEmpty
                                                         ? '0 10px 20px -5px rgba(37, 99, 235, 0.35)'
-                                                        : '0 10px 20px -5px rgba(15, 23, 42, 0.35)',
+                                                        : '0 6px 16px -6px rgba(79, 70, 229, 0.28)',
                                             flex: '1 1 auto',
                                             width: 'auto',
                                             justifyContent: 'center',
@@ -3573,7 +4012,7 @@ const Dashboard = () => {
                                                 : planFinished
                                                     ? 'Reiniciar plan'
                                                     : isPantryTooEmpty
-                                                        ? 'Añadir alimentos'
+                                                        ? 'Ir a mi Nevera'
                                                         : 'Actualizar platos'}
                                         </span>
                                     </button>
@@ -3604,11 +4043,9 @@ const Dashboard = () => {
                                 <button
                                     onClick={() => setShowRestockModal(true)}
                                     className="restock-cta-minimal"
+                                    title="Agrega de una vez todo lo de tu lista de compras a la Nevera."
                                     style={{
-                                        background: '#FFFFFF',
-                                        color: '#0F172A',
                                         cursor: 'pointer',
-                                        border: '1px solid #E2E8F0',
                                         flex: '1 1 auto',
                                         width: 'auto',
                                         justifyContent: 'center',
@@ -3620,13 +4057,12 @@ const Dashboard = () => {
                                         gap: '0.55rem',
                                         whiteSpace: 'nowrap',
                                         fontSize: '0.85rem',
-                                        boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
-                                        transition: 'border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease',
+                                        transition: 'background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease',
                                     }}
                                 >
                                     {/* Dot pulsante emerald — semántica "ready to act" */}
                                     <span className="restock-cta-dot" aria-hidden="true" />
-                                    <span>Ya compré todo</span>
+                                    <span>Ya compré la lista</span>
                                 </button>
                             )}
 
@@ -3635,11 +4071,18 @@ const Dashboard = () => {
                                 disabled={isRecalculating}
                                 className="new-plan-btn"
                                 style={{
-                                    background: isRecalculating ? '#E2E8F0' : 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
-                                    color: isRecalculating ? '#94A3B8' : '#334155',
-                                    border: isRecalculating ? '1.5px solid #CBD5E1' : '1.5px solid #CBD5E1',
-                                    '--hover-shadow': isRecalculating ? 'none' : '0 15px 30px -5px rgba(0, 0, 0, 0.1), inset 0 0 0 1.5px #CBD5E1',
-                                    '--active-shadow': isRecalculating ? 'none' : '0 5px 15px -5px rgba(0, 0, 0, 0.05), inset 0 0 0 1.5px #CBD5E1',
+                                    background: isRecalculating ? 'var(--bg-muted)' : 'linear-gradient(135deg, var(--bg-page) 0%, var(--bg-muted) 100%)',
+                                    color: isRecalculating ? 'var(--text-light)' : 'var(--text-main)',
+                                    border: isRecalculating ? '1.5px solid var(--border)' : '1.5px solid var(--border)',
+                                    // [PDF-BTN-HOVER-OUTLINE · 2026-06-01] En hover el
+                                    // BORDE se vuelve un contorno sólido (negro en claro,
+                                    // claro en oscuro). Antes había un inset ring tenue al
+                                    // 35% que convivía con el borde claro var(--border) →
+                                    // se veía doble raya (blanca + gris). Ahora es una sola
+                                    // línea limpia (el borde mismo cambia de color).
+                                    '--hover-border': isRecalculating ? 'var(--border)' : (isDark ? '#CBD5E1' : '#0F172A'),
+                                    '--hover-shadow': isRecalculating ? 'none' : '0 15px 30px -5px rgba(0, 0, 0, 0.12)',
+                                    '--active-shadow': isRecalculating ? 'none' : '0 5px 15px -5px rgba(0, 0, 0, 0.06)',
                                     boxShadow: isRecalculating ? 'none' : '0 2px 4px rgba(0,0,0,0.04)',
                                     cursor: isRecalculating ? 'wait' : 'pointer',
                                     flex: '1 1 auto',
@@ -3677,23 +4120,28 @@ const Dashboard = () => {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.75rem',
-                        background: 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)',
-                        border: '1.5px solid #FCA5A5',
+                        // [APPEARANCE-THEME · 2026-05-31] Colores semánticos del
+                        // theme (light/dark) en vez de hardcodear rosa claro —
+                        // pre-fix el banner salía como un bloque rosa brillante
+                        // chocante sobre el fondo oscuro. `--danger-*` se re-mapea
+                        // en html[data-theme="dark"] (bg #2A1517, texto #FCA5A5).
+                        background: 'var(--danger-bg)',
+                        border: '1.5px solid var(--danger-border)',
                         borderRadius: '1rem',
                         padding: '1rem 1.25rem',
                         marginBottom: '1.5rem',
-                        boxShadow: '0 4px 12px -2px rgba(220,38,38,0.12)',
+                        boxShadow: 'var(--shadow-md)',
                         flexWrap: 'wrap'
                     }}
                     role="alert"
                     aria-live="assertive"
                 >
-                    <AlertCircle size={22} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <AlertCircle size={22} style={{ color: 'var(--danger)', flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: '200px' }}>
-                        <span style={{ fontWeight: 700, color: '#991B1B', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--danger-text)', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
                             Tu plan quedó incompleto
                         </span>
-                        <span style={{ color: '#B91C1C', fontSize: '0.85rem' }}>
+                        <span style={{ color: 'var(--danger-text)', fontSize: '0.85rem' }}>
                             La generación no terminó correctamente — no hay menú ni lista de compras disponibles. Genera un plan nuevo para continuar.
                         </span>
                     </div>
@@ -3705,6 +4153,10 @@ const Dashboard = () => {
                             } catch (_lsErr) { /* best-effort */ }
                             navigate('/assessment');
                         }}
+                        // [CTA-HOVER-GLOW · 2026-05-31] box-shadow en .mf-danger-cta
+                        // (index.css) para que :hover lo intensifique (lift + glow rojo
+                        // + brillo). El gradiente rojo sigue inline.
+                        className="mf-danger-cta"
                         style={{
                             background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
                             color: 'white',
@@ -3717,7 +4169,6 @@ const Dashboard = () => {
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.4rem',
-                            boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)',
                             whiteSpace: 'nowrap'
                         }}
                     >
@@ -3736,26 +4187,32 @@ const Dashboard = () => {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.75rem',
-                        background: 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)',
-                        border: '1.5px solid #FECACA',
+                        // [APPEARANCE-THEME · 2026-05-31] Theme-aware (light/dark);
+                        // ver banner de plan corrupto arriba. Mismo `--danger-*`.
+                        background: 'var(--danger-bg)',
+                        border: '1.5px solid var(--danger-border)',
                         borderRadius: '1rem',
                         padding: '1rem 1.25rem',
                         marginBottom: '1.5rem',
-                        boxShadow: '0 4px 12px -2px rgba(220,38,38,0.12)',
+                        boxShadow: 'var(--shadow-md)',
                         flexWrap: 'wrap'
                     }}
                 >
-                    <AlertCircle size={22} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <AlertCircle size={22} style={{ color: 'var(--danger)', flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: '200px' }}>
-                        <span style={{ fontWeight: 700, color: '#991B1B', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--danger-text)', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
                             ¡Tu ciclo ha terminado!
                         </span>
-                        <span style={{ color: '#B91C1C', fontSize: '0.85rem' }}>
+                        <span style={{ color: 'var(--danger-text)', fontSize: '0.85rem' }}>
                             Ya han pasado los días programados en tu plan actual. Genera uno nuevo para seguir recibiendo deliciosas recomendaciones y listas de compras frescas.
                         </span>
                     </div>
                     <button
                         onClick={() => navigate('/assessment')}
+                        // [CTA-HOVER-GLOW · 2026-05-31] box-shadow en .mf-danger-cta
+                        // (index.css) para que :hover lo intensifique (lift + glow rojo
+                        // + brillo). El gradiente rojo sigue inline.
+                        className="mf-danger-cta"
                         style={{
                             background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
                             color: 'white',
@@ -3768,7 +4225,6 @@ const Dashboard = () => {
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.4rem',
-                            boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)',
                             whiteSpace: 'nowrap'
                         }}
                     >
@@ -3814,6 +4270,25 @@ const Dashboard = () => {
                         <span style={{ color: '#B45309', fontSize: '0.85rem' }}>
                             Te entregamos la mejor versión que produjo. Si alguna comida no te cuadra, usa <strong>Cambiar Plato</strong> para reemplazarla individualmente o regenera el plan completo.
                         </span>
+                        {/* [G10-QUALITY-DEGRADED-SURFACE · 2026-05-29] Surface de
+                            _quality_degraded_reason / _quality_degraded_severity, escritos por
+                            _mark_plan_result_quality_degraded en backend pero antes sin lector
+                            (dead-write UI). Ahora el usuario ve POR QUÉ se degradó. */}
+                        {planData?._quality_degraded_reason && (
+                            <span style={{ color: '#92400E', fontSize: '0.78rem', display: 'block', marginTop: '0.35rem', opacity: 0.85 }}>
+                                {(() => {
+                                    const _qReasonMap = {
+                                        high_contextual: 'No pudimos adaptar el plan a una restricción tuya (despensa, alergia o condición).',
+                                        max_attempts: 'El revisor de calidad no aprobó el plan tras varios intentos.',
+                                        invalid_pipeline_start: 'Hubo un problema técnico al iniciar la generación.',
+                                        budget_exhausted: 'Se alcanzó el límite de generación para este plan.',
+                                    };
+                                    const _label = _qReasonMap[planData._quality_degraded_reason] || 'Calidad por debajo del óptimo.';
+                                    const _sev = planData?._quality_degraded_severity === 'high' ? 'Importante' : 'Menor';
+                                    return <>Motivo ({_sev}): {_label}</>;
+                                })()}
+                            </span>
+                        )}
                     </div>
                 </motion.div>
             )}
@@ -3872,7 +4347,7 @@ const Dashboard = () => {
                 del ciclo de plan — un usuario sin plan activo igual debe poder
                 rastrear vasos. El propio componente se auto-oculta si el
                 usuario apago el toggle en Preferencias. */}
-            {isMobileViewport && <WaterTracker />}
+            {isMobileViewport && <WaterTracker userId={userProfile?.id || formData?.session_id || 'guest'} />}
 
             {/* --- MAIN CONTENT COLUMNS --- */}
             <div className="main-grid">
@@ -3970,6 +4445,16 @@ const Dashboard = () => {
                         );
                     })()}
 
+                    {/* [silent-bg · 2026-05-29] La píldora de progreso "Analizando tus
+                        preferencias…" se removió por decisión de producto: la generación de
+                        los próximos bloques en background es silenciosa (ver banner removido
+                        arriba) y el texto genérico confundía — sonaba a que tocaba el menú
+                        que ya estás viendo. No re-añadir un indicador de background sin copy
+                        claro ("Preparando tus próximos días…") + estilos de modo oscuro
+                        reales (el original usaba variables CSS inexistentes → píldora clara
+                        sobre el cuaderno oscuro). El backend sigue exponiendo el hint en
+                        /chunk-status; simplemente ya no se renderiza. */}
+
                     {/* [P2-δ] Botón explícito "Refrescar próximos días" cuando el usuario está
                         en día 5+ del bloque y los siguientes chunks NO se están generando. El
                         useEffect de shift-plan ya corre silenciosamente, pero un control visible
@@ -4057,7 +4542,7 @@ const Dashboard = () => {
                                 return (
                                     <div key={`week-${weekIdx}`} className="week-group">
                                         {visiblePlanDays.length > 7 && (
-                                            <h4 style={{ fontSize: '0.8rem', color: '#64748B', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                                 Semana {weekIdx + 1}
                                             </h4>
                                         )}
@@ -4074,6 +4559,11 @@ const Dashboard = () => {
                                             }}
                                         >
                                             <style>{`.option-buttons::-webkit-scrollbar { display: none; }`}</style>
+                                            {/* [P3-DASH-WINDOW-ANIM · 2026-05-29] AnimatePresence +
+                                                motion.button: al finalizar un día, el tab sale con
+                                                fade/scale y los demás se reacomodan (layout) en vez de
+                                                saltar. initial={false} evita animar el primer paint. */}
+                                            <AnimatePresence initial={false}>
                                             {weekDays.map((day, localIdx) => {
                                                 // globalIdx is absolute index in original planData.days
                                                 const visibleIdx = weekIdx * 7 + localIdx;
@@ -4086,8 +4576,13 @@ const Dashboard = () => {
                                                 const isToday = globalIdx === todayPlanDayIndex;
                                                 const isPastDay = globalIdx < todayPlanDayIndex;
                                                 return (
-                                                    <button
+                                                    <motion.button
                                                         key={globalIdx}
+                                                        layout="position"
+                                                        initial={{ opacity: 0, scale: 0.85 }}
+                                                        animate={{ opacity: (isPastDay && !isActive) ? 0.55 : 1, scale: 1, y: isActive ? -2 : 0 }}
+                                                        exit={{ opacity: 0, scale: 0.8 }}
+                                                        transition={{ duration: 0.2, ease: 'easeOut' }}
                                                         onClick={() => setActiveDayIndex(globalIdx)}
                                                         className="option-btn"
                                                         title={
@@ -4106,20 +4601,21 @@ const Dashboard = () => {
                                                             borderRadius: '8px',
                                                             fontWeight: isToday ? '700' : '500',
                                                             fontSize: '0.9rem',
-                                                            transition: 'all 0.2s',
+                                                            // [P3-DASH-WINDOW-ANIM] opacity/scale/y los maneja framer
+                                                            // (initial/animate/exit). Aquí solo transicionamos color y
+                                                            // sombra para no pelear con los transforms de framer.
+                                                            transition: 'background 0.2s, color 0.2s, box-shadow 0.2s, border-color 0.2s',
                                                             border: isActive ? 'none'
-                                                                : isPastDay ? '1px solid #E2E8F0'
+                                                                : isPastDay ? '1px solid var(--border)'
                                                                 : isDegraded ? '1px dashed #F59E0B'
-                                                                : '1px solid #CBD5E1',
+                                                                : '1px solid var(--border)',
                                                             background: isActive
-                                                                ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'
-                                                                : isPastDay ? '#F1F5F9' : 'white',
+                                                                ? (isDark ? 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)' : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)')
+                                                                : isPastDay ? 'var(--bg-muted)' : 'var(--bg-card)',
                                                             color: isActive ? 'white'
-                                                                : isPastDay ? '#94A3B8'
-                                                                : isDegraded ? '#B45309' : '#475569',
-                                                            boxShadow: isActive ? '0 10px 15px -3px rgba(59, 130, 246, 0.3)' : '0 1px 2px rgba(0,0,0,0.05)',
-                                                            transform: isActive ? 'translateY(-2px)' : 'translateY(0)',
-                                                            opacity: isPastDay && !isActive ? 0.55 : 1,
+                                                                : isPastDay ? 'var(--text-light)'
+                                                                : isDegraded ? '#B45309' : 'var(--text-muted)',
+                                                            boxShadow: isActive ? (isDark ? '0 4px 10px -3px rgba(37, 99, 235, 0.35)' : '0 10px 15px -3px rgba(59, 130, 246, 0.3)') : '0 1px 2px rgba(0,0,0,0.05)',
                                                             textDecoration: isPastDay && !isActive ? 'line-through' : 'none',
                                                             display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
                                                         }}
@@ -4172,10 +4668,11 @@ const Dashboard = () => {
                                                                 {isEmergencyRepeat ? 'REPETIDO' : 'RESPALDO'}
                                                             </span>
                                                         )}
-                                                    </button>
+                                                    </motion.button>
                                                 );
                                             })}
-                                            
+                                            </AnimatePresence>
+
                                             {/* [P0-DASH-MISSING-DAY-SLOT · 2026-05-09] Skeleton tab(s) para
                                                 días que faltan dentro de la ventana visible. Antes solo se
                                                 mostraban si `generation_status === 'generating_next'`, pero
@@ -4388,11 +4885,11 @@ const Dashboard = () => {
                                                         _suffix = '· en camino';
                                                         _ariaSuffix = 'en camino';
                                                         _titleText = 'Este día se está generando en background.';
-                                                        _border = '1px dashed #CBD5E1';
-                                                        _background = 'linear-gradient(90deg, #F1F5F9 0%, #E2E8F0 50%, #F1F5F9 100%)';
+                                                        _border = '1px dashed var(--border)';
+                                                        _background = 'linear-gradient(90deg, var(--bg-muted) 0%, var(--border) 50%, var(--bg-muted) 100%)';
                                                         _backgroundSize = '200% 100%';
                                                         _animation = 'skeleton-shimmer 1.4s ease-in-out infinite';
-                                                        _color = '#94A3B8';
+                                                        _color = 'var(--text-light)';
                                                         _showSpinner = true;
                                                     }
 
@@ -4448,7 +4945,19 @@ const Dashboard = () => {
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                         {(() => {
                             // Copia segura de platos usando el día activo (filtrar suplementos que tienen su propia sección)
-                            const displayMeals = [...currentDayMeals].filter(m => !m.meal?.toLowerCase().includes('suplemento'));
+                            // [P2-SWAP-INDEX-COUPLING · 2026-05-30] Mapeamos sobre
+                            // `currentDayMeals` SIN filtrar y saltamos los suplementos
+                            // con `return null`, de modo que `index` sea el índice REAL
+                            // dentro de `planData.days[d].meals`. Pre-fix se mapeaba
+                            // sobre el array FILTRADO → si un suplemento precediera a
+                            // una comida (LLM mislabel; el backend tiene sanitizer para
+                            // eso), `index` (filtrado) ≠ índice real, y ese index viaja
+                            // sin cambios al swap optimista (AssessmentContext) y al
+                            // `meal_index` del jsonb_set backend → el swap sobrescribía
+                            // OTRA comida. Inalcanzable hoy (0 suplementos en .meals en
+                            // prod) pero blindaje del acoplamiento UI↔write↔backend.
+                            const _isSupplementEntry = (m) => m.meal?.toLowerCase().includes('suplemento');
+                            const displayMeals = currentDayMeals.filter(m => !_isSupplementEntry(m));
 
                             if (displayMeals.length === 0) {
                                 return (
@@ -4464,11 +4973,17 @@ const Dashboard = () => {
                                 );
                             }
 
-                            return displayMeals.map((meal, index) => {
+                            return currentDayMeals.map((meal, index) => {
+                                if (_isSupplementEntry(meal)) return null;
                                 const isLiked = meal.name ? !!likedMeals[meal.name] : false;
 
+                                // [P1-MEAL-CARD-KEY · 2026-05-31] key por identidad
+                                // natural (meal.name) en vez de index: evita que React
+                                // reutilice nodos DOM con datos de otra comida si el orden
+                                // cambia (swap/regeneración), preservando estado de
+                                // like/foco/receta. Fallback a index si falta name.
                                 return (
-                                    <div key={index} className="meal-card">
+                                    <div key={meal.name || `meal-${index}`} className="meal-card">
 
                                         {/* Meal Info */}
                                         <div>
@@ -4479,7 +4994,10 @@ const Dashboard = () => {
                                                 {meal.meal}
                                             </div>
 
-                                            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
+                                            {/* [DASH-MEAL-TITLE-GAP · 2026-06-01] marginBottom
+                                                0.25rem → 0.5rem: el chip de tiempo ("10 min")
+                                                quedaba pegado al título. */}
+                                            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
                                                 {meal.name}
                                             </h3>
 
@@ -4507,9 +5025,14 @@ const Dashboard = () => {
                                             {meal.prep_time && (
                                                 <div style={{
                                                     display: 'inline-flex', alignItems: 'center', gap: '6px',
-                                                    fontSize: '0.75rem', color: '#2563EB', background: '#EFF6FF',
+                                                    fontSize: '0.75rem',
+                                                    // [APPEARANCE-THEME · 2026-05-29] En oscuro, el azul claro
+                                                    // (#EFF6FF) se veía brilloso → tinte translúcido + texto claro.
+                                                    color: isDark ? '#93C5FD' : '#2563EB',
+                                                    background: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF',
                                                     padding: '4px 10px', borderRadius: '6px', marginBottom: '0.75rem', fontWeight: 700,
-                                                    border: '1px solid #BFDBFE', boxShadow: '0 1px 2px rgba(37,99,235,0.05)'
+                                                    border: isDark ? '1px solid rgba(96, 165, 250, 0.4)' : '1px solid #BFDBFE',
+                                                    boxShadow: isDark ? 'none' : '0 1px 2px rgba(37,99,235,0.05)'
                                                 }}>
                                                     <Clock size={13} strokeWidth={2.5} /> {meal.prep_time}
                                                 </div>
@@ -4536,10 +5059,11 @@ const Dashboard = () => {
 
                                                 {/* VER RECETA */}
                                                 <button
+                                                    className="meal-act-btn"
                                                     onClick={() => navigate('/dashboard/recipes')}
                                                     style={{
-                                                        background: '#EFF6FF',
-                                                        border: '1.5px solid #BFDBFE',
+                                                        background: isDark ? 'rgba(59, 130, 246, 0.22)' : '#EFF6FF',
+                                                        border: isDark ? '1.5px solid rgba(96, 165, 250, 0.6)' : '1.5px solid #BFDBFE',
                                                         borderRadius: '50%',
                                                         width: 44, height: 44,
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -4548,22 +5072,27 @@ const Dashboard = () => {
                                                     }}
                                                     title="Ver paso a paso"
                                                 >
-                                                    <BookOpen size={20} color="#3B82F6" />
+                                                    <BookOpen size={20} color={isDark ? '#93C5FD' : '#3B82F6'} />
                                                 </button>
 
                                                 {/* REGENERATE BUTTON (AI SWAP) — Abre modal de razón */}
                                                 <button
-                                                    onClick={async () => {
+                                                    className="meal-act-btn"
+                                                    onClick={() => {
                                                         if (regeneratingId === index) return;
-                                                        const hasCredits = await validateCreditsAsync();
-                                                        if (!hasCredits) return;
-                                                        // Abrir el micro-prompt modal en vez de ejecutar directamente
-                                                        setSwapModal({ dayIndex: activeDayIndex, mealIndex: index, mealType: meal.meal, mealName: meal.name });
+                                                        // [2026-05-29] Abrir el modal al instante; validar cuota
+                                                        // en paralelo y cerrar solo si no hay créditos (evita el
+                                                        // delay del fetch en cache-miss).
+                                                        const _swap = { dayIndex: activeDayIndex, mealIndex: index, mealType: meal.meal, mealName: meal.name };
+                                                        setSwapModal(_swap);
+                                                        validateCreditsAsync().then((hasCredits) => {
+                                                            if (!hasCredits) setSwapModal(null);
+                                                        });
                                                     }}
                                                     disabled={regeneratingId === index}
                                                     style={{
-                                                        background: '#FFF7ED',
-                                                        border: '1.5px solid #FED7AA',
+                                                        background: isDark ? 'linear-gradient(135deg, #EA580C 0%, #C2410C 100%)' : '#FFF7ED',
+                                                        border: isDark ? '1.5px solid transparent' : '1.5px solid #FED7AA',
                                                         borderRadius: '1rem',
                                                         padding: '0 0.85rem',
                                                         height: 44,
@@ -4571,15 +5100,16 @@ const Dashboard = () => {
                                                         cursor: regeneratingId === index ? 'wait' : 'pointer',
                                                         transition: 'all 0.2s',
                                                         opacity: 1,
-                                                        fontWeight: 650,
+                                                        fontWeight: isDark ? 750 : 650,
                                                         fontSize: '0.8rem',
-                                                        color: "#EA580C"
+                                                        color: isDark ? '#FFFFFF' : '#EA580C',
+                                                        boxShadow: isDark ? '0 2px 8px -3px rgba(234, 88, 12, 0.3)' : 'none'
                                                     }}
                                                     title="Cambiar con IA"
                                                 >
                                                     <RefreshCw
                                                         size={18}
-                                                        color="#EA580C"
+                                                        color={isDark ? '#FFFFFF' : '#EA580C'}
                                                         className={regeneratingId === index ? "spin-fast" : ""}
                                                     />
                                                     <span style={{ whiteSpace: 'nowrap' }}>Cambiar Plato</span>
@@ -4587,6 +5117,7 @@ const Dashboard = () => {
 
                                                 {/* LIKE BUTTON */}
                                                 <button
+                                                    className="meal-act-btn"
                                                     onClick={() => {
                                                         const currentlyLiked = !!likedMeals[meal.name];
                                                         toggleMealLike(meal.name, meal.meal);
@@ -4597,30 +5128,71 @@ const Dashboard = () => {
                                                         }
                                                     }}
                                                     style={{
-                                                        background: isLiked ? '#FEE2E2' : '#FDF2F8',
-                                                        border: isLiked ? '1.5px solid #FECACA' : '1.5px solid #FBCFE8',
+                                                        // [LIKE-FILL · 2026-05-29] Estado "liked" = botón RELLENO
+                                                        // con gradiente rosa sólido + corazón blanco + glow + leve
+                                                        // pop (scale). Mucho más satisfactorio que el tinte sutil
+                                                        // previo (rgba 0.22). El estado sin-marcar sigue como
+                                                        // contorno para conservar la afordancia "toca para marcar"
+                                                        // y la diferencia liked/unliked. El gradiente sólido lee
+                                                        // bien en claro y oscuro → no necesita rama isDark.
+                                                        background: isLiked
+                                                            ? 'linear-gradient(135deg, #FB7185 0%, #EC4899 100%)'
+                                                            : (isDark ? 'rgba(236, 72, 153, 0.20)' : '#FDF2F8'),
+                                                        border: isLiked
+                                                            ? '1.5px solid transparent'
+                                                            : (isDark ? '1.5px solid rgba(244, 114, 182, 0.6)' : '1.5px solid #FBCFE8'),
                                                         borderRadius: '50%',
                                                         width: 44, height: 44,
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                         cursor: 'pointer',
-                                                        transition: 'all 0.2s',
-                                                        boxShadow: isLiked ? '0 2px 5px rgba(239, 68, 68, 0.2)' : 'none'
+                                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                        boxShadow: isLiked ? '0 4px 12px -2px rgba(244, 63, 94, 0.5)' : 'none',
+                                                        transform: isLiked ? 'scale(1.06)' : 'scale(1)'
                                                     }}
-                                                    title="Me gusta"
+                                                    title={isLiked ? 'Te gusta — toca para quitar' : 'Me gusta'}
                                                 >
-                                                    <Heart size={20} color={isLiked ? '#EF4444' : '#EC4899'} fill={isLiked ? '#EF4444' : 'none'} />
+                                                    <Heart size={20} color={isLiked ? '#FFFFFF' : (isDark ? '#F472B6' : '#EC4899')} fill={isLiked ? '#FFFFFF' : 'none'} strokeWidth={2.25} />
                                                 </button>
                                             </div>
                                         </div>
-
-                                        <style>{`
-                                            .spin-fast { animation: spin 1s linear infinite; }
-                                            @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-                                        `}</style>
                                     </div>
                                 );
                             })
                         })()}
+                        {/* [P3-MEAL-CARD-STYLE-HOIST · 2026-06-01] UNA sola copia del
+                            <style> (antes se inyectaba idéntico DENTRO de cada meal-card
+                            → N nodos <style> duplicados por día, re-reconciliados en cada
+                            swap/regen/cambio de día). Las reglas son por-clase
+                            (.meal-act-btn / .spin-fast), así que una instancia cubre todos
+                            los botones. Cero cambio visual. */}
+                        <style>{`
+                            .spin-fast { animation: spin 1s linear infinite; }
+                            @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                            /* [2026-05-29] Mismo hover que el botón PDF/Actualizar:
+                               anillo interno nítido + brillo, en los 3 botones de
+                               acción de cada comida (receta / Cambiar Plato / like). */
+                            /* Anillo OSCURO en modo claro (sobre botones
+                               claros el blanco no se veía / quedaba raro). */
+                            .meal-act-btn:hover:not(:disabled) {
+                                /* [MEAL-BTN-HOVER-NO-WHITE · 2026-06-01] Los
+                                   fondos pastel (#EFF6FF/#FFF7ED/#FDF2F8) ya son
+                                   casi blancos; brightness(1.04) los lavaba a
+                                   blanco en hover. Ahora DEEPENAMOS (brillo<1) +
+                                   saturamos → el color se intensifica en vez de
+                                   blanquearse. Solo afecta el modo claro (la regla
+                                   dark de abajo conserva su propio hover). */
+                                filter: brightness(0.96) saturate(1.28);
+                                box-shadow: inset 0 0 0 1.5px rgba(15, 23, 42, 0.35) !important;
+                            }
+                            /* Anillo blanco en modo oscuro. */
+                            html[data-theme="dark"] .meal-act-btn:hover:not(:disabled) {
+                                filter: brightness(1.08);
+                                box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45) !important;
+                            }
+                            .meal-act-btn:active:not(:disabled) {
+                                filter: brightness(0.96);
+                            }
+                        `}</style>
 
 
                     </div>
@@ -4659,14 +5231,14 @@ const Dashboard = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 {currentDaySupplements.map((supp, i) => (
                                     <div key={i} style={{
-                                        background: 'white',
+                                        background: 'var(--bg-card)',
                                         borderRadius: '1rem',
                                         padding: '1rem 1.25rem',
                                         border: '1px solid rgba(139, 92, 246, 0.1)',
                                         display: 'flex', flexDirection: 'column', gap: '0.35rem'
                                     }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontWeight: 700, color: '#1E293B', fontSize: '0.95rem' }}>
+                                            <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem' }}>
                                                 💊 {supp.name}
                                             </span>
                                             <span style={{
@@ -4677,10 +5249,10 @@ const Dashboard = () => {
                                                 {supp.timing}
                                             </span>
                                         </div>
-                                        <div style={{ fontSize: '0.85rem', color: '#475569', fontWeight: 600 }}>
+                                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
                                             Dosis: {supp.dose}
                                         </div>
-                                        <div style={{ fontSize: '0.8rem', color: '#64748B', lineHeight: 1.4 }}>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                                             {supp.reason}
                                         </div>
                                     </div>
@@ -4707,23 +5279,23 @@ const Dashboard = () => {
                         NO gateado por `isPlanExpired` — la hidratacion es
                         independiente del plan. El componente se auto-oculta
                         via toggle en Preferencias. */}
-                    {!isMobileViewport && <WaterTracker />}
+                    {!isMobileViewport && <WaterTracker userId={userProfile?.id || formData?.session_id || 'guest'} />}
 
                     {/* Insights Card */}
                     <div style={{
-                        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.5) 100%)',
+                        background: 'var(--bg-card)',
                         backdropFilter: 'blur(12px)',
                         padding: '1.75rem',
                         borderRadius: '2rem',
-                        border: '1.5px solid rgba(203, 213, 225, 0.8)',
+                        border: '1.5px solid var(--border)',
                         marginBottom: '2rem',
                         boxShadow: '0 20px 40px -10px rgba(0,0,0,0.08), 0 0 0 1px rgba(148, 163, 184, 0.05)'
                     }}>
                         <h3 style={{
-                            fontSize: '1.2rem', fontWeight: 800, color: '#0F172A',
+                            fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)',
                             marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem'
                         }}>
-                            <div style={{ background: '#F0F9FF', padding: '0.4rem', borderRadius: '0.75rem', color: '#0284C7' }}>
+                            <div style={{ background: isDark ? 'rgba(2, 132, 199, 0.16)' : '#F0F9FF', padding: '0.4rem', borderRadius: '0.75rem', color: isDark ? '#38BDF8' : '#0284C7' }}>
                                 <Brain size={22} strokeWidth={2.5} />
                             </div>
                             Razonamiento
@@ -4740,35 +5312,43 @@ const Dashboard = () => {
                             ) : planData.insights.map((insight, i) => {
                                 let icon = <CheckCircle size={20} />;
                                 let title = "Nota:";
-                                let color = "#0F172A";
-                                let bgColor = "#F1F5F9";
+                                let color = "var(--text-main)";
+                                let bgColor = "var(--bg-muted)";
 
                                 if (insight.toLowerCase().includes('diagnóstico') || i === 0) {
                                     icon = <Lightbulb size={20} />;
                                     title = "Diagnóstico";
-                                    color = "#7C3AED"; // Violet
-                                    bgColor = "#F5F3FF";
+                                    // [APPEARANCE-THEME · 2026-05-29] En oscuro: icono violeta
+                                    // más claro + chip tinte translúcido (en claro el pastel
+                                    // #F5F3FF se veía brilloso).
+                                    color = isDark ? "#A78BFA" : "#7C3AED"; // Violet
+                                    bgColor = isDark ? "rgba(124, 58, 237, 0.18)" : "#F5F3FF";
                                 }
                                 if (insight.toLowerCase().includes('estrategia') || i === 1) {
                                     icon = <Wallet size={20} />;
                                     title = "Plan de Acción";
-                                    color = "#059669"; // Emerald
-                                    bgColor = "#ECFDF5";
+                                    color = isDark ? "#34D399" : "#059669"; // Emerald
+                                    bgColor = isDark ? "rgba(5, 150, 105, 0.18)" : "#ECFDF5";
                                 }
                                 if (insight.toLowerCase().includes('chef') || i === 2) {
                                     icon = <Flame size={20} />;
                                     title = "Tip del Chef";
-                                    color = "#EA580C"; // Orange
-                                    bgColor = "#NFF2F7";
+                                    // [APPEARANCE-THEME · 2026-05-29] bgColor era "#NFF2F7"
+                                    // (hex inválido → chip transparente, la llama flotaba).
+                                    // Ahora chip naranja como los otros dos (dark-aware).
+                                    color = isDark ? "#FB923C" : "#EA580C"; // Orange
+                                    bgColor = isDark ? "rgba(234, 88, 12, 0.16)" : "#FFF7ED";
                                 }
 
-                                const cleanText = insight.includes(':') ? insight.split(':')[1].trim() : insight;
+                                // [P4-INSIGHT-SPLIT] slice(1).join(':') preserva el texto tras el 2º ':'
+                                // (antes split(':')[1] truncaba "Razón: a: b" a " a", perdiendo ": b").
+                                const cleanText = insight.includes(':') ? insight.split(':').slice(1).join(':').trim() : insight;
 
                                 return (
                                     <div key={i} style={{
                                         display: 'flex', gap: '1rem',
                                         paddingBottom: i < planData.insights.length - 1 ? '1.25rem' : '0',
-                                        borderBottom: i < planData.insights.length - 1 ? '1px solid #F1F5F9' : 'none'
+                                        borderBottom: i < planData.insights.length - 1 ? '1px solid var(--border)' : 'none'
                                     }}>
                                         <div style={{
                                             color: color, background: bgColor,
@@ -4783,11 +5363,11 @@ const Dashboard = () => {
                                             <h4 style={{
                                                 margin: '0 0 0.35rem 0',
                                                 fontSize: '0.9rem', fontWeight: 700,
-                                                color: '#334155', textTransform: 'uppercase', letterSpacing: '0.05em'
+                                                color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.05em'
                                             }}>
                                                 {title}
                                             </h4>
-                                            <p style={{ margin: 0, fontSize: '0.95rem', color: '#64748B', lineHeight: 1.6 }}>
+                                            <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
                                                 {cleanText}
                                             </p>
                                         </div>
@@ -4814,12 +5394,17 @@ const Dashboard = () => {
                         padding: '1rem'
                     }}>
                         <motion.div
+                            ref={pushOnboardingRef}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="push-onboarding-title"
+                            tabIndex={-1}
                             initial={{ opacity: 0, scale: 0.9, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 20 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                             style={{
-                                background: '#FFFFFF',
+                                background: 'var(--bg-card)',
                                 borderRadius: '24px',
                                 padding: '2.5rem 2rem',
                                 width: '100%', maxWidth: '420px',
@@ -4846,10 +5431,10 @@ const Dashboard = () => {
                                 <Brain size={32} color="#FFFFFF" strokeWidth={2} />
                             </div>
 
-                            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.75rem', position: 'relative', zIndex: 1 }}>
+                            <h2 id="push-onboarding-title" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.75rem', position: 'relative', zIndex: 1 }}>
                                 Activa tu Nutricionista IA
                             </h2>
-                            <p style={{ color: '#64748B', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '2rem', position: 'relative', zIndex: 1 }}>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '2rem', position: 'relative', zIndex: 1 }}>
                                 Déjame mandarte un aviso a tu celular a la hora de comer para que nunca olvides tu rutina y alcances tus metas más rápido.
                             </p>
 
@@ -4878,10 +5463,10 @@ const Dashboard = () => {
                                 </button>
 
                                 <button
-                                    onClick={handleDismissPushOnboarding}
+                                    onClick={dismissPushOnboarding}
                                     disabled={isPushEnabling}
                                     style={{
-                                        background: 'transparent', color: '#94A3B8', border: 'none',
+                                        background: 'transparent', color: 'var(--text-light)', border: 'none',
                                         padding: '0.75rem', borderRadius: '1rem',
                                         fontWeight: 600, fontSize: '0.9rem',
                                         cursor: 'pointer',
@@ -4919,7 +5504,7 @@ const Dashboard = () => {
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                             style={{
-                                background: '#FFFFFF', borderRadius: '1.5rem', padding: '2rem',
+                                background: 'var(--bg-card)', borderRadius: '1.5rem', padding: '2rem',
                                 width: '100%', maxWidth: '400px', textAlign: 'center',
                                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
                                 overflow: 'hidden', position: 'relative'
@@ -4948,13 +5533,13 @@ const Dashboard = () => {
                                             position: 'relative',
                                             width: '56px', height: '56px',
                                             borderRadius: '16px',
-                                            border: '1.5px solid #E2E8F0',
-                                            background: '#FFFFFF',
+                                            border: '1.5px solid var(--border)',
+                                            background: 'var(--bg-card)',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                             margin: '0 auto 1.5rem auto',
                                             boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)'
                                         }}>
-                                            <ShoppingCart size={24} color="#0F172A" strokeWidth={1.75} />
+                                            <ShoppingCart size={24} color="var(--text-main)" strokeWidth={1.75} />
                                             {/* Status dot — emerald punto pequeño, lateral */}
                                             <span style={{
                                                 position: 'absolute',
@@ -4962,7 +5547,7 @@ const Dashboard = () => {
                                                 width: '14px', height: '14px',
                                                 borderRadius: '50%',
                                                 background: '#10B981',
-                                                border: '2.5px solid #FFFFFF',
+                                                border: '2.5px solid var(--bg-card)',
                                                 boxShadow: '0 1px 2px rgba(16, 185, 129, 0.4)'
                                             }} aria-hidden="true" />
                                         </div>
@@ -4970,14 +5555,14 @@ const Dashboard = () => {
                                         <h2
                                             id="restock-modal-title"
                                             style={{
-                                                fontSize: '1.35rem', fontWeight: 700, color: '#0F172A',
+                                                fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-main)',
                                                 marginBottom: '0.5rem', letterSpacing: '-0.015em'
                                             }}
                                         >
                                             Confirmar compra
                                         </h2>
                                         <p style={{
-                                            color: '#64748B', fontSize: '0.92rem', lineHeight: '1.55',
+                                            color: 'var(--text-muted)', fontSize: '0.92rem', lineHeight: '1.55',
                                             marginBottom: isShoppingListStale ? '1.25rem' : '1.75rem',
                                             maxWidth: '320px', margin: isShoppingListStale ? '0 auto 1.25rem' : '0 auto 1.75rem',
                                         }}>
@@ -4988,11 +5573,11 @@ const Dashboard = () => {
                                             <div style={{
                                                 display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
                                                 padding: '0.6rem 0.8rem', marginBottom: '1.25rem',
-                                                background: '#FFFBEB', border: '1px solid #FCD34D',
+                                                background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
                                                 borderRadius: '0.75rem', textAlign: 'left'
                                             }}>
-                                                <AlertCircle size={14} color="#D97706" style={{ flexShrink: 0, marginTop: '2px' }} />
-                                                <span style={{ fontSize: '0.78rem', color: '#92400E', lineHeight: 1.45 }}>
+                                                <AlertCircle size={14} color="var(--warning)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                                                <span style={{ fontSize: '0.78rem', color: 'var(--warning-text)', lineHeight: 1.45 }}>
                                                     La lista puede estar desactualizada. Si cambiaste el ciclo, recalcula antes de comprar.
                                                 </span>
                                             </div>
@@ -5083,10 +5668,10 @@ const Dashboard = () => {
                                             </div>
                                         </div>
 
-                                        <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.4rem', letterSpacing: '-0.01em' }}>
+                                        <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.4rem', letterSpacing: '-0.01em' }}>
                                             Registrando compras
                                         </h2>
-                                        <p style={{ color: '#64748B', fontSize: '0.88rem', lineHeight: '1.45', marginBottom: '0' }}>
+                                        <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.45', marginBottom: '0' }}>
                                             Estamos organizando tus ingredientes en la Nevera
                                         </p>
                                         {/* [P3-RESTOCK-NO-BAR · 2026-05-20] Barra de progreso, indicador
@@ -5199,8 +5784,8 @@ const Dashboard = () => {
                     }
                 }}
                 infoBandRenderer={(hoveredOption) => (
-                    <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: '#F8FAFC', borderRadius: '0.8rem', border: '1px solid #E2E8F0', fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                        <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: '#64748B' }} />
+                    <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: 'var(--bg-muted)', borderRadius: '0.8rem', border: '1px solid var(--border)', fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                        <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--text-muted)' }} />
                         <div>
                             {hoveredOption === 'dislike' ? (
                                 <><strong>Se evitará:</strong> {swapModal?.mealName}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~4s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}. ⚠️ Este plato se excluirá permanentemente de futuros planes.</span></>
@@ -5281,8 +5866,8 @@ const Dashboard = () => {
                     }
                 }}
                 infoBandRenderer={(hoveredOption) => (
-                    <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: '#F8FAFC', borderRadius: '0.8rem', border: '1px solid #E2E8F0', fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', minHeight: '56px' }}>
-                        <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: '#64748B' }} />
+                    <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: 'var(--bg-muted)', borderRadius: '0.8rem', border: '1px solid var(--border)', fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', minHeight: '56px' }}>
+                        <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--text-muted)' }} />
                         <div>
                             {hoveredOption === 'dislike' ? (
                                 <><strong>Se evitarán:</strong> {currentDayMeals.length > 0 ? currentDayMeals.map(m => m.name).join(', ') : 'los platos actuales'}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
@@ -5314,7 +5899,7 @@ const Dashboard = () => {
                 title="¿Bloquear este plato?"
                 subtitle={
                     swapDislikeConfirm && (
-                        <div style={{ margin: '0 0 1.15rem 0', fontSize: '0.85rem', color: '#64748B' }}>
+                        <div style={{ margin: '0 0 1.15rem 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                             <p style={{ margin: '0 0 0.75rem 0' }}>
                                 Este plato quedará <strong style={{ color: '#EF4444' }}>bloqueado permanentemente</strong> y la IA no volverá a sugerirlo en futuros planes:
                             </p>
@@ -5377,14 +5962,14 @@ const Dashboard = () => {
                 onClose={() => { setShowDislikeConfirmModal(false); setShowUpdatePlanModal(true); }}
                 title="¿Bloquear estos platos?"
                 subtitle={
-                    <div style={{ margin: '0 0 1.15rem 0', fontSize: '0.85rem', color: '#64748B' }}>
+                    <div style={{ margin: '0 0 1.15rem 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                         <p style={{ margin: '0 0 0.5rem 0' }}>
                             Los siguientes platos quedarán <strong style={{ color: '#EF4444' }}>bloqueados permanentemente</strong> y no volverán a aparecer en futuros planes:
                         </p>
                         {currentDayMeals.length > 0 && (
                             <ul style={{ margin: '0.35rem 0 0 0', padding: '0 0 0 1.1rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                                 {currentDayMeals.map((m, i) => (
-                                    <li key={i} style={{ fontWeight: 600, color: '#0F172A', fontSize: '0.82rem' }}>{m.name}</li>
+                                    <li key={i} style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.82rem' }}>{m.name}</li>
                                 ))}
                             </ul>
                         )}
@@ -5418,6 +6003,48 @@ const Dashboard = () => {
 
         </>
     );
+};
+
+// [P1-DASH-HOOKS-ORDER · 2026-05-31] Wrapper guardián: lee SOLO `loadingData` y
+// `planData` del context y decide si montar el árbol pesado de `DashboardInner`.
+// Mantiene 1 hook (useAssessment) en orden estable; los early-returns viven aquí
+// donde NO hay hooks debajo, así que cualquier transición loadingData/planData
+// produce un montaje/desmontaje limpio de `DashboardInner` en vez del crash de
+// rules-of-hooks que existía cuando los guards estaban dentro del componente
+// con ~80 hooks debajo. Comportamiento idéntico al previo en el camino común
+// (ProtectedRoute ya garantiza loadingData=false al renderizar esta ruta).
+const Dashboard = () => {
+    const { loadingData, planData } = useAssessment();
+
+    // ESTADO DE CARGA: recuperando datos de la DB → loader.
+    if (loadingData) {
+        return (
+            <div style={{
+                height: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'column',
+                gap: '1rem',
+                color: 'var(--text-muted)',
+                background: 'var(--bg-page)'
+            }}>
+                <Loader2 className="spin-fast" size={48} color="var(--primary)" />
+                <p style={{ fontWeight: 600 }}>Sincronizando tu plan...</p>
+                <style>{`
+                    .spin-fast { animation: spin 1s linear infinite; }
+                    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                `}</style>
+            </div>
+        );
+    }
+
+    // Protección de ruta: cargó y NO hay plan → al formulario de evaluación.
+    if (!planData) {
+        return <Navigate to="/assessment" replace />;
+    }
+
+    return <DashboardInner />;
 };
 
 export default Dashboard;

@@ -48,8 +48,11 @@ describe('P1-13 — initialFormData declara _heightInputUnit', () => {
     );
     const initialBlock = blockMatch ? blockMatch[1] : '';
 
-    it('initialFormData contiene `_heightInputUnit: \'cm\'`', () => {
-        expect(initialBlock).toMatch(/_heightInputUnit:\s*['"]cm['"]/);
+    it('initialFormData contiene `_heightInputUnit: \'ft\'`', () => {
+        // [FT-DEFAULT-PRESELECT · 2026-05-31] Default cambiado de 'cm' a 'ft'
+        // (paridad con weightUnit:'lb'; mercado es-DO usa imperial). La altura
+        // SIEMPRE se persiste en cm internamente — esto solo es el input.
+        expect(initialBlock).toMatch(/_heightInputUnit:\s*['"]ft['"]/);
     });
 
     it('Comentario [P1-13] documenta el rationale en initialFormData', () => {
@@ -74,8 +77,9 @@ describe('P1-13 — QMeasurements deriva unit de formData', () => {
     });
 
     it('Lee `unit` de `formData._heightInputUnit`', () => {
-        // Patrón canónico: `const unit = formData._heightInputUnit || 'cm';`.
-        const derivedPattern = /const\s+unit\s*=\s*formData\._heightInputUnit\s*\|\|\s*['"]cm['"]/;
+        // Patrón canónico: `const unit = formData._heightInputUnit || 'ft';`.
+        // [FT-DEFAULT-PRESELECT · 2026-05-31] Fallback 'ft' (era 'cm').
+        const derivedPattern = /const\s+unit\s*=\s*formData\._heightInputUnit\s*\|\|\s*['"]ft['"]/;
         expect(qCode).toMatch(derivedPattern);
     });
 

@@ -102,7 +102,7 @@ export default function PendingPipelineRecovery() {
         const flag = readPendingFlag();
         if (!flag) return undefined;
 
-        // Si el flag local es viejo (>15 min), limpiar y salir.
+        // Si el flag local es viejo (> MAX_AGE_MIN = 6h), limpiar y salir.
         if (isStale(flag.started_at)) {
             clearPendingFlag();
             return undefined;
@@ -230,6 +230,14 @@ export default function PendingPipelineRecovery() {
                 clearInterval(pollTimerRef.current);
                 return;
             }
+            // [P3-RECOVERY-POLL-VISIBILITY · 2026-05-31] No pollear el backend
+            // mientras la pestaña está oculta — desperdicia requests en una tab
+            // en background durante la ventana de generación. Espejo de
+            // P2-DASH-POLL-VISIBILITY (Dashboard 30s) y P1-PLAN-POLL-VISIBILITY
+            // (Plan 5s). Cero pérdida de frescura: el listener de
+            // `visibilitychange` (abajo → handleResume → checkOnce) dispara un
+            // check inmediato al volver a primer plano.
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
             checkOnce();
         }, POLL_INTERVAL_MS);
 

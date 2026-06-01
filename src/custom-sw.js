@@ -1,7 +1,37 @@
-import { precacheAndRoute } from 'workbox-precaching';
+import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
+import { NavigationRoute, registerRoute } from 'workbox-routing';
 
 // VitePWA inject-manifest will inject '_self.__WB_MANIFEST' here.
 precacheAndRoute(self.__WB_MANIFEST);
+
+// [P3-PWA-CLEANUP · 2026-05-30] Purga precaches creados bajo un esquema de
+// Workbox anterior (housekeeping de Cache Storage). injectManifest no lo añade
+// automáticamente (solo generateSW lo hace).
+cleanupOutdatedCaches();
+
+// [P3-PWA-NAV-FALLBACK · 2026-05-30] Fallback de navegación SPA offline. Sin
+// esto, un hard-reload o deep-link a una ruta client-side profunda
+// (/dashboard/pantry, /history, …) SIN red fallaba al obtener el documento →
+// pantalla de error del navegador en vez del shell de la app. Sirve el
+// index.html precacheado para cualquier navegación; el denylist excluye /api
+// para no interceptar llamadas al backend.
+registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html'), {
+    denylist: [/^\/api\//],
+}));
+
+// [P2-PWA-SKIPWAITING · 2026-05-30] Activación bajo demanda (flujo "prompt").
+// Sin un listener de SKIP_WAITING, el SW nuevo quedaba en estado 'waiting'
+// indefinidamente mientras hubiera UNA pestaña abierta controlada por el SW
+// viejo → el usuario seguía ejecutando el bundle viejo por días tras un deploy
+// (incluido un fix de seguridad/datos). Ahora `registerType: 'prompt'`
+// (vite.config) + el toast "Nueva versión" (main.jsx) postean este mensaje
+// cuando el usuario acepta → el SW skip-waitea y toma control de forma
+// controlada (sin reload abrupto a mitad de un formulario/chat).
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
 
 // ----------------------------------------------------------------------------
 // Web Push Notifications Logic

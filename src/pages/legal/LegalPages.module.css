@@ -194,3 +194,88 @@
         font-size: 2rem;
     }
 }
+
+/* ============================================================
+   [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — LegalPages
+   ============================================================ */
+
+/* --- FONDO DE PÁGINA --- */
+:global(html[data-theme="dark"]) .container {
+    background: linear-gradient(135deg, var(--bg-page) 0%, #0F172A 100%);
+    color: var(--text-main);
+}
+
+/* --- TARJETA GLASSMORPHISM --- */
+:global(html[data-theme="dark"]) .contentWrapper {
+    background: rgba(17, 24, 39, 0.88);
+    border-color: rgba(31, 41, 55, 0.8);
+    box-shadow:
+        0 10px 25px -5px rgba(0, 0, 0, 0.35),
+        0 8px 10px -6px rgba(0, 0, 0, 0.2);
+}
+
+/* --- BACK BUTTON --- */
+:global(html[data-theme="dark"]) .backButton {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .backButton:hover {
+    background: rgba(99, 102, 241, 0.08);
+    color: var(--primary-light);
+}
+
+/* --- HEADER --- */
+:global(html[data-theme="dark"]) .header {
+    border-bottom-color: rgba(31, 41, 55, 0.6);
+}
+
+/* title usa background-clip:text — el gradiente termina en #4338CA (acento) →
+   en oscuro re-pintamos desde un gris claro al acento claro para mantener legibilidad */
+:global(html[data-theme="dark"]) .title {
+    background: linear-gradient(135deg, var(--text-main) 0%, var(--primary-light) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+:global(html[data-theme="dark"]) .meta {
+    background: rgba(148, 163, 184, 0.1);
+    color: var(--text-muted);
+}
+
+/* --- TYPOGRAPHY --- */
+:global(html[data-theme="dark"]) .content h3 {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .content p {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .content li {
+    color: var(--text-muted);
+}
+
+/* --- ALERT BOX (aviso médico — semántico ámbar, solo ajustamos fondos) --- */
+:global(html[data-theme="dark"]) .alertBox {
+    background: #1C1400;
+    border-color: #78350F;
+}
+
+:global(html[data-theme="dark"]) .alertTitle {
+    color: #FCD34D;
+}
+
+:global(html[data-theme="dark"]) .alertText {
+    color: #FDE68A;
+}
+
+/* --- LINKS --- */
+:global(html[data-theme="dark"]) .link {
+    color: var(--primary-light);
+    border-bottom-color: rgba(165, 180, 252, 0.4);
+}
+
+:global(html[data-theme="dark"]) .link:hover {
+    color: #C7D2FE;
+}

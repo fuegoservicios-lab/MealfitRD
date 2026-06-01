@@ -39,27 +39,18 @@ const Login = () => {
             navigate('/');
         } catch (err) {
             if (err.message === 'Invalid login credentials') {
-                // Verificar si el correo realmente existe en la base de datos
-                try {
-                    const { data } = await supabase
-                        .from('user_profiles')
-                        .select('id')
-                        .eq('email', email.trim())
-                        .single();
-                        
-                    if (!data) {
-                        // El usuario no existe, redirigir a registro
-                        navigate('/register', { state: { email: email.trim() } });
-                        return;
-                    } else {
-                        // El usuario existe, la contraseña es incorrecta
-                        setError('Correo o contraseña incorrectos.');
-                    }
-                } catch (profileErr) {
-                    // Si falla la consulta (ej. RLS o no existe), asumimos que no existe
-                    navigate('/register', { state: { email: email.trim() } });
-                    return;
-                }
+                // [P2-LOGIN-WRONG-PW-REDIRECT · 2026-06-01] Antes esta rama consultaba
+                // user_profiles por email para decidir si redirigir a /register (usuario
+                // inexistente) o mostrar "contraseña incorrecta". Pero en la pantalla de
+                // login el cliente es ANÓNIMO y la única policy SELECT de user_profiles es
+                // `auth.uid() = id` → para un anon, auth.uid() es NULL → 0 filas SIEMPRE
+                // (cualquier email). Con `.single()` sobre 0 filas → {data:null} → `!data`
+                // siempre true → un usuario REGISTRADO que teclea mal su contraseña era
+                // expulsado a /register (donde vería "correo ya registrado"). La query era
+                // un round-trip que NUNCA podía leer bajo RLS; eliminarla también cierra la
+                // intención de user-enumeration. Resetear la contraseña sí funciona (usa el
+                // error de auth.resetPasswordForEmail, no una query RLS-gated).
+                setError('Correo o contraseña incorrectos.');
             } else {
                 setError(err.message);
             }

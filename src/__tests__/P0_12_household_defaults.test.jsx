@@ -1,26 +1,24 @@
 /**
- * Tests P0-12: defaults silenciosos `householdSize=1` / `groceryDuration='weekly'`
- * NO deben evadir el gating del wizard.
+ * Tests P0-12 (revisado 2026-05-30): contrato de `householdSize` / `groceryDuration`.
  *
- * Bug original (audit P0-12):
- *   `initialFormData` en `AssessmentContext.jsx` arrancaba con
- *   `householdSize: 1` y `groceryDuration: 'weekly'`. `QHousehold` además
- *   forzaba `householdSize=1` en mount vía `useEffect`. El "Siguiente" del
- *   step quedaba HABILITADO desde el primer render aunque el usuario no
- *   tocara nada. `findFirstIncompleteField` nunca los flagueaba (valor
- *   truthy). Para una familia de 4 con compras quincenales que avanzaba
- *   pasivo, el plan se generaba escalado para 1 persona/semanal — lista
- *   de compras subdimensionada (faltante crítico de comida) y macros para
- *   1 plato cuando hay 4 comensales.
+ * DECISIÓN DE PRODUCTO 2026-05-30:
+ *   Se eliminó el selector de tamaño de hogar. `householdSize` queda FIJO en 1
+ *   (el producto escala por persona). El wizard solo exige `groceryDuration`.
  *
- * Fix:
- *   - `initialFormData`: `householdSize: null`, `groceryDuration: ''`.
- *   - QHousehold: eliminado el `useEffect` que seteaba `householdSize=1`.
- *   - QHousehold chips: eliminado el fallback `|| 1` para que ningún chip
- *     aparezca pre-seleccionado al primer render.
- *   - El botón "Siguiente" usa `disabled={!formData.householdSize ||
- *     !formData.groceryDuration}` que ahora bloquea correctamente con los
- *     nuevos defaults falsy.
+ * Historia previa (P0-12 original, 2026-05-07 — ahora REVERTIDO por producto):
+ *   La versión vieja del fix hacía `householdSize: null` + un selector de
+ *   personas en QHousehold con guard `!formData.householdSize`. Eso se
+ *   descartó: el producto decidió hogar = 1 persona sin selector. Estos tests
+ *   ahora anclan el contrato NUEVO y fallan si alguien re-introduce un selector
+ *   de hogar (que requeriría revertir la decisión de producto primero).
+ *
+ * Contrato vigente:
+ *   - `initialFormData`: `householdSize: 1` (fijo), `groceryDuration: ''`.
+ *   - QHousehold: NO renderiza selector de personas; su "Siguiente" gatea SOLO
+ *     `groceryDuration`.
+ *   - `householdSize` sigue en REQUIRED_FORM_FIELDS por paridad con el backend
+ *     (`test_p0_form_6_required_fields_sync`), pero el default 1 (truthy)
+ *     siempre lo satisface → `findFirstIncompleteField` nunca lo flaggea.
  */
 import { describe, it, expect } from 'vitest';
 import { findFirstIncompleteField, REQUIRED_FORM_FIELDS } from '../config/formValidation';
@@ -32,55 +30,44 @@ const ROOT = path.resolve(__dirname, '..');
 const _readFile = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
 
-describe('P0-12 — findFirstIncompleteField detecta los nuevos defaults', () => {
-    // Plantilla con todos los campos previos a `householdSize` rellenos para
-    // aislar el chequeo a `householdSize` y `groceryDuration`.
-    const buildFilledFormUpTo = (excludeField) => {
-        const baseValid = {
-            gender: 'male', age: 30, height: 175, weight: 75, weightUnit: 'kg',
-            activityLevel: 'moderate', scheduleType: '9to5', sleepHours: 8,
-            stressLevel: 'low', cookingTime: 'medium', budget: 'medium',
-            householdSize: 4, groceryDuration: 'biweekly',
-            dietType: 'balanced', allergies: ['Ninguna'], dislikes: ['Ninguno'],
-            medicalConditions: ['Ninguna'], mainGoal: 'lose', struggles: ['Ninguno'],
-            motivation: 'salud',
-        };
-        if (excludeField) delete baseValid[excludeField];
-        return baseValid;
-    };
+describe('P0-12 — findFirstIncompleteField con el contrato nuevo (household fijo en 1)', () => {
+    const buildFilledForm = (overrides = {}) => ({
+        gender: 'male', age: 30, height: 175, weight: 75, weightUnit: 'kg',
+        activityLevel: 'moderate', scheduleType: '9to5', sleepHours: 8,
+        stressLevel: 'low', cookingTime: 'medium', budget: 'medium',
+        householdSize: 1, groceryDuration: 'biweekly',
+        dietType: 'balanced', allergies: ['Ninguna'], dislikes: ['Ninguno'],
+        medicalConditions: ['Ninguna'], mainGoal: 'lose', struggles: ['Ninguno'],
+        motivation: 'salud',
+        ...overrides,
+    });
 
-    it('retorna "householdSize" cuando householdSize es null', () => {
-        const form = { ...buildFilledFormUpTo(), householdSize: null };
-        expect(findFirstIncompleteField(form)).toBe('householdSize');
+    it('householdSize=1 (default) satisface el required → NO se flaggea', () => {
+        // El default 1 es truthy; el wizard nunca debe bloquear por hogar.
+        const form = buildFilledForm({ householdSize: 1 });
+        expect(findFirstIncompleteField(form)).toBe(null);
     });
 
     it('retorna "groceryDuration" cuando groceryDuration es vacío', () => {
-        const form = { ...buildFilledFormUpTo(), groceryDuration: '' };
+        const form = buildFilledForm({ groceryDuration: '' });
         expect(findFirstIncompleteField(form)).toBe('groceryDuration');
     });
 
-    it('retorna "householdSize" antes que "groceryDuration" si ambos faltan (orden del array)', () => {
-        const form = { ...buildFilledFormUpTo(), householdSize: null, groceryDuration: '' };
-        // REQUIRED_FORM_FIELDS lista householdSize antes que groceryDuration.
-        expect(REQUIRED_FORM_FIELDS.indexOf('householdSize'))
-            .toBeLessThan(REQUIRED_FORM_FIELDS.indexOf('groceryDuration'));
-        expect(findFirstIncompleteField(form)).toBe('householdSize');
+    it('retorna null cuando todos los requeridos están llenos', () => {
+        expect(findFirstIncompleteField(buildFilledForm())).toBe(null);
     });
 
-    it('retorna null cuando todos los requeridos están llenos', () => {
-        const form = buildFilledFormUpTo();
-        expect(findFirstIncompleteField(form)).toBe(null);
+    it('householdSize sigue en REQUIRED_FORM_FIELDS (paridad con backend)', () => {
+        expect(REQUIRED_FORM_FIELDS).toContain('householdSize');
     });
 });
 
 
-describe('P0-12 — initialFormData NO debe contener defaults silenciosos', () => {
+describe('P0-12 — initialFormData fija householdSize en 1 (decisión de producto)', () => {
     const src = _readFile('context/AssessmentContext.jsx');
     const initialFormDataMatch = src.match(/const\s+initialFormData\s*=\s*\{([\s\S]*?)\n\s*\};/);
     const rawInitialBlock = initialFormDataMatch ? initialFormDataMatch[1] : '';
-    // Filtramos líneas que son SOLO comentarios (`// ...`). Los comentarios
-    // explicativos que documentan el bug literal `householdSize: 1` no
-    // deben hacer fail el test — el riesgo real es la asignación activa.
+    // Solo el código (ignora líneas que son comentarios).
     const codeOnlyBlock = rawInitialBlock
         .split('\n')
         .filter((ln) => !ln.trim().startsWith('//'))
@@ -91,9 +78,10 @@ describe('P0-12 — initialFormData NO debe contener defaults silenciosos', () =
         expect(codeOnlyBlock.length).toBeGreaterThan(50);
     });
 
-    it('initialFormData (código activo) NO asigna "householdSize: 1"', () => {
-        expect(codeOnlyBlock).not.toMatch(/householdSize:\s*1\b/);
-        expect(codeOnlyBlock).toMatch(/householdSize:\s*null/);
+    it('initialFormData (código activo) fija "householdSize: 1"', () => {
+        expect(codeOnlyBlock).toMatch(/householdSize:\s*1\b/);
+        // Y NO arranca en null (el contrato viejo, ya revertido).
+        expect(codeOnlyBlock).not.toMatch(/householdSize:\s*null/);
     });
 
     it('initialFormData (código activo) NO asigna "groceryDuration: \'weekly\'"', () => {
@@ -102,47 +90,31 @@ describe('P0-12 — initialFormData NO debe contener defaults silenciosos', () =
     });
 
     it('Comentario [P0-12] documenta el rationale en initialFormData', () => {
-        // Si alguien re-introduce los defaults, debe ver primero el aviso.
-        expect(rawInitialBlock).toMatch(/\[P0-12\]/);
+        expect(rawInitialBlock).toMatch(/\[P0-12/);
     });
 });
 
 
-describe('P0-12 — QHousehold NO debe forzar householdSize=1 en mount', () => {
+describe('P0-12 — QHousehold NO debe tener selector de personas (decisión de producto)', () => {
     const src = _readFile('components/assessment/questions/InteractiveQuestions.jsx');
+    const qhouseholdMatch = src.match(/export const QHousehold[\s\S]*?(?=\nexport const |\nfunction )/);
+    const qBody = qhouseholdMatch ? qhouseholdMatch[0] : '';
 
-    it('NO contiene useEffect que setea householdSize=1', () => {
-        // Patrón roto exacto del bug: `if (!formData.householdSize) updateData('householdSize', 1)`.
-        const badPattern = /if\s*\(\s*!formData\.householdSize\s*\)\s*updateData\(\s*['"]householdSize['"]\s*,\s*1\s*\)/;
-        expect(src).not.toMatch(badPattern);
+    it('QHousehold fue extraído del source', () => {
+        expect(qBody).toBeTruthy();
     });
 
-    it('NO usa fallback `|| 1` al renderizar chip seleccionado', () => {
-        // El chip "1" ya no debe aparecer pre-seleccionado al primer render
-        // si el usuario no eligió nada.
-        const badPattern = /\(formData\.householdSize\s*\|\|\s*1\)\s*===\s*num/;
-        expect(src).not.toMatch(badPattern);
-        // El patrón nuevo es comparación directa.
-        expect(src).toMatch(/formData\.householdSize\s*===\s*num/);
+    it('NO contiene un handler/selector de tamaño de hogar', () => {
+        // Si alguien re-introduce el selector, debe revertir primero la
+        // decisión de producto 2026-05-30 (y actualizar estos tests).
+        expect(qBody).not.toMatch(/handlePersonSelect/);
+        expect(qBody).not.toMatch(/updateData\(\s*['"]householdSize['"]/);
     });
 
-    it('Comentario [P0-12] documenta el rationale en QHousehold', () => {
-        // Defensa contra reintroducir el useEffect "default visual 1".
-        const qhouseholdMatch = src.match(/export const QHousehold[\s\S]*?(?=\nexport const |\nfunction )/);
-        expect(qhouseholdMatch).toBeTruthy();
-        expect(qhouseholdMatch[0]).toMatch(/\[P0-12\]/);
-    });
-});
-
-
-describe('P0-12 — Botón "Siguiente" del wizard queda disabled con defaults nuevos', () => {
-    // El NextButton ya tiene `disabled={!formData.householdSize || !formData.groceryDuration}`
-    // — verificamos vía source que no se haya cambiado a un patrón que ignore null/falsy.
-    const src = _readFile('components/assessment/questions/InteractiveQuestions.jsx');
-
-    it('NextButton de QHousehold sigue gateando ambos campos', () => {
-        // El patrón canónico que protege es `!formData.householdSize || !formData.groceryDuration`.
-        const guardPattern = /disabled=\{!formData\.householdSize\s*\|\|\s*!formData\.groceryDuration\}/;
-        expect(src).toMatch(guardPattern);
+    it('NextButton de QHousehold gatea SOLO groceryDuration', () => {
+        // Patrón canónico nuevo: el único gate es groceryDuration.
+        expect(qBody).toMatch(/disabled=\{!formData\.groceryDuration\}/);
+        // Y NO el guard viejo de hogar.
+        expect(qBody).not.toMatch(/!formData\.householdSize/);
     });
 });

@@ -36,11 +36,14 @@ const _HOOK_PATH = join(__dirname, '..', 'hooks', 'useModalAccessibility.js');
 const _PAYMENT_PATH = join(__dirname, '..', 'components', 'dashboard', 'PaymentModal.jsx');
 const _LOGOUT_PATH = join(__dirname, '..', 'components', 'dashboard', 'LogoutConfirmModal.jsx');
 const _DASHBOARD_PATH = join(__dirname, '..', 'pages', 'Dashboard.jsx');
+// [P3-DASH-MODALS-A11Y · 2026-05-30] DashboardLayout aloja el "Mobile More Menu".
+const _LAYOUT_PATH = join(__dirname, '..', 'components', 'dashboard', 'DashboardLayout.jsx');
 
 const hookSrc = readFileSync(_HOOK_PATH, 'utf8');
 const paymentSrc = readFileSync(_PAYMENT_PATH, 'utf8');
 const logoutSrc = readFileSync(_LOGOUT_PATH, 'utf8');
 const dashboardSrc = readFileSync(_DASHBOARD_PATH, 'utf8');
+const layoutSrc = readFileSync(_LAYOUT_PATH, 'utf8');
 
 
 describe('[P2-CUSTOM-MODALS-A11Y] hook SSOT', () => {
@@ -171,6 +174,64 @@ describe('[P2-CUSTOM-MODALS-A11Y] Dashboard restock modal integration', () => {
         const around = dashboardSrc.slice(Math.max(0, restockIdx - 400), restockIdx + 400);
         expect(around).toMatch(/role\s*=\s*["']dialog["']/);
         expect(around).toMatch(/aria-modal\s*=\s*["']true["']/);
+        expect(around).toMatch(/tabIndex\s*=\s*\{\s*-1\s*\}/);
+    });
+});
+
+
+// [P3-DASH-MODALS-A11Y · 2026-05-30] Cobertura de los 2 modales del dashboard
+// migrados al hook SSOT en esta pasada del audit del Dashboard:
+//   - Modal de Onboarding Push (Dashboard.jsx) — era el único modal del Dashboard
+//     sin role/ESC/focus-trap/restore (el restock modal inline ya lo tenía).
+//   - "Mobile More Menu" (DashboardLayout.jsx) — overlay full-screen con acción
+//     destructiva (Cerrar Sesión) sin las defensas a11y; el popover de cuenta
+//     desktop equivalente ya tenía ESC + click-outside.
+describe('[P3-DASH-MODALS-A11Y] Push Onboarding modal (Dashboard.jsx)', () => {
+    it('marker presente', () => {
+        expect(dashboardSrc).toMatch(/\[P3-DASH-MODALS-A11Y\s*·\s*2026-05-30\]/);
+    });
+
+    it('invoca useModalAccessibility con isOpen=showPushOnboarding + disableClose=isPushEnabling', () => {
+        expect(dashboardSrc).toMatch(/useModalAccessibility\s*\(\s*\{[\s\S]*?isOpen:\s*showPushOnboarding/);
+        expect(dashboardSrc).toMatch(/onClose:\s*dismissPushOnboarding/);
+        expect(dashboardSrc).toMatch(/disableClose:\s*isPushEnabling/);
+    });
+
+    it('modal root tiene role="dialog" + aria-modal + aria-labelledby + tabIndex + ref + heading id', () => {
+        expect(dashboardSrc).toMatch(/aria-labelledby\s*=\s*["']push-onboarding-title["']/);
+        expect(dashboardSrc).toMatch(/id\s*=\s*["']push-onboarding-title["']/);
+        const idx = dashboardSrc.indexOf('aria-labelledby="push-onboarding-title"');
+        expect(idx).toBeGreaterThan(-1);
+        const around = dashboardSrc.slice(Math.max(0, idx - 400), idx + 400);
+        expect(around).toMatch(/role\s*=\s*["']dialog["']/);
+        expect(around).toMatch(/aria-modal\s*=\s*["']true["']/);
+        expect(around).toMatch(/tabIndex\s*=\s*\{\s*-1\s*\}/);
+        expect(around).toMatch(/ref\s*=\s*\{\s*pushOnboardingRef\s*\}/);
+    });
+});
+
+
+describe('[P3-DASH-MODALS-A11Y] Mobile More Menu (DashboardLayout.jsx)', () => {
+    it('marker presente', () => {
+        expect(layoutSrc).toMatch(/\[P3-DASH-MODALS-A11Y\s*·\s*2026-05-30\]/);
+    });
+
+    it('importa useModalAccessibility', () => {
+        expect(layoutSrc).toMatch(
+            /import\s*\{\s*useModalAccessibility\s*\}\s*from\s*['"]\.\.\/\.\.\/hooks\/useModalAccessibility['"]/
+        );
+    });
+
+    it('invoca el hook con isOpen=isMobileMoreMenuOpen + onClose=closeMoreMenu', () => {
+        expect(layoutSrc).toMatch(/useModalAccessibility\s*\(\s*\{[\s\S]*?isOpen:\s*isMobileMoreMenuOpen/);
+        expect(layoutSrc).toMatch(/onClose:\s*closeMoreMenu/);
+    });
+
+    it('el menú role="menu" tiene ref={moreMenuRef} + tabIndex={-1}', () => {
+        const idx = layoutSrc.indexOf('className={styles.mobileMoreMenu}');
+        expect(idx).toBeGreaterThan(-1);
+        const around = layoutSrc.slice(Math.max(0, idx - 120), idx + 220);
+        expect(around).toMatch(/ref\s*=\s*\{\s*moreMenuRef\s*\}/);
         expect(around).toMatch(/tabIndex\s*=\s*\{\s*-1\s*\}/);
     });
 });

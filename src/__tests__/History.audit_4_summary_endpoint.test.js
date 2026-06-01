@@ -98,8 +98,17 @@ describe('[P1-HIST-AUDIT-4] _loadPlanDataLazy: lazy-load del plan_data', () => {
         expect(helperBlock).toMatch(/\.select\(\s*['"]plan_data['"]\s*\)/);
         // Defensive: el helper filtra por id Y user_id (defense-in-depth
         // contra leak de plan ajeno via id guessing).
+        // [P6-SPEED-HIST-GETUSER · 2026-06-01] El id autenticado ahora es `uid`
+        // = session?.user?.id (sesión YA hidratada del contexto, lectura
+        // síncrona) en vez de `user.id` de un supabase.auth.getUser() — ese
+        // getUser era un roundtrip de red que bloqueaba ~100-300ms el query en
+        // cada apertura de tarjeta. El filtro user_id se preserva.
         expect(helperBlock).toMatch(/\.eq\(\s*['"]id['"]\s*,\s*planSummary\.id/);
-        expect(helperBlock).toMatch(/\.eq\(\s*['"]user_id['"]\s*,\s*user\.id/);
+        expect(helperBlock).toMatch(/\.eq\(\s*['"]user_id['"]\s*,\s*uid\b/);
+        // `uid` DEBE derivar de la sesión hidratada del contexto.
+        expect(helperBlock).toMatch(/const\s+uid\s*=\s*session\?\.user\?\.id/);
+        // Anti-regresión: el waterfall de red NO debe volver al helper.
+        expect(helperBlock).not.toMatch(/auth\.getUser\(/);
     });
 
     it('respeta el cache implícito si plan_data ya está presente', () => {

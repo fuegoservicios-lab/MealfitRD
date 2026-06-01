@@ -13,18 +13,23 @@ import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 
 /* ─── Plan Feature Map ─── */
+// [P2-PAYMENT-FEATURES-ALIGN · 2026-05-31] La pantalla de checkout anunciaba como
+// "lo que pagas" varias features que el landing (Pricing.jsx) y la tabla
+// comparativa (Upgrade.jsx) declaran GRATIS (Asistente con Visión, Historial,
+// Seguimiento de Progreso, Analizador de Macros). En el momento de mayor fricción
+// eso degrada credibilidad. Ahora cada tier muestra solo lo que AÑADE sobre el
+// inferior, espejando Pricing.jsx.
 const PLAN_FEATURES = {
     basic: [
         { icon: "⚡", text: "50 Créditos de IA al mes" },
-        { icon: "👁️", text: "Asistente IA con Visión" },
         { icon: "🧠", text: "Memoria a Largo Plazo" },
-        { icon: "📋", text: "Historial de Planes" },
+        { icon: "✅", text: "Todo lo incluido en Gratis" },
     ],
     plus: [
         { icon: "⚡", text: "200 Créditos de IA al mes" },
-        { icon: "🛒", text: "Registro de Compras Inteligente" },
-        { icon: "📊", text: "Seguimiento de Progreso" },
-        { icon: "🎯", text: "Analizador de Macros" },
+        { icon: "🎙️", text: "Llamadas de Voz con tu Nutricionista IA" },
+        { icon: "🧠", text: "Memoria Infinita" },
+        { icon: "✅", text: "Todo lo incluido en Básico" },
     ],
     ultra: [
         { icon: "∞", text: "Créditos Ilimitados" },
@@ -50,10 +55,12 @@ const PaymentModal = ({
     const [couponResult, setCouponResult] = useState(null);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     
-    // New payment flow states
     const [paymentMethod, setPaymentMethod] = useState('card');
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [cardDetails, setCardDetails] = useState({ name: '', number: '', exp: '', cvc: '' });
+    // [P3-PAYMENTMODAL-DEADSTATE · 2026-05-30] Eliminados `isProcessing` y
+    // `cardDetails` ({name,number,exp,cvc}): estado React nunca leído ni seteado
+    // (el flujo delega 100% a <PayPalButtons>; no hay form de tarjeta propio).
+    // El shape con number/cvc sugería falsamente que la app toca PAN/CVC crudo
+    // (no lo hace — todo es PayPal-hosted).
 
     useEffect(() => {
         const handler = () => setIsMobile(window.innerWidth < 768);
@@ -193,6 +200,7 @@ const PaymentModal = ({
                 {/* Close */}
                 <button
                     onClick={onClose}
+                    aria-label="Cerrar ventana modal"
                     style={{
                         position: 'fixed', top: '1.5rem', right: '1.5rem', zIndex: 10000,
                         background: 'rgba(255,255,255,0.06)',
@@ -205,7 +213,7 @@ const PaymentModal = ({
                     onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#fff'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#ccc'; }}
                 >
-                    <X size={20} />
+                    <X size={20} aria-hidden="true" />
                 </button>
 
                 {/* Modal Container */}
@@ -310,7 +318,16 @@ const PaymentModal = ({
                                                 style={{ shape: "rect", color: "black", label: "subscribe", height: 50, tagline: false }}
                                                 createSubscription={handleCreateSubscription}
                                                 onApprove={async (data) => { try { onSuccess(data.subscriptionID); } catch (err) { console.error(err); } }}
-                                                onError={(err) => console.error("PayPal Card Error:", err)}
+                                                onError={(err) => {
+                                                    // [P2-PAYPAL-ONERROR-TOAST · 2026-05-30] El SDK puede
+                                                    // fallar mid-checkout (5xx PayPal, red, popup bloqueado,
+                                                    // plan_id inválido). onSuccess nunca corre → sin este
+                                                    // toast el modal full-screen quedaba mudo en la pantalla
+                                                    // de mayor conversión. No hay cargo (el error precede al
+                                                    // approve), así que es feedback, no pérdida de pago.
+                                                    console.error("PayPal Card Error:", err);
+                                                    toast.error("No se pudo procesar el pago. Intenta de nuevo o usa otro método.");
+                                                }}
                                                 onCancel={() => { }}
                                             />
                                         </PayPalScriptProvider>
@@ -343,7 +360,12 @@ const PaymentModal = ({
                                                 style={{ shape: "rect", color: "gold", label: "subscribe", height: 50, tagline: false }}
                                                 createSubscription={handleCreateSubscription}
                                                 onApprove={async (data) => { try { onSuccess(data.subscriptionID); } catch (err) { console.error(err); } }}
-                                                onError={(err) => console.error("PayPal Error:", err)}
+                                                onError={(err) => {
+                                                    // [P2-PAYPAL-ONERROR-TOAST · 2026-05-30] Ver nota en el
+                                                    // botón de tarjeta arriba — mismo feedback al usuario.
+                                                    console.error("PayPal Error:", err);
+                                                    toast.error("No se pudo procesar el pago. Intenta de nuevo o usa otro método.");
+                                                }}
                                                 onCancel={() => { }}
                                             />
                                         </PayPalScriptProvider>

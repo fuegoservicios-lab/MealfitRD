@@ -1,0 +1,10 @@
+# [P2-SEO-ROBOTS · 2026-05-31] Higiene SEO. Rutas autenticadas sin valor
+# indexable se excluyen; el hint Sitemap acelera el descubrimiento inicial.
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /assessment
+Disallow: /plan
+Disallow: /reset-password
+
+Sitemap: https://mealfitrd.com/sitemap.xml

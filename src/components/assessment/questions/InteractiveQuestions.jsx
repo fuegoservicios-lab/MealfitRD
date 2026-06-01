@@ -12,7 +12,7 @@ import { RadioCard, Input, Label } from '../../common/FormUI';
 // metadata UI (`DIET_TYPE_META`) cubre exactamente la misma lista — si un
 // futuro PR añade un tipo a `DIET_TYPES` sin actualizar la metadata, el
 // componente avisa explícitamente en consola.
-import { BIO_RANGES, DIET_TYPES, SUPPLEMENTS, isBiometricInRange } from '../../../config/formValidation';
+import { BIO_RANGES, DIET_TYPES, SUPPLEMENTS, isBiometricInRange, minBudgetFor, budgetCycleDays } from '../../../config/formValidation';
 // [P1-FORM-2] SSOT de sentinels exclusivos. Antes cada Q* declaraba su
 // `const SENTINEL = "Ninguna"` o `"Ninguno"` localmente; cambiar el copy en
 // uno y olvidar los demás rompía la detección de exclusividad y la
@@ -25,7 +25,7 @@ import {
     Mars, Venus,
     Battery, BatteryFull, BatteryMedium, BatteryLow, BatteryWarning,
     Target, Clock, ChefHat,
-    Wallet, Banknote, Landmark, Infinity, Utensils,
+    Wallet, Banknote, Landmark, Infinity as InfinityIcon, Utensils, SlidersHorizontal,
     Leaf, Salad, TrendingUp, Zap, Shield,
     AlertTriangle, Frown, Users, XCircle, HelpCircle,
     Check, Pill, ArrowRight, Ban, Milk, Wheat, Egg, Fish, Nut, Activity, Heart, AlertCircle, Timer,
@@ -52,9 +52,16 @@ export const NextButton = ({ onClick, disabled, label = "Siguiente", icon: Icon 
     <button
         onClick={onClick}
         disabled={disabled}
+        // [CTA-HOVER-GLOW · 2026-05-31] El box-shadow (base/disabled/hover/active/
+        // focus) vive en la clase `.mf-cta-btn` de index.css — NO inline — para que
+        // el :hover pueda intensificar la sombra (lift sutil + glow bicolor azul→verde
+        // de los extremos del gradiente + brillo leve) sin que la especificidad del
+        // estilo inline lo gane. Respeta prefers-reduced-motion (conserva el glow,
+        // quita sólo el desplazamiento). El gradiente/padding siguen inline.
+        className="mf-cta-btn"
         style={{
             padding: '1rem 3rem',
-            background: disabled ? '#F1F5F9' : 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
+            background: disabled ? 'var(--bg-muted)' : 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
             color: disabled ? '#94A3B8' : 'white',
             border: 'none',
             borderRadius: '1rem',
@@ -62,7 +69,6 @@ export const NextButton = ({ onClick, disabled, label = "Siguiente", icon: Icon 
             fontSize: '1.15rem',
             display: 'flex', alignItems: 'center', gap: '0.75rem',
             cursor: disabled ? 'not-allowed' : 'pointer',
-            boxShadow: disabled ? 'none' : '0 10px 25px -5px rgba(37, 99, 235, 0.4)',
             opacity: disabled ? 0.8 : 1,
             transition: 'all 0.3s',
             marginTop: '2rem',
@@ -85,12 +91,12 @@ const DietOption = ({ val, label, icon: Icon, desc, isSelected, onSelect }) => (
         style={{
             cursor: 'pointer', padding: '1rem', borderRadius: 'var(--radius-md)',
             border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
-            backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.05)' : 'white',
+            backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-card)',
             display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '0.5rem',
             transition: 'all 0.2s ease', position: 'relative'
         }}
     >
-        <div style={{ padding: '0.75rem', borderRadius: '50%', background: isSelected ? 'var(--primary)' : 'var(--bg-light)', color: isSelected ? 'white' : 'var(--text-muted)' }}>
+        <div style={{ padding: '0.75rem', borderRadius: '50%', background: isSelected ? 'var(--primary)' : 'var(--bg-muted)', color: isSelected ? 'white' : 'var(--text-muted)' }}>
             <Icon size={24} />
         </div>
         <div>
@@ -111,7 +117,7 @@ const ChipOption = ({ val, label, icon: Icon, isSelected, onToggle }) => (
         style={{
             cursor: 'pointer', padding: '0.75rem 1rem', borderRadius: 'var(--radius-lg)',
             border: isSelected ? '1px solid var(--secondary)' : '1px solid var(--border)',
-            backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.05)' : 'white',
+            backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-card)',
             display: 'flex', alignItems: 'center', gap: '0.75rem', transition: 'all 0.2s ease'
         }}
     >
@@ -132,12 +138,12 @@ const GoalCard = ({ val, label, icon: Icon, color, isSelected, onSelect }) => (
         style={{
             cursor: 'pointer', padding: '1.25rem', borderRadius: 'var(--radius-lg)',
             border: isSelected ? `2px solid ${color}` : '1px solid var(--border)',
-            backgroundColor: isSelected ? `${color}10` : 'white',
+            backgroundColor: isSelected ? `${color}22` : 'var(--bg-card)',
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', textAlign: 'center',
             position: 'relative'
         }}
     >
-        <div style={{ padding: '0.75rem', borderRadius: '50%', background: isSelected ? color : 'var(--bg-light)', color: isSelected ? 'white' : 'var(--text-muted)' }}>
+        <div style={{ padding: '0.75rem', borderRadius: '50%', background: isSelected ? color : 'var(--bg-muted)', color: isSelected ? 'white' : 'var(--text-muted)' }}>
             <Icon size={28} />
         </div>
         <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.95rem' }}>{label}</span>
@@ -223,7 +229,14 @@ export const QMeasurements = ({ onManualAdvance }) => {
     const setUnit = (newUnit) => updateData('_heightInputUnit', newUnit);
     const [feet, setFeet] = useState('');
     const [inches, setInches] = useState('');
-    const [weightUnit, setWeightUnit] = useState(formData.weightUnit || 'lb');
+    // [P3-QMEAS-WEIGHTUNIT-DERIVED · 2026-06-01] Derivado de formData (NO espejado en
+    // local state). Antes era `useState(formData.weightUnit||'lb')`: en dispositivo
+    // nuevo el local arrancaba 'lb' y, si el usuario había guardado 'kg' sin re-tocar
+    // el toggle (_weightUnitTouched=false → no en editedFieldsRef), la hidratación
+    // async ponía formData.weightUnit='kg' DESPUÉS del mount pero el local seguía 'lb'
+    // (ningún effect observaba formData.weightUnit) → validaba rango lb + placeholder
+    // + toggle stale. Espeja el patrón del hermano `unit` de altura (L228, fuente única).
+    const weightUnit = formData.weightUnit || 'lb';
 
     // [P1-9] Normaliza coma decimal a punto antes de persistir el valor.
     // En locales `es-DO`/`es-ES` los usuarios tipean "70,5" naturalmente,
@@ -278,7 +291,8 @@ export const QMeasurements = ({ onManualAdvance }) => {
         // para que la hidratación async post-login (fetchProfile,
         // secureLoadFormData) NO sobreescriba la elección del usuario con un
         // valor stale del DB. Mismo patrón que otros toggles "touched" del wizard.
-        setWeightUnit(newUnit);
+        // [P3-QMEAS-WEIGHTUNIT-DERIVED · 2026-06-01] Sin setWeightUnit: weightUnit es
+        // derivado de formData → updateData re-renderiza y el derivado refleja al instante.
         updateData('weightUnit', newUnit);
         updateData('_weightUnitTouched', true);
         updateData('weight', '');
@@ -312,9 +326,9 @@ export const QMeasurements = ({ onManualAdvance }) => {
                 <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <Label htmlFor="height" style={{ margin: 0 }}>Altura&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
-                        <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '0.5rem', padding: '3px' }}>
-                            <button onClick={() => setUnit('cm')} style={{ border: 'none', background: unit === 'cm' ? 'white' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: unit === 'cm' ? 'var(--primary)' : '#64748B' }}>CM</button>
-                            <button onClick={() => setUnit('ft')} style={{ border: 'none', background: unit === 'ft' ? 'white' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: unit === 'ft' ? 'var(--primary)' : '#64748B' }}>FT</button>
+                        <div style={{ display: 'flex', background: 'var(--bg-muted)', borderRadius: '0.5rem', padding: '3px' }}>
+                            <button onClick={() => setUnit('cm')} style={{ border: 'none', background: unit === 'cm' ? 'var(--bg-card)' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: unit === 'cm' ? 'var(--primary)' : 'var(--text-muted)' }}>CM</button>
+                            <button onClick={() => setUnit('ft')} style={{ border: 'none', background: unit === 'ft' ? 'var(--bg-card)' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: unit === 'ft' ? 'var(--primary)' : 'var(--text-muted)' }}>FT</button>
                         </div>
                     </div>
                     {unit === 'cm' ? (
@@ -347,26 +361,28 @@ export const QMeasurements = ({ onManualAdvance }) => {
                 <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <Label htmlFor="weight" style={{ margin: 0 }}>Peso&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
-                        {/* [P1-FORM-3] Border ámbar destacado cuando el usuario aún no
-                            confirmó la unidad explícitamente. Antes el toggle pasaba
-                            desapercibido y usuarios métricos tipeaban "70" como kg
-                            pero se almacenaba como lb (≈31.7 kg) → BMR completamente
-                            errado. El border desaparece cuando el usuario tapea
-                            cualquiera de los dos botones (LB o KG), confirmando su
-                            intención. El default ahora es locale-based en
-                            AssessmentContext, así que para 99% de usuarios el border
-                            es un confirm-prompt; el otro 1% lo usa para corregir. */}
+                        {/* [LB-DEFAULT-PRESELECT · 2026-05-31] LB es la unidad de peso
+                            por defecto predeterminada (decisión de producto: el mercado
+                            es-DO usa libras). Pre-fix (P1-FORM-3) el toggle mostraba un
+                            border ámbar + un warning "⚠️ Confirma tu unidad" que EXIGÍA
+                            tocar LB/KG antes de continuar — fricción innecesaria para el
+                            ~99% de usuarios que usan lb. Quitado: el toggle queda neutro
+                            con LB ya seleccionado. El toggle SIGUE visible para que quien
+                            use kg pueda cambiar, y al tocarlo `handleWeightUnitChange`
+                            marca `_weightUnitTouched=true` (protege la elección explícita
+                            de la hidratación async). `weightUnit='lb'` ya se envía al
+                            backend por defecto (initialFormData), así que el contrato
+                            P0-FORM-4 (weightUnit required + válido) se sigue cumpliendo. */}
                         <div style={{
                             display: 'flex',
-                            background: '#F1F5F9',
+                            background: 'var(--bg-muted)',
                             borderRadius: '0.5rem',
                             padding: '3px',
-                            border: formData._weightUnitTouched ? 'none' : '2px solid #F59E0B',
-                            boxShadow: formData._weightUnitTouched ? 'none' : '0 0 0 3px rgba(245, 158, 11, 0.15)',
+                            border: 'none',
                             transition: 'all 0.2s ease',
                         }}>
-                            <button onClick={() => handleWeightUnitChange('lb')} style={{ border: 'none', background: weightUnit === 'lb' ? 'white' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: weightUnit === 'lb' ? 'var(--primary)' : '#64748B' }}>LB</button>
-                            <button onClick={() => handleWeightUnitChange('kg')} style={{ border: 'none', background: weightUnit === 'kg' ? 'white' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: weightUnit === 'kg' ? 'var(--primary)' : '#64748B' }}>KG</button>
+                            <button onClick={() => handleWeightUnitChange('lb')} style={{ border: 'none', background: weightUnit === 'lb' ? 'var(--bg-card)' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: weightUnit === 'lb' ? 'var(--primary)' : 'var(--text-muted)' }}>LB</button>
+                            <button onClick={() => handleWeightUnitChange('kg')} style={{ border: 'none', background: weightUnit === 'kg' ? 'var(--bg-card)' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: weightUnit === 'kg' ? 'var(--primary)' : 'var(--text-muted)' }}>KG</button>
                         </div>
                     </div>
                     <Input
@@ -374,22 +390,7 @@ export const QMeasurements = ({ onManualAdvance }) => {
                         min={weightRange.min} max={weightRange.max} step={weightRange.step}
                         value={formData.weight} onChange={e => updateData('weight', _normalizeDecimal(e.target.value))}
                         aria-required="true"
-                        aria-describedby={!formData._weightUnitTouched ? 'weight-unit-warning' : undefined}
                     />
-                    {!formData._weightUnitTouched && (
-                        <div
-                            id="weight-unit-warning"
-                            role="alert"
-                            style={{
-                                fontSize: '0.7rem',
-                                color: '#B45309',
-                                marginTop: '0.35rem',
-                                fontWeight: 500,
-                            }}
-                        >
-                            ⚠️ Confirma tu unidad de peso ({weightUnit.toUpperCase()} por defecto). Toca LB o KG para confirmar.
-                        </div>
-                    )}
                 </div>
                 <div>
                     <Label htmlFor="bodyFat">% Grasa (Opcional)</Label>
@@ -538,7 +539,7 @@ export const QCookingTime = ({ onAutoAdvance }) => {
                 { val: 'none', label: 'Nada', desc: 'Opciones directas, de 5 mins', icon: Hourglass },
                 { val: '30min', label: 'Poco', desc: 'Máximo 30 min', icon: Timer },
                 { val: '1hour', label: 'Medio', desc: '45-60 min', icon: Clock },
-                { val: 'plenty', label: 'Sin límite', desc: 'Me gusta cocinar', icon: Infinity }
+                { val: 'plenty', label: 'Sin límite', desc: 'Me gusta cocinar', icon: InfinityIcon }
             ].map(opt => (
                 <RadioCard
                     key={opt.val} name="cookingTime" value={opt.val} label={opt.label} desc={opt.desc} icon={opt.icon}
@@ -553,21 +554,99 @@ export const QCookingTime = ({ onAutoAdvance }) => {
 
 export const QBudget = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
+    const isCustom = formData.budget === 'custom';
+    // [BUDGET-CURRENCY · 2026-05-31] Moneda del monto custom. Default 'DOP'
+    // (peso dominicano, RD$) — el usuario puede cambiar a 'USD' (US$). Se envía
+    // al backend y `build_budget_context` la usa para el símbolo + escala.
+    const budgetCurrency = formData.budgetCurrency || 'DOP';
+    const currencySymbol = budgetCurrency === 'USD' ? 'US$' : 'RD$';
+    // [BUDGET-MIN · 2026-05-31] Mínimo VIABLE, escalado por duración del ciclo
+    // (7/15/30 días, ya elegida en el step previo) + moneda. Bajo este monto no
+    // alcanza para un plan. `belowMin` pinta la advertencia; el `validateExtra`
+    // del flow gatea "Siguiente Paso" con el mismo `minBudgetFor` (SSOT).
+    const minBudget = minBudgetFor(budgetCurrency, formData.groceryDuration);
+    const cycleDays = budgetCycleDays(formData.groceryDuration);
+    const _amountNum = Number(formData.budgetAmount);
+    const belowMin = isCustom && formData.budgetAmount !== '' && formData.budgetAmount != null
+        && _amountNum > 0 && _amountNum < minBudget;
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            {[
-                { val: 'low', label: 'Económico', desc: 'Lo básico y esencial', icon: Wallet },
-                { val: 'medium', label: 'Moderado', desc: 'Equilibrio calidad/precio', icon: Banknote },
-                { val: 'high', label: 'Alto', desc: 'Mayor variedad', icon: Landmark },
-                { val: 'unlimited', label: 'Sin límite', desc: 'Sin restricciones', icon: Infinity }
-            ].map(opt => (
-                <RadioCard
-                    key={opt.val} name="budget" value={opt.val} label={opt.label} desc={opt.desc} icon={opt.icon}
-                    checked={formData.budget === opt.val}
-                    onChange={(e) => { updateData('budget', e.target.value); onAutoAdvance(); }}
-                    onClick={() => { if (formData.budget === opt.val) onAutoAdvance(); }}
-                />
-            ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                {[
+                    { val: 'low', label: 'Económico', desc: 'Lo básico y esencial', icon: Wallet },
+                    { val: 'medium', label: 'Moderado', desc: 'Equilibrio calidad/precio', icon: Banknote },
+                    { val: 'high', label: 'Alto', desc: 'Mayor variedad', icon: Landmark },
+                    { val: 'unlimited', label: 'Sin límite', desc: 'Sin restricciones', icon: InfinityIcon }
+                ].map(opt => (
+                    <RadioCard
+                        key={opt.val} name="budget" value={opt.val} label={opt.label} desc={opt.desc} icon={opt.icon}
+                        checked={formData.budget === opt.val}
+                        onChange={(e) => { updateData('budget', e.target.value); onAutoAdvance(); }}
+                        onClick={() => { if (formData.budget === opt.val) onAutoAdvance(); }}
+                    />
+                ))}
+            </div>
+            {/* [BUDGET-CUSTOM · 2026-05-31] "Personalizar": el usuario define su
+                monto total de compras (RD$). NO auto-avanza — escribe el monto y
+                avanza con el botón externo "Siguiente Paso" (gateado por
+                `validateExtra` en InteractiveAssessmentFlow). `budget='custom'` +
+                `budgetAmount` se envían al backend, que los inyecta al prompt del
+                LLM (`build_budget_context`) para ajustar ingredientes al presupuesto. */}
+            <RadioCard
+                name="budget" value="custom" label="Personalizar"
+                desc="Define tu monto total de compras"
+                icon={SlidersHorizontal}
+                checked={isCustom}
+                onChange={() => updateData('budget', 'custom')}
+                onClick={() => updateData('budget', 'custom')}
+            />
+            {isCustom && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <Label htmlFor="budgetAmount" style={{ margin: 0 }}>Tu presupuesto total por ciclo de compras</Label>
+                        {/* [BUDGET-CURRENCY · 2026-05-31] Toggle RD$ (peso dominicano,
+                            default) / US$ (dólar). Mismo patrón visual que LB/KG. */}
+                        <div style={{ display: 'flex', background: 'var(--bg-muted)', borderRadius: '0.5rem', padding: '3px', flexShrink: 0 }}>
+                            <button
+                                type="button"
+                                onClick={() => updateData('budgetCurrency', 'DOP')}
+                                aria-pressed={budgetCurrency !== 'USD'}
+                                style={{ border: 'none', background: budgetCurrency !== 'USD' ? 'var(--bg-card)' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: budgetCurrency !== 'USD' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}
+                            >RD$</button>
+                            <button
+                                type="button"
+                                onClick={() => updateData('budgetCurrency', 'USD')}
+                                aria-pressed={budgetCurrency === 'USD'}
+                                style={{ border: 'none', background: budgetCurrency === 'USD' ? 'var(--bg-card)' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: budgetCurrency === 'USD' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}
+                            >US$</button>
+                        </div>
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                        <span style={{
+                            position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)',
+                            color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.95rem', pointerEvents: 'none'
+                        }}>{currencySymbol}</span>
+                        <Input
+                            id="budgetAmount" type="number" inputMode="decimal"
+                            placeholder={budgetCurrency === 'USD' ? 'Ej. 100' : 'Ej. 5000'} min={minBudget} step="1"
+                            value={formData.budgetAmount || ''}
+                            onChange={(e) => updateData('budgetAmount', e.target.value)}
+                            aria-label={`Presupuesto total en ${budgetCurrency === 'USD' ? 'dólares' : 'pesos dominicanos'}`}
+                            aria-required="true"
+                            style={{ paddingLeft: '3.25rem' }}
+                        />
+                    </div>
+                    {belowMin ? (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--warning)', fontWeight: 600, lineHeight: 1.4 }}>
+                            ⚠️ El mínimo para {cycleDays} días es {currencySymbol}{minBudget.toLocaleString('en-US')}. Súbelo para poder crear un plan viable.
+                        </span>
+                    ) : (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                            La IA ajustará los ingredientes para acercarse a este monto. Mínimo {currencySymbol}{minBudget.toLocaleString('en-US')} para {cycleDays} días.
+                        </span>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
@@ -629,7 +708,10 @@ export const QAllergies = ({ onManualAdvance }) => {
     // [P1-FORM-2] valor desde SSOT (sentinels.js).
     const SENTINEL = SENTINELS.allergies;
     const handleToggle = (value) => {
-        const next = toggleArrayWithExclusiveSentinel(formData.allergies, value, SENTINEL);
+        // [P2-QCHIPS-INCLUDES-GUARD · 2026-06-01] `|| []`: si health_profile hidrata
+        // allergies como null/string (dato legacy / write parcial), .includes() lanza
+        // TypeError y crashea el render del step (pantalla en blanco). Alinea con QDislikes.
+        const next = toggleArrayWithExclusiveSentinel(formData.allergies || [], value, SENTINEL);
         updateData('allergies', next);
         // [P0-FORM-1] Si el usuario acaba de activar el sentinel, limpia el textbox
         // libre `otherAllergies`. Sin esto, escribir "Maní" y luego marcar "Ninguna"
@@ -652,11 +734,11 @@ export const QAllergies = ({ onManualAdvance }) => {
                     { val: "Frutos Secos", label: "Nueces", icon: Nut },
                     { val: "Soya", label: "Soya", icon: Leaf },
                 ].map(opt => (
-                    <ChipOption key={opt.val} val={opt.val} label={opt.label} icon={opt.icon} isSelected={formData.allergies.includes(opt.val)} onToggle={handleToggle} />
+                    <ChipOption key={opt.val} val={opt.val} label={opt.label} icon={opt.icon} isSelected={(formData.allergies || []).includes(opt.val)} onToggle={handleToggle} />
                 ))}
                 <ChipOption
                     val={SENTINEL} label={SENTINEL} icon={Ban}
-                    isSelected={formData.allergies.includes(SENTINEL)}
+                    isSelected={(formData.allergies || []).includes(SENTINEL)}
                     onToggle={handleToggle}
                 />
             </div>
@@ -779,7 +861,8 @@ export const QMedical = ({ onManualAdvance }) => {
     // [P1-FORM-2] valor desde SSOT (sentinels.js).
     const SENTINEL = SENTINELS.medicalConditions;
     const handleToggle = (value) => {
-        const next = toggleArrayWithExclusiveSentinel(formData.medicalConditions, value, SENTINEL);
+        // [P2-QCHIPS-INCLUDES-GUARD · 2026-06-01] `|| []` (ver QAllergies).
+        const next = toggleArrayWithExclusiveSentinel(formData.medicalConditions || [], value, SENTINEL);
         updateData('medicalConditions', next);
         // [P0-FORM-1] ver QAllergies. Mismo patrón: contradicción "Ninguna" +
         // texto libre con condición real es un riesgo médico (hipertensión,
@@ -793,11 +876,11 @@ export const QMedical = ({ onManualAdvance }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
                 {['Diabetes T2', 'Hipertensión', 'Colesterol Alto', 'Gastritis', 'SOP (PCOS)', 'Hipotiroidismo'].map(opt => (
-                    <ChipOption key={opt} val={opt} label={opt} icon={opt === 'Hipertensión' ? Heart : (opt === 'Colesterol Alto' ? AlertCircle : Activity)} isSelected={formData.medicalConditions.includes(opt)} onToggle={handleToggle} />
+                    <ChipOption key={opt} val={opt} label={opt} icon={opt === 'Hipertensión' ? Heart : (opt === 'Colesterol Alto' ? AlertCircle : Activity)} isSelected={(formData.medicalConditions || []).includes(opt)} onToggle={handleToggle} />
                 ))}
                 <ChipOption
                     val={SENTINEL} label={SENTINEL} icon={Ban}
-                    isSelected={formData.medicalConditions.includes(SENTINEL)}
+                    isSelected={(formData.medicalConditions || []).includes(SENTINEL)}
                     onToggle={handleToggle}
                 />
             </div>
@@ -855,7 +938,8 @@ export const QStruggles = ({ onManualAdvance }) => {
     // [P1-FORM-2] valor desde SSOT (sentinels.js).
     const SENTINEL = SENTINELS.struggles;
     const handleToggle = (value) => {
-        const next = toggleArrayWithExclusiveSentinel(formData.struggles, value, SENTINEL);
+        // [P2-QCHIPS-INCLUDES-GUARD · 2026-06-01] `|| []` (ver QAllergies).
+        const next = toggleArrayWithExclusiveSentinel(formData.struggles || [], value, SENTINEL);
         updateData('struggles', next);
         // [P0-FORM-1] ver QAllergies. Aunque struggles es UX/calidad, no safety,
         // mantener el patrón consistente evita drift y deja el contrato de
@@ -876,12 +960,12 @@ export const QStruggles = ({ onManualAdvance }) => {
                     { val: "No sé cocinar", label: "No sé cocinar", icon: XCircle },
                     { val: "Me aburro rápido", label: "Me aburro rápido", icon: HelpCircle }
                 ].map(opt => (
-                    <ChipOption key={opt.val} val={opt.val} label={opt.label} icon={opt.icon} isSelected={formData.struggles.includes(opt.val)} onToggle={handleToggle} />
+                    <ChipOption key={opt.val} val={opt.val} label={opt.label} icon={opt.icon} isSelected={(formData.struggles || []).includes(opt.val)} onToggle={handleToggle} />
                 ))}
 
                 <ChipOption
                     val={SENTINEL} label={SENTINEL} icon={Ban}
-                    isSelected={formData.struggles.includes(SENTINEL)}
+                    isSelected={(formData.struggles || []).includes(SENTINEL)}
                     onToggle={handleToggle}
                 />
             </div>
@@ -924,7 +1008,7 @@ export const QMotivation = ({ onManualAdvance }) => {
                     style={{
                         width: '100%', padding: '1.25rem', paddingLeft: '3rem', borderRadius: '1rem',
                         border: '1px solid var(--border)', fontSize: '0.95rem', fontFamily: 'inherit',
-                        resize: 'vertical', outline: 'none', transition: 'all 0.25s ease', background: 'white'
+                        resize: 'vertical', outline: 'none', transition: 'all 0.25s ease', background: 'var(--bg-card)', color: 'var(--text-main)'
                     }}
                 />
                 <div style={{ position: 'absolute', top: '1.25rem', left: '1rem', color: 'var(--text-muted)' }}>
@@ -964,7 +1048,7 @@ export const QHousehold = ({ onManualAdvance }) => {
             <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                     <Clock size={18} color="#059669" />
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#334155' }}>¿Cada cuántos días vas al supermercado?</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>¿Cada cuántos días vas al supermercado?</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
                     {[
@@ -995,8 +1079,8 @@ export const QHousehold = ({ onManualAdvance }) => {
                                     cursor: 'pointer',
                                     padding: '1rem 0.75rem',
                                     borderRadius: '0.75rem',
-                                    border: isSelected ? '2px solid #10B981' : '1.5px solid #E2E8F0',
-                                    backgroundColor: isSelected ? '#ECFDF5' : 'white',
+                                    border: isSelected ? '2px solid #10B981' : '1.5px solid var(--border)',
+                                    backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-card)',
                                     display: 'flex',
                                     flexDirection: 'column',
                                     alignItems: 'center',
@@ -1009,16 +1093,16 @@ export const QHousehold = ({ onManualAdvance }) => {
                                 <IconCmp
                                     size={26}
                                     strokeWidth={1.75}
-                                    color={isSelected ? '#059669' : '#64748B'}
+                                    color={isSelected ? '#10B981' : 'var(--text-muted)'}
                                 />
                                 <span style={{
                                     fontWeight: 700,
                                     fontSize: '0.88rem',
-                                    color: isSelected ? '#059669' : '#334155'
+                                    color: isSelected ? '#10B981' : 'var(--text-main)'
                                 }}>
                                     {opt.label}
                                 </span>
-                                <span style={{ fontSize: '0.65rem', color: '#94A3B8', fontWeight: 500 }}>
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 500 }}>
                                     {opt.sub}
                                 </span>
                                 {isSelected && (
@@ -1036,11 +1120,11 @@ export const QHousehold = ({ onManualAdvance }) => {
             <div style={{
                 display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
                 padding: '0.75rem 1rem', borderRadius: '0.75rem',
-                background: 'linear-gradient(135deg, #F8FAFC, #F1F5F9)',
-                border: '1px solid #E2E8F0'
+                background: 'var(--bg-muted)',
+                border: '1px solid var(--border)'
             }}>
                 <span style={{ fontSize: '0.85rem', flexShrink: 0 }}>💡</span>
-                <span style={{ fontSize: '0.75rem', color: '#64748B', lineHeight: 1.4 }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                     Si cambia tu rutina, lo ajustas en tu panel sin regenerar el plan.
                 </span>
             </div>
@@ -1111,25 +1195,25 @@ export const QSupplements = ({ onFinish, isSubmitting }) => {
                 style={{
                     cursor: 'pointer', padding: '1.25rem 1.5rem',
                     borderRadius: formData.includeSupplements ? '1rem 1rem 0 0' : '1rem',
-                    border: formData.includeSupplements ? '2px solid #8b5cf6' : '1px solid var(--border)',
-                    backgroundColor: formData.includeSupplements ? 'rgba(139, 92, 246, 0.03)' : 'white',
+                    border: formData.includeSupplements ? '2px solid var(--supplement-accent)' : '1px solid var(--border)',
+                    backgroundColor: formData.includeSupplements ? 'var(--supplement-tint)' : 'var(--bg-card)',
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem'
                 }}
             >
                 <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, color: formData.includeSupplements ? '#8b5cf6' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <Pill size={20} color={formData.includeSupplements ? '#8b5cf6' : 'var(--text-muted)'} />
+                    <div style={{ fontWeight: 600, color: formData.includeSupplements ? 'var(--supplement-accent)' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <Pill size={20} style={{ color: formData.includeSupplements ? 'var(--supplement-accent)' : 'var(--text-muted)' }} />
                         Incluir Suplementos
                     </div>
                 </div>
                 {/* Toggle UI */}
-                <div style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: formData.includeSupplements ? '#8b5cf6' : '#CBD5E1', position: 'relative' }}>
-                     <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: 3, left: formData.includeSupplements ? 23 : 3, transition: 'all 0.2s' }} />
+                <div style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: formData.includeSupplements ? 'var(--supplement-accent)' : 'var(--toggle-track-off)', position: 'relative', transition: 'background-color 0.2s', flexShrink: 0 }}>
+                     <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#fff', position: 'absolute', top: 3, left: formData.includeSupplements ? 23 : 3, transition: 'all 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
                 </div>
             </div>
 
             {formData.includeSupplements && (
-                <div style={{ padding: '1.5rem 1rem', border: '2px solid #8b5cf6', borderTop: 'none', borderRadius: '0 0 1rem 1rem', marginTop: '-1.5rem', backgroundColor: 'rgba(139, 92, 246, 0.02)' }}>
+                <div style={{ padding: '1.5rem 1rem', border: '2px solid var(--supplement-accent)', borderTop: 'none', borderRadius: '0 0 1rem 1rem', marginTop: '-1.5rem', backgroundColor: 'var(--supplement-tint-soft)' }}>
                     <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center' }}>
                         * Si no marcas ninguno, la IA sugerirá los más adecuados para tu meta.
                     </p>
@@ -1157,13 +1241,13 @@ export const QSupplements = ({ onFinish, isSubmitting }) => {
                                     tabIndex={0}
                                     style={{
                                         cursor: 'pointer', padding: '0.75rem', borderRadius: '0.75rem',
-                                        border: isSelected ? '1.5px solid #8b5cf6' : '1px solid #e2e8f0',
-                                        backgroundColor: isSelected ? 'white' : 'white', display: 'flex', alignItems: 'center', gap: '0.5rem'
+                                        border: isSelected ? '1.5px solid var(--supplement-accent)' : '1px solid var(--border)',
+                                        backgroundColor: isSelected ? 'var(--supplement-tint)' : 'var(--bg-card)', display: 'flex', alignItems: 'center', gap: '0.5rem'
                                     }}
                                 >
                                     <span>{meta.emoji}</span>
-                                    <span style={{ fontSize: '0.85rem', fontWeight: isSelected ? 600 : 500, color: isSelected ? '#7c3aed' : 'var(--text-main)' }}>{meta.label}</span>
-                                    {isSelected && <Check size={14} color="#8b5cf6" style={{ marginLeft: 'auto' }} />}
+                                    <span style={{ fontSize: '0.85rem', fontWeight: isSelected ? 600 : 500, color: isSelected ? 'var(--supplement-accent-strong)' : 'var(--text-main)' }}>{meta.label}</span>
+                                    {isSelected && <Check size={14} style={{ color: 'var(--supplement-accent)', marginLeft: 'auto' }} />}
                                 </div>
                             );
                         })}

@@ -125,6 +125,25 @@ export const REQUIRED_FORM_FIELDS = [
     'mainGoal', 'struggles', 'motivation',
 ];
 
+// [BUDGET-MIN · 2026-05-31] Mínimo de presupuesto para que un plan sea VIABLE.
+// Bajo este monto no hay suficiente para cubrir las comidas del ciclo. Escala
+// con la duración elegida (7/15/30 días) y la moneda. SSOT compartido por
+// `QBudget` (hint + input min) y el `validateExtra` del step de presupuesto en
+// `InteractiveAssessmentFlow` (gatea "Siguiente Paso"). Si ajustas estos pisos,
+// este es el ÚNICO lugar a tocar.
+export const BUDGET_MIN_PER_DAY = { DOP: 200, USD: 4 };
+export const BUDGET_CYCLE_DAYS = { weekly: 7, biweekly: 15, monthly: 30 };
+
+/** Días del ciclo según la duración de compras elegida (default 7). */
+export const budgetCycleDays = (groceryDuration) =>
+    BUDGET_CYCLE_DAYS[groceryDuration] || 7;
+
+/** Mínimo de presupuesto TOTAL para (moneda, duración). */
+export const minBudgetFor = (currency, groceryDuration) => {
+    const perDay = BUDGET_MIN_PER_DAY[currency] || BUDGET_MIN_PER_DAY.DOP;
+    return perDay * budgetCycleDays(groceryDuration);
+};
+
 /**
  * [P1-FORM-1] Construye el mapeo `field → step index` desde la declaración
  * de steps en runtime. ANTES había un objeto hardcoded `FIELD_TO_STEP_INDEX`

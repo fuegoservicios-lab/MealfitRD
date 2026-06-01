@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Bot, Clock, Refrigerator } from 'lucide-react';
+import { LayoutDashboard, Clock, Refrigerator } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
+import AgentIcon from '../icons/AgentIcon';
 // [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al touchstart
 import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del data del Historial
@@ -9,7 +10,7 @@ import styles from './BottomTabBar.module.css';
 
 const tabs = [
     { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
-    { icon: Bot, label: 'Agente', path: '/dashboard/agent' },
+    { icon: AgentIcon, label: 'Agente', path: '/dashboard/agent' },
     { icon: Refrigerator, label: 'Nevera', path: '/dashboard/pantry', iconStroke: 2.25 },
     { icon: RecipesIcon, label: 'Recetas', path: '/dashboard/recipes' },
     { icon: Clock, label: 'Historial', path: '/history' },
@@ -54,6 +55,7 @@ const BottomTabBar = () => {
                             if (tab.path === '/history') prefetchHistoryList();
                         }}
                         aria-label={tab.label}
+                        aria-current={isActive ? 'page' : undefined}
                     >
                         <Icon
                             size={24}

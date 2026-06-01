@@ -39,7 +39,11 @@ describe('[P1-PLAN-CHUNK-POLL-ABORT] anchor + setup', () => {
         const intervalIdx = src.indexOf('}, 5000);');
         expect(intervalIdx).toBeGreaterThan(-1);
         // El bloque anterior debe contener new AbortController.
-        const before = src.slice(Math.max(0, intervalIdx - 2500), intervalIdx);
+        // [P1-PLAN-POLL-VISIBILITY · 2026-05-31] ventana 2500→3000: el guard de
+        // visibilidad añadido al cuerpo del setInterval empujó la declaración del
+        // AbortController fuera de la ventana original (estaba al borde). 3000 da
+        // margen sin debilitar el intent (verificar que el AbortController existe).
+        const before = src.slice(Math.max(0, intervalIdx - 3000), intervalIdx);
         expect(before).toMatch(/new\s+AbortController\s*\(\s*\)/);
         expect(before).toMatch(/const\s+signal\s*=\s*controller\.signal/);
     });
@@ -59,7 +63,7 @@ describe('[P1-PLAN-CHUNK-POLL-ABORT] guards signal.aborted antes de setters', ()
         // El polling tiene multiple setters (setFailedChunks, setUserActionRequired,
         // setRecoveryExhausted). Requiere al menos 2 guards aborted alrededor.
         const intervalIdx = src.indexOf('}, 5000);');
-        const block = src.slice(Math.max(0, intervalIdx - 2500), intervalIdx);
+        const block = src.slice(Math.max(0, intervalIdx - 3000), intervalIdx);
         const matches = block.match(/signal\.aborted/g) || [];
         expect(matches.length).toBeGreaterThanOrEqual(2);
     });

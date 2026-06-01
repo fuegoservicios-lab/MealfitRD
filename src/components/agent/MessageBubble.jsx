@@ -39,10 +39,10 @@ const MessageActions = ({ content, sessionId, onRegenerate }) => {
     };
 
     const actionBtnStyle = (active = false) => ({
-        background: active ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
+        background: active ? 'rgba(129, 140, 248, 0.12)' : 'transparent',
         border: 'none',
         cursor: 'pointer',
-        color: active ? '#4f46e5' : '#64748b',
+        color: active ? 'var(--primary)' : 'var(--text-muted)',
         padding: '0.4rem',
         borderRadius: '0.4rem',
         display: 'flex',
@@ -51,7 +51,7 @@ const MessageActions = ({ content, sessionId, onRegenerate }) => {
         transition: 'all 0.15s ease'
     });
 
-    const handleMouseEnter = (e) => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; };
+    const handleMouseEnter = (e) => { e.currentTarget.style.background = 'var(--bg-muted)'; };
     const handleMouseLeave = (e) => { e.currentTarget.style.background = 'transparent'; };
 
     return (
@@ -107,9 +107,9 @@ const ErrorRetryButton = ({ onClick }) => (
             display: 'inline-flex',
             alignItems: 'center',
             gap: '0.4rem',
-            background: '#ffffff',
+            background: 'var(--bg-card)',
             border: '1px solid #fca5a5',
-            color: '#b91c1c',
+            color: 'var(--danger-text)',
             padding: '0.45rem 0.9rem',
             borderRadius: '0.5rem',
             fontSize: '0.875rem',
@@ -117,8 +117,8 @@ const ErrorRetryButton = ({ onClick }) => (
             cursor: 'pointer',
             transition: 'background 0.15s ease, border-color 0.15s ease',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = '#fef2f2'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = '#ffffff'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--danger-bg)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; }}
     >
         <RefreshCw size={15} strokeWidth={2.2} />
         Reintentar
@@ -160,14 +160,14 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                     flex: msg.role === 'user' ? '0 1 auto' : 1,
                     maxWidth: msg.role === 'user' ? '80%' : '100%',
                     width: msg.role === 'user' ? 'fit-content' : 'auto',
-                    color: msg.role === 'user' ? '#0f172a' : (isErrorBubble ? '#7f1d1d' : '#1e293b'),
+                    color: msg.role === 'user' ? 'var(--text-main)' : (isErrorBubble ? 'var(--danger-text)' : 'var(--text-main)'),
                     fontSize: '0.95rem',
                     lineHeight: 1.6,
                     whiteSpace: 'pre-wrap',
-                    background: msg.role === 'user' ? '#f0f4f8' : (isErrorBubble ? '#fef2f2' : '#ffffff'),
+                    background: msg.role === 'user' ? 'var(--bg-muted)' : (isErrorBubble ? 'var(--danger-bg)' : 'var(--bg-card)'),
                     padding: msg.role === 'user' ? '0.85rem 1.4rem' : (isErrorBubble ? '0.9rem 1.1rem' : '1rem 0'),
                     borderRadius: msg.role === 'user' ? '1.5rem 1.5rem 0.25rem 1.5rem' : (isErrorBubble ? '0.85rem' : '0'),
-                    border: msg.role === 'user' ? '1px solid #e2e8f0' : (isErrorBubble ? '1px solid #fecaca' : 'none'),
+                    border: msg.role === 'user' ? '1px solid var(--border)' : (isErrorBubble ? '1px solid #fecaca' : 'none'),
                     boxShadow: 'none'
                 }}
             >
@@ -212,11 +212,17 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
     );
 }, (prevProps, nextProps) => {
     // Only re-render if the message content, streaming status, or session changes
+    // [P2-CHAT-IMG-SWAP-RERENDER · 2026-06-01] imageUrl/isImage añadidos: tras subir
+    // una imagen, el swap blob→URL-de-servidor crea un objeto-mensaje nuevo y debe
+    // re-renderizar la burbuja ANTES de revocar el blob (si no, <img> queda apuntando
+    // a un blob revocado = imagen rota hasta un reload).
     return (
         prevProps.msg.content === nextProps.msg.content &&
         prevProps.msg.isStreaming === nextProps.msg.isStreaming &&
         prevProps.msg._isErrorBubble === nextProps.msg._isErrorBubble &&
         prevProps.msg.retryable === nextProps.msg.retryable &&
+        prevProps.msg.imageUrl === nextProps.msg.imageUrl &&
+        prevProps.msg.isImage === nextProps.msg.isImage &&
         prevProps.currentSessionId === nextProps.currentSessionId
     );
 });

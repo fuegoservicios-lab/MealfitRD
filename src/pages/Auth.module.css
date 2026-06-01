@@ -11,7 +11,11 @@
     position: relative;
     overflow: hidden;
     background-color: #020617; /* Very dark slate fallback */
+    /* [P6-SPEED-IMG · 2026-06-01] WebP (43.6KB) con fallback PNG (655KB) vía
+       image-set. El fondo del login era casi seguro el elemento LCP de la
+       primera pantalla; el PNG de 655KB dominaba el paint inicial. */
     background-image: url("/auth_bg_new.png");
+    background-image: image-set(url("/auth_bg_new.webp") type("image/webp"), url("/auth_bg_new.png") type("image/png"));
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -593,4 +597,136 @@
 
 .animateFadeIn {
     animation: fadeInPassword 0.4s ease-out forwards;
+}
+
+/* ============================================================
+   [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — Auth
+   Las páginas de login/register ya tienen fondo oscuro por diseño
+   (authContainer usa #020617 + imagen con overlay radial). Solo
+   necesitamos overridear la tarjeta blanca y sus elementos internos
+   para que sean coherentes en oscuro.
+   ============================================================ */
+
+/* La tarjeta usa rgba(255,255,255,0.85) — en oscuro glass oscuro */
+:global(html[data-theme="dark"]) .authCard {
+    background: rgba(17, 24, 39, 0.88);
+    border-color: rgba(31, 41, 55, 0.9);
+    box-shadow:
+        0 24px 48px -12px rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+@media (max-width: 640px) {
+    :global(html[data-theme="dark"]) .authCard {
+        background: rgba(17, 24, 39, 0.95);
+    }
+}
+
+/* Logo y títulos — oscuro sobre tarjeta ya oscura → claro */
+:global(html[data-theme="dark"]) .logo {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .title {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .subtitle {
+    color: var(--text-muted);
+}
+
+/* Labels */
+:global(html[data-theme="dark"]) .label {
+    color: var(--text-main);
+}
+
+/* Inputs */
+:global(html[data-theme="dark"]) .input {
+    background: var(--bg-muted);
+    border-color: var(--border);
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .input::placeholder {
+    color: var(--text-light);
+}
+
+:global(html[data-theme="dark"]) .input:hover {
+    background: var(--bg-muted);
+    border-color: #374151;
+}
+
+:global(html[data-theme="dark"]) .input:focus {
+    background: var(--bg-muted);
+    border-color: var(--primary);
+}
+
+:global(html[data-theme="dark"]) .inputIcon {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .passwordToggle {
+    color: var(--text-light);
+}
+
+/* Checkbox */
+:global(html[data-theme="dark"]) .checkboxLabel {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .customCheckbox {
+    background-color: var(--bg-muted);
+    border-color: var(--border);
+}
+
+/* Links y textos secundarios */
+:global(html[data-theme="dark"]) .forgotPasswordLink {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .footerText {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .link {
+    color: var(--primary-light);
+}
+
+:global(html[data-theme="dark"]) .link:hover {
+    color: var(--primary-light);
+}
+
+/* Divider */
+:global(html[data-theme="dark"]) .divider {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .divider::before,
+:global(html[data-theme="dark"]) .divider::after {
+    border-bottom-color: var(--border);
+}
+
+/* Botón Google (superficie blanca sobre tarjeta) */
+:global(html[data-theme="dark"]) .googleBtn {
+    background: var(--bg-muted);
+    border-color: var(--border);
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .googleBtn:hover {
+    background: #1F2937;
+    border-color: #374151;
+}
+
+/* Error y success boxes (semánticos; adaptamos solo el fondo y borde) */
+:global(html[data-theme="dark"]) .errorBox {
+    background: var(--danger-bg);
+    border-color: #4B1C1C;
+    color: var(--danger-text);
+}
+
+:global(html[data-theme="dark"]) .successBox {
+    background: #022C22;
+    border-color: #064E3B;
+    color: #6EE7B7;
 }

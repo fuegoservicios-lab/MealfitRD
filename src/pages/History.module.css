@@ -1591,6 +1591,18 @@
    RESPONSIVE
    ======================== */
 @media (max-width: 640px) {
+    /* [P3-HIST-MOBILE-TOP-GAP · 2026-06-01] En móvil el header del
+       DashboardLayout es sticky y `.mainContent` solo deja ~0.65rem de
+       padding-top, por lo que la superficie del Historial (su primer
+       elemento) quedaba pegada al borde superior. Damos un respiro arriba.
+       Se aplica a los tres estados tope (cargado/cargando/vacío) para que
+       no haya salto vertical al pasar de skeleton → lista. */
+    .cardGrid,
+    .skeletonGrid,
+    .emptyState {
+        margin-top: 1rem;
+    }
+
     .title {
         font-size: 1.75rem;
         margin-bottom: 0.35rem;
@@ -2475,4 +2487,527 @@
     .menuSkeletonMealKcal {
         animation: none;
     }
+}
+
+/* ============================================================
+   [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — History
+   ============================================================ */
+
+/* --- ENCABEZADO Y SUPERFICIE PRINCIPAL --- */
+:global(html[data-theme="dark"]) .subtitle {
+    color: var(--text-muted);
+}
+
+/* planCount chip: gradiente claro → oscuro muted con acento */
+:global(html[data-theme="dark"]) .planCount {
+    background: linear-gradient(135deg, #1E1B4B 0%, #1E293B 100%);
+    border-color: rgba(99, 102, 241, 0.3);
+    color: var(--primary-light);
+}
+
+/* --- EMPTY STATE --- */
+:global(html[data-theme="dark"]) .emptyState {
+    background: linear-gradient(135deg, rgba(17, 24, 39, 0.8), rgba(30, 41, 59, 0.6));
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .emptyIcon {
+    background: #1E293B;
+}
+
+:global(html[data-theme="dark"]) .emptyCta {
+    background: var(--primary);
+    color: #0B1120;
+    box-shadow: 0 10px 20px -5px rgba(129, 140, 248, 0.3);
+}
+
+/* --- SKELETON LOADER --- */
+:global(html[data-theme="dark"]) .skeletonCard {
+    background: linear-gradient(135deg, rgba(17, 24, 39, 0.9), rgba(17, 24, 39, 0.6));
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .skeletonIcon,
+:global(html[data-theme="dark"]) .skeletonLine,
+:global(html[data-theme="dark"]) .skeletonBadge {
+    background: var(--bg-muted);
+}
+
+/* --- SUPERFICIE INBOX (cardGrid) --- */
+:global(html[data-theme="dark"]) .cardGrid {
+    background: linear-gradient(180deg, rgba(17, 24, 39, 0.97) 0%, rgba(11, 17, 32, 0.94) 100%);
+    border-color: var(--border);
+    box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.04),
+        0 1px 2px rgba(0, 0, 0, 0.3),
+        0 28px 56px -20px rgba(0, 0, 0, 0.5);
+}
+
+:global(html[data-theme="dark"]) .surfaceHeader {
+    border-bottom-color: var(--border);
+    background: linear-gradient(180deg, rgba(30, 27, 75, 0.2) 0%, rgba(17, 24, 39, 0) 100%);
+}
+
+/* --- BUSCADOR --- */
+:global(html[data-theme="dark"]) .searchInput {
+    background: var(--bg-muted);
+    border-color: var(--border);
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .searchInput::placeholder {
+    color: var(--text-light);
+}
+
+:global(html[data-theme="dark"]) .searchInput:focus {
+    background: #1F2937;
+    border-color: rgba(99, 102, 241, 0.55);
+}
+
+:global(html[data-theme="dark"]) .searchClear {
+    background: var(--bg-muted);
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .searchClear:hover {
+    background: #374151;
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .searchEmpty {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .searchEmpty strong {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .searchEmptyClear {
+    background: rgba(30, 27, 75, 0.6);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* --- FILAS (card) --- */
+:global(html[data-theme="dark"]) .card + .card {
+    border-top-color: var(--border);
+}
+
+@media (hover: hover) {
+    :global(html[data-theme="dark"]) .card:hover {
+        background: linear-gradient(90deg,
+            rgba(30, 27, 75, 0.4) 0%,
+            rgba(30, 41, 59, 0.3) 100%);
+    }
+}
+
+/* cardActive — mantiene el verde semántico pero ajusta alpha */
+:global(html[data-theme="dark"]) .cardActive {
+    background: linear-gradient(90deg,
+        rgba(16, 185, 129, 0.12) 0%,
+        rgba(16, 185, 129, 0.06) 70%,
+        transparent 100%);
+}
+
+@media (hover: hover) {
+    :global(html[data-theme="dark"]) .cardActive:hover {
+        background: linear-gradient(90deg,
+            rgba(16, 185, 129, 0.18) 0%,
+            rgba(16, 185, 129, 0.10) 70%,
+            rgba(30, 41, 59, 0.3) 100%);
+    }
+}
+
+/* --- PLAN INFO --- */
+:global(html[data-theme="dark"]) .planName {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .dateText {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .dateText::before {
+    background: var(--text-light);
+}
+
+/* --- EDIT INPUT --- */
+:global(html[data-theme="dark"]) .editInput {
+    background: var(--bg-muted);
+    border-color: var(--border);
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .editInput:focus {
+    background: #1F2937;
+    border-color: #60A5FA;
+}
+
+/* --- RENAME BUTTON --- */
+:global(html[data-theme="dark"]) .renameButton {
+    color: var(--text-light);
+}
+
+:global(html[data-theme="dark"]) .renameButton:hover {
+    color: #60A5FA;
+    background: #1E293B;
+}
+
+/* --- MEAL PREVIEW BADGES --- */
+:global(html[data-theme="dark"]) .mealPreviewBadge {
+    background: var(--bg-muted);
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .mealPreviewBadgeMore {
+    background: #1E3A8A;
+    color: #93C5FD;
+    border-color: #1E40AF;
+}
+
+/* --- TAGS --- */
+:global(html[data-theme="dark"]) .tag {
+    background: var(--bg-muted);
+    color: var(--text-muted);
+    border-color: var(--border);
+}
+
+@media (hover: hover) {
+    :global(html[data-theme="dark"]) .card:hover .tag {
+        background: #1F2937;
+        border-color: #374151;
+    }
+}
+
+/* --- DELETE & CHEVRON BUTTONS --- */
+:global(html[data-theme="dark"]) .deleteButton:hover {
+    color: #F87171 !important;
+    background: #2A1517;
+}
+
+:global(html[data-theme="dark"]) .chevronWrapper svg {
+    color: var(--border);
+}
+
+/* --- MODAL CONTENT --- */
+:global(html[data-theme="dark"]) .modalContent {
+    background: rgba(17, 24, 39, 0.97);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+:global(html[data-theme="dark"]) .modalHeader {
+    border-bottom-color: var(--border);
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(30, 27, 75, 0.4) 100%);
+}
+
+:global(html[data-theme="dark"]) .closeButton:hover {
+    background: var(--bg-muted);
+}
+
+/* --- CHUNK NAV --- */
+:global(html[data-theme="dark"]) .chunkNavBtn {
+    background: var(--bg-muted);
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .chunkNavBtn:hover:not(:disabled) {
+    background: #1F2937;
+    border-color: #374151;
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .chunkNavLabel {
+    color: var(--text-muted);
+}
+
+/* --- DAY TABS --- */
+:global(html[data-theme="dark"]) .dayTabs {
+    background: var(--bg-muted);
+}
+
+:global(html[data-theme="dark"]) .dayTab {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .dayTab:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .dayTabActive {
+    background: var(--bg-card);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* --- MENU TITLE --- */
+:global(html[data-theme="dark"]) .menuTitle {
+    color: var(--text-muted);
+}
+
+/* --- MENU ITEMS --- */
+:global(html[data-theme="dark"]) .menuItem {
+    background: var(--bg-card);
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .menuItem:hover {
+    background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-muted) 100%);
+    border-color: #374151;
+}
+
+:global(html[data-theme="dark"]) .menuIcon {
+    background: linear-gradient(135deg, var(--bg-muted) 0%, #374151 100%);
+}
+
+:global(html[data-theme="dark"]) .menuMealType {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .menuMealName {
+    color: var(--text-main);
+}
+
+/* --- MODAL FOOTER --- */
+:global(html[data-theme="dark"]) .modalFooter {
+    border-top-color: var(--border);
+    background: var(--bg-card);
+}
+
+/* --- CONFIRM BOXES --- */
+:global(html[data-theme="dark"]) .confirmBox {
+    background: var(--bg-card);
+}
+
+:global(html[data-theme="dark"]) .confirmText {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .confirmCancelBtn {
+    background: var(--bg-muted);
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .confirmCancelBtn:hover {
+    background: #1F2937;
+    border-color: #374151;
+}
+
+/* --- MODAL TABS --- */
+:global(html[data-theme="dark"]) .modalTabs {
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .modalTab {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .modalTab:hover {
+    background: #1F2937;
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .modalTabActive {
+    background: var(--bg-card);
+    color: var(--text-main);
+}
+
+/* --- DETAIL LIST --- */
+:global(html[data-theme="dark"]) .detailItem {
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .detailItemBadge {
+    background: #1E1B4B;
+    border-color: rgba(99, 102, 241, 0.3);
+    color: var(--primary-light);
+}
+
+:global(html[data-theme="dark"]) .detailItemMeta {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .detailItemCounter {
+    background: var(--bg-card);
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .modalDetailEmpty {
+    background: var(--bg-muted);
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+
+/* --- TIER BREAKDOWN --- */
+:global(html[data-theme="dark"]) .tierBreakdownRow {
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .tierBreakdownLabel {
+    color: var(--text-muted);
+}
+
+/* --- SKELETON MENU (fast-open) --- */
+:global(html[data-theme="dark"]) .menuSkeletonTabs {
+    background: var(--bg-muted);
+}
+
+:global(html[data-theme="dark"]) .menuSkeletonTabActive {
+    background: var(--bg-card);
+}
+
+:global(html[data-theme="dark"]) .menuSkeletonMeal {
+    background: var(--bg-card);
+    border-color: var(--border);
+}
+
+/* --- LIFETIME LESSONS BLOCK --- */
+:global(html[data-theme="dark"]) .lifetimeLessonsBlock {
+    background: linear-gradient(135deg, #1E1B4B 0%, #1E1B4B 100%);
+    border-color: rgba(99, 102, 241, 0.25);
+}
+
+:global(html[data-theme="dark"]) .lifetimeLessonsHeader {
+    color: var(--primary-light);
+}
+
+:global(html[data-theme="dark"]) .lifetimeCriticalHeader {
+    color: var(--primary-light);
+}
+
+:global(html[data-theme="dark"]) .lastChunkLearningHeader {
+    color: var(--primary-light);
+}
+
+:global(html[data-theme="dark"]) .lastChunkLearningMeta {
+    color: #A5B4FC;
+}
+
+:global(html[data-theme="dark"]) .lifetimeListLabel {
+    color: var(--primary-light);
+}
+
+:global(html[data-theme="dark"]) .lifetimeListItem {
+    background: var(--bg-card);
+    border-color: rgba(99, 102, 241, 0.2);
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .lifetimeListItemMore {
+    background: #312E81;
+    color: #C7D2FE;
+}
+
+:global(html[data-theme="dark"]) .lifetimeCriticalBlock,
+:global(html[data-theme="dark"]) .lifetimeHistoryBlock,
+:global(html[data-theme="dark"]) .lastChunkLearningBlock {
+    border-top-color: rgba(99, 102, 241, 0.12);
+}
+
+:global(html[data-theme="dark"]) .lifetimeCriticalCount {
+    color: var(--primary-light);
+}
+
+:global(html[data-theme="dark"]) .lifetimeSectionDivider {
+    border-top-color: var(--border);
+    color: var(--text-muted);
+}
+
+/* --- LM GROUPS --- */
+:global(html[data-theme="dark"]) .lmGroup {
+    background: #111827;
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .lmGroupTitle {
+    color: var(--text-muted);
+}
+
+/* ============================================================================
+ * [APPEARANCE-THEME · 2026-05-29] TEMA OSCURO — tarjetas de macros del modal de
+ * detalle + badge de calorías. Eran pasteles claros (crema/azul/verde/rosa) que
+ * en oscuro se veían brillosos. Tintes translúcidos por color + texto claro.
+ * ==========================================================================*/
+:global(html[data-theme="dark"]) .macroCardOrange {
+    background: rgba(234, 88, 12, 0.14);
+    border-color: rgba(234, 88, 12, 0.3);
+}
+:global(html[data-theme="dark"]) .macroCardBlue {
+    background: rgba(37, 99, 235, 0.14);
+    border-color: rgba(37, 99, 235, 0.3);
+}
+:global(html[data-theme="dark"]) .macroCardGreen {
+    background: rgba(16, 185, 129, 0.14);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+:global(html[data-theme="dark"]) .macroCardPink {
+    background: rgba(236, 72, 153, 0.14);
+    border-color: rgba(236, 72, 153, 0.3);
+}
+:global(html[data-theme="dark"]) .macroValueOrange { color: #FDBA74; }
+:global(html[data-theme="dark"]) .macroLabelOrange { color: #FB923C; }
+:global(html[data-theme="dark"]) .macroValueBlue { color: #93C5FD; }
+:global(html[data-theme="dark"]) .macroLabelBlue { color: #60A5FA; }
+:global(html[data-theme="dark"]) .macroValueGreen { color: #6EE7B7; }
+:global(html[data-theme="dark"]) .macroLabelGreen { color: #34D399; }
+:global(html[data-theme="dark"]) .macroValuePink { color: #F9A8D4; }
+:global(html[data-theme="dark"]) .macroLabelPink { color: #F472B6; }
+
+:global(html[data-theme="dark"]) .caloriesBadge {
+    background: rgba(234, 88, 12, 0.16);
+    border-color: rgba(253, 186, 116, 0.4);
+    color: #FDBA74;
+}
+
+/* --- STATUS / TEMPORAL CHIPS (cardActions) --- */
+/* [HIST-DARK-STATUS-CHIPS · 2026-05-30] Los 6 chips de estado de la card
+   (Activo / Parcial / Falló / Acción / En curso / Sin datos) nacían solo
+   con palette LIGHT (fondo casi-blanco tipo #ECFDF5 + texto oscuro) y no
+   tenían override de dark mode → en modo oscuro se veían como píldoras
+   blancas brillantes que rompían el tema (caso visible: el chip "Activo").
+   Traducción a dark con la MISMA convención que .caloriesBadge: fondo
+   saturado translúcido (~16%), borde claro translúcido (~40%) y texto
+   claro legible — conservando el hue semántico de cada chip
+   (emerald / amber / red / blue / slate). Los pulses (.statusActive::before,
+   statusPulse, statusInProgressPulse) usan box-shadow rgba que ya funciona
+   en ambos temas, no requieren override. */
+:global(html[data-theme="dark"]) .statusActive {
+    background: rgba(16, 185, 129, 0.16);
+    border-color: rgba(110, 231, 183, 0.4);
+    color: #6EE7B7;
+}
+
+:global(html[data-theme="dark"]) .statusPartial {
+    background: rgba(245, 158, 11, 0.16);
+    border-color: rgba(253, 230, 138, 0.4);
+    color: #FCD34D;
+}
+
+:global(html[data-theme="dark"]) .statusFailed {
+    background: rgba(239, 68, 68, 0.16);
+    border-color: rgba(252, 165, 165, 0.4);
+    color: #FCA5A5;
+}
+
+:global(html[data-theme="dark"]) .statusActionRequired {
+    background: rgba(239, 68, 68, 0.16);
+    border-color: rgba(248, 113, 113, 0.45);
+    color: #FCA5A5;
+}
+
+:global(html[data-theme="dark"]) .statusInProgress {
+    background: rgba(59, 130, 246, 0.16);
+    border-color: rgba(147, 197, 253, 0.4);
+    color: #93C5FD;
+}
+
+:global(html[data-theme="dark"]) .statusUnknown {
+    background: rgba(148, 163, 184, 0.16);
+    border-color: rgba(203, 213, 225, 0.35);
+    color: #CBD5E1;
 }

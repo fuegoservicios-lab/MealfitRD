@@ -56,6 +56,11 @@ export default function EmptyState({
             {cta && cta.label && (
                 <button
                     onClick={cta.onClick}
+                    // [CTA-HOVER-GLOW · 2026-05-31] El box-shadow vive en la clase
+                    // .mf-empty-cta (index.css), NO inline, para que :hover pueda
+                    // intensificarlo (lift + glow indigo + brillo). El fondo
+                    // var(--primary) funciona en claro y oscuro.
+                    className="mf-empty-cta"
                     style={{
                         marginTop: '1.25rem',
                         padding: '0.7rem 1.4rem',
@@ -66,7 +71,6 @@ export default function EmptyState({
                         fontWeight: 800,
                         fontSize: '0.9rem',
                         cursor: 'pointer',
-                        boxShadow: '0 8px 16px -4px rgba(79, 70, 229, 0.35)',
                     }}
                 >
                     {cta.label}

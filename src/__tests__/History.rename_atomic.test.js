@@ -120,7 +120,10 @@ describe('[P1-HIST-5] state mirror — plan_data.name también se actualiza', ()
 
     it('selectedPlan se actualiza idénticamente (modal sigue mostrando nuevo nombre)', () => {
         const handlerIdx = src.indexOf('const handleEditSave = async');
-        const block = src.slice(handlerIdx, handlerIdx + 3000);
+        // [P4] Ventana 3000→3300: el setPlans funcional (`prev => prev.map`, P4-HIST-EDITSAVE-STALE,
+        // cierra lost-update vs refetch concurrente) corrió el mirror de selectedPlan ~7 chars.
+        // El assert del shape sigue intacto; solo la ventana de bytes necesitaba headroom.
+        const block = src.slice(handlerIdx, handlerIdx + 3300);
 
         expect(block).toMatch(/setSelectedPlan\(/);
         // El selectedPlan también necesita el mirror del plan_data.

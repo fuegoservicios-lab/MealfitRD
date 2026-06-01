@@ -27,7 +27,14 @@ export default defineConfig(({ mode }) => ({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'custom-sw.js',
-      registerType: 'autoUpdate',
+      // [P2-PWA-SKIPWAITING · 2026-05-30] 'prompt' (era 'autoUpdate'). El SW
+      // nuevo NO toma control hasta que el usuario acepta el toast "Nueva
+      // versión" (main.jsx onNeedRefresh → updateSW(true) → SKIP_WAITING en
+      // custom-sw.js). Evita el reload abrupto a mitad de un formulario largo
+      // (Assessment) o del chat, y cierra el agujero de stale-bundle: antes el
+      // SW nuevo quedaba en 'waiting' indefinidamente y el usuario servía el
+      // bundle viejo por días tras un deploy.
+      registerType: 'prompt',
       // [P2-PWA-DEV-MODE · 2026-05-12] `devOptions.enabled: true` registraba
       // el Service Worker en `npm run dev`. Riesgos:
       //   (a) Browsers que abrieron tanto localhost:5173 como mealfitrd.com
@@ -45,7 +52,30 @@ export default defineConfig(({ mode }) => ({
         type: 'module',
       },
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // [P2-PWA-PRECACHE-TRIM · 2026-05-30] Excluir del precache assets
+        // pesados que NO necesitan estar disponibles offline en el primer
+        // install. Antes el SW descargaba ~5.8MB de golpe en la 1ª visita
+        // (costoso en datos móviles del mercado es-DO). Excluidos:
+        //   - html2pdf-*.js (~976KB): lazy `await import()` on-demand (P2-LAZY-PDF);
+        //     se baja solo cuando el usuario exporta el PDF, no en el install.
+        //   - auth_bg_new.png (~655KB) / dashboard_bg.png (~560KB): fondos CSS
+        //     que el navegador pide por red al renderizar; degradan a fondo
+        //     liso sin red (no hay requisito offline-first cosmético). [P6-SPEED-IMG]
+        //     Ahora sirven .webp (18.9/43.6KB) vía image-set; estos .png son solo
+        //     fallback y los .webp NO están en globPatterns → ninguno se precachea.
+        //   - og-image.png (~174KB) [P6-SPEED-IMG · 2026-06-01]: imagen Open Graph
+        //     que SOLO piden los unfurlers de redes sociales (WhatsApp/Slack/X) al
+        //     hacer GET al index.html. NUNCA se renderiza en la app → no necesita
+        //     estar offline. Excluirla recorta el precache sin afectar UX.
+        // El app-shell (JS/CSS/HTML + favicons) SÍ se precachea para el
+        // offline-load.
+        globIgnores: [
+          'assets/html2pdf-*.js',
+          'auth_bg_new.png',
+          'dashboard_bg.png',
+          'og-image.png',
+        ],
       },
       includeAssets: ['favicon.png'],
       manifest: {
@@ -105,7 +135,20 @@ export default defineConfig(({ mode }) => ({
           // Vendor: heavy libs cached separately
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-ui': ['framer-motion', 'lucide-react', 'sonner'],
+          // [P1-PERF-FRAMER-SPLIT · 2026-05-31] framer-motion REMOVIDO de
+          // vendor-ui y SIN manualChunk propio. Antes vivía junto a lucide-react +
+          // sonner; como ambos se importan EAGER (lucide en Login/Register/Header/
+          // Footer/DashboardLayout, sonner Toaster en App), todo vendor-ui (incl.
+          // framer ~39KB gzip) caía en el critical path con modulepreload. framer
+          // SOLO lo usan páginas/componentes lazy (Dashboard/Plan/Recipes/Settings/
+          // History/Home/Modal/PaymentModal/…) — ningún módulo eager lo importa.
+          // Darle un manualChunk explícito (`vendor-motion`) NO ayudaba: Vite igual
+          // emite <link modulepreload> para todo vendor chunk nombrado → seguía
+          // descargándose al arranque. Dejándolo SIN listar, Rollup lo auto-divide
+          // en un chunk compartido que se carga on-demand (vía __vitePreload) solo
+          // cuando la primera ruta lazy que lo usa se monta → fuera del critical
+          // path real. lucide + sonner siguen en vendor-ui (sí eager, justificado).
+          'vendor-ui': ['lucide-react', 'sonner'],
         }
       }
     },

@@ -33,7 +33,11 @@ import {
     historyCaches,
     getCachedEntry,
     setCachedEntry,
+    setCachedLifetimeEntry,
     hydrateCacheDict,
+    clearAllModalCaches,
+    setCachedHistoryList,
+    getCachedHistoryListStale,
     _resetAllCachesForTests,
 } from '../utils/historyCaches';
 
@@ -191,5 +195,39 @@ describe('[P2-HIST-AUDIT-11] cross-cache aislamiento', () => {
         expect(historyCaches.coherenceHistory.size).toBe(0);
         expect(historyCaches.blockedReasons.size).toBe(0);
         expect(historyCaches.chunkMetrics.size).toBe(0);
+    });
+});
+
+
+describe('[P3-HIST-MODAL-CACHE-XUSER] clearAllModalCaches (logout/user-switch)', () => {
+    it('limpia los 5 caches per-plan del modal', () => {
+        setCachedEntry(historyCaches.lessonsDetail, 'plan1', [{ kind: 'lesson' }]);
+        setCachedEntry(historyCaches.coherenceHistory, 'plan1', [{ a: 1 }]);
+        setCachedEntry(historyCaches.blockedReasons, 'plan1', [{ r: 1 }]);
+        setCachedEntry(historyCaches.chunkMetrics, 'plan1', [{ m: 1 }]);
+        setCachedLifetimeEntry('plan1', { summary: { x: 1 }, history: [] });
+        expect(historyCaches.lessonsDetail.size).toBe(1);
+        expect(historyCaches.lifetimeLessons.size).toBe(1);
+
+        clearAllModalCaches();
+
+        expect(historyCaches.lessonsDetail.size).toBe(0);
+        expect(historyCaches.coherenceHistory.size).toBe(0);
+        expect(historyCaches.blockedReasons.size).toBe(0);
+        expect(historyCaches.chunkMetrics.size).toBe(0);
+        expect(historyCaches.lifetimeLessons.size).toBe(0);
+    });
+
+    it('NO toca el cache del LISTADO (lo limpia invalidateHistoryListCache aparte)', () => {
+        // Separación de responsabilidades: en _clearUserScopedCaches ambos se
+        // invocan, pero clearAllModalCaches solo borra los Maps per-plan del
+        // modal — el listado se invalida por su propia vía.
+        setCachedHistoryList([{ id: 'p1', name: 'Plan' }]);
+        setCachedEntry(historyCaches.lessonsDetail, 'plan1', [{ kind: 'lesson' }]);
+
+        clearAllModalCaches();
+
+        expect(historyCaches.lessonsDetail.size).toBe(0);
+        expect(getCachedHistoryListStale()).toEqual([{ id: 'p1', name: 'Plan' }]);
     });
 });

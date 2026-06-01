@@ -6,7 +6,7 @@ import { ChevronLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import styles from './InteractiveAssessmentLayout.module.css';
 
-const InteractiveAssessmentLayout = ({ children, totalSteps, title, subtitle }) => {
+const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle }) => {
     const { currentStep, prevStep, planData } = useAssessment();
     const progress = (currentStep / (totalSteps - 1)) * 100;
 
@@ -50,8 +50,11 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, title, subtitle }) 
             <main className={styles.main}>
                 <div className={styles.contentWrapper}>
                     <AnimatePresence mode="wait">
+                        {/* [P4-LAYOUT-KEY] key primitivo (stepKey) — title es un JSX fragment,
+                            así que key={title} se volvía "[object Object]" para todos los steps
+                            → AnimatePresence mode="wait" nunca re-animaba el título entre pasos. */}
                         <motion.div
-                            key={title}
+                            key={stepKey}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
@@ -75,8 +78,10 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, title, subtitle }) 
 InteractiveAssessmentLayout.propTypes = {
     children: PropTypes.node.isRequired,
     totalSteps: PropTypes.number.isRequired,
-    title: PropTypes.string,
-    subtitle: PropTypes.string,
+    stepKey: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    // [P4-LAYOUT-KEY] title/subtitle son JSX (fragments con <span>*</span>), no strings.
+    title: PropTypes.node,
+    subtitle: PropTypes.node,
 };
 
 export default InteractiveAssessmentLayout;

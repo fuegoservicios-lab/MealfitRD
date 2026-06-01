@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-    User, Bell, Shield, ChevronRight, ArrowLeft,
+    User, Shield, ChevronRight, ArrowLeft,
     LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat, GlassWater, Cog,
-    Dumbbell, TrendingDown, Target, Activity, ArrowRight
+    Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -24,12 +24,78 @@ import { trackEvent } from '../utils/analytics';
 // para el lazy initializer de `notifications` (era único raw getItem sin
 // try/catch en este archivo; las líneas 73-78 y 91-96 ya estaban envueltas).
 import { safeLocalStorageRemove, safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
+// [APPEARANCE-THEME · 2026-05-28] Aplicar el tema en vivo al elegir en el toggle.
+import { applyThemePref, isDarkActive } from '../utils/theme';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
 // [P1-FORM-9] Helper para construir el payload de health_profile sin filtrar
 // flags `_*` y con guard contra race de hidratación cifrada. Ver
 // `secureFormStorage.js` para el rationale completo.
 import { buildHealthProfilePayload } from '../config/secureFormStorage';
+
+// [APPEARANCE-THEME · 2026-05-28] Opciones del selector de Apariencia de la
+// sección "Preferencias". `value` se persiste en localStorage('mealfit_theme')
+// Y se aplica en vivo vía applyThemePref (utils/theme.js) → fija
+// html[data-theme] que activa los overrides de variables CSS oscuras en
+// index.css. Mapeo:
+//   system → prefers-color-scheme   ·   light → claro (Básico)   ·   dark → oscuro
+const THEME_OPTIONS = [
+    {
+        value: 'system',
+        label: 'Sistema',
+        desc: 'Sigue la apariencia configurada en tu dispositivo.',
+        Icon: Monitor,
+        iconBg: 'linear-gradient(135deg, #64748B 0%, #475569 100%)',
+    },
+    {
+        value: 'light',
+        label: 'Básico',
+        desc: 'Tema claro, el de siempre.',
+        Icon: Sun,
+        iconBg: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)',
+    },
+    {
+        value: 'dark',
+        label: 'Oscuro',
+        desc: 'Tonos oscuros para ambientes con poca luz.',
+        Icon: Moon,
+        iconBg: 'linear-gradient(135deg, #4F46E5 0%, #1E293B 100%)',
+    },
+];
+
+// [P3-SETTINGS-UNITTOGGLE-HOIST · 2026-06-01] Definido en module scope (antes vivía
+// DENTRO de la IIFE de render → identidad de función NUEVA en cada keystroke de
+// peso/altura → React veía un "tipo" distinto y DESMONTABA+REMONTABA los 2 botones
+// del toggle por cada tecla). Solo consume props (unit/options/onChange); los CSS
+// vars resuelven en paint, no captura closure → hoist seguro, tipo estable → el
+// toggle ahora re-renderiza (no remonta).
+const _UnitToggle = ({ unit, options, onChange }) => (
+    <div style={{ display: 'inline-flex', gap: 2, background: 'var(--bg-muted)', padding: 2, borderRadius: '0.5rem', marginLeft: '0.5rem' }}>
+        {options.map((opt) => (
+            <button
+                key={opt}
+                type="button"
+                onClick={() => onChange(opt)}
+                style={{
+                    padding: '0.2rem 0.55rem',
+                    borderRadius: '0.4rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.03em',
+                    background: unit === opt ? 'var(--bg-card)' : 'transparent',
+                    color: unit === opt ? 'var(--text-main)' : 'var(--text-muted)',
+                    boxShadow: unit === opt ? '0 1px 3px rgba(15, 23, 42, 0.12)' : 'none',
+                    transition: 'all 0.15s ease',
+                }}
+            >
+                {opt}
+            </button>
+        ))}
+    </div>
+);
 
 const Settings = () => {
     // Obtenemos userProfile y updateUserProfile del contexto global
@@ -105,6 +171,26 @@ const Settings = () => {
     useEffect(() => {
         try { localStorage.setItem('mealfit_logging_preference', loggingPreference); } catch {}
     }, [loggingPreference]);
+
+    // [APPEARANCE-THEME · 2026-05-28] Preferencia de Apariencia (Sistema/
+    // Básico/Oscuro). Persiste en localStorage('mealfit_theme') y se aplica
+    // en vivo (handleSelectTheme → applyThemePref). Lazy init para reflejar
+    // la elección actual al montar; el boot script de index.html ya fijó el
+    // data-theme antes del paint.
+    const [themePreference, setThemePreference] = useState(() => {
+        const cached = safeLocalStorageGet('mealfit_theme', 'system');
+        return ['system', 'light', 'dark'].includes(cached) ? cached : 'system';
+    });
+
+    const handleSelectTheme = (value) => {
+        if (value === themePreference) return;
+        setThemePreference(value);
+        safeLocalStorageSet('mealfit_theme', value);
+        // [APPEARANCE-THEME · 2026-05-28] Aplicar al instante (sin reload):
+        // fija html[data-theme] → las variables CSS oscuras entran en efecto.
+        applyThemePref(value);
+        toast.success('Preferencia de apariencia guardada.', { duration: 2000 });
+    };
 
     useEffect(() => {
         let cancelled = false;
@@ -444,7 +530,7 @@ const Settings = () => {
     // --- NAVEGACIÓN DE SECCIONES ---
     // activeSection puede ser un id de SECTION_IDS o null (en móvil = vista de lista).
     // Sincronizado con window.location.hash para deep-linking y back/forward del navegador.
-    const SECTION_IDS = ['profile', 'notifications', 'preferences', 'plan', 'subscription'];
+    const SECTION_IDS = ['profile', 'preferences', 'plan', 'subscription'];
     const computeInitialSection = () => {
         if (typeof window === 'undefined') return 'profile';
         const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
@@ -557,12 +643,16 @@ const Settings = () => {
         navigate('/dashboard');
     };
 
+    // [APPEARANCE-THEME · 2026-05-29] Iconos de sección: en claro chips pastel;
+    // en oscuro los pasteles se ven brillosos → tintes translúcidos + icono más
+    // claro por sección. isDark es snapshot fresco (Settings re-renderiza al
+    // cambiar el tema porque setThemePreference muta su propio estado).
+    const _settingsDark = isDarkActive();
     const sectionsConfig = [
-        { id: 'profile', label: 'General', description: 'Nombre, correo y datos básicos', Icon: Cog, iconBg: '#EFF6FF', iconColor: '#3B82F6' },
-        { id: 'notifications', label: 'Notificaciones', description: 'Alertas inteligentes', Icon: Bell, iconBg: '#F3E8FF', iconColor: '#9333EA' },
-        { id: 'preferences', label: 'Preferencias', description: 'Modo automático, memoria y datos del agente', Icon: SlidersHorizontal, iconBg: '#FCE7F3', iconColor: '#DB2777' },
-        { id: 'plan', label: 'Plan & Objetivo', description: 'Meta principal y calorías', Icon: Trophy, iconBg: '#DCFCE7', iconColor: '#166534' },
-        { id: 'subscription', label: 'Suscripción', description: 'Plan, pagos y cancelación', Icon: CreditCard, iconBg: '#E0E7FF', iconColor: '#4F46E5' },
+        { id: 'profile', label: 'General', description: 'Cuenta, apariencia y notificaciones', Icon: Cog, iconBg: _settingsDark ? 'rgba(59, 130, 246, 0.16)' : '#EFF6FF', iconColor: _settingsDark ? '#60A5FA' : '#3B82F6' },
+        { id: 'preferences', label: 'Capacidades', description: 'Modo automático, memoria y datos del agente', Icon: SlidersHorizontal, iconBg: _settingsDark ? 'rgba(219, 39, 119, 0.18)' : '#FCE7F3', iconColor: _settingsDark ? '#F472B6' : '#DB2777' },
+        { id: 'plan', label: 'Plan & Objetivo', description: 'Meta principal y calorías', Icon: Trophy, iconBg: _settingsDark ? 'rgba(16, 185, 129, 0.18)' : '#DCFCE7', iconColor: _settingsDark ? '#34D399' : '#166534' },
+        { id: 'subscription', label: 'Suscripción', description: 'Plan, pagos y cancelación', Icon: CreditCard, iconBg: _settingsDark ? 'rgba(99, 102, 241, 0.18)' : '#E0E7FF', iconColor: _settingsDark ? '#A5B4FC' : '#4F46E5' },
     ];
 
     const activeSectionMeta = sectionsConfig.find(s => s.id === activeSection) || null;
@@ -593,27 +683,32 @@ const Settings = () => {
     }, [notifications]);
 
     // Cargar los "hechos" del Cerebro de la IA
+    // [P4-XUSER-RACE] cancelled-flag + clear: en dispositivo compartido (user-switch
+    // o id cambiando) un fetch de A que resuelve DESPUÉS del de B no debe clobbear
+    // los facts (PII médica) de B en la UI. Espeja el effect hermano de logging (~195).
     useEffect(() => {
+        let cancelled = false;
         const fetchUserFacts = async () => {
             const userId = userProfile?.id;
             if (!userId) return;
 
+            setUserFacts([]);
             setIsLoadingFacts(true);
             try {
-                // Asumimos que la API corre en http://localhost:3001
                 const response = await fetchWithAuth(`/api/user-facts/${userId}`);
-                if (response.ok) {
+                if (!cancelled && response.ok) {
                     const data = await response.json();
-                    setUserFacts(data.facts || []);
+                    if (!cancelled) setUserFacts(data.facts || []);
                 }
             } catch (error) {
-                console.error("Error cargando Cerebro IA:", error);
+                if (!cancelled) console.error("Error cargando Cerebro IA:", error);
             } finally {
-                setIsLoadingFacts(false);
+                if (!cancelled) setIsLoadingFacts(false);
             }
         };
 
         fetchUserFacts();
+        return () => { cancelled = true; };
     }, [userProfile?.id]);
 
     // [LONG-TERM-MEMORY-TOGGLE · 2026-05-13] Carga el estado actual del toggle
@@ -625,20 +720,23 @@ const Settings = () => {
             setLtmEnabled(null);
             return;
         }
+        let cancelled = false;
         const fetchLtmState = async () => {
             try {
                 const response = await fetchWithAuth('/api/user/preferences/memory');
+                if (cancelled) return;
                 if (response.ok) {
                     const data = await response.json();
-                    setLtmEnabled(Boolean(data.long_term_memory_enabled));
+                    if (!cancelled) setLtmEnabled(Boolean(data.long_term_memory_enabled));
                 } else {
                     setLtmEnabled(true);
                 }
             } catch {
-                setLtmEnabled(true);
+                if (!cancelled) setLtmEnabled(true);
             }
         };
         fetchLtmState();
+        return () => { cancelled = true; };
     }, [userProfile?.id, isPremium]);
 
     // [P3-WATER-TRACKER · 2026-05-16] Carga el estado actual del toggle
@@ -650,26 +748,28 @@ const Settings = () => {
             setWaterTrackerEnabled(null);
             return;
         }
+        let cancelled = false;
         const fetchWaterTrackerState = async () => {
             try {
                 const response = await fetchWithAuth('/api/user/preferences/water-tracker');
+                if (cancelled) return;
                 if (response.ok) {
                     const data = await response.json();
+                    if (cancelled) return;
                     const value = Boolean(data.water_tracker_enabled);
                     setWaterTrackerEnabled(value);
                     // Cache en localStorage para que WaterTracker.jsx pueda
                     // pre-render sin esperar al GET (evita el flash de "cargando").
-                    try {
-                        localStorage.setItem('mealfit_water_tracker_enabled', String(value));
-                    } catch { /* localStorage no critico */ }
+                    safeLocalStorageSet('mealfit_water_tracker_enabled', String(value));
                 } else {
                     setWaterTrackerEnabled(true);
                 }
             } catch {
-                setWaterTrackerEnabled(true);
+                if (!cancelled) setWaterTrackerEnabled(true);
             }
         };
         fetchWaterTrackerState();
+        return () => { cancelled = true; };
     }, [userProfile?.id]);
 
     // --- MANEJADORES (HANDLERS) ---
@@ -737,10 +837,18 @@ const Settings = () => {
         }
     };
 
-    const handleResetApp = () => {
+    const handleResetApp = async () => {
         if (confirmReset) {
-            resetApp(); // Limpia localStorage y hace SignOut en Supabase
-            navigate('/');
+            // [P3-RESETAPP-AWAIT · 2026-05-30] await + finally: resetApp es
+            // async (signOut + setters). Sin await, navigate('/') corría antes
+            // del teardown y una rejection quedaba como unhandled promise. El
+            // finally garantiza la navegación aunque resetApp falle (el teardown
+            // de PII ya es síncrono adentro, así que es seguro navegar igual).
+            try {
+                await resetApp();
+            } finally {
+                navigate('/');
+            }
         } else {
             setConfirmReset(true);
             setTimeout(() => setConfirmReset(false), 3000);
@@ -1062,6 +1170,16 @@ const Settings = () => {
     const userGoal = formData?.mainGoal || "Mejorar Salud";
     const displayEmail = userProfile?.email || "Cargando correo...";
 
+    // [SUBSCRIPTION-FREE-CANCEL-FIX · 2026-05-28] "Suscriptor de pago" se
+    // determina con allowlist POSITIVA (tiers con suscripción PayPal real).
+    // Pre-fix la sección de Suscripción usaba chequeos negativos
+    // `plan_tier !== 'gratis'`; con `plan_tier` null/undefined (cuentas gratis
+    // o nuevas sin el literal 'gratis' seteado) esos chequeos daban true y
+    // mostraban "Cancelar Suscripción" a un usuario gratis. 'admin' es interno
+    // (no es suscriptor PayPal) → queda fuera del allowlist.
+    const _PAID_TIERS = ['basic', 'plus', 'ultra'];
+    const isPaidSubscriber = _PAID_TIERS.includes(userProfile?.plan_tier);
+
     // [P3-PROFILE-PLAN-CARD-REDESIGN · 2026-05-20] Mapping es-DO + icon +
     // accent color por meta. El enum backend (`mainGoal` en formValidation.js)
     // usa labels en inglés (`gain_muscle`, `lose_fat`, etc.) — se renderizan
@@ -1178,8 +1296,10 @@ const Settings = () => {
                                 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
                                     <div style={{
-                                        background: '#FEF2F2',
-                                        color: '#EF4444',
+                                        /* [P3-CANCEL-MODAL-DARK · 2026-05-30] Rojo translúcido
+                                           en oscuro (antes #FEF2F2 → círculo blanco brillante). */
+                                        background: _settingsDark ? 'rgba(239, 68, 68, 0.16)' : '#FEF2F2',
+                                        color: _settingsDark ? '#F87171' : '#EF4444',
                                         width: '44px',
                                         height: '44px',
                                         borderRadius: '50%',
@@ -1190,13 +1310,15 @@ const Settings = () => {
                                     }}>
                                         <AlertTriangle size={24} strokeWidth={2.5} style={{ transform: 'translateY(0px)' }} />
                                     </div>
-                                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0F172A' }}>
+                                    {/* [P3-CANCEL-MODAL-DARK · 2026-05-30] Título via var de tema:
+                                        #0F172A (slate oscuro) era casi invisible sobre el modal oscuro. */}
+                                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)' }}>
                                         Cancelar Suscripción
                                     </h3>
                                 </div>
                                 
-                                <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '2rem' }}>
-                                    ¿Estás seguro de que deseas cancelar tu suscripción? Perderás todos tus beneficios premium al finalizar tu ciclo actual. <strong>Esta acción no se puede deshacer.</strong>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '2rem' }}>
+                                    ¿Estás seguro de que deseas cancelar tu suscripción? Perderás todos tus beneficios premium al finalizar tu ciclo actual. <strong style={{ color: 'var(--text-main)' }}>Esta acción no se puede deshacer.</strong>
                                 </p>
                                 
                                 <div className={styles.modalButtons}>
@@ -1233,8 +1355,8 @@ const Settings = () => {
                         >
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '1.75rem' }}>
                                 <div style={{
-                                    background: '#FEE2E2',
-                                    color: '#EF4444',
+                                    background: 'var(--danger-bg)',
+                                    color: 'var(--danger)',
                                     width: '60px',
                                     height: '60px',
                                     borderRadius: '50%',
@@ -1247,22 +1369,22 @@ const Settings = () => {
                                 }}>
                                     <AlertTriangle size={28} strokeWidth={2.5} style={{ transform: 'translateY(0.5px)' }} />
                                 </div>
-                                <h3 id="reset-confirm-modal" style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+                                <h3 id="reset-confirm-modal" style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
                                     ¿Empezar desde cero?
                                 </h3>
-                                <p style={{ margin: '0.5rem 0 0 0', color: '#64748B', fontSize: '0.9rem', lineHeight: 1.5 }}>
-                                    Esta acción borrará <strong style={{ color: '#0F172A' }}>todo tu progreso</strong>.
+                                <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                                    Esta acción borrará <strong style={{ color: 'var(--text-main)' }}>todo tu progreso</strong>.
                                 </p>
                             </div>
 
                             <div style={{
-                                background: '#F8FAFC',
-                                border: '1px solid #E2E8F0',
+                                background: 'var(--bg-muted)',
+                                border: '1px solid var(--border)',
                                 borderRadius: '0.875rem',
                                 padding: '1.125rem 1.25rem',
                                 marginBottom: '1.25rem'
                             }}>
-                                <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                     Se borrará:
                                 </p>
                                 <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
@@ -1273,8 +1395,8 @@ const Settings = () => {
                                         'Platos que te gustan / no te gustan',
                                         'Memoria que el sistema aprendió sobre ti',
                                     ].map((item, idx) => (
-                                        <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', fontSize: '0.9rem', color: '#334155', lineHeight: 1.4 }}>
-                                            <span style={{ color: '#EF4444', fontWeight: 700, flexShrink: 0, marginTop: '0.05rem' }}>•</span>
+                                        <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: 1.4 }}>
+                                            <span style={{ color: 'var(--danger)', fontWeight: 700, flexShrink: 0, marginTop: '0.05rem' }}>•</span>
                                             <span>{item}</span>
                                         </li>
                                     ))}
@@ -1282,26 +1404,26 @@ const Settings = () => {
                             </div>
 
                             <div style={{
-                                background: '#FFFBEB',
-                                border: '1px solid #FDE68A',
+                                background: 'var(--warning-bg)',
+                                border: '1px solid var(--warning-border)',
                                 borderRadius: '0.75rem',
                                 padding: '1rem 1.125rem',
                                 marginBottom: '1.75rem'
                             }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.625rem' }}>
                                     <span style={{ fontSize: '1rem', lineHeight: 1 }}>⚠️</span>
-                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#78350F', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--warning-text)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                         Antes de continuar
                                     </span>
                                 </div>
                                 <ul style={{ margin: 0, paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    <li style={{ fontSize: '0.875rem', color: '#78350F', lineHeight: 1.55 }}>
+                                    <li style={{ fontSize: '0.875rem', color: 'var(--warning-text)', lineHeight: 1.55 }}>
                                         Volverás a llenar el formulario inicial.
                                     </li>
-                                    <li style={{ fontSize: '0.875rem', color: '#78350F', lineHeight: 1.55 }}>
+                                    <li style={{ fontSize: '0.875rem', color: 'var(--warning-text)', lineHeight: 1.55 }}>
                                         Esta acción es <strong>irreversible</strong>.
                                     </li>
-                                    <li style={{ fontSize: '0.875rem', color: '#78350F', lineHeight: 1.55 }}>
+                                    <li style={{ fontSize: '0.875rem', color: 'var(--warning-text)', lineHeight: 1.55 }}>
                                         Generar el nuevo plan consumirá
                                         <span style={{ display: 'inline-block', whiteSpace: 'nowrap', marginLeft: '0.4em' }}>
                                             <strong style={{ marginRight: '0.35em' }}>1</strong>
@@ -1401,23 +1523,30 @@ const Settings = () => {
                             onClose={() => setShowEvaluateModal(false)}
                             title="Evaluar de Nuevo"
                             subtitle="Elige cómo quieres generar tu nuevo plan. ¿Quieres mantener tus datos actuales o empezar desde cero?"
-                            headerIcon={{ icon: <ChefHat size={24} strokeWidth={2.5} />, bg: '#DCFCE7', color: '#16A34A' }}
+                            headerIcon={{ icon: <ChefHat size={24} strokeWidth={2.5} />, bg: _settingsDark ? 'rgba(22, 163, 74, 0.18)' : '#DCFCE7', color: _settingsDark ? '#4ADE80' : '#16A34A' }}
                             options={[
-                                { 
-                                    id: 'renovar', 
-                                    label: 'Renovar Plan Actual', 
+                                {
+                                    id: 'renovar',
+                                    label: 'Renovar Plan Actual',
                                     desc: 'Genera un plan totalmente nuevo para variar los alimentos, tomando en cuenta los datos que ya configuraste.',
+                                    // [P3-EVALUATE-MODAL-DARK · 2026-05-30] `color` tiñe la
+                                    // tarjeta en oscuro (azul translúcido vs slate genérico).
+                                    // `labelColor` theme-aware: azul-300 legible en oscuro,
+                                    // azul-900 en claro (antes #1E3A8A oscuro era ilegible
+                                    // sobre la tarjeta oscura).
+                                    color: '#3B82F6',
                                     hoverBg: '#EFF6FF',
                                     hoverBorder: '#3B82F6',
-                                    labelColor: '#1E3A8A'
+                                    labelColor: _settingsDark ? '#93C5FD' : '#1E3A8A'
                                 },
-                                { 
-                                    id: 'cero', 
-                                    label: 'Empezar Desde Cero', 
+                                {
+                                    id: 'cero',
+                                    label: 'Empezar Desde Cero',
                                     desc: 'Elimina todo tu progreso y te lleva al formulario inicial.',
+                                    color: '#10B981',
                                     hoverBg: '#F0FDF4',
                                     hoverBorder: '#10B981',
-                                    labelColor: '#065F46'
+                                    labelColor: _settingsDark ? '#6EE7B7' : '#065F46'
                                 }
                             ]}
                             isNavigatingOption={isNavigatingOption}
@@ -1451,18 +1580,21 @@ const Settings = () => {
                             }}
                             infoBandRenderer={(hoveredOption) => {
                                 const remaining = typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : null;
+                                {/* [P3-EVALUATE-MODAL-DARK · 2026-05-30] infoBand con
+                                   variables de tema (antes hex claros #F8FAFC/#FFFFFF/
+                                   #334155 → tarjeta blanca brillante en modo oscuro). */}
                                 const renderOption = (title, desc, meta) => (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-                                        <div style={{ fontSize: '0.9rem', color: '#334155', lineHeight: 1.5 }}>
-                                            <strong style={{ color: '#0F172A', fontWeight: 700 }}>{title}:</strong>
+                                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                                            <strong style={{ color: 'var(--text-main)', fontWeight: 700 }}>{title}:</strong>
                                             <span style={{ marginLeft: '0.4em' }}>{desc}</span>
                                         </div>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.78rem', color: '#64748B' }}>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                                             {meta.map((m, i) => (
                                                 <span key={i} style={{
                                                     display: 'inline-flex', alignItems: 'center', gap: '0.35em',
                                                     padding: '0.25rem 0.625rem',
-                                                    background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '999px',
+                                                    background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '999px',
                                                     fontWeight: 500
                                                 }}>
                                                     {m}
@@ -1474,8 +1606,8 @@ const Settings = () => {
                                 return (
                                     <div style={{
                                         marginTop: '1.25rem', padding: '1rem 1.125rem',
-                                        background: '#F8FAFC', borderRadius: '0.875rem',
-                                        border: '1px solid #E2E8F0',
+                                        background: 'var(--bg-muted)', borderRadius: '0.875rem',
+                                        border: '1px solid var(--border)',
                                         display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
                                         // [FIX 2026-05-07] Altura mínima estable para evitar flicker en
                                         // hover. Antes el infoBand crecía/encogía entre estados (hover vs
@@ -1494,7 +1626,7 @@ const Settings = () => {
                                                     'Borra todo tu progreso y te lleva al formulario inicial.',
                                                     [
                                                         <>⏱️ ~3–5&nbsp;min llenando el formulario</>,
-                                                        <>🔁 Consume<span style={{ display: 'inline-block', whiteSpace: 'nowrap', marginLeft: '0.4em' }}><strong style={{ color: '#0F172A', marginRight: '0.35em' }}>1</strong><strong style={{ color: '#0F172A' }}>regeneración</strong></span></>,
+                                                        <>🔁 Consume<span style={{ display: 'inline-block', whiteSpace: 'nowrap', marginLeft: '0.4em' }}><strong style={{ color: 'var(--text-main)', marginRight: '0.35em' }}>1</strong><strong style={{ color: 'var(--text-main)' }}>regeneración</strong></span></>,
                                                     ]
                                                 )
                                             ) : hoveredOption === 'renovar' ? (
@@ -1503,13 +1635,13 @@ const Settings = () => {
                                                     'Mantendrá tus alergias y generará nuevos platos.',
                                                     [
                                                         <>⏱️ ~30&nbsp;s</>,
-                                                        <>🔁 Consume<span style={{ display: 'inline-block', whiteSpace: 'nowrap', marginLeft: '0.4em' }}><strong style={{ color: '#0F172A', marginRight: '0.35em' }}>1</strong><strong style={{ color: '#0F172A' }}>regeneración</strong></span></>,
+                                                        <>🔁 Consume<span style={{ display: 'inline-block', whiteSpace: 'nowrap', marginLeft: '0.4em' }}><strong style={{ color: 'var(--text-main)', marginRight: '0.35em' }}>1</strong><strong style={{ color: 'var(--text-main)' }}>regeneración</strong></span></>,
                                                     ]
                                                 )
                                             ) : (
-                                                <div style={{ fontSize: '0.9rem', color: '#334155', lineHeight: 1.5 }}>
+                                                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                                                     Te quedan{' '}
-                                                    <strong style={{ color: '#0F172A' }}>
+                                                    <strong style={{ color: 'var(--text-main)' }}>
                                                         {remaining !== null ? remaining : 'ilimitadas'}
                                                     </strong>
                                                     {' '}regeneraciones de planes este mes.
@@ -1568,8 +1700,9 @@ const Settings = () => {
                     <main className={styles.contentPanel}>
                         <div className={styles.grid}>
 
-                    {/* SECCIÓN 1: PERFIL (CONECTADO A SUPABASE) */}
+                    {/* SECCIÓN 1: PERFIL (CONECTADO A SUPABASE) + APARIENCIA */}
                     {activeSection === 'profile' && (
+                    <>
                     <section className={styles.section}>
                         <h2 className={styles.sectionTitle}>
                             Perfil
@@ -1606,17 +1739,17 @@ const Settings = () => {
                                             outline: 'none',
                                             fontSize: '1rem',
                                             transition: 'all 0.3s ease',
-                                            background: nameError ? '#FEF2F2' : '#F1F5F9',
+                                            background: nameError ? '#FEF2F2' : 'var(--bg-muted)',
                                             color: nameError ? '#7F1D1D' : 'var(--text-main)',
                                             fontWeight: 500
                                         }}
                                         onFocus={(e) => {
-                                            e.target.style.background = 'white';
+                                            e.target.style.background = 'var(--bg-card)';
                                             e.target.style.borderColor = nameError ? '#EF4444' : '#3B82F6';
                                             e.target.style.boxShadow = nameError ? '0 0 0 4px rgba(239, 68, 68, 0.1)' : '0 0 0 4px rgba(59, 130, 246, 0.1)';
                                         }}
                                         onBlur={(e) => {
-                                            e.target.style.background = nameError ? '#FEF2F2' : '#F1F5F9';
+                                            e.target.style.background = nameError ? '#FEF2F2' : 'var(--bg-muted)';
                                             e.target.style.borderColor = nameError ? '#FCA5A5' : 'transparent';
                                             e.target.style.boxShadow = 'none';
                                         }}
@@ -1641,47 +1774,23 @@ const Settings = () => {
                                         outline: 'none',
                                         fontSize: '1rem',
                                         transition: 'all 0.3s ease',
-                                        background: '#F1F5F9',
+                                        background: 'var(--bg-muted)',
                                         color: 'var(--text-main)',
                                         fontWeight: 500,
                                     };
                                     const _onFocus = (e) => {
-                                        e.target.style.background = 'white';
+                                        e.target.style.background = 'var(--bg-card)';
                                         e.target.style.borderColor = '#3B82F6';
                                         e.target.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.1)';
                                     };
                                     const _onBlur = (e) => {
-                                        e.target.style.background = '#F1F5F9';
+                                        e.target.style.background = 'var(--bg-muted)';
                                         e.target.style.borderColor = 'transparent';
                                         e.target.style.boxShadow = 'none';
                                     };
-                                    const _UnitToggle = ({ unit, options, onChange }) => (
-                                        <div style={{ display: 'inline-flex', gap: 2, background: '#E2E8F0', padding: 2, borderRadius: '0.5rem', marginLeft: '0.5rem' }}>
-                                            {options.map((opt) => (
-                                                <button
-                                                    key={opt}
-                                                    type="button"
-                                                    onClick={() => onChange(opt)}
-                                                    style={{
-                                                        padding: '0.2rem 0.55rem',
-                                                        borderRadius: '0.4rem',
-                                                        border: 'none',
-                                                        cursor: 'pointer',
-                                                        fontSize: '0.7rem',
-                                                        fontWeight: 700,
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '0.03em',
-                                                        background: unit === opt ? 'white' : 'transparent',
-                                                        color: unit === opt ? '#1E293B' : '#64748B',
-                                                        boxShadow: unit === opt ? '0 1px 3px rgba(15, 23, 42, 0.12)' : 'none',
-                                                        transition: 'all 0.15s ease',
-                                                    }}
-                                                >
-                                                    {opt}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    );
+                                    // [P3-SETTINGS-UNITTOGGLE-HOIST · 2026-06-01] _UnitToggle
+                                    // movido a module scope (top del archivo) para evitar
+                                    // unmount/remount por keystroke.
                                     return (
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                             {/* PESO */}
@@ -1761,12 +1870,15 @@ const Settings = () => {
 
                                 {/* Campo de Email (Solo Lectura) */}
                                 <div className={styles.emailContainer}>
-                                    <div style={{ background: 'white', padding: '0.5rem', borderRadius: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', flexShrink: 0 }}>
-                                        <Mail size={18} color="#64748B" />
+                                    {/* [APPEARANCE-THEME · 2026-05-29] En oscuro el chip
+                                        (var(--bg-card)) se confundía con el contenedor y el
+                                        sobre gris se veía apagado → tinte indigo + icono claro. */}
+                                    <div style={{ background: _settingsDark ? 'rgba(99, 102, 241, 0.16)' : 'var(--bg-card)', width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.5rem', boxShadow: _settingsDark ? 'none' : '0 1px 2px rgba(0,0,0,0.05)', flexShrink: 0 }}>
+                                        <Mail size={18} color={_settingsDark ? '#A5B4FC' : 'var(--text-muted)'} />
                                     </div>
                                     <div className={styles.emailInfo}>
-                                        <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Correo Electrónico (ID)</span>
-                                        <span style={{ color: '#334155', fontSize: '0.95rem', fontWeight: 500, wordBreak: 'break-all' }}>{displayEmail}</span>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Correo Electrónico (ID)</span>
+                                        <span style={{ color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: 500, wordBreak: 'break-all' }}>{displayEmail}</span>
                                     </div>
                                     <div className={styles.emailBadge}>
                                         <Shield size={14} /> <span className={styles.emailBadgeText}>Protegido</span>
@@ -1823,39 +1935,98 @@ const Settings = () => {
                                         {isSaving ? (
                                             <>Guardando...</>
                                         ) : saveStatus === 'success' ? (
-                                            <>¡Cambios Guardados!</>
+                                            <>¡Guardado!</>
                                         ) : (
-                                            <>Guardar Cambios</>
+                                            <>Guardar</>
                                         )}
                                     </button>
                                 )}
                             </div>
                         </div>
                     </section>
+
+                    {/* [APPEARANCE-THEME · 2026-05-28] Apariencia DENTRO del
+                        panel "General" (antes pestaña aparte). Se muestra como
+                        un bloque debajo del Perfil, separado por un borde
+                        superior sutil. La elección persiste en mealfit_theme y
+                        se aplica en vivo (html[data-theme] → variables CSS). */}
+                    <section className={styles.section} style={{ borderTop: '1px solid var(--border)' }}>
+                        <h2 className={styles.sectionTitle}>
+                            Apariencia
+                        </h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                            Elige el tema de la aplicación. Usa “Sistema” para seguir la configuración de tu dispositivo.
+                        </p>
+
+                        <div
+                            className={styles.themeGroup}
+                            role="radiogroup"
+                            aria-label="Tema de la aplicación"
+                        >
+                            {THEME_OPTIONS.map((opt) => {
+                                const { value, label, desc, iconBg } = opt;
+                                const Icon = opt.Icon;
+                                const selected = themePreference === value;
+                                return (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={selected}
+                                        onClick={() => handleSelectTheme(value)}
+                                        className={`${styles.themeOption} ${selected ? styles.themeOptionActive : ''}`}
+                                    >
+                                        <span className={styles.themeOptionIcon} style={{ background: iconBg }}>
+                                            <Icon size={20} color="#FFFFFF" strokeWidth={2.25} />
+                                        </span>
+                                        <span className={styles.themeOptionText}>
+                                            <span className={styles.themeOptionTitle}>{label}</span>
+                                            <span className={styles.themeOptionDesc}>{desc}</span>
+                                        </span>
+                                        {selected && (
+                                            <span className={styles.themeCheck} aria-hidden="true">
+                                                <Check size={16} strokeWidth={3} />
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
+                    </>
                     )}
 
-                    {/* SECCIÓN 2: NOTIFICACIONES */}
-                    {activeSection === 'notifications' && (
-                        <section className={styles.section}>
+                    {/* SECCIÓN 2: NOTIFICACIONES
+                        [NOTIF-MERGED-INTO-GENERAL · 2026-05-28] Fusionada DENTRO
+                        de "General": renderiza bajo activeSection 'profile' como
+                        bloque hermano del fragmento Perfil+Apariencia. El grid es
+                        flex-column, así que aparece apilada debajo de Apariencia.
+                        Ya NO es pestaña propia del sidebar. */}
+                    {activeSection === 'profile' && (
+                        <section className={styles.section} style={{ borderTop: '1px solid var(--border)' }}>
                             <h2 className={styles.sectionTitle}>
                                 Notificaciones
                             </h2>
 
-                            <div style={{ 
-                                background: 'linear-gradient(135deg, #F8F7FF 0%, #F0EEFF 50%, #EEF2FF 100%)', 
-                                borderRadius: '1rem', 
-                                padding: '1.25rem', 
-                                border: '1px solid #E0E7FF',
+                            <div style={{
+                                background: 'var(--bg-muted)',
+                                borderRadius: '1rem',
+                                padding: '1.25rem',
+                                border: '1px solid var(--border)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
                                 gap: '1rem'
                             }}>
                                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
-                                    <div style={{ 
-                                        background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)', 
-                                        padding: '0.75rem', 
-                                        borderRadius: '0.75rem', 
+                                    <div style={{
+                                        background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
+                                        width: 44,
+                                        height: 44,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderRadius: '0.75rem',
                                         flexShrink: 0,
                                         boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
                                     }}>
@@ -1983,8 +2154,8 @@ const Settings = () => {
                                 Hidratación movida fuera de esta sección — ya
                                 no es "comportamiento del agente" sino una
                                 preferencia de visualización del Dashboard.
-                                Vive ahora en sub-sección "Módulos del Dashboard"
-                                debajo de "Lo que el agente recuerda". */}
+                                Vive ahora en sub-sección "Personaliza tu panel"
+                                encima de "Lo que el agente recuerda". */}
 
                             {/* Toggle: Memoria a Largo Plazo (solo Básico+).
                                 [LONG-TERM-MEMORY-TOGGLE · 2026-05-13] Reutiliza
@@ -2060,102 +2231,8 @@ const Settings = () => {
                                 </div>
                             )}
 
-                            {/* Sub-sección: Lo que el agente recuerda (datos extraídos).
-                                Fusionada desde el antiguo apartado "Memoria IA".
-                                Para gratis: lockscreen con upsell.
-                                Para Básico+: lista de userFacts con opción de borrar. */}
-                            <div style={{
-                                marginTop: '1.5rem',
-                                paddingTop: '1.5rem',
-                                borderTop: '1px solid rgba(15, 23, 42, 0.08)',
-                            }}>
-                                <h3 style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.6rem',
-                                    fontSize: '1.15rem',
-                                    fontWeight: 800,
-                                    color: 'var(--text-main)',
-                                    margin: '0 0 0.5rem 0',
-                                    letterSpacing: '-0.015em',
-                                    paddingLeft: '0.75rem',
-                                    borderLeft: '3px solid #4F46E5',
-                                    lineHeight: 1.2,
-                                }}>
-                                    Lo que el agente recuerda
-                                </h3>
-                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.1rem', lineHeight: 1.5 }}>
-                                    Datos puntuales que la IA aprendió de tus conversaciones. Borra los que ya no necesite saber.
-                                </p>
-
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                                    {!isPremium ? (
-                                        <div style={{ textAlign: 'center', color: '#94A3B8', padding: '2.5rem 1.5rem', background: '#F8FAFC', borderRadius: '1rem', border: '1px dashed #CBD5E1' }}>
-                                            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔒</div>
-                                            <h4 style={{ margin: '0 0 0.5rem 0', color: '#334155' }}>Memoria a Largo Plazo</h4>
-                                            <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5, color: '#64748B' }}>
-                                                El Cerebro IA está disponible a partir del plan <strong>Básico</strong>.<br />
-                                                La IA aprenderá de tus gustos y conversaciones automáticamente.
-                                            </p>
-                                        </div>
-                                    ) : isLoadingFacts ? (
-                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', background: '#F8FAFC', borderRadius: '1rem' }}>
-                                            Conectando con el Cerebro Neural...
-                                        </div>
-                                    ) : userFacts.length === 0 ? (
-                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', background: '#F8FAFC', borderRadius: '1rem' }}>
-                                            Aún no he aprendido datos extra sobre ti. ¡Sigue conversando!
-                                        </div>
-                                    ) : (
-                                        userFacts.map(fact => (
-                                            <div key={fact.id} className={styles.factItem} style={{
-                                                opacity: isDeletingFact === fact.id ? 0.5 : 1
-                                            }}>
-                                                <div className={styles.factContent}>
-                                                    <div className={styles.factText}>
-                                                        "{fact.fact}"
-                                                    </div>
-                                                    <div className={styles.factMeta}>
-                                                        <span style={{ background: '#E2E8F0', padding: '2px 8px', borderRadius: '4px', textTransform: 'capitalize' }}>
-                                                            {fact.metadata?.categoria || 'Dato'}
-                                                        </span>
-                                                        {fact.metadata?.ingrediente && (
-                                                            <span style={{ border: '1px solid #CBD5E1', padding: '2px 8px', borderRadius: '4px' }}>
-                                                                {fact.metadata.ingrediente}
-                                                            </span>
-                                                        )}
-                                                        <span>Añadido: {new Date(fact.created_at).toLocaleDateString()}</span>
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={() => handleDeleteFact(fact.id)}
-                                                    disabled={isDeletingFact === fact.id}
-                                                    style={{
-                                                        background: 'none',
-                                                        border: 'none',
-                                                        color: '#EF4444',
-                                                        cursor: 'pointer',
-                                                        padding: '0.5rem',
-                                                        borderRadius: '0.5rem',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        transition: 'none',
-                                                    }}
-                                                    onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'}
-                                                    onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                                                    title="Olvidar Dato"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* [P3-HIDRATACION-MOVED-OUT · 2026-05-27]
-                                Sub-sección "Módulos del Dashboard" — separada
+                            {/* [P3-HIDRATACION-MOVED-OUT · 2026-05-27 · reordenado 2026-05-28]
+                                Sub-sección "Personaliza tu panel" — separada
                                 de "Comportamiento del agente" porque Hidratación
                                 es una preferencia de visualización (mostrar/
                                 ocultar un módulo del Dashboard), NO un toggle
@@ -2163,11 +2240,12 @@ const Settings = () => {
                                 visual que "Lo que el agente recuerda" (h3 con
                                 accent border-left), pero accent color azul
                                 para diferenciar visualmente del verde de la
-                                otra sub-sección. */}
+                                otra sub-sección. Colocada ENCIMA de "Lo que el
+                                agente recuerda" por preferencia del usuario. */}
                             <div style={{
                                 marginTop: '1.5rem',
                                 paddingTop: '1.5rem',
-                                borderTop: '1px solid rgba(15, 23, 42, 0.08)',
+                                borderTop: '1px solid var(--border)',
                             }}>
                                 <h3 style={{
                                     display: 'flex',
@@ -2252,6 +2330,101 @@ const Settings = () => {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Sub-sección: Lo que el agente recuerda (datos extraídos).
+                                Fusionada desde el antiguo apartado "Memoria IA".
+                                Para gratis: lockscreen con upsell.
+                                Para Básico+: lista de userFacts con opción de borrar. */}
+                            <div style={{
+                                marginTop: '1.5rem',
+                                paddingTop: '1.5rem',
+                                borderTop: '1px solid var(--border)',
+                            }}>
+                                <h3 style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.6rem',
+                                    fontSize: '1.15rem',
+                                    fontWeight: 800,
+                                    color: 'var(--text-main)',
+                                    margin: '0 0 0.5rem 0',
+                                    letterSpacing: '-0.015em',
+                                    paddingLeft: '0.75rem',
+                                    borderLeft: '3px solid #4F46E5',
+                                    lineHeight: 1.2,
+                                }}>
+                                    Lo que el agente recuerda
+                                </h3>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.1rem', lineHeight: 1.5 }}>
+                                    Datos puntuales que la IA aprendió de tus conversaciones. Borra los que ya no necesite saber.
+                                </p>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                                    {!isPremium ? (
+                                        <div style={{ textAlign: 'center', color: 'var(--text-light)', padding: '2.5rem 1.5rem', background: 'var(--bg-muted)', borderRadius: '1rem', border: '1px dashed var(--border)' }}>
+                                            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔒</div>
+                                            <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-main)' }}>Memoria a Largo Plazo</h4>
+                                            <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5, color: 'var(--text-muted)' }}>
+                                                El Cerebro IA está disponible a partir del plan <strong>Básico</strong>.<br />
+                                                La IA aprenderá de tus gustos y conversaciones automáticamente.
+                                            </p>
+                                        </div>
+                                    ) : isLoadingFacts ? (
+                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', background: 'var(--bg-muted)', borderRadius: '1rem' }}>
+                                            Conectando con el Cerebro Neural...
+                                        </div>
+                                    ) : userFacts.length === 0 ? (
+                                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', background: 'var(--bg-muted)', borderRadius: '1rem' }}>
+                                            Aún no he aprendido datos extra sobre ti. ¡Sigue conversando!
+                                        </div>
+                                    ) : (
+                                        userFacts.map(fact => (
+                                            <div key={fact.id} className={styles.factItem} style={{
+                                                opacity: isDeletingFact === fact.id ? 0.5 : 1
+                                            }}>
+                                                <div className={styles.factContent}>
+                                                    <div className={styles.factText}>
+                                                        "{fact.fact}"
+                                                    </div>
+                                                    <div className={styles.factMeta}>
+                                                        <span style={{ background: 'var(--bg-muted)', padding: '2px 8px', borderRadius: '4px', textTransform: 'capitalize' }}>
+                                                            {fact.metadata?.categoria || 'Dato'}
+                                                        </span>
+                                                        {fact.metadata?.ingrediente && (
+                                                            <span style={{ border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '4px' }}>
+                                                                {fact.metadata.ingrediente}
+                                                            </span>
+                                                        )}
+                                                        <span>Añadido: {new Date(fact.created_at).toLocaleDateString()}</span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDeleteFact(fact.id)}
+                                                    disabled={isDeletingFact === fact.id}
+                                                    style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        color: '#EF4444',
+                                                        cursor: 'pointer',
+                                                        padding: '0.5rem',
+                                                        borderRadius: '0.5rem',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        transition: 'none',
+                                                    }}
+                                                    onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'}
+                                                    onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                                                    title="Olvidar Dato"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
                         </section>
                     )}
 
@@ -2384,6 +2557,37 @@ const Settings = () => {
                                     .plan-goal-arrow { transition: none; }
                                     .plan-goal-cta:hover .plan-goal-arrow { transform: none; }
                                 }
+                                /* [DARK-THEME] Overrides para modo oscuro: re-mapea
+                                   las superficies estructurales claras del card a las
+                                   variables del tema. El modo claro queda intacto. */
+                                html[data-theme="dark"] .plan-goal-card {
+                                    background: var(--bg-card);
+                                    border-color: var(--border);
+                                }
+                                html[data-theme="dark"] .plan-goal-name,
+                                html[data-theme="dark"] .plan-goal-kcal-value {
+                                    color: var(--text-main);
+                                }
+                                html[data-theme="dark"] .plan-goal-label,
+                                html[data-theme="dark"] .plan-goal-kcal-label,
+                                html[data-theme="dark"] .plan-goal-kcal-unit {
+                                    color: var(--text-muted);
+                                }
+                                html[data-theme="dark"] .plan-goal-divider {
+                                    background: var(--border);
+                                }
+                                /* CTA slate-900 (near-black) desaparecería sobre el
+                                   card oscuro → re-mapear a indigo de marca visible. */
+                                html[data-theme="dark"] .plan-goal-cta {
+                                    background: #4F46E5;
+                                }
+                                html[data-theme="dark"] .plan-goal-cta:hover {
+                                    background: #6366F1;
+                                }
+                                html[data-theme="dark"] .plan-goal-cta[disabled] {
+                                    background: var(--bg-muted);
+                                    color: var(--text-light);
+                                }
                             `}</style>
 
                             <h2 className={styles.sectionTitle}>
@@ -2393,7 +2597,11 @@ const Settings = () => {
                             <div className="plan-goal-card">
                                 {/* Row 1: icon + meta label/name */}
                                 <div className="plan-goal-row">
-                                    <div className="plan-goal-icon" style={{ background: _goalMeta.tint }}>
+                                    {/* [P3-EVALUATE-MODAL-DARK · 2026-05-30] En oscuro el
+                                        `tint` pastel claro (ej. #D1FAE5 menta) se veía como
+                                        un círculo brillante; usamos un tinte translúcido del
+                                        acento (~14%) cohesivo con la paleta oscura. */}
+                                    <div className="plan-goal-icon" style={{ background: _settingsDark ? `${_goalMeta.accent}24` : _goalMeta.tint }}>
                                         <_goalMeta.Icon size={30} color={_goalMeta.accent} strokeWidth={2} />
                                     </div>
                                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -2436,8 +2644,17 @@ const Settings = () => {
                                                 cursor: 'pointer',
                                             }}
                                             onClick={(e) => {
+                                                // [P3-SETTINGS-UPSELL-DEADLINK · 2026-06-01] El
+                                                // elemento id="subscription" solo se renderiza bajo
+                                                // activeSection==='subscription', mutuamente excluyente
+                                                // con la sección 'plan' donde vive este link → el
+                                                // querySelector devolvía null y el preventDefault
+                                                // mataba la navegación por hash = no-op total justo en
+                                                // el momento de conversión a pago. navigateToSection
+                                                // monta la sección de suscripción (setActiveSection +
+                                                // replaceState), patrón ya usado por el sidebar.
                                                 e.preventDefault();
-                                                document.querySelector('#subscription')?.scrollIntoView({ behavior: 'smooth' });
+                                                navigateToSection('subscription');
                                             }}
                                         >
                                             Actualiza tu suscripción para continuar
@@ -2455,10 +2672,10 @@ const Settings = () => {
                             Suscripción y Pagos
                         </h2>
                         
-                        <div style={{ 
-                            background: '#F8FAFC', 
-                            border: '1px solid #E2E8F0', 
-                            padding: '1.5rem', 
+                        <div style={{
+                            background: 'var(--bg-muted)',
+                            border: '1px solid var(--border)',
+                            padding: '1.5rem',
                             borderRadius: '1rem',
                             display: 'flex',
                             flexDirection: 'column',
@@ -2466,22 +2683,29 @@ const Settings = () => {
                         }}>
                             <div className={styles.planHeader}>
                                 <div style={{ width: '100%' }}>
-                                    <div style={{ fontSize: '0.9rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                         Plan Actual
                                     </div>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0F172A', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         {userProfile?.plan_tier === 'ultra' ? 'Ultra (Ilimitado)' : 
                                          userProfile?.plan_tier === 'plus' ? 'Plus' : 
+                                         userProfile?.plan_tier === 'basic' ? 'Básico' :
                                          userProfile?.plan_tier === 'admin' ? 'Administrador' : 'Plan Gratis'}
                                         
-                                        {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && (
-                                            <span style={{ 
-                                                fontSize: '0.75rem', 
-                                                padding: '0.2rem 0.5rem', 
-                                                background: userProfile?.subscription_status === 'CANCELLED' ? '#F1F5F9' : '#DCFCE7', 
-                                                color: userProfile?.subscription_status === 'CANCELLED' ? '#475569' : '#166534', 
-                                                borderRadius: '1rem', 
-                                                fontWeight: 600 
+                                        {isPaidSubscriber && (
+                                            <span style={{
+                                                fontSize: '0.75rem',
+                                                padding: '0.2rem 0.5rem',
+                                                /* [P3-SUBSCRIPTION-DARK · 2026-05-30] Pastilla con tinte
+                                                   translúcido en oscuro (antes #DCFCE7/#F1F5F9 claros). */
+                                                background: userProfile?.subscription_status === 'CANCELLED'
+                                                    ? (_settingsDark ? 'rgba(148, 163, 184, 0.18)' : '#F1F5F9')
+                                                    : (_settingsDark ? 'rgba(34, 197, 94, 0.16)' : '#DCFCE7'),
+                                                color: userProfile?.subscription_status === 'CANCELLED'
+                                                    ? (_settingsDark ? '#CBD5E1' : '#475569')
+                                                    : (_settingsDark ? '#4ADE80' : '#166534'),
+                                                borderRadius: '1rem',
+                                                fontWeight: 600
                                             }}>
                                                 {userProfile?.subscription_status === 'CANCELLED' ? 'Activo (Cancelada)' : 'Activo'}
                                             </span>
@@ -2489,15 +2713,18 @@ const Settings = () => {
                                     </div>
                                 </div>
                                 
-                                {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && userProfile?.subscription_status !== 'CANCELLED' && (
+                                {isPaidSubscriber && userProfile?.subscription_status !== 'CANCELLED' && (
                                     <div className={styles.planAction}>
                                         <button 
                                             onClick={handleCancelSubscription}
                                             disabled={isCancelling}
                                             style={{
-                                                background: '#FEF2F2',
-                                                color: '#DC2626',
-                                                border: '1px solid #FECACA',
+                                                /* [P3-SUBSCRIPTION-DARK · 2026-05-30] Rojo translúcido
+                                                   + texto/borde rojo-400 en oscuro (antes #FEF2F2 rosa
+                                                   claro → botón brillante y de bajo contraste). */
+                                                background: _settingsDark ? 'rgba(239, 68, 68, 0.14)' : '#FEF2F2',
+                                                color: _settingsDark ? '#F87171' : '#DC2626',
+                                                border: _settingsDark ? '1px solid rgba(248, 113, 113, 0.35)' : '1px solid #FECACA',
                                                 padding: '0.6rem 1.25rem',
                                                 borderRadius: '0.75rem',
                                                 fontWeight: 600,
@@ -2506,14 +2733,14 @@ const Settings = () => {
                                                 alignItems: 'center',
                                                 gap: '0.5rem',
                                                 transition: 'none',
-                                                boxShadow: '0 4px 12px rgba(220, 38, 38, 0.05)',
+                                                boxShadow: _settingsDark ? 'none' : '0 4px 12px rgba(220, 38, 38, 0.05)',
                                                 opacity: isCancelling ? 0.7 : 1
                                             }}
                                             onMouseOver={(e) => {
-                                                if(!isCancelling) { e.currentTarget.style.background = '#FEE2E2'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(220, 38, 38, 0.18)'; }
+                                                if(!isCancelling) { e.currentTarget.style.background = _settingsDark ? 'rgba(239, 68, 68, 0.22)' : '#FEE2E2'; e.currentTarget.style.boxShadow = _settingsDark ? '0 4px 14px rgba(0, 0, 0, 0.35)' : '0 6px 16px rgba(220, 38, 38, 0.18)'; }
                                             }}
                                             onMouseOut={(e) => {
-                                                if(!isCancelling) { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 38, 38, 0.05)'; }
+                                                if(!isCancelling) { e.currentTarget.style.background = _settingsDark ? 'rgba(239, 68, 68, 0.14)' : '#FEF2F2'; e.currentTarget.style.boxShadow = _settingsDark ? 'none' : '0 4px 12px rgba(220, 38, 38, 0.05)'; }
                                             }}
                                         >
                                             {isCancelling ? 'Cancelando...' : 'Cancelar Suscripción'}
@@ -2522,15 +2749,17 @@ const Settings = () => {
                                 )}
                             </div>
                             
-                            {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && userProfile?.subscription_status === 'CANCELLED' && (
-                                <div style={{ 
-                                    display: 'flex', 
-                                    gap: '0.75rem', 
-                                    background: '#EFF6FF', 
-                                    padding: '1rem', 
+                            {isPaidSubscriber && userProfile?.subscription_status === 'CANCELLED' && (
+                                <div style={{
+                                    display: 'flex',
+                                    gap: '0.75rem',
+                                    /* [P3-SUBSCRIPTION-DARK · 2026-05-30] Azul translúcido
+                                       en oscuro (antes #EFF6FF claro → bloque brillante). */
+                                    background: _settingsDark ? 'rgba(59, 130, 246, 0.12)' : '#EFF6FF',
+                                    padding: '1rem',
                                     borderRadius: '0.75rem',
-                                    border: '1px solid #BFDBFE',
-                                    color: '#1E3A8A',
+                                    border: _settingsDark ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid #BFDBFE',
+                                    color: _settingsDark ? '#93C5FD' : '#1E3A8A',
                                     fontSize: '0.85rem',
                                     marginTop: '0.5rem'
                                 }}>
@@ -2541,15 +2770,17 @@ const Settings = () => {
                                 </div>
                             )}
 
-                            {userProfile?.plan_tier !== 'gratis' && userProfile?.plan_tier !== 'admin' && userProfile?.subscription_status !== 'CANCELLED' && (
-                                <div style={{ 
-                                    display: 'flex', 
-                                    gap: '0.75rem', 
-                                    background: '#FFFBEB', 
-                                    padding: '1rem', 
+                            {isPaidSubscriber && userProfile?.subscription_status !== 'CANCELLED' && (
+                                <div style={{
+                                    display: 'flex',
+                                    gap: '0.75rem',
+                                    /* [P3-SUBSCRIPTION-DARK · 2026-05-30] Ámbar translúcido
+                                       en oscuro (antes #FFFBEB crema → bloque brillante). */
+                                    background: _settingsDark ? 'rgba(245, 158, 11, 0.12)' : '#FFFBEB',
+                                    padding: '1rem',
                                     borderRadius: '0.75rem',
-                                    border: '1px solid #FEF3C7',
-                                    color: '#B45309',
+                                    border: _settingsDark ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid #FEF3C7',
+                                    color: _settingsDark ? '#FCD34D' : '#B45309',
                                     fontSize: '0.85rem',
                                     marginTop: '0.5rem'
                                 }}>
@@ -2560,9 +2791,41 @@ const Settings = () => {
                                 </div>
                             )}
                             
-                            {userProfile?.plan_tier === 'gratis' && (
-                                <div style={{ fontSize: '0.9rem', color: '#475569' }}>
-                                    Actualmente estás en el plan gratis. Puedes mejorar tu plan explorando más funcionalidades de la app.
+                            {!isPaidSubscriber && userProfile?.plan_tier !== 'admin' && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
+                                        Estás en el <strong>Plan Gratis</strong>. No tienes ninguna suscripción activa que cancelar. Mejora tu plan para desbloquear más planes al mes, memoria a largo plazo y funciones premium.
+                                    </div>
+                                    <button
+                                        onClick={() => navigate('/dashboard/upgrade')}
+                                        style={{
+                                            alignSelf: 'flex-start',
+                                            background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+                                            color: '#FFFFFF',
+                                            border: 'none',
+                                            padding: '0.6rem 1.25rem',
+                                            borderRadius: '0.75rem',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)',
+                                            // [2026-05-29] Mismo hover que los demás botones:
+                                            // anillo interno nítido + brillo.
+                                            transition: 'box-shadow 0.15s ease, filter 0.15s ease',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(79, 70, 229, 0.25), inset 0 0 0 1.5px rgba(255,255,255,0.45)';
+                                            e.currentTarget.style.filter = 'brightness(1.08)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(79, 70, 229, 0.25)';
+                                            e.currentTarget.style.filter = 'none';
+                                        }}
+                                    >
+                                        <Zap size={16} /> Mejorar mi plan
+                                    </button>
                                 </div>
                             )}
                         </div>

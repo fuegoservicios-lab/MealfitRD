@@ -1,9 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, User, Menu, X, Clock, Bot, Refrigerator, Home, ChevronUp, ChevronRight, Crown } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, User, Menu, X, Clock, Refrigerator, Home, ChevronUp, ChevronRight, Crown } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
+import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
+// [P3-DASH-MODALS-A11Y · 2026-05-30] Hook SSOT de a11y (ESC + focus-trap +
+// restore + body-overflow) para el "Mobile More Menu" — overlay full-screen
+// con acción destructiva (Cerrar Sesión) que era el único surface modal-like
+// del layout sin estas defensas (el popover de cuenta desktop ya tiene ESC +
+// click-outside).
+import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import LogoutConfirmModal from './LogoutConfirmModal';
 import BottomTabBar from './BottomTabBar';
 // [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al hover/touch
@@ -49,12 +56,23 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const toggleMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
     const closeMenu = () => setIsMobileMenuOpen(false);
 
+    // [P3-DASH-MODALS-A11Y · 2026-05-30] onClose memoizado + hook de a11y del
+    // "Mobile More Menu". Identidad estable de onClose → el effect del hook no se
+    // re-arma en cada render (misma lección que P2-DASH-SCAN-ONCLOSE-MEMO). Da
+    // ESC para cerrar, focus-trap (Tab no escapa al fondo) y restore-focus al
+    // trigger. Conserva `role="menu"` — el hook NO toca el DOM, solo gestiona foco.
+    const closeMoreMenu = useCallback(() => setIsMobileMoreMenuOpen(false), []);
+    const { containerRef: moreMenuRef } = useModalAccessibility({
+        isOpen: isMobileMoreMenuOpen,
+        onClose: closeMoreMenu,
+    });
+
     // Settings funciona como página standalone (sin sidebar global ni BottomTabBar).
     const isSettings = location.pathname.startsWith('/dashboard/settings');
 
     const menuItems = [
         { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
-        { icon: Bot, label: 'Agente', path: '/dashboard/agent' },
+        { icon: AgentIcon, label: 'Agente', path: '/dashboard/agent' },
         { icon: Refrigerator, label: 'Nevera', path: '/dashboard/pantry', iconStroke: 2.25 },
         { icon: RecipesIcon, label: 'Recetas', path: '/dashboard/recipes' }, // Placeholder
         { icon: Clock, label: 'Historial', path: '/history' },
@@ -307,13 +325,13 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 <>
                     <div
                         className={styles.mobileMoreOverlay}
-                        onClick={() => setIsMobileMoreMenuOpen(false)}
+                        onClick={closeMoreMenu}
                     />
-                    <div className={styles.mobileMoreMenu} role="menu">
+                    <div className={styles.mobileMoreMenu} role="menu" ref={moreMenuRef} tabIndex={-1}>
                         <Link
                             to="/dashboard/settings"
                             className={styles.mobileMoreItem}
-                            onClick={() => setIsMobileMoreMenuOpen(false)}
+                            onClick={closeMoreMenu}
                             onTouchStart={() => prefetchRoute('/dashboard/settings')}
                             role="menuitem"
                         >
@@ -323,7 +341,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         <Link
                             to="/"
                             className={styles.mobileMoreItem}
-                            onClick={() => setIsMobileMoreMenuOpen(false)}
+                            onClick={closeMoreMenu}
                             role="menuitem"
                         >
                             <Home size={18} strokeWidth={2.5} />
@@ -332,7 +350,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         <button
                             className={`${styles.mobileMoreItem} ${styles.mobileMoreItemDanger}`}
                             onClick={() => {
-                                setIsMobileMoreMenuOpen(false);
+                                closeMoreMenu();
                                 setShowLogoutModal(true);
                             }}
                             role="menuitem"

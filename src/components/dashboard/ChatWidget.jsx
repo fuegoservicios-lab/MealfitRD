@@ -1,10 +1,85 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { useAssessment } from '../../context/AssessmentContext';
 import { Send, Bot, User, Loader2, Sparkles, MessageSquare, History, Plus, ArrowLeft } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
 // [P3-LAZY-MARKDOWN · 2026-05-12] react-markdown ahora lazy via wrapper.
 import LazyMarkdown from '../common/LazyMarkdown';
 import { safeJSONParse } from '../../utils/safeJSONParse';
+
+// [P2-CHATWIDGET-BUBBLE-MEMO · 2026-05-31] Burbuja de mensaje memoizada.
+// Pre-fix, durante el streaming SSE cada token actualizaba `messages` (nuevo
+// array por chunk) → re-render de TODO el `messages.map(...)` → cada
+// <LazyMarkdown> re-corría el pipeline remark→hast→React + rehype-sanitize
+// sobre el contenido de TODOS los mensajes, no solo el que crece. Con React.memo
+// + comparator por content/role/imagen, solo la burbuja cuyo contenido cambió
+// re-renderiza (la burbuja en streaming). Espejo de MemoizedMessageBubble
+// (components/agent/MessageBubble.jsx). El componente solo depende de `msg`
+// (no cierra sobre state del ChatWidget) → seguro a nivel de módulo.
+const ChatWidgetBubble = memo(function ChatWidgetBubble({ msg }) {
+    return (
+        <div style={{
+            display: 'flex',
+            gap: '0.75rem',
+            flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+            alignItems: 'flex-end'
+        }}>
+            {/* Avatar */}
+            {msg.role === 'model' && (
+                <div style={{
+                    width: 32, height: 32, borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'white', flexShrink: 0
+                }}>
+                    <Sparkles size={16} />
+                </div>
+            )}
+
+            {/* Bubble */}
+            <div style={{
+                maxWidth: '75%',
+                padding: '0.85rem 1rem',
+                borderRadius: msg.role === 'user'
+                    ? '1rem 1rem 0 1rem'
+                    : '1rem 1rem 1rem 0',
+                background: msg.role === 'user' ? '#3B82F6' : 'var(--bg-card)',
+                color: msg.role === 'user' ? 'white' : 'var(--text-main)',
+                border: msg.role === 'model' ? '1px solid var(--border)' : 'none',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                fontSize: '0.95rem',
+                lineHeight: 1.5,
+                whiteSpace: 'pre-wrap'
+            }}>
+                {msg.isImage && msg.imageUrl && (
+                    <div style={{ marginBottom: msg.content ? '0.5rem' : 0 }}>
+                        <img
+                            src={msg.imageUrl}
+                            alt="Imagen enviada"
+                            style={{
+                                maxWidth: '220px',
+                                width: '100%',
+                                borderRadius: '0.5rem',
+                                maxHeight: '220px',
+                                objectFit: 'cover',
+                                display: 'block'
+                            }}
+                        />
+                    </div>
+                )}
+                {msg.content && msg.content !== '📷 Imagen enviada' && (
+                    <div className="markdown-chat">
+                        <LazyMarkdown>{msg.content}</LazyMarkdown>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}, (prev, next) =>
+    prev.msg.content === next.msg.content &&
+    prev.msg.role === next.msg.role &&
+    prev.msg.isImage === next.msg.isImage &&
+    prev.msg.imageUrl === next.msg.imageUrl
+);
 // [P2-NEW-LOCALSTORAGE-MIGRATION-DEBT · 2026-05-15] Migración mecánica de
 // `localStorage.setItem` raw a `safeLocalStorageSet` (P2-AUDIT-3 helper).
 // QuotaExceededError silente (iOS Private Mode, cuota llena) interrumpía
@@ -110,20 +185,13 @@ const ChatWidget = () => {
         }
     }, [messages, isOpen, showHistory]);
 
-    // Cargar sesiones al abrir el chat (si está logueado)
-    useEffect(() => {
-        if (isOpen && userProfile?.id) {
-            fetchChatSessions();
-        }
-    }, [isOpen, userProfile?.id, fetchChatSessions]);
-
-    // Cargar historial de mensajes cuando cambia la sesión
-    useEffect(() => {
-        if (isOpen) {
-            fetchSessionMessages(currentSessionId);
-        }
-    }, [currentSessionId, isOpen, fetchSessionMessages]);
-
+    // [P3-CHATWIDGET-TDZ-REORDER · 2026-06-01] Los dos useEffect que consumían
+    // fetchChatSessions / fetchSessionMessages se movieron DEBAJO de sus useCallback
+    // (ver abajo) para eliminar la TDZ: el deps array es un argumento evaluado en la
+    // llamada useEffect() durante el render, así que referenciar un `const` (useCallback)
+    // declarado más abajo lanzaba ReferenceError si este componente llegara a montarse.
+    // Hoy es dead code (0 imports, tree-shaken; el chat real vive en AgentPage.jsx) pero
+    // dejar el trap latente crasheaba a cualquier dev que re-montara <ChatWidget/>.
     const fetchChatSessions = useCallback(async () => {
         try {
             const userId = session?.user?.id || userProfile?.id || localSessionId;
@@ -213,6 +281,22 @@ const ChatWidget = () => {
             setIsLoadingHistory(false);
         }
     }, []);
+
+    // [P3-CHATWIDGET-TDZ-REORDER · 2026-06-01] useEffects movidos aquí, DEBAJO de sus
+    // useCallback (fetchChatSessions/fetchSessionMessages), para eliminar la TDZ.
+    // Cargar sesiones al abrir el chat (si está logueado)
+    useEffect(() => {
+        if (isOpen && userProfile?.id) {
+            fetchChatSessions();
+        }
+    }, [isOpen, userProfile?.id, fetchChatSessions]);
+
+    // Cargar historial de mensajes cuando cambia la sesión
+    useEffect(() => {
+        if (isOpen) {
+            fetchSessionMessages(currentSessionId);
+        }
+    }, [currentSessionId, isOpen, fetchSessionMessages]);
 
     const handleNewChat = () => {
         setCurrentSessionId(crypto.randomUUID());
@@ -378,10 +462,10 @@ const ChatWidget = () => {
             <div style={{
                 width: '380px',
                 height: '500px',
-                background: 'white',
+                background: 'var(--bg-card)',
                 borderRadius: '1.5rem',
                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                border: '1px solid #E2E8F0',
+                border: '1px solid var(--border)',
                 display: isOpen ? 'flex' : 'none',
                 flexDirection: 'column',
                 overflow: 'hidden',
@@ -468,9 +552,9 @@ const ChatWidget = () => {
 
                 {/* Área Principal (Historial o Chat) */}
                 {showHistory ? (
-                    <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', background: '#F8FAFC', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', background: 'var(--bg-page)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         {chatSessions.length === 0 ? (
-                            <div style={{ textAlign: 'center', color: '#64748B', marginTop: '2rem', fontSize: '0.9rem' }}>
+                            <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '2rem', fontSize: '0.9rem' }}>
                                 No tienes chats anteriores.
                             </div>
                         ) : (
@@ -485,8 +569,8 @@ const ChatWidget = () => {
                                         width: '100%',
                                         textAlign: 'left',
                                         padding: '1rem',
-                                        background: currentSessionId === s.id ? '#E0E7FF' : 'white',
-                                        border: currentSessionId === s.id ? '1px solid #818CF8' : '1px solid #E2E8F0',
+                                        background: currentSessionId === s.id ? '#E0E7FF' : 'var(--bg-card)',
+                                        border: currentSessionId === s.id ? '1px solid #818CF8' : '1px solid var(--border)',
                                         borderRadius: '0.75rem',
                                         cursor: 'pointer',
                                         transition: 'all 0.2s',
@@ -494,13 +578,13 @@ const ChatWidget = () => {
                                         flexDirection: 'column',
                                         gap: '0.25rem'
                                     }}
-                                    onMouseOver={e => { if (currentSessionId !== s.id) e.currentTarget.style.borderColor = '#94A3B8'; }}
-                                    onMouseOut={e => { if (currentSessionId !== s.id) e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                                    onMouseOver={e => { if (currentSessionId !== s.id) e.currentTarget.style.borderColor = 'var(--text-light)'; }}
+                                    onMouseOut={e => { if (currentSessionId !== s.id) e.currentTarget.style.borderColor = 'var(--border)'; }}
                                 >
-                                    <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1E293B' }}>
+                                    <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>
                                         {s.title ? s.title.replace(/\[?\(Hora actual del usuario:.*?\)?\]?/gi, '').replace(/Mensaje del usuario:\s*/gi, '').trim() || 'Nuevo chat' : 'Nuevo chat'}
                                     </span>
-                                    <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                         {new Date(s.created_at).toLocaleDateString()} {new Date(s.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                     </span>
                                 </button>
@@ -517,70 +601,19 @@ const ChatWidget = () => {
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '1.25rem',
-                            background: '#F8FAFC'
+                            background: 'var(--bg-page)'
                         }}>
                             {isLoadingHistory ? (
-                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#94A3B8', gap: '0.5rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-light)', gap: '0.5rem' }}>
                                     <Loader2 className="spin-fast" size={20} /> Cargando mensajes...
                                 </div>
                             ) : (
+                                // [P2-CHATWIDGET-BUBBLE-MEMO · 2026-05-31]
+                                // Burbuja memoizada (def. al tope del módulo) →
+                                // el streaming re-parsea markdown solo de la
+                                // burbuja que crece, no de todas.
                                 messages.map((msg, i) => (
-                                    <div key={i} style={{
-                                        display: 'flex',
-                                        gap: '0.75rem',
-                                        flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-                                        alignItems: 'flex-end'
-                                    }}>
-                                        {/* Avatar */}
-                                        {msg.role === 'model' && (
-                                            <div style={{
-                                                width: 32, height: 32, borderRadius: '50%',
-                                                background: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                color: 'white', flexShrink: 0
-                                            }}>
-                                                <Sparkles size={16} />
-                                            </div>
-                                        )}
-
-                                        {/* Bubble */}
-                                        <div style={{
-                                            maxWidth: '75%',
-                                            padding: '0.85rem 1rem',
-                                            borderRadius: msg.role === 'user'
-                                                ? '1rem 1rem 0 1rem'
-                                                : '1rem 1rem 1rem 0',
-                                            background: msg.role === 'user' ? '#3B82F6' : 'white',
-                                            color: msg.role === 'user' ? 'white' : '#1E293B',
-                                            border: msg.role === 'model' ? '1px solid #E2E8F0' : 'none',
-                                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                                            fontSize: '0.95rem',
-                                            lineHeight: 1.5,
-                                            whiteSpace: 'pre-wrap'
-                                        }}>
-                                            {msg.isImage && msg.imageUrl && (
-                                                <div style={{ marginBottom: msg.content ? '0.5rem' : 0 }}>
-                                                    <img 
-                                                        src={msg.imageUrl} 
-                                                        alt="Imagen enviada" 
-                                                        style={{ 
-                                                            maxWidth: '220px', 
-                                                            width: '100%',
-                                                            borderRadius: '0.5rem', 
-                                                            maxHeight: '220px', 
-                                                            objectFit: 'cover',
-                                                            display: 'block'
-                                                        }} 
-                                                    />
-                                                </div>
-                                            )}
-                                            {msg.content && msg.content !== '📷 Imagen enviada' && (
-                                                <div className="markdown-chat">
-                                                    <LazyMarkdown>{msg.content}</LazyMarkdown>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
+                                    <ChatWidgetBubble key={i} msg={msg} />
                                 ))
                             )}
                             {isLoading && (
@@ -593,7 +626,7 @@ const ChatWidget = () => {
                                     }}>
                                         <Sparkles size={16} />
                                     </div>
-                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', color: '#64748B', fontSize: '0.9rem' }}>
+                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                                         <Loader2 className="spin-fast" size={16} color="#8B5CF6" />
                                         <span style={{
                                             background: 'linear-gradient(90deg, #64748B 0%, #94A3B8 50%, #64748B 100%)',
@@ -612,15 +645,15 @@ const ChatWidget = () => {
                         {/* Input Area */}
                         <div style={{
                             padding: '1rem',
-                            background: 'white',
-                            borderTop: '1px solid #E2E8F0',
+                            background: 'var(--bg-card)',
+                            borderTop: '1px solid var(--border)',
                         }}>
                             <div style={{
                                 display: 'flex',
-                                background: '#F1F5F9',
+                                background: 'var(--bg-muted)',
                                 borderRadius: '1.5rem',
                                 padding: '0.25rem',
-                                border: '1px solid #E2E8F0',
+                                border: '1px solid var(--border)',
                             }}>
                                 <input
                                     type="text"
@@ -636,7 +669,7 @@ const ChatWidget = () => {
                                         padding: '0.75rem 1rem',
                                         fontSize: '0.95rem',
                                         outline: 'none',
-                                        color: '#1E293B'
+                                        color: 'var(--text-main)'
                                     }}
                                 />
                                 <button
@@ -659,7 +692,7 @@ const ChatWidget = () => {
                                     <Send size={18} />
                                 </button>
                             </div>
-                            <div style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.7rem', color: '#94A3B8' }}>
+                            <div style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--text-light)' }}>
                                 La IA puede cometer errores. Considera verificar la información.
                             </div>
                         </div>

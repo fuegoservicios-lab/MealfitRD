@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Instagram, Youtube, Facebook } from 'lucide-react';
+import { Instagram, Youtube, Facebook, Mail, Clock } from 'lucide-react';
 import styles from './Footer.module.css';
 
 // [P3-LEGAL-BACK-LINK · 2026-05-26 · 4ª iter] Si el path actual es una
@@ -72,6 +72,24 @@ const Footer = () => {
                     <Link to="/terms" state={{ from: fromPath }}>Términos de Servicio</Link>
                     <Link to="/cookies" state={{ from: fromPath }}>Política de Cookies</Link>
                     <Link to="/medical" state={{ from: fromPath }}>Aviso Médico</Link>
+                </div>
+
+                {/* [P3-FOOTER-SUPPORT · 2026-05-31] Contacto directo de soporte
+                    en un clic (antes solo alcanzable enterrado en las legales /
+                    en la página Upgrade). Mismo email canónico que Upgrade.jsx. */}
+                <div className={styles.col}>
+                    <h4>Soporte</h4>
+                    <p className={styles.supportIntro}>¿Dudas o problemas? Estamos para ayudarte.</p>
+                    <a href="mailto:fuego.servicios@gmail.com" className={styles.supportLink}>
+                        <span className={styles.supportIcon} aria-hidden="true">
+                            <Mail size={16} strokeWidth={2.25} />
+                        </span>
+                        fuego.servicios@gmail.com
+                    </a>
+                    <p className={styles.supportNote}>
+                        <Clock size={13} strokeWidth={2.25} aria-hidden="true" />
+                        Respondemos en menos de 24 horas
+                    </p>
                 </div>
 
                 <div className={styles.bottom}>

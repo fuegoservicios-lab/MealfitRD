@@ -1,12 +1,36 @@
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, FlaskConical, Wallet, Bot, ShieldCheck, Unlock, Utensils, Activity, TrendingUp, ChevronRight, PlayCircle } from 'lucide-react';
+import { ArrowRight, FlaskConical, Wallet, Bot, ShieldCheck, Unlock, Utensils, Activity, TrendingUp, ChevronRight } from 'lucide-react';
 import styles from './Hero.module.css';
 import { useAssessment } from '../../context/AssessmentContext';
+import { useHeroCta } from '../../context/HeroCtaContext';
 import heroBg from '../../assets/hero-bg.webp';
 
 const Hero = () => {
     const { planData } = useAssessment();
+    const { setHeroCtaVisible } = useHeroCta();
+    const ctaRef = useRef(null);
+
+    // [HEADER-STICKY-CTA · 2026-05-31] Reporta al Header (vía contexto) si el CTA
+    // principal del Hero está en pantalla. El rootMargin top negativo ≈ altura del
+    // header fixed (70px) para que el Header revele su CTA sticky justo cuando este
+    // botón se desliza por detrás del header — no cuando toca el borde del viewport.
+    useEffect(() => {
+        const el = ctaRef.current;
+        if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+        const observer = new IntersectionObserver(
+            ([entry]) => setHeroCtaVisible(entry.isIntersecting),
+            { rootMargin: '-72px 0px 0px 0px', threshold: 0 }
+        );
+        observer.observe(el);
+        return () => {
+            observer.disconnect();
+            // Al desmontar (salir del landing) reseteamos a "visible" para que el
+            // sticky arranque oculto la próxima vez que se monte el Hero.
+            setHeroCtaVisible(true);
+        };
+    }, [setHeroCtaVisible]);
 
     return (
         <section
@@ -35,7 +59,7 @@ const Hero = () => {
                             La IA que crea tu plan de comida basado en <strong>tus gustos</strong>, tu presupuesto y tu día a día. Comer bien nunca fue tan fácil.
                         </p>
 
-                        <div className={styles.actions}>
+                        <div className={styles.actions} ref={ctaRef}>
                             {planData ? (
                                 <Link
                                     to="/dashboard"
@@ -48,14 +72,12 @@ const Hero = () => {
                                     Crear mi Plan Ahora <ChevronRight size={20} />
                                 </Link>
                             )}
-
-
                         </div>
 
                         <div className={styles.trust}>
                             <div className={styles.trustItem}>
                                 <FlaskConical size={16} className={styles.trustIcon} strokeWidth={2.25} />
-                                <span>100% Basado en Ciencia</span>
+                                <span>Fundamentado en Ciencia</span>
                             </div>
                             <div className={styles.trustItem}>
                                 <Bot size={16} className={styles.trustIcon} strokeWidth={2.25} />
@@ -90,50 +112,49 @@ const Hero = () => {
 
                         {/* Floating Interaction Cards */}
 
+                        {/* [P2-HERO-STATIC-CARDS · 2026-05-31] Tarjetas ESTÁTICAS.
+                            El CSS (Hero.module.css) ya declaró 'se quitó la flotación
+                            continua que no gustó', pero el JSX seguía con
+                            animate={{y:[...]}} repeat:Infinity → seguían oscilando en
+                            prod (framer-motion escribe transform inline vía WAAPI, que
+                            el guard global prefers-reduced-motion de CSS NO neutraliza).
+                            Ahora son <div> estáticos: cumplen la intención del equipo y
+                            cierran la fuga de reduced-motion. Los tints del iconBox
+                            pasan a CSS custom props para que el dark-theme los pueda
+                            re-mapear (antes inline > stylesheet = parche claro en dark). */}
+
                         {/* Card 1: Meals */}
-                        <motion.div
-                            className={`${styles.floatCard} ${styles.floatCard1}`}
-                            animate={{ y: [-10, 10, -10] }}
-                            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                        >
-                            <div className={styles.iconBox} style={{ background: '#EFF6FF', color: '#2563EB' }}>
+                        <div className={`${styles.floatCard} ${styles.floatCard1}`}>
+                            <div className={styles.iconBox} style={{ '--icon-bg': '#EFF6FF', '--icon-fg': '#2563EB' }}>
                                 <Utensils size={24} />
                             </div>
                             <div className={styles.cardText}>
                                 <strong>Almuerzo Ideal</strong>
                                 <small>600 kcal • 30g Prot</small>
                             </div>
-                        </motion.div>
+                        </div>
 
                         {/* Card 2: Health */}
-                        <motion.div
-                            className={`${styles.floatCard} ${styles.floatCard2}`}
-                            animate={{ y: [10, -10, 10] }}
-                            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                        >
-                            <div className={styles.iconBox} style={{ background: '#ECFDF5', color: '#10B981' }}>
+                        <div className={`${styles.floatCard} ${styles.floatCard2}`}>
+                            <div className={styles.iconBox} style={{ '--icon-bg': '#ECFDF5', '--icon-fg': '#10B981' }}>
                                 <Activity size={24} />
                             </div>
                             <div className={styles.cardText}>
                                 <strong>Salud Optimizada</strong>
                                 <small>Metabolismo activo</small>
                             </div>
-                        </motion.div>
+                        </div>
 
                         {/* Card 3: Progress */}
-                        <motion.div
-                            className={`${styles.floatCard} ${styles.floatCard3}`}
-                            animate={{ y: [-5, 5, -5] }}
-                            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                        >
-                            <div className={styles.iconBox} style={{ background: '#FFF7ED', color: '#F97316' }}>
+                        <div className={`${styles.floatCard} ${styles.floatCard3}`}>
+                            <div className={styles.iconBox} style={{ '--icon-bg': '#FFF7ED', '--icon-fg': '#F97316' }}>
                                 <TrendingUp size={24} />
                             </div>
                             <div className={styles.cardText}>
                                 <strong>Progreso Real</strong>
                                 <small>Objetivo: -2kg/mes</small>
                             </div>
-                        </motion.div>
+                        </div>
                     </div>
                 </motion.div>
             </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, ArrowRight, AlertCircle, CheckCircle2, Loader2, Eye, EyeOff } from 'lucide-react';
@@ -13,6 +13,7 @@ const ResetPassword = () => {
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
+    const redirectTimerRef = useRef(null);
 
     useEffect(() => {
         // Verificar si estamos en una sesión de recuperación (Supabase la establece por URL)
@@ -25,6 +26,12 @@ const ResetPassword = () => {
             }
         };
         checkSession();
+    }, []);
+
+    // [P4-RESET-TIMER] Limpia el timer de redirect si el usuario desmonta antes de los 2s
+    // (evita navigation-hijack: navigate('/') disparándose tras abandonar la página).
+    useEffect(() => () => {
+        if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
     }, []);
 
     const handleUpdatePassword = async (e) => {
@@ -65,7 +72,7 @@ const ResetPassword = () => {
             if (error) throw error;
             
             setSuccessMessage('Contraseña actualizada exitosamente. Redirigiendo...');
-            setTimeout(() => {
+            redirectTimerRef.current = setTimeout(() => {
                 navigate('/');
             }, 2000);
         } catch (err) {

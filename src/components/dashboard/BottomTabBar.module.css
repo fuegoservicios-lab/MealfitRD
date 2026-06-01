@@ -84,4 +84,21 @@
         background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 100%);
         border-radius: 0 0 2px 2px;
     }
+
+    /* [APPEARANCE-THEME · 2026-05-28] Tab bar oscura: superficie slate
+       translúcida + activo en indigo aclarado. */
+    :global(html[data-theme="dark"]) .tabBar {
+        background: rgba(11, 17, 32, 0.92);
+        border-top: 1px solid var(--border);
+        box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.45);
+    }
+    :global(html[data-theme="dark"]) .tab {
+        color: var(--text-light);
+    }
+    :global(html[data-theme="dark"]) .tabActive {
+        color: var(--primary-light);
+    }
+    :global(html[data-theme="dark"]) .activeIndicator {
+        background: linear-gradient(90deg, var(--primary-light) 0%, #A78BFA 100%);
+    }
 }

@@ -12,7 +12,7 @@ const steps = [
     {
         icon: Cpu,
         title: "IA de Alta Potencia",
-        desc: "Nuestro motor hiperavanzado procesa millones de variables nutricionales en segundos para armar tu plan perfecto.",
+        desc: "Nuestro motor procesa tu perfil completo —preferencias, presupuesto, restricciones y objetivos— en segundos para armar tu plan a medida.",
         color: "#8B5CF6",
         bg: "rgba(139, 92, 246, 0.15)"
     },

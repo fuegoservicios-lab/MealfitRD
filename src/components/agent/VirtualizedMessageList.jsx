@@ -14,9 +14,18 @@
 //   - Scroll-anchoring "stick to bottom unless user scrolled up" es
 //     trivial con Virtuoso (`followOutput="auto"`); con react-window
 //     requiere ~80-100 líneas de lógica con riesgo de regresión.
-//   - Bundle ~28KB gzip vs react-window 5KB. Acceptable: el componente
-//     se carga via lazy() cuando se cruza el threshold, no en el
-//     primer render del Agente.
+//   - Bundle ~28KB gzip vs react-window 5KB. Acceptable porque el
+//     componente se carga via lazy() cuando se cruza el threshold, NO en
+//     el primer render del Agente.
+//
+// [P2-AGENT-VIRTUOSO-LAZY · 2026-05-31] El lazy() prometido arriba ahora SÍ
+// está implementado: AgentPage importa este módulo via
+// `lazy(() => import('./VirtualizedMessageList'))` (default export abajo) y
+// lee el threshold desde `./virtualizeThreshold` (módulo liviano sin
+// react-virtuoso). Pre-fix el `import { VirtualizedMessageList,
+// VIRTUALIZE_THRESHOLD }` era estático → react-virtuoso caía en el chunk de
+// AgentPage para el 100% de los usuarios del chat. Ahora solo se baja en
+// sesiones >100 msgs. Espejo del patrón LazyMarkdown.jsx.
 //
 // Threshold: render virtualizado solo cuando `messages.length >
 // VIRTUALIZE_THRESHOLD` (default 100). Para sesiones cortas (99% del
@@ -32,8 +41,12 @@ import React from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { Loader2 } from 'lucide-react';
 import { MemoizedMessageBubble } from './MessageBubble';
+// [P2-AGENT-VIRTUOSO-LAZY · 2026-05-31] El threshold vive en su propio módulo
+// liviano para que AgentPage lo lea sin importar este archivo (y con él
+// react-virtuoso). Re-exportado aquí para back-compat de cualquier importador.
+import { VIRTUALIZE_THRESHOLD } from './virtualizeThreshold';
 
-export const VIRTUALIZE_THRESHOLD = 100;
+export { VIRTUALIZE_THRESHOLD };
 
 const ItemContent = ({ msg, index, currentSessionId, onRegenerate, onErrorRetry }) => (
     <div style={{ paddingBottom: '2rem' }}>
@@ -64,7 +77,7 @@ export const VirtualizedMessageList = ({
                 display: 'flex',
                 gap: '0.75rem',
                 alignItems: 'center',
-                color: '#475569',
+                color: 'var(--text-muted)',
                 padding: '0.5rem 0 0.5rem 1.5rem',
                 marginBottom: '3.5rem',
                 fontSize: '0.95rem',

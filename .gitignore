@@ -49,3 +49,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# [P3-PWA · 2026-05-30] backups manuales (`_backup` no lo cubre `*.bak*`)
+*_backup.*

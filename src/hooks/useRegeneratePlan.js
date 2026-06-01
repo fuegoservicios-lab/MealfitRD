@@ -175,7 +175,12 @@ export const useRegeneratePlan = () => {
                 const planDaysToCheck = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
 
                 planDaysToCheck.forEach(day => {
-                    day.meals.forEach(meal => {
+                    // [P2-CALC-INGREDIENTS-MEALS-GUARD · 2026-05-30] Guard
+                    // simétrico al backend: un día parcial/chunked sin `meals`
+                    // array haría `day.meals.forEach` lanzar TypeError y romper
+                    // la regeneración. Mismo fix que shoppingHelpers.js.
+                    const _meals = (day && Array.isArray(day.meals)) ? day.meals : [];
+                    _meals.forEach(meal => {
                         if (meal && meal.name) previousMeals.push(meal.name);
                     });
                 });

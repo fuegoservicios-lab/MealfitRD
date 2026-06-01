@@ -2,6 +2,7 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Loader2 } from 'lucide-react';
 import Modal from './Modal';
+import { isDarkActive } from '../../utils/theme';
 
 const OptionPickerModal = ({
     isOpen,
@@ -35,6 +36,9 @@ const OptionPickerModal = ({
     // `onMouseLeave`.
     const [activeOption, setActiveOption] = useState(null);
     const [pinnedInfoOption, setPinnedInfoOption] = useState(null);
+    // [APPEARANCE-THEME · 2026-05-29] En oscuro, los `option.bg` pastel claros
+    // se ven brillosos → derivamos un tinte translúcido del color del option.
+    const isDark = isDarkActive();
 
     return (
         <Modal
@@ -51,13 +55,13 @@ const OptionPickerModal = ({
                     <div style={{ background: headerIcon.bg || '#DCFCE7', color: headerIcon.color || '#16A34A', padding: '0.75rem', borderRadius: '50%' }}>
                         {headerIcon.icon}
                     </div>
-                    <h3 id="option-picker-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0F172A' }}>
+                    <h3 id="option-picker-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)' }}>
                         {title}
                     </h3>
                 </div>
             ) : (
                 <div style={{ marginBottom: '0.5rem' }}>
-                    <h3 id="option-picker-modal-title" style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.02em' }}>
+                    <h3 id="option-picker-modal-title" style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', margin: 0, letterSpacing: '-0.02em' }}>
                         {title}
                     </h3>
                 </div>
@@ -66,7 +70,7 @@ const OptionPickerModal = ({
             {subtitle && (
                 <div style={{
                     fontSize: headerIcon ? '0.95rem' : '0.86rem',
-                    color: '#64748B',
+                    color: 'var(--text-muted)',
                     margin: headerIcon ? '0 0 2rem 0' : '0 0 1.25rem 0',
                     fontWeight: 500,
                     lineHeight: headerIcon ? 1.6 : 1.4
@@ -90,18 +94,28 @@ const OptionPickerModal = ({
                     const isLoading = isNavigatingOption === option.id;
                     const isFaded = !!isNavigatingOption && !isLoading;
 
+                    // Color base del option para derivar tintes en oscuro.
+                    const _accent = option.color || '#64748B';
                     const cardBg = option.disabled
-                        ? '#F8FAFC'
-                        : (isHovered && !isDisabled ? (option.hoverBg || option.bg || '#F8FAFC') : (option.bg || '#F8FAFC'));
+                        ? 'var(--bg-muted)'
+                        : isDark
+                            // Tinte translúcido del acento (hex + alpha): ~10% normal, ~18% hover.
+                            ? (isHovered && !isDisabled ? `${_accent}24` : `${_accent}1A`)
+                            : (isHovered && !isDisabled ? (option.hoverBg || option.bg || 'var(--bg-muted)') : (option.bg || 'var(--bg-muted)'));
 
                     const cardBorder = option.disabled
-                        ? '#E2E8F0'
-                        : (isHovered && !isDisabled
-                            ? (headerIcon ? (option.hoverBorder || option.color || '#3B82F6') : (option.color || option.border || '#E2E8F0'))
-                            : (option.border || '#E2E8F0'));
+                        ? 'var(--border)'
+                        : isDark
+                            ? (isHovered && !isDisabled ? _accent : `${_accent}40`)
+                            : (isHovered && !isDisabled
+                                ? (headerIcon ? (option.hoverBorder || option.color || '#3B82F6') : (option.color || option.border || 'var(--border)'))
+                                : (option.border || 'var(--border)'));
 
+                    // [APPEARANCE-THEME · 2026-05-29] En oscuro el glow usaba
+                    // `option.border` (pastel claro) a ~50% alpha → se veía muy
+                    // brilloso. Sombra negra contenida en su lugar.
                     const cardShadow = !option.disabled && isHovered && !isDisabled
-                        ? `0 4px 18px ${option.border || '#CBD5E1'}80`
+                        ? (isDark ? '0 4px 14px rgba(0, 0, 0, 0.4)' : `0 4px 18px ${option.border || '#CBD5E1'}80`)
                         : 'none';
 
                     return (
@@ -130,7 +144,7 @@ const OptionPickerModal = ({
                                 borderRadius: headerIcon ? '1rem' : '0.95rem',
                                 padding: headerIcon ? '1.25rem' : '0.9rem 1rem',
                                 cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                transition: 'background 0.18s, border-color 0.18s, box-shadow 0.18s, opacity 0.15s',
+                                transition: 'background 0.1s ease-out, border-color 0.1s ease-out, box-shadow 0.1s ease-out, opacity 0.15s',
                                 opacity: option.disabled ? 0.45 : (isFaded ? 0.5 : 1),
                                 boxShadow: cardShadow,
                             }}
@@ -159,14 +173,14 @@ const OptionPickerModal = ({
                                     width: '42px',
                                     height: '42px',
                                     borderRadius: '0.75rem',
-                                    background: option.disabled ? '#E2E8F0' : `${option.color}18`,
+                                    background: option.disabled ? 'var(--bg-muted)' : `${option.color}18`,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     flexShrink: 0,
                                     transition: 'background 0.18s',
                                 }}>
-                                    <option.icon size={20} color={option.disabled ? '#94A3B8' : option.color} />
+                                    <option.icon size={20} color={option.disabled ? 'var(--text-light)' : option.color} />
                                 </div>
                             )}
 
@@ -174,7 +188,7 @@ const OptionPickerModal = ({
                                 <div style={{
                                     fontSize: headerIcon ? '1.05rem' : '0.95rem',
                                     fontWeight: 700,
-                                    color: option.disabled ? '#94A3B8' : (option.labelColor || (headerIcon ? '#1E3A8A' : '#0F172A')),
+                                    color: option.disabled ? 'var(--text-light)' : (option.labelColor || (headerIcon ? (isDark ? 'var(--text-main)' : '#1E3A8A') : 'var(--text-main)')),
                                     letterSpacing: '-0.015em',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -189,7 +203,7 @@ const OptionPickerModal = ({
                                 </div>
                                 <div style={{
                                     fontSize: headerIcon ? '0.85rem' : '0.81rem',
-                                    color: option.disabled ? '#94A3B8' : '#64748B',
+                                    color: option.disabled ? 'var(--text-light)' : 'var(--text-muted)',
                                     fontWeight: 500,
                                     lineHeight: 1.35,
                                 }}>

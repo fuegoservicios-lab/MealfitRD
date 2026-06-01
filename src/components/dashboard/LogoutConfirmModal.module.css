@@ -146,3 +146,23 @@
         transform: scale(0.95) translateY(8px);
     }
 }
+
+/* [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO
+   El modal ya usa un fondo oscuro (#1a1a2e) en tema claro — funciona bien.
+   En oscuro sólo necesitamos ajustar el cancelBtn (botón blanco con texto oscuro
+   = patrón dark-slate-sobre-claro) para que no desaparezca sobre fondo oscuro.
+   El overlay backdrop ya es rgba(0,0,0,0.45) — correcto en ambos temas. */
+:global(html[data-theme="dark"]) .card {
+    background: var(--bg-card);
+    box-shadow: var(--shadow-xl);
+}
+
+:global(html[data-theme="dark"]) .cancelBtn {
+    background: var(--primary);
+    color: #0B1120;
+}
+
+:global(html[data-theme="dark"]) .cancelBtn:hover {
+    background: var(--primary-light);
+    box-shadow: 0 4px 12px rgba(129, 140, 248, 0.3);
+}

@@ -2,7 +2,9 @@
     position: relative;
     background: var(--text-main);
     color: var(--text-light);
-    padding: 4rem 0 2rem;
+    /* [P3-SAFE-AREA-BOTTOM · 2026-05-31] env(safe-area-inset-bottom) para que el
+       copyright no quede pegado al home-indicator en iPhones con notch. */
+    padding: 4rem 0 calc(2rem + env(safe-area-inset-bottom, 0px));
     margin-top: auto;
     overflow: hidden;
 }
@@ -25,7 +27,7 @@
     position: relative;
     z-index: 1;
     display: grid;
-    grid-template-columns: 1.5fr 1fr;
+    grid-template-columns: 1.5fr 1fr 1fr;
     gap: 4rem;
     padding: 0 1.5rem;
     max-width: 1280px;
@@ -69,38 +71,33 @@
     font-weight: 500;
 }
 
-.col a:hover {
+/* [APPEARANCE-THEME · 2026-05-29] `:not(.socialIcon)` excluye los iconos
+   sociales de este desplazamiento (translateX) — antes ganaba por especificidad
+   sobre `.socialIcon:hover` y los movía. */
+.col a:not(.socialIcon):hover {
     color: var(--primary-light);
     transform: translateX(4px);
 }
 
 .socialLinks {
     display: flex;
-    gap: 1rem;
+    gap: 1.5rem;
     margin-top: 1.5rem;
 }
 
+/* [APPEARANCE-THEME · 2026-05-29] Sin círculo: solo el icono, más grande y
+   limpio. display:grid + place-items:center garantiza centrado exacto del svg
+   sin depender de baseline. Hover = solo color (sin movimiento). */
 .socialIcon {
-    /* display: grid + place-items: center es más estricto que flex —
-       garantiza centrado en ambos ejes sin depender de baseline o line-height
-       del browser default del <a>. */
     display: grid;
     place-items: center;
-    /* box-sizing: border-box asegura que el border de 1px NO añada al
-       tamaño total (sin esto, el círculo sería 42x42 y el contenido se
-       desplaza ligeramente). */
     box-sizing: border-box;
-    width: 40px;
-    height: 40px;
-    padding: 0;
+    padding: 0.35rem;
     margin: 0;
     line-height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--text-light);
+    color: var(--text-muted);
     text-decoration: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: color 0.2s ease;
 }
 
 /* SVG renderizado como block elimina el baseline-spacing residual y
@@ -110,21 +107,79 @@
    el icono "perdido en el círculo". Con 22 el ratio queda más equilibrado. */
 .socialIcon svg {
     display: block;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     grid-area: 1 / 1;
-    /* Offset óptico hacia abajo: lucide-react usa stroke-linecap="round"
-       que carga peso visual en la parte superior de las líneas. Sin este
-       translate los íconos se perciben subidos aunque matemáticamente
-       estén centrados. 5px ajustado tras iteraciones con el usuario. */
-    transform: translateY(5px);
 }
 
+/* Hover: solo "se enciende" el color (a la marca), SIN movimiento.
+   `transform: none` anula el translateX(4px) heredado de `.col a:hover`. */
 .socialIcon:hover {
-    background: var(--primary);
+    color: var(--primary-light);
+    transform: none;
+}
+
+/* [P2-A11Y-FOCUS-VISIBLE · 2026-05-31] Foco de teclado sobre el footer oscuro
+   usa primary-light para contraste suficiente (WCAG 2.4.7). */
+.col a:focus-visible,
+.socialIcon:focus-visible {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+/* [P3-FOOTER-SUPPORT · 2026-05-31] Columna Soporte — presentación pulida:
+   intro + correo con badge de icono + nota de tiempo de respuesta. */
+.supportIntro {
+    color: var(--text-light);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0 0 1.1rem;
+    max-width: 240px;
+}
+
+/* `.col .supportLink` (0,2,0) gana en especificidad a `.col a` (0,1,1) sin
+   !important → override limpio de display/color/peso/margen. */
+.col .supportLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
     color: #FFFFFF;
-    border-color: var(--primary);
-    transform: translateY(-3px);
+    font-weight: 600;
+    font-size: 0.95rem;
+    overflow-wrap: anywhere;
+    margin-bottom: 0;
+}
+
+.supportIcon {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    background: rgba(129, 140, 248, 0.16);
+    color: var(--primary-light);
+    transition: background 0.2s ease;
+}
+
+.supportLink:hover .supportIcon {
+    background: rgba(129, 140, 248, 0.28);
+}
+
+.supportNote {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.95rem 0 0;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.supportNote svg {
+    flex-shrink: 0;
+    color: var(--secondary);
 }
 
 .bottom {
@@ -144,4 +199,28 @@
         grid-template-columns: 1fr;
         gap: 3rem;
     }
+}
+
+/* [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO
+   El footer ya usa var(--text-main) como fondo, que en tema claro es #0F172A (casi-negro).
+   En tema oscuro var(--text-main) resuelve a #F1F5F9 (texto claro) — el fondo se invertiría
+   a blanco. Forzamos el fondo a var(--bg-page) (#0B1120) para mantener el footer oscuro
+   en ambos temas. Los textos #FFFFFF y rgba(255,255,255,...) ya son correctos sobre oscuro. */
+:global(html[data-theme="dark"]) .footer {
+    background: var(--bg-page);
+    color: var(--text-light);
+}
+
+/* [APPEARANCE-THEME · 2026-05-29] Copyright: text-light (#64748B) quedaba muy
+   tenue sobre el footer oscuro → text-muted para que se note más. */
+:global(html[data-theme="dark"]) .bottom {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .logo {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .col h4 {
+    color: var(--text-main);
 }

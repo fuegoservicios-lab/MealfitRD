@@ -59,15 +59,24 @@ describe('P3-AUDIT-8 · Pantry recalc helper wiring', () => {
         expect(src).toMatch(/recalculate-shopping-list/);
     });
 
-    test('helper se invoca 4 veces (delete + delete-undo + deleteAll + add)', () => {
+    test('recalc wired: helper directo (wrapper interno + deleteAll) + wrapper debounced (delete/undo/add)', () => {
+        // [P2-NEW-12 · 2026-05-11] El refactor de debounce coalescente movió las
+        // invocaciones de delete/undo/add del helper DIRECTO al wrapper debounced
+        // `_scheduleRecalcShoppingList` (evita N HTTP por ráfaga). El helper
+        // directo (`_recalcShoppingListAfterPantryChange(`) queda solo en 2 sitios:
+        //   1. dentro de `_scheduleRecalcShoppingList` (el wrapper lo invoca), y
+        //   2. `confirmDeleteAll` (await directo, semántica toast post-éxito).
+        // Pre-fix este test esperaba 4 llamadas directas — quedó stale tras
+        // P2-NEW-12 (actualizado en P1-RESTOCK-LOSTUPDATE audit · 2026-05-30).
         const src = readPantry();
-        // Cuenta ocurrencias del nombre seguido de `(`. Esto incluye la
-        // declaración del helper (`const _recalcShoppingListAfterPantryChange = async ({`)?
-        // No — la declaración tiene ` = async ` entre el nombre y `(`. La regex
-        // exige whitespace opcional + `(`, sin igual de por medio.
-        const callRe = /_recalcShoppingListAfterPantryChange\s*\(/g;
-        const matches = src.match(callRe) || [];
-        expect(matches).toHaveLength(4);
+        const helperRe = /_recalcShoppingListAfterPantryChange\s*\(/g;
+        const helperCalls = src.match(helperRe) || [];
+        expect(helperCalls).toHaveLength(2);
+        // El wrapper debounced se invoca desde delete (post) + undo + add
+        // (+ re-schedule trailing) — al menos 3 sitios.
+        const scheduleRe = /_scheduleRecalcShoppingList\s*\(/g;
+        const scheduleCalls = src.match(scheduleRe) || [];
+        expect(scheduleCalls.length).toBeGreaterThanOrEqual(3);
     });
 
     test('confirmDeleteAll ya NO contiene `recalculate-shopping-list` inline (delegated al helper)', () => {
@@ -116,10 +125,11 @@ describe('P3-AUDIT-8 · Pantry recalc helper wiring', () => {
         const endRel = rest.indexOf('const confirmDeleteAll');
         expect(endRel).toBeGreaterThan(-1);
         const body = rest.slice(0, endRel);
-        const callRe = /_recalcShoppingListAfterPantryChange\s*\(/g;
+        // [P2-NEW-12] handleDeleteItem dispara el recalc vía el wrapper debounced
+        // `_scheduleRecalcShoppingList` (NO el helper directo): una en el path
+        // principal (post-delete) y otra en la undo callback (post-restore).
+        const callRe = /_scheduleRecalcShoppingList\s*\(/g;
         const matches = body.match(callRe) || [];
-        // Espera 2: una en el path principal (post-delete) y otra en la undo
-        // callback (post-restore).
         expect(matches.length).toBeGreaterThanOrEqual(2);
     });
 
@@ -138,6 +148,7 @@ describe('P3-AUDIT-8 · Pantry recalc helper wiring', () => {
         const end = endRel > -1 ? endRel : fallbackEnd;
         expect(end).toBeGreaterThan(-1);
         const body = rest.slice(0, end);
-        expect(body).toMatch(/_recalcShoppingListAfterPantryChange\s*\(/);
+        // [P2-NEW-12] handleAddNewItem dispara el recalc vía el wrapper debounced.
+        expect(body).toMatch(/_scheduleRecalcShoppingList\s*\(/);
     });
 });

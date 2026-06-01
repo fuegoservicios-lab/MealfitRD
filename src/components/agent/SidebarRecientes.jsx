@@ -17,8 +17,8 @@ export const SidebarRecientes = ({
         <div className="agent-sidebar" style={{
             width: showSidebar ? '320px' : '0px',
             maxWidth: showSidebar ? '85vw' : '0px',
-            borderRight: showSidebar ? '1px solid rgba(226, 232, 240, 0.6)' : 'none',
-            background: '#f8f9fb',
+            borderRight: showSidebar ? '1px solid var(--border)' : 'none',
+            background: 'var(--bg-page)',
             transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             overflow: 'hidden',
             display: 'flex',
@@ -29,13 +29,16 @@ export const SidebarRecientes = ({
                 <button
                     onClick={handleNewChat}
                     style={{
+                        // [SIDEBAR-NEWCHAT-CONTRAST · 2026-06-01] var(--primary) (en vez de
+                        // #4F46E5 hardcodeado) → texto/ícono nítidos en oscuro (indigo-400);
+                        // tinte indigo sutil (color-mix) define el botón como CTA.
                         width: '100%',
-                        background: '#ffffff',
-                        border: '1px solid #e2e8f0',
+                        background: 'color-mix(in srgb, var(--primary) 12%, transparent)',
+                        border: '1px solid color-mix(in srgb, var(--primary) 32%, transparent)',
                         borderRadius: '1.5rem',
                         padding: '0.8rem 1.2rem',
-                        color: '#4F46E5',
-                        fontWeight: 600,
+                        color: 'var(--primary)',
+                        fontWeight: 700,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -43,17 +46,15 @@ export const SidebarRecientes = ({
                         cursor: 'pointer',
                         transition: 'all 0.2s',
                         fontSize: '1rem',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                        boxShadow: 'none'
                     }}
                     onMouseEnter={e => {
-                        e.currentTarget.style.background = '#f8fafc';
-                        e.currentTarget.style.borderColor = '#cbd5e1';
-                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.background = 'color-mix(in srgb, var(--primary) 20%, transparent)';
+                        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--primary) 45%, transparent)';
                     }}
                     onMouseLeave={e => {
-                        e.currentTarget.style.background = '#ffffff';
-                        e.currentTarget.style.borderColor = '#e2e8f0';
-                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.background = 'color-mix(in srgb, var(--primary) 12%, transparent)';
+                        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--primary) 32%, transparent)';
                     }}
                 >
                     <Plus size={18} /> <span>Nuevo chat</span>
@@ -62,16 +63,16 @@ export const SidebarRecientes = ({
             
             <div className="sidebar-scrollable" style={{ flex: 1, overflowY: 'auto', padding: '0 0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', marginTop: '0.25rem' }}>
-                    <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                    <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
                         Recientes
                     </h3>
                 </div>
                 {isLoadingSessions ? (
-                    <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 1rem', color: '#94a3b8' }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 1rem', color: 'var(--text-light)' }}>
                         <Loader2 className="spin-fast" size={18} />
                     </div>
                 ) : chatSessions.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '3rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', color: '#94a3b8' }}>
+                    <div style={{ textAlign: 'center', padding: '3rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', color: 'var(--text-light)' }}>
                         <div style={{ background: 'transparent', padding: '0.5rem', display: 'inline-flex', opacity: 0.7 }}>
                             <Ghost size={32} strokeWidth={1.5} />
                         </div>
@@ -87,9 +88,9 @@ export const SidebarRecientes = ({
                                 <div style={{ 
                                     padding: '0.5rem 1rem 0.25rem', 
                                     fontSize: '0.7rem', 
-                                    fontWeight: 600, 
-                                    color: '#94a3b8', 
-                                    textTransform: 'uppercase', 
+                                    fontWeight: 600,
+                                    color: 'var(--text-light)',
+                                    textTransform: 'uppercase',
                                     letterSpacing: '0.06em',
                                     marginTop: '0.5rem'
                                 }}>
@@ -113,6 +114,17 @@ export const SidebarRecientes = ({
                                     <div key={s.id} className="chat-session-btn" style={{ position: 'relative', width: '100%' }}>
                                         <button
                                             onClick={() => {
+                                                // [P2-AGENT-SESSION-SWITCH-GUARD · 2026-05-30]
+                                                // No cambiar de sesión mientras un stream está
+                                                // en vuelo. Pre-fix: el switch no abortaba el
+                                                // stream ni guardaba isLoading → el loop de
+                                                // handleSend seguía haciendo setMessages sobre la
+                                                // sesión B recién seleccionada (la respuesta del
+                                                // bot de A se "derramaba" en B) y el effect de
+                                                // cache persistía los mensajes de A bajo la key de
+                                                // B (corrupción restaurada al re-montar). El botón
+                                                // Detener es la salida intencional durante stream.
+                                                if (isLoading && currentSessionId !== s.id) return;
                                                 setCurrentSessionId(s.id);
                                                 if (window.innerWidth <= 768) {
                                                     setShowSidebar(false);
@@ -131,7 +143,7 @@ export const SidebarRecientes = ({
                                                 gap: '0.5rem',
                                                 transition: 'all 0.15s ease'
                                             }}
-                                            onMouseEnter={e => { if (currentSessionId !== s.id) e.currentTarget.style.background = '#f1f5f9'; }}
+                                            onMouseEnter={e => { if (currentSessionId !== s.id) e.currentTarget.style.background = 'var(--bg-muted)'; }}
                                             onMouseLeave={e => { if (currentSessionId !== s.id) e.currentTarget.style.background = 'transparent'; }}
                                         >
                                             <span style={{ 
@@ -154,8 +166,8 @@ export const SidebarRecientes = ({
                                                             title={originalTitle}
                                                             style={{ 
                                                             fontWeight: currentSessionId === s.id ? 600 : 500, 
-                                                            fontSize: '0.95rem', 
-                                                            color: currentSessionId === s.id ? '#4F46E5' : '#475569',
+                                                            fontSize: '0.95rem',
+                                                            color: currentSessionId === s.id ? '#4F46E5' : 'var(--text-muted)',
                                                             whiteSpace: 'nowrap',
                                                             overflow: 'hidden',
                                                             textOverflow: 'ellipsis',
@@ -166,8 +178,8 @@ export const SidebarRecientes = ({
                                                         </span>
                                                         {formattedDate && (
                                                             <span style={{ 
-                                                                fontSize: '0.70rem', 
-                                                                color: currentSessionId === s.id ? 'rgba(79, 70, 229, 0.6)' : '#94a3b8', 
+                                                                fontSize: '0.70rem',
+                                                                color: currentSessionId === s.id ? 'rgba(79, 70, 229, 0.6)' : 'var(--text-light)',
                                                                 fontWeight: 400 
                                                             }}>
                                                                 {formattedDate}
@@ -181,13 +193,14 @@ export const SidebarRecientes = ({
                                         <button
                                             className="chat-actions-hover"
                                             title="Eliminar chat"
+                                            aria-label="Eliminar chat"
                                             onClick={(e) => handleDeleteChat(s.id, e)}
                                             style={{
                                                 position: 'absolute',
                                                 right: '0.4rem',
                                                 top: '50%',
                                                 transform: 'translateY(-50%)',
-                                                background: 'white',
+                                                background: 'var(--bg-card)',
                                                 color: '#ef4444',
                                                 border: '1px solid #fee2e2',
                                                 borderRadius: '0.4rem',
@@ -200,7 +213,7 @@ export const SidebarRecientes = ({
                                                 boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
                                             }}
                                             onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
-                                            onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-card)'}
                                         >
                                             <Trash2 size={15} strokeWidth={2} />
                                         </button>

@@ -37,6 +37,24 @@ import { trackEvent } from '../utils/analytics';
 // Mismo helper SSOT que usa History.jsx en sus mutaciones.
 import { invalidateCachesForPlan } from '../utils/historyCaches';
 import EmptyState from '../components/common/EmptyState';
+// [P3-RECIPE-SAFE-LS · 2026-05-30] Helper SSOT no-throw para localStorage.
+import { safeLocalStorageSet } from '../utils/safeLocalStorage';
+// [P1-COOKMODE-A11Y · 2026-05-30] Hook SSOT de a11y para el overlay
+// full-screen del modo "Cocinar" (role=dialog + ESC + focus-trap + restore).
+// Pre-fix solo tenía aria-label en la X; un usuario keyboard-only no podía
+// cerrar con ESC ni quedaba atrapado el focus → Tab escapaba al fondo oculto.
+import useModalAccessibility from '../hooks/useModalAccessibility';
+
+// [P2-RECIPE-DISCLAIMER-LIST · 2026-05-30] Coerción defensiva de `recipe` a
+// array de pasos. El contrato es `List[str]` (MealModel.recipe) y todo el
+// render hace `recipe.map(...)`, pero paths backend legacy podían persistir
+// un `recipe` string (macro-balancing disclaimer pre-fix; planes viejos).
+// Un string llegaba como `.length>0` truthy y reventaba `.map` (no existe en
+// String) → crash capturado por GlobalErrorBoundary. Coercemos: array→tal cual,
+// string no-blank→[string], cualquier otra cosa→[]. Defensa-en-profundidad del
+// fix backend P2-RECIPE-DISCLAIMER-LIST.
+const toRecipeSteps = (r) =>
+    Array.isArray(r) ? r : (typeof r === 'string' && r.trim() ? [r] : []);
 
 const FormattedRecipeStep = ({ step, index }) => {
     // 1. Identificar si es una sección especial (Mise en place, Fuego, Montaje)
@@ -60,7 +78,7 @@ const FormattedRecipeStep = ({ step, index }) => {
         // Usamos una Regex para ser flexibles con espacios o minúsculas/mayúsculas
         const prefixRegex = sectionTitle.toLowerCase() === "toque de fuego" || sectionTitle.toLowerCase() === "el toque de fuego"
             ? /(el )?toque de fuego:\s*/i
-            : new RegExp(`${sectionTitle}:\s*`, 'i');
+            : new RegExp(`${sectionTitle}:\\s*`, 'i');
         content = content.replace(prefixRegex, '');
     }
 
@@ -146,7 +164,7 @@ const FormattedLargeStep = ({ text, currentStep, isLastStep, isMobile }) => {
     let content = text;
     if (sectionTitle) {
         const prefixRegex = sectionTitle.toLowerCase() === "toque de fuego" || sectionTitle.toLowerCase() === "el toque de fuego"
-            ? /(el )?toque de fuego:\s*/i : new RegExp(`${sectionTitle}:\s*`, 'i');
+            ? /(el )?toque de fuego:\s*/i : new RegExp(`${sectionTitle}:\\s*`, 'i');
         content = content.replace(prefixRegex, '');
     }
 
@@ -178,7 +196,7 @@ const FormattedLargeStep = ({ text, currentStep, isLastStep, isMobile }) => {
                     {currentStep + 1}
                 </div>
             )}
-            <p style={{ fontSize: isMobile ? '1.25rem' : '1.5rem', lineHeight: 1.6, color: '#1E293B', fontWeight: 500, margin: 0, maxWidth: '800px', padding: '0 1rem' }}>
+            <p style={{ fontSize: isMobile ? '1.25rem' : '1.5rem', lineHeight: 1.6, color: 'var(--text-main)', fontWeight: 500, margin: 0, maxWidth: '800px', padding: '0 1rem' }}>
                 {parseBold(content.replace(/^\d+[\.\)]\s*/, ''))}
             </p>
             {isLastStep && (
@@ -201,19 +219,25 @@ const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
+    // [P1-COOKMODE-A11Y · 2026-05-30] Hook declarado ANTES del early-return
+    // de abajo para mantener orden de hooks invariante. El hook ya gestiona
+    // body.overflow lock + ESC + focus-trap + restore-focus; por eso el
+    // useEffect de abajo solo conserva el listener de resize.
+    const { containerRef } = useModalAccessibility({ isOpen: !!recipe, onClose });
+
     useEffect(() => {
-        document.body.style.overflow = 'hidden';
         const handleResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', handleResize);
         return () => {
-            document.body.style.overflow = '';
             window.removeEventListener('resize', handleResize);
         };
     }, []);
 
-    if (!recipe || !recipe.recipe || recipe.recipe.length === 0) return null;
+    // [P2-RECIPE-DISCLAIMER-LIST] Coerción defensiva: un `recipe.recipe` string
+    // (legacy) indexado como `steps[currentStep]` mostraría caracteres sueltos.
+    const steps = toRecipeSteps(recipe?.recipe);
+    if (!recipe || steps.length === 0) return null;
 
-    const steps = recipe.recipe;
     const isFirstStep = currentStep === 0;
     const isLastStep = currentStep === steps.length - 1;
 
@@ -223,25 +247,32 @@ const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
 
     return (
         <motion.div
+            ref={containerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cooking-mode-title"
+            tabIndex={-1}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             style={{
                 position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
                 background: 'var(--bg-page)', zIndex: 9999, display: 'flex', flexDirection: 'column',
                 backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(10px)',
+                outline: 'none',
             }}
         >
-            <div style={{ padding: isMobile ? '1.25rem 1rem' : '1.5rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #F1F5F9', gap: '1rem' }}>
+            <div style={{ padding: isMobile ? '1.25rem 1rem' : '1.5rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border)', gap: '1rem' }}>
                 <div style={{ flex: 1, paddingRight: isMobile ? '0' : '1rem' }}>
-                    <h3 style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.25rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.3 }}>{recipe.name}</h3>
+                    <h3 id="cooking-mode-title" style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.25rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.3 }}>{recipe.name}</h3>
                     <p style={{ margin: 0, color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.9rem', marginTop: '0.25rem' }}>Paso {currentStep + 1} de {steps.length}</p>
                 </div>
                 <button
                     onClick={onClose}
+                    aria-label="Cerrar receta"
                     style={{ flexShrink: 0, background: 'var(--bg-page)', border: 'none', width: isMobile ? '40px' : '48px', height: isMobile ? '40px' : '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', transition: 'all 0.2s' }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'var(--border)'; e.currentTarget.style.color = 'var(--text-main)'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-page)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
                 >
-                    <X size={isMobile ? 20 : 24} strokeWidth={2.5} />
+                    <X size={isMobile ? 20 : 24} strokeWidth={2.5} aria-hidden="true" />
                 </button>
             </div>
 
@@ -302,6 +333,32 @@ const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
         </motion.div>
     );
 };
+
+// [P4-AMBIENT-HOIST] Capas de fondo decorativas (premium mobile). Module-scope para
+// identidad estable — definirlo dentro del render remontaba los 3 blur en cada render.
+const AmbientBackground = () => (
+    <div data-html2canvas-ignore="true" style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: '100%',
+        overflow: 'hidden', zIndex: 0, pointerEvents: 'none',
+        opacity: 1
+    }}>
+        <div style={{
+            position: 'absolute', top: '-10%', left: '-10%', width: '60vw', height: '60vw',
+            background: 'radial-gradient(circle at center, var(--primary) 0%, transparent 60%)',
+            filter: 'blur(100px)', transform: 'translateZ(0)', borderRadius: '50%', opacity: 0.15
+        }} />
+        <div style={{
+            position: 'absolute', top: '20%', right: '-10%', width: '40vw', height: '40vw',
+            background: 'radial-gradient(circle at center, var(--secondary) 0%, transparent 60%)',
+            filter: 'blur(100px)', transform: 'translateZ(0)', borderRadius: '50%', opacity: 0.1
+        }} />
+        <div style={{
+            position: 'absolute', top: '60%', left: '10%', width: '50vw', height: '50vw',
+            background: 'radial-gradient(circle at center, var(--accent) 0%, transparent 60%)',
+            filter: 'blur(80px)', transform: 'translateZ(0)', borderRadius: '50%', opacity: 0.05
+        }} />
+    </div>
+);
 
 const Recipes = () => {
     // [P1-HIST-CLOSE-1 · 2026-05-10] `restorePlan` ya NO se importa aquí.
@@ -367,6 +424,12 @@ const Recipes = () => {
         const windowEnd = chunkStart + chunkSize;
         if (activeDayIndex < chunkStart || activeDayIndex >= windowEnd) {
             setActiveDayIndex(todayPlanDayIndex);
+            // [P3-RECIPE-CHECKED-RESET · 2026-05-30] Reset selección de meal +
+            // ingredientes tachados al re-clampear de día (medianoche / re-index
+            // del chunk / deeplink). Sin esto, los índices posicionales de
+            // `checkedIngredients` quedaban tachando ingredientes de OTRO día.
+            setActiveMealIndex(0);
+            setCheckedIngredients({});
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planData?.days, chunkStart, chunkSize, todayPlanDayIndex]);
@@ -375,7 +438,14 @@ const Recipes = () => {
         setCheckedIngredients(prev => ({ ...prev, [idx]: !prev[idx] }));
     };
 
-    const handleCookClick = async (meal) => {
+    // [P3-RECIPE-COOK-CLAMPED-IDX · 2026-05-30] Recibe los índices CLAMPED al
+    // chunk window (`currentDayIndex`/`currentMealIndex`) desde el callsite, con
+    // fallback al state crudo. Pre-fix leía `activeDayIndex`/`activeMealIndex`
+    // crudos (pre-clamp) → en un deep-link/refresh con `/shift-plan` reindexando
+    // en background, un tick podía escribir la expansión sobre un meal con el
+    // mismo nombre en el día equivocado (el match por `name` server-side lo
+    // mitiga, pero pasar el índice clamped cierra la ventana).
+    const handleCookClick = async (meal, dayIndex = activeDayIndex, mealIndex = activeMealIndex) => {
         setCheckedIngredients({});
         // Si la receta ya fue expandida previamente (usamos recipeExpandedFlag) la abrimos de una
         if (meal.isExpanded) {
@@ -399,8 +469,6 @@ const Recipes = () => {
             // posteriores. Los 3 campos son OPCIONALES y el backend tiene
             // fallback a la lógica legacy.
             const planId = planData?.id;
-            const dayIndex = activeDayIndex;
-            const mealIndex = activeMealIndex;
             const response = await fetchWithAuth('/api/plans/recipe/expand', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -432,9 +500,11 @@ const Recipes = () => {
                 // chunk worker que añadió días entre page-load y
                 // cook-click recalcula kcal; el client write los pisa).
                 if (planData) {
-                    try {
-                        localStorage.setItem('mealfit_plan', JSON.stringify(planData));
-                    } catch (e) { console.error("Error setting plan to LS:", e); }
+                    // [P3-RECIPE-SAFE-LS · 2026-05-30] Vía el helper SSOT
+                    // safeLocalStorageSet (P2-AUDIT-3) — único holdout raw
+                    // `localStorage.setItem` de la página. No-throw en iOS
+                    // Private Mode / QuotaExceededError. Serializa internamente.
+                    safeLocalStorageSet('mealfit_plan', planData);
                 }
 
                 // [P2-NEW-3 · 2026-05-11] Invalidar caches del Historial para
@@ -465,11 +535,16 @@ const Recipes = () => {
         }
     };
 
+    // [P3-RECIPE-LOG-RETRY · 2026-05-30] Retorna boolean (éxito/fallo). El
+    // overlay solo se cierra cuando el registro tuvo éxito; en fallo se queda
+    // abierto para reintentar in-place. Pre-fix: el `finally` cerraba el
+    // overlay SIEMPRE, dejando el toast "Intenta de nuevo" sin forma de
+    // reintentar desde la misma pantalla.
     const handleLogConsumption = async (recipe) => {
         if (!formData || !formData.id || formData.id === 'guest') {
             toast.error("Inicia sesión para registrar tus comidas.");
             setCookingRecipe(null);
-            return;
+            return true; // cerrar: el guest no puede registrar (acción terminal)
         }
 
         const toastId = toast.loading(`Registrando ${recipe.name}...`);
@@ -504,11 +579,12 @@ const Recipes = () => {
             }
 
             toast.success(`¡"${recipe.name}" registrada exitosamente!`, { id: toastId });
+            setCookingRecipe(null);
+            return true;
         } catch (error) {
             console.error(error);
             toast.error("No se pudo registrar la comida. Intenta de nuevo.", { id: toastId });
-        } finally {
-            setCookingRecipe(null);
+            return false; // mantener overlay abierto para retry in-place
         }
     };
 
@@ -518,30 +594,9 @@ const Recipes = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Ambient background shapes for premium mobile view
-    const AmbientBackground = () => (
-        <div data-html2canvas-ignore="true" style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: '100%',
-            overflow: 'hidden', zIndex: 0, pointerEvents: 'none',
-            opacity: 1
-        }}>
-            <div style={{
-                position: 'absolute', top: '-10%', left: '-10%', width: '60vw', height: '60vw',
-                background: 'radial-gradient(circle at center, var(--primary) 0%, transparent 60%)',
-                filter: 'blur(100px)', transform: 'translateZ(0)', borderRadius: '50%', opacity: 0.15
-            }} />
-            <div style={{
-                position: 'absolute', top: '20%', right: '-10%', width: '40vw', height: '40vw',
-                background: 'radial-gradient(circle at center, var(--secondary) 0%, transparent 60%)',
-                filter: 'blur(100px)', transform: 'translateZ(0)', borderRadius: '50%', opacity: 0.1
-            }} />
-            <div style={{
-                position: 'absolute', top: '60%', left: '10%', width: '50vw', height: '50vw',
-                background: 'radial-gradient(circle at center, var(--accent) 0%, transparent 60%)',
-                filter: 'blur(80px)', transform: 'translateZ(0)', borderRadius: '50%', opacity: 0.05
-            }} />
-        </div>
-    );
+    // [P4-AMBIENT-HOIST] AmbientBackground se movió a module-scope (arriba de Recipes):
+    // definirlo en el render creaba identidad nueva por render → React remontaba las 3
+    // capas blur en cada tap de ingrediente. Sin props/closure → hoist seguro.
 
     // Protección de Ruta. La computación del chunk se movió arriba del
     // useEffect de clamp (P-RECIPES-CHUNK-WINDOW); la guard sigue funcionando
@@ -560,7 +615,8 @@ const Recipes = () => {
         // escapado a `&lt;script&gt;`. `color` (sectionTitle determinístico
         // de mapping local) NO escapado intencionalmente; los demás
         // `${...}` ahora pasan por `escapeHtml`.
-        const stepsHTML = meal.recipe ? meal.recipe.map((step, i) => {
+        const _recipeSteps = toRecipeSteps(meal.recipe);
+        const stepsHTML = _recipeSteps.length ? _recipeSteps.map((step, i) => {
             let sectionTitle = "";
             let color = "#475569";
             let content = step;
@@ -571,7 +627,7 @@ const Recipes = () => {
 
             if (sectionTitle) {
                 const prefixRegex = sectionTitle.toLowerCase() === "toque de fuego" || sectionTitle.toLowerCase() === "el toque de fuego"
-                    ? /(el )?toque de fuego:\s*/i : new RegExp(`${sectionTitle}:\s*`, 'i');
+                    ? /(el )?toque de fuego:\s*/i : new RegExp(`${sectionTitle}:\\s*`, 'i');
                 content = content.replace(prefixRegex, '');
             }
 
@@ -913,6 +969,9 @@ const Recipes = () => {
 
                             const currentMealIndex = Math.min(activeMealIndex, validMeals.length - 1);
                             const activeMeal = validMeals[currentMealIndex];
+                            // [P2-RECIPE-DISCLAIMER-LIST] Pasos coercidos a array
+                            // (defensa contra `recipe` string legacy → `.map` crash).
+                            const activeRecipeSteps = toRecipeSteps(activeMeal.recipe);
 
                             return (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '1.25rem' : '2rem', position: 'relative', zIndex: 2, minWidth: 0, width: '100%' }}>
@@ -1060,10 +1119,10 @@ const Recipes = () => {
 
                                                 {/* Action Bar */}
                                                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: isMobile ? '1rem' : '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                                                    {activeMeal.recipe && activeMeal.recipe.length > 0 && (
+                                                    {activeRecipeSteps.length > 0 && (
                                                         <button
                                                             data-html2canvas-ignore="true"
-                                                            onClick={() => handleCookClick(activeMeal)}
+                                                            onClick={() => handleCookClick(activeMeal, currentDayIndex, currentMealIndex)}
                                                             disabled={isExpanding}
                                                             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.8rem 1.5rem', background: 'var(--text-main)', borderRadius: '99px', border: 'none', fontSize: '0.9rem', fontWeight: 800, color: 'var(--bg-card)', cursor: isExpanding ? 'wait' : 'pointer', transition: 'all 0.2s', boxShadow: '0 8px 16px -4px rgba(15, 23, 42, 0.4)', opacity: isExpanding ? 0.7 : 1 }}
                                                         >
@@ -1150,11 +1209,11 @@ const Recipes = () => {
                                                             <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-main)', margin: 0 }}>Instrucciones</h3>
                                                         </div>
 
-                                                        {activeMeal.recipe && activeMeal.recipe.length > 0 ? (
+                                                        {activeRecipeSteps.length > 0 ? (
                                                             <div style={{ position: 'relative', paddingLeft: '0.25rem' }}>
                                                                 <div style={{ position: 'absolute', left: '19px', top: '16px', bottom: '24px', width: '2px', background: 'var(--border)', zIndex: 0 }} />
                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                                                                    {activeMeal.recipe.map((step, i) => (
+                                                                    {activeRecipeSteps.map((step, i) => (
                                                                         <FormattedRecipeStep key={i} step={step} index={i} />
                                                                     ))}
                                                                 </div>
@@ -1226,6 +1285,24 @@ const Recipes = () => {
                     .recipe-book-wrapper::before {
                         display: none;
                     }
+                }
+
+                /* [APPEARANCE-THEME · 2026-05-29] TEMA OSCURO — mismo cuaderno
+                   que .meals-container del Dashboard. En claro el lomo es
+                   #1E293B (oscuro) sobre papel crema; en oscuro ese lomo se
+                   fundía con el papel var(--bg-card)=#111827 y el cuaderno
+                   quedaba plano. Lomo a slate visible + hairline de luz en el
+                   pliegue + sombra de valle + elevación profunda. */
+                html[data-theme="dark"] .recipe-book-wrapper {
+                    border-left-color: #3A4358;
+                    box-shadow:
+                        inset 1px 0 0 0 rgba(148, 163, 184, 0.22),
+                        inset 10px 0 12px -7px rgba(0, 0, 0, 0.6),
+                        0 24px 50px -12px rgba(0, 0, 0, 0.7);
+                }
+                html[data-theme="dark"] .recipe-book-wrapper::before {
+                    border-left-color: rgba(251, 113, 133, 0.55);
+                    border-right-color: rgba(251, 113, 133, 0.55);
                 }
             `}</style>
         </>

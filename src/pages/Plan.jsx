@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { CheckCircle, Loader2, Server, Activity, PieChart, Utensils, UtensilsCrossed, ChefHat, ShoppingCart, ShieldCheck, AlertTriangle, RefreshCw, X } from 'lucide-react';
 
 import PropTypes from 'prop-types';
@@ -77,6 +77,25 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
             err.startedAt = startedAt;
             throw err;
         }
+        // [P1-QUOTA-402-UX · 2026-05-30] 402 = paywall del backend
+        // (`verify_api_quota`, auth.py:167) cuando el usuario agotó sus
+        // créditos mensuales (gratis=15/basic=50/plus=200). Sin esta rama el
+        // 402 caía al genérico `!response.ok` (sin `.code`) → el outer catch
+        // disparaba el fallback síncrono (MISMO paywall) y terminaba emitiendo
+        // `offline_unavailable` → el usuario sin créditos veía "Sin conexión
+        // con la IA" (mentira) + loop a /assessment, SIN ver el CTA de mejora.
+        // Propagamos `code='quota_exceeded'` para que el caller muestre el
+        // upgrade CTA en el momento de intención (conversión). NO reintentar.
+        if (response.status === 402) {
+            let detail = '';
+            try {
+                const body = await response.json();
+                detail = body?.detail || '';
+            } catch { /* el body puede no ser JSON */ }
+            const err = new Error(detail || 'Has alcanzado el límite de créditos de tu plan.');
+            err.code = 'quota_exceeded';
+            throw err;
+        }
         if (response.status >= 500) throw new Error(`Server Error ${response.status}`);
         if (!response.ok) {
             const txt = await response.text();
@@ -90,6 +109,9 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
         if (err.code === 'rate_limited') throw err;
         // [P3-409-PIPELINE-RUNNING] No reintentar 409 — guardrail no se resuelve con backoff.
         if (err.code === 'pipeline_already_running') throw err;
+        // [P1-QUOTA-402-UX · 2026-05-30] No reintentar 402 — el cap mensual no
+        // se resuelve con backoff; reintentar solo desperdicia round-trips.
+        if (err.code === 'quota_exceeded') throw err;
 
         if (retries > 1) {
             console.warn(`⚠️ Intento fallido. Reintentando en ${backoff / 1000}s... (${retries - 1} intentos restantes)`);
@@ -355,6 +377,13 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                 // muestre countdown.
                 console.warn(`⏳ Rate limited — propagando para countdown UX (retry_after=${error.retryAfter}s).`);
                 throw error;
+            } else if (error.code === 'quota_exceeded') {
+                // [P1-QUOTA-402-UX · 2026-05-30] Cap mensual de créditos
+                // alcanzado. El fallback síncrono (`/analyze`) recibiría el
+                // MISMO 402 (mismo `verify_api_quota`) → saltarlo y propagar
+                // para que el caller muestre el CTA de mejora de plan.
+                console.warn("💳 Límite de créditos alcanzado — propagando para upgrade CTA.");
+                throw error;
             } else {
                 console.warn(`⚠️ SSE falló (${error.message}), intentando endpoint síncrono...`);
 
@@ -523,7 +552,9 @@ const Plan = () => {
         // Pre-cargar el plan antiguo para el Preview.
         // [P2-A · 2026-05-08] SSOT migration de try/catch ad-hoc.
         // Si parse falla, `oldPlan` queda en su estado previo (no degradamos).
-        const oldPlanStr = localStorage.getItem('mealfit_plan');
+        // [P4-LOCALSTORAGE-LAZY-INIT] getItem crudo en cuerpo de effect (antes del
+        // try de processPlan) → SecurityError colgaría la pantalla de generación.
+        const oldPlanStr = safeLocalStorageGet('mealfit_plan', null);
         if (oldPlanStr) {
             const parsed = safeJSONParseObject(oldPlanStr);
             // Solo setear si efectivamente parseó algo no-trivial; el fallback
@@ -841,6 +872,30 @@ const Plan = () => {
                             });
                         });
                         navigate('/assessment', { replace: true });
+                        return;
+                    }
+                    // [P1-QUOTA-402-UX · 2026-05-30] Cap mensual de créditos
+                    // alcanzado (gratis=15/basic=50/plus=200). El backend ya
+                    // rechazó con 402 ANTES de iniciar pipeline → limpiar el
+                    // flag para que <PendingPipelineRecovery /> no poolee un KV
+                    // stale. Mostramos el mensaje real del backend ("Mejora tu
+                    // plan para continuar") con CTA directo a /dashboard/upgrade
+                    // — la conversión en el momento de intención. NO mostrar
+                    // "Sin conexión con la IA" (mentira que mandaba al user a un
+                    // loop en /assessment sin ver el paywall).
+                    if (error.code === 'quota_exceeded') {
+                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                        import('sonner').then(({ toast }) => {
+                            toast.error("Límite de créditos alcanzado", {
+                                description: error.message || "Mejora tu plan para seguir generando.",
+                                action: {
+                                    label: "Mejorar plan",
+                                    onClick: () => navigate('/dashboard/upgrade'),
+                                },
+                                duration: 10000,
+                            });
+                        });
+                        navigate('/dashboard/upgrade', { replace: true });
                         return;
                     }
                     // [P3-ERROR-REDIRECT-ASSESSMENT · 2026-05-16] SSE + endpoint
@@ -1191,6 +1246,8 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
 
         const intervalId = setInterval(async () => {
             if (signal.aborted) return;
+            // [P1-PLAN-POLL-VISIBILITY · 2026-05-31] no sondear con pestaña oculta (ahorra red/batería).
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
             try {
                 const res = await getPlanChunkStatus(newPlan.id, { signal });
                 if (signal.aborted) return;
@@ -1459,8 +1516,10 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                             </p>
                         )}
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                            <a
-                                href="/pantry"
+                            {/* [P4-PLAN-SPA-NAV] <Link> en vez de <a href> evita full page reload
+                                (re-descarga del bundle + pérdida de estado de PreviewScreen). */}
+                            <Link
+                                to="/pantry"
                                 style={{
                                     flex: '1 1 140px', padding: '0.75rem 1rem', background: 'transparent', color: '#F59E0B',
                                     borderRadius: '0.5rem', border: '1px solid rgba(245, 158, 11, 0.5)', fontWeight: 600,
@@ -1469,7 +1528,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                                 }}
                             >
                                 <ShoppingCart size={16} /> Actualizar nevera
-                            </a>
+                            </Link>
                             <button
                                 onClick={onRegenerate}
                                 style={{
@@ -1565,6 +1624,36 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
 };
 PreviewScreen.propTypes = { oldPlan: PropTypes.object, newPlan: PropTypes.object, onAccept: PropTypes.func, onReject: PropTypes.func, onRegenerate: PropTypes.func };
 
+// [P5-SPEED-LOADINGSCREEN-HOIST · 2026-06-01] `steps` (10 objetos con refs a íconos
+// lucide module-level) y `tips` (5 strings) izados a module-scope. Antes vivían DENTRO
+// de LoadingScreen → se reconstruían en cada render, y LoadingScreen re-renderiza a
+// sub-segundo durante 10-15 min (la barra de progreso + contador de tiempo + rotación
+// de tips). Dependen solo de imports module-level → se alocan una vez aquí.
+const LOADING_STEPS = [
+    { text: "Iniciando motor de Inteligencia Artificial", icon: Server, pct: 5, phase: null },
+    { text: "Analizando perfil biométrico y metabólico", icon: Activity, pct: 12, phase: 'analyzing' },
+    { text: "Calculando arquitectura de macronutrientes", icon: PieChart, pct: 25, phase: 'skeleton' },
+    { text: "Seleccionando ingredientes de alta biodisponibilidad", icon: Utensils, pct: 45, phase: 'day_1', dayCheck: 1 },
+    { text: "Optimizando sinergias metabólicas", icon: UtensilsCrossed, pct: 60, phase: 'day_2', dayCheck: 2 },
+    { text: "Estructurando patrones de alimentación", icon: ChefHat, pct: 75, phase: 'day_3', dayCheck: 3 },
+    // P1-B: el orquestador emite `phase=adversarial_judging` y `phase=critique`
+    // entre la generación paralela y `assembly`. Sin estas dos entradas, la
+    // barra se queda pegada en ~78% durante 30–90 s y el usuario percibe el
+    // app como colgado.
+    { text: "Comparando candidatos y eligiendo el mejor plan", icon: Activity, pct: 79, phase: 'adversarial_judging' },
+    { text: "Refinando coherencia y diversidad de platos", icon: ChefHat, pct: 81, phase: 'critique' },
+    { text: "Consolidando despensa y optimizando compras", icon: ShoppingCart, pct: 85, phase: 'assembly' },
+    { text: "Auditoría médica y calibración final", icon: ShieldCheck, pct: 93, phase: 'review' },
+];
+
+const LOADING_TIPS = [
+    "💡 Beber agua antes de cada comida ayuda a controlar el apetito",
+    "💡 Las proteínas aceleran tu metabolismo hasta un 30%",
+    "💡 Comer despacio mejora la digestión y saciedad",
+    "💡 El sueño es clave: sin él, las hormonas del hambre se descontrolan",
+    "💡 Una comida balanceada tiene proteína, carbohidrato y grasa saludable",
+];
+
 // --- PANTALLA DE CARGA PREMIUM CON PROGRESO REAL ---
 const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) => {
     const [progress, setProgress] = useState(0);
@@ -1597,30 +1686,10 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     // redirect desde el handler del botón sin depender del catch.
     const navigateCancel = useNavigate();
 
-    const steps = [
-        { text: "Iniciando motor de Inteligencia Artificial", icon: Server, pct: 5, phase: null },
-        { text: "Analizando perfil biométrico y metabólico", icon: Activity, pct: 12, phase: 'analyzing' },
-        { text: "Calculando arquitectura de macronutrientes", icon: PieChart, pct: 25, phase: 'skeleton' },
-        { text: "Seleccionando ingredientes de alta biodisponibilidad", icon: Utensils, pct: 45, phase: 'day_1', dayCheck: 1 },
-        { text: "Optimizando sinergias metabólicas", icon: UtensilsCrossed, pct: 60, phase: 'day_2', dayCheck: 2 },
-        { text: "Estructurando patrones de alimentación", icon: ChefHat, pct: 75, phase: 'day_3', dayCheck: 3 },
-        // P1-B: el orquestador emite `phase=adversarial_judging` y `phase=critique`
-        // entre la generación paralela y `assembly`. Sin estas dos entradas, la
-        // barra se queda pegada en ~78% durante 30–90 s y el usuario percibe el
-        // app como colgado.
-        { text: "Comparando candidatos y eligiendo el mejor plan", icon: Activity, pct: 79, phase: 'adversarial_judging' },
-        { text: "Refinando coherencia y diversidad de platos", icon: ChefHat, pct: 81, phase: 'critique' },
-        { text: "Consolidando despensa y optimizando compras", icon: ShoppingCart, pct: 85, phase: 'assembly' },
-        { text: "Auditoría médica y calibración final", icon: ShieldCheck, pct: 93, phase: 'review' },
-    ];
-
-    const tips = [
-        "💡 Beber agua antes de cada comida ayuda a controlar el apetito",
-        "💡 Las proteínas aceleran tu metabolismo hasta un 30%",
-        "💡 Comer despacio mejora la digestión y saciedad",
-        "💡 El sueño es clave: sin él, las hormonas del hambre se descontrolan",
-        "💡 Una comida balanceada tiene proteína, carbohidrato y grasa saludable",
-    ];
+    // [P5-SPEED-LOADINGSCREEN-HOIST · 2026-06-01] Alias a las constantes module-scope
+    // (LOADING_STEPS / LOADING_TIPS) — los arrays se alocan una vez, no en cada render.
+    const steps = LOADING_STEPS;
+    const tips = LOADING_TIPS;
 
     // Progreso basado en eventos SSE reales
     useEffect(() => {
@@ -1738,17 +1807,19 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     const currentStep = activeStepIndex === -1 ? steps.length - 1 : Math.max(0, activeStepIndex - 1);
 
     return (
-        <div style={{
+        <div className="mf-loading-bg" style={{
             minHeight: 'calc(100dvh - 70px)',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             padding: '3rem 1.5rem',
-            // [P3-LOADING-PALETTE-ALIGN · 2026-05-16] Reemplazado el radial negro
-            // por el slate-900 del footer (`--text-main: #0F172A`). El loading
-            // ahora combina con el header (blanco con logo rojo+azul) y el
-            // footer (slate-900) — antes el negro choccaba contra el resto de
-            // la app que es light theme con accent navy. Gradient suave hacia
-            // slate-800 (#1E293B) en el centro para no ser plano.
-            background: 'radial-gradient(ellipse at center, #1E293B 0%, #0F172A 70%)',
+            // [P3-LOADING-PALETTE-ALIGN · 2026-05-16] El fondo se define en el bloque
+            // <style> de abajo (clase .mf-loading-bg) — NO inline — para que pueda
+            // variar por tema sin que la especificidad del estilo inline lo gane.
+            //   · Claro (legacy premium): radial slate #1E293B→#0F172A, intacto.
+            // [LOADING-DARK-BG · 2026-05-31] En oscuro adopta el MISMO fondo ambiental
+            // que el Dashboard y el Formulario (P3-DARK-BG-STRIPES): rayas 45° 1px@4%
+            // cada 52px + glows indigo/púrpura sobre #0B1120 → consistencia visual del
+            // modo oscuro en todo el producto. El texto blanco sigue legible porque
+            // ambos temas del loading son oscuros.
             position: 'relative', overflow: 'hidden',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
         }}>
@@ -1760,6 +1831,23 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 @keyframes mfSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
                 .mf-pulse { animation: mfPulse 2.4s ease-in-out infinite; }
                 .mf-spin { animation: mfSpin 1.6s linear infinite; }
+                /* [LOADING-DARK-BG · 2026-05-31] Fondo del loading. Claro: radial slate
+                   premium legacy (#1E293B→#0F172A). Oscuro: MISMO fondo SSOT del
+                   Dashboard y el Formulario (P3-DARK-BG-STRIPES) — rayas diagonales 45°
+                   + glows indigo/púrpura sobre #0B1120. El fondo va aquí (no inline)
+                   para que el override de tema no compita con la especificidad inline. */
+                .mf-loading-bg { background: radial-gradient(ellipse at center, #1E293B 0%, #0F172A 70%); }
+                html[data-theme="dark"] .mf-loading-bg {
+                    background-color: #0B1120;
+                    background-image:
+                        repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 52px),
+                        radial-gradient(ellipse 70% 55% at 8% -10%, rgba(99,102,241,0.28) 0%, transparent 55%),
+                        radial-gradient(ellipse 58% 50% at 100% 2%, rgba(129,140,248,0.20) 0%, transparent 52%),
+                        radial-gradient(ellipse 55% 50% at 90% 96%, rgba(139,92,246,0.14) 0%, transparent 55%),
+                        radial-gradient(ellipse 75% 55% at 28% 108%, rgba(79,70,229,0.18) 0%, transparent 55%);
+                    background-size: auto, cover, cover, cover, cover;
+                    background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+                }
             `}</style>
 
             <motion.div

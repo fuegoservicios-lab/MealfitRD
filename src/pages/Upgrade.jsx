@@ -30,7 +30,7 @@
  *   - upgradeUserPlan del context para post-pago.
  *   - PRICING + tierRank locales (consistentes con Pricing.jsx).
  */
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 import {
@@ -38,8 +38,12 @@ import {
     ShieldCheck, RefreshCw, CreditCard, BadgeCheck,
     Infinity as InfinityIcon,
 } from 'lucide-react';
-import PaymentModal from '../components/dashboard/PaymentModal';
 import styles from './Upgrade.module.css';
+// [P5-SPEED-PAYMENTMODAL-LAZY · 2026-06-01] lazy + gate por isPaymentOpen → el
+// chunk de PaymentModal (wrapper PayPal ~22KB) se baja al abrir el checkout, no al
+// montar esta página lazy. Comportamiento idéntico (PaymentModal ya devolvía null
+// y montaba el PayPalScriptProvider solo cuando isOpen).
+const PaymentModal = lazy(() => import('../components/dashboard/PaymentModal'));
 
 /* ============================================================
    CONFIG: precios + features (SSOT local de esta página)
@@ -87,8 +91,7 @@ const PLAN_SUMMARY = {
         features: [
             '200 Créditos al mes',
             'Llamadas de Voz con IA',
-            'Memoria infinita',
-            'Integración Apple Health/Fit',
+            'Memoria Infinita',
             'Todo lo incluido en Básico',
         ],
     },
@@ -167,11 +170,11 @@ const COMP_FEATURES = [
                 desc: 'Desglose de calorías y macronutrientes',
                 values: { gratis: true, basic: true, plus: true, ultra: true },
             },
-            {
-                name: 'Integración Apple Health/Fit',
-                desc: 'Sincroniza con tus apps de fitness',
-                values: { gratis: false, basic: false, plus: true, ultra: true },
-            },
+            // [P1-PHANTOM-FEATURE · 2026-05-31] 'Integración Apple Health/Fit'
+            // eliminada: no existe implementación (cero HealthKit/Google Fit en el
+            // codebase) y es arquitectónicamente imposible en una PWA pura (sin
+            // wrapper nativo Capacitor/Cordova). Vendida con ✓ en un plan de pago =
+            // riesgo de reembolsos/disputas. Reintroducir solo cuando exista de verdad.
         ],
     },
     {
@@ -325,9 +328,19 @@ const Upgrade = () => {
     };
 
     const handlePaymentSuccess = async (tier, subscriptionId) => {
+        // [P1-PAY-LIMBO · 2026-05-30] NO cerrar el modal ni navegar antes de
+        // saber el resultado. Antes: `setIsPaymentOpen(false)` + navigate
+        // incondicional, ignorando el retorno de upgradeUserPlan. Si
+        // /subscription/verify falla tras un cobro PayPal real (timeout/5xx),
+        // el usuario quedaba en /dashboard como gratis pero con suscripción
+        // activa cobrando (limbo → chargeback/soporte). Ahora: el modal
+        // full-screen sigue visible durante la verificación (cierra también el
+        // P2 de "modal desaparece a mitad de verify") y solo navegamos en
+        // éxito; en fallo cerramos el modal y dejamos al usuario en esta página
+        // con el toast.error de upgradeUserPlan para reintentar.
+        const ok = await upgradeUserPlan(tier, subscriptionId);
         setIsPaymentOpen(false);
-        await upgradeUserPlan(tier, subscriptionId);
-        navigate('/dashboard');
+        if (ok) navigate('/dashboard');
     };
 
     const getButtonText = (tier) => {
@@ -427,16 +440,21 @@ const Upgrade = () => {
 
     return (
         <div className={styles.root}>
-            {/* --- MODAL DE PAGO (reuse) --- */}
-            <PaymentModal
-                isOpen={isPaymentOpen}
-                onClose={() => setIsPaymentOpen(false)}
-                onSuccess={(subId) => handlePaymentSuccess(selectedPlan?.tier, subId)}
-                price={selectedPlan?.price || '9.99'}
-                planName={selectedPlan?.name || 'Suscripción Básico'}
-                tier={selectedPlan?.tier || 'basic'}
-                isAnnual={selectedPlan?.isAnnual || false}
-            />
+            {/* --- MODAL DE PAGO (reuse) --- [P5-SPEED-PAYMENTMODAL-LAZY · 2026-06-01]
+                gate por isPaymentOpen + Suspense → chunk lazy al abrir. */}
+            {isPaymentOpen && (
+                <Suspense fallback={null}>
+                    <PaymentModal
+                        isOpen={isPaymentOpen}
+                        onClose={() => setIsPaymentOpen(false)}
+                        onSuccess={(subId) => handlePaymentSuccess(selectedPlan?.tier, subId)}
+                        price={selectedPlan?.price || '9.99'}
+                        planName={selectedPlan?.name || 'Suscripción Básico'}
+                        tier={selectedPlan?.tier || 'basic'}
+                        isAnnual={selectedPlan?.isAnnual || false}
+                    />
+                </Suspense>
+            )}
 
             {/* --- HEADER STICKY ---
                 [P3-UPGRADE-HEADER-MINIMAL · 2026-05-26] Removido el título

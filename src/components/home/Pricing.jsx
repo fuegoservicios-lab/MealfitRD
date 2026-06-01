@@ -1,9 +1,16 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
 import { Check } from 'lucide-react';
 import styles from './Pricing.module.css';
-import PaymentModal from '../../components/dashboard/PaymentModal';
+// [P5-SPEED-PAYMENTMODAL-LAZY · 2026-06-01] PaymentModal arrastra el wrapper
+// @paypal/react-paypal-js (chunk ~22KB). Como Pricing se importa al cargar el
+// landing (Home), el import estático emitía un <link modulepreload> de ese chunk
+// en cada visita al landing aunque el 99% de los visitantes nunca abre el modal.
+// Lazy + gate por `isPaymentOpen` → el chunk se baja solo al abrir el checkout.
+// PaymentModal ya retornaba null cuando !isOpen (y solo entonces monta el
+// PayPalScriptProvider), así que el comportamiento visible es idéntico.
+const PaymentModal = lazy(() => import('../../components/dashboard/PaymentModal'));
 
 // --- Configuración de precios ---
 const PRICING = {
@@ -26,7 +33,6 @@ const Pricing = () => {
 
     const {
         PLAN_LIMIT,
-        remainingCredits,
         planData,
         upgradeUserPlan,
         userProfile
@@ -44,17 +50,21 @@ const Pricing = () => {
     const rawTier = (userProfile?.plan_tier || '').toLowerCase().trim(); // Ensure lowercase
     const currentTier = ['gratis', 'basic', 'plus', 'ultra', 'admin'].includes(rawTier) ? rawTier : 'gratis';
     
-    const isBasic = currentTier === 'basic';
-    const isPlus = currentTier === 'plus';
-    const isUltra = currentTier === 'ultra';
-
     // Jerarquía de planes
     const tierRank = { gratis: 1, basic: 2, plus: 3, ultra: 4, admin: 5 };
     const currentRank = tierRank[currentTier] || 1;
 
+    // [P2-PRICING-PROFILE-LOADING · 2026-05-31] El landing siempre vive tras
+    // ProtectedRoute (no existe invitado real). Mientras userProfile no hidrate,
+    // tratamos los botones como "cargando" (disabled) en vez de la rama invitado
+    // que mostraba upgrades/downgrades activos e incorrectos durante la ventana
+    // de carga (un usuario Plus/Ultra veía todas las tarjetas pagas clickeables).
+    const isProfileLoading = !userProfile?.id;
+
     // Helper: obtener precio actual según billing period
     const getPrice = (tier) => PRICING[tier]?.[billingPeriod]?.price || '0';
     const getPeriodLabel = (tier) => PRICING[tier]?.[billingPeriod]?.label || '';
+    const getMonthlyEquiv = (tier) => PRICING[tier]?.annual?.monthlyEquiv;
 
     // Manejador del botón Plan Gratis
     const handleFreePlanClick = () => {
@@ -84,17 +94,28 @@ const Pricing = () => {
 
     // Callback que se ejecuta cuando PayPal confirma el pago exitoso (Suscripciones)
     const handlePaymentSuccess = async (tier, subscriptionId) => {
+        // [P1-PAY-LIMBO · 2026-05-30] Esperar el resultado antes de cerrar el
+        // modal y navegar. Si /subscription/verify falla tras un cobro PayPal
+        // real, navegar incondicionalmente dejaba al usuario como gratis pero
+        // suscrito (limbo). El modal queda visible durante la verificación
+        // (cierra el P2 de timing) y solo navegamos en éxito; en fallo el
+        // toast.error de upgradeUserPlan informa y el usuario reintenta.
+        const ok = await upgradeUserPlan(tier, subscriptionId);
         setIsPaymentOpen(false);
-        await upgradeUserPlan(tier, subscriptionId);
-        navigate('/dashboard');
+        if (ok) navigate('/dashboard');
     };
 
     // Texto del botón según estado del usuario
     const getButtonText = (tier) => {
-        // Usuario no autenticado
-        if (!userProfile?.id) {
-            if (tier === 'gratis') return "Empezar Gratis Ahora";
-            return `Cambiar a ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
+        // Ventana de carga: sesión presente pero perfil aún sin hidratar.
+        if (isProfileLoading) return "Cargando…";
+
+        // Plan Gratis: CTA de adquisición del usuario gratis sin plan (el target
+        // de conversión). Antes este botón quedaba "Tu Plan Actual" + disabled
+        // para el usuario gratis → CTA muerto en la tarjeta dirigida a él.
+        if (tier === 'gratis') {
+            if (currentTier === 'gratis') return hasStarted ? "Ir a mi Panel" : "Empezar Gratis Ahora";
+            return "Incluido en tu Plan"; // ya pagó un tier superior
         }
 
         // Usuario autenticado
@@ -103,24 +124,28 @@ const Pricing = () => {
         }
 
         const targetRank = tierRank[tier] || 1;
-        
+
         if (targetRank < currentRank) {
             return "Incluido en tu Plan";
         }
-        
+
         return `Cambiar a ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
     };
 
     // Lógica de deshabilitación de botones
     const isButtonDisabled = (tier) => {
-        // Permitir click si no está autenticado (invitados eligiendo plan)
-        if (!userProfile?.id) return false;
+        // Durante la carga del perfil, deshabilitar para no exponer acciones erróneas.
+        if (isProfileLoading) return true;
+
+        // Gratis: solo deshabilitado si el usuario YA pagó un tier superior;
+        // nunca para el usuario gratis (su CTA de conversión debe ser clickeable).
+        if (tier === 'gratis') return currentRank > tierRank.gratis;
 
         const targetRank = tierRank[tier] || 1;
-        
+
         // Deshabilitar el botón si es el plan actual
         if (currentTier === tier) return true;
-        
+
         // Deshabilitar SOLO si el plan visualizado es INFERIOR al actual
         return targetRank < currentRank;
     };
@@ -130,16 +155,21 @@ const Pricing = () => {
     return (
         <section className={styles.pricing} id="pricing">
 
-            {/* --- MODAL DE PAGO --- */}
-            <PaymentModal
-                isOpen={isPaymentOpen}
-                onClose={() => setIsPaymentOpen(false)}
-                onSuccess={(subId) => handlePaymentSuccess(selectedPlan?.tier, subId)}
-                price={selectedPlan?.price || "9.99"}
-                planName={selectedPlan?.name || "Suscripción Básico"}
-                tier={selectedPlan?.tier || "basic"}
-                isAnnual={selectedPlan?.isAnnual || false}
-            />
+            {/* --- MODAL DE PAGO --- [P5-SPEED-PAYMENTMODAL-LAZY · 2026-06-01]
+                gate por isPaymentOpen + Suspense → el chunk lazy se baja al abrir. */}
+            {isPaymentOpen && (
+                <Suspense fallback={null}>
+                    <PaymentModal
+                        isOpen={isPaymentOpen}
+                        onClose={() => setIsPaymentOpen(false)}
+                        onSuccess={(subId) => handlePaymentSuccess(selectedPlan?.tier, subId)}
+                        price={selectedPlan?.price || "9.99"}
+                        planName={selectedPlan?.name || "Suscripción Básico"}
+                        tier={selectedPlan?.tier || "basic"}
+                        isAnnual={selectedPlan?.isAnnual || false}
+                    />
+                </Suspense>
+            )}
 
             <div className={styles.container}>
                 {/* Cabecera de la Sección */}
@@ -222,6 +252,9 @@ const Pricing = () => {
                                 <span className={styles.amount}>{getPrice('basic')}</span>
                                 <span className={styles.period}>{getPeriodLabel('basic')}</span>
                             </div>
+                            {isAnnual && (
+                                <p className={styles.monthlyEquiv}>≈ USD${getMonthlyEquiv('basic')}/mes, facturado anual</p>
+                            )}
 
                             <p className={styles.description}>
                                 Para quienes quieren más capacidad. Más créditos al mes y memoria a largo plazo para escalar tu progreso.
@@ -254,6 +287,9 @@ const Pricing = () => {
                                 <span className={styles.amount}>{getPrice('plus')}</span>
                                 <span className={styles.period}>{getPeriodLabel('plus')}</span>
                             </div>
+                            {isAnnual && (
+                                <p className={styles.monthlyEquiv}>≈ USD${getMonthlyEquiv('plus')}/mes, facturado anual</p>
+                            )}
 
                             <p className={styles.description}>
                                 Tu nutricionista en tiempo real. Consultas por voz las 24 horas y métricas de salud avanzadas.
@@ -262,8 +298,7 @@ const Pricing = () => {
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>200 Créditos al mes</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Llamadas de Voz con tu Nutricionista IA</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Memoria infinita</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Integración con Apple Health/Fit</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Memoria Infinita</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Básico</strong></li>
                             </ul>
 
@@ -289,6 +324,9 @@ const Pricing = () => {
                                 <span className={styles.amount}>{getPrice('ultra')}</span>
                                 <span className={styles.period}>{getPeriodLabel('ultra')}</span>
                             </div>
+                            {isAnnual && (
+                                <p className={styles.monthlyEquiv}>≈ USD${getMonthlyEquiv('ultra')}/mes, facturado anual</p>
+                            )}
 
                             <p className={styles.description}>
                                 Sin límites. Genera, regenera y optimiza todo lo que necesites, cuando quieras.

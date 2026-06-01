@@ -9,6 +9,9 @@ import { supabase } from '../supabase';
 // para los reads en el initializer del provider (líneas 88+) donde un
 // throw de localStorage congela el provider entero.
 import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
+// [P2-CHAT-CACHE-XUSER · 2026-05-31] Keys del chat del Agente para limpiar en
+// logout/user-switch (SSOT en módulo liviano — no arrastra AgentPage al bundle).
+import { CHAT_MESSAGES_CACHE_KEY, CHAT_SESSIONS_CACHE_KEY, CHAT_CURRENT_SESSION_KEY } from '../utils/chatCacheKeys';
 // --- BASE DE DATOS LOCAL DE RECETAS (FALLBACK) ---
 const DOMINICAN_MEALS = {
     breakfast: [
@@ -75,6 +78,11 @@ const getAlternativeMeal = (mealType, currentMealName, targetCalories, userDietT
 import { toast } from 'sonner';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { fetchWithAuth, restorePlanFromHistory as restorePlanFromHistoryApi } from '../config/api';
+// [P1-XTAB-CACHE-LEAK · 2026-05-30] Invalidadores de caches con KEY GLOBAL
+// (sin user_id) — se limpian en logout / user-switch para evitar leak
+// cross-user en dispositivo compartido (ver _clearUserScopedCaches).
+import { invalidateInventoryCache } from '../utils/pantryCache';
+import { invalidateHistoryListCache, clearAllModalCaches } from '../utils/historyCaches';
 // [P1-B7] Storage seguro para datos sensibles del formulario.
 import {
     saveFormData as secureSaveFormData,
@@ -84,6 +92,71 @@ import {
 } from '../config/secureFormStorage';
 
 const AssessmentContext = createContext();
+
+// [P1-XTAB-CACHE-LEAK · 2026-05-30] Limpia las caches con KEY GLOBAL (sin
+// user_id) que sobreviven a un cambio de usuario en el MISMO dispositivo.
+// El logout es navigate SPA (sin reload), así que los singletons in-memory de
+// pantryCache/historyCaches persisten en memoria; y sus espejos en localStorage
+// (`mealfit_pantry_inventory_cache_v1`, `mealfit_history_list_cache_v1`)
+// tampoco se borraban. Sin esta limpieza, el usuario B veía el inventario de la
+// Nevera y el listado de Historial (nombres/calorías/macros — PII nutricional)
+// del usuario A hasta que el fetch backend-autenticado los pisaba (~300-800ms,
+// o indefinido si ese fetch hacía timeout). Invocada desde resetApp (logout) y
+// desde la rama user-switch de handleAuthChange (cubre re-login sin logout
+// previo limpio: cierre de tab / magic link / token switch).
+const _clearUserScopedCaches = () => {
+    try { invalidateInventoryCache(); } catch { /* noop */ }
+    try { invalidateHistoryListCache(); } catch { /* noop */ }
+    // [P3-HIST-MODAL-CACHE-XUSER · 2026-05-30] Además del cache del LISTADO,
+    // limpiar los 5 caches singleton per-plan del modal del Historial
+    // (lessons/coherence/blocked/metrics/lifetime). Son `Map` global-keyed
+    // por plan_id que sobreviven al logout SPA con la PII nutricional del
+    // usuario anterior — la otra mitad global-keyed de la clase
+    // P1-XTAB-CACHE-LEAK.
+    try { clearAllModalCaches(); } catch { /* noop */ }
+    safeLocalStorageRemove('mealfit_disabled_ingredients');
+    // [P2-DEPLETED-XUSER · 2026-05-30] `mealfit_depleted_items` (key global,
+    // NO user-scoped) cachea los ítems agotados de la despensa del usuario.
+    // Su SSOT cross-device es la tabla `user_depleted_items`; el localStorage
+    // es solo cache. En dispositivo compartido, sin este remove el usuario B
+    // veía los ítems agotados de A en la Nevera hasta que el fetch de BD
+    // reconciliaba. Hermano omitido del fix P1-XTAB-CACHE-LEAK — misma clase.
+    safeLocalStorageRemove('mealfit_depleted_items');
+    // [P3-DEPLETED-MIGRATION-FLAG-XUSER · 2026-05-30] Limpiar también el flag
+    // derivado `mealfit_depleted_items_migrated_at` (one-shot migration del
+    // localStorage→BD en Pantry.jsx). Es derivado de `mealfit_depleted_items`
+    // (que se acaba de borrar) y debe limpiarse junto a él para que el próximo
+    // usuario re-evalúe la migración con estado consistente. Hermano omitido de
+    // P2-DEPLETED-XUSER — sin pérdida de datos (la SSOT de B es la BD vía
+    // _fetchAndApply), pero cierra la inconsistencia de clearing user-scoped.
+    safeLocalStorageRemove('mealfit_depleted_items_migrated_at');
+    // [P2-CHAT-CACHE-XUSER · 2026-05-31] Caches del chat del Agente: mensajes
+    // (hasta 50 msgs), lista de sesiones (con títulos) y sesión actual. Las 3
+    // son GLOBAL-keyed (sin user_id) y sobrevivían al logout SPA → en
+    // dispositivo compartido el usuario B podía ver/rehidratar la conversación
+    // de A (PII nutricional). Hermano omitido del sweep P1-XTAB-CACHE-LEAK.
+    // `mealfit_current_session` además: sin borrarla, la rama user-switch dejaba
+    // el sessionId de A → el initializer del messages-cache (cache.sessionId ===
+    // currentSessionId) rehidrataba la conversación de A en la vista de B.
+    safeLocalStorageRemove(CHAT_MESSAGES_CACHE_KEY);
+    safeLocalStorageRemove(CHAT_SESSIONS_CACHE_KEY);
+    safeLocalStorageRemove(CHAT_CURRENT_SESSION_KEY);
+    // [P2-QUOTA-CACHE-XUSER · 2026-06-01] `window.__cachedQuota` / `__lastQuotaCheckTime`
+    // son globals NO user-scoped que cachean el planCount del backend (TTL 120s en
+    // Dashboard, 5s en useRegeneratePlan/Settings) para evitar fetch en cada click del
+    // gate de regeneración. El logout es navigate SPA sin reload → sobreviven al
+    // user-switch → en dispositivo compartido el usuario B leía el conteo de A contra
+    // su propio límite (falso bloqueo / falso bypass del gate soft por ≤120s). El quota
+    // real se enforza server-side (verify_api_quota→402), así que NO es escalada — solo
+    // UX del gate. Hermano omitido de la clase P1-XTAB-CACHE-LEAK / P2-CHAT-CACHE-XUSER.
+    // `= undefined`/`= 0` basta: el primer lector post-switch ve undefined → fetch fresco.
+    try {
+        if (typeof window !== 'undefined') {
+            window.__cachedQuota = undefined;
+            window.__lastQuotaCheckTime = 0;
+        }
+    } catch { /* noop */ }
+};
 
 export const AssessmentProvider = ({ children }) => {
     // 1. CARGAR DATOS PERSISTENTES (LocalStorage)
@@ -108,6 +181,15 @@ export const AssessmentProvider = ({ children }) => {
     // Auth State (Supabase)
     const [session, setSession] = useState(null);
     const [loadingAuth, setLoadingAuth] = useState(true);
+
+    // [APPEARANCE-THEME · 2026-05-29] Señal para que main.jsx descarte el splash
+    // cuando la auth inicial resolvió (shell listo para pintar la pantalla
+    // correcta: login o dashboard). main.jsx tiene un fallback por si acaso.
+    useEffect(() => {
+        if (!loadingAuth) {
+            window.dispatchEvent(new Event('mealfit:app-ready'));
+        }
+    }, [loadingAuth]);
 
     // Estado para saber si estamos sincronizando datos de la DB
     const [loadingData, setLoadingData] = useState(true);
@@ -185,7 +267,7 @@ export const AssessmentProvider = ({ children }) => {
 
     const initialFormData = {
         age: '', gender: '', height: '', weight: '', weightUnit: _getDefaultWeightUnit(), bodyFat: '', activityLevel: '',
-        sleepHours: '', stressLevel: '', cookingTime: '', budget: '', scheduleType: '',
+        sleepHours: '', stressLevel: '', cookingTime: '', budget: '', budgetAmount: '', budgetCurrency: 'DOP', scheduleType: '',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
         mainGoal: '', motivation: '', struggles: [],
         // [P1-FORM-3] Touched-flag para `weightUnit` (mismo patrón que otros
@@ -200,17 +282,16 @@ export const AssessmentProvider = ({ children }) => {
         // este flag cubre el edge case de US-expat-en-DR (locale es-DO →
         // default 'kg' incorrecto para él) o cualquier mismatch locale↔intent.
         _weightUnitTouched: false,
-        // [P1-12] Touched-flags para householdSize y groceryDuration. Mismo
-        // patrón que `_weightUnitTouched` (P1-FORM-3). Sin estos, una edición
-        // explícita del usuario (ej.
-        // cambiar de 4 a 2 personas en mudanza) podía revertirse al siguiente
-        // Realtime UPDATE de `user_profiles` (admin tooling, otra pestaña,
-        // sync cloud) o tras `fetchProfile` post-login con valores stale del
-        // DB. El useEffect mount-only en este mismo provider re-arma
-        // `editedFieldsRef` con 'householdSize'/'groceryDuration' cuando los
-        // flags están a `true`, garantizando que la decisión del usuario
-        // sobreviva remounts, refreshes, y hidratación async.
-        _householdSizeTouched: false,
+        // [P1-12 · householdSize removido 2026-05-30] Touched-flag para
+        // groceryDuration. Mismo patrón que `_weightUnitTouched` (P1-FORM-3):
+        // sin él, un cambio explícito del ciclo de compras podía revertirse al
+        // siguiente Realtime UPDATE de `user_profiles` (admin tooling, otra
+        // pestaña, sync cloud) o tras `fetchProfile` post-login con valores
+        // stale del DB. El useEffect mount-only re-arma `editedFieldsRef` con
+        // 'groceryDuration' cuando el flag está a `true`. `_householdSizeTouched`
+        // se eliminó: householdSize es fijo en 1 (decisión de producto
+        // 2026-05-30, sin selector de hogar) → no hay edición de hogar que
+        // preservar.
         _groceryDurationTouched: false,
         // [P1-13] Unidad seleccionada en QMeasurements para el INPUT de altura
         // (cm vs ft+inches). Antes vivía como `useState` local, perdiéndose al
@@ -221,17 +302,23 @@ export const AssessmentProvider = ({ children }) => {
         // la decisión visual del usuario. NO se hidrata desde DB (prefijo `_`
         // lo trata como interno via stripInternalFlags / SENSITIVE_FIELDS),
         // solo desde localStorage.
-        _heightInputUnit: 'cm',
-        // [P0-12] `householdSize` y `groceryDuration` SIN default explícito.
-        // ANTES: `householdSize: 1, groceryDuration: 'weekly'` evadía el guard
-        // de `findFirstIncompleteField` (que solo flaggea null/undefined/empty
-        // string/empty array) — el botón "Siguiente" del step QHousehold
-        // quedaba habilitado desde el primer render aunque el usuario no
-        // hubiera tocado nada. Una familia de 4 con compras quincenales
-        // recibía un plan escalado para 1 persona/semanal → lista de compras
-        // subdimensionada (faltante crítico de comida) y macros para 1
-        // plato cuando hay 4 comensales. AHORA arrancan en `null`/`''` y el
-        // gating del wizard fuerza al usuario a elegir explícitamente.
+        // [FT-DEFAULT-PRESELECT · 2026-05-31] Default 'ft' (no 'cm') — paridad
+        // con `weightUnit: 'lb'`: el mercado es-DO usa pies+pulgadas/imperial.
+        // Pre-fix initialFormData='cm' mientras el componente caía a `|| 'ft'`
+        // (inconsistente: el fallback nunca aplicaba porque 'cm' es truthy →
+        // usuarios nuevos arrancaban en CM). La altura SIEMPRE se guarda en cm
+        // internamente (el toggle solo cambia qué inputs se muestran); el toggle
+        // CM sigue visible para quien prefiera centímetros.
+        _heightInputUnit: 'ft',
+        // [P0-12 · revisado 2026-05-30] `groceryDuration` arranca en '' y el
+        // wizard (QHousehold) lo exige antes de avanzar. `householdSize` es
+        // FIJO en 1 por decisión de producto (2026-05-30): se eliminó el
+        // selector de tamaño de hogar; el producto escala por persona. Sigue
+        // listado en REQUIRED_FORM_FIELDS por paridad de contrato con el
+        // backend (`test_p0_form_6_required_fields_sync`), pero el default 1
+        // (truthy) siempre satisface `findFirstIncompleteField` → nunca bloquea
+        // ni navega a un step inexistente. NO re-introducir un selector de
+        // hogar sin revertir antes esta decisión (ver tests P0_12/P1_12).
         includeSupplements: false, selectedSupplements: [], groceryDuration: '', householdSize: 1,
         otherConditions: '',
         // [P1-B5] otherDislikes captura el free-text del step QDislikes (alimentos
@@ -415,18 +502,15 @@ export const AssessmentProvider = ({ children }) => {
     // pasan por `updateData` que añade el field al ref directamente.
     //
     // Patrón: `_xxxTouched=true` (persistido) → re-armar 'xxx' en el ref.
-    // Cubre actualmente: weightUnit (P1-FORM-3), householdSize y
-    // groceryDuration (P1-12).
+    // Cubre actualmente: weightUnit (P1-FORM-3) y groceryDuration (P1-12).
+    // householdSize se removió (fijo en 1, decisión de producto 2026-05-30).
     useEffect(() => {
         if (formData?._weightUnitTouched === true) {
             editedFieldsRef.current.add('weightUnit');
         }
-        // [P1-12] Re-armar householdSize y groceryDuration desde flags
-        // persistidos. Sin esto, la edición de hogar del usuario podía
-        // ser revertida por Realtime UPDATE / fetchProfile post-refresh.
-        if (formData?._householdSizeTouched === true) {
-            editedFieldsRef.current.add('householdSize');
-        }
+        // [P1-12 · householdSize removido 2026-05-30] Re-armar groceryDuration
+        // desde el flag persistido. Sin esto, el cambio de ciclo de compras
+        // podía ser revertido por Realtime UPDATE / fetchProfile post-refresh.
         if (formData?._groceryDurationTouched === true) {
             editedFieldsRef.current.add('groceryDuration');
         }
@@ -593,11 +677,20 @@ export const AssessmentProvider = ({ children }) => {
                     }
                 }
 
-                // Solo actualizamos si el plan en la nube es diferente al local
-                if (!localSavedParsed || JSON.stringify(localSavedParsed) !== JSON.stringify(latestPlan)) {
+                // Solo actualizamos si el plan en la nube es diferente al local.
+                // [P3-RESTORE-STRINGIFY-ONCE · 2026-06-01] plan_data es jsonb
+                // multi-semana (decenas-cientos de KB) y esto corre en el critical
+                // path de cada login/token-switch. Antes serializaba el plan ENTERO
+                // 3× por llamada (2 en la comparación + 1 dentro de safeLocalStorageSet).
+                // Stringify cada objeto UNA vez y reusar: comparación byte-equivalente,
+                // y pasamos el string ya serializado a safeLocalStorageSet (acepta
+                // string directo → evita el 3er stringify).
+                const _localStr = localSavedParsed ? JSON.stringify(localSavedParsed) : null;
+                const _latestStr = JSON.stringify(latestPlan);
+                if (_localStr === null || _localStr !== _latestStr) {
 
                     setPlanData(latestPlan);
-                    safeLocalStorageSet('mealfit_plan', latestPlan);
+                    safeLocalStorageSet('mealfit_plan', _latestStr);
                 } else {
 
                 }
@@ -641,7 +734,7 @@ export const AssessmentProvider = ({ children }) => {
     // --- 1. FUNCIÓN PARA CONSULTAR LÍMITE DE IA (API) ---
     const checkPlanLimit = useCallback(async (specificUserId = null) => {
         try {
-            const userId = specificUserId || session?.user?.id || localStorage.getItem('mealfit_user_id');
+            const userId = specificUserId || session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
 
             if (!userId || userId === 'guest') {
                 setPlanCount(0);
@@ -661,7 +754,13 @@ export const AssessmentProvider = ({ children }) => {
             console.error("Error verificando límites de API:", error);
             return 0;
         }
-    }, [session]);
+        // [P5-SPEED-CTX-DEP-NARROW · 2026-06-01] dep [session]→[session?.user?.id]:
+        // el cuerpo solo lee session?.user?.id; fetchWithAuth lee el token fresco
+        // internamente. El objeto `session` recibe NUEVA referencia en cada
+        // TOKEN_REFRESHED (~1h), lo que recreaba este callback y re-suscribía el
+        // effect de auth (dep en línea ~1109) sin necesidad. Estrechar a la primitiva
+        // mantiene la identidad estable salvo cambio real de usuario.
+    }, [session?.user?.id]);
 
     // --- 2. MANEJO DE SESIÓN Y PERFIL (SUPABASE) ---
     const fetchProfile = useCallback(async (userId) => {
@@ -700,7 +799,7 @@ export const AssessmentProvider = ({ children }) => {
     }, [setFormData, setUserProfile]);
 
     const refreshProfileAndPlan = useCallback(async () => {
-        const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
+        const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
         if (userId) {
             try {
                 const { data } = await supabase
@@ -738,7 +837,13 @@ export const AssessmentProvider = ({ children }) => {
                 console.error("Error refreshing profile or plan:", error);
             }
         }
-    }, [session]);
+        // [P5-SPEED-CTX-DEP-NARROW · 2026-06-01] dep [session]→[session?.user?.id]:
+        // el cuerpo solo lee session?.user?.id; supabase lee el token fresco
+        // internamente. `session` recibe nueva referencia en cada TOKEN_REFRESHED
+        // (~1h) → recreaba este callback, que es dep del chunk-poll effect del
+        // Dashboard (Dashboard.jsx:794) → ese effect se tear-down/re-armaba cada
+        // refresh de token. Estrechar a la primitiva evita la recreación.
+    }, [session?.user?.id]);
 
     // [P1-B9] Mantener `sessionRef.current` sincronizado con `session` permite
     // que el `useEffect` grande de abajo lea la sesión vigente sin tener que
@@ -753,6 +858,19 @@ export const AssessmentProvider = ({ children }) => {
     useEffect(() => {
         sessionRef.current = session;
     }, [session]);
+
+    // [P2-REALTIME-RESUB-ON-TOKEN-REFRESH · 2026-06-01] Espejo de
+    // `refreshProfileAndPlan` en un ref para que el canal Realtime de user_profiles
+    // pueda invocar la versión fresca SIN listarla en deps. Antes ese effect
+    // dependía de `[session, refreshProfileAndPlan]` y `refreshProfileAndPlan` es un
+    // useCallback con dep `[session]` → cada `setSession` de TOKEN_REFRESHED (~cada
+    // hora, [P2-TOKEN-REFRESH-SYNC]) recreaba la función → teardown+resubscribe del
+    // canal (round-trip websocket innecesario + micro-ventana donde se pierde un
+    // UPDATE). Mismo patrón P1-B9 aplicado al canal Realtime.
+    const refreshProfileAndPlanRef = useRef(null);
+    useEffect(() => {
+        refreshProfileAndPlanRef.current = refreshProfileAndPlan;
+    }, [refreshProfileAndPlan]);
 
     // [P2-NEW-13 · 2026-05-11] Sync multi-tab del `mealfit_plan` via
     // storage event.
@@ -817,6 +935,19 @@ export const AssessmentProvider = ({ children }) => {
             // poder remover `session` del array de deps de este effect.
             const prevSession = sessionRef.current;
             if (prevSession?.user?.id && currentSession?.user?.id && prevSession.user.id === currentSession.user.id) {
+                // [P2-TOKEN-REFRESH-SYNC · 2026-05-30] Mismo usuario: saltamos el
+                // fetch pesado (fetchProfile/checkPlanLimit/restoreSessionData),
+                // PERO si el evento es un TOKEN_REFRESHED el access_token rotó.
+                // El effect que persiste `mealfit_form_secure` deriva su clave
+                // AES-GCM del access_token (secureFormStorage.js); si el React
+                // `session` se queda con el token viejo, el blob cifrado tras
+                // cada refresh queda keyado a una clave que NO coincide con el
+                // token que `getSession()` devuelve al recargar → decrypt falla
+                // y el cache local muere. Propagamos solo el token (barato) para
+                // que los effects re-keyeen el blob, sin re-disparar el fetch.
+                if (prevSession.access_token !== currentSession.access_token) {
+                    setSession(currentSession);
+                }
                 return;
             }
 
@@ -843,6 +974,33 @@ export const AssessmentProvider = ({ children }) => {
                     // ocupa storage y confunde la migración futura.
                     clearFormStorage();
                     setFormData(initialFormData);
+                    // [P1-EDITED-FIELDS-XUSER · 2026-06-01] Vaciar el touched-set
+                    // heredado de A. `editedFieldsRef` acumula todo campo que A tocó
+                    // vía updateData() durante la vida del provider, y los 3 writers
+                    // que hidratan el form desde la DB del nuevo usuario (fetchProfile/
+                    // refreshProfileAndPlan/secureLoadFormData) EXCLUYEN del overlay
+                    // cualquier key en el ref (`if (!edited.has(k))`). Sin este clear,
+                    // los valores reales de B (age/weight/activityLevel/…) quedan
+                    // bloqueados → B ve vacíos/defaults → findFirstIncompleteField
+                    // dispara el toast falso "Falta completar X" + redirect a
+                    // /assessment. Este path NO pasa por resetApp y el ref es in-memory
+                    // (solo se vacía con remount real), así que hay que limpiarlo aquí,
+                    // antes del fetchProfile(userId_B) del Promise.all de abajo.
+                    editedFieldsRef.current.clear();
+                    // [P1-XTAB-CACHE-LEAK · 2026-05-30] Re-login de un usuario
+                    // DISTINTO sin logout previo limpio (cierre de tab / magic
+                    // link / token switch) NO pasa por resetApp, así que aquí
+                    // hay que limpiar lo mismo: caches global-keyed (inventario
+                    // Nevera + listado Historial = PII de A) + el plan y los
+                    // likes/dislikes de A. restoreSessionData(userId) re-hidrata
+                    // los de B justo después.
+                    _clearUserScopedCaches();
+                    setPlanData(null);
+                    safeLocalStorageRemove('mealfit_plan');
+                    setLikedMeals({});
+                    setDislikedMeals({});
+                    safeLocalStorageRemove('mealfit_likes');
+                    safeLocalStorageRemove('mealfit_dislikes');
                 }
                 safeLocalStorageSet('mealfit_last_form_owner', userId);
 
@@ -884,6 +1042,19 @@ export const AssessmentProvider = ({ children }) => {
                 setUserProfile(null);
                 setPlanCount(0);
                 setPlanData(null);
+                // [P1-XTAB-CACHE-LEAK · 2026-05-30] Esta rama es alcanzable SIN
+                // pasar por resetApp: un SIGNED_OUT disparado por Supabase
+                // (expiración de sesión/token, o sign-out desde OTRA pestaña).
+                // resetApp limpia los caches global-keyed (inventario Nevera +
+                // listado Historial = PII del usuario A) + likes/dislikes, pero
+                // esta rama no lo hacía → quedaban en memoria mientras el
+                // dispositivo seguía en /login o lo usaba un guest. Espejamos el
+                // cleanup de resetApp para cerrar la misma ventana de fuga.
+                _clearUserScopedCaches();
+                setLikedMeals({});
+                setDislikedMeals({});
+                safeLocalStorageRemove('mealfit_likes');
+                safeLocalStorageRemove('mealfit_dislikes');
                 safeLocalStorageRemove('mealfit_user_id');
                 safeLocalStorageRemove('mealfit_plan');
                 safeLocalStorageRemove('mealfit_guest_session');
@@ -972,8 +1143,10 @@ export const AssessmentProvider = ({ children }) => {
                         console.log('🔒 [REALTIME] Bloqueado por recalcLock — ignorando actualización de perfil.');
                         return;
                     }
-                    // Disparar sincronización mágica
-                    refreshProfileAndPlan();
+                    // Disparar sincronización mágica.
+                    // [P2-REALTIME-RESUB-ON-TOKEN-REFRESH · 2026-06-01] Vía ref para
+                    // no listar refreshProfileAndPlan en deps (ver nota arriba).
+                    refreshProfileAndPlanRef.current?.();
                 }
             )
             .subscribe();
@@ -982,7 +1155,11 @@ export const AssessmentProvider = ({ children }) => {
 
             supabase.removeChannel(profileSubscription);
         };
-    }, [session, refreshProfileAndPlan]);
+        // [P2-REALTIME-RESUB-ON-TOKEN-REFRESH · 2026-06-01] Dep estrechada a
+        // `session?.user?.id`: el filtro del canal solo usa el uid, así que
+        // re-suscribir en cada rotación de token (misma cuenta) era desperdicio.
+        // (exhaustive-deps satisfecho: el callback solo usa refs + session?.user?.id.)
+    }, [session?.user?.id]);
 
     // --- ESCUCHA REALTIME: Nuevas semanas del plan (Background Chunking) ---
     useEffect(() => {
@@ -1009,6 +1186,22 @@ export const AssessmentProvider = ({ children }) => {
 
                     setPlanData(prev => {
                         if (!prev) return newPlanData;
+                        // [P2-REALTIME-PLAN-ID-GUARD · 2026-05-30] El filtro de
+                        // la suscripción es solo `user_id=eq.<uid>`, así que
+                        // CUALQUIER UPDATE a un meal_plans del usuario dispara
+                        // este handler — incluido un plan VIEJO (no el activo)
+                        // que el usuario modifique desde el Historial
+                        // (/recalculate-shopping-list, /swap-meal/persist). Sin
+                        // este guard, los `days` de ese plan viejo se injertaban
+                        // sobre el plan activo (que conserva su id/grocery_start_date/
+                        // macros) y el estado fusionado corrupto se persistía a
+                        // localStorage, sobreviviendo al reload. Solo cortocircuitamos
+                        // cuando AMBOS ids existen y difieren, para que la ventana
+                        // post-generación (donde prev.id aún es undefined) siga
+                        // mezclando los chunks legítimos del plan activo.
+                        if (prev.id && payload.new?.id && prev.id !== payload.new.id) {
+                            return prev;
+                        }
                         // Mezclar: preservar campos locales (grocery_start_date, is_restocked, etc.)
                         // pero actualizar los días con el valor más reciente del servidor
                         const merged = {
@@ -1025,7 +1218,11 @@ export const AssessmentProvider = ({ children }) => {
             .subscribe();
 
         return () => supabase.removeChannel(planChunkSubscription);
-    }, [session]);
+        // [P2-REALTIME-RESUB-ON-TOKEN-REFRESH · 2026-06-01] Dep estrechada a
+        // `session?.user?.id` (el handler solo usa el uid para el filtro del canal)
+        // → no re-suscribir el canal en cada rotación de token de la misma cuenta.
+        // (exhaustive-deps satisfecho: el handler solo usa session?.user?.id + setters.)
+    }, [session?.user?.id]);
 
     // --- FUNCIÓN PARA ACTUALIZAR PERFIL EN DB ---
     // [P1-FORM-9] Si el caller pasa `health_profile`, lo enrutamos por la RPC
@@ -1098,10 +1295,21 @@ export const AssessmentProvider = ({ children }) => {
     // access_token. Para guests, sensitive solo en memoria. Async — fire-and-
     // forget; errores se loguean a consola dentro de `secureSaveFormData`.
     useEffect(() => {
-        if (formData) {
+        // [P1-PII-SAVE-RACE · 2026-05-31] NO persistir mientras la hidratación
+        // del sensitive cifrado está en vuelo. Al llegar la session (login o page
+        // reload con sesión activa), este effect dispara con `session` recién
+        // cambiada PERO `formData` aún tiene los defaults vacíos de los campos
+        // sensibles (allergies:[], medicalConditions:[], motivation:'', bodyFat:'',
+        // dislikes:[], …). Guardar en ese instante cifraría esos vacíos sobre el
+        // blob `mealfit_form_secure` válido → pérdida de datos médicos. El effect
+        // de descifrado (abajo) baja `loadingSensitive` en su `finally`; entonces
+        // este effect re-dispara (loadingSensitive ∈ deps) ya con el formData
+        // hidratado y persiste lo correcto. Defensa-en-profundidad junto al
+        // filtro `editedFieldsRef` que ya preserva edits in-flight del usuario.
+        if (formData && !loadingSensitive) {
             secureSaveFormData(formData, session).catch(() => { /* logged dentro */ });
         }
-    }, [formData, session]);
+    }, [formData, session, loadingSensitive]);
 
     // [P1-B7] Hidratación del sensitive cifrado al recibir session. Al login
     // (o page reload con sesión activa), descifra `mealfit_form_secure` y mergea
@@ -1183,7 +1391,7 @@ export const AssessmentProvider = ({ children }) => {
         if (isCurrentlyLiked) return;
 
         try {
-            const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
+            const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
 
             if (!userId) {
                 toast.error("Inicia sesión para guardar tus favoritos");
@@ -1227,7 +1435,7 @@ export const AssessmentProvider = ({ children }) => {
         const currentMeals = planDays[dayIndex]?.meals || [];
         const targetCalories = currentMeals[mealIndex]?.cals || 400;
         const userDietType = formData.dietType || "balanced";
-        const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
+        const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
 
         // Extraer la lista de compra actual para RESTRINGIR las sugerencias del LLM a esta despensa
         let currentIngredients = [];
@@ -1338,7 +1546,14 @@ export const AssessmentProvider = ({ children }) => {
                 cals: newMealData.cals,
                 prep_time: newMealData.prep_time,
                 recipe: newMealData.recipe || [],
-                ingredients: newMealData.ingredients || []
+                ingredients: newMealData.ingredients || [],
+                // [P2-SWAP-RESET-ISEXPANDED · 2026-05-30] El plato nuevo trae su
+                // receta base SIN expandir. Sin resetear `isExpanded`, el spread
+                // de la comida vieja arrastraba `isExpanded:true` → el guard de
+                // Recipes.jsx (`if (meal.isExpanded) return`) trataba la receta
+                // base nueva como "ya expandida de chef" y jamás permitía
+                // expandirla. Forzar false (también se persiste en new_meal).
+                isExpanded: false
             };
 
             updatedDayObj.meals = updatedMeals;
@@ -1399,7 +1614,12 @@ export const AssessmentProvider = ({ children }) => {
                 }));
             }
 
-            // Actualizamos UI inmediatamente
+            // [P3-SWAP-REVERT · 2026-05-30] Snapshot pre-swap para revertir si
+            // la persistencia falla. `planData` NO se muta (updatedPlan y sus
+            // days/meals son copias frescas vía spread), así que es un snapshot
+            // válido del estado previo al swap.
+            const prevPlanSnapshot = planData;
+            // Actualizamos UI inmediatamente (optimista)
             setPlanData(updatedPlan);
             safeLocalStorageSet('mealfit_plan', updatedPlan);
 
@@ -1450,7 +1670,16 @@ export const AssessmentProvider = ({ children }) => {
 
                         if (!persistResponse.ok) {
                             console.error('❌ Error /swap-meal/persist:', persistResponse.status);
-                            toast.error('Error de sincronización', { description: 'El cambio es solo local.' });
+                            // [P3-SWAP-REVERT · 2026-05-30] Revertir el optimistic
+                            // update. Antes solo mostraba "el cambio es solo local"
+                            // y dejaba el state divergente: el próximo
+                            // restoreSessionData lo pisaba con la versión DB (vieja)
+                            // → el swap desaparecía silenciosamente tras
+                            // refresh/re-login. Restaurar deja el estado consistente
+                            // con el backend.
+                            setPlanData(prevPlanSnapshot);
+                            safeLocalStorageSet('mealfit_plan', prevPlanSnapshot);
+                            toast.error('No se pudo cambiar el plato', { description: 'Inténtalo de nuevo.' });
                         } else {
                             // GAP 3: Recalcular la lista de compras como un Delta Matemático
                             // [P3-RECALC-503-CLASSIFICATION · 2026-05-16] Retry 1× en
@@ -1509,6 +1738,14 @@ export const AssessmentProvider = ({ children }) => {
                     }
                 } catch (dbError) {
                     console.error("❌ Fallo crítico persistencia swap:", dbError);
+                    // [P3-SWAP-REVERT · 2026-05-30] Revertir ante excepción de
+                    // red/persistencia (misma divergencia que el branch !ok). Si
+                    // el backend SÍ persistió pero se perdió la respuesta, el
+                    // próximo restoreSessionData mostrará el valor nuevo desde DB
+                    // → revertir local es seguro (DB es SSOT).
+                    setPlanData(prevPlanSnapshot);
+                    safeLocalStorageSet('mealfit_plan', prevPlanSnapshot);
+                    toast.error('No se pudo cambiar el plato', { description: 'Revisa tu conexión e inténtalo de nuevo.' });
                 }
             }
 
@@ -1590,6 +1827,19 @@ export const AssessmentProvider = ({ children }) => {
 
     const saveGeneratedPlan = async (data) => {
         setPlanData(data);
+        // [P3-SAVEPLAN-LS-SYNC · 2026-05-30] Persistir `mealfit_plan` SÍNCRONO aquí,
+        // igual que TODAS las hermanas de guardado (restorePlan/restoreFromHistory/
+        // recalc rollback). Pre-fix `saveGeneratedPlan` era la ÚNICA ruta que confiaba
+        // sólo en el `useEffect [planData]` (línea ~1259) para escribir localStorage.
+        // El effect SÍ dispara (el Provider no se desmonta al navegar a /dashboard),
+        // así que no había bug observable — pero dejaba una ventana teórica sub-paint
+        // entre `setPlanData` y el commit del effect: si el usuario recargaba ahí,
+        // `restoreSessionData` leía un `cycle_start_date` stale de localStorage antes
+        // de healearlo vía /grocery-start-date. Escribir síncrono aquí cierra la
+        // ventana y unifica el patrón con el resto de save paths (cero riesgo: el
+        // useEffect re-escribe el mismo valor en el próximo commit). `data` ya trae
+        // `cycle_start_date`/`grocery_start_date` inyectados por Plan.jsx.
+        safeLocalStorageSet('mealfit_plan', data);
         // [P1-B8] NO limpiar likedMeals al aceptar un plan nuevo. Los likes son
         // meta-state user-level que se construye con el tiempo y persiste server-side
         // (vía `/api/plans/like`). Antes este `setLikedMeals({})` provocaba:
@@ -1639,7 +1889,7 @@ export const AssessmentProvider = ({ children }) => {
         // local pisaría `setPlanData` con contenido cross-user hasta el próximo
         // refresh — UX confunde. Defensa-en-profundidad client-side:
         if (expectedUserId) {
-            const _currentUid = session?.user?.id || localStorage.getItem('mealfit_user_id');
+            const _currentUid = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
             if (_currentUid && _currentUid !== expectedUserId) {
                 console.warn(
                     '[P1-NEW-4] restorePlan: ownership mismatch — ' +
@@ -1664,7 +1914,7 @@ export const AssessmentProvider = ({ children }) => {
         safeLocalStorageSet('mealfit_plan', pastPlanData);
 
         // 2. Sincronizar con Supabase para que cloud sync no lo revierta
-        const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
+        const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
         if (userId && userId !== 'guest') {
             try {
                 // Obtener el plan más reciente del usuario
@@ -1783,7 +2033,7 @@ export const AssessmentProvider = ({ children }) => {
         // ownership defensive (P1-NEW-4) extendido para rechazar user_id
         // falsy (legacy null, row corrupta) — P1-NEW-8.
         {
-            const _currentUid = session?.user?.id || localStorage.getItem('mealfit_user_id');
+            const _currentUid = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
             if (
                 _currentUid &&
                 _currentUid !== 'guest' &&
@@ -1808,7 +2058,7 @@ export const AssessmentProvider = ({ children }) => {
         safeLocalStorageSet('mealfit_plan', pastPlanData);
 
         // 2. Endpoint atómico (cancel chunks + release locks + UPDATE).
-        const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
+        const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
         if (!userId || userId === 'guest') {
             // Guest sin userId: solo local-state. No hay nada que
             // sincronizar server-side.
@@ -1864,8 +2114,24 @@ export const AssessmentProvider = ({ children }) => {
         safeLocalStorageRemove('mealfit_guest_sessions_list');
         safeLocalStorageRemove('mealfit_current_session');
         safeLocalStorageRemove('mealfit_dislikes');
+        // [P1-XTAB-CACHE-LEAK · 2026-05-30] Limpiar caches global-keyed
+        // (inventario Nevera + listado Historial + ingredientes deshabilitados)
+        // que NO están scopeadas por user_id y sobrevivirían al logout SPA →
+        // leak cross-user en dispositivo compartido.
+        _clearUserScopedCaches();
 
-        await supabase.auth.signOut();
+        // [P3-RESETAPP-SIGNOUT-GUARD · 2026-05-30] Todo el teardown de PII
+        // (localStorage + caches) ya corrió ARRIBA de forma síncrona, así que
+        // el leak cross-user está cerrado pase lo que pase con signOut. Pero si
+        // `signOut()` rechaza (red caída), sin este try/catch la promesa de
+        // resetApp se rechazaba y los setters de React de abajo NUNCA corrían →
+        // planData/userProfile en memoria sobrevivían hasta el próximo remount.
+        // Toleramos el fallo de red para que el reset de estado siempre proceda.
+        try {
+            await supabase.auth.signOut();
+        } catch (e) {
+            console.warn('signOut() falló; el teardown local ya se completó.', e);
+        }
 
         setPlanData(null);
         setLikedMeals({});
@@ -1879,7 +2145,7 @@ export const AssessmentProvider = ({ children }) => {
 
     const upgradeUserPlan = async (tier = 'plus', subscriptionId = null) => {
         try {
-            const userId = session?.user?.id || localStorage.getItem('mealfit_user_id');
+            const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
             if (!userId) throw new Error("No user ID");
 
 
@@ -1902,26 +2168,38 @@ export const AssessmentProvider = ({ children }) => {
                 }
                 
                 toast.success('Pago verificado exitosamente.', { id: 'payment-verify' });
-                
-                // Recargar el perfil desde la base de datos ya que el servidor hizo el UPDATE
-                await refreshProfileAndPlan();
-                
+
+                // [P5-SPEED-UPGRADE-PARALLEL · 2026-06-01] Recargar perfil + créditos en
+                // paralelo: refreshProfileAndPlan (SELECT user_profiles) y checkPlanLimit
+                // (GET /api/user/credits) son independientes; antes corrían en serie
+                // (2 roundtrips secuenciales tras el verify). Promise.all los solapa.
+                // Cada uno tiene su propio try/catch interno → un fallo en uno no corrompe
+                // el estado del otro. Se ejecuta aquí (antes era checkPlanLimit más abajo)
+                // porque el único camino que llega al post-verify es esta rama.
+                await Promise.all([refreshProfileAndPlan(), checkPlanLimit(userId)]);
+
             } else {
-                // Caso antiguo o admin bypass
-                console.warn("⚠️ Bypass de suscripción llamado (Sin ID de suscripción).");
-                const { error } = await supabase
-                    .from('user_profiles')
-                    .update({
-                        plan_tier: tier,
-                        updated_at: new Date()
-                    })
-                    .eq('id', userId);
-                if (error) throw error;
-                setUserProfile(prev => ({ ...prev, plan_tier: tier }));
+                // [P0-TIER-RLS-LOCK · 2026-05-31] Eliminado el client-side write de
+                // `plan_tier` (la vieja rama "admin bypass"). Otorgar el tier desde el
+                // navegador evade TODO el billing server-side (I-Billing-1): el tier
+                // DEBE derivarse de PayPal en `/api/subscription/verify` (rama de
+                // arriba), nunca escribirse desde el cliente. La RLS de `user_profiles`
+                // permitía a un usuario escribir su propio `plan_tier` (UPDATE de
+                // cualquier columna de su fila) → escalación de tier desde la consola.
+                // Cerrado a nivel DB por el trigger `trg_guard_user_profiles_entitlement`
+                // (migración SSOT `p0_user_profiles_entitlement_lock_2026_05_31.sql`),
+                // y aquí se elimina el surface client-side por defensa-en-profundidad.
+                // Fail-closed: un upgrade sin `subscriptionId` es un error de
+                // programación, no un bypass legítimo.
+                throw new Error(
+                    'upgradeUserPlan requiere un subscriptionId de PayPal verificado; ' +
+                    'el tier no puede otorgarse desde el cliente (P0-TIER-RLS-LOCK).'
+                );
             }
 
-            await checkPlanLimit(userId);
-            
+            // [P5-SPEED-UPGRADE-PARALLEL · 2026-06-01] checkPlanLimit ya se ejecutó en
+            // paralelo con refreshProfileAndPlan dentro de la rama de verify (arriba).
+
             const planNames = { basic: 'Mealfit Básico', plus: 'Mealfit Plus', ultra: 'Mealfit Ultra Ilimitado' };
             const planName = planNames[tier] || 'Mealfit Plus';
             

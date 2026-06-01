@@ -14,15 +14,15 @@ const useMediaQuery = (query) => {
         if (typeof window === 'undefined') return;
         
         const media = window.matchMedia(query);
-        if (media.matches !== matches) {
-            setMatches(media.matches);
-        }
-        
+        // [P4-MEDIAQUERY-DEP] sync idempotente (React hace bail-out si el valor es igual).
+        // Sin `matches` en deps el listener no se re-suscribe en cada cambio de breakpoint.
+        setMatches(media.matches);
+
         const listener = (e) => setMatches(e.matches);
         media.addEventListener('change', listener);
         
         return () => media.removeEventListener('change', listener);
-    }, [matches, query]);
+    }, [query]);
 
     return matches;
 };
@@ -43,6 +43,20 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
     const isDesktop = useMediaQuery('(min-width: 641px)');
     const isMobile = isBottomSheetOnMobile && !isDesktop;
 
+    // [P4-MODAL-FOCUS-SPLIT] Refs para leer onClose/disableClose frescos sin meterlos en
+    // deps del effect de foco. Antes su identidad inline (el padre pasa onClose nuevo cada
+    // render) re-ejecutaba el effect en cada re-render → el cleanup restauraba el foco al
+    // trigger y el setTimeout re-movía el foco al modal, robándoselo al usuario.
+    const onCloseRef = useRef(onClose);
+    const disableCloseRef = useRef(disableClose);
+    // [P4-MODAL-FOCUS-SPLIT] Sincronizar refs en effect (NO en render: el lint prohíbe
+    // escribir ref.current durante el render). El listener keydown los lee en event-time,
+    // siempre posterior al commit, así que ven el valor vigente sin ser deps del effect de foco.
+    useEffect(() => {
+        onCloseRef.current = onClose;
+        disableCloseRef.current = disableClose;
+    }, [onClose, disableClose]);
+
     useEffect(() => {
         if (isOpen) {
             // Guardar el elemento activo al abrir el modal (botón disparador)
@@ -51,14 +65,20 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
             document.body.style.overflow = 'hidden';
 
             const handleKeyDown = (e) => {
-                if (e.key === 'Escape' && !disableClose) {
-                    onClose();
+                if (e.key === 'Escape' && !disableCloseRef.current) {
+                    onCloseRef.current();
                 } else if (e.key === 'Tab') {
                     // Lógica de Focus Trap
                     if (!modalRef.current) return;
                     
+                    // [P3-MODAL-FOCUSTRAP-DISABLED · 2026-06-01] `:not([disabled])` en
+                    // los controles: sin él, un <button disabled> (p.ej. las opciones de
+                    // OptionPickerModal mientras isNavigatingOption está activo) podía ser
+                    // el lastElement del trap. `.focus()` sobre un disabled es no-op → el
+                    // ciclo Tab no envolvía y el foco escapaba al fondo durante el loading
+                    // del picker. Alinea con el SSOT useModalAccessibility.js.
                     const focusableElements = modalRef.current.querySelectorAll(
-                        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
                     );
                     
                     if (focusableElements.length === 0) return;
@@ -83,14 +103,16 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
             document.addEventListener('keydown', handleKeyDown);
 
             // Mover el foco al modal inicialmente para que los lectores de pantalla comiencen allí
+            let focusTimer = null;
             if (modalRef.current) {
                 // Pequeño timeout para asegurar que el DOM ha renderizado completamente tras AnimatePresence
-                setTimeout(() => {
+                focusTimer = setTimeout(() => {
                     if (modalRef.current) modalRef.current.focus();
                 }, 10);
             }
 
             return () => {
+                if (focusTimer) clearTimeout(focusTimer);
                 document.removeEventListener('keydown', handleKeyDown);
                 document.body.style.overflow = '';
                 // Restaurar foco al botón disparador al cerrar
@@ -99,7 +121,8 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                 }
             };
         }
-    }, [isOpen, onClose, disableClose]);
+        // [P4-MODAL-FOCUS-SPLIT] deps solo [isOpen]: onClose/disableClose se leen via ref.
+    }, [isOpen]);
 
     // Variantes de animación
     const animationVariants = isMobile ? {
@@ -169,7 +192,7 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                             }
                         }}
                         style={{
-                            background: '#FFFFFF',
+                            background: 'var(--bg-card)',
                             borderRadius: isMobile ? '1.5rem 1.5rem 0 0' : '1.25rem',
                             padding: isMobile ? '1.5rem 1.25rem 2rem' : '2rem',
                             width: '100%', maxWidth, position: 'relative', zIndex: 1,
@@ -182,7 +205,7 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                         {/* Drag handle — solo en móvil */}
                         {isMobile && (
                             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-                                <div style={{ width: '40px', height: '4px', borderRadius: '99px', background: '#E2E8F0' }} />
+                                <div style={{ width: '40px', height: '4px', borderRadius: '99px', background: 'var(--border)' }} />
                             </div>
                         )}
 
@@ -194,15 +217,15 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                             aria-disabled={disableClose}
                             style={{
                                 position: 'absolute', top: isMobile ? '1.25rem' : '1rem', right: isMobile ? '1.25rem' : '1rem',
-                                background: isMobile ? '#F1F5F9' : 'none', border: 'none',
-                                color: disableClose ? '#CBD5E1' : '#64748B',
+                                background: isMobile ? 'var(--bg-muted)' : 'none', border: 'none',
+                                color: disableClose ? 'var(--text-light)' : 'var(--text-muted)',
                                 cursor: disableClose ? 'not-allowed' : 'pointer',
                                 opacity: disableClose ? 0.5 : 1,
                                 display: 'flex', padding: '0.25rem',
                                 borderRadius: '0.5rem', transition: 'background 0.2s, color 0.2s, opacity 0.2s'
                             }}
-                            onMouseOver={(e) => { if (!disableClose) e.currentTarget.style.background = '#F1F5F9'; }}
-                            onMouseOut={(e) => { if (!disableClose) e.currentTarget.style.background = isMobile ? '#F1F5F9' : 'none'; }}
+                            onMouseOver={(e) => { if (!disableClose) e.currentTarget.style.background = 'var(--bg-muted)'; }}
+                            onMouseOut={(e) => { if (!disableClose) e.currentTarget.style.background = isMobile ? 'var(--bg-muted)' : 'none'; }}
                         >
                             <X size={isMobile ? 18 : 20} />
                         </motion.button>

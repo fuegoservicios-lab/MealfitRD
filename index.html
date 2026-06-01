@@ -1,16 +1,88 @@
 <!doctype html>
-<html lang="es">
+<html lang="es-DO">
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/png" href="/favicon-transparent.png?v=15" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover" />
-  
+  <!-- [P6-SPEED-IMG · 2026-06-01] favicon recomprimido 302KB→54.8KB (palette 128c,
+       visualmente idéntico a 16-48px). ?v bump fuerza refetch del nuevo archivo. -->
+  <link rel="icon" type="image/png" href="/favicon-transparent.png?v=16" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <!-- [P2-A11Y-VIEWPORT-ZOOM · 2026-05-31] Pinch-zoom HABILITADO. Pre-fix usaba
+       maximum-scale=1.0 + user-scalable=0 ("feel" app-like) pero violaba WCAG
+       1.4.4 Resize Text (AA): Android Chrome respeta el bloqueo y el público
+       dominicano es Android-dominante. El requisito de accesibilidad pesa más
+       que el anti-zoom-accidental marginal. Decisión confirmada con el dueño. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!-- [APPEARANCE-THEME · 2026-05-28] No-flash theme boot. Corre síncrono en
+       <head> ANTES del primer paint (y antes del splash) para que el atributo
+       html[data-theme] esté fijado cuando el navegador pinte. Lee la
+       preferencia persistida en localStorage('mealfit_theme') — system|light|
+       dark — y la resuelve a un valor concreto (system → prefers-color-scheme).
+       El motor JS (src/utils/theme.js) re-aplica esto en runtime y escucha
+       cambios del sistema; este script solo evita el flash de tema claro→oscuro
+       en el arranque en frío. Defensivo: cualquier excepción cae a 'light'. -->
+  <script>
+    (function () {
+      try {
+        var pref = localStorage.getItem('mealfit_theme') || 'system';
+        var dark = pref === 'dark' ? true
+          : pref === 'light' ? false
+          : !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+
   <!-- SEO -->
   <title>MealfitRD | Nutrición Personalizada con IA</title>
   <meta name="description" content="Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis." />
   <meta name="theme-color" content="#4F46E5" />
   <meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
+  <link rel="canonical" href="https://mealfitrd.com/" />
+
+  <!-- [P1-SEO-SOCIAL · 2026-05-31] Open Graph + Twitter Cards. El frontend es
+       un SPA client-render sin SSR/prerender: un unfurler (WhatsApp #1 en RD,
+       Slack, Telegram, Facebook, X) que hace GET a cualquier ruta recibe este
+       index.html estático. Sin OG la preview cae a URL cruda sin imagen, lo que
+       reduce el CTR de un producto cuyo crecimiento depende de compartir el
+       enlace. La imagen física vive en /public/og-image.png (1200×630). La CSP
+       de vercel.json (img-src 'self' data: blob: https:) ya la permite. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="MealfitRD" />
+  <meta property="og:title" content="MealfitRD | Nutrición Personalizada con IA" />
+  <meta property="og:description" content="Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis." />
+  <meta property="og:url" content="https://mealfitrd.com/" />
+  <meta property="og:image" content="https://mealfitrd.com/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="MealfitRD — Nutrición personalizada con IA para República Dominicana" />
+  <meta property="og:locale" content="es_DO" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="MealfitRD | Nutrición Personalizada con IA" />
+  <meta name="twitter:description" content="Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis." />
+  <meta name="twitter:image" content="https://mealfitrd.com/og-image.png" />
+
+  <!-- [P3-SEO-JSONLD · 2026-05-31] Structured data Organization (bajo riesgo,
+       alto retorno: elegibilidad para knowledge panel). NO se declara
+       Product/Offer porque los precios viven en el cliente (Pricing.jsx) y son
+       dinámicos — un precio estático aquí arriesgaría inconsistencia. -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "MealfitRD",
+      "url": "https://mealfitrd.com/",
+      "logo": "https://mealfitrd.com/favicon-transparent.png",
+      "description": "Planes de alimentación personalizados con IA, adaptados a tus gustos, presupuesto y estilo de vida.",
+      "areaServed": {
+        "@type": "Country",
+        "name": "República Dominicana"
+      }
+    }
+  </script>
 
   <!-- PWA & Apple iOS Support -->
   <link rel="manifest" href="/manifest.json" />
@@ -105,21 +177,24 @@
       0%, 80%, 100% { opacity: 0.35; transform: scale(0.85); }
       40% { opacity: 1; transform: scale(1.15); }
     }
-    @media (prefers-color-scheme: dark) {
-      #pwa-splash {
-        background:
-          radial-gradient(ellipse 80% 60% at 50% 35%, rgba(129, 140, 248, 0.14) 0%, transparent 60%),
-          radial-gradient(ellipse 70% 50% at 50% 70%, rgba(244, 63, 94, 0.08) 0%, transparent 55%),
-          #0B1120;
-      }
-      .splash-brand { color: #F8FAFC; }
-      .splash-brand .splash-r { color: #818CF8; }
-      .splash-brand .splash-d { color: #FB7185; }
-      .splash-tagline { color: #94A3B8; }
-      .splash-dots span { background: #818CF8; }
-      .splash-dots span:nth-child(2) { background: #A78BFA; }
-      .splash-dots span:nth-child(3) { background: #FB7185; }
+    /* [APPEARANCE-THEME · 2026-05-28] Splash oscuro driven por html[data-theme]
+       (lo fija el boot script de arriba) en vez de @media prefers-color-scheme.
+       Así respeta la elección EXPLÍCITA del usuario: si eligió "Básico" (light)
+       pero su SO está en oscuro, el splash se queda claro — y viceversa. El
+       valor "system" ya quedó resuelto a dark/light por el boot script. */
+    html[data-theme="dark"] #pwa-splash {
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 35%, rgba(129, 140, 248, 0.14) 0%, transparent 60%),
+        radial-gradient(ellipse 70% 50% at 50% 70%, rgba(244, 63, 94, 0.08) 0%, transparent 55%),
+        #0B1120;
     }
+    html[data-theme="dark"] .splash-brand { color: #F8FAFC; }
+    html[data-theme="dark"] .splash-brand .splash-r { color: #818CF8; }
+    html[data-theme="dark"] .splash-brand .splash-d { color: #FB7185; }
+    html[data-theme="dark"] .splash-tagline { color: #94A3B8; }
+    html[data-theme="dark"] .splash-dots span { background: #818CF8; }
+    html[data-theme="dark"] .splash-dots span:nth-child(2) { background: #A78BFA; }
+    html[data-theme="dark"] .splash-dots span:nth-child(3) { background: #FB7185; }
     @media (prefers-reduced-motion: reduce) {
       #pwa-splash, .splash-brand, .splash-tagline, .splash-dots { animation: none !important; }
       .splash-dots span { animation: splashDotReduced 1.6s ease-in-out infinite; }

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Home } from 'lucide-react';
@@ -11,15 +11,27 @@ import { toast } from 'sonner';
 // wrapper que mueve la lib a un chunk async separado.
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
 // [P1-CHAT-VIRTUALIZE · 2026-05-19] Lista virtualizada para sesiones
-// >VIRTUALIZE_THRESHOLD mensajes (default 100). El componente exporta
-// el threshold para que AgentPage haga el switch arriba.
-import { VirtualizedMessageList, VIRTUALIZE_THRESHOLD } from '../components/agent/VirtualizedMessageList';
+// >VIRTUALIZE_THRESHOLD mensajes (default 100).
+// [P2-AGENT-VIRTUOSO-LAZY · 2026-05-31] El threshold se lee desde su módulo
+// liviano y el componente pesado (arrastra react-virtuoso ~28KB gzip) se carga
+// via lazy() SOLO cuando se cruza el umbral — fuera del chunk de AgentPage, que
+// se monta keep-alive para todos los que abren el chat. Espejo de LazyMarkdown.
+import { VIRTUALIZE_THRESHOLD } from '../components/agent/virtualizeThreshold';
+const VirtualizedMessageList = lazy(() => import('../components/agent/VirtualizedMessageList'));
 import { SidebarRecientes } from '../components/agent/SidebarRecientes';
 import { safeJSONParse } from '../utils/safeJSONParse';
 // [P2-NEW-LOCALSTORAGE-MIGRATION-DEBT · 2026-05-15] Ver ChatWidget.jsx para
 // rationale (QuotaExceededError silente). Migración del setItem raw al
 // helper P2-AUDIT-3 que atrapa errores y devuelve boolean.
-import { safeLocalStorageSet, safeLocalStorageGet } from '../utils/safeLocalStorage';
+import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
+// [P2-CHAT-CACHE-XUSER · 2026-05-31] Keys del chat desde el módulo SSOT (mismas
+// que _clearUserScopedCaches borra en logout/user-switch). Los aliases `_CHAT_*`
+// viven a scope de MÓDULO (no de componente) a propósito: un const de componente
+// asignado a un import lo trata react-hooks/exhaustive-deps como dependencia
+// inestable; a scope de módulo es estable y no ensucia los deps arrays.
+import { CHAT_MESSAGES_CACHE_KEY, CHAT_SESSIONS_CACHE_KEY } from '../utils/chatCacheKeys';
+const _CHAT_SESSIONS_CACHE_KEY = CHAT_SESSIONS_CACHE_KEY;
+const _CHAT_CACHE_KEY = CHAT_MESSAGES_CACHE_KEY;
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P2-AGENTPAGE-ERROR-SENTRY · 2026-05-15] Capture estructurada de los catch
 // blocks del agent page. ANTES: solo `console.error(...)` — esbuild conserva
@@ -116,6 +128,16 @@ const _AGENT_ERROR_COPY = {
     402: {
         icon: '🔒',
         text: 'Llegaste al límite mensual de tu plan. Actualiza para seguir conversando.',
+        retryable: false,
+    },
+    // [P2-AGENT-413-NO-RETRY · 2026-05-30] El backend rechaza prompts > cap
+    // (8192 chars, P0-CHAT-PROMPT-MAXLEN) con HTTP 413. Sin esta entrada caía
+    // al genérico `retryable: true` → el botón "Reintentar" reenviaba el mismo
+    // mensaje demasiado largo → loop 413 permanente, y el usuario nunca sabía
+    // que su mensaje excedía el límite. `retryable: false` + copy claro.
+    413: {
+        icon: '✂',
+        text: 'Tu mensaje es demasiado largo. Acórtalo y vuelve a enviarlo.',
         retryable: false,
     },
     401: {
@@ -471,8 +493,9 @@ const AgentPage = () => {
         // SecurityError durante mount → throw en lazy init → AgentPage entero
         // no rendea → cae al GlobalErrorBoundary. Mismo modo de fallo que
         // P1-PROD-FINAL-1 cerró en Settings/Dashboard lazy initializers;
-        // AgentPage quedó fuera del scope original. Línea 476-480
-        // (guestSessionIds) ya tiene try/catch (P2-B), no requiere acción.
+        // AgentPage quedó fuera del scope original. El sibling `guestSessionIds`
+        // abajo también se migró a safeLocalStorageGet (2026-06-01): su try/catch
+        // P2-B solo cubría JSON.parse, NO el SecurityError del propio getItem.
         const saved = safeLocalStorageGet('mealfit_guest_session', null);
         if (saved) return saved;
         const newId = crypto.randomUUID();
@@ -484,7 +507,13 @@ const AgentPage = () => {
         // [P2-B] try/catch defensivo + validación de tipo: si `mealfit_guest_sessions_list`
         // se corrompe, el throw aquí rompe el render de AgentPage entero. Tras el
         // catch caemos al "initialList" como si nunca hubiera habido storage previo.
-        const savedList = localStorage.getItem('mealfit_guest_sessions_list');
+        // [P1-AGENT-LAZY-INIT-PRIVATE-MODE · 2026-06-01] El getter crudo lanzaba
+        // SecurityError en iOS Private Mode ANTES de llegar al try/catch (que solo
+        // envuelve JSON.parse, no el getItem) → throw en este lazy init → AgentPage
+        // entero no rendea → cae al GlobalErrorBoundary. Mismo modo de fallo que el
+        // sibling `localSessionId` arriba; migrado a `safeLocalStorageGet` (atrapa el
+        // throw y retorna el fallback null → degrada a sesión en memoria).
+        const savedList = safeLocalStorageGet('mealfit_guest_sessions_list', null);
         let list = null;
         if (savedList) {
             try {
@@ -529,11 +558,23 @@ const AgentPage = () => {
         safeLocalStorageSet('mealfit_current_session', id);
         _setCurrentSessionId(id);
     };
+    // [P5-SPEED-SESSION-REFETCH · 2026-06-01] Ref espejo de currentSessionId para que
+    // fetchChatSessions NO lo liste en sus deps. Sin esto, cambiar de sesión recreaba la
+    // identidad de fetchChatSessions → el effect de mount `[fetchChatSessions]` re-corría
+    // (re-GET de TODA la lista de sesiones, que no cambió por el switch) y el title-poll
+    // recreaba su setInterval. currentSessionId solo se usa dentro de fetchChatSessions
+    // como fallback default del safeJSONParse de guests; leerlo por ref elimina ese
+    // refetch redundante en cada selección de sesión sin perder el valor fresco.
+    const currentSessionIdRef = useRef(currentSessionId);
+    useEffect(() => { currentSessionIdRef.current = currentSessionId; }, [currentSessionId]);
 
     // Escuchar el logout para limpiar el estado interno
     useEffect(() => {
         if (!session?.user?.id && !userProfile?.id) {
-            const currentGuestSession = localStorage.getItem('mealfit_guest_session');
+            // [P4-LOCALSTORAGE-LAZY-INIT] getItem crudo en cuerpo de effect →
+            // SecurityError (iOS Private Mode) propaga al GlobalErrorBoundary.
+            // safeLocalStorageGet degrada a null → rama de regen corre normal.
+            const currentGuestSession = safeLocalStorageGet('mealfit_guest_session', null);
             if (!currentGuestSession) {
                 const newId = crypto.randomUUID();
                 safeLocalStorageSet('mealfit_guest_session', newId);
@@ -557,7 +598,10 @@ const AgentPage = () => {
     // como initial state → sidebar arranca con datos del cache, refetch
     // en background sin spinner visible. TTL 24h. isLoadingSessions
     // inicializa en false cuando hay cache (no mostrar spinner).
-    const _CHAT_SESSIONS_CACHE_KEY = 'mealfit_chat_sessions_cache_v1';
+    // [2026-05-29] Bump v1→v2: invalida cualquier cache stale existente (que
+    // causaba el flash de historial viejo al refrescar) desde el primer load.
+    // [P2-CHAT-CACHE-XUSER · 2026-05-31] `_CHAT_SESSIONS_CACHE_KEY` ahora es un
+    // alias module-scope del SSOT chatCacheKeys (ver tope del archivo).
     const _SESSIONS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
     const [chatSessions, setChatSessions] = useState(() => {
@@ -596,8 +640,16 @@ const AgentPage = () => {
     // [P1-AGENT-CACHE-SIDEBAR · 2026-05-20] Persistir chatSessions al change.
     // Misma estrategia que el cache de messages (P1-AGENT-CACHE-MESSAGES).
     useEffect(() => {
-        if (!Array.isArray(chatSessions) || chatSessions.length === 0) return;
         try {
+            // [2026-05-29] Cuando NO hay sesiones, LIMPIAR el cache (antes hacía
+            // `return` y dejaba el cache stale → al refrescar y entrar al Agente
+            // aparecía un historial viejo por unos ms y desaparecía cuando el
+            // fetch confirmaba que está vacío). Limpiando, el próximo refresh
+            // arranca vacío sin ese flash.
+            if (!Array.isArray(chatSessions) || chatSessions.length === 0) {
+                safeLocalStorageRemove(_CHAT_SESSIONS_CACHE_KEY);
+                return;
+            }
             safeLocalStorageSet(_CHAT_SESSIONS_CACHE_KEY, JSON.stringify({
                 sessions: chatSessions,
                 cachedAt: Date.now(),
@@ -624,7 +676,8 @@ const AgentPage = () => {
     //
     // Cap defensivo: max 50 messages persistidos para no saturar
     // localStorage. Los chats activos típicos rondan 10-30 messages.
-    const _CHAT_CACHE_KEY = 'mealfit_chat_messages_cache_v1';
+    // [P2-CHAT-CACHE-XUSER · 2026-05-31] `_CHAT_CACHE_KEY` ahora es alias
+    // module-scope del SSOT chatCacheKeys (ver tope del archivo).
     const _CHAT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
     const _CHAT_CACHE_MAX_MSGS = 50;
 
@@ -664,6 +717,15 @@ const AgentPage = () => {
         // del próximo mount NO encuentre cache (fallback al welcome regenerado
         // con datos frescos del profile).
         if (messages.length === 1 && messages[0]?.isWelcome) return;
+        // [P3-CHAT-CACHE-STREAM-SKIP · 2026-05-31] No persistir mientras el
+        // último mensaje está en streaming. El handler SSE hace setMessages por
+        // cada chunk (~por token) → sin este guard el effect corría
+        // JSON.stringify(≤50 msgs) + localStorage.setItem síncrono por chunk,
+        // re-serializando la burbuja que crece en cada token (solo el valor
+        // final importa). La rama `done` setea isStreaming:false y re-dispara el
+        // effect → persiste el valor final UNA vez. Cero cambio al contrato de
+        // cache; elimina el trabajo redundante en el hot path del streaming.
+        if (messages[messages.length - 1]?.isStreaming) return;
         try {
             const capped = messages.length > _CHAT_CACHE_MAX_MSGS
                 ? messages.slice(-_CHAT_CACHE_MAX_MSGS)
@@ -697,6 +759,11 @@ const AgentPage = () => {
     const [editingSessionId, setEditingSessionId] = useState(null);
     const [editTitle, setEditTitle] = useState('');
     const [previewUrl, setPreviewUrl] = useState(null);
+    // [P3-CHAT-OBJECTURL-LEAK · 2026-06-01] Ref espejo de previewUrl para que el
+    // teardown de unmount (effect deps []) pueda revocar el blob staged sin
+    // capturarlo en stale-closure. clearSelectedFile cubre cancel/swap; este ref
+    // cubre el camino imagen-staged-pero-no-enviada → navegar fuera (unmount SPA).
+    const previewUrlRef = useRef(null);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
     // [P3-CHAT-FOCUS-TELEM · 2026-05-19] Ref al textarea para refocus
@@ -757,80 +824,46 @@ const AgentPage = () => {
     const isLoadingRef = useRef(isLoading);
     useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
 
+    // [P3-CHAT-OBJECTURL-LEAK · 2026-06-01] Mantener previewUrlRef fresco para el
+    // teardown de unmount de abajo.
+    useEffect(() => { previewUrlRef.current = previewUrl; }, [previewUrl]);
+
     // --- NATIVE TTS AUDIO ENGINE (ELEVENLABS) ---
     const ttsQueue = useRef([]);
     const isPlayingAudio = useRef(false);
     const audioPlayerRef = useRef(null);
 
-    const processTTSQueue = async () => {
-        if (isPlayingAudio.current || ttsQueue.current.length === 0) return;
-
-        // VOZ DESACTIVADA TEMPORALMENTE (Plan Gratuito ElevenLabs)
-        // Vaciamos la cola para no reproducir ni llamar a la API
-        ttsQueue.current = [];
-        return;
-
-        isPlayingAudio.current = true;
-        const textToSpeechChunk = ttsQueue.current.shift();
-
-        isSpeakingRef.current = true;
-        setIsSpeaking(true);
-
+    // [P2-AGENT-UNMOUNT-CLEANUP · 2026-05-30] Al desmontar AgentPage (cambio de
+    // ruta SPA hacia Nevera/Plan/Dashboard, cerrar el chat) abortar el stream
+    // SSE en vuelo + parar el reconocimiento de voz + pausar el audio TTS.
+    // Pre-fix NO existía cleanup de unmount (todos los `.abort()` vivían en
+    // handlers interactivos: barge-in, botón stop, toggle de dictado). El
+    // `while (reader.read())` de handleSend seguía corriendo tras el unmount →
+    // setState sobre un componente desmontado + stream backend abierto hasta
+    // completar + micrófono caliente en background. El billing ya es idempotente
+    // (P2-AUDIT-NEW-2) → esto es fuga de recursos/mic, no doble cobro. Solo
+    // corre en teardown (deps []), sin cambio de comportamiento en montaje.
+    useEffect(() => () => {
+        try { abortControllerRef.current?.abort(); } catch (_e) { /* noop */ }
+        try { recognitionRef.current?.stop(); } catch (_e) { /* noop */ }
+        try { audioPlayerRef.current?.pause(); } catch (_e) { /* noop */ }
+        // [P3-CHAT-OBJECTURL-LEAK · 2026-06-01] Revocar el blob de preview staged si
+        // el user navega fuera con una imagen adjunta sin enviar (guard blob: evita
+        // revocar URLs de servidor).
         try {
-            const response = await fetchWithAuth('/api/chat/tts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: textToSpeechChunk })
-            });
+            const _pv = previewUrlRef.current;
+            if (_pv && _pv.startsWith('blob:')) URL.revokeObjectURL(_pv);
+        } catch (_e) { /* noop */ }
+    }, []);
 
-            if (!response.ok) throw new Error("TTS fetch failed");
-
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-
-            // Fix iOS mute constraint: ALWAYS reuse the pre-warmed audioPlayerRef attached to the DOM
-            const audio = audioPlayerRef.current;
-            if (!audio) throw new Error("Audio player DOM not found");
-
-            audio.playsInline = true;
-            audio.volume = 1.0; // Restablecer el volumen al 100%
-            audio.src = url;
-            audio.load(); // Forzar la carga del nuevo src en iOS
-
-            // Usar onloadeddata o manejar la promesa de play directamente
-            const handleEnded = () => {
-                URL.revokeObjectURL(url);
-                isPlayingAudio.current = false;
-
-                audio.removeEventListener('ended', handleEnded);
-
-                if (ttsQueue.current.length === 0) {
-                    isSpeakingRef.current = false;
-                    setIsSpeaking(false);
-                    setTimeout(() => {
-                        if (callModeRef.current && !isLoadingRef.current) {
-                            try { recognitionRef.current?.start(); } catch (e) { }
-                        }
-                    }, 50);
-                } else {
-                    processTTSQueue();
-                }
-            };
-
-            audio.addEventListener('ended', handleEnded);
-
-            await audio.play();
-
-        } catch (error) {
-            console.error("TTS Play Error", error);
-            isPlayingAudio.current = false;
-            if (ttsQueue.current.length === 0) {
-                isSpeakingRef.current = false;
-                setIsSpeaking(false);
-            } else {
-                processTTSQueue();
-            }
-        }
+    const processTTSQueue = async () => {
+        // [P1-DEADCODE-TTS · 2026-05-31] VOZ DESACTIVADA TEMPORALMENTE (Plan
+        // Gratuito ElevenLabs). Vaciamos la cola para no reproducir ni llamar a
+        // la API. El bloque de reproducción (fetch /api/chat/tts + audio playback
+        // + handleEnded) se eliminó por ser código muerto tras el `return`
+        // (lint no-unreachable). Recuperable desde git history si se reactiva TTS.
+        if (isPlayingAudio.current || ttsQueue.current.length === 0) return;
+        ttsQueue.current = [];
     };
 
     const queueTTS = useCallback((text) => {
@@ -1076,8 +1109,19 @@ const AgentPage = () => {
         }
     };
 
-    const clearSelectedFile = () => {
-        setPreviewUrl(null);
+    const clearSelectedFile = ({ revoke = true } = {}) => {
+        // [P3-CHAT-OBJECTURL-LEAK · 2026-05-31] Revocar el blob URL del preview
+        // al limpiarlo (cancel / "Quitar imagen") para liberar memoria. En el
+        // send path se pasa {revoke:false}: el blob sigue mostrándose en el
+        // mensaje recién enviado hasta que la URL del servidor lo reemplaza, y
+        // ahí se revoca explícitamente (ver handleSend). Sin esto, cada imagen
+        // enviada/cancelada orfanaba un object URL hasta el page-unload.
+        setPreviewUrl(prev => {
+            if (revoke && prev) {
+                try { URL.revokeObjectURL(prev); } catch { /* noop */ }
+            }
+            return null;
+        });
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
@@ -1130,9 +1174,24 @@ const AgentPage = () => {
     // (caso: el user acaba de enviar un mensaje, queremos que vea su
     // mensaje + la respuesta entrando).
     // Tooltip-anchor: P2-CHAT-SCROLL-RACE.
+    // [P6-SPEED-CHAT-SCROLL · 2026-06-01] Coalesce a un solo scroll por frame.
+    // El handler SSE hace setMessages por cada chunk (~por token, decenas/seg) y
+    // este effect corría scrollToBottom en cada uno → cada chunk lanzaba un
+    // scrollIntoView({smooth}) que el siguiente cancelaba y reiniciaba: la
+    // animación nunca asentaba (auto-scroll con jank durante el momento más
+    // observado de la app, la respuesta entrando). Fix: 1 rAF por frame +
+    // 'auto' (instantáneo) mientras el último mensaje stremea; 'smooth' solo en
+    // el update final/no-streaming. Sin reflow read en código de app.
+    const scrollRafRef = useRef(null);
     const scrollToBottom = (force = false) => {
         if (userScrolledUpRef.current && !force) return;
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (scrollRafRef.current) return; // ya hay un scroll agendado este frame
+        scrollRafRef.current = requestAnimationFrame(() => {
+            scrollRafRef.current = null;
+            const msgs = messagesRef.current;
+            const last = Array.isArray(msgs) && msgs.length ? msgs[msgs.length - 1] : null;
+            messagesEndRef.current?.scrollIntoView({ behavior: last?.isStreaming ? 'auto' : 'smooth' });
+        });
     };
 
     // [P2-CHAT-SCROLL-RACE · 2026-05-19] Listener montado en el container
@@ -1169,7 +1228,7 @@ const AgentPage = () => {
                 // corrupto, sin self-heal. `.slice(0, 40)` solo se aplica a arrays
                 // válidos; el validator garantiza el shape.
                 const savedListStr = localStorage.getItem('mealfit_guest_sessions_list');
-                const parsedList = safeJSONParse(savedListStr, [currentSessionId], {
+                const parsedList = safeJSONParse(savedListStr, [currentSessionIdRef.current], {
                     validator: Array.isArray,
                     storageKey: 'mealfit_guest_sessions_list',
                 });
@@ -1208,7 +1267,11 @@ const AgentPage = () => {
         } finally {
             setIsLoadingSessions(false);
         }
-    }, [session?.user?.id, userProfile?.id, localSessionId, currentSessionId]);
+        // [P5-SPEED-SESSION-REFETCH · 2026-06-01] currentSessionId removido de deps
+        // (se lee por currentSessionIdRef.current arriba) → la identidad de este
+        // callback ya no cambia al cambiar de sesión, evitando el re-GET de toda la
+        // lista en el effect de mount y la recreación del interval del title-poll.
+    }, [session?.user?.id, userProfile?.id, localSessionId]);
 
     // [P1-AGENT-WELCOME-STABLE · 2026-05-20 · refined: regenerar c/30min]
     // Helper que setea/refresca el welcome screen sin causar el bug
@@ -1424,6 +1487,8 @@ const AgentPage = () => {
         if (titlePollCount >= 8) return; // Tope: evitar polling infinito
 
         const intervalId = setInterval(() => {
+            // [P4-TITLE-POLL-VISIBILITY] no consumir red ni avanzar el cap en background tab.
+            if (typeof document !== 'undefined' && document.hidden) return;
             setTitlePollCount(prev => prev + 1);
             fetchChatSessions();
         }, 2500);
@@ -1477,7 +1542,9 @@ const AgentPage = () => {
         // Asegurar que el currentSessionId esté en la lista de localStorage.
         // [P2-A · 2026-05-08] safeJSONParse + self-heal: corrupto → fallback []
         // y storage reescrito; el flujo siguiente añade currentSessionId arriba.
-        const savedListStr = localStorage.getItem('mealfit_guest_sessions_list');
+        // [P4-LOCALSTORAGE-LAZY-INIT] getItem crudo al tope de handleSend (antes
+        // del try en ~1584) → SecurityError abortaría el envío en silencio.
+        const savedListStr = safeLocalStorageGet('mealfit_guest_sessions_list', null);
         let currentList = safeJSONParse(savedListStr, [], {
             validator: Array.isArray,
             storageKey: 'mealfit_guest_sessions_list',
@@ -1506,7 +1573,10 @@ const AgentPage = () => {
         );
 
         setInput('');
-        clearSelectedFile();
+        // [P3-CHAT-OBJECTURL-LEAK · 2026-05-31] revoke:false — el blob de
+        // `currentPreview` sigue vivo en el mensaje recién enviado; se revoca
+        // tras el swap a la URL del servidor (más abajo).
+        clearSelectedFile({ revoke: false });
         setIsLoading(true);
 
         // [P2-CHAT-SCROLL-RACE · 2026-05-19] Reset del guard: el user
@@ -1581,10 +1651,28 @@ const AgentPage = () => {
                         }
                     }
                     if (lastUserMsgIdx !== -1 && updated[lastUserMsgIdx].isImage) {
-                        updated[lastUserMsgIdx].imageUrl = uploadedImageUrl || updated[lastUserMsgIdx].imageUrl;
+                        // [P2-CHAT-IMG-SWAP-RERENDER · 2026-06-01] Objeto NUEVO (no
+                        // mutación in-place): conserva la misma ref si mutamos en sitio
+                        // → React.memo de MessageBubble hace skip → el <img> sigue
+                        // apuntando al blob que revocamos abajo (imagen rota). El spread
+                        // rompe la igualdad referencial y el comparator (que ahora compara
+                        // imageUrl) re-renderiza la burbuja a la URL del servidor ANTES
+                        // del revoke.
+                        updated[lastUserMsgIdx] = {
+                            ...updated[lastUserMsgIdx],
+                            imageUrl: uploadedImageUrl || updated[lastUserMsgIdx].imageUrl,
+                        };
                     }
                     return updated;
                 });
+
+                // [P3-CHAT-OBJECTURL-LEAK · 2026-05-31] El blob de preview ya
+                // fue reemplazado por la URL del servidor en el mensaje →
+                // revocarlo para liberar memoria. Solo si hubo swap real (si el
+                // upload no devolvió URL, el blob sigue en uso como fallback).
+                if (uploadedImageUrl && typeof currentPreview === 'string' && currentPreview.startsWith('blob:')) {
+                    try { URL.revokeObjectURL(currentPreview); } catch { /* noop */ }
+                }
             }
 
             // Interactuar por el chat normal SIEMPRE (incluso si solo hay imagen)
@@ -1854,7 +1942,7 @@ const AgentPage = () => {
                                         // durante la conversación con el agente).
                                         if (dataObj.pantry_modified_at) {
                                             try {
-                                                window.localStorage.setItem(
+                                                safeLocalStorageSet(
                                                     'mealfit_pantry_dirty_at',
                                                     String(dataObj.pantry_modified_at)
                                                 );
@@ -1903,7 +1991,7 @@ const AgentPage = () => {
                                                     ...(Array.isArray(current) ? current : []).filter(e => !incomingKeys.has(keyOf(e))),
                                                     ...dataObj.pantry_depleted_items,
                                                 ];
-                                                window.localStorage.setItem(
+                                                safeLocalStorageSet(
                                                     'mealfit_depleted_items',
                                                     JSON.stringify(merged)
                                                 );
@@ -2052,13 +2140,13 @@ const AgentPage = () => {
             padding: isMobile
                 ? (isCentered ? '1.5rem 1.25rem 2.5rem 1.25rem' : '1.25rem 2rem 1.75rem 2rem')
                 : (isCentered ? '2rem 3rem 3rem 3rem' : '1.5rem 3rem 1.5rem 3rem'),
-            background: isCentered ? '#ffffff' : 'rgba(255, 255, 255, 0.9)',
+            background: isCentered ? 'var(--bg-card)' : 'var(--bg-card)',
             backdropFilter: isCentered ? 'none' : 'blur(12px)',
             borderTopLeftRadius: isCentered ? '2rem' : '0',
             borderTopRightRadius: isCentered ? '2rem' : '0',
             borderBottomLeftRadius: isMobile ? '0' : '1.5rem',
             borderBottomRightRadius: isMobile ? '0' : '1.5rem',
-            borderTop: isCentered ? 'none' : '1px solid rgba(226, 232, 240, 0.8)',
+            borderTop: isCentered ? 'none' : '1px solid var(--border)',
             boxShadow: isCentered ? '0 -2px 20px rgba(0,0,0,0.04)' : 'none',
             position: isCentered ? 'absolute' : 'sticky',
             bottom: isCentered ? 0 : (isMobile ? 0 : '1.25rem'),
@@ -2087,8 +2175,8 @@ const AgentPage = () => {
                             style={{
                                 padding: '8px 20px',
                                 borderRadius: '30px',
-                                border: '1px solid rgba(226, 232, 240, 0.8)',
-                                background: '#ffffff',
+                                border: '1px solid var(--border)',
+                                background: 'var(--bg-card)',
                                 color: '#ef4444',
                                 fontSize: '0.9rem',
                                 fontWeight: '600',
@@ -2114,11 +2202,11 @@ const AgentPage = () => {
                 <div style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    background: isCentered ? '#f8fafc' : '#f8fafc',
+                    background: isCentered ? 'var(--bg-muted)' : 'var(--bg-muted)',
                     borderRadius: isCentered ? '2rem' : (previewUrl ? '1rem' : '2rem'),
                     padding: isCentered ? '0.5rem 0.5rem 0.5rem 1rem' : (previewUrl ? '0.5rem' : '0.5rem 0.5rem 0.5rem 1rem'),
                     boxShadow: 'none',
-                    border: isCentered ? '1px solid #e2e8f0' : '1px solid #e2e8f0',
+                    border: isCentered ? '1px solid var(--border)' : '1px solid var(--border)',
                     transition: 'all 0.2s ease',
                 }}>
                     {/* Image Preview Area - Integrated inside the input container */}
@@ -2134,16 +2222,16 @@ const AgentPage = () => {
                                 display: 'inline-block',
                                 position: 'relative',
                                 padding: '4px',
-                                background: '#ffffff',
+                                background: 'var(--bg-card)',
                                 borderRadius: '8px',
-                                border: '1px solid #e2e8f0',
+                                border: '1px solid var(--border)',
                                 animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
                             }}>
                                 <img src={previewUrl} alt="Preview" style={{ width: '48px', height: '48px', borderRadius: '6px', opacity: isLoading ? 0.5 : 1, objectFit: 'cover' }} />
                                 <button
                                     type="button"
                                     aria-label="Quitar imagen"
-                                    onClick={clearSelectedFile}
+                                    onClick={() => clearSelectedFile()}
                                     disabled={isLoading}
                                     style={{
                                         position: 'absolute', top: '-6px', right: '-6px',
@@ -2200,6 +2288,14 @@ const AgentPage = () => {
                             ref={chatInputRef}
                             rows={1}
                             value={input}
+                            // [P2-AGENT-413-NO-RETRY · 2026-05-30] Cap cliente
+                            // alineado al server (P0-CHAT-PROMPT-MAXLEN, 8192).
+                            // Evita que el usuario escriba más allá del límite
+                            // (caso común); el caso raro de overflow por el
+                            // wrapper enriquecido ([IMAGE:]/contexto temporal) lo
+                            // maneja con gracia el copy 413. 8192 chars ≈ texto
+                            // muy por encima de cualquier input de chat normal.
+                            maxLength={8192}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
@@ -2220,7 +2316,7 @@ const AgentPage = () => {
                                 fontSize: '1rem',
                                 lineHeight: '1.4',
                                 outline: 'none',
-                                color: '#1e293b',
+                                color: 'var(--text-main)',
                                 fontFamily: 'inherit',
                                 minWidth: 0,
                                 resize: 'none',
@@ -2351,7 +2447,15 @@ const AgentPage = () => {
         }
     };
 
-    const getGroupedSessions = () => {
+    // [P2-AGENT-GROUPED-SESSIONS-MEMO · 2026-06-01] useMemo([chatSessions]). Antes
+    // `getGroupedSessions()` corría en CADA render — y AgentPage re-renderiza por
+    // keystroke del textarea y por cada chunk SSE durante el streaming → iterar las
+    // sesiones (cap 40) con `new Date()` por sesión + 3 arrays nuevos, decenas de
+    // veces por segundo, alimentando la sidebar no-memoizada. chatSessions es estable
+    // durante el stream (setChatSessions corre 1× antes del loop de chunks), así que
+    // el memo skippea todo el streaming. Puro sobre chatSessions (el `new Date()` de
+    // 'hoy' solo importa al cruzar medianoche; la sidebar se refetchea en cada `done`).
+    const groupedSessions = useMemo(() => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const lastMonth = new Date(today);
@@ -2388,9 +2492,7 @@ const AgentPage = () => {
             { id: '30dias', label: '', items: groups['Últimos 30 días'] },
             { id: 'antiguos', label: 'Más antiguos', items: groups['Más antiguos'] }
         ].filter(g => g.items.length > 0);
-    };
-
-    const groupedSessions = getGroupedSessions();
+    }, [chatSessions]);
     return (
         <>
             <style>{`
@@ -2405,7 +2507,7 @@ const AgentPage = () => {
 
                 .attachment-btn {
                     background: transparent;
-                    color: #64748b;
+                    color: var(--text-muted);
                     border: none;
                     border-radius: 50%;
                     width: 40px;
@@ -2421,11 +2523,11 @@ const AgentPage = () => {
                 }
                 .attachment-btn:not(.disabled):hover {
                     color: #3b82f6;
-                    background: #f1f5f9;
+                    background: var(--bg-muted);
                 }
                 .attachment-btn:not(.disabled):active {
                     transform: scale(0.85);
-                    background: #e2e8f0;
+                    background: var(--bg-muted);
                 }
                 .attachment-btn.disabled {
                     opacity: 0.5;
@@ -2443,10 +2545,10 @@ const AgentPage = () => {
                     display: 'flex',
                     flexDirection: 'row',
                     height: isMobile ? 'var(--app-height, 100dvh)' : 'var(--app-height, calc(100dvh - 7.25rem))',  // [P3-AGENT-DESKTOP-CLIP · 2026-05-19] ver useEffect arriba
-                    background: '#ffffff',
+                    background: 'var(--bg-card)',
                     borderRadius: isMobile ? '0' : '1.5rem',
                     boxShadow: isMobile ? 'none' : '0 10px 40px -10px rgba(0,0,0,0.08)',
-                    border: isMobile ? 'none' : '1px solid rgba(226, 232, 240, 0.8)',
+                    border: isMobile ? 'none' : '1px solid var(--border)',
                     overflow: 'hidden',
                     margin: isMobile ? '0' : '2.25rem auto 0',
                     maxWidth: isMobile ? '100vw' : '1200px',
@@ -2470,7 +2572,7 @@ const AgentPage = () => {
                         pointerEvents: 'none'
                     }}>
                         <div style={{
-                            background: 'white',
+                            background: 'var(--bg-card)',
                             padding: '2rem 3rem',
                             borderRadius: '1.25rem',
                             boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
@@ -2481,10 +2583,10 @@ const AgentPage = () => {
                             animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
                         }}>
                             <ImageIcon size={48} color="#3b82f6" strokeWidth={1.5} />
-                            <h2 style={{ margin: 0, color: '#1e293b', fontSize: '1.5rem', fontWeight: 600 }}>
+                            <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.5rem', fontWeight: 600 }}>
                                 Suelta tu imagen aquí
                             </h2>
-                            <p style={{ margin: 0, color: '#64748b' }}>
+                            <p style={{ margin: 0, color: 'var(--text-muted)' }}>
                                 La subiremos optimizada para responderte.
                             </p>
                         </div>
@@ -2519,13 +2621,13 @@ const AgentPage = () => {
                     flexDirection: 'column',
                     minWidth: 0, // previene overflow en flex
                     position: 'relative',
-                    background: '#ffffff'
+                    background: 'var(--bg-card)'
                 }}>
                     {/* Chat Header */}
                     <div className="mobile-chat-header" style={{
                         padding: '0.75rem 1.25rem',
                         paddingTop: isMobile ? 'calc(0.75rem + max(env(safe-area-inset-top), 24px))' : '0.75rem',
-                        background: messages.length === 0 ? '#f4f7fc' : 'rgba(255,255,255,0.85)',
+                        background: messages.length === 0 ? 'var(--bg-card)' : 'var(--bg-card)',
                         backdropFilter: messages.length === 0 ? 'none' : 'blur(8px)',
                         display: 'flex',
                         alignItems: 'center',
@@ -2534,7 +2636,7 @@ const AgentPage = () => {
                         top: 0,
                         width: '100%',
                         zIndex: 10,
-                        borderBottom: messages.length === 0 ? 'none' : '1px solid rgba(226, 232, 240, 0.6)'
+                        borderBottom: messages.length === 0 ? 'none' : '1px solid var(--border)'
                     }}>
                         {/* Left: Menu */}
                         <button
@@ -2546,7 +2648,7 @@ const AgentPage = () => {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: '#1e293b',
+                                color: 'var(--text-main)',
                                 padding: '0.4rem',
                                 borderRadius: '50%',
                                 transition: 'all 0.15s',
@@ -2568,7 +2670,7 @@ const AgentPage = () => {
                         <span className="agent-header-title" style={{
                             fontSize: '1.25rem',
                             fontWeight: 400,
-                            color: '#0f172a',
+                            color: 'var(--text-main)',
                             position: 'absolute',
                             left: '50%',
                             transform: 'translateX(-50%)',
@@ -2588,7 +2690,7 @@ const AgentPage = () => {
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    color: '#1e293b',
+                                    color: 'var(--text-main)',
                                     padding: '0.4rem',
                                     borderRadius: '50%',
                                     transition: 'all 0.15s'
@@ -2602,7 +2704,7 @@ const AgentPage = () => {
                                     top: '100%',
                                     right: 0,
                                     marginTop: '0.5rem',
-                                    background: 'rgba(255,255,255,0.97)',
+                                    background: 'var(--bg-card)',
                                     backdropFilter: 'blur(20px)',
                                     WebkitBackdropFilter: 'blur(20px)',
                                     borderRadius: '1rem',
@@ -2633,19 +2735,19 @@ const AgentPage = () => {
                                                 background: 'transparent',
                                                 border: 'none',
                                                 borderRadius: '0.65rem',
-                                                color: '#334155',
+                                                color: 'var(--text-main)',
                                                 fontSize: '0.95rem',
                                                 fontWeight: 500,
                                                 cursor: 'pointer',
                                                 transition: 'all 0.15s ease',
                                                 textAlign: 'left'
                                             }}
-                                            onTouchStart={e => e.currentTarget.style.background = '#f1f5f9'}
+                                            onTouchStart={e => e.currentTarget.style.background = 'var(--bg-muted)'}
                                             onTouchEnd={e => e.currentTarget.style.background = 'transparent'}
-                                            onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-muted)'}
                                             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                         >
-                                            <item.icon size={20} strokeWidth={1.8} style={{ color: '#64748b' }} />
+                                            <item.icon size={20} strokeWidth={1.8} style={{ color: 'var(--text-muted)' }} />
                                             {item.label}
                                         </button>
                                     ))}
@@ -2677,7 +2779,7 @@ const AgentPage = () => {
                             flexDirection: 'column',
                             justifyContent: 'flex-start',
                             alignItems: messages.length === 0 ? 'flex-start' : 'center',
-                            background: messages.length === 0 ? '#ffffff' : '#ffffff',
+                            background: messages.length === 0 ? 'var(--bg-card)' : 'var(--bg-card)',
                             scrollBehavior: 'smooth'
                         }}
                     >
@@ -2695,7 +2797,7 @@ const AgentPage = () => {
                                     <h1 className="welcome-heading" style={{
                                         fontSize: '2rem',
                                         fontWeight: 500,
-                                        color: '#0f172a',
+                                        color: 'var(--text-main)',
                                         margin: 0,
                                         letterSpacing: '-0.01em',
                                         display: 'flex',
@@ -2708,7 +2810,7 @@ const AgentPage = () => {
                                     <h2 className="welcome-sub" style={{
                                         fontSize: '2.5rem',
                                         fontWeight: 400,
-                                        color: '#64748b',
+                                        color: 'var(--text-muted)',
                                         margin: 0,
                                         letterSpacing: '-0.03em',
                                         lineHeight: 1.2
@@ -2739,10 +2841,10 @@ const AgentPage = () => {
                                                 alignItems: 'center',
                                                 gap: '0.6rem',
                                                 padding: '0.75rem 1.25rem',
-                                                background: '#ffffff',
-                                                border: '1px solid #e2e8f0',
+                                                background: 'var(--bg-card)',
+                                                border: '1px solid var(--border)',
                                                 borderRadius: '2rem',
-                                                color: '#334155',
+                                                color: 'var(--text-main)',
                                                 fontSize: '0.95rem',
                                                 fontWeight: 400,
                                                 cursor: 'pointer',
@@ -2750,8 +2852,8 @@ const AgentPage = () => {
                                                 transition: 'all 0.2s ease',
                                                 width: 'fit-content'
                                             }}
-                                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                                            onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-muted)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-card)'}
                                         >
                                             <span className="suggestion-pill-icon" style={{ fontSize: '1.2rem', lineHeight: 1 }}>{suggestion.icon}</span>
                                             {suggestion.text}
@@ -2795,22 +2897,34 @@ const AgentPage = () => {
                                         flexDirection: 'column',
                                     }}
                                 >
-                                    <VirtualizedMessageList
-                                        messages={messages}
-                                        currentSessionId={currentSessionId}
-                                        onRegenerate={handleRegenerate}
-                                        onErrorRetry={(msg) => {
-                                            // [P1-CHAT-ERROR-DIFF · 2026-05-19]
-                                            // El virtualizer pasa el msg al
-                                            // handler — re-emit del prompt.
-                                            if (!msg?.retryPrompt && !msg?.retryImageUrl) return;
-                                            handleSend(msg.retryPrompt || '', { overrideImageUrl: msg.retryImageUrl || undefined });
-                                        }}
-                                        isLoading={isLoading}
-                                        streamingStatus={streamingStatus}
-                                        loadingPhrases={loadingPhrases}
-                                        loadingPhraseIdx={loadingPhraseIdx}
-                                    />
+                                    {/* [P2-AGENT-VIRTUOSO-LAZY · 2026-05-31]
+                                        Suspense para el chunk lazy de
+                                        react-virtuoso. Fallback: spinner
+                                        centrado (solo visible la primera vez
+                                        que una sesión cruza 100 msgs, luego
+                                        cacheado). */}
+                                    <Suspense fallback={
+                                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Loader2 className="animate-spin" size={24} aria-label="Cargando mensajes" />
+                                        </div>
+                                    }>
+                                        <VirtualizedMessageList
+                                            messages={messages}
+                                            currentSessionId={currentSessionId}
+                                            onRegenerate={handleRegenerate}
+                                            onErrorRetry={(msg) => {
+                                                // [P1-CHAT-ERROR-DIFF · 2026-05-19]
+                                                // El virtualizer pasa el msg al
+                                                // handler — re-emit del prompt.
+                                                if (!msg?.retryPrompt && !msg?.retryImageUrl) return;
+                                                handleSend(msg.retryPrompt || '', { overrideImageUrl: msg.retryImageUrl || undefined });
+                                            }}
+                                            isLoading={isLoading}
+                                            streamingStatus={streamingStatus}
+                                            loadingPhrases={loadingPhrases}
+                                            loadingPhraseIdx={loadingPhraseIdx}
+                                        />
+                                    </Suspense>
                                 </div>
                             ) : (
                             <div
@@ -2828,7 +2942,7 @@ const AgentPage = () => {
                                 }}
                             >
                                 {isLoadingHistory ? (
-                                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem', color: '#94A3B8', gap: '0.5rem' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem', color: 'var(--text-muted)', gap: '0.5rem' }}>
                                         <Loader2 className="spin-fast" size={20} /> Cargando mensajes...
                                     </div>
                                 ) : (
@@ -2856,7 +2970,7 @@ const AgentPage = () => {
                                         display: 'flex',
                                         gap: '0.75rem',
                                         alignItems: 'center',
-                                        color: '#475569',
+                                        color: 'var(--text-muted)',
                                         padding: '0.5rem 0 0.5rem 1.5rem',
                                         marginBottom: '3.5rem',
                                         fontSize: '0.95rem',
@@ -2960,14 +3074,14 @@ const AgentPage = () => {
                         max-width: none !important;
                         width: 100% !important;
                         flex: 1 !important;
-                        background: #ffffff !important;
+                        background: var(--bg-card) !important;
                     }
                     /* --- Header glassmorphism --- */
                     .mobile-chat-header {
-                        background: rgba(255,255,255,0.85) !important;
+                        background: var(--bg-card) !important;
                         backdrop-filter: blur(20px) saturate(180%) !important;
                         -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-                        border-bottom: 1px solid rgba(226,232,240,0.6) !important;
+                        border-bottom: 1px solid var(--border) !important;
                         padding: 0.75rem 1.25rem !important;
                         padding-top: calc(0.75rem + max(env(safe-area-inset-top), 24px)) !important;
                         position: absolute !important;
@@ -2991,7 +3105,7 @@ const AgentPage = () => {
                         padding-right: 1rem !important;
                         padding-top: calc(4.5rem + max(env(safe-area-inset-top), 24px)) !important;
                         padding-bottom: 0.5rem !important;
-                        background: #ffffff !important;
+                        background: var(--bg-card) !important;
                         -ms-overflow-style: none;
                         scrollbar-width: none;
                     }
@@ -3026,7 +3140,7 @@ const AgentPage = () => {
                         position: relative !important;
                         bottom: auto !important;
                         padding: 0.8rem 1.25rem calc(2.5rem + env(safe-area-inset-bottom)) 1.25rem !important;
-                        background: rgba(255,255,255,0.92) !important;
+                        background: var(--bg-card) !important;
                         backdrop-filter: blur(20px) !important;
                         -webkit-backdrop-filter: blur(20px) !important;
                         border-top: none !important;
@@ -3062,8 +3176,8 @@ const AgentPage = () => {
                         flex-direction: column !important;
                         gap: 0.35rem !important;
                         text-align: center !important;
-                        background: #ffffff !important;
-                        border: 1px solid #e2e8f0 !important;
+                        background: var(--bg-card) !important;
+                        border: 1px solid var(--border) !important;
                         box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
                         transition: transform 0.15s ease, box-shadow 0.15s ease !important;
                     }

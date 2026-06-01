@@ -261,7 +261,18 @@ export const calculateAllPlanIngredients = (planData, isPlanExpired, liveInvento
         // 3. Fallback Legacy si no hay aggregated_shopping_list
         const planDaysToCheck = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
         planDaysToCheck.forEach(day => {
-            day.meals.forEach(meal => {
+            // [P2-CALC-INGREDIENTS-MEALS-GUARD · 2026-05-30] Guard simétrico al
+            // backend (graph_orchestrator: `if not isinstance(day_meals, list):
+            // continue`). Este fallback legacy corre cuando aggregated_shopping_list
+            // está vacío/ausente — exactamente el estado de un plan parcial/chunked
+            // (graph_orchestrator setea aggregated_shopping_list=[] en el except
+            // dejando days poblado). Un día sin `meals` array hacía
+            // `day.meals.forEach` lanzar TypeError → el useMemo del Dashboard
+            // reventaba el render entero (recuperable vía ErrorBoundary, pero
+            // loop crash-on-load hasta que el plan rote). Lista de compras
+            // display-only: un fallo de cálculo no debe tumbar el Dashboard.
+            const _meals = (day && Array.isArray(day.meals)) ? day.meals : [];
+            _meals.forEach(meal => {
                 if (meal && meal.ingredients && Array.isArray(meal.ingredients)) {
                     meal.ingredients.forEach(ing => {
                         let qty = 'Al gusto';

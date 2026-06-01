@@ -8,17 +8,39 @@ import { createRoot } from 'react-dom/client'
 //   - browserTracingIntegration: integration de trazas browser
 //   - replayIntegration: session replay con masking
 // `captureException` se importa solo en AgentPage.jsx donde se usa de verdad.
-import {
-    init as sentryInit,
-    browserTracingIntegration,
-    replayIntegration,
-} from "@sentry/react";
+// [P1-PERF-SENTRY-DEFER · 2026-05-31] SOLO `init` se importa eager. Las
+// integraciones pesadas (browserTracing + replay, ~120KB) se cargan vía
+// dynamic import() en idle post-render (abajo) → salen del critical-path entry
+// chunk. El core init + beforeSend (scrubbing PII) + la captura de errores vía
+// window.onerror/unhandledrejection quedan activos desde el primer momento, así
+// que NO se pierde ningún error temprano; solo el video de replay y las trazas
+// se adjuntan unos cientos de ms después del primer paint.
+import { init as sentryInit } from "@sentry/react";
 import { registerSW } from 'virtual:pwa-register'
+import { toast } from 'sonner'
 import './index.css'
 import App from './App.jsx'
 
 // Register Service Worker
-registerSW({ immediate: true })
+// [P2-PWA-SKIPWAITING · 2026-05-30] Flujo "prompt" (registerType:'prompt' en
+// vite.config). Cuando hay un SW nuevo en 'waiting', `onNeedRefresh` muestra un
+// toast NO disruptivo; al aceptar, `updateSW(true)` postea SKIP_WAITING al SW
+// (custom-sw.js lo escucha) y recarga de forma controlada tras tomar control.
+// Antes (`autoUpdate` sin skipWaiting) el SW nuevo nunca activaba mientras
+// hubiera una pestaña abierta → bundle viejo servido por días tras un deploy.
+const updateSW = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    toast('Nueva versión disponible', {
+      description: 'Recarga para obtener las últimas mejoras.',
+      duration: Infinity,
+      action: {
+        label: 'Actualizar',
+        onClick: () => updateSW(true),
+      },
+    })
+  },
+})
 
 // [P3-AUDIT-4 · 2026-05-15] Listener para `pushsubscriptionchange` postMessage
 // desde el SW. Cuando el browser rota credentials FCM/push, el SW dispara el
@@ -150,19 +172,40 @@ const _sentryBeforeBreadcrumb = (crumb) => {
 
 sentryInit({
   dsn: import.meta.env.VITE_SENTRY_DSN,
-  integrations: [
-    browserTracingIntegration(),
-    replayIntegration({
-      maskAllText: true,
-      blockAllMedia: true,
-    }),
-  ],
+  // [P1-PERF-SENTRY-DEFER · 2026-05-31] integrations vacío al boot. browserTracing
+  // + replay se adjuntan en idle (ver _attachSentryIntegrations abajo) para no
+  // arrastrar ~120KB al entry chunk síncrono. Trade-off aceptado: la transacción
+  // de pageload inicial y el buffer de replay arrancan unos cientos de ms tarde;
+  // los errores tempranos igual se capturan (init + beforeSend ya activos).
+  integrations: [],
   tracesSampleRate: SENTRY_TRACES_SAMPLE_RATE,
   replaysSessionSampleRate: SENTRY_REPLAYS_SESSION_RATE,
   replaysOnErrorSampleRate: SENTRY_REPLAYS_ON_ERROR_RATE,
   beforeSend: _sentryBeforeSend,
   beforeBreadcrumb: _sentryBeforeBreadcrumb,
 });
+
+// [P1-PERF-SENTRY-DEFER · 2026-05-31] Adjunta tracing + replay tras el primer
+// paint. El dynamic import() aísla browserTracingIntegration + replayIntegration
+// (y replay es el output más pesado del SDK) en un chunk async separado del
+// entry. Si falla, la captura de errores sigue viva vía el core init de arriba.
+const _attachSentryIntegrations = async () => {
+  try {
+    const { browserTracingIntegration, replayIntegration, addIntegration } =
+      await import('@sentry/react');
+    addIntegration(browserTracingIntegration());
+    addIntegration(replayIntegration({ maskAllText: true, blockAllMedia: true }));
+  } catch (e) {
+    console.error('[Sentry] no se pudieron adjuntar integraciones diferidas', e);
+  }
+};
+if (typeof window !== 'undefined') {
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(_attachSentryIntegrations, { timeout: 4000 });
+  } else {
+    setTimeout(_attachSentryIntegrations, 2000);
+  }
+}
 
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
 
@@ -183,13 +226,27 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 )
 
-// Remove the PWA splash screen smoothly once React has hydrated
+// [APPEARANCE-THEME · 2026-05-29] Descarte del splash tied-to-readiness para
+// máxima fluidez: en vez de un timer fijo (que ocultaba el splash antes de que
+// el contenido real estuviera listo → posible hueco), esperamos el evento
+// `mealfit:app-ready` que la app emite cuando la auth inicial resolvió y el
+// shell puede pintar. Fallback de 2.5s para que NUNCA se quede colgado.
+// Doble rAF antes de iniciar el fade → garantiza que el contenido ya pintó
+// debajo, así el cross-fade es perfecto.
 const splash = document.getElementById('pwa-splash');
 if (splash) {
-  setTimeout(() => {
-    splash.style.opacity = '0';
-    setTimeout(() => {
-      splash.remove();
-    }, 500); // Wait for CSS transition to finish
-  }, 100); // Brief delay to ensure React has fully painted
+  let dismissed = false;
+  const hideSplash = () => {
+    if (dismissed) return;
+    dismissed = true;
+    clearTimeout(fallbackTimer);
+    window.removeEventListener('mealfit:app-ready', onReady);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      splash.style.opacity = '0';
+      setTimeout(() => splash.remove(), 500); // espera el fin de la transición CSS
+    }));
+  };
+  const onReady = () => hideSplash();
+  window.addEventListener('mealfit:app-ready', onReady, { once: true });
+  const fallbackTimer = setTimeout(hideSplash, 2500);
 }

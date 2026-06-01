@@ -113,6 +113,35 @@
     border: 1px solid #FEF3C7;
 }
 
+/* [P2-DIARY-SCAN-MACROS · 2026-05-30] Botón "Escanear comida" del header.
+   Estilo ghost discreto: sin relleno sólido, borde sutil e ícono/texto en
+   tono apagado. El acento indigo solo aparece sutilmente al hover. */
+.scanBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: 9px;
+    border: 1px solid #E2E8F0;
+    background: transparent;
+    color: #64748B;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    flex-shrink: 0;
+}
+
+.scanBtn svg { color: #94A3B8; transition: color 0.15s ease; }
+
+.scanBtn:hover {
+    color: #4F46E5;
+    border-color: #C7D2FE;
+    background: rgba(99, 102, 241, 0.06);
+}
+
+.scanBtn:hover svg { color: #6366F1; }
+
 /* Progress Bar */
 .barLarge,
 .barSmall {
@@ -313,6 +342,13 @@
         text-align: center;
     }
 
+    /* [P2-DIARY-SCAN-MACROS · 2026-05-30] Botón full-width en móvil. */
+    .scanBtn {
+        width: 100%;
+        justify-content: center;
+        padding: 0.7rem 1rem;
+    }
+
     /* [P3-TRACKING-PERC-DESKTOP · 2026-05-20] Las reglas previas mobile
        (`.percRow display:none`, `.track height: 22px`, `.fillPerc display:flex`)
        se promovieron a base — ahora aplican para desktop también. Las
@@ -332,3 +368,76 @@
         gap: 1rem;
     }
 }
+
+/* [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO */
+/* El background del .card termina en 'white' hardcodeado — se sustituye por var(--bg-card).
+   El gradiente radial de acento indigo se conserva (decorativo, no hardcodeado en blanco puro). */
+:global(html[data-theme="dark"]) .card {
+    background:
+        radial-gradient(circle at top right, rgba(99, 102, 241, 0.08) 0%, transparent 45%),
+        var(--bg-card);
+    border-color: var(--border);
+    box-shadow: var(--shadow-md);
+}
+
+:global(html[data-theme="dark"]) .header {
+    border-bottom-color: var(--border);
+}
+
+/* [APPEARANCE-THEME · 2026-05-29] Icono del header: vuelve el gradiente indigo
+   (el azul de antes) pero MÁS PROFUNDO y SIN glow → mismo look, menos brilloso.
+   El icono Activity (rose) se conserva. */
+:global(html[data-theme="dark"]) .headerIcon {
+    background: linear-gradient(135deg, #4338CA 0%, #312E81 100%);
+    box-shadow: none;
+}
+
+:global(html[data-theme="dark"]) .title {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .subtitle {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .barLabel {
+    color: var(--text-main);
+}
+
+/* [APPEARANCE-THEME · 2026-05-29] Jerarquía: la meta ("/2050 kcal") más tenue
+   (text-light) que el número consumido (text-muted/text-main) → se distinguen. */
+:global(html[data-theme="dark"]) .barGoal {
+    color: var(--text-light);
+}
+
+:global(html[data-theme="dark"]) .track {
+    border-color: var(--border);
+}
+
+/* premiumOverlay: backdrop claro (#F8FAFC con 70% opacity) → oscuro semitransparente */
+:global(html[data-theme="dark"]) .premiumOverlay {
+    background: rgba(11, 17, 32, 0.75);
+}
+
+:global(html[data-theme="dark"]) .premiumBox {
+    background: var(--bg-card);
+    border-color: var(--border);
+    box-shadow: var(--shadow-lg);
+}
+
+/* [P2-DIARY-SCAN-MACROS · 2026-05-30] Botón ghost en oscuro: borde/texto
+   apagados sobre el slate; acento indigo claro al hover. */
+:global(html[data-theme="dark"]) .scanBtn {
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .scanBtn svg { color: var(--text-light); }
+
+:global(html[data-theme="dark"]) .scanBtn:hover {
+    color: #A5B4FC;
+    border-color: rgba(129, 140, 248, 0.5);
+    background: rgba(99, 102, 241, 0.12);
+}
+
+:global(html[data-theme="dark"]) .scanBtn:hover svg { color: #A5B4FC; }

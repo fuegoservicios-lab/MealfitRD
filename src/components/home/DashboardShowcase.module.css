@@ -971,3 +971,141 @@
         gap: 1.5rem;
     }
 }
+
+/* ============================================================
+   [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — DashboardShowcase
+   Aditivo: solo propiedades de color hardcodeadas en claro.
+   ============================================================ */
+
+/* section: gradiente #FAFAFA→#FFFFFF (fondo muy claro) → bg-page oscuro */
+:global(html[data-theme="dark"]) .section {
+    background: var(--bg-page);
+}
+
+/* featureItem (mobile pill / desktop card base):
+   background:#FFFFFF, border rgba(15,23,42,0.08) claros → bg-card + border oscuro */
+:global(html[data-theme="dark"]) .featureItem {
+    background: var(--bg-card);
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .featureItem:hover {
+    border-color: rgba(129, 140, 248, 0.3);
+    box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.3);
+}
+
+/* featureActive desktop: gradiente termina en #FFFFFF hardcodeado → bg-card.
+   La línea izquierda de acento (inset 4px) se conserva. */
+@media (min-width: 1024px) {
+    :global(html[data-theme="dark"]) .featureActive {
+        background: linear-gradient(135deg, rgba(129, 140, 248, 0.08) 0%, var(--bg-card) 100%);
+        box-shadow:
+            0 12px 24px -12px rgba(0, 0, 0, 0.4),
+            inset 4px 0 0 0 var(--feature-color, var(--primary));
+    }
+}
+
+/* mockFrame: superficie principal del mockup — #FFFFFF → bg-card */
+:global(html[data-theme="dark"]) .mockFrame {
+    background: var(--bg-card);
+    box-shadow:
+        0 30px 60px -20px rgba(0, 0, 0, 0.55),
+        0 0 0 1px var(--border);
+}
+
+/* mockHeader border-bottom: rgba(15,23,42,0.06) apenas visible en claro →
+   usar la variable de borde oscuro para que sea legible */
+:global(html[data-theme="dark"]) .mockHeader {
+    border-bottom-color: var(--border);
+}
+
+/* mockBadgeNeutral: #F1F5F9 (color claro) → bg-muted oscuro */
+:global(html[data-theme="dark"]) .mockBadgeNeutral {
+    background: var(--bg-muted);
+    border-color: var(--border);
+    color: var(--text-main);
+}
+
+/* Mockup 1 — Plan Diario
+   planMeal: bg:#F8FAFC (muy claro) → bg-muted oscuro */
+:global(html[data-theme="dark"]) .planMeal {
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+
+/* planProgress track: rgba(15,23,42,0.06) invisible en oscuro → sutil */
+:global(html[data-theme="dark"]) .planProgress {
+    background: rgba(241, 245, 249, 0.08);
+}
+
+/* Mockup 2 — Recetas (recipeQty chip morado: ya lee bien en oscuro, no tocar) */
+
+/* Mockup 3 — Shopping list
+   shopBullet: borde rgba(15,23,42,0.2) → usar border var */
+:global(html[data-theme="dark"]) .shopBullet {
+    border-color: var(--border);
+}
+
+/* shopLegend separator: rgba(15,23,42,0.06) invisible en oscuro */
+:global(html[data-theme="dark"]) .shopLegend {
+    border-top-color: var(--border);
+}
+
+/* Mockup 4 — Chat IA
+   chatBubbleBot: bg:#F1F5F9 (claro) → bg-muted oscuro */
+:global(html[data-theme="dark"]) .chatBubbleBot {
+    background: var(--bg-muted);
+    color: var(--text-main);
+}
+
+/* chatInputBar: bg:#F8FAFC, border rgba(15,23,42,0.08) → bg-muted + border */
+:global(html[data-theme="dark"]) .chatInputBar {
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+
+/* Mockup 5 — Pantry
+   pantrySearch: bg:#F8FAFC → bg-muted */
+:global(html[data-theme="dark"]) .pantrySearch {
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+
+/* pantryItem base: bg:#F8FAFC → bg-muted */
+:global(html[data-theme="dark"]) .pantryItem {
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+
+/* pantryItem[data-state="soon"]: tinte naranja sobre muted oscuro.
+   El borde naranja ya se conserva (es color semántico, no hardcoded claro). */
+:global(html[data-theme="dark"]) .pantryItem[data-state="soon"] {
+    background: rgba(249, 115, 22, 0.07);
+    border-color: rgba(249, 115, 22, 0.35);
+}
+
+/* [P2-DARK-PANTRYWARN · 2026-05-31] pantryWarn era naranja-700 #C2410C (luminancia
+   muy baja) sobre tinte naranja sobre slate oscuro → contraste <3:1, ilegible. El
+   padre soon se oscurece arriba, agravándolo. Subimos a orange-300 (legible). */
+:global(html[data-theme="dark"]) .pantryWarn {
+    color: #FDBA74;
+    background: rgba(249, 115, 22, 0.18);
+}
+
+/* [P3-DARK-ACCENTS · 2026-05-31] Acentos de marca hardcodeados en claro que en
+   dark pierden jerarquía (siguen legibles, es polish de cohesión: aclaramos el
+   brand color como en el resto del tema oscuro). */
+:global(html[data-theme="dark"]) .mockBadgeAccent,
+:global(html[data-theme="dark"]) .recipeQty {
+    color: #C4B5FD;
+    background: rgba(139, 92, 246, 0.18);
+}
+
+:global(html[data-theme="dark"]) .planMealTime {
+    color: #60A5FA;
+}
+
+:global(html[data-theme="dark"]) .planFooter svg,
+:global(html[data-theme="dark"]) .chatSparkle {
+    color: #FB923C;
+}

@@ -1,13 +1,19 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { deletePlanFromHistory, getHistoryList, getLessonsCounts, getPlanLessonsDetail, getPlanCoherenceHistory, getHistoryStatusSummary, getPlanBlockedReasons, getPlanChunkMetrics, getPlanLifetimeLessons, renamePlan } from '../config/api';
 import { useAssessment } from '../context/AssessmentContext';
-import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Wheat, Droplet, RotateCcw, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles, Search } from 'lucide-react';
-import ProteinIcon from '../components/icons/ProteinIcon';
+import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './History.module.css';
+// [P2-HIST-MODALS-A11Y · 2026-05-30] Hook SSOT (P2-CUSTOM-MODALS-A11Y) con
+// role=dialog + aria-modal + ESC + focus-trap + restore-focus + body overflow
+// lock para los 3 modales custom del Historial (detalle + reactivar + eliminar).
+// Los modales eran `motion.div` con click-backdrop como única vía de cierre —
+// outlier respecto a PaymentModal / LogoutConfirmModal / Dashboard restock /
+// los 3 modales de Pantry (P2-PANTRY-MODALS-A11Y), que ya usan este hook.
+import { useModalAccessibility } from '../hooks/useModalAccessibility';
 // [P-HISTORY-CHUNK-WINDOW] Helpers chunk-aware compartidos con Recipes.jsx.
 // Sincronizados con `split_with_absorb` del backend (constants.py:961).
 // [P1-HIST-1 · 2026-05-09] Reintroducimos `splitWithAbsorb` para soportar
@@ -90,6 +96,36 @@ const _dayNameForGlobalIdx = (startMid, globalIdx) => {
     const d = new Date(startMid.getTime());
     d.setDate(d.getDate() + globalIdx);
     return _DIAS_SEMANA[d.getDay()];
+};
+
+// [P1-HIST-COMPLETE-PROGRESS · 2026-05-31] El Historial muestra el progreso
+// COMPLETO del plan: los días que el shift rolling del backend PODÓ del array
+// vivo (`plan_data._archived_days`, ya pasados) + los días vigentes
+// (`plan_data.days`, la ventana que el Dashboard "Tu Menú"/Recetas siguen
+// mostrando). El backend (api_shift_plan + _background_shift_plan_for_user)
+// archiva los días antes de podarlos. Esta función SOLO se usa en el modal
+// del Historial — el Dashboard/Recetas leen `plan_data.days` directo (ventana
+// rolling intacta). Devuelve [] defensivamente. Helper exportado para test.
+export const _fullHistoryDays = (planData) => {
+    if (!planData || typeof planData !== 'object') return [];
+    const live = Array.isArray(planData.days) ? planData.days : [];
+    const archived = Array.isArray(planData._archived_days) ? planData._archived_days : [];
+    return archived.length > 0 ? [...archived, ...live] : live;
+};
+
+// [P1-HIST-COMPLETE-PROGRESS · 2026-05-31] Base de fecha para etiquetar los
+// tabs del modal. Si HAY días archivados, el timeline completo arranca en el
+// inicio ORIGINAL inmutable (`cycle_start_date`) — porque el shift rebasa
+// `grocery_start_date` a "hoy" en cada rollover (plans.py:api_shift_plan), así
+// que usarlo etiquetaría el primer día archivado como hoy. Si NO hay archive
+// (plan que nunca shifteó, o planes pre-fix), se conserva el comportamiento
+// previo (`grocery_start_date`, que == cycle_start_date cuando no ha shifteado).
+export const _historyLabelStart = (planData, createdAt) => {
+    const hasArchive = Array.isArray(planData?._archived_days) && planData._archived_days.length > 0;
+    if (hasArchive) {
+        return planData?.cycle_start_date || planData?.grocery_start_date || createdAt;
+    }
+    return planData?.grocery_start_date || createdAt;
 };
 
 const History = () => {
@@ -275,7 +311,40 @@ const History = () => {
     // fila latest, dejando que workers de chunks continuaran
     // generando días con el `pipeline_snapshot` del plan anterior y
     // contaminaran el plan restaurado.
-    const { restorePlanFromHistory } = useAssessment();
+    // [P6-SPEED-HIST-GETUSER · 2026-06-01] `session` (ya hidratada del contexto)
+    // reemplaza el `supabase.auth.getUser()` que hacía _loadPlanDataLazy — ese
+    // era el ÚNICO getUser() del árbol (un roundtrip de red a /auth/v1/user que
+    // revalida el JWT server-side) y bloqueaba ~100-300ms el query de plan_data
+    // en cada apertura de tarjeta no cacheada. La RLS ya enforza ownership.
+    const { restorePlanFromHistory, session } = useAssessment();
+
+    // [P2-HIST-MODALS-A11Y · 2026-05-30] Defenses a11y (role/aria/ESC/
+    // focus-trap/restore-focus/scroll-lock) para los 3 modales custom.
+    // onClose memoizado con useCallback: el hook tiene `onClose` en sus
+    // deps de useEffect, así que un arrow inline re-correría el effect en
+    // CADA render del componente (el modal de detalle re-renderiza mucho:
+    // cambio de tab, nav de día, lazy-load de plan_data) → re-foco al
+    // container cada 10ms robando el focus de los elementos internos.
+    // Memoizado, el effect solo corre al abrir/cerrar de verdad.
+    const _closeDetailModal = useCallback(() => setSelectedPlan(null), []);
+    const _closeRestoreConfirm = useCallback(() => setConfirmRestore(null), []);
+    const _closeDeleteConfirm = useCallback(() => setConfirmDelete(null), []);
+    // El modal de detalle DESACTIVA su trap mientras un confirm está
+    // encima (confirmRestore se abre desde el footer del detalle y se
+    // apila): así solo hay UN focus-trap + UN handler de ESC activo a la
+    // vez. Al cerrar el confirm, el trap del detalle se re-activa.
+    const { containerRef: detailModalRef } = useModalAccessibility({
+        isOpen: !!selectedPlan && !confirmRestore && !confirmDelete,
+        onClose: _closeDetailModal,
+    });
+    const { containerRef: restoreConfirmRef } = useModalAccessibility({
+        isOpen: !!confirmRestore,
+        onClose: _closeRestoreConfirm,
+    });
+    const { containerRef: deleteConfirmRef } = useModalAccessibility({
+        isOpen: !!confirmDelete,
+        onClose: _closeDeleteConfirm,
+    });
 
     // [P1-HIST-NEW-3 · 2026-05-09] Helper extraído del useEffect de
     // mount para que el listener de visibilitychange (siguiente
@@ -619,13 +688,15 @@ const History = () => {
             return planSummary.plan_data;
         }
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return null;
+            // [P6-SPEED-HIST-GETUSER · 2026-06-01] id de la sesión ya hidratada
+            // (lectura síncrona, sin roundtrip) — patrón del resto del árbol.
+            const uid = session?.user?.id;
+            if (!uid) return null;
             const { data, error } = await supabase
                 .from('meal_plans')
                 .select('plan_data')
                 .eq('id', planSummary.id)
-                .eq('user_id', user.id)
+                .eq('user_id', uid)
                 .maybeSingle();
             if (error) throw error;
             return (data && data.plan_data) || {};
@@ -946,7 +1017,7 @@ const History = () => {
             // fetchHistory. Re-sort post-map para que la card se
             // mueva visualmente.
             const _modIso = new Date().toISOString();
-            setPlans(plans.map(p => {
+            setPlans(prev => prev.map(p => {
                 if (p.id !== plan.id) return p;
                 return {
                     ...p,
@@ -1420,7 +1491,9 @@ const History = () => {
             || plan.plan_data?.perfectDay
             || [];
         const emojis = ['🍳', '🍲', '🥗', '🍎'];
-        const activeMeals = meals.filter(m => m.name && !m.isSkipped);
+        // [P4-HIST-ARRAY-GUARD] Array.isArray: un plan_data.meals/perfectDay no-array (legacy)
+        // lanzaba TypeError en .filter y tumbaba el render del listado.
+        const activeMeals = (Array.isArray(meals) ? meals : []).filter(m => m.name && !m.isSkipped);
         
         return (
             <div className={styles.mealPreviewContainer}>
@@ -1495,10 +1568,52 @@ const History = () => {
 
     // Filtrado por nombre del plan (case-insensitive, trim).
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    const filteredPlans = normalizedQuery
-        ? plans.filter(p => (p.name || 'Plan Generado').toLowerCase().includes(normalizedQuery))
-        : plans;
+    // [P3-HIST-SEARCH-MEMO · 2026-05-31] useMemo: el filtro solo recomputa
+    // cuando cambian `plans` o la query — no en cada re-render. Pre-fix era un
+    // const plano que re-filtraba toda la lista en cada keystroke (el onChange
+    // del buscador re-renderiza History entero).
+    const filteredPlans = useMemo(
+        () => normalizedQuery
+            ? plans.filter(p => (p.name || 'Plan Generado').toLowerCase().includes(normalizedQuery))
+            : plans,
+        [plans, normalizedQuery],
+    );
     const isSearchActive = normalizedQuery.length > 0;
+
+    // [P1-HIST-ACTIVE-IDENTITY · 2026-05-31] El plan "activo" es EL plan
+    // actual (el más reciente por `_effectiveModifiedAt` — mismo criterio
+    // que el backend usa para resolver el plan vivo y que el Dashboard
+    // carga en `planData`), y SOLO si tiene contenido utilizable.
+    //
+    // Pre-fix el chip "Activo" (y el ocultar "Reactivar") eran puramente
+    // TEMPORALES (hoy ∈ ventana de fechas del plan). Eso producía dos bugs
+    // reportados por el usuario:
+    //   1. Un plan INCOMPLETO sin menú (days_generated=0, generation_status
+    //      'partial'/'failed' tras agotarse los créditos de Gemini) cuya
+    //      ventana incluye hoy salía "Activo" — aunque el Dashboard decía
+    //      "Tu plan quedó incompleto" y "Tu Menú"/"Recetas" estaban vacíos.
+    //   2. Al crear un plan nuevo, el anterior — si su ventana de fechas
+    //      solapaba hoy — seguía saliendo "Activo" Y sin botón "Reactivar",
+    //      así que el usuario no podía reactivarlo.
+    // Anclar a la IDENTIDAD del plan actual garantiza que solo UNO esté
+    // activo a la vez, que los anteriores queden inactivos (reactivables),
+    // y que el actual recupere "Activo" automáticamente en cuanto se le
+    // generen días (req. del usuario: "si se vuelve a generar platos en Tu
+    // menú y recetas, ahí sí se debe volver a activar automáticamente").
+    // Se deriva de la lista completa `plans` (no `filteredPlans`) para que
+    // la búsqueda no cambie quién es el plan actual.
+    // [P3-HIST-SEARCH-MEMO · 2026-05-31] useMemo: el reduce + los Date.parse de
+    // `_effectiveModifiedAt` (hasta 2-4 por plan por comparación) solo corren
+    // cuando `plans` cambia — no en cada keystroke del buscador.
+    const currentPlanId = useMemo(
+        () => plans.length > 0
+            ? plans.reduce(
+                (best, p) => (!best || _effectiveModifiedAt(p) > _effectiveModifiedAt(best)) ? p : best,
+                null,
+            )?.id
+            : null,
+        [plans],
+    );
 
     return (
         <>
@@ -1517,7 +1632,7 @@ const History = () => {
                         <span className={styles.planCount}>
                             {isSearchActive
                                 ? `${filteredPlans.length} de ${plans.length}`
-                                : `${plans.length} ${plans.length === 1 ? 'plan guardado' : 'planes guardados'}`}
+                                : `${plans.length} ${plans.length === 1 ? 'plan nutricional' : 'planes nutricionales'}`}
                         </span>
                         <div className={styles.searchWrap}>
                             <Search size={16} className={styles.searchIcon} aria-hidden="true" />
@@ -1563,7 +1678,20 @@ const History = () => {
                             // cardActions. Null cuando no se puede derivar
                             // (plan legacy sin start/totalDays).
                             const _temporal = getTemporalStatus(plan);
-                            const _isActive = _temporal && _temporal.bucket === 'active';
+                            // [P1-HIST-ACTIVE-IDENTITY · 2026-05-31] "Activo"
+                            // = ESTE es el plan actual (más reciente) Y tiene
+                            // contenido utilizable (≥1 día generado y no
+                            // fallido). Ya NO es puramente temporal — ver el
+                            // comentario en `currentPlanId`. Un plan incompleto
+                            // (days_generated=0) o un plan anterior NUNCA salen
+                            // "Activo". `_temporal` se conserva solo para el
+                            // texto del tooltip ("día X de Y").
+                            const _activeInfo = getStatusInfo(plan);
+                            const _hasUsableContent = _activeInfo.daysGenerated > 0
+                                && _activeInfo.bucket !== 'failed';
+                            const _isActive = !!currentPlanId
+                                && plan.id === currentPlanId
+                                && _hasUsableContent;
                             return (
                             <motion.div
                                 key={plan.id}
@@ -1667,7 +1795,7 @@ const History = () => {
                                             //  - ≤7 días:  CalendarDays (grid de día)
                                             //  - 8–21 días: CalendarRange (rango)
                                             //  - ≥22 días:  CalendarCheck (mes pleno)
-                                            const _td = getStatusInfo(plan).totalDays || 0;
+                                            const _td = _activeInfo.totalDays || 0; // [P3-HIST-STATUS-RECOMPUTE · 2026-06-01] reusa _activeInfo (L~1680)
                                             if (_td >= 22) return <CalendarCheck size={22} strokeWidth={2.25} />;
                                             if (_td >= 8) return <CalendarRange size={22} strokeWidth={2.25} />;
                                             return <CalendarDays size={22} strokeWidth={2.25} />;
@@ -1688,11 +1816,11 @@ const History = () => {
                                                     }}
                                                     className={styles.editInput}
                                                 />
-                                                <button onClick={(e) => handleEditSave(e, plan)} className={styles.editButton}>
-                                                    <Check size={16} />
+                                                <button onClick={(e) => handleEditSave(e, plan)} className={styles.editButton} aria-label="Guardar nombre" title="Guardar nombre">
+                                                    <Check size={16} aria-hidden="true" />
                                                 </button>
-                                                <button onClick={(e) => handleEditCancel(e)} className={styles.cancelButton}>
-                                                    <X size={16} />
+                                                <button onClick={(e) => handleEditCancel(e)} className={styles.cancelButton} aria-label="Cancelar" title="Cancelar">
+                                                    <X size={16} aria-hidden="true" />
                                                 </button>
                                             </div>
                                         ) : (
@@ -1745,7 +1873,9 @@ const History = () => {
                                     {_isActive && (
                                         <span
                                             className={styles.statusActive}
-                                            title={`Plan activo hoy — día ${_temporal.dayIdx + 1} de ${_temporal.totalDays}`}
+                                            title={(_temporal && _temporal.bucket === 'active')
+                                                ? `Tu plan actual — día ${_temporal.dayIdx + 1} de ${_temporal.totalDays}`
+                                                : 'Tu plan actual'}
                                         >
                                             Activo
                                         </span>
@@ -1771,7 +1901,11 @@ const History = () => {
                                         action_required). El happy path no agrega
                                         ruido visual. */}
                                     {(() => {
-                                        const _info = getStatusInfo(plan);
+                                        // [P3-HIST-STATUS-RECOMPUTE · 2026-06-01] Reusar
+                                        // _activeInfo (ligado arriba en el mismo closure)
+                                        // en vez de re-llamar getStatusInfo(plan): helper
+                                        // puro/determinista sobre plan en el mismo render.
+                                        const _info = _activeInfo;
                                         if (_info.bucket === 'complete') return null;
                                         // [P3-HIST-CHIP-DISPLAY-INCLUDE-EXPIRED · 2026-05-19]
                                         // El chip "Parcial X/Y" debe contar TODOS los días
@@ -1792,7 +1926,7 @@ const History = () => {
                                         // clamped a (totalDays - daysGenerated) para no
                                         // sobre-contar cuando dayIdx supera los días
                                         // originalmente generados.
-                                        const _temp = getTemporalStatus(plan);
+                                        const _temp = _temporal; // [P3-HIST-STATUS-RECOMPUTE · 2026-06-01] reusa _temporal (L~1671)
                                         const _dayIdxC = (_temp && Number.isFinite(_temp.dayIdx))
                                             ? Math.max(0, _temp.dayIdx) : 0;
                                         const _maxExpired = Math.max(0, _info.totalDays - _info.daysGenerated);
@@ -1871,14 +2005,11 @@ const History = () => {
                                             );
                                         }
                                         // partial
-                                        return (
-                                            <span
-                                                className={styles.statusPartial}
-                                                title={`${_displayDays} de ${_info.totalDays} días generados`}
-                                            >
-                                                Parcial {_displayDays}/{_info.totalDays}
-                                            </span>
-                                        );
+                                        // [2026-05-29] Badge "Parcial X/Y" eliminado por
+                                        // petición del usuario — no se muestra en la tarjeta
+                                        // del Historial. El resto de estados (Activo/Completo/
+                                        // Falló/Sin datos) se conservan.
+                                        return null;
                                     })()}
 
                                     {/* [P1-HIST-3 · 2026-05-09] Lecciones del
@@ -2128,8 +2259,9 @@ const History = () => {
                                         className={styles.deleteButton}
                                         onClick={(e) => handleDeleteRequest(e, plan)}
                                         title="Eliminar plan"
+                                        aria-label="Eliminar plan"
                                     >
-                                        <Trash2 size={16} />
+                                        <Trash2 size={16} aria-hidden="true" />
                                     </button>
 
                                     {/* Chevron */}
@@ -2155,6 +2287,11 @@ const History = () => {
                         exit={{ opacity: 0 }}
                     >
                         <motion.div
+                            ref={detailModalRef}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="history-detail-title"
+                            tabIndex={-1}
                             className={styles.modalContent}
                             onClick={e => e.stopPropagation()}
                             initial={{ scale: 0.9, opacity: 0, y: 30 }}
@@ -2165,7 +2302,7 @@ const History = () => {
                             {/* Header */}
                             <div className={styles.modalHeader}>
                                 <div>
-                                    <h2 className={styles.modalTitle}>{selectedPlan.name || 'Detalles del Plan'}</h2>
+                                    <h2 id="history-detail-title" className={styles.modalTitle}>{selectedPlan.name || 'Detalles del Plan'}</h2>
                                     <span className={styles.modalDate}>
                                         {new Date(selectedPlan.created_at).toLocaleDateString('es-DO', {
                                             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
@@ -2415,11 +2552,13 @@ const History = () => {
                                                     // El texto "Pulsa Reactivar este Plan abajo"
                                                     // asumía que el botón siempre estaba visible.
                                                     // Ahora se oculta para planes activos/futuros.
-                                                    // Si estamos en uno de esos buckets, redirigimos
+                                                    // Si es el plan actual, redirigimos
                                                     // al Dashboard (donde el banner de recovery del
                                                     // plan activo surface el chunk bloqueado).
-                                                    const _t = getTemporalStatus(selectedPlan);
-                                                    const _hideRestore = !!(_t && (_t.bucket === 'active' || _t.bucket === 'future'));
+                                                    // [P1-HIST-ACTIVE-IDENTITY · 2026-05-31] El
+                                                    // ocultar "Reactivar" ahora se basa en si ESTE
+                                                    // es el plan actual, no en su ventana temporal.
+                                                    const _hideRestore = !!currentPlanId && selectedPlan?.id === currentPlanId;
                                                     return (
                                                         <p className={styles.actionBannerCta}>
                                                             {_hideRestore
@@ -2544,7 +2683,11 @@ const History = () => {
                                     </div>
                                     <div className={`${styles.macroCard} ${styles.macroCardBlue}`}>
                                         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.4rem' }}>
-                                            <ProteinIcon size={18} />
+                                            {/* [APPEARANCE-THEME · 2026-05-29] Dumbbell lucide outline
+                                                (color = macroLabelBlue #2563EB) para igualar el estilo
+                                                outline de Flame/Wheat/Droplet de esta grid. Antes
+                                                `<ProteinIcon />` (mancuerna sólida) desentonaba. */}
+                                            <Dumbbell size={18} color="#2563EB" style={{ marginBottom: 0 }} />
                                         </div>
                                         <div className={styles.macroValueBlue}>{selectedPlan.macros?.protein || '—'}</div>
                                         <div className={styles.macroLabelBlue}>Proteína</div>
@@ -3686,11 +3829,16 @@ const History = () => {
                                     operacionales (duration_ms, lag_seconds,
                                     quality_tier, retries, was_degraded) y
                                     keys principales del jsonb learning_metrics
-                                    (synth_quality_score, synthesized_count,
-                                    queue_count, recovery_attempts,
-                                    escalation_reason). El raw jsonb queda
-                                    accesible vía un detalle expandible
-                                    `<pre>` para diagnóstico avanzado. */}
+                                    que SÍ tienen productor (recovery_attempts,
+                                    escalation_reason, shuffle_*). El raw jsonb queda
+                                    accesible vía un detalle expandible `<pre>`
+                                    para diagnóstico avanzado.
+                                    [G14-DOC-DRIFT · 2026-05-29] synth_quality_score /
+                                    synthesized_count / queue_count NO viven en
+                                    learning_metrics (G8 las removió de
+                                    `_LM_DISPLAY_GROUPS`): synthesized_count/queue_count
+                                    vienen de chunk_lesson_telemetry (objeto `lesson`,
+                                    ~L3487-3494); synth_quality_score no se computa. */}
                                 {activeModalTab === 'metrics' && (() => {
                                     const _data = chunkMetricsCache[selectedPlan.id];
                                     if (_data === 'loading' || _data === undefined) {
@@ -3869,9 +4017,17 @@ const History = () => {
                                             id: 'synthesis',
                                             title: 'Síntesis y escalación',
                                             keys: [
-                                                ['synth_quality_score', 'Calidad síntesis', 'number'],
-                                                ['synthesized_count', 'Sintetizadas', 'int'],
-                                                ['queue_count', 'En cola', 'int'],
+                                                // [G8-LM-CATALOG-HONESTY · 2026-05-29] Removidas
+                                                // synth_quality_score / synthesized_count / queue_count:
+                                                // NO tienen productor en plan_chunk_queue.learning_metrics
+                                                // (_lm) → renderizaban SIEMPRE en blanco para todo plan.
+                                                // synthesized_count y queue_count viven en
+                                                // chunk_lesson_telemetry (objeto `lesson`, ya renderizado
+                                                // arriba ~L3487-3494); synth_quality_score no se computa en
+                                                // ningún lado del repo. Pertenecen a la superficie de
+                                                // telemetría, NO al catálogo de learning_metrics.
+                                                // recovery_attempts / escalation_reason SÍ tienen productor
+                                                // (merge de _escalate_unrecoverable_chunk) → se quedan.
                                                 ['recovery_attempts', 'Reintentos recovery', 'int'],
                                                 ['escalation_reason', 'Razón escalación', 'str'],
                                                 ['shuffle_learning_applied', 'Shuffle aplicado', 'bool'],
@@ -4647,7 +4803,10 @@ const History = () => {
                                     GLOBAL en plan_data.days; labels usan nombre de día
                                     calculado desde grocery_start_date + globalIdx. */}
                                 {(() => {
-                                    const _planDays = selectedPlan.plan_data?.days || [];
+                                    // [P1-HIST-COMPLETE-PROGRESS · 2026-05-31] Días
+                                    // COMPLETOS (archivados + vigentes) — el Historial
+                                    // muestra todo el progreso, NO la ventana rolling.
+                                    const _planDays = _fullHistoryDays(selectedPlan.plan_data);
                                     const _totalDays = _planDays.length;
                                     if (_totalDays <= 1) return null;
 
@@ -4699,11 +4858,13 @@ const History = () => {
                                         setSelectedDay(newStart);
                                     };
 
-                                    // Fecha de inicio del plan archivado. Preferimos
-                                    // `grocery_start_date` (date-only persistido) sobre
-                                    // `created_at` (timestamp con horas → posibles shifts de TZ).
+                                    // [P1-HIST-COMPLETE-PROGRESS · 2026-05-31] Base de
+                                    // fecha del timeline completo: `cycle_start_date`
+                                    // (inicio original inmutable) cuando hay días
+                                    // archivados; si no, `grocery_start_date`. Ver
+                                    // `_historyLabelStart`.
                                     const _startMid = parseStartLocal(
-                                        selectedPlan.plan_data?.grocery_start_date || selectedPlan.created_at
+                                        _historyLabelStart(selectedPlan.plan_data, selectedPlan.created_at)
                                     );
 
                                     return (
@@ -4759,7 +4920,7 @@ const History = () => {
                                 {/* Meals List */}
                                 <h3 className={styles.menuTitle}>
                                     {(() => {
-                                        const _planDaysLen = selectedPlan.plan_data?.days?.length || 0;
+                                        const _planDaysLen = _fullHistoryDays(selectedPlan.plan_data).length;
                                         if (_planDaysLen <= 1) return 'Menú del Plan';
                                         // [P1-HIST-1 · 2026-05-09] El título se clampa al chunk
                                         // ACTIVO (no siempre el chunk 0 como pre-P1-HIST-1).
@@ -4774,7 +4935,7 @@ const History = () => {
                                             : _cs;
                                         return `Menú — ${_dayNameForGlobalIdx(
                                             parseStartLocal(
-                                                selectedPlan.plan_data?.grocery_start_date || selectedPlan.created_at
+                                                _historyLabelStart(selectedPlan.plan_data, selectedPlan.created_at)
                                             ),
                                             _safeIdx
                                         )}`;
@@ -4785,13 +4946,19 @@ const History = () => {
                                         // [P-HISTORY-CHUNK-WINDOW] Clamp selectedDay al
                                         // primer chunk para que sólo se muestren meals de
                                         // días visibles en el selector (3-4 días).
-                                        const _len = selectedPlan.plan_data?.days?.length || 0;
+                                        // [P1-HIST-COMPLETE-PROGRESS · 2026-05-31] Lee del
+                                        // timeline COMPLETO (archivados + vigentes).
+                                        const _fullDays = _fullHistoryDays(selectedPlan.plan_data);
+                                        const _len = _fullDays.length;
                                         const _safeIdx = _len > 0 && selectedDay < _len
                                             ? selectedDay
                                             : 0;
-                                        return (selectedPlan.plan_data?.days?.[_safeIdx]?.meals
+                                        const _mealsArr = _fullDays[_safeIdx]?.meals
                                             || selectedPlan.plan_data?.meals
-                                            || selectedPlan.plan_data?.perfectDay);
+                                            || selectedPlan.plan_data?.perfectDay;
+                                        // [P4-HIST-ARRAY-GUARD] Array.isArray: un meals no-array
+                                        // (legacy) lanzaba TypeError en .map y tumbaba el modal.
+                                        return Array.isArray(_mealsArr) ? _mealsArr : [];
                                     })()?.map((meal, idx) => (
                                         <div key={idx} className={styles.menuItem}>
                                             <div className={styles.menuIcon}>
@@ -5020,8 +5187,9 @@ const History = () => {
                                     // sentencias "Pulsa 'Reactivar este Plan'
                                     // abajo…" quedan rotas y hay que pivotar
                                     // al Dashboard como punto de recovery.
-                                    const _temp = getTemporalStatus(_plan);
-                                    const _hideRestore = !!(_temp && (_temp.bucket === 'active' || _temp.bucket === 'future'));
+                                    // [P1-HIST-ACTIVE-IDENTITY · 2026-05-31] Ocultar "Reactivar"
+                                    // para el plan actual (no por ventana temporal). Ver currentPlanId.
+                                    const _hideRestore = !!currentPlanId && _plan?.id === currentPlanId;
                                     const _ctaText = _hideRestore
                                         ? 'Vuelve al Dashboard para retomar la generación.'
                                         : 'Pulsa "Reactivar este Plan" abajo para retomar la generación.';
@@ -5148,20 +5316,18 @@ const History = () => {
                             </div>
 
                             {/* Footer */}
-                            {/* [P3-HIST-ACTIVE-NO-REACTIVATE · 2026-05-18]
-                                "Reactivar este Plan" SOLO tiene sentido para
-                                planes pasados (today >= start + totalDays):
-                                ese flujo copia el plan archivado como el
-                                nuevo plan activo del usuario. Para el plan
-                                que YA es activo (today ∈ [start, +totalDays))
-                                el botón confunde — el usuario está literalmente
-                                comiendo de ese plan ahora mismo. Para planes
-                                futuros (start > today, raro) tampoco aplica
-                                — el plan ya está agendado, no hay nada que
-                                "reactivar". Solo el bucket `past` (o null
-                                cuando no podemos derivar el bucket, e.g.
-                                planes legacy sin grocery_start_date)
-                                conserva el CTA.
+                            {/* [P3-HIST-ACTIVE-NO-REACTIVATE · 2026-05-18 ·
+                                identidad P1-HIST-ACTIVE-IDENTITY · 2026-05-31]
+                                "Reactivar este Plan" copia un plan archivado
+                                como el nuevo plan activo del usuario. Solo
+                                tiene sentido para planes que NO son el actual:
+                                para el plan que YA es el actual (el más
+                                reciente, el que estás usando) el botón confunde
+                                — reactivarse sobre sí mismo es no-op. Por eso
+                                se oculta únicamente para `currentPlanId`; TODOS
+                                los demás planes (anteriores) conservan el CTA
+                                para que el usuario pueda reactivarlos cuando
+                                quiera, aunque su ventana de fechas solape hoy.
 
                                 [P3-HIST-NO-CERRAR-BTN · 2026-05-18]
                                 El botón "Cerrar" del footer se removió: la X
@@ -5175,8 +5341,12 @@ const History = () => {
                                 contenido). Para planes pasados el footer
                                 solo muestra el CTA Reactivar full-width. */}
                             {(() => {
-                                const _t = getTemporalStatus(selectedPlan);
-                                const _hideRestore = !!(_t && (_t.bucket === 'active' || _t.bucket === 'future'));
+                                // [P1-HIST-ACTIVE-IDENTITY · 2026-05-31] El botón
+                                // "Reactivar este Plan" se oculta SOLO para el plan
+                                // actual (el que ya estás usando). Los planes anteriores
+                                // SÍ lo muestran para que puedas reactivarlos cuando
+                                // quieras — aunque su ventana de fechas solape hoy.
+                                const _hideRestore = !!currentPlanId && selectedPlan?.id === currentPlanId;
                                 if (_hideRestore) {
                                     // Footer vacío — la X del header cierra.
                                     return null;
@@ -5208,6 +5378,12 @@ const History = () => {
                         exit={{ opacity: 0 }}
                     >
                         <motion.div
+                            ref={restoreConfirmRef}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="history-restore-confirm-title"
+                            aria-describedby="history-restore-confirm-desc"
+                            tabIndex={-1}
                             className={styles.confirmBox}
                             onClick={e => e.stopPropagation()}
                             initial={{ scale: 0.85, opacity: 0, y: 20 }}
@@ -5218,8 +5394,8 @@ const History = () => {
                             <div className={styles.confirmIconWrapper}>
                                 <AlertTriangle size={28} color="#D97706" />
                             </div>
-                            <h3 className={styles.confirmTitle}>¿Reactivar este plan?</h3>
-                            <p className={styles.confirmText}>
+                            <h3 id="history-restore-confirm-title" className={styles.confirmTitle}>¿Reactivar este plan?</h3>
+                            <p id="history-restore-confirm-desc" className={styles.confirmText}>
                                 Tu plan actual será reemplazado por <strong>{confirmRestore.name || 'este plan'}</strong>. Esta acción no se puede deshacer.
                             </p>
                             <div className={styles.confirmActions}>
@@ -5252,6 +5428,12 @@ const History = () => {
                         exit={{ opacity: 0 }}
                     >
                         <motion.div
+                            ref={deleteConfirmRef}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="history-delete-confirm-title"
+                            aria-describedby="history-delete-confirm-desc"
+                            tabIndex={-1}
                             className={styles.confirmBox}
                             onClick={e => e.stopPropagation()}
                             initial={{ scale: 0.85, opacity: 0, y: 20 }}
@@ -5262,8 +5444,8 @@ const History = () => {
                             <div className={styles.confirmIconWrapper} style={{ background: '#FEF2F2', borderColor: '#FECACA' }}>
                                 <Trash2 size={28} color="#DC2626" />
                             </div>
-                            <h3 className={styles.confirmTitle}>¿Eliminar este plan?</h3>
-                            <p className={styles.confirmText}>
+                            <h3 id="history-delete-confirm-title" className={styles.confirmTitle}>¿Eliminar este plan?</h3>
+                            <p id="history-delete-confirm-desc" className={styles.confirmText}>
                                 El plan <strong>{confirmDelete.name || 'Seleccionado'}</strong> será borrado permanentemente de tu historial. Esta acción no se puede deshacer.
                             </p>
                             <div className={styles.confirmActions}>

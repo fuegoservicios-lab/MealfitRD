@@ -131,13 +131,15 @@
     border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
-/* --- Savings Note --- */
-.savingsNote {
-    font-size: 0.8rem;
+/* [P3-PRICING-MONTHLY-EQUIV · 2026-05-31] Equivalente mensual mostrado bajo el
+   precio anual (antes `monthlyEquiv` era dato muerto en el objeto PRICING).
+   Hace tangible el ahorro del plan anual — el número que motiva el switch.
+   Reemplaza la clase muerta `.savingsNote` (0 usos en JSX). */
+.monthlyEquiv {
+    font-size: 0.85rem;
     color: var(--secondary-dark);
     font-weight: 600;
-    margin-bottom: 0.25rem;
-    text-align: center;
+    margin: -0.75rem 0 1.5rem;
 }
 
 .grid {
@@ -161,22 +163,31 @@
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* [APPEARANCE-THEME · 2026-05-29] Cards ESTÁTICAS: hover sin lift, sin glow,
+   sin cambio de borde (igual que el estado base). */
 .card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.12);
-    border-color: rgba(79, 70, 229, 0.2);
+    transform: none;
 }
 
 /* Popular Card Override */
+/* [PRICING-POPULAR-GLOW · 2026-05-31] La tarjeta más popular (Plus) se rodea de un
+   halo morado para destacarla del resto: borde violeta + un anillo cercano sutil +
+   un glow difuso. El glow es de color (no la sombra negra var(--shadow-xl) previa,
+   que no aportaba realce) → se ve igual de bien en claro y en oscuro. */
 .popular {
-    border: 2px solid var(--primary);
-    box-shadow: var(--shadow-xl);
+    border: 2px solid #8B5CF6;
+    box-shadow:
+        0 0 0 4px rgba(139, 92, 246, 0.14),
+        0 14px 40px -10px rgba(139, 92, 246, 0.45);
     z-index: 10;
 }
 
+/* Popular estática en hover (cards sin movimiento): conserva el mismo halo. */
 .popular:hover {
-    box-shadow: var(--shadow-xl), 0 25px 50px -12px rgba(79, 70, 229, 0.25);
-    border-color: var(--primary);
+    border-color: #8B5CF6;
+    box-shadow:
+        0 0 0 4px rgba(139, 92, 246, 0.14),
+        0 14px 40px -10px rgba(139, 92, 246, 0.45);
 }
 
 .popularBadge {
@@ -317,6 +328,14 @@
     background: rgba(79, 70, 229, 0.05);
 }
 
+/* [P2-A11Y-FOCUS-VISIBLE · 2026-05-31] Anillo de foco de teclado (WCAG 2.4.7). */
+.btnPrimary:focus-visible,
+.btnOutline:focus-visible,
+.toggleOption:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 3px;
+}
+
 @media (max-width: 1200px) {
     .grid {
         grid-template-columns: repeat(2, 1fr);
@@ -421,4 +440,27 @@
         top: -14px;
         box-shadow: 0 4px 10px rgba(79, 70, 229, 0.4);
     }
+}
+
+/* ============================================================
+   [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — Pricing
+   Aditivo: solo propiedades de color hardcodeadas en claro.
+   ============================================================ */
+
+/* pricing::after — dot grid usa rgba(15,23,42,0.1) visible sobre bg claro.
+   En oscuro ese color desaparece; usamos un tono muy sutil del primary para
+   que el patrón sea levemente visible sin distraer. */
+:global(html[data-theme="dark"]) .pricing::after {
+    background-image: radial-gradient(rgba(129, 140, 248, 0.06) 1px, transparent 1px);
+}
+
+/* [APPEARANCE-THEME · 2026-05-29] Sin cambio en hover (cards estáticas). El
+   override oscuro de .card:hover se eliminó. */
+
+/* btnOutline: background es var(--bg-page) y color/border leen vars → ya ok.
+   Ajustamos el :hover para que el tint funcione sobre el bg oscuro. */
+:global(html[data-theme="dark"]) .btnOutline:hover {
+    background: rgba(129, 140, 248, 0.08);
+    color: var(--primary-light);
+    border-color: var(--primary-light);
 }

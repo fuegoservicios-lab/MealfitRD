@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 // el array `steps` (más abajo) declara su propia propiedad `fields: [...]`
 // y el mapping se construye en runtime → reordenar/insertar steps no rompe
 // la navegación a campo faltante.
-import { buildFieldToStepIndex, FIELD_LABELS, findFirstIncompleteField } from '../../config/formValidation';
+import { buildFieldToStepIndex, FIELD_LABELS, findFirstIncompleteField, minBudgetFor } from '../../config/formValidation';
 
 const InteractiveAssessmentFlow = () => {
     const { currentStep, setCurrentStep, nextStep, formData, saveGeneratedPlan, maxReachedStep, planData, loadingSensitive } = useAssessment();
@@ -160,17 +160,30 @@ const InteractiveAssessmentFlow = () => {
             component: <QCookingTime onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>Tu presupuesto para compras&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Ajustaremos los ingredientes para no afectar tu bolsillo.",
-            fields: ['budget'],
-            component: <QBudget onAutoAdvance={handleAutoAdvance} />
-        },
-        {
+            // [BUDGET-ORDER · 2026-05-31] "Frecuencia de tus compras" va ANTES que
+            // "Tu presupuesto" (pedido del usuario). Además es más coherente: el
+            // ciclo de compras (groceryDuration) contextualiza el monto custom del
+            // presupuesto (`build_budget_context` lo usa: "RD$X para tu ciclo
+            // quincenal"). El orden de captura no afecta los datos — ambos se
+            // envían juntos al final.
             title: <>Frecuencia de tus compras&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Con esto calculamos cuánto comprar cada vez para que ningún ingrediente se dañe ni te falte antes del próximo mercado.",
             hasInternalNext: true,
             fields: ['groceryDuration'],
             component: <QHousehold onManualAdvance={nextStep} />
+        },
+        {
+            title: <>Tu presupuesto para compras&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: "Ajustaremos los ingredientes para no afectar tu bolsillo.",
+            fields: ['budget'],
+            // [BUDGET-CUSTOM · 2026-05-31] Si el usuario eligió "Personalizar"
+            // (budget==='custom'), el monto total debe alcanzar el MÍNIMO viable
+            // ([BUDGET-MIN]: escalado por duración + moneda vía `minBudgetFor`,
+            // SSOT compartido con el hint de QBudget) para habilitar "Siguiente
+            // Paso". Scoped a este step para no bloquear otros cuando budget='custom'.
+            validateExtra: (fd) => fd.budget !== 'custom'
+                || Number(fd.budgetAmount) >= minBudgetFor(fd.budgetCurrency || 'DOP', fd.groceryDuration),
+            component: <QBudget onAutoAdvance={handleAutoAdvance} />
         },
         {
             title: <>¿Qué tipo de dieta prefieres?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
@@ -331,6 +344,16 @@ const InteractiveAssessmentFlow = () => {
     const hasCompletedBefore = !!planData;
     const canSkip = (currentStep < maxReachedStep) || hasCompletedBefore;
 
+    // [BUDGET-CUSTOM · 2026-05-31] Validación extra por-step (scoped). Ej: el
+    // step de presupuesto exige `budgetAmount > 0` cuando budget==='custom'. Se
+    // calcula aparte para poder gatear el botón "Siguiente" INCLUSO cuando
+    // `canSkip` es true (usuario que ya completó el form / llegó más lejos
+    // antes) — si solo viviera dentro de `stepFieldsFilled`, la condición
+    // `canSkip || stepFieldsFilled` lo bypassearía y se podría avanzar con
+    // budget='custom' SIN monto.
+    const stepExtraValid = typeof currentStepConfig.validateExtra !== 'function'
+        || currentStepConfig.validateExtra(formData);
+
     // [P6-FORM-MANUAL-EXIT] Si los campos del step actual están llenos
     // (sea por click fresh, sea por hidratación de sesión anterior), el
     // usuario puede avanzar manualmente. Cubre el caso donde auto-advance
@@ -344,14 +367,15 @@ const InteractiveAssessmentFlow = () => {
             if (v === undefined || v === null || v === '') return false;
             if (Array.isArray(v) && v.length === 0) return false;
             return true;
-        });
+        })
+        && stepExtraValid;
 
     // [P3-FORM-NO-AUTO-ADVANCE-WHEN-MANUAL-BUTTONS · 2026-05-08] Sincronizar
     // ref con la visibilidad real de los botones manuales. Ver el comentario
     // en `handleAutoAdvance`. Se asigna durante el render (no es side effect:
     // es mutación de ref, segura en React) para que el siguiente click del
     // usuario lea el valor del último render.
-    manualButtonsVisibleRef.current = (canSkip || stepFieldsFilled);
+    manualButtonsVisibleRef.current = (canSkip || stepFieldsFilled) && stepExtraValid;
 
     // [P1-B4] Handler para "Saltar a la última pregunta". Antes el onClick
     // hacía `setCurrentStep(steps.length - 1)` directo: si el usuario había
@@ -396,8 +420,9 @@ const InteractiveAssessmentFlow = () => {
     };
 
     return (
-        <InteractiveAssessmentLayout 
-            totalSteps={steps.length} 
+        <InteractiveAssessmentLayout
+            totalSteps={steps.length}
+            stepKey={currentStep}
             title={currentStepConfig.title}
             subtitle={currentStepConfig.subtitle}
         >
@@ -406,7 +431,7 @@ const InteractiveAssessmentFlow = () => {
                     {currentStepConfig.component}
                 </div>
                 
-                {(canSkip || stepFieldsFilled) && !isAutoAdvancing && (
+                {(canSkip || stepFieldsFilled) && stepExtraValid && !isAutoAdvancing && (
                     <div style={{
                         marginTop: '2rem',
                         display: 'flex',

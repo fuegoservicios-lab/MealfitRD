@@ -1,9 +1,10 @@
-import { lazy, Suspense, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+// [P1-TOASTER-MISSING · 2026-05-30] sonner <Toaster/> — sin él la app NO
+// renderiza ningún toast (sonner no auto-monta). Ver el render abajo.
+import { Toaster } from 'sonner';
 import Layout from './components/layout/Layout';
 import DashboardLayout from './components/dashboard/DashboardLayout';
-import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { AssessmentProvider } from './context/AssessmentContext';
@@ -13,8 +14,21 @@ import useThemeColor from './components/common/useThemeColor';
 // [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Boot hook que detecta planes pendientes
 // y redirige al dashboard cuando el pipeline backend completa fuera del SSE.
 import PendingPipelineRecovery from './components/PendingPipelineRecovery';
+// [APPEARANCE-THEME · 2026-05-28] Motor de tema: re-aplica la preferencia
+// persistida en runtime + escucha cambios de prefers-color-scheme cuando la
+// preferencia es 'system'. El boot script inline en index.html ya evitó el
+// flash inicial; esto mantiene el tema vivo y reactivo.
+import { initTheme } from './utils/theme';
 
 // --- Lazy-loaded pages (code-split into separate chunks) ---
+// [P1-PERF-LAZY-HOME · 2026-05-31] Home (landing) era el ÚNICO import estático
+// de página → arrastraba Hero/HowItWorks/DashboardShowcase/Pricing + framer-motion
+// (vía Pricing→PaymentModal) al chunk de entrada (~583KB raw). Como ningún otro
+// módulo eager importa framer-motion, lazy-cargar Home también saca vendor-ui del
+// modulepreload eager de /login y /register (rutas públicas que NUNCA muestran el
+// landing). Renderiza dentro del <Suspense> de AnimatedLayout (mismo patrón que las
+// páginas legales, que ya usan <Layout><X/></Layout> lazy y funcionan).
+const Home = lazy(() => import('./pages/Home'));
 const Assessment = lazy(() => import('./pages/Assessment'));
 const Plan = lazy(() => import('./pages/Plan'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -22,6 +36,10 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Pantry = lazy(() => import('./pages/Pantry'));
 const Recipes = lazy(() => import('./pages/Recipes'));
 const Settings = lazy(() => import('./pages/Settings'));
+// [ACCOUNT-SETTINGS · 2026-05-31] Página de Configuración LIVIANA y separada del
+// dashboard (apariencia + cuenta). Vive bajo el `Layout` simple en
+// `/configuracion`, accesible desde el ícono ⚙ del Header. Lazy (no golden path).
+const AccountSettings = lazy(() => import('./pages/AccountSettings'));
 const History = lazy(() => import('./pages/History'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const AgentPage = lazy(() => import('./pages/AgentPage'));
@@ -112,14 +130,20 @@ const DashboardAnimatedLayout = () => {
 
   // Lazy keep-alive: solo montar AgentPage si el user ha visitado al menos
   // una vez. Evita pagar el chunk de 300KB si nunca entra al chat.
-  const hasVisitedAgentRef = useRef(false);
-  if (isAgent) hasVisitedAgentRef.current = true;
+  // [P3-REF-IN-RENDER · 2026-05-30] setState-durante-render convergente (patrón
+  // sancionado por React para "recordar info de renders previos") en vez de
+  // mutar un ref durante el render (rompía la pureza; lo flaggeaba
+  // react-hooks/refs). React descarta el output y re-renderiza con el nuevo
+  // estado SIN commit intermedio al DOM, así que AgentPage sigue apareciendo en
+  // el mismo render del primer visit (keep-alive instantáneo preservado).
+  const [hasVisitedAgent, setHasVisitedAgent] = useState(false);
+  if (isAgent && !hasVisitedAgent) setHasVisitedAgent(true);
 
   return (
     <DashboardLayout noPaddingMobile={isAgent}>
       {/* AgentPage residente — visible cuando isAgent, oculto cuando no.
           NO se desmonta al navegar a otras dashboard routes. */}
-      {hasVisitedAgentRef.current && (
+      {hasVisitedAgent && (
         <div style={{ display: isAgent ? 'block' : 'none', height: isAgent ? 'auto' : 0, overflow: isAgent ? 'visible' : 'hidden' }}>
           <Suspense fallback={isAgent ? <PageLoader /> : null}>
             <AgentPage />
@@ -139,10 +163,26 @@ const DashboardAnimatedLayout = () => {
 };
 
 function App() {
+  // [APPEARANCE-THEME · 2026-05-28] Una sola vez al montar: re-aplica la pref
+  // guardada (idempotente con el boot script) y engancha el listener del SO.
+  useEffect(() => {
+    initTheme();
+  }, []);
+
   return (
     <AssessmentProvider>
       <Router>
         <IOSInstallPrompt />
+        {/* [P1-TOASTER-MISSING · 2026-05-30] <Toaster/> de sonner. SIN este
+            componente montado, sonner NO renderiza NINGÚN toast (no auto-monta).
+            Fue removido por accidente en 06f042a ("perf: lazy loading",
+            2026-03-26) → desde entonces toda la capa de feedback al usuario
+            (errores, éxito, verificación de pago, swaps, validación de
+            formulario, warnings de coherencia, etc.) quedó INVISIBLE. Los ~20
+            archivos que llaman `toast.*` quedaban en no-op silencioso.
+            `richColors` colorea success/error; `theme="system"` sigue el modo
+            del SO; `top-center` para visibilidad en mobile-first es-DO. */}
+        <Toaster richColors position="top-center" theme="system" closeButton />
         {/* [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Headless: poll background
             pipeline status si el user tiene plan pendiente en localStorage. */}
         <PendingPipelineRecovery />
@@ -169,6 +209,16 @@ function App() {
             <Route path="/plan" element={
               <ProtectedRoute>
                 <Layout><Plan /></Layout>
+              </ProtectedRoute>
+            } />
+
+            {/* [ACCOUNT-SETTINGS · 2026-05-31] Configuración liviana (apariencia +
+                cuenta), separada del panel completo de `/dashboard/settings`.
+                Usa el `Layout` simple (header logo + Cerrar Sesión) en vez del
+                DashboardLayout con sidebar/tabs. */}
+            <Route path="/configuracion" element={
+              <ProtectedRoute>
+                <Layout><AccountSettings /></Layout>
               </ProtectedRoute>
             } />
 

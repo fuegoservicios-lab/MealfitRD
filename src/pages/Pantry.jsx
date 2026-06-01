@@ -1,4 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, useDeferredValue } from 'react';
+// [P2-PANTRY-MODALS-A11Y · 2026-05-30] Los 3 modales custom de Pantry
+// (añadir / ajustar cantidad / vaciar nevera destructivo) eran divs fixed sin
+// role=dialog/focus-trap/ESC/restore-focus. SSOT P2-CUSTOM-MODALS-A11Y.
+import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAssessment } from '../context/AssessmentContext';
 import { supabase } from '../supabase';
@@ -147,6 +151,27 @@ const ZONE_DEFINITIONS = [
 // `frontend/src/utils/pantryConsumption.js` para que sea testeable sin
 // arrastrar este componente al bundle de tests.
 
+// [P4-PANTRY-UNITS-HOIST] Unidades de envase/medida (estáticas) a module-scope —
+// definirlas en el render las re-alocaba en cada keystroke de búsqueda.
+// [P3-PANTRY-MARKET-CONTAINER · 2026-05-19] 'cartón' alinea con master_ingredients.market_container.
+const COMMON_PURCHASE_UNITS = [
+    'unidad', 'libra', 'kg', 'botella', 'paquete',
+    'lata', 'caja', 'cartón', 'bolsa', 'galón', 'sobre',
+];
+
+// [P5-SPEED-CATEGORY-NORMALIZE-HOIST · 2026-06-01] Mapa estático de normalización
+// de categorías izado a module-scope (antes vivía DENTRO del useMemo
+// `filteredInventory`, deps [inventory, searchQuery] → se re-alocaba en cada
+// keystroke de la búsqueda). Mismo patrón que CATEGORY_ICONS / CATEGORY_TO_ZONE /
+// COMMON_PURCHASE_UNITS (ya izados en P4-PANTRY-UNITS-HOIST por la misma razón);
+// CATEGORY_NORMALIZE simplemente quedó fuera de aquella pasada.
+const CATEGORY_NORMALIZE = {
+    'Despensa': 'Despensa y Granos',
+    'Granos': 'Despensa y Granos',
+    'Cereales': 'Cereales y Granos',
+    'Carbohidratos': 'Cereales y Granos',
+};
+
 const Pantry = () => {
     const { session, userProfile, setPlanData } = useAssessment();
     // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate lazy-init.
@@ -160,6 +185,14 @@ const Pantry = () => {
     const [loading, setLoading] = useState(() => !getCachedInventory());
     const [savingItem, setSavingItem] = useState(null); // ID of item being saved
     const [searchQuery, setSearchQuery] = useState('');
+    // [P6-SPEED-PANTRY-DEFER · 2026-06-01] El <input> sigue controlado por
+    // `searchQuery` (caret instantáneo), pero las vistas pesadas
+    // (filteredInventory/visibleDepletedItems → re-filtra+agrupa+mapea todas las
+    // tarjetas) se calculan sobre `deferredSearchQuery`. React 19 deja que el
+    // re-render caro de la lista se retrase un frame y sea interrumpible por
+    // tecleo más rápido → cero lag de tipeo en despensas grandes (Android gama
+    // media del público es-DO). Aditivo: no requiere estabilizar handlers.
+    const deferredSearchQuery = useDeferredValue(searchQuery);
     
     // Auto-complete (Add Item) state
     const [showAddMenu, setShowAddMenu] = useState(false);
@@ -185,15 +218,35 @@ const Pantry = () => {
     const [qtyEditValue, setQtyEditValue] = useState(1);
     const [qtyEditSaving, setQtyEditSaving] = useState(false);
 
-    // Unidades de envase/medida que un dominicano usa al hacer compras.
-    // Orden: discretas → pesos → volumen → containers.
-    // [P3-PANTRY-MARKET-CONTAINER · 2026-05-19] 'cartón' añadido para
-    // alinear con el `master_ingredients.market_container` que el PDF usa
-    // (leche, jugos, huevos vienen "en cartón" en RD).
-    const COMMON_PURCHASE_UNITS = [
-        'unidad', 'libra', 'kg', 'botella', 'paquete',
-        'lata', 'caja', 'cartón', 'bolsa', 'galón', 'sobre',
-    ];
+    // [P2-PANTRY-MODALS-A11Y · 2026-05-30] role=dialog + focus-trap + ESC +
+    // restore-focus para los 3 modales custom. `disableClose` evita cerrar
+    // durante una operación en vuelo (añadir / guardar cantidad). El destructivo
+    // "Vaciar Nevera" NO usa disableClose (confirmDeleteAll cierra síncrono).
+    // [P5-SPEED-PANTRY-MODAL-ONCLOSE · 2026-06-01] onClose estables vía useCallback
+    // (setters de React son estables → deps []). Antes eran arrows inline: su
+    // identidad cambiaba en cada render de Pantry, y el effect de useModalAccessibility
+    // (deps [isOpen, onClose, disableClose]) re-corría cada vez → re-armaba el
+    // focus-trap y el scroll-lock MIENTRAS el modal estaba abierto. Pantry re-renderiza
+    // muy seguido con un modal abierto (typeahead del add-menu, hold-increment a 80ms).
+    const _closeAddMenu = useCallback(() => { setShowAddMenu(false); setAddItemSearch(''); }, []);
+    const _closeQtyEdit = useCallback(() => setQtyEditItem(null), []);
+    const _closeDeleteConfirm = useCallback(() => setShowDeleteConfirm(false), []);
+    const { containerRef: addMenuModalRef } = useModalAccessibility({
+        isOpen: showAddMenu,
+        onClose: _closeAddMenu,
+        disableClose: isAdding,
+    });
+    const { containerRef: qtyEditModalRef } = useModalAccessibility({
+        isOpen: !!qtyEditItem,
+        onClose: _closeQtyEdit,
+        disableClose: qtyEditSaving,
+    });
+    const { containerRef: deleteConfirmModalRef } = useModalAccessibility({
+        isOpen: showDeleteConfirm,
+        onClose: _closeDeleteConfirm,
+    });
+
+    // [P4-PANTRY-UNITS-HOIST] COMMON_PURCHASE_UNITS movido a module-scope (arriba de Pantry).
 
     // Resetear focus activo al cambiar búsqueda o cerrar modal
     useEffect(() => {
@@ -233,7 +286,12 @@ const Pantry = () => {
         const checkDisabled = () => {
             const saved = safeLocalStorageGet('mealfit_disabled_ingredients', null);
             if (saved) {
-                try { setDisabledIngredients(JSON.parse(saved)); } catch(e) {}
+                // [P4-PANTRY-ARRAY-GUARD] Array.isArray: un JSON no-array (legacy/corrupto)
+                // rompía renderItemCard (.includes/.map). Espeja el guard de depletedItems.
+                try {
+                    const _parsed = JSON.parse(saved);
+                    setDisabledIngredients(Array.isArray(_parsed) ? _parsed : []);
+                } catch (e) { setDisabledIngredients([]); }
             } else {
                 setDisabledIngredients([]);
             }
@@ -317,22 +375,37 @@ const Pantry = () => {
 
     const _removeDepleted = (entryOrItem) => {
         const k = _depletedKey(entryOrItem);
+        // [P2-DEPLETED-DELETE-ID · 2026-05-30] Resolver la fila objetivo por
+        // IDENTIDAD ESTABLE (_depletedKey) contra el state `depletedItems`, NO
+        // por `entryOrItem?.id`. Razón: los callers pasan objetos con id
+        // equivocado o ausente —
+        //   · Deshacer (handleDeleteItem) pasa el row de `inventory`, cuyo `.id`
+        //     es un `user_inventory.id`, NO un `user_depleted_items.id` (son
+        //     secuencias bigint independientes) → el DELETE pegaba a un id que
+        //     no matchea fila agotada alguna (o, cuando los rangos colisionen,
+        //     borraría la fila agotada de OTRO ingrediente del mismo user).
+        //   · handleAddNewItem pasa {master_ingredient_id, ingredient_name}
+        //     sintético SIN id → el DELETE se saltaba → la fila agotada sobrevivía
+        //     en BD y resurgía en el próximo _fetchAndApply/mount.
+        // El state `depletedItems` SÍ trae el `user_depleted_items.id` correcto
+        // (vía `_normalizeForState`); usamos el id de la entry matcheada.
+        const matched = depletedItems.find(e => _depletedKey(e) === k);
         const next = depletedItems.filter(e => _depletedKey(e) !== k);
         if (next.length === depletedItems.length) return;
         _persistDepleted(next);
-        // [P3-DEPLETED-BD · 2026-05-22] DELETE de la BD vía id. Si el entry
-        // no tiene id (rows legacy del localStorage pre-migration), saltamos
-        // el DELETE — el next POST sobrescribirá vía upsert si re-aparece.
-        const itemId = entryOrItem?.id;
-        if (itemId) {
+        const realId = matched?.id;
+        if (realId != null) {
             (async () => {
                 try {
-                    await fetchWithAuth(`/api/plans/depleted-items/${itemId}`, { method: 'DELETE' });
+                    await fetchWithAuth(`/api/plans/depleted-items/${realId}`, { method: 'DELETE' });
                 } catch (e) {
                     console.warn('[P3-DEPLETED-BD] DELETE depleted-items falló:', e);
                 }
             })();
         }
+        // Sin `realId` confiable (la entry no estaba en BD aún — POST optimista
+        // in-flight) se omite el DELETE: el upsert/realtime reconcilia, o no
+        // existe fila que borrar.
     };
 
     // [P3-PANTRY-LOCALSTORAGE-LAZY · 2026-05-19] La hidratación inicial
@@ -385,7 +458,26 @@ const Pantry = () => {
                 const json = await resp.json();
                 const items = _normalizeForState(json?.items);
                 if (cancelled) return;
-                _persistDepleted(items);
+                // [P3-DEPLETED-REALTIME-MERGE · 2026-05-30] No reemplazar a ciegas
+                // con solo las filas de BD: preservar los entries OPTIMISTAS aún
+                // sin `id` (POST de _addDepleted in-flight) cuyo key no esté ya en
+                // BD. Pre-fix, un eco realtime (de otro item/tab/device) que
+                // disparaba _fetchAndApply mientras el POST de A estaba in-flight
+                // borraba A del state+localStorage (flicker self-healing hasta que
+                // el INSERT de A round-trip-eaba). BD sigue ganando para entries
+                // con id (cross-device correcto).
+                setDepletedItems(prev => {
+                    const dbKeys = new Set(items.map(_depletedKey));
+                    const pendingOptimistic = (Array.isArray(prev) ? prev : [])
+                        .filter(e => e && e.id == null && !dbKeys.has(_depletedKey(e)));
+                    const merged = pendingOptimistic.length ? [...items, ...pendingOptimistic] : items;
+                    if (merged.length === 0) {
+                        safeLocalStorageRemove('mealfit_depleted_items');
+                    } else {
+                        safeLocalStorageSet('mealfit_depleted_items', JSON.stringify(merged));
+                    }
+                    return merged;
+                });
             } catch (e) {
                 console.warn('[P3-DEPLETED-BD] fetch /depleted-items falló (cache local sigue activo):', e);
             }
@@ -701,13 +793,29 @@ const Pantry = () => {
     const fetchData = async (isInitial = true) => {
         if (isInitial) setLoading(true);
         try {
-            // Fetch User Inventory
-            const { data: invData, error: invError } = await supabase
+            // [P5-SPEED-PANTRY-MOUNT-PARALLEL · 2026-06-01] user_inventory y
+            // master_ingredients son tablas independientes (el catálogo es
+            // cuasi-inmutable y no depende del inventario). Antes se awaitaban en
+            // serie: el roundtrip del catálogo (~19.8KB) se sumaba DESPUÉS del
+            // inventario en el cold-mount. Ahora disparamos ambas queries a la vez
+            // y resolvemos con Promise.all (los query builders de Supabase ejecutan
+            // al ser awaiteados → Promise.all las corre concurrentes). El catálogo
+            // solo se pide cuando aún no está cargado (igual que antes).
+            const needMaster = !masterListLoaded.current;
+            const invPromise = supabase
                 .from('user_inventory')
                 .select('*, master_ingredients(name, category, default_unit, market_container, shelf_life_days)')
                 .eq('user_id', session.user.id)
                 .gt('quantity', 0)
                 .order('ingredient_name', { ascending: true });
+            const masterPromise = needMaster
+                ? supabase.from('master_ingredients').select('*').order('name', { ascending: true })
+                : null;
+
+            const [{ data: invData, error: invError }, masterRes] = await Promise.all([
+                invPromise,
+                masterPromise,
+            ]);
 
             if (invError) throw invError;
             const _invRows = invData || [];
@@ -719,12 +827,8 @@ const Pantry = () => {
             setCachedInventory(_invRows);
 
             // Fetch Master List (solo una vez; cambios son rarísimos)
-            if (!masterListLoaded.current) {
-                const { data: masterData, error: masterError } = await supabase
-                    .from('master_ingredients')
-                    .select('*')
-                    .order('name', { ascending: true });
-
+            if (needMaster) {
+                const { data: masterData, error: masterError } = masterRes;
                 if (masterError) throw masterError;
                 const _masterRows = masterData || [];
                 setMasterList(_masterRows);
@@ -793,7 +897,7 @@ const Pantry = () => {
         clearRestockedFlag = false,
     } = {}) => {
         try {
-            const savedPlan = localStorage.getItem('mealfit_plan');
+            const savedPlan = safeLocalStorageGet('mealfit_plan', null);
             if (!savedPlan || !session?.user?.id) return;
 
             let planData = safeJSONParseObject(savedPlan);
@@ -991,6 +1095,32 @@ const Pantry = () => {
         };
     }, []);
 
+    // [P3-PANTRY-PENDINGOPS-CLEANUP · 2026-05-30] Unmount cleanup de la cola
+    // `pendingOps` (timeouts de guardado de cantidad de handleUpdateQuantity).
+    // Hermano omitido de P2-PANTRY-TURBO-HOLD-CLEANUP (que solo barría los refs
+    // del turbo holdTimeout/holdInterval, no pendingOps). Si el user cambia una
+    // cantidad y navega fuera de /pantry dentro de los 500ms del debounce, el
+    // setTimeout sobrevive al unmount: dispara el RPC (benigno) y luego
+    // setSavingItem(null) + (en fallo) fetchData(false)/toast sobre componente
+    // desmontado → fetch redundante + toast fantasma en página abandonada. El
+    // cleanup cancela los timeouts pendientes. La suscripción Realtime de
+    // user_inventory + el fetch al re-montar reconcilian el estado.
+    useEffect(() => {
+        return () => {
+            try {
+                const _ops = pendingOps.current;
+                if (_ops) {
+                    _ops.forEach((op) => {
+                        if (op?.timeout) {
+                            try { clearTimeout(op.timeout); } catch { /* noop */ }
+                        }
+                    });
+                    _ops.clear();
+                }
+            } catch { /* noop — best-effort */ }
+        };
+    }, []);
+
     const handleUpdateQuantity = async (id, newQty) => {
         if (newQty < 0) return;
         const roundedQty = Math.round(newQty * 100) / 100;
@@ -1169,7 +1299,21 @@ const Pantry = () => {
             setInventory([]);
             // Vaciar también la lista de "agotados" — el usuario está empezando
             // desde cero, no tiene sentido conservar recordatorios viejos.
+            // [P3-DELETEALL-DEPLETED · 2026-05-30] El clear local de
+            // `_persistDepleted([])` es solo cosmético: la fuente de verdad es la
+            // tabla `user_depleted_items` (cross-device), que `_fetchAndApply`
+            // repoblaba al próximo mount → los agotados reaparecían. Borrarlos en
+            // BD vía el endpoint dedicado (best-effort: si falla, el clear local
+            // al menos da feedback inmediato; el realtime channel propaga el
+            // DELETE a otros tabs/devices).
             _persistDepleted([]);
+            (async () => {
+                try {
+                    await fetchWithAuth('/api/plans/depleted-items', { method: 'DELETE' });
+                } catch (e) {
+                    console.warn('[P3-DELETEALL-DEPLETED] DELETE-all depleted-items falló (clear local persiste):', e);
+                }
+            })();
             toast.dismiss(loadingToast);
             toast.success('Todos los alimentos han sido borrados');
 
@@ -1369,20 +1513,16 @@ const Pantry = () => {
     // 3. Computed Views
     const filteredInventory = useMemo(() => {
         let textMatch = inventory;
-        if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase();
-            textMatch = textMatch.filter(i => 
+        if (deferredSearchQuery.trim()) {
+            const q = deferredSearchQuery.toLowerCase();
+            textMatch = textMatch.filter(i =>
                 (i.ingredient_name || i.master_ingredients?.name || '').toLowerCase().includes(q)
             );
         }
 
-        // Agrupar por Categoría del Master (con normalización de duplicados)
-        const CATEGORY_NORMALIZE = {
-            'Despensa': 'Despensa y Granos',
-            'Granos': 'Despensa y Granos',
-            'Cereales': 'Cereales y Granos',
-            'Carbohidratos': 'Cereales y Granos',
-        };
+        // Agrupar por Categoría del Master (con normalización de duplicados).
+        // [P5-SPEED-CATEGORY-NORMALIZE-HOIST · 2026-06-01] CATEGORY_NORMALIZE izado a
+        // module-scope (arriba) — ya no se re-aloca en cada keystroke de búsqueda.
         const grouped = {};
         textMatch.forEach(item => {
             let cat = item.master_ingredients?.category || "OTROS";
@@ -1391,7 +1531,7 @@ const Pantry = () => {
             grouped[cat].push(item);
         });
         return grouped;
-    }, [inventory, searchQuery]);
+    }, [inventory, deferredSearchQuery]);
 
     // [P3-PANTRY-FRIDGE-LAYOUT · 2026-05-19] Proyección por zona física de
     // la nevera real. Mantenemos `filteredInventory` (por categoría) para
@@ -1409,35 +1549,41 @@ const Pantry = () => {
         return byZone;
     }, [filteredInventory]);
 
+    // [P3-PANTRY-ACTIVEKEYS-DEDUP · 2026-05-31] Set de claves del inventario
+    // activo construido UNA vez (deps [inventory]) y reusado por
+    // visibleDepletedItems + depletedCount, que antes lo reconstruían idéntico
+    // cada uno. `depletedCount` sigue siendo search-independent (el badge total
+    // NO debe encogerse al teclear) → se mantiene como memo separado, NO se
+    // deriva de visibleDepletedItems.length.
+    const activeInventoryKeys = useMemo(
+        () => new Set(
+            inventory.map(i => i.master_ingredient_id
+                ? `m:${i.master_ingredient_id}`
+                : `n:${(i.ingredient_name || '').toLowerCase().trim()}`)
+        ),
+        [inventory],
+    );
+
     // Items agotados visibles: excluye los que actualmente existen en
     // inventory (defensive — un INSERT externo podría dejar el item activo
     // pese a estar en la lista de agotados; preferimos verdad DB).
     const visibleDepletedItems = useMemo(() => {
-        const activeKeys = new Set(
-            inventory.map(i => i.master_ingredient_id
-                ? `m:${i.master_ingredient_id}`
-                : `n:${(i.ingredient_name || '').toLowerCase().trim()}`)
-        );
-        let list = depletedItems.filter(e => !activeKeys.has(_depletedKey(e)));
-        if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase();
+        let list = depletedItems.filter(e => !activeInventoryKeys.has(_depletedKey(e)));
+        if (deferredSearchQuery.trim()) {
+            const q = deferredSearchQuery.toLowerCase();
             list = list.filter(e => (e.ingredient_name || '').toLowerCase().includes(q));
         }
         return list.sort((a, b) =>
             // Más recientes arriba
             (b.depleted_at || '').localeCompare(a.depleted_at || '')
         );
-    }, [depletedItems, inventory, searchQuery]);
+    }, [depletedItems, activeInventoryKeys, deferredSearchQuery]);
 
     const activeCount = inventory.length;
-    const depletedCount = useMemo(() => {
-        const activeKeys = new Set(
-            inventory.map(i => i.master_ingredient_id
-                ? `m:${i.master_ingredient_id}`
-                : `n:${(i.ingredient_name || '').toLowerCase().trim()}`)
-        );
-        return depletedItems.filter(e => !activeKeys.has(_depletedKey(e))).length;
-    }, [depletedItems, inventory]);
+    const depletedCount = useMemo(
+        () => depletedItems.filter(e => !activeInventoryKeys.has(_depletedKey(e))).length,
+        [depletedItems, activeInventoryKeys],
+    );
 
     const suggestedMasterItems = useMemo(() => {
         if (!addItemSearch.trim()) return [];
@@ -1685,7 +1831,9 @@ const Pantry = () => {
                         aria-label={`Marcar ${item.ingredient_name} como agotado`}
                         className="nevera-deplete-btn"
                     >
-                        <PackageX size={13} strokeWidth={2.5} /> Agotar
+                        {/* [P3-PANTRY-CARD-SIMPLIFY · 2026-05-30] Sin ícono — el
+                            texto "Agotar" basta; el ícono PackageX era ruido. */}
+                        Agotar
                     </button>
                 </div>
             </div>
@@ -1926,6 +2074,15 @@ const Pantry = () => {
                     display: flex;
                     align-items: center;
                     gap: 1rem;
+                }
+                /* [P3-PANTRY-ACTIONS-ROW-MOBILE · 2026-05-30] Grupo de botones
+                   (Borrar Todos + Añadir Alimento). En escritorio = fila normal;
+                   en móvil se aplana (display:contents) para fluir junto a los
+                   pills de estado. */
+                .nevera-actions-group {
+                    display: flex;
+                    gap: 0.75rem;
+                    flex-wrap: wrap;
                 }
                 /* [P3-PANTRY-NO-TITLE · 2026-05-19] Eliminados:
                    .nevera-title-row, .nevera-title, .nevera-snowflake-icon
@@ -2603,8 +2760,15 @@ const Pantry = () => {
                     background: #FEE2E2;
                     border-color: rgba(248, 113, 113, 0.65);
                     color: #DC2626;
+                    transform: scale(1.12);
                 }
                 .nevera-item-delete-x:active { transform: scale(0.9); }
+                /* [CTA-HOVER-GLOW · 2026-05-31] Reduced-motion: sin el micro-scale de
+                   hover/active; el realce de color (destructivo) se conserva. */
+                @media (prefers-reduced-motion: reduce) {
+                    .nevera-item-delete-x:hover,
+                    .nevera-item-delete-x:active { transform: none; }
+                }
                 /* [P3-PANTRY-PLUS-HOVER · 2026-05-19] Botón '+' del counter
                  * de cada card. Estilos movidos desde inline a class para
                  * poder añadir :hover con sombra reforzada (no se podía con
@@ -2615,6 +2779,12 @@ const Pantry = () => {
                     color: white;
                     border-radius: 99px;
                     padding: 0.5rem;
+                    /* [APPEARANCE-THEME · 2026-05-29] El '+' quedaba un pelín
+                       arriba (svg inline con gap de baseline). Flex-center +
+                       display:block del svg lo centran exacto en el círculo. */
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
                     cursor: pointer;
                     box-shadow:
                         0 4px 12px -2px rgba(14, 165, 233, 0.45),
@@ -2636,18 +2806,18 @@ const Pantry = () => {
                         0 2px 6px -2px rgba(14, 165, 233, 0.5),
                         inset 0 1px 0 rgba(255,255,255,0.15);
                 }
+                /* [P3-PANTRY-CARD-SIMPLIFY · 2026-05-30] Chip de unidad aplanado:
+                   se quitó el gradiente blanco→cyan + insets glossy → tinte cyan
+                   plano, más limpio y legible. */
                 .nevera-item-unit-tag {
                     font-size: 0.78rem;
                     color: #075985;
-                    background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(224, 242, 254, 0.9) 100%);
-                    border: 1px solid rgba(125, 211, 252, 0.6);
+                    background: #E0F2FE;
+                    border: 1px solid #BAE6FD;
                     padding: 0.18rem 0.6rem;
                     border-radius: 0.4rem;
                     font-weight: 600;
                     text-transform: capitalize;
-                    box-shadow:
-                        inset 0 1px 0 rgba(255,255,255,0.85),
-                        0 1px 2px rgba(14, 165, 233, 0.08);
                 }
                 .nevera-item-counter {
                     display: flex;
@@ -2658,33 +2828,44 @@ const Pantry = () => {
                     padding: 0.25rem;
                     box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
                 }
+                /* [P3-PANTRY-CARD-SIMPLIFY · 2026-05-30] Feedback de presión en
+                   los 3 botones del contador (−, número, +) → interacción más
+                   táctil. Conserva la transición de box-shadow del botón "+". */
+                .nevera-item-counter button {
+                    transition: transform 0.1s ease, box-shadow 0.15s ease;
+                }
+                .nevera-item-counter button:active:not(:disabled) {
+                    transform: scale(0.86);
+                }
 
                 /* === DEPLETE BUTTON (per item) === */
+                /* [P3-PANTRY-CARD-SIMPLIFY · 2026-05-30] Aplanado: sin gradiente
+                   ni insets glossy ni ícono. Tinte rojo plano + press feedback.
+                   [P3-PANTRY-DEPLETE-WIDE · 2026-05-30] width:100% → abarca todo
+                   el ancho de su columna (iguala el contador de arriba), botón
+                   más prominente y tocable. */
                 .nevera-deplete-btn {
-                    display: inline-flex;
+                    display: flex;
+                    width: 100%;
                     align-items: center;
-                    gap: 0.3rem;
-                    background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(254, 242, 242, 0.85) 100%);
+                    justify-content: center;
+                    background: #FEF2F2;
                     color: #B91C1C;
-                    border: 1px solid rgba(252, 165, 165, 0.7);
-                    padding: 0.28rem 0.7rem;
+                    border: 1px solid #FECACA;
+                    padding: 0.45rem 0.9rem;
                     border-radius: 99px;
-                    font-size: 0.72rem;
+                    font-size: 0.74rem;
                     font-weight: 700;
                     cursor: pointer;
                     letter-spacing: 0.01em;
-                    box-shadow:
-                        inset 0 1px 0 rgba(255,255,255,0.95),
-                        0 1px 2px rgba(220, 38, 38, 0.08);
-                    transition: all 0.15s;
+                    transition: background 0.15s, border-color 0.15s, transform 0.1s;
                     white-space: nowrap;
                 }
                 .nevera-deplete-btn:hover {
-                    background: linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(254, 226, 226, 0.95) 100%);
-                    border-color: rgba(248, 113, 113, 0.85);
-                    transform: translateY(-1px);
+                    background: #FEE2E2;
+                    border-color: #F87171;
                 }
-                .nevera-deplete-btn:active { transform: scale(0.96); }
+                .nevera-deplete-btn:active { transform: scale(0.95); }
 
                 /* === [P3-PANTRY-CONFIRM-MODAL · 2026-05-19] ===
                    Modal "Vaciar la Nevera" con look metálico tipo electrodoméstico
@@ -3195,17 +3376,21 @@ const Pantry = () => {
                     text-align: center;
                     position: relative;
                 }
+                /* [PANTRY-EMPTY-CLEANUP · 2026-06-01] Luz ambiental FRÍA (cyan)
+                   en vez del glow cálido amarillo/naranja, que chocaba con el tema
+                   de nevera y en oscuro se veía como un manchón mugriento. Sutil y
+                   theme-neutral (alpha bajo funciona en claro y oscuro). */
                 .nevera-fridge-interior::before {
                     content: '';
                     position: absolute;
                     top: 50%;
                     left: 50%;
                     transform: translate(-50%, -50%);
-                    width: 280px;
-                    height: 280px;
-                    background: radial-gradient(circle, rgba(254, 240, 138, 0.5) 0%, rgba(254, 215, 170, 0.2) 45%, transparent 75%);
+                    width: 240px;
+                    height: 240px;
+                    background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, transparent 70%);
                     pointer-events: none;
-                    filter: blur(12px);
+                    filter: blur(16px);
                     z-index: 0;
                 }
 
@@ -3280,7 +3465,13 @@ const Pantry = () => {
                         /* [P3-PANTRY-BRAND-SPACING · 2026-05-19] padding-top
                            generoso para que el brand label absoluto no pise
                            el pill "Solo lo que tienes" debajo. */
-                        padding: 2.5rem 2rem 0.75rem 0.9rem;
+                        /* [P3-PANTRY-MOBILE-POLISH · 2026-05-28] menos padding
+                           derecho (manija fina) + un poco menos alto arriba. */
+                        /* [P3-PANTRY-HEADER-RIGHT-GAP · 2026-05-30] +padding
+                           derecho (1.1rem → 1.7rem): la manija del freezer llega
+                           a ~13px del borde y el botón "Añadir Alimento"
+                           (full-width) quedaba pegado a ella. */
+                        padding: 2.2rem 1.7rem 0.75rem 1rem;
                     }
                     .nevera-brand-label {
                         font-size: 0.55rem;
@@ -3288,24 +3479,30 @@ const Pantry = () => {
                         letter-spacing: 0.12em;
                         top: 0.4rem;
                     }
+                    /* [P3-PANTRY-MOBILE-POLISH · 2026-05-28] Manija del freezer
+                       más delgada en móvil para recuperar ancho de contenido. */
                     .nevera-header-handle {
-                        width: 14px;
-                        right: 6px;
-                        border-radius: 9px;
+                        width: 9px;
+                        right: 4px;
+                        border-radius: 6px;
                     }
                     .nevera-header-handle::before,
                     .nevera-header-handle::after {
-                        height: 9px;
-                        left: -3px;
-                        right: -3px;
+                        height: 7px;
+                        left: -2px;
+                        right: -2px;
                     }
-                    .nevera-header-handle::before { top: -7px; }
-                    .nevera-header-handle::after  { bottom: -7px; }
+                    .nevera-header-handle::before { top: -6px; }
+                    .nevera-header-handle::after  { bottom: -6px; }
 
+                    /* [P3-PANTRY-ACTIONS-ROW-MOBILE · 2026-05-30] Layout limpio:
+                       chip "N items" arriba (su propia línea, izquierda) y los dos
+                       botones como par de IGUAL ancho debajo. Balanceado y robusto
+                       a cualquier ancho de pantalla. */
                     .nevera-top {
                         flex-direction: column;
                         align-items: stretch;
-                        gap: 0.9rem;
+                        gap: 0.7rem;
                     }
                     .nevera-title-wrapper {
                         gap: 0.5rem;
@@ -3319,10 +3516,12 @@ const Pantry = () => {
                     }
 
                     /* Botones + búsqueda compactos */
+                    /* [P3-PANTRY-ACTIONS-ROW-MOBILE · 2026-05-30] Par de igual
+                       ancho (flex:1) → fila balanceada de Borrar Todos + Añadir. */
                     .nevera-add-btn,
                     .nevera-delete-all-btn {
                         flex: 1;
-                        padding: 0.6rem 0.8rem;
+                        padding: 0.7rem 0.8rem;
                         font-size: 0.85rem;
                         white-space: nowrap;
                     }
@@ -3340,7 +3539,9 @@ const Pantry = () => {
 
                     /* === BODY (cuerpo principal) más cerca del header === */
                     .nevera-fridge-body {
-                        padding-right: 26px;
+                        /* [P3-PANTRY-MOBILE-POLISH · 2026-05-28] 26px → 16px:
+                           manija más delgada, así el contenido gana ancho. */
+                        padding-right: 16px;
                         /* [P3-PANTRY-FEET-INSIDE · 2026-05-19] margin-bottom
                            eliminado en mobile también — patitas dentro del
                            interior-wrap, no overflow. */
@@ -3351,8 +3552,10 @@ const Pantry = () => {
                            Antes 1rem (~ resulta en gap visible); ahora 0.75rem.
                            [P3-PANTRY-FEET-INSIDE · 2026-05-19] padding-bottom
                            subido 1.25rem → 2rem para reservar espacio para
-                           patitas (height 13 + bottom 4 + buffer). */
-                        padding: 0.75rem 0.75rem 2rem 0.75rem;
+                           patitas (height 13 + bottom 4 + buffer).
+                       [P3-PANTRY-MOBILE-POLISH · 2026-05-28] padding horizontal
+                       0.75rem → 0.6rem para dar más ancho a las tarjetas. */
+                        padding: 0.75rem 0.6rem 2rem 0.6rem;
                     }
                     .nevera-fridge-control-panel {
                         margin: -0.25rem -0.1rem 0.7rem -0.1rem;
@@ -3375,19 +3578,21 @@ const Pantry = () => {
                         height: 7px;
                     }
 
+                    /* [P3-PANTRY-MOBILE-POLISH · 2026-05-28] Manija del cuerpo
+                       más delgada en móvil (recupera ancho para los items). */
                     .nevera-fridge-handle {
-                        width: 14px;
-                        right: 6px;
-                        border-radius: 9px;
+                        width: 9px;
+                        right: 4px;
+                        border-radius: 6px;
                     }
                     .nevera-fridge-handle::before,
                     .nevera-fridge-handle::after {
-                        height: 9px;
-                        left: -3px;
-                        right: -3px;
+                        height: 7px;
+                        left: -2px;
+                        right: -2px;
                     }
-                    .nevera-fridge-handle::before { top: -7px; }
-                    .nevera-fridge-handle::after  { bottom: -7px; }
+                    .nevera-fridge-handle::before { top: -6px; }
+                    .nevera-fridge-handle::after  { bottom: -6px; }
                     .nevera-fridge-feet {
                         /* [P3-PANTRY-FEET-INSIDE · 2026-05-19] right 26px → 0
                            porque las patitas ahora están dentro del interior-wrap
@@ -3416,7 +3621,9 @@ const Pantry = () => {
                         border-radius: 0.65rem;
                     }
                     .nevera-item-card {
-                        padding: 0.85rem 0.9rem;
+                        /* [P3-PANTRY-MOBILE-POLISH · 2026-05-28] +aire vertical
+                           (0.85→0.95rem) para mejor jerarquía/respiración. */
+                        padding: 0.95rem 0.9rem;
                         padding-right: 2.2rem;
                         border-radius: 0.85rem;
                     }
@@ -3454,7 +3661,9 @@ const Pantry = () => {
                     .nevera-zone-grid,
                     .nevera-drawer-grid {
                         grid-template-columns: 1fr;
-                        gap: 0.7rem;
+                        /* [P3-PANTRY-MOBILE-POLISH · 2026-05-28] +separación
+                           entre tarjetas (0.7→0.85rem) para que respiren. */
+                        gap: 0.85rem;
                     }
 
                     /* === ALACENA compactada === */
@@ -3492,6 +3701,307 @@ const Pantry = () => {
                         right: 4px;
                     }
                 }
+
+                /* ============================================================
+                   [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO
+                   Aditivo, riesgo cero al claro: solo aplica bajo
+                   html[data-theme="dark"]. Convierte SOLO superficies/texto/
+                   borde estructurales a var(--*). Gradientes metálicos /
+                   cromados / cyan-frío / ámbar-madera / LEDs / acentos de
+                   marca se preservan (decorativos, leen bien sobre oscuro) o
+                   se neutralizan a slate cuando su versión clara haría glow
+                   blanco sobre el fondo profundo.
+                   ============================================================ */
+
+                /* --- Marco exterior de la nevera (era metálico perlado claro) --- */
+                html[data-theme="dark"] .nevera-page-frame {
+                    border-color: var(--border);
+                    border-top-color: var(--border);
+                    border-bottom-color: var(--border);
+                    border-left-color: var(--border);
+                    border-right-color: var(--border);
+                    background: var(--bg-card);
+                    box-shadow:
+                        inset 0 1px 0 rgba(255,255,255,0.04),
+                        0 24px 48px -14px rgba(0,0,0,0.6),
+                        0 8px 20px -6px rgba(0,0,0,0.45);
+                }
+
+                /* --- Header "puerta del freezer" (era perlado blanco) --- */
+                html[data-theme="dark"] .nevera-header {
+                    background: var(--bg-card);
+                    border-bottom-color: var(--border);
+                    box-shadow:
+                        inset 0 1px 0 rgba(255,255,255,0.04),
+                        0 2px 0 var(--border);
+                }
+
+                /* --- Interior "frío iluminado" (era cyan claro → glow en dark) --- */
+                html[data-theme="dark"] .nevera-fridge-interior-wrap {
+                    background: var(--bg-page);
+                    background-image: none;
+                    box-shadow:
+                        inset 0 4px 12px -4px rgba(0,0,0,0.5),
+                        inset 0 -8px 16px -6px rgba(0,0,0,0.4);
+                }
+
+                /* --- Buscador (input: superficie) --- */
+                html[data-theme="dark"] .nevera-search-input {
+                    background: var(--bg-muted);
+                    color: var(--text-main);
+                    border-color: var(--border);
+                }
+                html[data-theme="dark"] .nevera-search-input::placeholder {
+                    color: var(--text-light);
+                }
+
+                /* --- Gavetas / crispers (era gradiente blanco→cyan) --- */
+                html[data-theme="dark"] .nevera-drawer {
+                    background: var(--bg-muted);
+                    border-color: var(--border);
+                    border-top-color: var(--border);
+                    border-bottom-color: var(--border);
+                    box-shadow:
+                        inset 0 1px 0 rgba(255,255,255,0.03),
+                        0 4px 10px -3px rgba(0,0,0,0.4);
+                }
+
+                /* --- Tarjeta de item (superficie principal: blanca + borde claro) --- */
+                html[data-theme="dark"] .nevera-item-card {
+                    background: var(--bg-card);
+                    border-color: var(--border);
+                }
+
+                /* --- Contador y tag de unidad dentro de la card --- */
+                html[data-theme="dark"] .nevera-item-counter {
+                    background: var(--bg-muted);
+                    border-color: var(--border);
+                    box-shadow: none;
+                }
+                html[data-theme="dark"] .nevera-item-delete-x {
+                    background: var(--bg-muted);
+                    border-color: var(--border);
+                    color: var(--text-muted);
+                }
+                /* [CTA-HOVER-GLOW · 2026-05-31] Hover de la X en oscuro: el del modo
+                   claro (#FEE2E2 rosa) se veía como un bloque brillante. Tinte rojo
+                   translúcido + ícono rojo claro — señala destructivo sin chocar con
+                   el tema (mismo lenguaje que el hover del botón "Agotar"). */
+                html[data-theme="dark"] .nevera-item-delete-x:hover {
+                    background: rgba(239, 68, 68, 0.2);
+                    border-color: rgba(248, 113, 113, 0.5);
+                    color: #FCA5A5;
+                }
+                /* [APPEARANCE-THEME · 2026-05-29] Chip de unidad (Cartón/Lb/…):
+                   era blanco→azul-claro (brilloso en oscuro). Tinte cyan sutil,
+                   acorde al tema "nevera" (el + es sky #0EA5E9), no brilloso. */
+                html[data-theme="dark"] .nevera-item-unit-tag {
+                    background: rgba(14, 165, 233, 0.12);
+                    border-color: rgba(56, 189, 248, 0.3);
+                    color: #7DD3FC;
+                    box-shadow: none;
+                }
+                /* [APPEARANCE-THEME · 2026-05-31] Badge contador por categoría
+                   (LÁCTEOS & HUEVOS 3, PROTEÍNAS 3, …): en claro lleva el número en
+                   azul OSCURO (#075985), que sobre oscuro queda ilegible. Tinte sky
+                   translúcido + número sky claro (#BAE6FD) → el conteo se lee nítido. */
+                html[data-theme="dark"] .nevera-shelf-count {
+                    background: rgba(56, 189, 248, 0.18);
+                    border-color: rgba(125, 211, 252, 0.4);
+                    color: #BAE6FD;
+                    box-shadow: none;
+                }
+                /* [APPEARANCE-THEME · 2026-05-31] Gemelo del anterior: el contador de
+                   la sección "Agotados" llevaba número rojo OSCURO (#991B1B) ilegible
+                   sobre oscuro. Tinte rojo translúcido + número rojo claro (#FCA5A5,
+                   mismo lenguaje que el botón "Agotar"). */
+                html[data-theme="dark"] .nevera-depleted-count {
+                    background: rgba(239, 68, 68, 0.18);
+                    border-color: rgba(248, 113, 113, 0.4);
+                    color: #FCA5A5;
+                    box-shadow: none;
+                }
+                /* Botón "Agotar": era blanco→rosa-claro (brilloso). Tinte rojo
+                   translúcido + texto rojo claro. */
+                html[data-theme="dark"] .nevera-deplete-btn {
+                    background: rgba(239, 68, 68, 0.16);
+                    border-color: rgba(248, 113, 113, 0.4);
+                    color: #FCA5A5;
+                    box-shadow: none;
+                }
+                html[data-theme="dark"] .nevera-deplete-btn:hover {
+                    background: rgba(239, 68, 68, 0.26);
+                    border-color: rgba(248, 113, 113, 0.6);
+                }
+                /* [APPEARANCE-THEME · 2026-05-29] Chips del header ("Solo lo que
+                   tienes" + "N items"): cyan-claro translúcido con texto azul
+                   OSCURO = bajo contraste sobre el fondo oscuro. Tinte cyan +
+                   texto cyan CLARO para que se lean bien. */
+                html[data-theme="dark"] .nevera-badge,
+                html[data-theme="dark"] .nevera-total-pill-active {
+                    background: rgba(14, 165, 233, 0.12);
+                    border-color: rgba(56, 189, 248, 0.3);
+                    color: #7DD3FC;
+                    box-shadow: none;
+                }
+                html[data-theme="dark"] .nevera-badge-text {
+                    color: #7DD3FC;
+                }
+                html[data-theme="dark"] .nevera-total-pill-depleted {
+                    background: rgba(239, 68, 68, 0.16);
+                    border-color: rgba(248, 113, 113, 0.4);
+                    color: #FCA5A5;
+                    box-shadow: none;
+                }
+                /* [APPEARANCE-THEME · 2026-05-29] "Añadir Alimento": el borde
+                   biselado (top cyan-claro + bottom oscuro) + reflejos internos
+                   blancos + glow fuerte se veían "raros/glassy" en oscuro. Borde
+                   uniforme sutil, sin insets, glow contenido. Mantiene el
+                   degradado cyan + texto blanco. */
+                html[data-theme="dark"] .nevera-add-btn {
+                    border: 1px solid rgba(56, 189, 248, 0.45);
+                    border-top-color: rgba(56, 189, 248, 0.45);
+                    border-bottom-color: rgba(56, 189, 248, 0.45);
+                    box-shadow: 0 4px 14px -4px rgba(14, 165, 233, 0.4);
+                }
+                html[data-theme="dark"] .nevera-add-btn:hover {
+                    border-color: rgba(56, 189, 248, 0.7);
+                    border-top-color: rgba(56, 189, 248, 0.7);
+                    box-shadow: 0 6px 20px -4px rgba(14, 165, 233, 0.55);
+                }
+                /* "Borrar Todos": era pill blanco→rojo-claro (brilloso en oscuro)
+                   → tinte rojo translúcido coherente con "Agotar". */
+                html[data-theme="dark"] .nevera-delete-all-btn {
+                    background: rgba(239, 68, 68, 0.16);
+                    color: #FCA5A5;
+                    border: 1px solid rgba(248, 113, 113, 0.4);
+                    box-shadow: none;
+                }
+                html[data-theme="dark"] .nevera-delete-all-btn:hover:not(:disabled) {
+                    background: rgba(239, 68, 68, 0.26);
+                    border-color: rgba(248, 113, 113, 0.6);
+                    /* matar el reflejo blanco interno (inset rgba(255,255,255,1))
+                       del hover base que se veía "brilloso" en oscuro */
+                    box-shadow: none;
+                }
+                /* [APPEARANCE-THEME · 2026-05-29] Botón "+" del contador: el glow
+                   cyan fuerte + reflejo interno blanco se veían demasiado glossy
+                   en oscuro. Glow contenido, sin inset highlight, degradado un
+                   poco más profundo. */
+                html[data-theme="dark"] .nevera-plus-btn {
+                    background: linear-gradient(135deg, #0C8FCC 0%, #075985 100%);
+                    box-shadow: 0 2px 8px -2px rgba(14, 165, 233, 0.3);
+                }
+                /* [APPEARANCE-THEME · 2026-05-29] "Bajar" la cruz blanca: trazo
+                   más fino y blanco un poco más suave (no tan duro) en oscuro. */
+                html[data-theme="dark"] .nevera-plus-btn svg {
+                    stroke-width: 2;
+                    color: rgba(255, 255, 255, 0.78);
+                }
+                /* [APPEARANCE-THEME · 2026-05-29] Badge "FRIO MAX": el metálico
+                   claro + texto slate al 75% se veía washed/poco nítido en
+                   oscuro. Placa slate oscura + texto claro a full opacidad =
+                   nítido. El LED verde se conserva. */
+                html[data-theme="dark"] .nevera-brand-label {
+                    color: #CBD5E1;
+                    background: linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.92) 100%);
+                    border: 1px solid var(--border);
+                    border-top-color: rgba(148, 163, 184, 0.3);
+                    border-bottom-color: rgba(0, 0, 0, 0.5);
+                    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.5);
+                }
+                /* [APPEARANCE-THEME · 2026-05-29] Alacena (granos y secos): el
+                   fondo ámbar CLARO (crema) + texto marrón oscuro se veía washed
+                   en oscuro. Tinte ámbar OSCURO (mantiene la "madera") + texto
+                   ámbar CLARO nítido. */
+                html[data-theme="dark"] .nevera-pantry-section {
+                    background-image:
+                        linear-gradient(180deg, rgba(120, 53, 15, 0.22) 0%, rgba(146, 64, 14, 0.14) 100%),
+                        repeating-linear-gradient(90deg,
+                            transparent 0px, transparent 80px,
+                            rgba(0, 0, 0, 0.16) 80px, rgba(0, 0, 0, 0.16) 81px);
+                    border: 2px solid rgba(217, 119, 6, 0.4);
+                    border-top-color: rgba(245, 158, 11, 0.5);
+                    border-bottom-color: rgba(120, 53, 15, 0.6);
+                    box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.5);
+                }
+                html[data-theme="dark"] .nevera-pantry-header {
+                    color: var(--text-main);
+                }
+                html[data-theme="dark"] .nevera-pantry-subtitle {
+                    color: var(--text-muted);
+                }
+                html[data-theme="dark"] .nevera-pantry-count {
+                    background: rgba(245, 158, 11, 0.18);
+                    border-color: rgba(217, 119, 6, 0.5);
+                    color: #FCD34D;
+                    box-shadow: none;
+                }
+                @media (hover: hover) and (pointer: fine) {
+                    html[data-theme="dark"] .nevera-plus-btn:hover {
+                        box-shadow: 0 4px 14px -2px rgba(14, 165, 233, 0.45), 0 0 0 3px rgba(14, 165, 233, 0.14);
+                    }
+                }
+
+                /* --- Estado vacío: el mini-card "nevera" (era blanco→cyan) --- */
+                html[data-theme="dark"] .nevera-empty-fridge {
+                    background: var(--bg-card);
+                    border-color: var(--border);
+                    box-shadow:
+                        0 24px 60px -12px rgba(0,0,0,0.6),
+                        inset 0 1px 0 rgba(255,255,255,0.04);
+                }
+                html[data-theme="dark"] .nevera-fridge-message h3 {
+                    color: var(--text-main);
+                }
+                html[data-theme="dark"] .nevera-fridge-message p {
+                    color: var(--text-muted);
+                }
+                /* [PANTRY-EMPTY-CLEANUP · 2026-06-01] Freezer top cohesionado con la
+                   card oscura (era blanco brillante sin override → contraste chocante
+                   contra el cuerpo oscuro). Borde inferior cyan tenue como acento frío. */
+                html[data-theme="dark"] .nevera-fridge-freezer {
+                    background: linear-gradient(180deg, var(--bg-muted) 0%, var(--bg-card) 100%);
+                    border-bottom-color: rgba(125, 211, 252, 0.22);
+                }
+                html[data-theme="dark"] .nevera-fridge-freezer::after {
+                    background: rgba(255, 255, 255, 0.06);
+                }
+
+                /* --- Cards de agotados (superficie clara + texto/borde) --- */
+                html[data-theme="dark"] .nevera-depleted-card {
+                    background: var(--bg-muted);
+                    border-color: var(--border);
+                }
+                html[data-theme="dark"] .nevera-depleted-name {
+                    color: var(--text-muted);
+                }
+                html[data-theme="dark"] .nevera-depleted-subtitle {
+                    color: var(--text-muted);
+                }
+
+                /* --- Modal "Vaciar la Nevera": marco perlado claro → slate --- */
+                html[data-theme="dark"] .alert-modal-card {
+                    border-color: var(--border);
+                    border-top-color: var(--border);
+                    border-bottom-color: var(--border);
+                    border-left-color: var(--border);
+                    border-right-color: var(--border);
+                    background: var(--bg-card);
+                    box-shadow:
+                        inset 0 1px 0 rgba(255,255,255,0.04),
+                        0 28px 60px -16px rgba(0,0,0,0.65);
+                }
+                html[data-theme="dark"] .alert-modal-btn-cancel {
+                    background: var(--bg-muted);
+                    color: var(--text-main);
+                    border-color: var(--border);
+                    box-shadow: none;
+                }
+                html[data-theme="dark"] .alert-modal-btn-cancel:hover {
+                    background: var(--bg-muted);
+                    box-shadow: 0 6px 14px -3px rgba(0,0,0,0.5);
+                }
             `}</style>
             
             {/* [P3-PANTRY-FRIDGE-UNIT · 2026-05-19] Header / Nav — Freezer area
@@ -3513,16 +4023,14 @@ const Pantry = () => {
                 <div className="nevera-header-handle" aria-hidden="true" />
                 <div className="nevera-top">
                     <div className="nevera-title-wrapper">
-                        <div>
+                        <div className="nevera-status-group">
                             {/* [P3-PANTRY-NO-TITLE · 2026-05-19] Snowflake +
                                 "Nevera" eliminados. La sidebar ya muestra
                                 "Nevera" activo; aquí era redundante. El brand
                                 label "FRIO MAX" arriba mantiene la identidad
                                 de electrodoméstico sin duplicar el nombre. */}
-                            <div className="nevera-badge">
-                                <span className="nevera-badge-text">Solo lo que tienes</span>
-                                <span style={{ fontSize: '0.85rem' }}>🔒</span>
-                            </div>
+                            {/* [P3-PANTRY-BADGE-LOCK-REMOVED · 2026-05-30] Candado
+                                "Solo lo que tienes" eliminado por pedido. */}
                             <div className="nevera-total-pills">
                                 <span className="nevera-total-pill nevera-total-pill-active" title="Alimentos disponibles en tu nevera">
                                     <ShoppingBasket size={13} strokeWidth={2.5} />
@@ -3538,8 +4046,12 @@ const Pantry = () => {
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                        <button 
+                    {/* [P3-PANTRY-ACTIONS-ROW-MOBILE · 2026-05-30] Estilo movido
+                        a clase (.nevera-actions-group) para poder aplanar con
+                        display:contents en móvil — el inline display:flex ganaba
+                        por especificidad y bloqueaba la reorganización. */}
+                    <div className="nevera-actions-group">
+                        <button
                             onClick={() => setShowDeleteConfirm(true)}
                             className="nevera-delete-all-btn"
                             disabled={inventory.length === 0}
@@ -3590,18 +4102,13 @@ const Pantry = () => {
                             <span className="nevera-fridge-led">-- 4°C</span>
                         </div>
 
-                        {/* Right-side handle */}
-                        <div className="nevera-fridge-handle" />
-
-                        {/* Vertical seam between doors */}
-                        <div className="nevera-fridge-seam" />
-
-                        {/* Interior */}
+                        {/* [PANTRY-EMPTY-CLEANUP · 2026-06-01] Interior limpio: se
+                            quitaron la manija decorativa (colisión de clase
+                            .nevera-fridge-handle → los grips del header se filtraban
+                            y se veía rota), la costura vertical y los estantes
+                            decorativos — cruzaban el texto y se veían sucios en
+                            ambos temas. Queda el mensaje sobre una luz fría sutil. */}
                         <div className="nevera-fridge-interior">
-                            {/* Decorative shelves */}
-                            <div className="nevera-fridge-shelf nevera-fridge-shelf-1" />
-                            <div className="nevera-fridge-shelf nevera-fridge-shelf-2" />
-
                             <div className="nevera-fridge-message">
                                 <h3>Tu Nevera está vacía</h3>
                                 <p>El corazón de tu plan está esperando. Registra tus compras recientes o añade tus primeros ingredientes a mano.</p>
@@ -3751,8 +4258,8 @@ const Pantry = () => {
                                                 <h3 className="nevera-depleted-name">
                                                     {entry.ingredient_name}
                                                 </h3>
-                                                <span style={{ fontSize: '0.74rem', color: '#94A3B8' }}>
-                                                    Tenías: <strong style={{ color: '#475569', fontWeight: 700 }}>
+                                                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                                                    Tenías: <strong style={{ color: 'var(--text-muted)', fontWeight: 700 }}>
                                                         {entry.quantity || 1} {entry.unit || 'unidad'}
                                                     </strong>
                                                 </span>
@@ -3813,6 +4320,11 @@ const Pantry = () => {
                             style={{ position: 'fixed', inset: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(4px)', zIndex: 100 }}
                         />
                         <motion.div
+                            ref={addMenuModalRef}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="pantry-add-title"
+                            tabIndex={-1}
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                             style={{
                                 position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--bg-card)',
@@ -3822,7 +4334,7 @@ const Pantry = () => {
                         >
                             <div style={{ width: '40px', height: '5px', background: 'var(--border)', borderRadius: '10px', margin: '0 auto 1.5rem', opacity: 0.8 }} />
 
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 0.4rem 0', color: 'var(--text-main)' }}>Añade a tu Nevera</h2>
+                            <h2 id="pantry-add-title" style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 0.4rem 0', color: 'var(--text-main)' }}>Añade a tu Nevera</h2>
                             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1rem 0', lineHeight: 1.4 }}>
                                 Busca el alimento, ajusta la cantidad y elige cómo viene (botella, libra, paquete…).
                             </p>
@@ -4081,6 +4593,11 @@ const Pantry = () => {
                             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)', zIndex: 150 }}
                         />
                         <motion.div
+                            ref={qtyEditModalRef}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="pantry-qty-title"
+                            tabIndex={-1}
                             initial={{ opacity: 0, scale: 0.94, y: '-50%', x: '-50%' }}
                             animate={{ opacity: 1, scale: 1, y: '-50%', x: '-50%' }}
                             exit={{ opacity: 0, scale: 0.94, y: '-50%', x: '-50%' }}
@@ -4091,7 +4608,7 @@ const Pantry = () => {
                                 width: '92%', maxWidth: '420px', boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
                             }}
                         >
-                            <h2 style={{ margin: '0 0 0.3rem 0', fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                            <h2 id="pantry-qty-title" style={{ margin: '0 0 0.3rem 0', fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)' }}>
                                 Ajustar cantidad
                             </h2>
                             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
@@ -4284,6 +4801,11 @@ const Pantry = () => {
                             style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(10px)', zIndex: 200 }}
                         />
                         <motion.div
+                            ref={deleteConfirmModalRef}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="pantry-delete-title"
+                            tabIndex={-1}
                             initial={{ opacity: 0, scale: 0.95, y: '-50%', x: '-50%' }} animate={{ opacity: 1, scale: 1, y: '-50%', x: '-50%' }} exit={{ opacity: 0, scale: 0.95, y: '-50%', x: '-50%' }}
                             className="alert-modal-card"
                             style={{
@@ -4307,7 +4829,7 @@ const Pantry = () => {
                                 <AlertCircle size={42} strokeWidth={2} />
                             </div>
 
-                            <h2 style={{ textAlign: 'center', margin: '0 0 0.8rem 0', fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.01em' }}>
+                            <h2 id="pantry-delete-title" style={{ textAlign: 'center', margin: '0 0 0.8rem 0', fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.01em' }}>
                                 ¿Vaciar la Nevera?
                             </h2>
                             <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: '0 0 1.6rem 0', lineHeight: 1.55, fontSize: '0.95rem' }}>

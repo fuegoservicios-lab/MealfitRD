@@ -37,6 +37,15 @@ const LS_ENABLED_KEY = 'mealfit_water_tracker_enabled';
 // Key incluye fecha → invalidación automática en rollover de medianoche.
 const LS_WATER_CACHE_PREFIX = 'mealfit_water_state_';
 
+// [P3-WATER-XUSER-KEY · 2026-05-30] Key user-scoped (igual que
+// TrackingProgress `mealfit_tracking_consumed_<userId>_<date>`). Pre-fix la
+// key era solo `mealfit_water_state_<date>` sin user → en dispositivo
+// compartido, tras logout/login el lazy initializer leía el conteo de vasos
+// del usuario A para el usuario B (hasta que el GET de loadIntake corregía).
+// Retorna null sin userId → no cachear (consistente con TrackingProgress).
+const _waterCacheKey = (userId, dateStr) =>
+    userId ? `${LS_WATER_CACHE_PREFIX}${userId}_${dateStr}` : null;
+
 // Fecha local YYYY-MM-DD (NO UTC). Evita off-by-one cerca de medianoche
 // en timezones con offset > 0.
 const getLocalDateString = () => {
@@ -68,9 +77,10 @@ const readEnabledFromCache = () => {
 
 // [P1-WATER-CACHE-STATE · 2026-05-20] Lee el state cacheado para HOY.
 // Retorna `null` si no hay cache, parse falla, o es de otra fecha (rollover).
-const readWaterStateFromCache = () => {
+const readWaterStateFromCache = (userId) => {
     try {
-        const key = LS_WATER_CACHE_PREFIX + getLocalDateString();
+        const key = _waterCacheKey(userId, getLocalDateString());
+        if (!key) return null;
         const raw = localStorage.getItem(key);
         if (!raw) return null;
         const parsed = JSON.parse(raw);
@@ -81,7 +91,7 @@ const readWaterStateFromCache = () => {
     }
 };
 
-const WaterTracker = () => {
+const WaterTracker = ({ userId }) => {
     // [Fix 3] Pre-render basado en cache local. Si el usuario desactivo el
     // tracker en Settings, el state inicial ya es false → no flash.
     const [enabled, setEnabled] = useState(readEnabledFromCache);
@@ -89,7 +99,9 @@ const WaterTracker = () => {
     // de hoy. Si el user navegó Nevera → Dashboard, arranca con valores
     // reales (no "0 de 8 vasos" momentáneo). Refetch en background corre
     // silencioso y sincroniza si difiere del servidor.
-    const _cachedState = readWaterStateFromCache();
+    // [P4-WATER-CACHE-MEMO] Solo lo consumen los lazy initializers (mount). useMemo evita
+    // re-ejecutar getItem+JSON.parse en cada render posterior (donde el valor ya no se usa).
+    const _cachedState = useMemo(() => readWaterStateFromCache(userId), [userId]);
     const [glasses, setGlasses] = useState(() => _cachedState?.glasses ?? 0);
     const [goal, setGoal] = useState(() => _cachedState?.goal ?? DEFAULT_GOAL);
     const [goalBasis, setGoalBasis] = useState(() => _cachedState?.goalBasis ?? null);
@@ -103,10 +115,11 @@ const WaterTracker = () => {
     // rollover de medianoche.
     useEffect(() => {
         try {
-            const key = LS_WATER_CACHE_PREFIX + currentDate;
+            const key = _waterCacheKey(userId, currentDate);
+            if (!key) return;
             localStorage.setItem(key, JSON.stringify({ glasses, goal, goalBasis }));
         } catch { /* QuotaExceeded etc — fail-open */ }
-    }, [glasses, goal, goalBasis, currentDate]);
+    }, [glasses, goal, goalBasis, currentDate, userId]);
 
     // Cargar conteo + goal + enabled del backend.
     //
@@ -174,12 +187,22 @@ const WaterTracker = () => {
             return;
         }
         loadIntake(currentDate);
-    }, [currentDate, loadIntake, enabled]);
+        // [P4-WATER-XUSER] userId en deps: refetch al cambiar de identidad in-place
+        // (dispositivo compartido) — sin él, el tracker mostraba el agua del user previo.
+    }, [currentDate, loadIntake, enabled, userId]);
 
     // Watcher de rollover de medianoche (60s).
     useEffect(() => {
         if (!enabled) return undefined;
         const interval = setInterval(() => {
+            // [P5-SPEED-WATER-POLL-VISIBILITY · 2026-06-01] No recomputar el rollover
+            // mientras el tab está en background (espeja los otros 4 polls del front:
+            // PendingPipelineRecovery P3-RECOVERY-POLL-VISIBILITY, Dashboard chunk-poll,
+            // AgentPage title-poll). WaterTracker está SIEMPRE montado en el Dashboard,
+            // así que sin el guard este timer de 60s corre indefinido en pestañas en
+            // segundo plano. Al volver a visible, el listener de visibilitychange abajo
+            // ya re-sincroniza; el siguiente tick (≤60s) aplica el rollover de fecha.
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
             const today = getLocalDateString();
             if (today !== currentDate) {
                 setCurrentDate(today);
@@ -326,21 +349,21 @@ const WaterTracker = () => {
 
     return (
         <div style={{
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.5) 100%)',
+            background: 'var(--bg-card)',
             backdropFilter: 'blur(12px)',
             padding: '1.75rem',
             borderRadius: '2rem',
-            border: '1.5px solid rgba(203, 213, 225, 0.8)',
-            boxShadow: '0 20px 40px -10px rgba(0,0,0,0.08), 0 0 0 1px rgba(148, 163, 184, 0.05)',
+            border: '1.5px solid var(--border)',
+            boxShadow: 'var(--shadow-lg)',
             marginBottom: '2rem',
             width: '100%',
             boxSizing: 'border-box'
         }}>
             <h3 style={{
-                fontSize: '1.2rem', fontWeight: 800, color: '#0F172A',
+                fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)',
                 marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem'
             }}>
-                <div style={{ background: '#EFF6FF', padding: '0.4rem', borderRadius: '0.75rem', color: '#2563EB' }}>
+                <div style={{ background: 'rgba(37, 99, 235, 0.14)', padding: '0.4rem', borderRadius: '0.75rem', color: '#2563EB' }}>
                     <GlassWater size={22} strokeWidth={2.5} />
                 </div>
                 Hidratacion
@@ -375,8 +398,8 @@ const WaterTracker = () => {
                             style={{
                                 background: isFilled
                                     ? 'linear-gradient(135deg, #3B82F6 0%, #06B6D4 100%)'
-                                    : '#F1F5F9',
-                                border: isFilled ? '1.5px solid #2563EB' : '1.5px solid #CBD5E1',
+                                    : 'var(--bg-muted)',
+                                border: isFilled ? '1.5px solid #2563EB' : '1.5px solid var(--border)',
                                 borderRadius: '0.85rem',
                                 width: '100%',
                                 aspectRatio: '1 / 1.15',
@@ -394,7 +417,7 @@ const WaterTracker = () => {
                             <GlassWater
                                 size={20}
                                 strokeWidth={2.2}
-                                color={isFilled ? '#FFFFFF' : '#94A3B8'}
+                                color={isFilled ? '#FFFFFF' : 'var(--text-light)'}
                             />
                             <AnimatePresence>
                                 {reachedGoal && i === goal - 1 && (
@@ -428,7 +451,7 @@ const WaterTracker = () => {
                 maxWidth: '420px',
                 margin: '1.25rem auto 0',
                 height: '4px',
-                background: '#E2E8F0',
+                background: 'var(--border)',
                 borderRadius: '999px',
                 overflow: 'hidden'
             }}>

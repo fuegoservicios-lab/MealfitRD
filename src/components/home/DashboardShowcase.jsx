@@ -274,6 +274,12 @@ const MOCKUPS = {
     pantry: <PantryMockup />,
 };
 
+// [P2-A11Y-TABS · 2026-05-31] Un único tabpanel cuyo contenido se intercambia.
+// Antes cada tab apuntaba aria-controls a `mockup-${f.id}`, pero solo existía
+// el panel del feature activo → 4 de 5 tabs referenciaban ids inexistentes
+// (axe: aria-valid-attr-value). Todos los tabs apuntan a este id estable.
+const PANEL_ID = 'dashboard-showcase-panel';
+
 // ============================================================
 //  Componente principal
 // ============================================================
@@ -287,7 +293,25 @@ const DashboardShowcase = () => {
     // dirección — patrón estilo iOS App Store. Inactivo en desktop:
     // el @media de la lista override quita el mask-image.
     const listRef = useRef(null);
+    const tabRefs = useRef([]);
     const [scrollHints, setScrollHints] = useState({ left: false, right: false });
+
+    // [P2-A11Y-TABS · 2026-05-31] Navegación por flechas + roving tabindex para
+    // cumplir el patrón ARIA Tabs que role=tablist/tab le promete al lector de
+    // pantalla. Soporta ambos ejes (la lista es vertical en desktop, horizontal
+    // en mobile) + Home/End. Mueve el feature activo y enfoca el tab destino.
+    const handleTabKeyDown = (e, index) => {
+        const count = FEATURES.length;
+        let next = null;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (index + 1) % count;
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (index - 1 + count) % count;
+        else if (e.key === 'Home') next = 0;
+        else if (e.key === 'End') next = count - 1;
+        if (next === null) return;
+        e.preventDefault();
+        setActiveFeature(FEATURES[next].id);
+        tabRefs.current[next]?.focus();
+    };
 
     useEffect(() => {
         const el = listRef.current;
@@ -341,7 +365,7 @@ const DashboardShowcase = () => {
                         role="tablist"
                         aria-label="Features del Dashboard"
                     >
-                        {FEATURES.map((f) => {
+                        {FEATURES.map((f, idx) => {
                             const Icon = f.icon;
                             const isActive = activeFeature === f.id;
                             return (
@@ -349,10 +373,13 @@ const DashboardShowcase = () => {
                                     <button
                                         type="button"
                                         role="tab"
+                                        ref={(el) => { tabRefs.current[idx] = el; }}
                                         aria-selected={isActive}
-                                        aria-controls={`mockup-${f.id}`}
+                                        aria-controls={PANEL_ID}
+                                        tabIndex={isActive ? 0 : -1}
                                         className={`${styles.featureItem} ${isActive ? styles.featureActive : ''}`}
                                         onClick={() => setActiveFeature(f.id)}
+                                        onKeyDown={(e) => handleTabKeyDown(e, idx)}
                                         style={isActive ? { '--feature-color': f.color } : undefined}
                                     >
                                         <span
@@ -379,8 +406,10 @@ const DashboardShowcase = () => {
                     {/* Mockup grande (derecha en desktop, centro en mobile) */}
                     <div
                         className={styles.mockupContainer}
-                        id={`mockup-${activeFeature}`}
+                        id={PANEL_ID}
                         role="tabpanel"
+                        tabIndex={0}
+                        aria-label={`Vista previa: ${currentFeature.title}`}
                         aria-live="polite"
                     >
                         <AnimatePresence mode="wait">
@@ -399,8 +428,12 @@ const DashboardShowcase = () => {
 
                     {/* Caption mobile-only: título completo + descripción de la
                         feature activa, debajo del mockup. En desktop esta caption
-                        está oculta (la descripción ya vive en la lista lateral). */}
-                    <div className={styles.featureCaption} aria-hidden="true">
+                        está oculta vía CSS (display:none → fuera del a11y tree; la
+                        descripción ya vive en la lista lateral). [P2-A11Y · 2026-05-31]
+                        Se quitó aria-hidden: en mobile .featureDesc inline está
+                        display:none, así que esta caption es la ÚNICA fuente de la
+                        descripción para un lector de pantalla. */}
+                    <div className={styles.featureCaption}>
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={activeFeature}

@@ -72,25 +72,38 @@ const _HISTORY_LIST_TTL_MS = 60 * 1000;
 // refresque silencioso. La key incluye un version stamp para invalidar
 // cuando cambia el shape del payload.
 const _HISTORY_LIST_LS_KEY = 'mealfit_history_list_cache_v1';
-try {
-    if (typeof localStorage !== 'undefined') {
-        const _raw = localStorage.getItem(_HISTORY_LIST_LS_KEY);
-        if (_raw) {
-            const _parsed = JSON.parse(_raw);
-            if (_parsed && Array.isArray(_parsed.value)) {
-                // Hidratamos al singleton con `expiresAt` original. Si ya
-                // está stale (>60s) los lectores con `allowStale=true`
-                // siguen viéndolo; `getCachedHistoryList()` lo dropea pero
-                // como `getCachedHistoryListStale()` lo respeta, el render
-                // instantáneo funciona.
-                _historyListEntry = _parsed;
+// [P3-HIST-LIST-LAZY-HYDRATE · 2026-06-01] Antes el parse de localStorage corría
+// SÍNCRONO en module-init. Este módulo lo importa AssessmentContext (contexto raíz,
+// eager en el critical path autenticado), así que el JSON.parse del listado completo
+// (hasta ~200KB) bloqueaba el hilo unos ms ANTES del primer paint en mobile gama-baja
+// (target es-DO, PWA mobile-first). Ahora se difiere a la PRIMERA lectura del cache
+// (mount de <History>), fuera de la ventana sensible del arranque. El flag asegura
+// que corra una sola vez y que NO clobbere un estado ya establecido por los setters
+// (que marcan el flag para que la hidratación lazy se vuelva no-op).
+let _historyListHydrated = false;
+const _ensureHistoryListHydrated = () => {
+    if (_historyListHydrated) return;
+    _historyListHydrated = true;
+    try {
+        if (typeof localStorage !== 'undefined') {
+            const _raw = localStorage.getItem(_HISTORY_LIST_LS_KEY);
+            if (_raw) {
+                const _parsed = JSON.parse(_raw);
+                if (_parsed && Array.isArray(_parsed.value)) {
+                    // Hidratamos al singleton con `expiresAt` original. Si ya
+                    // está stale (>60s) los lectores con `allowStale=true`
+                    // siguen viéndolo; `getCachedHistoryList()` lo dropea pero
+                    // como `getCachedHistoryListStale()` lo respeta, el render
+                    // instantáneo funciona.
+                    _historyListEntry = _parsed;
+                }
             }
         }
+    } catch (_e) {
+        // localStorage puede fallar (private mode, quota, JSON parse) — no
+        // crítico, simplemente arrancamos sin cache.
     }
-} catch (_e) {
-    // localStorage puede fallar (private mode, quota, JSON parse) — no
-    // crítico, simplemente arrancamos sin cache.
-}
+};
 // [P1-HIST-LIFETIME-LESSONS · 2026-05-09] Cache singleton del payload
 // de lifetime-lessons (summary + history + critical_permanent). Mismo
 // patrón que los 4 caches existentes — TTL 30 min, persistencia
@@ -213,10 +226,38 @@ export const invalidateCachesForPlan = (planId) => {
     _lifetimeLessons.delete(planId);
 };
 
+// [P3-HIST-MODAL-CACHE-XUSER · 2026-05-30] Limpia los 5 caches singleton
+// per-plan del modal del Historial (lessons / coherence / blocked /
+// metrics / lifetime). A diferencia de `invalidateCachesForPlan` (un solo
+// plan), borra TODO el contenido. Lo invoca `_clearUserScopedCaches` en
+// logout / user-switch.
+//
+// Razón: estos caches son `Map` module-scope keyed por plan_id (UUID).
+// Tras un logout SPA (navigate, sin reload) sobreviven en memoria con la
+// PII nutricional del usuario A (texto de lecciones, coherence history,
+// learning_metrics). El usuario B no los alcanza vía UI — su listado
+// fresco no contiene los UUID de A — pero la PII queda residente en el
+// heap hasta el próximo reload. Hermano omitido de P1-XTAB-CACHE-LEAK,
+// que sí limpió el cache del LISTADO (global-keyed + renderizado directo);
+// los 5 modales son la otra mitad global-keyed de la misma clase.
+//
+// Distinto de `_resetAllCachesForTests`: NO toca `_historyListEntry` (eso
+// lo borra `invalidateHistoryListCache` en el mismo `_clearUserScopedCaches`)
+// y es API de producción, no helper de testing. Cero riesgo: aditivo, solo
+// borra Maps in-memory.
+export const clearAllModalCaches = () => {
+    _lessonsDetail.clear();
+    _coherenceHistory.clear();
+    _blockedReasons.clear();
+    _chunkMetrics.clear();
+    _lifetimeLessons.clear();
+};
+
 // [P3-HIST-LIST-CACHE · 2026-05-19] Lee el listado cacheado si está
 // vigente. Devuelve `undefined` si no hay cache o expiró (deja al caller
 // decidir si dispara fetch). Side-effect: borra entry expirada.
 export const getCachedHistoryList = () => {
+    _ensureHistoryListHydrated();
     if (!_historyListEntry) return undefined;
     if (typeof _historyListEntry.expiresAt === 'number'
         && Date.now() > _historyListEntry.expiresAt) {
@@ -235,6 +276,7 @@ export const getCachedHistoryList = () => {
 // useEffect mount para refrescar — la "frescura" se asegura via
 // stale-while-revalidate, no via cache miss.
 export const getCachedHistoryListStale = () => {
+    _ensureHistoryListHydrated();
     if (!_historyListEntry || !Array.isArray(_historyListEntry.value)) return undefined;
     return _historyListEntry.value;
 };
@@ -246,6 +288,10 @@ export const getCachedHistoryListStale = () => {
 // que sobreviva refresh / cierre de tab. La key incluye version stamp.
 export const setCachedHistoryList = (plans, ttlMs = _HISTORY_LIST_TTL_MS) => {
     if (!Array.isArray(plans)) return;
+    // [P3-HIST-LIST-LAZY-HYDRATE · 2026-06-01] El estado in-memory es ahora la fuente:
+    // marcar hidratado para que un getter posterior NO re-lea localStorage y clobbere
+    // este valor (p.ej. si el setItem de abajo falló por quota y LS quedó stale).
+    _historyListHydrated = true;
     _historyListEntry = {
         value: plans,
         expiresAt: ttlMs > 0 ? Date.now() + ttlMs : null,
@@ -265,6 +311,10 @@ export const setCachedHistoryList = (plans, ttlMs = _HISTORY_LIST_TTL_MS) => {
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] También borra localStorage
 // para que el próximo refresh no resucite datos stale invalidados.
 export const invalidateHistoryListCache = () => {
+    // [P3-HIST-LIST-LAZY-HYDRATE · 2026-06-01] entry=null es autoritativo tras
+    // invalidar; marcar hidratado para que un getter posterior no resucite el
+    // valor borrado desde localStorage.
+    _historyListHydrated = true;
     _historyListEntry = null;
     try {
         if (typeof localStorage !== 'undefined') {
@@ -315,4 +365,7 @@ export const _resetAllCachesForTests = () => {
     _chunkMetrics.clear();
     _lifetimeLessons.clear();
     _historyListEntry = null;
+    // [P3-HIST-LIST-LAZY-HYDRATE · 2026-06-01] Preserva la semántica previa (post-reset
+    // los getters devuelven undefined sin re-leer localStorage).
+    _historyListHydrated = true;
 };

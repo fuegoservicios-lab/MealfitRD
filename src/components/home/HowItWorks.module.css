@@ -15,14 +15,12 @@
         linear-gradient(rgba(79, 70, 229, 0.04) 1px, transparent 1px),
         linear-gradient(90deg, rgba(79, 70, 229, 0.04) 1px, transparent 1px);
     background-size: 40px 40px;
-    animation: panGrid 40s linear infinite;
+    /* [P6-SPEED-PANGRID · 2026-06-01] animación panGrid REMOVIDA: animaba
+       background-position (NO compositor-accelerated) → repaint continuo de la
+       grilla a ~1px/seg (movimiento imperceptible) mientras el landing esté
+       abierto. Grilla ahora estática, cero paint-waste. */
     pointer-events: none;
     z-index: 0;
-}
-
-@keyframes panGrid {
-    0% { background-position: 0 0; }
-    100% { background-position: 40px 40px; }
 }
 
 .container {
@@ -107,9 +105,9 @@
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
+/* [APPEARANCE-THEME · 2026-05-29] Cards estáticas en hover (sin lift ni sombra). */
 .card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.12);
+    transform: none;
 }
 
 .cardGlow {
@@ -227,4 +225,26 @@
     100% {
         transform: translateX(100vw);
     }
+}
+
+/* ============================================================
+   [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — HowItWorks
+   Aditivo: solo propiedades de color hardcodeadas en claro.
+   ============================================================ */
+
+/* [APPEARANCE-THEME · 2026-05-29] Sin sombra en hover (cards estáticas). */
+
+/* stepNumber: usa -webkit-text-stroke con rgba(15,23,42,0.03) — casi invisible.
+   En oscuro el contraste invertido lo hace aparecer como mancha clara. Subimos
+   muy sutilmente con el color del borde oscuro para mantener decorativo. */
+:global(html[data-theme="dark"]) .stepNumber {
+    -webkit-text-stroke: 2px rgba(241, 245, 249, 0.04);
+}
+
+/* iconWrapper: inset blanco brillante se vería raro en oscuro.
+   Cambiamos el inset a borde sutil oscuro. */
+:global(html[data-theme="dark"]) .iconWrapper {
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+        0 4px 15px -3px rgba(0, 0, 0, 0.2);
 }

@@ -81,7 +81,13 @@ describe('[P2-HIST-AUDIT-2] state local del modal', () => {
     it('reset a "menu" en onClick del card', () => {
         // El reset debe ocurrir junto al setSelectedDay/setActiveChunkIdx
         // — antes del lazy load del plan_data.
-        const onClickIdx = src.indexOf('onClick={async () => {');
+        // [P2-HIST-MODALS-A11Y · 2026-05-30] Anchor actualizado a `() => {`:
+        // P3-HIST-FAST-OPEN (2026-05-18) refactoró el onClick del card de
+        // `async () => { await ... }` a síncrono `() => { ...then() }`
+        // (optimistic open), dejando el anchor `async` stale → este test
+        // fallaba en baseline. El primer `onClick={() => {` del archivo es
+        // el del card (los siguientes son botones de tab dentro del modal).
+        const onClickIdx = src.indexOf('onClick={() => {');
         expect(onClickIdx).toBeGreaterThan(-1);
         const block = src.slice(onClickIdx, onClickIdx + 2500);
         expect(block).toMatch(/setActiveModalTab\s*\(\s*['"]menu['"]\s*\)/);

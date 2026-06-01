@@ -62,6 +62,14 @@
     gap: 2.5rem;
 }
 
+/* [HEADER-STICKY-CTA · 2026-05-31] Si el nav no tiene ítems (p.ej. landing sin
+   sesión: ni "Empezar Ahora" ni "Cerrar Sesión"), colapsarlo para que no genere un
+   gap fantasma dentro de .headerRight y el CTA sticky quede pegado a la derecha.
+   Mayor especificidad que la regla .navDesktop del @media → gana en desktop. */
+.navDesktop:empty {
+    display: none;
+}
+
 .navLink {
     color: #475569;
     text-decoration: none;
@@ -97,12 +105,43 @@
 
 .ctaButton:hover {
     background: #1e293b;
-    transform: translateY(-1px);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
 }
 
+/* [HEADER-STICKY-CTA · 2026-05-31] Cluster derecho del header (nav + CTA sticky +
+   toggle móvil). Los agrupa para alinearlos juntos a la derecha vía el
+   space-between del .container; el navMobile (absolute) queda fuera. */
+.headerRight {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* CTA "sticky" del landing: reusa el look de .ctaButton y sólo añade la animación
+   de entrada (fade + slide) al aparecer cuando el CTA del Hero sale de vista al
+   scrollear. Se monta/desmonta condicionalmente → no ocupa espacio mientras el CTA
+   del Hero es visible; la salida es un desmonte directo. */
+.stickyCtaEnter {
+    animation: stickyCtaIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes stickyCtaIn {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stickyCtaEnter { animation: none; }
+}
+
 .mobileToggle {
-    display: block;
+    /* [P2-TOUCH-TARGET · 2026-05-31] 44×44px mínimo (era 24+0.5rem×2 = 40px).
+       Es el único control de navegación en mobile. */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
     background: transparent;
     border: none;
     color: var(--text-main);
@@ -115,6 +154,18 @@
 .mobileToggle:hover {
     background: rgba(0, 0, 0, 0.05);
     color: var(--primary);
+}
+
+/* [P2-A11Y-FOCUS-VISIBLE · 2026-05-31] Anillo de foco de teclado (WCAG 2.4.7)
+   en todos los controles del Header (el landing no los tenía propios). */
+.logo:focus-visible,
+.navLink:focus-visible,
+.ctaButton:focus-visible,
+.ctaButtonMobile:focus-visible,
+.logoutBtnMobile:focus-visible,
+.mobileToggle:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 3px;
 }
 
 .navMobile {
@@ -226,4 +277,224 @@
     .mobileToggle {
         display: none;
     }
+}
+
+/* ============================================================================
+ * [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — header público (landing).
+ * El CTA dark-slate (#0f172a) sobre fondo oscuro desaparece → se vuelve indigo.
+ * ==========================================================================*/
+:global(html[data-theme="dark"]) .header {
+    background: rgba(11, 17, 32, 0.65);
+    border-bottom: 1px solid var(--border);
+}
+:global(html[data-theme="dark"]) .navLink {
+    color: var(--text-muted);
+}
+:global(html[data-theme="dark"]) .navLink:hover {
+    color: var(--text-main);
+    background: var(--bg-muted);
+}
+:global(html[data-theme="dark"]) .ctaButton,
+:global(html[data-theme="dark"]) .ctaButtonMobile {
+    background: var(--primary);
+    color: #0B1120;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+:global(html[data-theme="dark"]) .ctaButton:hover,
+:global(html[data-theme="dark"]) .ctaButtonMobile:hover {
+    background: var(--primary-light);
+}
+:global(html[data-theme="dark"]) .mobileToggle:hover {
+    background: var(--bg-muted);
+}
+:global(html[data-theme="dark"]) .navMobile {
+    background: rgba(17, 24, 39, 0.96);
+    box-shadow: var(--shadow-xl), 0 0 0 1px var(--border);
+}
+:global(html[data-theme="dark"]) .navLinkMobile {
+    color: var(--text-muted);
+}
+:global(html[data-theme="dark"]) .navLinkMobile:hover {
+    background: var(--bg-muted);
+    color: var(--text-main);
+}
+:global(html[data-theme="dark"]) .logoutBtnMobile {
+    color: var(--danger);
+}
+:global(html[data-theme="dark"]) .logoutBtnMobile:hover {
+    background: var(--danger-bg);
+}
+
+/* ============================================================================
+ * [ACCOUNT-MENU · 2026-06-01] Menú de cuenta desplegable del header (desktop).
+ * Fusiona "Configuración" + "Cerrar Sesión" en un control compacto (avatar +
+ * chevron → dropdown) para no ocupar tanto espacio. Reusa el keyframe
+ * `slideDown` del navMobile. Patrón espejo del menú de cuenta del DashboardLayout.
+ * ==========================================================================*/
+.accountMenu {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.accountTrigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.45rem 0.25rem 0.25rem;
+    background: transparent;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.accountTrigger:hover {
+    background: rgba(241, 245, 249, 0.8);
+    border-color: rgba(15, 23, 42, 0.18);
+}
+
+.accountAvatar {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.accountChevron {
+    color: #475569;
+    transition: transform 0.2s ease;
+}
+
+.accountChevronOpen {
+    transform: rotate(180deg);
+}
+
+.accountDropdown {
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    right: 0;
+    min-width: 232px;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 1rem;
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.02);
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    z-index: 1002;
+    transform-origin: top right;
+    animation: slideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.accountIdentity {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.5rem 0.6rem 0.65rem;
+    margin-bottom: 0.25rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.accountName {
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.accountEmailLine {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.accountItem {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.6rem;
+    border-radius: 0.6rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--text-main);
+    font-family: inherit;
+    font-weight: 500;
+    font-size: 0.9rem;
+    text-align: left;
+    transition: all 0.15s ease;
+}
+
+.accountItem:hover {
+    background: #f1f5f9;
+}
+
+.accountItemDanger {
+    color: #ef4444;
+}
+
+.accountItemDanger:hover {
+    background: #fef2f2;
+}
+
+.accountTrigger:focus-visible,
+.accountItem:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Tema oscuro del menú de cuenta */
+:global(html[data-theme="dark"]) .accountTrigger {
+    border-color: var(--border);
+}
+:global(html[data-theme="dark"]) .accountTrigger:hover {
+    background: var(--bg-muted);
+    border-color: var(--border-light);
+}
+:global(html[data-theme="dark"]) .accountAvatar {
+    color: #0B1120;
+}
+:global(html[data-theme="dark"]) .accountChevron {
+    color: var(--text-muted);
+}
+:global(html[data-theme="dark"]) .accountDropdown {
+    background: rgba(17, 24, 39, 0.98);
+    border-color: var(--border);
+    box-shadow: var(--shadow-xl), 0 0 0 1px var(--border);
+}
+:global(html[data-theme="dark"]) .accountIdentity {
+    border-bottom-color: var(--border);
+}
+:global(html[data-theme="dark"]) .accountItem {
+    color: var(--text-main);
+}
+:global(html[data-theme="dark"]) .accountItem:hover {
+    background: var(--bg-muted);
+}
+:global(html[data-theme="dark"]) .accountItemDanger {
+    color: var(--danger);
+}
+:global(html[data-theme="dark"]) .accountItemDanger:hover {
+    background: var(--danger-bg);
 }

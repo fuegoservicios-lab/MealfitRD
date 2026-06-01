@@ -53,6 +53,14 @@ describe('Settings Plan Regeneration', () => {
             }
         });
 
+        // [APPEARANCE-THEME · 2026-05-28] Ajustes se dividió en secciones de
+        // sidebar (refactor P3-PROFILE-*): "Evaluar de Nuevo" vive en la
+        // sección "Plan & Objetivo", que NO es la sección por defecto
+        // ('profile'). Navegamos a ella vía el botón del sidebar antes de
+        // buscar el botón. (matchMedia mock → desktop → arranca en 'profile'.)
+        const planNavItem = screen.getByText('Plan & Objetivo');
+        await user.click(planNavItem.closest('button'));
+
         // Click on "Evaluar de Nuevo"
         const evaluarBtn = screen.getByText(/Evaluar de Nuevo/i);
         await user.click(evaluarBtn);
@@ -64,12 +72,20 @@ describe('Settings Plan Regeneration', () => {
         const renovarOption = screen.getByText(/Renovar Plan Actual/i);
         await user.click(renovarOption.closest('button'));
 
-        // Verify regeneratePlan was called
+        // Verify regeneratePlan was called.
+        // [APPEARANCE-THEME · 2026-05-28] El handler 'renovar' ahora pasa
+        // props extra ({ toastId, entry_point: 'settings_renovar' }) además de
+        // { reason, isPlanExpired }. `toastId` es un id dinámico de sonner, así
+        // que asertamos con objectContaining sobre el contrato estable en vez
+        // de un match exacto.
         await waitFor(() => {
-            expect(mockRegeneratePlan).toHaveBeenCalledWith({
-                reason: 'variety',
-                isPlanExpired: false
-            });
+            expect(mockRegeneratePlan).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    reason: 'variety',
+                    isPlanExpired: false,
+                    entry_point: 'settings_renovar',
+                })
+            );
         });
     });
 });
