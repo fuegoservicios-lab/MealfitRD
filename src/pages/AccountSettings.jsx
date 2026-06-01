@@ -299,7 +299,11 @@ const AccountSettings = () => {
 
                 @media (max-width: 520px) {
                     .acct-row { flex-direction: column; }
-                    .acct-btn { width: 100%; }
+                    /* [P3-ACCT-SAVE-BTN-SIZE · 2026-06-01] En móvil el botón es full-width;
+                       a 0.9rem el texto ("Guardar" / "Actualizar") se veía diminuto dentro
+                       del botón ancho. Subimos fuente + padding para un CTA legible y
+                       proporcionado. Desktop (botón inline compacto) queda igual. */
+                    .acct-btn { width: 100%; font-size: 1.05rem; padding: 0.9rem; }
                     .acct-theme-grid { grid-template-columns: 1fr; }
                     .acct-theme-opt { flex-direction: row; justify-content: flex-start; gap: 0.7rem; padding: 0.8rem 1rem; }
                 }
