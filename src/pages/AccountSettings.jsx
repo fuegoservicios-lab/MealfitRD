@@ -303,7 +303,7 @@ const AccountSettings = () => {
                        a 0.9rem el texto ("Guardar" / "Actualizar") se veía diminuto dentro
                        del botón ancho. Subimos fuente + padding para un CTA legible y
                        proporcionado. Desktop (botón inline compacto) queda igual. */
-                    .acct-btn { width: 100%; font-size: 1.05rem; padding: 0.9rem; }
+                    .acct-btn { width: 100%; font-size: 1.15rem; padding: 0.95rem; }
                     .acct-theme-grid { grid-template-columns: 1fr; }
                     .acct-theme-opt { flex-direction: row; justify-content: flex-start; gap: 0.7rem; padding: 0.8rem 1rem; }
                 }
