@@ -38,7 +38,12 @@
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-    padding: 1rem 1.5rem;
+    /* [P3-UPGRADE-HEADER-SAFE-AREA · 2026-06-01] El header sticky (top:0) dejaba
+       "Volver al Dashboard" debajo de la barra de estado / notch en iOS (se
+       encimaba con la hora). Sumamos env(safe-area-inset-top) al padding
+       superior: el fondo blur sigue cubriendo el notch y el contenido baja
+       debajo. env()=0 en desktop/sin-notch → padding 1rem original, sin regresión. */
+    padding: calc(1rem + env(safe-area-inset-top, 0px)) 1.5rem 1rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
