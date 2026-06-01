@@ -2220,7 +2220,11 @@ const DashboardInner = () => {
         }
 
         setIsRestocking(true);
-        const loadingToast = toast.loading('Guardando ingredientes en la despensa...', { position: 'top-center' });
+        // [P3-RESTOCK-SINGLE-LOADER · 2026-06-01] Sin toast.loading aquí: el
+        // overlay full-screen `isRestocking` ("Registrando compras") ya cubre la
+        // fase de carga. Antes coexistían el toast pequeño + el overlay → doble
+        // indicador de carga simultáneo (reporte visual del usuario). Los toasts
+        // success/error/info de abajo se mantienen (son confirmación, no carga).
 
         try {
             // [P1-1] Refresco de inventario fresco con timeout + degradación
@@ -2300,7 +2304,6 @@ const DashboardInner = () => {
                 .map(item => item.structured || item.raw);
 
             if (sourceIngredients.length === 0) {
-                toast.dismiss(loadingToast);
                 toast.info('Ya tienes todos estos ingredientes en tu Nevera.', { icon: '📦' });
                 setIsRestocking(false);
                 setShowRestockModal(false);
@@ -2321,7 +2324,6 @@ const DashboardInner = () => {
             });
 
             const data = await response.json();
-            toast.dismiss(loadingToast);
 
             if (response.ok && data.success) {
                 toast.success('¡Ingredientes ingresados a tu Nevera Virtual!', { icon: '📦' });
@@ -2378,7 +2380,6 @@ const DashboardInner = () => {
             }
         } catch (error) {
             console.error('🛒 [RESTOCK] CATCH ERROR:', error);
-            toast.dismiss(loadingToast);
             toast.error('Hubo un error de conexión al registrar la compra.');
         } finally {
             setIsRestocking(false);
