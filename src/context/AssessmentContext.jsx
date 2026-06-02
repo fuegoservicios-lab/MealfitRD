@@ -159,23 +159,6 @@ const _clearUserScopedCaches = () => {
 };
 
 export const AssessmentProvider = ({ children }) => {
-    // 1. CARGAR DATOS PERSISTENTES (LocalStorage)
-    // [P2-LOCALSTORAGE-GETITEM-DEFENSIVE · 2026-05-15] Usar `safeLocalStorageGet`.
-    // ANTES: `localStorage.getItem(...)` raw. Un throw (iOS Private Mode,
-    // SecurityError, storage corrupt) en estos 3 reads ABORTA el provider
-    // entero, dejando pantalla blanca sin recuperación posible salvo limpieza
-    // manual de storage. Crítico porque AssessmentProvider envuelve toda la app.
-    const savedPlan = safeLocalStorageGet('mealfit_plan', null);
-    // [P1-B7] Migración legacy ANTES de leer `mealfit_form`. Si el storage tenía
-    // sensitive mezclado con public (formato pre-fix), `migrateLegacyFormStorage`
-    // separa: deja public en `mealfit_form` (lo que leeremos abajo) y nos
-    // devuelve sensitive en memoria. La persistencia cifrada del sensitive
-    // ocurrirá en el primer `useEffect` cuando haya session disponible.
-    const _legacyMigration = migrateLegacyFormStorage();
-    const _legacySensitive = _legacyMigration?.sensitiveData || null;
-    const savedForm = safeLocalStorageGet('mealfit_form', null);
-    const savedLikes = safeLocalStorageGet('mealfit_likes', null);
-
     // --- ESTADOS DE LA APLICACIÓN ---
 
     // Auth State (Supabase)
@@ -208,6 +191,7 @@ export const AssessmentProvider = ({ children }) => {
     // inicial del AssessmentProvider — y como envuelve toda la app, el usuario
     // ve pantalla blanca sin forma de recuperarse salvo limpiando storage manual.
     const [planData, setPlanData] = useState(() => {
+        const savedPlan = safeLocalStorageGet('mealfit_plan', null);
         if (!savedPlan) return null;
         try { return JSON.parse(savedPlan); }
         catch { return null; }
@@ -216,6 +200,7 @@ export const AssessmentProvider = ({ children }) => {
     // Estado de Likes Persistente { "NombrePlato": true }
     // [P2-B] Mismo patrón defensivo que `planData` arriba.
     const [likedMeals, setLikedMeals] = useState(() => {
+        const savedLikes = safeLocalStorageGet('mealfit_likes', null);
         if (!savedLikes) return {};
         try { return JSON.parse(savedLikes); }
         catch { return {}; }
@@ -226,8 +211,8 @@ export const AssessmentProvider = ({ children }) => {
     // en iOS Safari Private Mode getItem lanza SecurityError. Como este call
     // está FUERA del callback del useState (no se ejecuta lazy), el throw
     // corta el render del provider entero → pantalla blanca sin recuperación.
-    const savedDislikes = safeLocalStorageGet('mealfit_dislikes', null);
     const [dislikedMeals, setDislikedMeals] = useState(() => {
+        const savedDislikes = safeLocalStorageGet('mealfit_dislikes', null);
         if (!savedDislikes) return {};
         try {
             const parsed = JSON.parse(savedDislikes);
@@ -343,14 +328,21 @@ export const AssessmentProvider = ({ children }) => {
     // `useEffect` aparte cuando session está disponible — mientras tanto los
     // campos sensitive arrancan con sus valores default. Ese flicker es el
     // costo aceptable de no leer plain de localStorage.
-    const _parsedSavedForm = (() => {
-        if (!savedForm) return null;
-        try { return JSON.parse(savedForm); } catch { return null; }
-    })();
-    const [formData, setFormData] = useState({
-        ...initialFormData,
-        ...(_parsedSavedForm || {}),
-        ...(_legacySensitive || {}),
+    const [formData, setFormData] = useState(() => {
+        const _legacyMigration = migrateLegacyFormStorage();
+        const _legacySensitive = _legacyMigration?.sensitiveData || null;
+        const savedForm = safeLocalStorageGet('mealfit_form', null);
+
+        let _parsedSavedForm = null;
+        if (savedForm) {
+            try { _parsedSavedForm = JSON.parse(savedForm); } catch { _parsedSavedForm = null; }
+        }
+
+        return {
+            ...initialFormData,
+            ...(_parsedSavedForm || {}),
+            ...(_legacySensitive || {}),
+        };
     });
 
     // [P1-3] Flag de hidratación pendiente del sensitive cifrado.
