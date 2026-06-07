@@ -227,7 +227,7 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                             onMouseOver={(e) => { if (!disableClose) e.currentTarget.style.background = 'var(--bg-muted)'; }}
                             onMouseOut={(e) => { if (!disableClose) e.currentTarget.style.background = isMobile ? 'var(--bg-muted)' : 'none'; }}
                         >
-                            <X size={isMobile ? 18 : 20} />
+                            <X size={isMobile ? 18 : 20} aria-hidden="true" />
                         </motion.button>
 
                         {children}

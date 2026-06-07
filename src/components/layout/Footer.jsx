@@ -49,13 +49,13 @@ const Footer = () => {
                             </svg>
                         </a>
                         <a href="https://www.instagram.com/mealfit_rd?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Instagram">
-                            <Instagram size={20} />
+                            <Instagram size={20} aria-hidden="true" />
                         </a>
                         <a href="https://www.facebook.com/share/1HkwoX8zHF/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Facebook">
-                            <Facebook size={20} />
+                            <Facebook size={20} aria-hidden="true" />
                         </a>
                         <a href="https://www.youtube.com/@MealfitRD" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="YouTube">
-                            <Youtube size={20} />
+                            <Youtube size={20} aria-hidden="true" />
                         </a>
                     </div>
                 </div>
