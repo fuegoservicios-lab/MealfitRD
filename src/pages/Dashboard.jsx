@@ -98,7 +98,7 @@ const NAME_STOP_WORDS = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 
     'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada',
     'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
     'horneado', 'grandes', 'firme'];
-const STOP_WORD_REGEXES = NAME_STOP_WORDS.map(s => new RegExp('\\b' + s + '\\b', 'gi'));
+const STOP_WORDS_REGEX = new RegExp('\\b(' + NAME_STOP_WORDS.join('|') + ')\\b', 'gi');
 const NAME_IRREGULARS = {
     'nueces': 'nuez', 'aves': 'ave', 'maices': 'maiz', 'arroces': 'arroz',
     'peces': 'pez', 'carnes': 'carne', 'tomates': 'tomate'
@@ -1037,12 +1037,11 @@ const DashboardInner = () => {
             n = n.replace(/^(pechuga|filete|muslo|trozo|chuleta|pieza|corte|ración|racion|porción|porcion|filetico|medallón|medallones|carne)s?\s+(de|del)\s+/i, '').trim();
 
             // Stop words: réplica exacta del backend (shopping_calculator.py línea 103).
-            // [P5-SPEED-DELTA-CONSTS-HOIST · 2026-06-01] STOP_WORD_REGEXES precompiladas
-            // a module-scope (antes: `new RegExp` por palabra por ítem). Flag `g` →
+            // [P5-SPEED-DELTA-CONSTS-HOIST · 2026-06-01] STOP_WORDS_REGEX precompilada
+            // a module-scope. Usamos una sola regex combinada para O(1) performance en lugar
+            // de iterar un array de regex. Flag `g` →
             // replace resetea lastIndex tras cada llamada → seguro reusar la instancia.
-            for (const re of STOP_WORD_REGEXES) {
-                n = n.replace(re, '');
-            }
+            n = n.replace(STOP_WORDS_REGEX, '');
             n = n.replace(/,/g, '').replace(/\s+/g, ' ').trim();
 
             return n.split(/\s+/).map(w => {
