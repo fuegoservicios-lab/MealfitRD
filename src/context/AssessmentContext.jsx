@@ -1162,6 +1162,15 @@ export const AssessmentProvider = ({ children }) => {
     }, [session?.user?.id]);
 
     // --- ESCUCHA REALTIME: Nuevas semanas del plan (Background Chunking) ---
+    // [P2-REALTIME-PUB-SYNC · 2026-06-01] Esta suscripción depende de que
+    // `meal_plans` esté en la publicación `supabase_realtime`. Hasta esta
+    // fecha NO lo estaba → la suscripción se establecía pero `postgres_changes`
+    // nunca entregaba eventos (las semanas de chunking solo llegaban por el
+    // fallback pesado: canal user_profiles → refreshProfileAndPlan = refetch
+    // REST completo). La migración SSOT `p2_realtime_pub_sync_2026_06_01.sql`
+    // publica meal_plans → activa el push-merge ligero de abajo (solo fusiona
+    // `days`). NO remover la tabla de la publicación sin remover esta
+    // suscripción (y viceversa). Test: test_p2_realtime_pub_sync.py.
     useEffect(() => {
         const userId = session?.user?.id;
         if (!userId) return;
