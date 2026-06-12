@@ -72,7 +72,7 @@ describe('P1-10 — handleAuthChange setea loadingProfile alrededor de los fetch
         // Buscamos `setLoadingProfile(false)` después del removeItem de
         // mealfit_user_id (señal estructural del bloque de logout).
         const logoutMatch = codeOnly.match(
-            /removeItem\(\s*['"]mealfit_user_id['"]\s*\)[\s\S]{0,2000}setLoadingProfile\(\s*false\s*\)/
+            /safeLocalStorageRemove\(\s*['"]mealfit_user_id['"]\s*\)[\s\S]{0,2000}setLoadingProfile\(\s*false\s*\)/
         );
         expect(logoutMatch).toBeTruthy();
     });
