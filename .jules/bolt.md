@@ -1,0 +1,3 @@
+## 2026-06-13 - [Reduce redundant parsing for LocalStorage caching]
+**Learning:** For remote data syncing (like `mealfit_plan`), comparing remote objects with localStorage string payloads involves a lot of JSON overhead. Multiple redundant `localStorage.getItem` reads combined with stringifying an already parsed cached object purely for equality comparison wastes critical main thread cycles.
+**Action:** When comparing remote API state with locally cached JSON objects, maintain the raw `localStorage.getItem` string in memory. Use this raw string to compare against `JSON.stringify(remoteObject)` directly instead of performing expensive, full-re-serialization loops. Additionally, batch multiple `localStorage.getItem` lookups for the same key.
