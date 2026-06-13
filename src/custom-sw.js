@@ -1,4 +1,4 @@
-import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
+import { precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 
 // VitePWA inject-manifest will inject '_self.__WB_MANIFEST' here.
@@ -9,15 +9,25 @@ precacheAndRoute(self.__WB_MANIFEST);
 // automáticamente (solo generateSW lo hace).
 cleanupOutdatedCaches();
 
-// [P3-PWA-NAV-FALLBACK · 2026-05-30] Fallback de navegación SPA offline. Sin
-// esto, un hard-reload o deep-link a una ruta client-side profunda
-// (/dashboard/pantry, /history, …) SIN red fallaba al obtener el documento →
-// pantalla de error del navegador en vez del shell de la app. Sirve el
-// index.html precacheado para cualquier navegación; el denylist excluye /api
-// para no interceptar llamadas al backend.
-registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html'), {
-    denylist: [/^\/api\//],
-}));
+// [P3-PWA-NAV-NETWORK-FIRST · 2026-06-13] Navegación = NETWORK-FIRST.
+// Pre-fix (P3-PWA-NAV-FALLBACK · 2026-05-30): `createHandlerBoundToURL('index.html')`
+// servía SIEMPRE el shell precacheado (cache-first). Efecto colateral: cambios de
+// HTML/headers del servidor (p.ej. el CSP en nginx, o un index.html nuevo) NO
+// llegaban al usuario hasta que limpiaba el cache a mano tras cada deploy.
+// Ahora pedimos el documento a la RED primero (HTML + headers FRESCOS: CSP,
+// etc.) y caemos al index.html precacheado SOLO si la red falla (offline) →
+// preserva el fallback SPA offline que motivó P3-PWA-NAV-FALLBACK. El denylist
+// excluye /api para no interceptar llamadas al backend.
+registerRoute(new NavigationRoute(
+    async ({ request }) => {
+        try {
+            return await fetch(request);
+        } catch (_offline) {
+            return (await matchPrecache('index.html')) || Response.error();
+        }
+    },
+    { denylist: [/^\/api\//] },
+));
 
 // [P2-PWA-SKIPWAITING · 2026-05-30] Activación bajo demanda (flujo "prompt").
 // Sin un listener de SKIP_WAITING, el SW nuevo quedaba en estado 'waiting'
