@@ -39,6 +39,62 @@ const _client = createClient({
     dataApi: { url: _dataApiUrl },
 });
 
+// [P1-NEON-AUTH-OAUTH-FIX · 2026-06-13] El `SupabaseAuthAdapter` de
+// @neondatabase/neon-js@0.6.2-beta implementa `signInWithPassword` pero NO
+// `signInWithOAuth` (Google) — el botón de Google quedaba sin handler real
+// (y un bundle viejo cacheado caía al OAuth del Supabase eliminado). Lo
+// implementamos nosotros sobre el endpoint social de Better Auth:
+//   POST <base>/sign-in/social {provider, callbackURL} -> {url, redirect:true}
+// y redirigimos a `url`. Preferimos el método nativo `auth.signIn.social` si el
+// SDK lo expone; si no, caemos al REST. Verificado: el endpoint devuelve la
+// `url` de init con sólo el header Origin (mealfitrd.com es trusted_origin).
+async function _signInWithOAuth({ provider = 'google', options } = {}) {
+    const callbackURL = options?.redirectTo
+        || (typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : '/dashboard');
+    // 1) Método nativo del SDK (Better Auth) si está disponible.
+    try {
+        const a = _client.auth;
+        if (a?.signIn && typeof a.signIn.social === 'function') {
+            const r = await a.signIn.social({ provider, callbackURL });
+            const url = r?.data?.url || r?.url;
+            if (url && typeof window !== 'undefined') window.location.href = url;
+            return { data: r?.data ?? null, error: r?.error ?? null };
+        }
+    } catch {
+        // fallthrough al REST
+    }
+    // 2) Fallback REST a Better Auth.
+    try {
+        const res = await fetch(`${neonAuthUrl}/sign-in/social`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // guarda la cookie de state para el callback
+            body: JSON.stringify({ provider, callbackURL }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            return { data: null, error: { message: data?.message || `OAuth init falló (HTTP ${res.status})` } };
+        }
+        if (data?.url && typeof window !== 'undefined') {
+            window.location.href = data.url;
+            return { data, error: null };
+        }
+        return { data: null, error: { message: 'Neon Auth no devolvió URL de OAuth de Google.' } };
+    } catch (e) {
+        return { data: null, error: { message: e?.message || 'Error iniciando el login con Google.' } };
+    }
+}
+
+// Inyecta signInWithOAuth en el adapter si falta (preserva `this` del cliente).
+try {
+    if (_client?.auth && typeof _client.auth.signInWithOAuth !== 'function') {
+        _client.auth.signInWithOAuth = _signInWithOAuth;
+    }
+} catch (e) {
+    // auth inmutable: improbable; el botón mostraría el error de su try/catch.
+    console.error('[P1-NEON-AUTH-OAUTH-FIX] no se pudo inyectar signInWithOAuth:', e);
+}
+
 // Drop-in: el resto del frontend usa `supabase.auth.X` sin cambios.
 export const supabase = _client;
 
