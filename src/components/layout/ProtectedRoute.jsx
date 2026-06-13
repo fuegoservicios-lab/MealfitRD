@@ -66,6 +66,14 @@ const ProtectedRoute = ({ children }) => {
         if (hasCompletedAssessment) {
             return <Navigate to="/assessment" replace />;
         }
+        // [P1-NEON-AUTH-MIGRATION · 2026-06-13] Usuario autenticado SIN assessment
+        // ni plan (cuenta recién creada) → al formulario de onboarding, NO a la
+        // landing. Cubre el caso del OAuth de Google que aterriza en `/` (la
+        // `redirectTo` no siempre se honra con el SDK de Neon Auth, y antes este
+        // usuario quedaba colgado en la landing sin ser onboardeado). Solo POP
+        // (cold-start / OAuth-landing / refresh) — si el usuario navega a la
+        // landing con un Link explícito (PUSH), la puede seguir viendo.
+        return <Navigate to="/assessment" replace />;
     }
 
     return children;
