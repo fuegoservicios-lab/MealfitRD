@@ -122,14 +122,14 @@ export const Privacy = () => (
 
         <h3>4. Cómo Funciona Nuestra Inteligencia Artificial</h3>
         <p>MealfitRD <strong>no es un simple "wrapper" sobre un modelo de IA</strong>. Nuestro sistema combina varios componentes propietarios: un orquestador basado en grafos de estados (LangGraph) que coordina la generación de planes en múltiples pasos validados, un motor propio de coherencia nutricional que verifica que la lista de compras concuerde con las recetas generadas, un sistema de memoria a largo plazo con embeddings vectoriales que aprende de sus interacciones, un agente conversacional con herramientas seguras (no permitimos que la IA acceda a datos de otros usuarios — defensa <code>P0-AGENT-1</code>), un módulo de visión multimodal para analizar fotos de comida, y un circuit breaker que protege contra fallos del proveedor del modelo.</p>
-        <p>Como motor generativo base utilizamos los modelos <strong>Google Gemini</strong> (familia <code>gemini-3.1-flash-lite</code> para planes y <code>gemini-3.1-flash-latest</code> para chat). Esto significa que ciertos datos suyos viajan a la API de Google para ejecutar la inferencia. Específicamente enviamos a Google:</p>
+        <p>Como motor generativo base utilizamos los modelos <strong>DeepSeek V4</strong> (familia <code>deepseek-v4-flash</code> para el plan gratuito y <code>deepseek-v4-pro</code> para los planes de pago), operados por DeepSeek. Esto significa que ciertos datos suyos viajan a la API de DeepSeek para ejecutar la inferencia. Específicamente enviamos al proveedor:</p>
         <ul>
             <li>Su perfil de salud completo (peso, altura, edad, género, restricciones).</li>
             <li>Sus preferencias y comidas que le gustan/no le gustan.</li>
             <li>El historial reciente de la conversación con el asistente.</li>
-            <li>Las fotos de comida que usted decide compartir.</li>
+            <li>Las fotos de comida que usted decide compartir (cuando el análisis visual esté habilitado).</li>
         </ul>
-        <p>Google trata estos datos bajo su <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer" className={styles.link}>Política de Uso de la API Gemini</a>. En el modo de uso pagado de Gemini API, Google declara que <strong>NO utiliza estos datos para entrenar sus modelos</strong>. No anonimizamos los datos antes de enviarlos porque la personalización requiere su contexto específico; sin embargo, NUNCA enviamos su nombre completo, correo electrónico ni datos de pago.</p>
+        <p>DeepSeek trata estos datos bajo sus <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer" className={styles.link}>Términos de Servicio y Política de Privacidad de la Plataforma Abierta</a>. Tenga en cuenta que los servidores del proveedor de inferencia pueden estar ubicados fuera de la República Dominicana (incluida la República Popular China), por lo que el envío implica una transferencia internacional de datos. No anonimizamos los datos antes de enviarlos porque la personalización requiere su contexto específico; sin embargo, NUNCA enviamos su nombre completo, correo electrónico ni datos de pago.</p>
         <p>Adicionalmente, NOSOTROS no usamos sus datos personales para entrenar modelos propios. La "memoria a largo plazo" del agente se basa en embeddings vectoriales privados de SU cuenta — no se cruza ni se agrega con otros usuarios.</p>
 
         <h3>5. Infraestructura y Seguridad Técnica</h3>
@@ -154,7 +154,7 @@ export const Privacy = () => (
         <p>Para operar la plataforma compartimos datos estrictamente necesarios con los siguientes proveedores. Todos están bajo contratos de procesamiento de datos:</p>
         <ul>
             <li><strong>Supabase Inc.</strong> — almacenamiento de base de datos y autenticación.</li>
-            <li><strong>Google LLC</strong> — inferencia con modelos Gemini (perfil de salud, conversaciones, imágenes).</li>
+            <li><strong>DeepSeek (Hangzhou DeepSeek Artificial Intelligence Basic Technology Research Co., Ltd.)</strong> — inferencia con modelos DeepSeek V4 (perfil de salud, conversaciones y, cuando esté habilitado, imágenes).</li>
             <li><strong>PayPal Holdings, Inc.</strong> — procesamiento de pagos y suscripciones.</li>
             <li><strong>Functional Software, Inc. (Sentry)</strong> — monitoreo de errores técnicos.</li>
             <li><strong>Amazon Web Services</strong> — infraestructura subyacente de Supabase y backend.</li>
@@ -195,7 +195,7 @@ export const Terms = () => (
 
         <h3>1. Naturaleza del Servicio</h3>
         <p>MealfitRD es una plataforma propietaria de nutrición personalizada que integra varias capas tecnológicas desarrolladas internamente: un orquestador determinístico basado en grafos de estados que coordina la generación de planes en múltiples pasos validados, un motor de coherencia nutricional que verifica matemáticamente la consistencia entre recetas y listas de compras, un agente conversacional con herramientas seguras de modificación de datos del usuario, un módulo de visión multimodal para análisis de fotografías de comida, un sistema de memoria a largo plazo con embeddings vectoriales para personalización continua, un programador de tareas (chunks rolling) que regenera porciones de su plan sin interrumpir su uso, y un sistema de auditoría con detección de derivas operativas.</p>
-        <p>Como modelo generativo base utilizamos la familia <strong>Google Gemini</strong>. Sin embargo, <strong>MealfitRD no es un wrapper ni un envoltorio simple sobre un modelo de IA</strong>: el valor diferencial reside en nuestros sistemas de orquestación, validación, persistencia y aprendizaje continuo, todos propietarios. El modelo Gemini funciona como una pieza dentro de un sistema mucho mayor.</p>
+        <p>Como modelo generativo base utilizamos la familia <strong>DeepSeek V4</strong>. Sin embargo, <strong>MealfitRD no es un wrapper ni un envoltorio simple sobre un modelo de IA</strong>: el valor diferencial reside en nuestros sistemas de orquestación, validación, persistencia y aprendizaje continuo, todos propietarios. El modelo DeepSeek funciona como una pieza dentro de un sistema mucho mayor.</p>
 
         <h3>2. Elegibilidad y Registro</h3>
         <p>Para utilizar MealfitRD usted debe:</p>
@@ -242,7 +242,7 @@ export const Terms = () => (
             <li>Que el servicio funcione sin interrupciones, sin errores, o sin retrasos.</li>
             <li>Que los planes generados produzcan resultados específicos de pérdida de peso, ganancia muscular u otros objetivos.</li>
             <li>La exactitud absoluta de cálculos nutricionales o macronutrientes, dado que la composición real de los alimentos puede variar.</li>
-            <li>La disponibilidad del modelo Gemini de Google ni de Supabase u otros proveedores subcontratados.</li>
+            <li>La disponibilidad de los modelos de DeepSeek ni de Supabase u otros proveedores subcontratados.</li>
         </ul>
         <p>En la máxima medida permitida por la ley, MealfitRD no será responsable de daños indirectos, incidentales, especiales, consecuenciales o punitivos, ni de pérdidas de datos, ganancias o oportunidad. Nuestra responsabilidad total agregada por cualquier reclamación no excederá el monto pagado por usted en los últimos doce (12) meses.</p>
         <p><strong>Las recomendaciones nutricionales no constituyen consejo médico.</strong> Consulte el Aviso Médico para detalle.</p>
@@ -382,7 +382,7 @@ export const MedicalDisclaimer = () => (
             <li>Puede ocasionalmente cometer errores de cálculo nutricional o sugerir combinaciones subóptimas. Validamos automáticamente coherencia entre recetas y lista de compras, pero ningún sistema es infalible.</li>
             <li>Puede no reconocer todas las contraindicaciones específicas de su caso si usted no las declara explícitamente.</li>
             <li>Su capacidad de análisis está acotada a la información provista; no realiza diagnóstico médico subyacente.</li>
-            <li>Los modelos generativos (Google Gemini, sobre los cuales operamos) pueden, en raras ocasiones, "alucinar" datos. Nuestros sistemas de validación reducen esto, pero no lo eliminan al 100%.</li>
+            <li>Los modelos generativos (DeepSeek V4, sobre los cuales operamos) pueden, en raras ocasiones, "alucinar" datos. Nuestros sistemas de validación reducen esto, pero no lo eliminan al 100%.</li>
         </ul>
 
         <h3>5. No Establecimiento de Relación Médico-Paciente</h3>
