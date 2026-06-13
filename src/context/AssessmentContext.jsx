@@ -592,20 +592,21 @@ export const AssessmentProvider = ({ children }) => {
 
 
         try {
-            // 1. Buscar el último plan creado por este usuario en Supabase
-            const { data: plans, error } = await supabase
-                .from('meal_plans')
-                .select('id, plan_data, created_at')
-                .eq('user_id', userId)
-                .order('created_at', { ascending: false })
-                .limit(1);
+            // 1. Buscar el último plan creado por este usuario.
+            // [P1-NEON-DB-MIGRATION · 2026-06-12] SELECT directo a meal_plans
+            // (PostgREST) → GET /api/plans-data/latest. El backend resuelve la
+            // identidad desde el Bearer token y filtra user_id server-side
+            // (I2); timestamps con paridad PostgREST (ISO-8601 con 'T').
+            const latestResp = await fetchWithAuth('/api/plans-data/latest');
+            if (!latestResp.ok) {
+                throw new Error(`GET /api/plans-data/latest → HTTP ${latestResp.status}`);
+            }
+            const { plan: latestRow } = await latestResp.json();
 
-            if (error) throw error;
-
-            if (plans && plans.length > 0) {
-                const latestPlan = plans[0].plan_data;
-                const planCreatedAt = plans[0].created_at;
-                const planId = plans[0].id;
+            if (latestRow) {
+                const latestPlan = latestRow.plan_data;
+                const planCreatedAt = latestRow.created_at;
+                const planId = latestRow.id;
 
                 // [P0-DASH-CHIP-HONESTY · 2026-05-09] Inyectar el row id
                 // dentro del jsonb del planData para que consumidores
@@ -764,12 +765,19 @@ export const AssessmentProvider = ({ children }) => {
 
     // --- 2. MANEJO DE SESIÓN Y PERFIL (SUPABASE) ---
     const fetchProfile = useCallback(async (userId) => {
+        if (!userId) return;
         try {
-            const { data } = await supabase
-                .from('user_profiles')
-                .select('*')
-                .eq('id', userId)
-                .single();
+            // [P1-NEON-DB-MIGRATION · 2026-06-12] SELECT * de user_profiles
+            // (.single() PostgREST) → GET /api/profile. El backend resuelve la
+            // identidad desde el Bearer token (`userId` se mantiene como guard
+            // de compat para los callers). 404 = sin perfil aún (mismo no-op
+            // que .single() sin fila).
+            const profileResp = await fetchWithAuth('/api/profile');
+            if (profileResp.status === 404) return;
+            if (!profileResp.ok) {
+                throw new Error(`GET /api/profile → HTTP ${profileResp.status}`);
+            }
+            const { profile: data } = await profileResp.json();
 
             if (data) {
                 setUserProfile(data);
@@ -802,27 +810,31 @@ export const AssessmentProvider = ({ children }) => {
         const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
         if (userId) {
             try {
-                const { data } = await supabase
-                    .from('user_profiles')
-                    .select('*')
-                    .eq('id', userId)
-                    .single();
+                // [P1-NEON-DB-MIGRATION · 2026-06-12] SELECT * de user_profiles
+                // → GET /api/profile (identidad desde el Bearer token, I2).
+                const profileResp = await fetchWithAuth('/api/profile');
+                if (profileResp.status === 404) return;
+                if (!profileResp.ok) {
+                    throw new Error(`GET /api/profile → HTTP ${profileResp.status}`);
+                }
+                const { profile: data } = await profileResp.json();
 
                 if (data) {
                     setUserProfile(data);
 
                     if (data.health_profile && Object.keys(data.health_profile).length > 0) {
                         // [P0-FORM-3] Mismo filtro que `fetchProfile`. Este path
-                        // corre desde el canal Realtime de `user_profiles` (línea
-                        // ~692) y desde `upgradeUserPlan` tras pagos. Sin este
-                        // filtro, un UPDATE Realtime que llega mientras el
-                        // usuario edita el wizard hacía que el snapshot del DB
-                        // GANARA sobre la edición in-flight (regresión silenciosa
-                        // de P0-FORM-3 que solo se había aplicado en
-                        // `fetchProfile`). `recalcLockRef` solo cubre recálculo
-                        // de plan, no edición de wizard, así que no protege esta
-                        // ventana. Los campos tocados se preservan; los no
-                        // tocados sí se hidratan.
+                        // corre desde el listener de visibilitychange/focus
+                        // (antes canal Realtime de `user_profiles`, eliminado en
+                        // P1-NEON-DB-MIGRATION) y desde `upgradeUserPlan` tras
+                        // pagos. Sin este filtro, un snapshot del DB que llega
+                        // mientras el usuario edita el wizard GANARÍA sobre la
+                        // edición in-flight (regresión silenciosa de P0-FORM-3
+                        // que solo se había aplicado en `fetchProfile`).
+                        // `recalcLockRef` solo cubre recálculo de plan, no
+                        // edición de wizard, así que no protege esta ventana.
+                        // Los campos tocados se preservan; los no tocados sí
+                        // se hidratan.
                         const edited = editedFieldsRef.current;
                         const filtered = {};
                         for (const [k, v] of Object.entries(data.health_profile)) {
@@ -838,7 +850,7 @@ export const AssessmentProvider = ({ children }) => {
             }
         }
         // [P5-SPEED-CTX-DEP-NARROW · 2026-06-01] dep [session]→[session?.user?.id]:
-        // el cuerpo solo lee session?.user?.id; supabase lee el token fresco
+        // el cuerpo solo lee session?.user?.id; fetchWithAuth lee el token fresco
         // internamente. `session` recibe nueva referencia en cada TOKEN_REFRESHED
         // (~1h) → recreaba este callback, que es dep del chunk-poll effect del
         // Dashboard (Dashboard.jsx:794) → ese effect se tear-down/re-armaba cada
@@ -860,13 +872,14 @@ export const AssessmentProvider = ({ children }) => {
     }, [session]);
 
     // [P2-REALTIME-RESUB-ON-TOKEN-REFRESH · 2026-06-01] Espejo de
-    // `refreshProfileAndPlan` en un ref para que el canal Realtime de user_profiles
-    // pueda invocar la versión fresca SIN listarla en deps. Antes ese effect
-    // dependía de `[session, refreshProfileAndPlan]` y `refreshProfileAndPlan` es un
-    // useCallback con dep `[session]` → cada `setSession` de TOKEN_REFRESHED (~cada
-    // hora, [P2-TOKEN-REFRESH-SYNC]) recreaba la función → teardown+resubscribe del
-    // canal (round-trip websocket innecesario + micro-ventana donde se pierde un
-    // UPDATE). Mismo patrón P1-B9 aplicado al canal Realtime.
+    // `refreshProfileAndPlan` en un ref para que el listener de visibilitychange/
+    // focus (antes canal Realtime de user_profiles, eliminado en
+    // P1-NEON-DB-MIGRATION · 2026-06-12) pueda invocar la versión fresca SIN
+    // listarla en deps. Antes ese effect dependía de
+    // `[session, refreshProfileAndPlan]` y `refreshProfileAndPlan` es un
+    // useCallback con dep `[session]` → cada `setSession` de TOKEN_REFRESHED
+    // (~cada hora, [P2-TOKEN-REFRESH-SYNC]) recreaba la función → teardown +
+    // re-suscripción del listener. Mismo patrón P1-B9.
     const refreshProfileAndPlanRef = useRef(null);
     useEffect(() => {
         refreshProfileAndPlanRef.current = refreshProfileAndPlan;
@@ -1120,174 +1133,190 @@ export const AssessmentProvider = ({ children }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [checkPlanLimit, restoreSessionData]);
 
-    // --- ESCUCHA DE SUPABASE REALTIME (Actualizaciones de la IA) ---
+    // --- REFETCH DE PERFIL AL VOLVER A LA PESTAÑA ---
+    // [P1-NEON-DB-MIGRATION · 2026-06-12] Reemplaza el canal Realtime
+    // `public:user_profiles` (la publicación Realtime murió con el cutover a
+    // Neon — supabase-js apunta al Postgres stale de Supabase). El callback
+    // del canal solo disparaba un refetch del perfil, así que el reemplazo es
+    // el patrón estándar del repo: refetch on visibilitychange/focus (mismo
+    // patrón que Dashboard) + los refetch post-mutación existentes
+    // (updateUserProfile actualiza el state local; upgradeUserPlan invoca
+    // refreshProfileAndPlan explícito tras el verify de pago).
     useEffect(() => {
         const userId = session?.user?.id;
         if (!userId) return;
 
+        const refreshProfileOnWake = () => {
+            // 🔒 No sincronizar si hay un recálculo activo (paridad con el
+            // guard que tenía el callback del canal Realtime).
+            if (recalcLockRef.current) {
+                console.log('🔒 [VISIBILITY] Bloqueado por recalcLock — ignorando refetch de perfil.');
+                return;
+            }
+            // [P2-REALTIME-RESUB-ON-TOKEN-REFRESH · 2026-06-01] Vía ref para
+            // no listar refreshProfileAndPlan en deps (ver nota arriba).
+            refreshProfileAndPlanRef.current?.();
+        };
+        const handleVisibilityChange = () => {
+            // visibilitychange también dispara al OCULTAR la pestaña: ignorar.
+            if (document.visibilityState === 'visible') {
+                refreshProfileOnWake();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', refreshProfileOnWake);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', refreshProfileOnWake);
+        };
+        // Dep estrechada a `session?.user?.id` (paridad con el canal previo):
+        // no re-armar listeners en cada rotación de token de la misma cuenta.
+        // (exhaustive-deps satisfecho: el handler solo usa refs + session?.user?.id.)
+    }, [session?.user?.id]);
 
+    // --- POLLING: Nuevas semanas del plan (Background Chunking) ---
+    // [P1-NEON-DB-MIGRATION · 2026-06-12] Reemplaza el canal Realtime
+    // `meal-plan-chunk-updates` (P2-REALTIME-PUB-SYNC quedó obsoleto: la
+    // publicación `supabase_realtime` murió con el cutover a Neon). Polling
+    // suave de GET /api/plans-data/latest cada 25s ÚNICAMENTE mientras el
+    // plan en memoria está en un estado activo de generación — mismos 4
+    // estados que el `_isActiveForChunkPoll` del Dashboard (partial /
+    // generating / generating_next / rolling). Al llegar 'complete'/'failed'
+    // el effect se desarma solo (generation_status ∈ deps) → cero polling
+    // permanente. Se preserva el merge-al-state del canal original, incluido
+    // el guard P2-REALTIME-PLAN-ID-GUARD.
+    useEffect(() => {
+        const userId = session?.user?.id;
+        if (!userId) return;
 
-        const profileSubscription = supabase
-            .channel('public:user_profiles')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'user_profiles',
-                    filter: `id=eq.${userId}`
-                },
-                (payload) => {
-                    // 🔒 No sincronizar si hay un recálculo activo
-                    if (recalcLockRef.current) {
-                        console.log('🔒 [REALTIME] Bloqueado por recalcLock — ignorando actualización de perfil.');
-                        return;
+        const localStatus = planData?.generation_status;
+        const isGenerating = (
+            localStatus === 'partial'
+            || localStatus === 'generating'
+            || localStatus === 'generating_next'
+            || localStatus === 'rolling'
+        );
+        if (!isGenerating) return;
+
+        // Flag de teardown: descarta respuestas in-flight que resuelvan
+        // después de que el effect se re-armó (e.g. el merge anterior ya
+        // marcó 'complete') — evita re-injertar un snapshot viejo.
+        let cancelled = false;
+
+        const pollLatestPlan = async () => {
+            // Pausar el poll con la pestaña oculta (mismo patrón
+            // P2-DASH-POLL-VISIBILITY del Dashboard); el tick siguiente
+            // post-visibilidad recupera la frescura.
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+            // 🔒 No pisar planData mientras un recalc local está en vuelo
+            // (paridad con restoreSessionData).
+            if (recalcLockRef.current) return;
+            try {
+                const resp = await fetchWithAuth('/api/plans-data/latest');
+                if (cancelled || !resp.ok) return;
+                const { plan } = await resp.json();
+                if (cancelled) return;
+                const newPlanData = plan?.plan_data;
+                if (!newPlanData) return;
+
+                const incomingStatus = newPlanData.generation_status;
+                // Solo reaccionar si el plan tiene semanas siendo generadas
+                // o acaba de completarse (paridad con el handler del canal).
+                if (incomingStatus !== 'partial' && incomingStatus !== 'complete') return;
+
+                setPlanData(prev => {
+                    if (!prev) return newPlanData;
+                    // [P2-REALTIME-PLAN-ID-GUARD · 2026-05-30] El poll trae el
+                    // plan MÁS RECIENTE del usuario, que puede NO ser el plan
+                    // activo en memoria (e.g. el usuario restauró un plan del
+                    // Historial, o un plan nuevo nació en otra pestaña). Sin
+                    // este guard, los `days` de ese otro plan se injertaban
+                    // sobre el plan activo (que conserva su id/grocery_start_date/
+                    // macros) y el estado fusionado corrupto se persistía a
+                    // localStorage, sobreviviendo al reload. Solo cortocircuitamos
+                    // cuando AMBOS ids existen y difieren, para que la ventana
+                    // post-generación (donde prev.id aún es undefined) siga
+                    // mezclando los chunks legítimos del plan activo.
+                    if (prev.id && plan.id && prev.id !== plan.id) {
+                        return prev;
                     }
-                    // Disparar sincronización mágica.
-                    // [P2-REALTIME-RESUB-ON-TOKEN-REFRESH · 2026-06-01] Vía ref para
-                    // no listar refreshProfileAndPlan en deps (ver nota arriba).
-                    refreshProfileAndPlanRef.current?.();
-                }
-            )
-            .subscribe();
+                    // Mezclar: preservar campos locales (grocery_start_date, is_restocked, etc.)
+                    // pero actualizar los días con el valor más reciente del servidor
+                    const merged = {
+                        ...prev,
+                        days: newPlanData.days,
+                        generation_status: incomingStatus,
+                        total_days_requested: newPlanData.total_days_requested ?? prev.total_days_requested,
+                    };
+                    safeLocalStorageSet('mealfit_plan', merged);
+                    return merged;
+                });
+            } catch (e) {
+                // Blip de red — no es accionable; el próximo tick reintenta.
+            }
+        };
+
+        const intervalId = setInterval(pollLatestPlan, 25000);
+        // Primer tick inmediato: el canal push entregaba el chunk sin espera;
+        // arrancar con un fetch evita perder hasta 25s de frescura.
+        pollLatestPlan();
 
         return () => {
-
-            supabase.removeChannel(profileSubscription);
+            cancelled = true;
+            clearInterval(intervalId);
         };
-        // [P2-REALTIME-RESUB-ON-TOKEN-REFRESH · 2026-06-01] Dep estrechada a
-        // `session?.user?.id`: el filtro del canal solo usa el uid, así que
-        // re-suscribir en cada rotación de token (misma cuenta) era desperdicio.
-        // (exhaustive-deps satisfecho: el callback solo usa refs + session?.user?.id.)
-    }, [session?.user?.id]);
-
-    // --- ESCUCHA REALTIME: Nuevas semanas del plan (Background Chunking) ---
-    // [P2-REALTIME-PUB-SYNC · 2026-06-01] Esta suscripción depende de que
-    // `meal_plans` esté en la publicación `supabase_realtime`. Hasta esta
-    // fecha NO lo estaba → la suscripción se establecía pero `postgres_changes`
-    // nunca entregaba eventos (las semanas de chunking solo llegaban por el
-    // fallback pesado: canal user_profiles → refreshProfileAndPlan = refetch
-    // REST completo). La migración SSOT `p2_realtime_pub_sync_2026_06_01.sql`
-    // publica meal_plans → activa el push-merge ligero de abajo (solo fusiona
-    // `days`). NO remover la tabla de la publicación sin remover esta
-    // suscripción (y viceversa). Test: test_p2_realtime_pub_sync.py.
-    useEffect(() => {
-        const userId = session?.user?.id;
-        if (!userId) return;
-
-        const planChunkSubscription = supabase
-            .channel('meal-plan-chunk-updates')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'meal_plans',
-                    filter: `user_id=eq.${userId}`
-                },
-                (payload) => {
-                    const newPlanData = payload.new?.plan_data;
-                    if (!newPlanData) return;
-
-                    const incomingStatus = newPlanData.generation_status;
-                    // Solo reaccionar si el plan tiene semanas siendo generadas
-                    if (incomingStatus !== 'partial' && incomingStatus !== 'complete') return;
-
-                    setPlanData(prev => {
-                        if (!prev) return newPlanData;
-                        // [P2-REALTIME-PLAN-ID-GUARD · 2026-05-30] El filtro de
-                        // la suscripción es solo `user_id=eq.<uid>`, así que
-                        // CUALQUIER UPDATE a un meal_plans del usuario dispara
-                        // este handler — incluido un plan VIEJO (no el activo)
-                        // que el usuario modifique desde el Historial
-                        // (/recalculate-shopping-list, /swap-meal/persist). Sin
-                        // este guard, los `days` de ese plan viejo se injertaban
-                        // sobre el plan activo (que conserva su id/grocery_start_date/
-                        // macros) y el estado fusionado corrupto se persistía a
-                        // localStorage, sobreviviendo al reload. Solo cortocircuitamos
-                        // cuando AMBOS ids existen y difieren, para que la ventana
-                        // post-generación (donde prev.id aún es undefined) siga
-                        // mezclando los chunks legítimos del plan activo.
-                        if (prev.id && payload.new?.id && prev.id !== payload.new.id) {
-                            return prev;
-                        }
-                        // Mezclar: preservar campos locales (grocery_start_date, is_restocked, etc.)
-                        // pero actualizar los días con el valor más reciente del servidor
-                        const merged = {
-                            ...prev,
-                            days: newPlanData.days,
-                            generation_status: incomingStatus,
-                            total_days_requested: newPlanData.total_days_requested ?? prev.total_days_requested,
-                        };
-                        safeLocalStorageSet('mealfit_plan', merged);
-                        return merged;
-                    });
-                }
-            )
-            .subscribe();
-
-        return () => supabase.removeChannel(planChunkSubscription);
-        // [P2-REALTIME-RESUB-ON-TOKEN-REFRESH · 2026-06-01] Dep estrechada a
-        // `session?.user?.id` (el handler solo usa el uid para el filtro del canal)
-        // → no re-suscribir el canal en cada rotación de token de la misma cuenta.
-        // (exhaustive-deps satisfecho: el handler solo usa session?.user?.id + setters.)
-    }, [session?.user?.id]);
+        // Deps: uid + status del plan en memoria (gate del polling) + id del
+        // plan activo (re-armar al cambiar de plan). El handler usa la forma
+        // funcional de setPlanData + refs → sin closures stale sobre planData.
+    }, [session?.user?.id, planData?.generation_status, planData?.id]);
 
     // --- FUNCIÓN PARA ACTUALIZAR PERFIL EN DB ---
-    // [P1-FORM-9] Si el caller pasa `health_profile`, lo enrutamos por la RPC
-    // `update_health_profile_merge` (definida en
-    // `supabase/migrations/p1_form_9_health_profile_jsonb_merge.sql`) que
-    // aplica un MERGE jsonb (`||`) en lugar de reemplazo total. Esto es la
-    // segunda línea de defensa contra el race de hidratación cifrada — la
-    // primera la pone `buildHealthProfilePayload` en el frontend.
-    //
-    // Otros campos (full_name, plan_tier, etc.) siguen el camino tradicional
-    // `.update()` porque no son JSONB y reemplazar es el comportamiento
-    // correcto para columnas escalares.
-    //
-    // Si la RPC no está disponible (migración no desplegada todavía o
-    // ambiente que la elimina), caemos al `.update()` tradicional con
-    // warning — preservamos disponibilidad funcional aunque perdamos la
-    // garantía de merge. Operadores ven el warning y saben que falta
-    // aplicar la migración.
+    // [P1-NEON-DB-MIGRATION · 2026-06-12] UN SOLO `PATCH /api/profile`
+    // reemplaza la RPC `update_health_profile_merge`, su fallback full-replace
+    // (P1-FORM-9 — eliminado: el merge jsonb `||` ahora ocurre server-side
+    // GARANTIZADO en el endpoint, sin path degradado) y el `.update()` de
+    // columnas escalares:
+    //   - `health_profile`: MERGE jsonb server-side (misma garantía anti-race
+    //     que la RPC; primera línea de defensa sigue siendo
+    //     `buildHealthProfilePayload` en el frontend).
+    //   - `fields`: columnas escalares whitelisted ({full_name}). Las columnas
+    //     de entitlement (plan_tier, subscription_*) son server-derived
+    //     (I-Billing-1) — el backend rechaza con 400 cualquier campo fuera de
+    //     la whitelist; NO añadir campos aquí sin extenderla primero.
     const updateUserProfile = async (updates) => {
         try {
             if (!session?.user) throw new Error('No hay sesión activa');
 
             const { health_profile: healthProfilePatch, ...rest } = updates || {};
 
-            // [P1-FORM-9] Path 1: health_profile via RPC (jsonb merge).
-            if (healthProfilePatch && typeof healthProfilePatch === 'object') {
-                const { error: rpcError } = await supabase.rpc(
-                    'update_health_profile_merge',
-                    { patch: healthProfilePatch }
-                );
-                if (rpcError) {
-                    // Fallback: la migración aún no se aplicó o la RPC fue
-                    // dropeada. Caemos al patrón antiguo con warning visible
-                    // para que el equipo de ops detecte la falla en producción
-                    // y aplique la migración pendiente.
-                    console.warn(
-                        '[P1-FORM-9] RPC update_health_profile_merge falló — '
-                        + 'cayendo a UPDATE tradicional (sin merge garantizado). '
-                        + 'Verificar que la migración esté aplicada. Error:',
-                        rpcError
-                    );
-                    const { error: fallbackError } = await supabase
-                        .from('user_profiles')
-                        .update({ health_profile: healthProfilePatch })
-                        .eq('id', session.user.id);
-                    if (fallbackError) throw fallbackError;
-                }
+            const body = {};
+            if (
+                healthProfilePatch
+                && typeof healthProfilePatch === 'object'
+                && Object.keys(healthProfilePatch).length > 0
+            ) {
+                body.health_profile = healthProfilePatch;
+            }
+            if (Object.keys(rest).length > 0) {
+                body.fields = rest;
+            }
+            if (Object.keys(body).length === 0) {
+                // Nada que actualizar — no-op (paridad con el path legacy, y
+                // evita el 400 "Nada que actualizar" del backend).
+                return { success: true };
             }
 
-            // [P1-FORM-9] Path 2: campos escalares (full_name, etc.) via update tradicional.
-            if (Object.keys(rest).length > 0) {
-                const { error } = await supabase
-                    .from('user_profiles')
-                    .update(rest)
-                    .eq('id', session.user.id);
-                if (error) throw error;
+            const resp = await fetchWithAuth('/api/profile', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (!resp.ok) {
+                const errBody = await resp.json().catch(() => ({}));
+                const detail = typeof errBody?.detail === 'string'
+                    ? errBody.detail
+                    : `PATCH /api/profile → HTTP ${resp.status}`;
+                throw new Error(detail);
             }
 
             setUserProfile((prev) => ({ ...prev, ...updates }));
@@ -1649,15 +1678,17 @@ export const AssessmentProvider = ({ children }) => {
             if (userId && userId !== 'guest') {
                 try {
                     // a) Resolver plan_id activo (igual que pre-fix).
-                    const { data: latestRows } = await supabase
-                        .from('meal_plans')
-                        .select('id')
-                        .eq('user_id', userId)
-                        .order('created_at', { ascending: false })
-                        .limit(1);
+                    // [P1-NEON-DB-MIGRATION · 2026-06-12] SELECT id de
+                    // meal_plans → GET /api/plans-data/latest?include_plan_data=false
+                    // (payload liviano: solo resolvemos el id activo). Un
+                    // status no-OK deja latestRow=null → se omite la
+                    // persistencia (misma semántica que el error swallowed
+                    // del cliente PostgREST previo).
+                    const latestResp = await fetchWithAuth('/api/plans-data/latest?include_plan_data=false');
+                    const latestRow = latestResp.ok ? (await latestResp.json())?.plan : null;
 
-                    if (latestRows && latestRows.length > 0) {
-                        const planId = latestRows[0].id;
+                    if (latestRow?.id) {
+                        const planId = latestRow.id;
 
                         // b) POST atómico al backend. El body solo lleva el
                         //    delta (meal nuevo + índices) — el backend no
@@ -1825,9 +1856,10 @@ export const AssessmentProvider = ({ children }) => {
         // [P0-FORM-2 + P0-FORM-3] Marca el campo como tocado para que ningún
         // writer async lo sobrescriba con valor stale. Cubre TRES consumidores:
         //   1. Hidratación cifrada de `mealfit_form_secure` (post-login).
-        //   2. `fetchProfile` desde Supabase (carga inicial del perfil).
-        //   3. `refreshProfileAndPlan` disparado por el canal Realtime de
-        //      `user_profiles` (ediciones desde otra pestaña, cron, admin).
+        //   2. `fetchProfile` vía GET /api/profile (carga inicial del perfil).
+        //   3. `refreshProfileAndPlan` disparado por el listener de
+        //      visibilitychange/focus (ediciones desde otra pestaña, cron,
+        //      admin — antes canal Realtime, P1-NEON-DB-MIGRATION).
         // Tracking universal — los campos public también pueden ser pisados
         // por `fetchProfile`/`refreshProfileAndPlan` ya que el spread
         // `{...prev, ...health_profile}` los incluía sin filtro.
@@ -1927,15 +1959,14 @@ export const AssessmentProvider = ({ children }) => {
         if (userId && userId !== 'guest') {
             try {
                 // Obtener el plan más reciente del usuario
-                const { data: latestRows } = await supabase
-                    .from('meal_plans')
-                    .select('id')
-                    .eq('user_id', userId)
-                    .order('created_at', { ascending: false })
-                    .limit(1);
+                // [P1-NEON-DB-MIGRATION · 2026-06-12] SELECT id de meal_plans
+                // → GET /api/plans-data/latest?include_plan_data=false (solo
+                // resolvemos el id; el backend filtra user_id desde el token).
+                const latestResp = await fetchWithAuth('/api/plans-data/latest?include_plan_data=false');
+                const latestRow = latestResp.ok ? (await latestResp.json())?.plan : null;
 
-                if (latestRows && latestRows.length > 0) {
-                    const planId = latestRows[0].id;
+                if (latestRow?.id) {
+                    const planId = latestRow.id;
 
                     // [P0-HIST-2 · 2026-05-09] Además de `plan_data`,
                     // sobrescribir las columnas top-level críticas para el

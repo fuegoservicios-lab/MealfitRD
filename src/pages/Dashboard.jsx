@@ -20,7 +20,9 @@ import WaterTracker from '../components/dashboard/WaterTracker';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
 import EmptyState from '../components/common/EmptyState';
-import { supabase } from '../supabase';
+// [P1-NEON-DB-MIGRATION · 2026-06-12] Import de `supabase` eliminado: los
+// SELECTs/realtime directos a Postgres migraron a endpoints backend
+// (GET /api/inventory, GET /api/plans-data/{plan_id}) via fetchWithAuth.
 // [P2-LAZY-PDF · 2026-05-13] html2pdf.js (976 KB) se importa dinámico
 // dentro del handler de descarga — ver `await import('html2pdf.js')` más
 // abajo. Pre-fix era import estático top-level: el chunk se fetch eager
@@ -109,6 +111,27 @@ const PANTRY_STAPLES_DELTA = new Set([
     'aceite de sésamo o maní', 'salsa de soya', 'orégano',
     'canela', 'pimienta', 'sal', 'vinagre', 'ajo en polvo'
 ]);
+
+// [P1-NEON-DB-MIGRATION · 2026-06-12] Fetcher único del inventario vía backend
+// (GET /api/inventory) — reemplaza los 5 SELECTs directos de `user_inventory`
+// via supabase-js (PostgREST apunta al Postgres de Supabase, stale post-cutover
+// a Neon). El endpoint ya aplica `quantity > 0` + ORDER BY ingredient_name y
+// devuelve el embed `master_ingredients` con el mismo shape anidado que el
+// select PostgREST legacy. Adapta la response al contrato `{ data, error }`
+// que `fetchFreshInventoryWithTimeout` espera — la semántica stale
+// (timeout/error/empty_response) y los banners/telemetría quedan intactos.
+const fetchInventoryFromApi = async () => {
+    try {
+        const response = await fetchWithAuth('/api/inventory');
+        if (!response.ok) {
+            return { data: null, error: new Error(`HTTP ${response.status}`) };
+        }
+        const payload = await response.json();
+        return { data: Array.isArray(payload?.items) ? payload.items : null, error: null };
+    } catch (e) {
+        return { data: null, error: e };
+    }
+};
 
 // [P1-DASH-HOOKS-ORDER · 2026-05-31] `DashboardInner` contiene TODOS los hooks
 // del Dashboard SIN early-returns. Los dos guards (loadingData / !planData) que
@@ -574,8 +597,8 @@ const DashboardInner = () => {
     useEffect(() => () => { clearTimeout(disabledSyncTimer.current); }, []);
 
     // [P3-PLAN-BTN-STABLE · 2026-05-19] Sync del cache localStorage cada vez que
-    // `liveInventory` cambia (cubre fetch inicial + realtime postgres_changes +
-    // restock). Centralizar acá evita duplicar la escritura del cache en cada
+    // `liveInventory` cambia (cubre fetch inicial + refetch on focus/visibilitychange
+    // + restock). Centralizar acá evita duplicar la escritura del cache en cada
     // callsite de `setLiveInventory`. SSOT: liveInventory.length → cache.
     useEffect(() => {
         if (!_pantryCountCacheKey || !Array.isArray(liveInventory)) return;
@@ -603,13 +626,9 @@ const DashboardInner = () => {
         let ignore = false;
         const fetchLiveInventory = async () => {
             setIsLoadingInventory(true);
+            // [P1-NEON-DB-MIGRATION · 2026-06-12] SELECT directo → GET /api/inventory.
             const result = await fetchFreshInventoryWithTimeout(
-                () => supabase
-                    .from('user_inventory')
-                    .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
-                    .eq('user_id', userProfile.id)
-                    .gt('quantity', 0)
-                    .order('ingredient_name', { ascending: true }),
+                fetchInventoryFromApi,
                 getInventoryFetchTimeoutMs(),
             );
             if (ignore) return;
@@ -631,70 +650,31 @@ const DashboardInner = () => {
         fetchLiveInventory();
         return () => { ignore = true; };
         // [P2-DASH-INVENTORY-FETCH-RACE · 2026-06-01] Dep estrechada de `planData`
-        // (objeto completo, ref nueva en cada chunk realtime / swap / recalc) a
-        // `id`+`generation_status`. La frescura del inventario ya la cubren el canal
-        // realtime de user_inventory, el refresh on visibilitychange/focus y el
-        // custom-event mealfit:refresh-inventory; mantener generation_status preserva
+        // (objeto completo, ref nueva en cada chunk / swap / recalc) a
+        // `id`+`generation_status`. La frescura del inventario ya la cubren el
+        // refresh on visibilitychange/focus y el custom-event
+        // mealfit:refresh-inventory; mantener generation_status preserva
         // el único caso no cubierto (transición partial→complete llena la nevera).
     }, [userProfile?.id, planData?.id, planData?.generation_status]);
 
-    // Real-time sync: si la Nevera o el chat-agent modifican el inventario, el Dashboard se actualiza solo
-    useEffect(() => {
-        if (!userProfile?.id) return;
-        const channel = supabase
-            .channel('dashboard-inventory-sync')
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'user_inventory',
-                filter: `user_id=eq.${userProfile.id}`
-            }, async () => {
-                try {
-                    const { data } = await supabase
-                        .from('user_inventory')
-                        .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
-                        .eq('user_id', userProfile.id)
-                        .gt('quantity', 0)
-                        .order('ingredient_name', { ascending: true });
-                    if (data) {
-                        setLiveInventory(data);
-                        // [P1-5] El callback de postgres_changes solo dispara cuando
-                        // Supabase pusheó un cambio: la siguiente lectura es fresca
-                        // por definición. Bajamos el flag stale aunque hubiéramos
-                        // arrancado en true por timeout del mount inicial.
-                        setInventoryStale(false);
-                    }
-                } catch (e) { /* non-blocking */ }
-            })
-            .subscribe((status) => {
-                if (status === 'CHANNEL_ERROR') {
-                    // [P3-CONSOLE-DEMOTE · 2026-05-16] Degradado de warn→log.
-                    // CHANNEL_ERROR es genérico (throttle, inventory vacío del
-                    // user, RLS sin filas para subscribir). El feature funciona
-                    // sin realtime (fallback al fetch REST). El amarillo ⚠ en
-                    // dev confundía: no es un fallo accionable, es estado normal
-                    // cuando no hay nada que sincronizar.
-                    console.log('[MealfitRD] Realtime inventory sync no disponible (fallback a polling REST).');
-                }
-            });
-        return () => supabase.removeChannel(channel);
-    }, [userProfile?.id]);
+    // [P1-NEON-DB-MIGRATION · 2026-06-12] Canal realtime `dashboard-inventory-sync`
+    // (postgres_changes sobre user_inventory) ELIMINADO: la publicación Realtime de
+    // Supabase muere con el cutover a Neon. Su callback solo refetcheaba el
+    // inventario — el refetch on visibilitychange/focus de abajo + el custom event
+    // `mealfit:refresh-inventory` + el refetch post-mutación (restock/PDF) quedan
+    // como mecanismo único de sincronización.
 
-    // Fallback de sincronización: refrescar inventario cuando el usuario vuelve al tab
-    // (cubre el caso donde Realtime falla o el usuario navegó a Pantry y vació la nevera)
+    // Sincronización: refrescar inventario cuando el usuario vuelve al tab
+    // (cubre el caso multi-tab/device y el usuario que navegó a Pantry y vació la nevera)
     // [P1-5] Usa `fetchFreshInventoryWithTimeout` y mantiene `inventoryStale` en sync:
     // si el refresh-on-focus falla/timeoutea, el chip se enciende para avisar.
     // Si succeed, lo bajamos.
     useEffect(() => {
         if (!userProfile?.id) return;
         const refreshInventoryOnFocus = async () => {
+            // [P1-NEON-DB-MIGRATION · 2026-06-12] SELECT directo → GET /api/inventory.
             const result = await fetchFreshInventoryWithTimeout(
-                () => supabase
-                    .from('user_inventory')
-                    .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
-                    .eq('user_id', userProfile.id)
-                    .gt('quantity', 0)
-                    .order('ingredient_name', { ascending: true }),
+                fetchInventoryFromApi,
                 getInventoryFetchTimeoutMs(),
             );
             if (!result.stale) {
@@ -848,8 +828,8 @@ const DashboardInner = () => {
     // [P3-UPDATE-PLATOS-REQUIRES-PANTRY · 2026-05-17] Gate "Actualizar platos"
     // contra Nevera vacía. `pantryItemCount`:
     //   - `null`  → inventario no cargado aún o fetch falló (no bloquear)
-    //   - número  → conteo de filas con quantity > 0 (filtro ya aplicado en la
-    //               query supabase de `fetchLiveInventory`)
+    //   - número  → conteo de filas con quantity > 0 (filtro ya aplicado
+    //               server-side en GET /api/inventory de `fetchLiveInventory`)
     // `isPantryTooEmpty` solo es true cuando SABEMOS que hay menos del mínimo
     // (fail-open mientras `isLoadingInventory` o el fetch falla).
     //
@@ -1406,13 +1386,17 @@ const DashboardInner = () => {
             let effectivePlanData = planData;
             try {
                 if (planData?.id && session?.user?.id) {
-                    const { data: latestRow, error: latestErr } = await supabase
-                        .from('meal_plans')
-                        .select('id, updated_at, plan_data')
-                        .eq('id', planData.id)
-                        .eq('user_id', session.user.id)
-                        .maybeSingle();
-                    if (!latestErr && latestRow?.plan_data) {
+                    // [P1-NEON-DB-MIGRATION · 2026-06-12] SELECT directo a meal_plans
+                    // (.eq(id).eq(user_id).maybeSingle()) → GET /api/plans-data/{plan_id}
+                    // (ownership server-side, I2). 404 = plan ausente → latestRow null,
+                    // mismo tratamiento best-effort que el maybeSingle() sin fila.
+                    let latestRow = null;
+                    const _planResp = await fetchWithAuth(`/api/plans-data/${planData.id}`);
+                    if (_planResp.ok) {
+                        const _planPayload = await _planResp.json();
+                        latestRow = _planPayload?.plan || null;
+                    }
+                    if (latestRow?.plan_data) {
                         // [P3-PDF-ALWAYS-SYNC · 2026-05-18] Para el flujo del
                         // PDF, SIEMPRE sincronizamos desde DB (sin comparar
                         // timestamps). Razón: timestamp-based drift detection
@@ -1515,13 +1499,9 @@ const DashboardInner = () => {
             // stale removía 27 de 35 items del PDF, dejando solo 8.
             let freshInventoryForPdf = liveInventory;
             let freshInventoryStale = false;
+            // [P1-NEON-DB-MIGRATION · 2026-06-12] SELECT directo → GET /api/inventory.
             const _freshFetchResult = await fetchFreshInventoryWithTimeout(
-                () => supabase
-                    .from('user_inventory')
-                    .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
-                    .eq('user_id', userProfile.id)
-                    .gt('quantity', 0)
-                    .order('ingredient_name', { ascending: true }),
+                fetchInventoryFromApi,
                 getInventoryFetchTimeoutMs(),
             );
             if (!_freshFetchResult.stale) {
@@ -2254,13 +2234,9 @@ const DashboardInner = () => {
             // cacheado como fallback — usar [] (lista vacía). El backend tiene
             // self-heal P3-RESTOCK-STALE-DEDUP que cubre el caso.
             let freshInventoryForRestock = liveInventory;
+            // [P1-NEON-DB-MIGRATION · 2026-06-12] SELECT directo → GET /api/inventory.
             const _restockFreshFetch = await fetchFreshInventoryWithTimeout(
-                () => supabase
-                    .from('user_inventory')
-                    .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
-                    .eq('user_id', userProfile.id)
-                    .gt('quantity', 0)
-                    .order('ingredient_name', { ascending: true }),
+                fetchInventoryFromApi,
                 getInventoryFetchTimeoutMs(),
             );
             if (!_restockFreshFetch.stale) {
@@ -2367,12 +2343,8 @@ const DashboardInner = () => {
 
                 // [P3-RESTOCK-FLOW-SPEED · 2026-05-20] Refetch + cache populate
                 // en paralelo. Sin `await`, el navigate no se bloquea.
-                supabase
-                    .from('user_inventory')
-                    .select('ingredient_name, quantity, unit, created_at, master_ingredients(name, category, shelf_life_days)')
-                    .eq('user_id', userProfile.id)
-                    .gt('quantity', 0)
-                    .order('ingredient_name', { ascending: true })
+                // [P1-NEON-DB-MIGRATION · 2026-06-12] SELECT directo → GET /api/inventory.
+                fetchInventoryFromApi()
                     .then(({ data: freshInv }) => {
                         if (freshInv) {
                             setLiveInventory(freshInv);

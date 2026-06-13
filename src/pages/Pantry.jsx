@@ -5,7 +5,10 @@ import React, { useState, useEffect, useMemo, useRef, useCallback, useDeferredVa
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAssessment } from '../context/AssessmentContext';
-import { supabase } from '../supabase';
+// [P1-NEON-DB-MIGRATION · 2026-06-12] supabase-js eliminado de Pantry: los
+// datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
+// Supabase). Todo el acceso a datos va por los endpoints backend vía
+// fetchWithAuth; supabase queda solo para Auth (otros archivos).
 import { Search, Plus, Minus, Trash2, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket, RotateCcw, PackageX } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth, API_BASE } from '../config/api';
@@ -17,6 +20,25 @@ import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate del mount de Pantry
 import { getCachedInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache } from '../utils/pantryCache';
+
+// [P1-NEON-DB-MIGRATION · 2026-06-12] Helper de transporte: fetchWithAuth +
+// parse JSON + throw en non-2xx con `status`/`detail` del backend. Los
+// handlers detectan el 409 de duplicado (UNIQUE user_id+ingredient_name+unit)
+// vía `err.status` — misma semántica que el error 23505 legacy de PostgREST.
+const _apiJson = async (path, options = {}) => {
+    const resp = await fetchWithAuth(path, options);
+    let json = null;
+    try { json = await resp.json(); } catch (_e) { /* body vacío / no-JSON */ }
+    if (!resp.ok) {
+        const err = new Error(
+            (json && json.detail) ? String(json.detail) : `HTTP ${resp.status}`
+        );
+        err.status = resp.status;
+        err.detail = json?.detail;
+        throw err;
+    }
+    return json;
+};
 
 const CATEGORY_ICONS = {
     'PROTEÍNAS': Beef,
@@ -358,8 +380,8 @@ const Pantry = () => {
         _persistDepleted(next);
         // [P3-DEPLETED-BD · 2026-05-22] Persist a BD (cross-device). Best-effort:
         // si el endpoint falla, el state local + localStorage queda como
-        // fallback. El realtime channel sincronizará si el POST eventualmente
-        // ocurre (e.g., reintento manual del user).
+        // fallback. El refetch on visibilitychange/focus reconciliará si el
+        // POST eventualmente ocurre (e.g., reintento manual del user).
         (async () => {
             try {
                 await fetchWithAuth('/api/plans/depleted-items', {
@@ -431,14 +453,14 @@ const Pantry = () => {
     //      para que items pre-existentes (single-device legacy) entren a la
     //      tabla cross-device. Set el flag para que solo corra una vez.
     //   2. Fetch desde BD → mergear con state actual (BD gana en conflictos).
-    //   3. Suscripción realtime al canal `user_depleted_items` (filtered by
-    //      user_id) — INSERT/UPDATE/DELETE propagados de otros tabs o
-    //      devices se reflejan en vivo.
+    //   3. [P1-NEON-DB-MIGRATION · 2026-06-12] Canal Realtime eliminado (la
+    //      publicación muere con el cutover a Neon). El caso multi-tab/device
+    //      se cubre con refetch de `_fetchAndApply` on visibilitychange/focus
+    //      (mismo patrón que el Dashboard).
     useEffect(() => {
         const uid = session?.user?.id;
         if (!uid) return;
         let cancelled = false;
-        let channel = null;
 
         const _normalizeForState = (rows) => (Array.isArray(rows) ? rows : []).map(r => ({
             id: r.id,
@@ -522,25 +544,24 @@ const Pantry = () => {
         (async () => {
             await _runOneShotMigration();
             await _fetchAndApply();
-
-            if (cancelled || !supabase?.channel) return;
-            channel = supabase
-                .channel(`user_depleted_items_${uid}`)
-                .on(
-                    'postgres_changes',
-                    { event: '*', schema: 'public', table: 'user_depleted_items', filter: `user_id=eq.${uid}` },
-                    () => {
-                        if (!cancelled) _fetchAndApply();
-                    }
-                )
-                .subscribe();
         })();
+
+        // [P1-NEON-DB-MIGRATION · 2026-06-12] Reemplazo del canal Realtime:
+        // refetch al volver al tab/window (cubre cambios hechos desde otro
+        // tab o device mientras este estaba en background).
+        const _refetchDepletedOnFocus = () => {
+            if (!cancelled) _fetchAndApply();
+        };
+        const _onVisibleDepleted = () => {
+            if (document.visibilityState === 'visible') _refetchDepletedOnFocus();
+        };
+        document.addEventListener('visibilitychange', _onVisibleDepleted);
+        window.addEventListener('focus', _refetchDepletedOnFocus);
 
         return () => {
             cancelled = true;
-            if (channel && supabase?.removeChannel) {
-                try { supabase.removeChannel(channel); } catch (e) {}
-            }
+            document.removeEventListener('visibilitychange', _onVisibleDepleted);
+            window.removeEventListener('focus', _refetchDepletedOnFocus);
         };
     }, [session?.user?.id]);
 
@@ -672,9 +693,10 @@ const Pantry = () => {
     //
     // Trade-off: si el cache tiene data 25s vieja, vas a ver eso 25s
     // viejo. Aceptable porque:
-    //   (a) Realtime channel suscrito a `user_inventory` (línea ~245)
-    //       empuja UPDATEs/INSERTs/DELETEs al state en tiempo real
-    //       sin pasar por fetchData — el cache fresh + realtime es
+    //   (a) [P1-NEON-DB-MIGRATION · 2026-06-12] El refetch on
+    //       visibilitychange/focus (reemplazo del canal Realtime,
+    //       muerto con el cutover a Neon) reconcilia cambios externos
+    //       al volver al tab; el cache fresh + refetch-on-focus es
     //       suficiente para mantener consistency.
     //   (b) Mutaciones del propio user (delete, increment, restock)
     //       invocan `fetchData(false)` o `setInventory` directo y
@@ -694,7 +716,7 @@ const Pantry = () => {
         const _chatDirty = _consumePantryDirtyFromChat('mount');
         const _hasFreshCache = !_chatDirty && Boolean(getCachedInventory());
         if (_hasFreshCache) {
-            // Cache fresh → trust it + realtime channel. Cero re-render
+            // Cache fresh → trust it + refetch-on-focus. Cero re-render
             // adicional al mount. Datos cacheados quedan visibles snap.
             return;
         }
@@ -712,125 +734,63 @@ const Pantry = () => {
         }
     }, [inventory, loading]);
 
-    // 1b. Real-time sync: anula el "efecto eco" procesando el payload en vez de hacer refetch global
-    // [P3-PANTRY-RT-DEFER · 2026-05-19] Difiere el `supabase.channel(...).subscribe()`
-    // 200ms tras el mount. El WebSocket handshake + envío de auth + ACK
-    // del servidor Realtime son trabajo síncrono parcial que compite con
-    // el primer paint del componente. Diferirlo asegura que la UI se
-    // pinta antes que se establezca la conexión. UPDATE/INSERT/DELETE
-    // externos en ese gap de 200ms los recoge el próximo fetchData o
-    // cache miss.
+    // 1b. Sync multi-tab/device: refetch al volver al tab/window.
+    // [P1-NEON-DB-MIGRATION · 2026-06-12] El canal Realtime `pantry-realtime`
+    // (consumía payload INSERT/UPDATE/DELETE de `user_inventory`) y su helper
+    // `fetchAndAddSingleItem` fueron eliminados — la publicación Realtime
+    // muere con el cutover a Neon. Reemplazo: el patrón del Dashboard
+    // (refresh on visibilitychange/focus) + el refetch post-mutación que ya
+    // hacen los handlers. `fetchData(false)` es silencioso (sin skeleton) y
+    // pisa el cache singleton. NO añadimos polling permanente: el caso
+    // multi-tab/device queda cubierto por el retorno al tab.
     useEffect(() => {
         if (!session?.user?.id) return;
-
-        let channel = null;
-        let cancelled = false;
-
-        const fetchAndAddSingleItem = async (itemId) => {
-            try {
-                const { data, error } = await supabase
-                    .from('user_inventory')
-                    .select('*, master_ingredients(name, category, default_unit, market_container, shelf_life_days)')
-                    .eq('id', itemId)
-                    .single();
-                if (error) throw error;
-                if (data) {
-                    setInventory(prev => {
-                        if (prev.some(item => item.id === data.id)) return prev;
-                        return [...prev, data].sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name));
-                    });
-                }
-            } catch (err) {
-                console.error("Error fetching realtime item:", err);
-            }
+        const refreshInventoryOnFocus = () => { fetchData(false); };
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') refreshInventoryOnFocus();
         };
-
-        const _subscribeRealtime = () => {
-            if (cancelled) return;
-            channel = supabase
-                .channel('pantry-realtime')
-                .on('postgres_changes', {
-                    event: '*',
-                    schema: 'public',
-                    table: 'user_inventory',
-                    filter: `user_id=eq.${session.user.id}`
-                }, (payload) => {
-                    if (payload.eventType === 'DELETE') {
-                        setInventory(prev => prev.filter(item => item.id !== payload.old.id));
-                    } else if (payload.eventType === 'UPDATE') {
-                        setInventory(prev => prev.map(item =>
-                            item.id === payload.new.id ? { ...item, ...payload.new } : item
-                        ));
-                    } else if (payload.eventType === 'INSERT') {
-                        if (!inventoryRef.current.some(item => item.id === payload.new.id)) {
-                            fetchAndAddSingleItem(payload.new.id);
-                        }
-                    }
-                })
-                .subscribe();
-        };
-
-        // Diferir el subscribe hasta que el browser esté idle (o 200ms
-        // worst case). El idle callback corre tras el primer paint.
-        let _idleHandle = null;
-        let _fallbackTimer = null;
-        if (typeof window.requestIdleCallback === 'function') {
-            _idleHandle = window.requestIdleCallback(_subscribeRealtime, { timeout: 200 });
-        } else {
-            _fallbackTimer = setTimeout(_subscribeRealtime, 200);
-        }
-
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', refreshInventoryOnFocus);
         return () => {
-            cancelled = true;
-            if (_idleHandle && typeof window.cancelIdleCallback === 'function') {
-                window.cancelIdleCallback(_idleHandle);
-            }
-            if (_fallbackTimer) clearTimeout(_fallbackTimer);
-            if (channel) supabase.removeChannel(channel);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', refreshInventoryOnFocus);
         };
     }, [session?.user?.id]);
 
     const fetchData = async (isInitial = true) => {
         if (isInitial) setLoading(true);
         try {
-            // [P5-SPEED-PANTRY-MOUNT-PARALLEL · 2026-06-01] user_inventory y
-            // master_ingredients son tablas independientes (el catálogo es
-            // cuasi-inmutable y no depende del inventario). Antes se awaitaban en
-            // serie: el roundtrip del catálogo (~19.8KB) se sumaba DESPUÉS del
-            // inventario en el cold-mount. Ahora disparamos ambas queries a la vez
-            // y resolvemos con Promise.all (los query builders de Supabase ejecutan
-            // al ser awaiteados → Promise.all las corre concurrentes). El catálogo
-            // solo se pide cuando aún no está cargado (igual que antes).
+            // [P5-SPEED-PANTRY-MOUNT-PARALLEL · 2026-06-01] inventario y
+            // catálogo son fuentes independientes (el catálogo es
+            // cuasi-inmutable y no depende del inventario) — Promise.all
+            // las corre concurrentes. El catálogo solo se pide cuando aún
+            // no está cargado (igual que antes).
+            // [P1-NEON-DB-MIGRATION · 2026-06-12] Transporte migrado a los
+            // endpoints backend: GET /api/inventory devuelve {items} con el
+            // embed master_ingredients anidado (shape idéntico al select
+            // PostgREST legacy, solo quantity>0, orden ingredient_name ASC);
+            // GET /api/catalog devuelve {items} con master_ingredients
+            // completo. supabase-js ya no habla con la DB post-cutover.
             const needMaster = !masterListLoaded.current;
-            const invPromise = supabase
-                .from('user_inventory')
-                .select('*, master_ingredients(name, category, default_unit, market_container, shelf_life_days)')
-                .eq('user_id', session.user.id)
-                .gt('quantity', 0)
-                .order('ingredient_name', { ascending: true });
-            const masterPromise = needMaster
-                ? supabase.from('master_ingredients').select('*').order('name', { ascending: true })
-                : null;
+            const invPromise = _apiJson('/api/inventory');
+            const masterPromise = needMaster ? _apiJson('/api/catalog') : null;
 
-            const [{ data: invData, error: invError }, masterRes] = await Promise.all([
+            const [invJson, masterJson] = await Promise.all([
                 invPromise,
                 masterPromise,
             ]);
 
-            if (invError) throw invError;
-            const _invRows = invData || [];
+            const _invRows = invJson?.items || [];
             setInventory(_invRows);
             // [P3-PANTRY-CACHE · 2026-05-19] Persiste al singleton tras
             // éxito. Próximo mount renderiza con cache vigente sin
-            // skeleton. Mutaciones (delete/increment/restock/realtime)
-            // siguen llamando fetchData → pisan el cache acá mismo.
+            // skeleton. Mutaciones (delete/increment/restock) siguen
+            // llamando fetchData → pisan el cache acá mismo.
             setCachedInventory(_invRows);
 
             // Fetch Master List (solo una vez; cambios son rarísimos)
             if (needMaster) {
-                const { data: masterData, error: masterError } = masterRes;
-                if (masterError) throw masterError;
-                const _masterRows = masterData || [];
+                const _masterRows = masterJson?.items || [];
                 setMasterList(_masterRows);
                 // [P3-PANTRY-CACHE · 2026-05-19] Catálogo cuasi-inmutable.
                 // Cache 24h cross-mount cubre toda la sesión típica del
@@ -884,10 +844,10 @@ const Pantry = () => {
     // todavía en la lista "por comprar".
     //
     // NO se invoca tras `handleUpdateQuantity` porque los cambios de
-    // cantidad ya quedan reflejados via el RPC `increment_inventory_quantity`
-    // (que actualiza user_inventory directo) + el render del Dashboard
-    // recalcula sobre liveInventory. Llamar al recalc en cada qty change
-    // dispararía N HTTP innecesarios por la ráfaga del velocímetro turbo.
+    // cantidad ya quedan persistidos via POST /api/inventory/increment
+    // (incremento atómico server-side sobre user_inventory) + el render del
+    // Dashboard recalcula sobre liveInventory. Llamar al recalc en cada qty
+    // change dispararía N HTTP innecesarios por la ráfaga del velocímetro turbo.
     //
     // Best-effort: si el recálculo falla, NO bloquea al usuario — el
     // cambio en pantry ya se persistió y el PDF lo recoge en la próxima
@@ -923,16 +883,13 @@ const Pantry = () => {
             try {
                 // calc_household_size / calc_grocery_duration NO son columnas
                 // top-level en meal_plans — viven dentro de plan_data jsonb.
-                // Pedirlas en el SELECT producía 400 silencioso (absorbido por
-                // el try/catch, ruido en consola). Las leemos del jsonb abajo.
-                const { data: latestRows, error: latestErr } = await supabase
-                    .from('meal_plans')
-                    .select('id, updated_at, plan_data')
-                    .eq('user_id', session.user.id)
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-                if (!latestErr && latestRows && latestRows.length > 0) {
-                    const latest = latestRows[0];
+                // [P1-NEON-DB-MIGRATION · 2026-06-12] Pre-check vía GET
+                // /api/plans-data/latest (antes SELECT directo a meal_plans
+                // con supabase-js). Mismo shape: {id, updated_at, plan_data}
+                // con timestamps ISO-8601 — los consumers no cambian.
+                const _latestJson = await _apiJson('/api/plans-data/latest?include_plan_data=true');
+                const latest = _latestJson?.plan;
+                if (latest && latest.id) {
                     const localId = planData?.id;
                     const localUpdatedAt = planData?.updated_at;
                     if (
@@ -1100,11 +1057,11 @@ const Pantry = () => {
     // Hermano omitido de P2-PANTRY-TURBO-HOLD-CLEANUP (que solo barría los refs
     // del turbo holdTimeout/holdInterval, no pendingOps). Si el user cambia una
     // cantidad y navega fuera de /pantry dentro de los 500ms del debounce, el
-    // setTimeout sobrevive al unmount: dispara el RPC (benigno) y luego
-    // setSavingItem(null) + (en fallo) fetchData(false)/toast sobre componente
-    // desmontado → fetch redundante + toast fantasma en página abandonada. El
-    // cleanup cancela los timeouts pendientes. La suscripción Realtime de
-    // user_inventory + el fetch al re-montar reconcilian el estado.
+    // setTimeout sobrevive al unmount: dispara el POST de increment (benigno)
+    // y luego setSavingItem(null) + (en fallo) fetchData(false)/toast sobre
+    // componente desmontado → fetch redundante + toast fantasma en página
+    // abandonada. El cleanup cancela los timeouts pendientes. El fetch al
+    // re-montar (+ refetch on focus) reconcilia el estado.
     useEffect(() => {
         return () => {
             try {
@@ -1162,11 +1119,16 @@ const Pantry = () => {
                 const delta = finalTarget - op.baselineQty;
 
                 if (delta !== 0) {
-                    const { error } = await supabase.rpc('increment_inventory_quantity', {
-                        p_id: id,
-                        p_delta: delta
+                    // [P1-NEON-DB-MIGRATION · 2026-06-12] Reemplaza la RPC
+                    // `increment_inventory_quantity` (SECURITY DEFINER +
+                    // auth.uid()). Mismo incremento atómico server-side
+                    // (UPDATE ... SET quantity = quantity + delta), ahora
+                    // vía backend con filtro user_id explícito (I2).
+                    await _apiJson('/api/inventory/increment', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ item_id: id, delta }),
                     });
-                    if (error) throw error;
                 }
             } catch (error) {
                 console.error("Error updating quantity:", error);
@@ -1225,13 +1187,20 @@ const Pantry = () => {
 
         // Delete inmediato de la DB para evitar "fantasmas"
         try {
-            await supabase.from('user_inventory').delete().eq('id', id);
+            // [P1-NEON-DB-MIGRATION · 2026-06-12] DELETE /api/inventory/items/{id}
+            // (antes supabase.from('user_inventory').delete()). El backend filtra
+            // user_id explícito (I2). 404 = el row ya no existía (otro tab/device
+            // lo borró) — objetivo cumplido, NO revertimos: el delete legacy de
+            // PostgREST con 0 rows afectadas también era éxito silencioso.
+            await _apiJson(`/api/inventory/items/${id}`, { method: 'DELETE' });
         } catch (error) {
-            console.error("Error deleting:", error);
-            // Revertir en la UI si falla
-            setInventory(prev => [...prev, deletedItem].sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name)));
-            toast.error(`Error al eliminar ${deletedItem.ingredient_name}`);
-            return;
+            if (error?.status !== 404) {
+                console.error("Error deleting:", error);
+                // Revertir en la UI si falla
+                setInventory(prev => [...prev, deletedItem].sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name)));
+                toast.error(`Error al eliminar ${deletedItem.ingredient_name}`);
+                return;
+            }
         }
 
         // Marcar como "agotado" para que siga visible en el listado con la
@@ -1247,15 +1216,25 @@ const Pantry = () => {
                 label: 'Deshacer',
                 onClick: async () => {
                     // Re-insertar en la DB
+                    // [P1-NEON-DB-MIGRATION · 2026-06-12] POST /api/inventory/items
+                    // — la respuesta {item} ya trae el embed master_ingredients
+                    // (paridad con el .select() del insert legacy).
                     try {
-                        const { id: oldId, master_ingredients, ...itemToInsert } = deletedItem;
-                        const { data, error } = await supabase
-                            .from('user_inventory')
-                            .insert([itemToInsert])
-                            .select('*, master_ingredients(name, category, default_unit, market_container, shelf_life_days)')
-                            .single();
-
-                        if (error) throw error;
+                        const oldId = deletedItem.id;
+                        const _json = await _apiJson('/api/inventory/items', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ingredient_name: deletedItem.ingredient_name,
+                                quantity: deletedItem.quantity,
+                                unit: deletedItem.unit,
+                                master_ingredient_id: deletedItem.master_ingredient_id || null,
+                                source: deletedItem.source || null,
+                                category: deletedItem.category || null,
+                            }),
+                        });
+                        const data = _json?.item;
+                        if (!data) throw new Error('INSERT sin item en la respuesta.');
 
                         // Insertar nueva data devuelta por DB
                         setInventory(prev =>
@@ -1293,9 +1272,11 @@ const Pantry = () => {
         setShowDeleteConfirm(false);
         const loadingToast = toast.loading('Borrando todos los alimentos...');
         try {
-            const { error } = await supabase.from('user_inventory').delete().eq('user_id', session.user.id);
-            if (error) throw error;
-            
+            // [P1-NEON-DB-MIGRATION · 2026-06-12] DELETE /api/inventory/items
+            // (sin id = vaciar nevera completa) → {deleted_count}. El backend
+            // filtra user_id server-side (I2) — el delete legacy confiaba en RLS.
+            await _apiJson('/api/inventory/items', { method: 'DELETE' });
+
             setInventory([]);
             // Vaciar también la lista de "agotados" — el usuario está empezando
             // desde cero, no tiene sentido conservar recordatorios viejos.
@@ -1304,8 +1285,8 @@ const Pantry = () => {
             // tabla `user_depleted_items` (cross-device), que `_fetchAndApply`
             // repoblaba al próximo mount → los agotados reaparecían. Borrarlos en
             // BD vía el endpoint dedicado (best-effort: si falla, el clear local
-            // al menos da feedback inmediato; el realtime channel propaga el
-            // DELETE a otros tabs/devices).
+            // al menos da feedback inmediato; el refetch on focus de otros
+            // tabs/devices recoge el DELETE).
             _persistDepleted([]);
             (async () => {
                 try {
@@ -1344,13 +1325,13 @@ const Pantry = () => {
     // etc. desde el inline picker. Pre-existente flujo "+1 con default_unit"
     // sigue funcionando si el caller no pasa overrides.
     //
-    // [P3-PANTRY-ADD-UX-INSERT · 2026-05-18] Reemplazado upsert(onConflict:
-    // 'user_id,master_ingredient_id') por INSERT plano + manejo de 23505.
-    // El upsert apuntaba a una constraint que NO existe en `user_inventory`
-    // (Postgres 42P10) — el único UNIQUE real es (user_id, ingredient_name,
-    // unit). El path "+1 al existing" cliente sigue siendo el camino feliz;
-    // el INSERT+23505 cubre legacy rows con master_id null y races de
-    // múltiples pestañas. Mismo patrón que `handleRestoreDepleted` (línea ~820).
+    // [P3-PANTRY-ADD-UX-INSERT · 2026-05-18] INSERT plano (NO upsert) + manejo
+    // de duplicado. El único UNIQUE real es (user_id, ingredient_name, unit).
+    // El path "+1 al existing" cliente sigue siendo el camino feliz; el
+    // INSERT+409 cubre legacy rows con master_id null y races de múltiples
+    // pestañas. Mismo patrón que `handleRestoreDepleted` (más abajo).
+    // [P1-NEON-DB-MIGRATION · 2026-06-12] El 409 del backend reemplaza al
+    // 23505 de PostgREST con la misma semántica: refetch + increment.
     const handleAddNewItem = async (masterItem, customQty = 1, customUnit = null) => {
         setIsAdding(true);
         try {
@@ -1391,25 +1372,28 @@ const Pantry = () => {
                 return;
             }
 
-            const newItem = {
-                user_id: session.user.id,
-                ingredient_name: masterItem.name,
-                master_ingredient_id: masterItem.id,
-                quantity: safeQty,
-                unit: finalUnit,
-            };
-
-            const { data, error } = await supabase
-                .from('user_inventory')
-                .insert([newItem])
-                .select('*, master_ingredients(name, category, default_unit, market_container, shelf_life_days)')
-                .single();
-
-            if (error) {
-                // 23505 = unique_violation. Race contra otra pestaña que ya
-                // insertó (user_id, ingredient_name, unit). Refetch y sumamos
-                // al row existente — UX consistente con click→+1.
-                if (error.code === '23505') {
+            // [P1-NEON-DB-MIGRATION · 2026-06-12] POST /api/inventory/items —
+            // el user_id sale del Bearer token (no viaja en el body) y la
+            // respuesta {item} ya trae el embed master_ingredients.
+            let data;
+            try {
+                const _json = await _apiJson('/api/inventory/items', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ingredient_name: masterItem.name,
+                        master_ingredient_id: masterItem.id,
+                        quantity: safeQty,
+                        unit: finalUnit,
+                    }),
+                });
+                data = _json?.item;
+            } catch (insErr) {
+                // 409 = duplicado UNIQUE (user_id, ingredient_name, unit) —
+                // misma semántica que el 23505 legacy. Race contra otra
+                // pestaña que ya insertó. Refetch y sumamos al row existente
+                // — UX consistente con click→+1.
+                if (insErr?.status === 409) {
                     await fetchData(false);
                     const dup = inventoryRef.current.find(i =>
                         i.master_ingredient_id === masterItem.id
@@ -1427,8 +1411,9 @@ const Pantry = () => {
                     _scheduleRecalcShoppingList();
                     return;
                 }
-                throw error;
+                throw insErr;
             }
+            if (!data) throw new Error('INSERT sin item en la respuesta.');
 
             toast.success(`${safeQty} ${finalUnit} de ${masterItem.name} en la nevera`);
             setInventory(prev => [...prev, data].sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name)));
@@ -1458,39 +1443,43 @@ const Pantry = () => {
     // Usa INSERT (no upsert) porque el row fue eliminado físicamente al
     // marcar agotado, no debería haber conflicto. El único UNIQUE en la
     // tabla es (user_id, ingredient_name, unit) — si por race condition
-    // otra pestaña re-añadió el item, Postgres devuelve 23505 que tratamos
-    // como "ya existe, todo bien".
+    // otra pestaña re-añadió el item, el backend devuelve 409 que tratamos
+    // como "ya existe, todo bien" (misma semántica que el 23505 legacy).
     const handleRestoreDepleted = async (entry) => {
         // Restaurar con la cantidad snapshot al momento de agotar (entry.quantity).
         // Entradas legacy sin quantity caen al fallback 1.
         const restoreQty = (typeof entry.quantity === 'number' && entry.quantity > 0)
             ? entry.quantity
             : 1;
-        const newItem = {
-            user_id: session.user.id,
-            ingredient_name: entry.ingredient_name,
-            master_ingredient_id: entry.master_ingredient_id || null,
-            quantity: restoreQty,
-            unit: entry.unit || 'unidad',
-        };
         try {
-            const { data, error } = await supabase
-                .from('user_inventory')
-                .insert([newItem])
-                .select('*, master_ingredients(name, category, default_unit, market_container, shelf_life_days)')
-                .single();
-            if (error) {
-                // 23505 = unique_violation. El item ya existe en DB (race con
-                // otra pestaña / sync remoto). Refrescamos para que aparezca
-                // y tratamos como éxito.
-                if (error.code === '23505') {
+            // [P1-NEON-DB-MIGRATION · 2026-06-12] POST /api/inventory/items —
+            // la respuesta {item} ya trae el embed master_ingredients.
+            let data;
+            try {
+                const _json = await _apiJson('/api/inventory/items', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ingredient_name: entry.ingredient_name,
+                        master_ingredient_id: entry.master_ingredient_id || null,
+                        quantity: restoreQty,
+                        unit: entry.unit || 'unidad',
+                    }),
+                });
+                data = _json?.item;
+            } catch (insErr) {
+                // 409 = el item ya existe en DB (race con otra pestaña /
+                // sync remoto). Refrescamos para que aparezca y tratamos
+                // como éxito.
+                if (insErr?.status === 409) {
                     await fetchData(false);
                     _removeDepleted(entry);
                     toast.success(`${entry.ingredient_name} ya estaba en tu nevera`, { icon: '✅', duration: 2000 });
                     return;
                 }
-                throw error;
+                throw insErr;
             }
+            if (!data) throw new Error('INSERT sin item en la respuesta.');
             setInventory(prev => [...prev.filter(i => i.id !== data.id), data].sort((a, b) =>
                 a.ingredient_name.localeCompare(b.ingredient_name)
             ));

@@ -1,8 +1,12 @@
 import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+// [P1-NEON-DB-MIGRATION · 2026-06-12] `supabase` queda SOLO para auth
+// (getSession del POST consume). Los SELECTs de user_inventory migraron
+// a GET /api/inventory via fetchWithAuth (la DB vive en Neon; PostgREST
+// apunta al Postgres stale de Supabase).
 import { supabase } from '../supabase';
-import { API_BASE } from '../config/api';
+import { API_BASE, fetchWithAuth } from '../config/api';
 import { useAssessment } from '../context/AssessmentContext';
 import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation';
 
@@ -106,25 +110,28 @@ export const useRegeneratePlan = () => {
             let currentLiveInventory = liveInventory;
             if (currentLiveInventory === null) {
                 try {
-                    const { data } = await supabase
-                        .from('user_inventory')
-                        .select('ingredient_name, quantity, unit, master_ingredients(name, category)')
-                        .eq('user_id', userProfile?.id)
-                        .gt('quantity', 0);
-                    currentLiveInventory = data || [];
+                    // [P1-NEON-DB-MIGRATION · 2026-06-12] GET backend (embed
+                    // master_ingredients incluido, solo quantity > 0 — misma
+                    // proyección que el select PostgREST legacy). Best-effort:
+                    // si falla, seguimos con [] como antes.
+                    const res = await fetchWithAuth('/api/inventory');
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const body = await res.json();
+                    currentLiveInventory = Array.isArray(body && body.items) ? body.items : [];
                 } catch (e) {
                     currentLiveInventory = [];
                 }
             } else {
                 // GAP 9: Verificación de staleness (Inventory drift)
                 try {
-                    const { data: dbData } = await supabase
-                        .from('user_inventory')
-                        .select('ingredient_name, quantity, unit, master_ingredients(name, category)')
-                        .eq('user_id', userProfile?.id)
-                        .gt('quantity', 0);
+                    // [P1-NEON-DB-MIGRATION · 2026-06-12] Mismo GET backend
+                    // para el staleness-check. Best-effort: si falla, seguimos
+                    // con el inventario que nos pasaron (catch de abajo).
+                    const res = await fetchWithAuth('/api/inventory');
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const body = await res.json();
 
-                    const dbInventory = dbData || [];
+                    const dbInventory = Array.isArray(body && body.items) ? body.items : [];
 
                     // Comparación rápida serializada
                     const strDb = JSON.stringify(dbInventory.map(i => ({n: i.ingredient_name, q: i.quantity, u: i.unit})).sort((a,b)=>a.n.localeCompare(b.n)));

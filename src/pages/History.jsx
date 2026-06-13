@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { supabase } from '../supabase';
-import { deletePlanFromHistory, getHistoryList, getLessonsCounts, getPlanLessonsDetail, getPlanCoherenceHistory, getHistoryStatusSummary, getPlanBlockedReasons, getPlanChunkMetrics, getPlanLifetimeLessons, renamePlan } from '../config/api';
+// [P1-NEON-DB-MIGRATION · 2026-06-12] Eliminado `import { supabase }`: el
+// único uso ejecutable era el select de plan_data en _loadPlanDataLazy,
+// migrado a GET /api/plans-data/{plan_id} (la DB vive en Neon; PostgREST
+// apunta al Postgres stale de Supabase).
+import { fetchWithAuth, deletePlanFromHistory, getHistoryList, getLessonsCounts, getPlanLessonsDetail, getPlanCoherenceHistory, getHistoryStatusSummary, getPlanBlockedReasons, getPlanChunkMetrics, getPlanLifetimeLessons, renamePlan } from '../config/api';
 import { useAssessment } from '../context/AssessmentContext';
 import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -689,17 +692,21 @@ const History = () => {
         }
         try {
             // [P6-SPEED-HIST-GETUSER · 2026-06-01] id de la sesión ya hidratada
-            // (lectura síncrona, sin roundtrip) — patrón del resto del árbol.
+            // (lectura síncrona, sin roundtrip). Pre-check barato: sin sesión
+            // el endpoint devolvería 401 — preservamos el `return null`
+            // silencioso del flujo legacy.
             const uid = session?.user?.id;
             if (!uid) return null;
-            const { data, error } = await supabase
-                .from('meal_plans')
-                .select('plan_data')
-                .eq('id', planSummary.id)
-                .eq('user_id', uid)
-                .maybeSingle();
-            if (error) throw error;
-            return (data && data.plan_data) || {};
+            // [P1-NEON-DB-MIGRATION · 2026-06-12] GET backend con ownership
+            // server-side (I2) — reemplaza el select directo de PostgREST
+            // (la DB vive en Neon; supabase-js ya no la ve). 404 = plan
+            // inexistente o ajeno → mismo manejo que el `maybeSingle` null
+            // legacy: objeto vacío, sin toast de error.
+            const res = await fetchWithAuth(`/api/plans-data/${planSummary.id}`);
+            if (res.status === 404) return {};
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const body = await res.json();
+            return (body && body.plan && body.plan.plan_data) || {};
         } catch (err) {
             console.error('Error cargando plan_data del plan:', err);
             toast.error('No se pudo cargar el detalle del plan');
