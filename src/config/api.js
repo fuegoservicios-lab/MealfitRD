@@ -28,7 +28,7 @@ export const api = (path) => `${API_BASE}${path}`;
 // donde el lookup de token/sesión cuelga (refresh token expirado + network
 // slow). Si tarda >5s, seguimos sin token: el endpoint devolverá 401 y el
 // caller decide (empty state, redir a login) — mejor que pegarse en spinner.
-const _AUTH_SESSION_TIMEOUT_MS = 5000;
+const _AUTH_SESSION_TIMEOUT_MS = 10000;  // [P1-NEON-AUTH-MIGRATION 2026-06-13] 5s→10s: margen para el fetch cross-origin a Neon Auth en redes lentas
 
 // [P1-NEON-AUTH-MIGRATION · 2026-06-13] Custom fetch wrapper que adjunta el
 // JWT EdDSA de Neon Auth. `getBackendToken()` prefiere el accesor explícito

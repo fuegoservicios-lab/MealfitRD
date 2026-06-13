@@ -1095,17 +1095,21 @@ export const AssessmentProvider = ({ children }) => {
         };
 
         // Obtener sesión inicial con Timeout
+        // [P1-NEON-AUTH-MIGRATION · 2026-06-13] Timeout 10s (era 5s): el SDK de
+        // Neon Auth hace un fetch cross-origin al servicio de auth (us-east-1);
+        // en redes lentas o con el servicio en cold-start, 5s tiraba a guest de
+        // más. 10s da margen sin colgar la UI indefinidamente.
         const getSessionWithTimeout = () => {
             return Promise.race([
                 supabase.auth.getSession(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout obteniendo sesión")), 5000))
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout obteniendo sesión")), 10000))
             ]);
         };
 
         getSessionWithTimeout().then(({ data: { session: initialSession } }) => {
             handleAuthChange(initialSession);
         }).catch((err) => {
-            console.warn("⚠️ Advertencia: No se pudo verificar la sesión de Supabase (posible fallo de red o DNS). Iniciando en modo offline/guest.");
+            console.warn("⚠️ Advertencia: No se pudo verificar la sesión (Neon Auth inalcanzable — posible fallo de red, firewall o DNS). Iniciando en modo offline/guest.");
             setLoadingAuth(false);
             setLoadingData(false);
             // [P1-10] Sin session verificable → NO hay profile que hidratar.
