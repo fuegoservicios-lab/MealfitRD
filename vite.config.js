@@ -134,7 +134,8 @@ export default defineConfig(({ mode }) => ({
         manualChunks: {
           // Vendor: heavy libs cached separately
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-supabase': ['@supabase/supabase-js'],
+          // [P1-NEON-AUTH-MIGRATION · 2026-06-13] supabase-js → neon-js (Neon Auth).
+          'vendor-neon-auth': ['@neondatabase/neon-js'],
           // [P1-PERF-FRAMER-SPLIT · 2026-05-31] framer-motion REMOVIDO de
           // vendor-ui y SIN manualChunk propio. Antes vivía junto a lucide-react +
           // sonner; como ambos se importan EAGER (lucide en Login/Register/Header/

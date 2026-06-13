@@ -22,6 +22,8 @@ vi.mock('../supabase', () => ({
         auth: { getSession: vi.fn().mockResolvedValue({ data: { session: null } }) },
         from: vi.fn(),
     },
+    getBackendToken: vi.fn().mockResolvedValue(null),
+    verifyCurrentPassword: vi.fn().mockResolvedValue(true),
 }));
 
 import { fetchWithAuth } from '../config/api';

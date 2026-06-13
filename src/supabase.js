@@ -1,37 +1,88 @@
-
-import { createClient } from '@supabase/supabase-js';
-
-// [P1-AUDIT-2 · 2026-05-12 · finalizado P1-FRONTEND-1 2026-05-12]
-// URL + anon-key se leen exclusivamente de variables de entorno Vite.
-// Pre-fix, este archivo declaraba `_LEGACY_URL` / `_LEGACY_ANON_KEY`
-// hardcoded como fallback para back-compat por una release. Cumplido:
-// audit 2026-05-11 confirmó que los entornos productivos ya tienen
-// .env correcto. Mantener el fallback más tiempo es activo riesgo:
-// un build de QA con .env vacío apuntaba silenciosamente a producción
-// (el anon-key es público por diseño pero `_LEGACY_URL` clavaba el
-// proyecto).
+// [P1-NEON-AUTH-MIGRATION · 2026-06-13] Cliente de auth = Neon Auth (Better Auth)
+// via el SDK @neondatabase/neon-js con `SupabaseAuthAdapter` (API compatible con
+// supabase-js). Reemplaza @supabase/supabase-js por completo.
 //
-// Comportamiento ahora:
-//   - Si ambas env vars están presentes → cliente Supabase normal.
-//   - Si alguna falta → THROW en el módulo (Vite expone error en build
-//     prod; en dev `npm run dev` también falla al primer import).
+// Por qué drop-in: el adapter expone los MISMOS métodos que el frontend ya usa
+// (`signInWithPassword`, `signUp`, `signInWithOAuth`, `getSession`, `getUser`,
+// `signOut`, `onAuthStateChange`, `updateUser`, `resetPasswordForEmail`), así
+// que conservamos el nombre `supabase` y el resto del código no cambia sus
+// llamadas `supabase.auth.X`.
 //
-// Esto fuerza disciplina de entorno y bloquea cross-environment leak.
+// Datos: el frontend NO habla con ninguna DB directamente — usa el backend
+// FastAPI via `fetchWithAuth` (config/api.js). El backend valida el JWT EdDSA
+// de Neon Auth contra el JWKS (backend/neon_auth.py). Por eso NO usamos la
+// Data API de Neon; `createClient` la exige en su config pero su URL nunca se
+// invoca (no llamamos `.from()`).
 //
-// Anchor: P1-FRONTEND-1-NO-HARDCODED-FALLBACK
-// Tests:
-//   - frontend/src/__tests__/supabase_env_vars.test.js
-//   - frontend/src/__tests__/supabase_no_legacy_fallback.test.js (P1-FRONTEND-1)
+// Anchor: P1-NEON-AUTH-MIGRATION
+// Tests: frontend/src/__tests__/supabase_env_vars.test.js
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+import { createClient, SupabaseAuthAdapter } from '@neondatabase/neon-js';
 
-if (!supabaseUrl || !supabaseAnonKey) {
+const neonAuthUrl = import.meta.env.VITE_NEON_AUTH_URL;
+
+if (!neonAuthUrl) {
     throw new Error(
-        '[P1-FRONTEND-1] VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY son ' +
-        'obligatorias. Setear ambas en .env del entorno antes de build. ' +
-        'Ver frontend/.env.example para los valores esperados.'
+        '[P1-NEON-AUTH] VITE_NEON_AUTH_URL es obligatoria. Setearla en .env ' +
+        '(Auth Base URL de Neon Auth, p.ej. https://ep-xxx.neonauth.../neondb/auth). ' +
+        'Ver frontend/.env.example.'
     );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// `dataApi.url` es requerido por el tipo de createClient pero NUNCA se llama
+// (el frontend no usa `.from()` — todo dato va por el backend). Derivado del
+// auth URL para que sea un URL válido sintácticamente.
+const _dataApiUrl = neonAuthUrl.replace(/\/auth\/?$/, '') + '/rest/v1';
+
+const _client = createClient({
+    auth: { url: neonAuthUrl, adapter: SupabaseAuthAdapter() },
+    dataApi: { url: _dataApiUrl },
+});
+
+// Drop-in: el resto del frontend usa `supabase.auth.X` sin cambios.
+export const supabase = _client;
+
+// [P1-NEON-AUTH] Token EdDSA para autenticar contra el backend. El backend
+// (neon_auth.verify_neon_jwt) valida este JWT contra el JWKS de Neon Auth.
+// Estrategia robusta: preferimos el accesor explícito `getJWTToken()`; si no
+// está disponible o no devuelve un JWT, caemos a `session.access_token` (que
+// bajo el adapter Supabase-compat también es el JWT). Retorna null si no hay
+// sesión — el caller maneja el 401.
+export async function getBackendToken() {
+    try {
+        if (typeof _client.auth.getJWTToken === 'function') {
+            const r = await _client.auth.getJWTToken();
+            const tok = r?.data?.token || r?.token || (typeof r === 'string' ? r : null);
+            if (tok && tok.split('.').length === 3) return tok;
+        }
+    } catch {
+        // fallthrough al fallback de sesión
+    }
+    try {
+        const { data: { session } = {} } = await _client.auth.getSession();
+        const at = session?.access_token;
+        if (at && at.split('.').length === 3) return at;
+    } catch {
+        // sin sesión válida
+    }
+    return null;
+}
+
+// [P1-NEON-AUTH] Verifica la contraseña ACTUAL sin tocar la sesión principal
+// (reemplaza el cliente Supabase efímero de AccountSettings). Hace un sign-in
+// throwaway contra el endpoint de Neon Auth: si las credenciales son válidas
+// retorna true. No persiste la sesión resultante en el cliente principal.
+// Retorna false ante credenciales inválidas o error de red.
+export async function verifyCurrentPassword(email, password) {
+    try {
+        const res = await fetch(`${neonAuthUrl}/sign-in/email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+            credentials: 'omit', // no escribir cookie de sesión
+        });
+        return res.ok;
+    } catch {
+        return false;
+    }
+}

@@ -20,9 +20,9 @@
     "dompurify": "^3.4.7"
   },
   "dependencies": {
+    "@neondatabase/neon-js": "^0.6.2-beta",
     "@paypal/react-paypal-js": "^8.9.2",
     "@sentry/react": "^10.47.0",
-    "@supabase/supabase-js": "^2.93.3",
     "clsx": "^2.1.1",
     "framer-motion": "^12.28.1",
     "html2pdf.js": "^0.14.0",

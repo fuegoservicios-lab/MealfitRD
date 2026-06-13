@@ -18,9 +18,8 @@ import {
     ArrowLeft, Check, ShieldCheck, Palette,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { createClient } from '@supabase/supabase-js';
 import { useAssessment } from '../context/AssessmentContext';
-import { supabase } from '../supabase';
+import { supabase, verifyCurrentPassword } from '../supabase';
 import { applyThemePref, getStoredThemePref } from '../utils/theme';
 import { safeLocalStorageSet } from '../utils/safeLocalStorage';
 
@@ -108,22 +107,14 @@ const AccountSettings = () => {
         }
         setSavingPassword(true);
         try {
-            // [ACCOUNT-PASSWORD-REAUTH · 2026-06-01] Verificar la contraseña ACTUAL
-            // con un cliente Supabase efímero (persistSession:false +
-            // autoRefreshToken:false + storageKey propio) → NO toca la sesión
-            // principal ni dispara su onAuthStateChange. Si las credenciales son
-            // correctas, recién entonces aplicamos la nueva contraseña con el
+            // [ACCOUNT-PASSWORD-REAUTH · 2026-06-01 · migrado a Neon Auth
+            // P1-NEON-AUTH-MIGRATION 2026-06-13] Verificar la contraseña ACTUAL
+            // sin tocar la sesión principal: `verifyCurrentPassword` hace un
+            // sign-in throwaway contra el endpoint de Neon Auth (credentials:
+            // 'omit', no persiste). Si es correcta, aplicamos la nueva con el
             // cliente principal (ya autenticado).
-            const verifier = createClient(
-                import.meta.env.VITE_SUPABASE_URL,
-                import.meta.env.VITE_SUPABASE_ANON_KEY,
-                { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'mealfit-pwverify' } },
-            );
-            const { error: verifyErr } = await verifier.auth.signInWithPassword({
-                email: accountEmail,
-                password: currentPassword,
-            });
-            if (verifyErr) {
+            const verified = await verifyCurrentPassword(accountEmail, currentPassword);
+            if (!verified) {
                 toast.error('La contraseña actual no es correcta.');
                 return;
             }

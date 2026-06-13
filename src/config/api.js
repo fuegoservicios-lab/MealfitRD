@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { getBackendToken } from '../supabase';
 
 // Central API configuration
 // En desarrollo, apuntamos directamente al servidor Python local.
@@ -25,38 +25,38 @@ export const API_BASE = import.meta.env.DEV ? 'http://127.0.0.1:3001' : (import.
 export const api = (path) => `${API_BASE}${path}`;
 
 // [P0-FETCH-AUTH-TIMEOUT · 2026-05-09] Promise.race protege contra el caso
-// donde `supabase.auth.getSession()` cuelga (refresh token expirado +
-// network slow, observado intermitente en local). Antes el `await raw`
-// podía bloquear FOREVER (no rechaza, no resuelve) → cualquier consumidor
-// que esperara la promesa quedaba pegado (síntoma: páginas en skeleton
-// infinito). Si el lookup tarda >5s, seguimos sin token: el endpoint
-// devolverá 401 y el caller decide qué hacer (mostrar empty state, redir
-// a login, etc.) — mucho mejor que pegarse en spinner.
+// donde el lookup de token/sesión cuelga (refresh token expirado + network
+// slow). Si tarda >5s, seguimos sin token: el endpoint devolverá 401 y el
+// caller decide (empty state, redir a login) — mejor que pegarse en spinner.
 const _AUTH_SESSION_TIMEOUT_MS = 5000;
-const _getSessionWithTimeout = async () => {
+
+// [P1-NEON-AUTH-MIGRATION · 2026-06-13] Custom fetch wrapper que adjunta el
+// JWT EdDSA de Neon Auth. `getBackendToken()` prefiere el accesor explícito
+// `getJWTToken()` y cae a `session.access_token` — ambos son el JWT que el
+// backend valida contra el JWKS. Envuelto en el mismo timeout de 5s (P0-FETCH-
+// AUTH-TIMEOUT) para no colgar el fetch si el lookup de sesión se atasca.
+const _getTokenWithTimeout = async () => {
     try {
-        const { data: { session } } = await Promise.race([
-            supabase.auth.getSession(),
+        return await Promise.race([
+            getBackendToken(),
             new Promise((_, reject) => setTimeout(
                 () => reject(new Error('AUTH_SESSION_TIMEOUT')),
                 _AUTH_SESSION_TIMEOUT_MS,
             )),
         ]);
-        return session;
     } catch (e) {
         if (e && e.message === 'AUTH_SESSION_TIMEOUT') {
-            console.warn(`⚠️ supabase.auth.getSession() timeout (${_AUTH_SESSION_TIMEOUT_MS}ms). Proceeding without token; expect 401.`);
+            console.warn(`⚠️ getBackendToken() timeout (${_AUTH_SESSION_TIMEOUT_MS}ms). Proceeding without token; expect 401.`);
         } else {
-            console.error('Error getting auth session for fetch:', e);
+            console.error('Error getting auth token for fetch:', e);
         }
         return null;
     }
 };
 
-// Custom fetch wrapper that includes Supabase auth token
+// Custom fetch wrapper that includes Neon Auth JWT
 export const fetchWithAuth = async (url, options = {}) => {
-    const session = await _getSessionWithTimeout();
-    const token = session?.access_token || null;
+    const token = await _getTokenWithTimeout();
 
     const headers = new Headers(options.headers || {});
     if (token) {

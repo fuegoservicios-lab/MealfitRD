@@ -6,13 +6,23 @@ import { vi } from 'vitest';
 
 vi.mock('../../supabase', () => ({
     supabase: {
+        auth: {
+            getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+            getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
+            onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+            signOut: vi.fn().mockResolvedValue({ error: null }),
+        },
         from: vi.fn().mockReturnThis(),
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
         single: vi.fn().mockResolvedValue({ data: null, error: null })
-    }
+    },
+    // [P1-NEON-AUTH-MIGRATION] api.js importa getBackendToken; AccountSettings
+    // importa verifyCurrentPassword. Sin estos exports el mock rompe los imports.
+    getBackendToken: vi.fn().mockResolvedValue(null),
+    verifyCurrentPassword: vi.fn().mockResolvedValue(true),
 }));
 
 export const mockAssessmentContext = {

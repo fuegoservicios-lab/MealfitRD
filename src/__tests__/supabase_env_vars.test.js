@@ -1,23 +1,15 @@
-// [P1-AUDIT-2 · 2026-05-12] `frontend/src/supabase.js` debe leer URL y
-// anon-key de variables de entorno Vite (`import.meta.env.VITE_SUPABASE_URL`
-// y `import.meta.env.VITE_SUPABASE_ANON_KEY`), no hardcoded.
-//
-// Pre-fix: ambos literales estaban inline en el archivo → imposible tener
-// staging/prod separados sin builds distintos. El anon-key es público por
-// diseño (viaja al browser), no es secreto, pero la separación de entornos
-// SÍ requiere flexibilidad.
-//
-// El fallback a los literales legacy se preserva por 1 release para
-// back-compat — este test NO exige que el fallback haya sido eliminado, solo
-// que las dos env vars estén leyéndose explícitamente.
+// [P1-NEON-AUTH-MIGRATION · 2026-06-13] `frontend/src/supabase.js` ahora crea
+// el cliente de Neon Auth (Better Auth) via @neondatabase/neon-js, leyendo el
+// Auth Base URL de `import.meta.env.VITE_NEON_AUTH_URL` (no hardcoded). Antes
+// (P1-AUDIT-2) leía VITE_SUPABASE_URL/ANON_KEY de Supabase.
 //
 // Cobertura (regex sobre el source):
-//   A) `import.meta.env.VITE_SUPABASE_URL` aparece como lectura.
-//   B) `import.meta.env.VITE_SUPABASE_ANON_KEY` aparece como lectura.
-//   C) `createClient(supabaseUrl, supabaseAnonKey)` mantiene el patrón de
-//      paso por variables (no parámetros literales).
-//   D) `frontend/.env.example` documenta las dos vars.
-//   E) Anchor `P1-AUDIT-2` presente en el código.
+//   A) `import.meta.env.VITE_NEON_AUTH_URL` aparece como lectura.
+//   B) El cliente se crea con la variable (no URL literal) via @neondatabase/neon-js.
+//   C) Throw si la env var falta (sin fallback hardcoded de neonauth).
+//   D) `frontend/.env.example` documenta VITE_NEON_AUTH_URL.
+//   E) NO quedan lecturas de VITE_SUPABASE_* (Supabase eliminado).
+//   F) Anchor `P1-NEON-AUTH` presente.
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
@@ -32,33 +24,30 @@ const _ENV_EXAMPLE = join(__dirname, '..', '..', '.env.example');
 const src = readFileSync(_SUPABASE_JS, 'utf8');
 const envExample = readFileSync(_ENV_EXAMPLE, 'utf8');
 
-describe('P1-AUDIT-2: frontend supabase.js lee env vars', () => {
-    it('A) lee VITE_SUPABASE_URL de import.meta.env', () => {
-        const pattern = /import\.meta\.env\.VITE_SUPABASE_URL/;
-        expect(pattern.test(src)).toBe(true);
+describe('P1-NEON-AUTH: frontend supabase.js lee Neon Auth URL de env', () => {
+    it('A) lee VITE_NEON_AUTH_URL de import.meta.env', () => {
+        expect(/import\.meta\.env\.VITE_NEON_AUTH_URL/.test(src)).toBe(true);
     });
 
-    it('B) lee VITE_SUPABASE_ANON_KEY de import.meta.env', () => {
-        const pattern = /import\.meta\.env\.VITE_SUPABASE_ANON_KEY/;
-        expect(pattern.test(src)).toBe(true);
+    it('B) usa @neondatabase/neon-js, no createClient con URL literal', () => {
+        expect(/@neondatabase\/neon-js/.test(src)).toBe(true);
+        expect(/createClient\s*\(\s*\{?\s*['"`]https?:\/\//.test(src)).toBe(false);
     });
 
-    it('C) createClient se invoca con variables (no string literales)', () => {
-        // Acepta `createClient(supabaseUrl, supabaseAnonKey)` u otros
-        // identifiers — solo verificamos que NO sea literal string directo.
-        const literalPattern = /createClient\s*\(\s*['"`]https?:\/\//;
-        expect(literalPattern.test(src)).toBe(false);
+    it('C) throw si VITE_NEON_AUTH_URL falta (sin fallback neonauth hardcoded)', () => {
+        expect(/throw new Error/.test(src)).toBe(true);
+        expect(/=\s*['"`]https?:\/\/[^'"`]*neonauth/.test(src)).toBe(false);
     });
 
-    it('D) .env.example documenta VITE_SUPABASE_URL', () => {
-        expect(envExample.includes('VITE_SUPABASE_URL=')).toBe(true);
+    it('D) .env.example documenta VITE_NEON_AUTH_URL', () => {
+        expect(envExample.includes('VITE_NEON_AUTH_URL')).toBe(true);
     });
 
-    it('D2) .env.example documenta VITE_SUPABASE_ANON_KEY', () => {
-        expect(envExample.includes('VITE_SUPABASE_ANON_KEY=')).toBe(true);
+    it('E) NO quedan lecturas de VITE_SUPABASE_* (Supabase eliminado)', () => {
+        expect(/VITE_SUPABASE_URL|VITE_SUPABASE_ANON_KEY/.test(src)).toBe(false);
     });
 
-    it('E) anchor P1-AUDIT-2 presente en supabase.js', () => {
-        expect(src.includes('P1-AUDIT-2')).toBe(true);
+    it('F) anchor P1-NEON-AUTH presente en supabase.js', () => {
+        expect(src.includes('P1-NEON-AUTH')).toBe(true);
     });
 });

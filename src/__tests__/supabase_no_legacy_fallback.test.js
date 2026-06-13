@@ -67,7 +67,10 @@ describe('P1-FRONTEND-1: supabase.js sin fallback hardcoded', () => {
         expect(pattern.test(src)).toBe(true);
     });
 
-    it('E) anchor P1-FRONTEND-1 presente', () => {
-        expect(src.includes('P1-FRONTEND-1')).toBe(true);
+    it('E) anchor de no-hardcoded-fallback presente (P1-FRONTEND-1 o P1-NEON-AUTH)', () => {
+        // [P1-NEON-AUTH-MIGRATION · 2026-06-13] El principio "sin fallback
+        // hardcoded + throw si falta env var" se preserva para el cliente de
+        // Neon Auth. El anchor migró de P1-FRONTEND-1 (Supabase) a P1-NEON-AUTH.
+        expect(src.includes('P1-FRONTEND-1') || src.includes('P1-NEON-AUTH')).toBe(true);
     });
 });
