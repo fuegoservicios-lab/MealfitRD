@@ -192,10 +192,24 @@ export const useRegeneratePlan = () => {
                     });
                 });
 
-                // Usamos allPlanIngredients menos los disabledIngredients
-                currentIngredients = currentAllPlanIngredients
-                    .filter(ingObj => !currentDisabledIngredients.includes(ingObj.name.toLowerCase().trim()))
-                    .map(ingObj => ingObj.id_string);
+                // [P0-PANTRY-RENEW-EMPTY-INV · 2026-06-13] Solo reusar los
+                // ingredientes del plan actual como RESTRICCIÓN de despensa si el
+                // usuario REALMENTE tiene inventario (marcó "Ya compré la lista" →
+                // user_inventory poblado). Con inventario VACÍO (no compró aún),
+                // "Renovar para variar los alimentos" es una generación FRESCA:
+                // pasar los ingredientes viejos hacía que el pantry guard del
+                // revisor médico rechazara los alimentos nuevos (la variación que
+                // el usuario pidió) → max_attempts → plan entregado degradado con
+                // alerta plan_quality_degraded. Sin inventario real, current_
+                // pantry_ingredients queda [] → el guard se auto-desactiva (no hay
+                // despensa que respetar). Para usuarios CON inventario, el
+                // comportamiento "reusa lo que compraste" se preserva intacto.
+                const _hasRealInventory = Array.isArray(currentLiveInventory) && currentLiveInventory.length > 0;
+                if (_hasRealInventory) {
+                    currentIngredients = currentAllPlanIngredients
+                        .filter(ingObj => !currentDisabledIngredients.includes(ingObj.name.toLowerCase().trim()))
+                        .map(ingObj => ingObj.id_string);
+                }
             }
 
             // --- Eliminar Ingredientes Agotados Físicamente ---
