@@ -5,7 +5,6 @@ import { CheckCircle, Loader2, Server, Activity, PieChart, Utensils, UtensilsCro
 
 import PropTypes from 'prop-types';
 
-import { supabase } from '../supabase';
 import { useAssessment } from '../context/AssessmentContext';
 import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api';
 import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation';
