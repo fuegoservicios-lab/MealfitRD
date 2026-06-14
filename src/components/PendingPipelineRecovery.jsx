@@ -97,7 +97,7 @@ export default function PendingPipelineRecovery() {
         // El check de auth lo hace `fetchWithAuth` internamente — si no hay
         // sesión, retorna 401 y nuestro `if (!res.ok)` salta. No necesitamos
         // pre-chequear aquí, lo cual evita una llamada redundante a
-        // `supabase.auth.getUser()` en cada navegación.
+        // `auth.getUser()` en cada navegación.
 
         const flag = readPendingFlag();
         if (!flag) return undefined;

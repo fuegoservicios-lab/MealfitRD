@@ -17,8 +17,8 @@ vi.mock('../hooks/useRegeneratePlan', () => ({
     useRegeneratePlan: vi.fn()
 }));
 
-vi.mock('../supabase', () => ({
-    supabase: { auth: { getSession: vi.fn().mockResolvedValue({ data: { session: null } }) } },
+vi.mock('../authClient', () => ({
+    authClient: { auth: { getSession: vi.fn().mockResolvedValue({ data: { session: null } }) } },
     getBackendToken: vi.fn().mockResolvedValue(null),
     verifyCurrentPassword: vi.fn().mockResolvedValue(true),
 }));

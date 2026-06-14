@@ -7,7 +7,7 @@
 //   - Meta diaria PERSONALIZADA: el backend deriva el goal desde
 //     `health_profile.weight + activityLevel` (formula 35ml/kg + bonus
 //     actividad). Rango [6, 14] vasos. Fallback a 8 si peso no esta cargado.
-//   - Persistencia: Supabase via endpoints backend `/api/plans/water-intake`
+//   - Persistencia: via endpoints backend `/api/plans/water-intake`
 //     (GET en mount, POST tras cada click).
 //   - Reset a medianoche local: cliente envia fecha local YYYY-MM-DD; el
 //     reset emerge del rollover. Watcher `setInterval(60s)` rehidrata cuando

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../supabase';
+import { authClient } from '../authClient';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, ArrowRight, AlertCircle, CheckCircle2, Loader2, Eye, EyeOff } from 'lucide-react';
 import { checkLeakedPassword } from '../utils/checkLeakedPassword';
@@ -16,12 +16,12 @@ const ResetPassword = () => {
     const redirectTimerRef = useRef(null);
 
     useEffect(() => {
-        // Verificar si estamos en una sesión de recuperación (Supabase la establece por URL)
+        // Verificar si estamos en una sesión de recuperación (el backend anterior la establece por URL)
         const checkSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await authClient.auth.getSession();
             if (!session) {
                 // Si alguien entra a esta URL sin un token válido en la URL (o si ya expiró),
-                // no tendrán sesión. Sin embargo, Supabase maneja el parseo de la URL automáticamente.
+                // no tendrán sesión. Sin embargo, el backend anterior maneja el parseo de la URL automáticamente.
                 // Si falla al actualizar, se le notificará.
             }
         };
@@ -65,7 +65,7 @@ const ResetPassword = () => {
         }
 
         try {
-            const { error } = await supabase.auth.updateUser({
+            const { error } = await authClient.auth.updateUser({
                 password: password
             });
 

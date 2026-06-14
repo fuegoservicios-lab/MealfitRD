@@ -449,7 +449,7 @@ export const generateAIPlanStream = async (formData, onProgress) => {
 // [P3-DOC-1 · 2026-05-11] `savePlanToHistory` eliminado.
 // ────────────────────────────────────────────────────────────────────────────
 // La función vivía aquí desde antes del audit 2026-05-11 con un INSERT directo
-// a `supabase.from('meal_plans').insert(...)` — única excepción restante a la
+// a `el cliente de DB anterior` — única excepción restante a la
 // invariante I6 ("toda mutación de meal_plans pasa por backend"). Audit
 // cross-codebase (`grep -r savePlanToHistory frontend/src`) confirmó CERO
 // callsites. La persistencia del plan post-SSE ya la hace el backend en
@@ -469,7 +469,7 @@ export const generateAIPlanStream = async (formData, onProgress) => {
 // endpoint backend `POST /api/plans/persist-from-stream` con auth + dedupe
 // + INSERT atómico + `acquire_meal_plan_advisory_lock(purpose='general')`
 // (mismas garantías que `swap-meal/persist`/`restore-local`). NO restaurar
-// el patrón directo `supabase.from('meal_plans').insert()`.
+// el patrón directo `el cliente de DB anterior`.
 //
 // Tooltip-anchor: P3-DOC-1-DEAD-CODE-REMOVED
 
@@ -1666,7 +1666,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     //
     // Calibración real (logs prod 2026-05-16): el pipeline completo tarda
     // 12-13 min (775s observado: planner 60s + day_gen paralelo 170s +
-    // self-critique 136s + reviewer 80s + assembly + retries con Supabase
+    // self-critique 136s + reviewer 80s + assembly + retries con el backend anterior
     // free tier que satura pool). Rango honesto = 10-15 min. Copy adapta:
     //   - <30s:     "Esto suele tomar entre 10 y 15 minutos."
     //   - 30s-15m:  "Transcurrido X:XX · estimado 10-15 minutos"

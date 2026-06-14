@@ -1,5 +1,5 @@
-// [P1-FRONTEND-1 · 2026-05-12] `frontend/src/supabase.js` NO debe declarar
-// `_LEGACY_URL` ni `_LEGACY_ANON_KEY` como fallback. Pre-fix:
+// [P1-FRONTEND-1 · 2026-05-12] `frontend/src/authClient.js` NO debe declarar
+// `_LEGACY_URL` ni `_LEGACY_ANON_KEY` como fallback. Pre-fix (SDK legacy):
 //
 //   const _LEGACY_URL = 'https://mpoodlmnzaeuuazsazbj.supabase.co';
 //   const _LEGACY_ANON_KEY = 'eyJh...';
@@ -28,10 +28,10 @@ import { dirname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const _SUPABASE_JS = join(__dirname, '..', 'supabase.js');
+const _SUPABASE_JS = join(__dirname, '..', 'authClient.js');
 const src = readFileSync(_SUPABASE_JS, 'utf8');
 
-describe('P1-FRONTEND-1: supabase.js sin fallback hardcoded', () => {
+describe('P1-FRONTEND-1: authClient.js sin fallback hardcoded', () => {
     it('A) `_LEGACY_URL` no declarado', () => {
         // Solo prohibimos la DECLARACIÓN como `const _LEGACY_URL =` —
         // referencias en comentarios siguen aceptables (documentar el

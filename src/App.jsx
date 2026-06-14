@@ -63,7 +63,7 @@ const PageLoader = () => <div className="min-h-screen bg-slate-50/50" />;
 // la `key` cambiaba → motion.div se desmontaba completo + remontaba →
 // TODO el árbol descendiente (Suspense → DashboardAnimatedLayout →
 // Outlet → Pantry) se desmontaba y remontaba. Pantry siendo el más
-// pesado (1100 líneas + 30+ items + Supabase realtime channel) tomaba
+// pesado (1100 líneas + 30+ items + realtime channel legacy) tomaba
 // ~120ms por mount × 2 mounts (uno por unmount + uno por remount) =
 // ~240-340ms perceptibles. Las páginas más livianas tenían el mismo bug
 // pero ~30ms × 2 = 60ms imperceptible. Diagnóstico via telemetría

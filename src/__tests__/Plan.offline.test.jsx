@@ -12,8 +12,8 @@ vi.mock('../config/api', () => ({
     retryPlanChunk: vi.fn(),
 }));
 
-vi.mock('../supabase', () => ({
-    supabase: {
+vi.mock('../authClient', () => ({
+    authClient: {
         auth: { getSession: vi.fn().mockResolvedValue({ data: { session: null } }) },
         from: vi.fn(),
     },

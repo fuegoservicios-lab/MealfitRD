@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
-// [P1-NEON-AUTH-MIGRATION · 2026-06-13] src/supabase.js throwea si
+// [P1-NEON-AUTH-MIGRATION · 2026-06-13] src/authClient.js throwea si
 // VITE_NEON_AUTH_URL falta. Lo stubeamos para que cualquier test que importe
 // el módulo real (no mockeado) no aborte al cargar.
 vi.stubEnv('VITE_NEON_AUTH_URL', 'https://test-ep.neonauth.local/neondb/auth');

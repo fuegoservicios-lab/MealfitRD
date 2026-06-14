@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { supabase } from '../supabase';
+import { authClient } from '../authClient';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Lock, ArrowRight, AlertCircle, Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react';
 import styles from './Auth.module.css';
@@ -25,12 +25,12 @@ const Login = () => {
         try {
             // Intentar establecer persistencia (puede fallar en algunas versiones/entornos)
             try {
-                /* await supabase.auth.setPersistence(rememberMe ? 'local' : 'session'); */
+                /* await authClient.auth.setPersistence(rememberMe ? 'local' : 'session'); */
             } catch (pError) {
                 console.warn("No se pudo establecer persistencia:", pError);
             }
 
-            const { error } = await supabase.auth.signInWithPassword({
+            const { error } = await authClient.auth.signInWithPassword({
                 email,
                 password,
             });
@@ -71,7 +71,7 @@ const Login = () => {
 
         setResetLoading(true);
         try {
-            const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+            const { error } = await authClient.auth.resetPasswordForEmail(email.trim(), {
                 redirectTo: `${window.location.origin}/reset-password`,
             });
             if (error) throw error;
@@ -286,7 +286,7 @@ const Login = () => {
                                 type="button"
                                 onClick={async () => {
                                     try {
-                                        const { error } = await supabase.auth.signInWithOAuth({
+                                        const { error } = await authClient.auth.signInWithOAuth({
                                             provider: 'google',
                                             options: {
                                                 redirectTo: `${window.location.origin}/dashboard`

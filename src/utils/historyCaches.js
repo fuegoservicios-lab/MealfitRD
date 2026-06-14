@@ -51,7 +51,7 @@ const _chunkMetrics = new Map();
 // stale-while-revalidate: al re-montar <History>, si hay cache válido
 // se renderiza INSTANTÁNEO + fetch refresca en background. Pre-fix cada
 // entrada a /history disparaba un round-trip backend (~300-800ms con
-// auth.get_user contra Supabase cloud) → "varios segundos" de skeleton
+// auth.get_user contra el backend anterior cloud) → "varios segundos" de skeleton
 // que reportó el usuario en sesión de UX 2026-05-19.
 //
 // TTL: 60s. Suficientemente corto para que un swap/restore/delete que
@@ -334,7 +334,7 @@ export const invalidateHistoryListCache = () => {
 // con datos frescos (no stale).
 //
 // Dynamic import de `../config/api` evita import cycle (api.js importa
-// supabase.js; historyCaches.js es util pura).
+// authClient.js; historyCaches.js es util pura).
 let _prefetchInFlight = null;
 export const prefetchHistoryList = () => {
     if (_prefetchInFlight) return _prefetchInFlight;

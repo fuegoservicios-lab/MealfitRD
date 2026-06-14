@@ -102,7 +102,7 @@ export const Privacy = () => (
         <h3>2. Información que Recopilamos</h3>
         <p>Recopilamos únicamente la información necesaria para personalizar su plan nutricional y operar la plataforma. Las categorías exactas son:</p>
         <ul>
-            <li><strong>Datos de cuenta:</strong> nombre, correo electrónico, contraseña (hasheada con bcrypt vía Supabase Auth — nunca almacenamos contraseñas en texto plano).</li>
+            <li><strong>Datos de cuenta:</strong> nombre, correo electrónico, contraseña (hasheada con bcrypt vía el backend anterior Auth — nunca almacenamos contraseñas en texto plano).</li>
             <li><strong>Perfil de salud (<code>health_profile</code>):</strong> peso actual, estatura, edad, género, nivel de actividad física, objetivo (perder peso, ganar músculo, mantener), restricciones dietéticas, alergias alimentarias, condiciones de salud declaradas y preferencias culinarias.</li>
             <li><strong>Histórico nutricional:</strong> comidas registradas (<code>consumed_meals</code>), hidratación diaria, peso histórico (<code>weight_history</code>), inventario de despensa (<code>user_inventory</code>) e ítems agotados.</li>
             <li><strong>Datos de interacción con IA:</strong> mensajes con el asistente conversacional (<code>agent_messages</code>), planes generados (<code>meal_plans</code>), recetas expandidas, "lecciones aprendidas" derivadas de su uso (<code>user_facts</code>) almacenadas como embeddings vectoriales para personalización a largo plazo.</li>
@@ -135,10 +135,10 @@ export const Privacy = () => (
         <h3>5. Infraestructura y Seguridad Técnica</h3>
         <p>Su información se almacena en infraestructura administrada:</p>
         <ul>
-            <li><strong>Base de datos:</strong> Supabase (PostgreSQL gestionado sobre Amazon Web Services), con cifrado en reposo AES-256 a nivel de disco y cifrado en tránsito TLS 1.2 o superior.</li>
+            <li><strong>Base de datos:</strong> el backend anterior (PostgreSQL gestionado sobre Amazon Web Services), con cifrado en reposo AES-256 a nivel de disco y cifrado en tránsito TLS 1.2 o superior.</li>
             <li><strong>Row Level Security (RLS):</strong> todas las tablas con datos personales tienen políticas RLS activadas — la base de datos rechaza consultas que intenten acceder a información de otro usuario, incluso si fallara la capa de aplicación.</li>
             <li><strong>Aislamiento por <code>user_id</code>:</strong> cada consulta del backend incluye un filtro explícito de <code>user_id</code>. Hemos publicado tests automatizados que enforzan este contrato en cada cambio (invariantes I2/I6 del código).</li>
-            <li><strong>Autenticación:</strong> Supabase Auth con JWT firmado HMAC-SHA256, validación server-side en cada petición. Tokens de sesión en cookies HttpOnly + SameSite.</li>
+            <li><strong>Autenticación:</strong> el backend anterior Auth con JWT firmado HMAC-SHA256, validación server-side en cada petición. Tokens de sesión en cookies HttpOnly + SameSite.</li>
             <li><strong>Protección de contraseñas:</strong> verificación contra la base de datos HaveIBeenPwned al registrarse (k-anonymity) — si su contraseña aparece en una filtración pública conocida, le pedimos elegir otra.</li>
             <li><strong>Headers de seguridad web:</strong> HSTS, X-Frame-Options DENY, Content Security Policy, Referrer-Policy estrictos.</li>
         </ul>
@@ -153,11 +153,11 @@ export const Privacy = () => (
         <h3>8. Proveedores Subcontratados (Encargados de Tratamiento)</h3>
         <p>Para operar la plataforma compartimos datos estrictamente necesarios con los siguientes proveedores. Todos están bajo contratos de procesamiento de datos:</p>
         <ul>
-            <li><strong>Supabase Inc.</strong> — almacenamiento de base de datos y autenticación.</li>
+            <li><strong>el backend anterior Inc.</strong> — almacenamiento de base de datos y autenticación.</li>
             <li><strong>DeepSeek (Hangzhou DeepSeek Artificial Intelligence Basic Technology Research Co., Ltd.)</strong> — inferencia con modelos DeepSeek V4 (perfil de salud, conversaciones y, cuando esté habilitado, imágenes).</li>
             <li><strong>PayPal Holdings, Inc.</strong> — procesamiento de pagos y suscripciones.</li>
             <li><strong>Functional Software, Inc. (Sentry)</strong> — monitoreo de errores técnicos.</li>
-            <li><strong>Amazon Web Services</strong> — infraestructura subyacente de Supabase y backend.</li>
+            <li><strong>Amazon Web Services</strong> — infraestructura subyacente de el backend anterior y backend.</li>
             <li><strong>Vercel Inc.</strong> y <strong>EasyPanel</strong> — hosting del frontend y backend respectivamente.</li>
         </ul>
 
@@ -179,7 +179,7 @@ export const Privacy = () => (
         <p>MealfitRD está destinada a personas mayores de 18 años. Aunque actualmente solicitamos la edad como dato declarativo del usuario, no realizamos verificación de identidad. Si descubrimos que un menor ha creado una cuenta sin consentimiento parental, eliminaremos la cuenta y sus datos asociados de inmediato. Padres o tutores pueden notificarnos en fuego.servicios@gmail.com.</p>
 
         <h3>12. Transferencias Internacionales</h3>
-        <p>Dado que nuestros proveedores (Supabase, Google, PayPal, Sentry, AWS) operan globalmente, sus datos pueden procesarse fuera de República Dominicana, principalmente en Estados Unidos. Estos proveedores están adheridos a marcos de privacidad reconocidos (Cláusulas Contractuales Estándar y/o Data Privacy Framework UE-EEUU).</p>
+        <p>Dado que nuestros proveedores (el backend anterior, Google, PayPal, Sentry, AWS) operan globalmente, sus datos pueden procesarse fuera de República Dominicana, principalmente en Estados Unidos. Estos proveedores están adheridos a marcos de privacidad reconocidos (Cláusulas Contractuales Estándar y/o Data Privacy Framework UE-EEUU).</p>
 
         <h3>13. Cambios en esta Política</h3>
         <p>Podremos actualizar esta Política para reflejar cambios técnicos o legales. Cualquier modificación se publicará aquí con la nueva fecha de "Última actualización". Si los cambios son materiales, le notificaremos por correo electrónico antes de su entrada en vigor.</p>
@@ -242,7 +242,7 @@ export const Terms = () => (
             <li>Que el servicio funcione sin interrupciones, sin errores, o sin retrasos.</li>
             <li>Que los planes generados produzcan resultados específicos de pérdida de peso, ganancia muscular u otros objetivos.</li>
             <li>La exactitud absoluta de cálculos nutricionales o macronutrientes, dado que la composición real de los alimentos puede variar.</li>
-            <li>La disponibilidad de los modelos de DeepSeek ni de Supabase u otros proveedores subcontratados.</li>
+            <li>La disponibilidad de los modelos de DeepSeek ni de el backend anterior u otros proveedores subcontratados.</li>
         </ul>
         <p>En la máxima medida permitida por la ley, MealfitRD no será responsable de daños indirectos, incidentales, especiales, consecuenciales o punitivos, ni de pérdidas de datos, ganancias o oportunidad. Nuestra responsabilidad total agregada por cualquier reclamación no excederá el monto pagado por usted en los últimos doce (12) meses.</p>
         <p><strong>Las recomendaciones nutricionales no constituyen consejo médico.</strong> Consulte el Aviso Médico para detalle.</p>
@@ -275,8 +275,8 @@ export const Cookies = () => (
         <h3>2. Cookies que utilizamos</h3>
         <p>Estas cookies son creadas y leídas exclusivamente por nosotros y nuestros proveedores autorizados:</p>
         <ul>
-            <li><strong>Token de sesión Supabase (<code>sb-*-auth-token</code>):</strong> establece su sesión autenticada tras iniciar sesión. Es HttpOnly y Secure. Sin esta cookie no podría usar funciones que requieran cuenta. Caduca según la duración de su sesión.</li>
-            <li><strong>Refresh token Supabase:</strong> permite renovar el token de sesión sin pedirle iniciar sesión nuevamente. Bajo el mismo nivel de protección.</li>
+            <li><strong>Token de sesión el backend anterior (<code>sb-*-auth-token</code>):</strong> establece su sesión autenticada tras iniciar sesión. Es HttpOnly y Secure. Sin esta cookie no podría usar funciones que requieran cuenta. Caduca según la duración de su sesión.</li>
+            <li><strong>Refresh token el backend anterior:</strong> permite renovar el token de sesión sin pedirle iniciar sesión nuevamente. Bajo el mismo nivel de protección.</li>
             <li><strong>Cookies técnicas de PayPal:</strong> durante el flujo de pago, PayPal puede establecer sus propias cookies en su dominio para detectar fraude y mantener su sesión de pago. No controlamos su contenido; PayPal las describe en su <a href="https://www.paypal.com/us/legalhub/privacy-full" target="_blank" rel="noopener noreferrer" className={styles.link}>política de privacidad</a>.</li>
         </ul>
 
@@ -320,7 +320,7 @@ export const Cookies = () => (
             <li>Eliminar el Service Worker desde DevTools → Application → Service Workers → Unregister.</li>
             <li>Usar el navegador en modo incógnito/privado para no persistir nada entre sesiones.</li>
         </ul>
-        <p>Tenga en cuenta que bloquear cookies estrictamente necesarias (sesión Supabase) impedirá iniciar sesión o usar funciones que requieran autenticación.</p>
+        <p>Tenga en cuenta que bloquear cookies estrictamente necesarias (sesión el backend anterior) impedirá iniciar sesión o usar funciones que requieran autenticación.</p>
 
         <h3>8. Cambios en esta política</h3>
         <p>Si añadimos nuevos almacenamientos o cookies, actualizaremos esta lista. La versión vigente siempre incluye la fecha de "Última actualización" arriba.</p>

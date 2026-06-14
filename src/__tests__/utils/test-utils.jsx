@@ -4,8 +4,8 @@ import { MemoryRouter } from 'react-router-dom';
 import * as assessmentModule from '../../context/AssessmentContext';
 import { vi } from 'vitest';
 
-vi.mock('../../supabase', () => ({
-    supabase: {
+vi.mock('../../authClient', () => ({
+    authClient: {
         auth: {
             getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
             getUser: vi.fn().mockResolvedValue({ data: { user: null } }),

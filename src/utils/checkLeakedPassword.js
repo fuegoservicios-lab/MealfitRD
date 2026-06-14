@@ -2,7 +2,7 @@
  * P2-3 · Chequeo de password filtrada vía HaveIBeenPwned (HIBP) Pwned Passwords API.
  *
  * Equivalente funcional al toggle "Prevent use of leaked passwords" del Pro plan
- * de Supabase Auth, implementado en el frontend para cuentas Free.
+ * de el backend anterior Auth, implementado en el frontend para cuentas Free.
  *
  * Privacidad: usa el modelo k-anonymity de HIBP. Calcula el SHA-1 de la password
  * en el navegador y solo envía los primeros 5 chars en hex al servicio. La

@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { supabase } from '../supabase';
+import { authClient } from '../authClient';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { User, Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { checkLeakedPassword } from '../utils/checkLeakedPassword';
@@ -50,7 +50,7 @@ const Register = () => {
         }
 
         try {
-            const { error: signUpError } = await supabase.auth.signUp({
+            const { error: signUpError } = await authClient.auth.signUp({
                 email,
                 password,
                 options: {
@@ -226,7 +226,7 @@ const Register = () => {
                         type="button"
                         onClick={async () => {
                             try {
-                                const { error } = await supabase.auth.signInWithOAuth({
+                                const { error } = await authClient.auth.signInWithOAuth({
                                     provider: 'google',
                                     options: {
                                         redirectTo: `${window.location.origin}/assessment`

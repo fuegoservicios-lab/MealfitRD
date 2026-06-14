@@ -3,7 +3,7 @@
 //
 // Los statuses canónicos vienen de `plan_chunk_queue.status` enum
 // (CHECK constraint enforzado por la migración P1-AUDIT-HIST-3 —
-// ver `supabase/migrations/p1_audit_hist_3_plan_chunk_queue_status_check.sql`):
+// ver `migrations/p1_audit_hist_3_plan_chunk_queue_status_check.sql`):
 //   - completed: chunk generó días, en plan_data.days.
 //   - pending: chunk en cola esperando pickup.
 //   - processing: chunk siendo procesado por worker.

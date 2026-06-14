@@ -99,7 +99,7 @@ export const resolveShopQty = (item) => {
 //   1. LLM (Gemini): nombres de ingredientes, descripciones, categorías.
 //   2. Usuario (formulario): `_pantry_supplement_required` (urgent_items),
 //      `otherAllergies`, `otherDislikes`, etc.
-//   3. Supabase: `ingredient_name` de `user_inventory` (el usuario los tipeó
+//   3. el backend anterior: `ingredient_name` de `user_inventory` (el usuario los tipeó
 //      al hacer Restock manual o el LLM los persistió).
 //
 // Antes del fix P1-1, las interpolaciones eran directas (`${cat}`,
@@ -308,8 +308,8 @@ export const calculateAllPlanIngredients = (planData, isPlanExpired, liveInvento
 // renderizar el PDF — sin esto, un restock previo cuyo response falló pero
 // que sí persistió en BD genera una lista con items duplicados.
 //
-// Antes el código hacía un `await supabase.from('user_inventory').select(...)`
-// envuelto en `try/catch` con fallback silencioso. Si Supabase tardaba o
+// Antes el código hacía un `await (cliente anterior).select(...)`
+// envuelto en `try/catch` con fallback silencioso. Si el backend anterior tardaba o
 // fallaba, `liveInventory` (potencialmente stale) se usaba para el delta sin
 // señalización al usuario → items que ya están en la nevera reaparecían en el
 // PDF → usuario compra duplicado.
@@ -333,7 +333,7 @@ export const calculateAllPlanIngredients = (planData, isPlanExpired, liveInvento
 
 /**
  * @param {() => Promise<{data: any, error?: any}>} fetchFn — closure que dispara
- *   el query de Supabase. Se invoca dentro del race; si timeout gana, el query
+ *   el query de el backend anterior. Se invoca dentro del race; si timeout gana, el query
  *   sigue corriendo en background pero su resultado se descarta.
  * @param {number} [timeoutMs=2000] — cap blando antes de degradar a caché.
  * @returns {Promise<{data: any[]|null, stale: boolean, reason: string|null}>}
@@ -344,7 +344,7 @@ export const calculateAllPlanIngredients = (planData, isPlanExpired, liveInvento
 // ------------------------------------------------------------
 // Antes del P-fix, los 4 callsites de Dashboard.jsx (mount, focus,
 // PDF download, restock) pasaban literal `2000` ms al helper. Si
-// Supabase entra en degradación tail-latency (incidente regional,
+// el backend anterior entra en degradación tail-latency (incidente regional,
 // pool exhausted, network blip), no había forma de subir el timeout
 // sin redeploy del frontend (Vercel build). El cron P2-SHOPPING-3
 // (`_alert_pdf_stale_inventory_fallback_burst`) detectaría el burst
@@ -363,7 +363,7 @@ export const calculateAllPlanIngredients = (planData, isPlanExpired, liveInvento
 //
 // Symmetric counterpart to `VITE_PDF_RENDER_TIMEOUT_MS` (P2-PDF-OBS-2)
 // que cubre el timeout del render html2pdf. Ambos knobs permiten al
-// SRE bumpearlos sin redeploy si Supabase/render latencia tail crece.
+// SRE bumpearlos sin redeploy si el backend anterior/render latencia tail crece.
 // ============================================================
 
 /**
@@ -398,7 +398,7 @@ export const fetchFreshInventoryWithTimeout = async (fetchFn, timeoutMs = 2000) 
             return { data: null, stale: true, reason: 'timeout' };
         }
 
-        // Supabase responses: `{ data, error }`. Si error está poblado, se
+        // el backend anterior responses: `{ data, error }`. Si error está poblado, se
         // trata como fallo de red/permiso → stale.
         if (result && result.error) {
             return { data: null, stale: true, reason: 'error' };
@@ -407,7 +407,7 @@ export const fetchFreshInventoryWithTimeout = async (fetchFn, timeoutMs = 2000) 
         const data = result?.data;
         if (!Array.isArray(data)) {
             // null/undefined data sin error explícito (caso patológico de
-            // Supabase con RLS denegando silenciosamente) → degradar a caché.
+            // el backend anterior con RLS denegando silenciosamente) → degradar a caché.
             return { data: null, stale: true, reason: 'empty_response' };
         }
 

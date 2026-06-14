@@ -1,11 +1,11 @@
 import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-// [P1-NEON-DB-MIGRATION · 2026-06-12] `supabase` queda SOLO para auth
+// [P1-NEON-DB-MIGRATION · 2026-06-12] `authClient` queda SOLO para auth
 // (getSession del POST consume). Los SELECTs de user_inventory migraron
 // a GET /api/inventory via fetchWithAuth (la DB vive en Neon; PostgREST
-// apunta al Postgres stale de Supabase).
-import { supabase } from '../supabase';
+// no está en uso).
+import { authClient } from '../authClient';
 import { API_BASE, fetchWithAuth } from '../config/api';
 import { useAssessment } from '../context/AssessmentContext';
 import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation';
@@ -221,7 +221,7 @@ export const useRegeneratePlan = () => {
 
                 if (itemsToConsume.length > 0) {
                     try {
-                        const { data } = await supabase.auth.getSession();
+                        const { data } = await authClient.auth.getSession();
                         if (data?.session?.access_token) {
                             const res = await fetch(`${API_BASE}/api/plans/inventory/consume`, {
                                 method: 'POST',

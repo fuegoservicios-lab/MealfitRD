@@ -4,7 +4,7 @@
 // catálogo del producto).
 //
 // Por qué: al entrar a /dashboard/pantry el componente bloquea el render
-// con skeleton hasta que las 2 queries Supabase resuelvan. En local con
+// con skeleton hasta que las 2 queries el backend anterior resuelvan. En local con
 // auth.getSession cold puede tomar 800ms-2s. Stale-while-revalidate hace
 // el segundo entry instantáneo y mantiene la lista actualizada via fetch
 // background.
@@ -14,7 +14,7 @@
 //     User reportó "el apartado de Nevera cada cierto tiempo dura un
 //     poquito más de lo normal" — pasaba el TTL en una tab por >30s
 //     (chateando, navegando, etc.) y volvía a Nevera → cache expirado →
-//     fetch fresh a Supabase ~500-1500ms con spinner visible.
+//     fetch fresh a el backend anterior ~500-1500ms con spinner visible.
 //
 //     El realtime channel (`pantry-realtime` suscrito en Pantry.jsx:414)
 //     YA empuja UPDATE/INSERT/DELETE al state local sin importar el

@@ -1498,7 +1498,7 @@ const AgentPage = () => {
 
     // Cargar historial de mensajes de forma segura (evitar 403 prematuro)
     useEffect(() => {
-        // SIEMPRE esperar a que la sesión de Supabase esté hidratada antes de hacer peticiones autenticadas
+        // SIEMPRE esperar a que la sesión de el backend anterior esté hidratada antes de hacer peticiones autenticadas
         if (!session?.user?.id) return;
         if (!currentSessionId) return;
 

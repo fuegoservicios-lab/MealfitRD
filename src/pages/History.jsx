@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-// [P1-NEON-DB-MIGRATION · 2026-06-12] Eliminado `import { supabase }`: el
+// [P1-NEON-DB-MIGRATION · 2026-06-12] Eliminado `import { el cliente anterior }`: el
 // único uso ejecutable era el select de plan_data en _loadPlanDataLazy,
 // migrado a GET /api/plans-data/{plan_id} (la DB vive en Neon; PostgREST
-// apunta al Postgres stale de Supabase).
+// apunta al Postgres stale de el backend anterior).
 import { fetchWithAuth, deletePlanFromHistory, getHistoryList, getLessonsCounts, getPlanLessonsDetail, getPlanCoherenceHistory, getHistoryStatusSummary, getPlanBlockedReasons, getPlanChunkMetrics, getPlanLifetimeLessons, renamePlan } from '../config/api';
 import { useAssessment } from '../context/AssessmentContext';
 import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles, Search } from 'lucide-react';
@@ -315,7 +315,7 @@ const History = () => {
     // generando días con el `pipeline_snapshot` del plan anterior y
     // contaminaran el plan restaurado.
     // [P6-SPEED-HIST-GETUSER · 2026-06-01] `session` (ya hidratada del contexto)
-    // reemplaza el `supabase.auth.getUser()` que hacía _loadPlanDataLazy — ese
+    // reemplaza el `el cliente anterior.auth.getUser()` que hacía _loadPlanDataLazy — ese
     // era el ÚNICO getUser() del árbol (un roundtrip de red a /auth/v1/user que
     // revalida el JWT server-side) y bloqueaba ~100-300ms el query de plan_data
     // en cada apertura de tarjeta no cacheada. La RLS ya enforza ownership.
@@ -403,7 +403,7 @@ const History = () => {
         // queda en {} y los chips simplemente no aparecen. No bloqueamos
         // ni mostramos toast de error — es feature opcional, no crítica.
         // [P0-HIST-FETCH-TIMEOUT · 2026-05-09] Race contra timeout 12s.
-        // Sin esto, si `supabase.auth.getSession()` (interno de
+        // Sin esto, si `el cliente anterior.auth.getSession()` (interno de
         // fetchWithAuth) cuelga, este .then nunca corre y los chips de
         // lecciones quedan ausentes silenciosamente forever; menos crítico
         // que el del fetchHistory pero mismo patrón.
@@ -602,7 +602,7 @@ const History = () => {
         try {
             // [P1-HIST-AUDIT-4 · 2026-05-09] Endpoint backend
             // `/api/plans/history-list` con projection mínima vía
-            // operadores jsonb. Reemplaza el `select('*')` de Supabase
+            // operadores jsonb. Reemplaza el `select('*')` de el backend anterior
             // que descargaba `plan_data` completo (30-80KB por plan
             // típico, MBs para tier ultra). El backend extrae solo los
             // keys que la card consume (calories, macros, status,
@@ -621,7 +621,7 @@ const History = () => {
             //
             // [P0-HIST-FETCH-TIMEOUT · 2026-05-09] Promise.race con
             // timeout 12s. Antes esto era `await getHistoryList()` raw —
-            // si `supabase.auth.getSession()` (dentro de fetchWithAuth)
+            // si `el cliente anterior.auth.getSession()` (dentro de fetchWithAuth)
             // colgaba (intermitencia conocida en local con refresh tokens
             // expirados), la promesa nunca resolvía, el `finally` no
             // corría, y el page se quedaba en skeleton infinito (síntoma
@@ -699,7 +699,7 @@ const History = () => {
             if (!uid) return null;
             // [P1-NEON-DB-MIGRATION · 2026-06-12] GET backend con ownership
             // server-side (I2) — reemplaza el select directo de PostgREST
-            // (la DB vive en Neon; supabase-js ya no la ve). 404 = plan
+            // (la DB vive en Neon; el SDK anterior ya no la ve). 404 = plan
             // inexistente o ajeno → mismo manejo que el `maybeSingle` null
             // legacy: objeto vacío, sin toast de error.
             const res = await fetchWithAuth(`/api/plans-data/${planSummary.id}`);
@@ -940,7 +940,7 @@ const History = () => {
 
         try {
             // [P0-HIST-3 · 2026-05-09] Endpoint atómico backend. Antes
-            // este handler hacía `supabase.from('meal_plans').delete()`
+            // este handler hacía `el cliente de DB anterior`
             // directo, dejando chunk_user_locks zombi (no tiene FK a
             // meal_plans, así que el CASCADE no los limpia) y orphans
             // en chunk_lesson_telemetry/chunk_deferrals. El endpoint
@@ -998,7 +998,7 @@ const History = () => {
             // [P1-HIST-5 · 2026-05-09] Endpoint atómico backend que
             // actualiza columna `name` Y `plan_data.name` (jsonb_set)
             // en el mismo UPDATE. Antes este handler solo actualizaba
-            // la columna via supabase client → drift entre los dos
+            // la columna via el cliente anterior client → drift entre los dos
             // valores; cualquier flujo que copiara plan_data después
             // (swap, shift_plan, restore pre-P0-HIST-1) propagaba el
             // nombre viejo a otro contexto.
@@ -1735,7 +1735,7 @@ const History = () => {
                                         //
                                         // Antes: `await _loadPlanDataLazy(plan)` ANTES
                                         // de `setSelectedPlan` — el modal no abría hasta
-                                        // resolverse el roundtrip a Supabase (200-500ms
+                                        // resolverse el roundtrip a el backend anterior (200-500ms
                                         // típico), causando perceived delay del click.
                                         const _hasInlinePlanData = !!(plan.plan_data
                                             && typeof plan.plan_data === 'object'

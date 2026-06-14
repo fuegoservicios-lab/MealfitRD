@@ -5,10 +5,10 @@ import React, { useState, useEffect, useMemo, useRef, useCallback, useDeferredVa
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAssessment } from '../context/AssessmentContext';
-// [P1-NEON-DB-MIGRATION · 2026-06-12] supabase-js eliminado de Pantry: los
+// [P1-NEON-DB-MIGRATION · 2026-06-12] el SDK anterior eliminado de Pantry: los
 // datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
-// Supabase). Todo el acceso a datos va por los endpoints backend vía
-// fetchWithAuth; supabase queda solo para Auth (otros archivos).
+// el backend anterior). Todo el acceso a datos va por los endpoints backend vía
+// fetchWithAuth; el cliente anterior queda solo para Auth (otros archivos).
 import { Search, Plus, Minus, Trash2, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket, RotateCcw, PackageX } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth, API_BASE } from '../config/api';
@@ -200,7 +200,7 @@ const Pantry = () => {
     // Si hay cache vigente (inventory TTL 30s, masterList TTL 24h), el
     // primer render tiene rows visibles y skeleton oculto. El fetchData
     // del useEffect mount sigue corriendo para pisar con datos frescos.
-    // Pre-fix: dos queries Supabase serializadas bloqueaban render con
+    // Pre-fix: dos queries el backend anterior serializadas bloqueaban render con
     // skeleton 300-1500ms cada entrada al apartado.
     const [inventory, setInventory] = useState(() => getCachedInventory() || []);
     const [masterList, setMasterList] = useState(() => getCachedMasterList() || []);
@@ -770,7 +770,7 @@ const Pantry = () => {
             // embed master_ingredients anidado (shape idéntico al select
             // PostgREST legacy, solo quantity>0, orden ingredient_name ASC);
             // GET /api/catalog devuelve {items} con master_ingredients
-            // completo. supabase-js ya no habla con la DB post-cutover.
+            // completo. el SDK anterior ya no habla con la DB post-cutover.
             const needMaster = !masterListLoaded.current;
             const invPromise = _apiJson('/api/inventory');
             const masterPromise = needMaster ? _apiJson('/api/catalog') : null;
@@ -885,7 +885,7 @@ const Pantry = () => {
                 // top-level en meal_plans — viven dentro de plan_data jsonb.
                 // [P1-NEON-DB-MIGRATION · 2026-06-12] Pre-check vía GET
                 // /api/plans-data/latest (antes SELECT directo a meal_plans
-                // con supabase-js). Mismo shape: {id, updated_at, plan_data}
+                // con el SDK anterior). Mismo shape: {id, updated_at, plan_data}
                 // con timestamps ISO-8601 — los consumers no cambian.
                 const _latestJson = await _apiJson('/api/plans-data/latest?include_plan_data=true');
                 const latest = _latestJson?.plan;
@@ -1188,7 +1188,7 @@ const Pantry = () => {
         // Delete inmediato de la DB para evitar "fantasmas"
         try {
             // [P1-NEON-DB-MIGRATION · 2026-06-12] DELETE /api/inventory/items/{id}
-            // (antes supabase.from('user_inventory').delete()). El backend filtra
+            // (antes el cliente de DB anterior). El backend filtra
             // user_id explícito (I2). 404 = el row ya no existía (otro tab/device
             // lo borró) — objetivo cumplido, NO revertimos: el delete legacy de
             // PostgREST con 0 rows afectadas también era éxito silencioso.

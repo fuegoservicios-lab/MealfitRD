@@ -39,7 +39,7 @@
  *   safeLocalStorageAvailable()
  *     Test runtime de write+read+remove de una key throwaway. Útil para
  *     branchear UX: si storage no disponible, skipear features que dependen
- *     de persistencia local (e.g., sesión Supabase remembered).
+ *     de persistencia local (e.g., sesión el backend anterior remembered).
  *
  * Diseño:
  *   - Cero dependencias (no importa nada del bundle React) para que el helper

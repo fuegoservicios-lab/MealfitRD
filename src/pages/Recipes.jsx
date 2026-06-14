@@ -557,11 +557,11 @@ const Recipes = () => {
             // fetch manual + token extraction legacy por fetchWithAuth (SSOT
             // en config/api.js).
             //
-            // Pre-fix: leía una key del Supabase JS v1 que ya no existe en v2
+            // Pre-fix: leía una key del el backend anterior JS v1 que ya no existe en v2
             // (v2 usa sb-<project-ref>-auth-token con shape distinto), así
             // que el access_token quedaba undefined → Bearer vacío → backend
             // 401 silencioso → user veía "Error registrando" sin diagnóstico.
-            // fetchWithAuth obtiene el access_token vía supabase.auth.getSession()
+            // fetchWithAuth obtiene el access_token vía el cliente anterior.auth.getSession()
             // y maneja el timeout P0-FETCH-AUTH-TIMEOUT.
             const response = await fetchWithAuth('/api/diary/consumed', {
                 method: 'POST',

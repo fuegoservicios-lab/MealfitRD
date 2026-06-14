@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { supabase } from '../supabase';
+import { authClient } from '../authClient';
 // [P2-AUDIT-3 · 2026-05-15] Helper SSOT para `localStorage.setItem` defensivo.
 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] + `safeLocalStorageRemove` para
 // los flujos de logout/reset (iOS Private Mode lanza SecurityError en
@@ -178,7 +178,7 @@ export const AssessmentProvider = ({ children }) => {
 
     // --- ESTADOS DE LA APLICACIÓN ---
 
-    // Auth State (Supabase)
+    // Auth State
     const [session, setSession] = useState(null);
     const [loadingAuth, setLoadingAuth] = useState(true);
 
@@ -194,7 +194,7 @@ export const AssessmentProvider = ({ children }) => {
     // Estado para saber si estamos sincronizando datos de la DB
     const [loadingData, setLoadingData] = useState(true);
 
-    // Estado del Perfil Real (Base de Datos Supabase)
+    // Estado del Perfil Real (Base de Datos)
     const [userProfile, setUserProfile] = useState(null);
 
     // Navegación del Wizard (Pasos de la evaluación)
@@ -371,7 +371,7 @@ export const AssessmentProvider = ({ children }) => {
     // pero el dato SÍ estaba en storage cifrado. UX rota silenciosamente.
     //
     // Ahora: arrancamos `true` SI hay session activa O si vamos a tener una
-    // (Supabase auth pendiente: hay token en localStorage). En el useEffect
+    // (auth (Neon) pendiente: hay token en localStorage). En el useEffect
     // que descifra, bajamos a `false` cuando terminó (éxito, sin sensitive,
     // o error). Sin session → bajamos a `false` inmediatamente en el primer
     // render via useEffect deps (no hay nada que descifrar).
@@ -396,7 +396,7 @@ export const AssessmentProvider = ({ children }) => {
     // sensitive cifrado. ANTES, `loadingSensitive` SOLO chequeaba la
     // existencia de `mealfit_form_secure`. Para usuarios en su PRIMER login
     // en otro dispositivo (sin ese key), `loadingSensitive=false` desde el
-    // primer render aunque `fetchProfile` estuviera en vuelo desde Supabase
+    // primer render aunque `fetchProfile` estuviera en vuelo desde el backend
     // (~100-500ms). Plan.jsx y useRegeneratePlan evaluaban
     // `findFirstIncompleteField` antes de que `fetchProfile` completara →
     // toast engañoso "Falta completar X" + redirect a /assessment con datos
@@ -468,7 +468,7 @@ export const AssessmentProvider = ({ children }) => {
     //     hidratación filtraba con `{...prev, ...sensitiveData}` — sensitiveData
     //     GANABA sobre prev → pérdida silenciosa de la edición in-flight.
     //
-    //   - [P0-FORM-3] Fetch de `user_profiles.health_profile` desde Supabase
+    //   - [P0-FORM-3] Fetch de `user_profiles.health_profile` desde el backend
     //     en `fetchProfile` (~100-500ms). Afecta CUALQUIER campo del formData.
     //     Mismo patrón de spread invertida — el snapshot del DB ganaba sobre
     //     la edición in-flight, sobreescribiendo lo que el usuario acababa de
@@ -699,8 +699,7 @@ export const AssessmentProvider = ({ children }) => {
                 // Guardar la fecha en DB para persistencia cruzada (si se inyectó)
                 //
                 // [P0-NEW-B · 2026-05-11] Reemplaza el patrón legacy
-                // `supabase.from('meal_plans').update({plan_data: latestPlan}).eq('id', planId)`
-                // (full overwrite del JSONB desde el cliente) que producía
+                // de full overwrite del JSONB desde el cliente que producía
                 // lost-update si `_chunk_worker` o el cron
                 // `_resolve_grocery_start_date` mutaban plan_data en
                 // paralelo. El endpoint backend hace jsonb_set quirúrgico
@@ -763,7 +762,7 @@ export const AssessmentProvider = ({ children }) => {
         // mantiene la identidad estable salvo cambio real de usuario.
     }, [session?.user?.id]);
 
-    // --- 2. MANEJO DE SESIÓN Y PERFIL (SUPABASE) ---
+    // --- 2. MANEJO DE SESIÓN Y PERFIL ---
     const fetchProfile = useCallback(async (userId) => {
         if (!userId) return;
         try {
@@ -1056,7 +1055,7 @@ export const AssessmentProvider = ({ children }) => {
                 setPlanCount(0);
                 setPlanData(null);
                 // [P1-XTAB-CACHE-LEAK · 2026-05-30] Esta rama es alcanzable SIN
-                // pasar por resetApp: un SIGNED_OUT disparado por Supabase
+                // pasar por resetApp: un SIGNED_OUT disparado por el auth provider
                 // (expiración de sesión/token, o sign-out desde OTRA pestaña).
                 // resetApp limpia los caches global-keyed (inventario Nevera +
                 // listado Historial = PII del usuario A) + likes/dislikes, pero
@@ -1101,7 +1100,7 @@ export const AssessmentProvider = ({ children }) => {
         // más. 10s da margen sin colgar la UI indefinidamente.
         const getSessionWithTimeout = () => {
             return Promise.race([
-                supabase.auth.getSession(),
+                authClient.auth.getSession(),
                 new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout obteniendo sesión")), 10000))
             ]);
         };
@@ -1123,7 +1122,7 @@ export const AssessmentProvider = ({ children }) => {
         // Escuchar cambios en tiempo real
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, newSession) => {
+        } = authClient.auth.onAuthStateChange((_event, newSession) => {
             handleAuthChange(newSession);
         });
 
@@ -1140,7 +1139,7 @@ export const AssessmentProvider = ({ children }) => {
     // --- REFETCH DE PERFIL AL VOLVER A LA PESTAÑA ---
     // [P1-NEON-DB-MIGRATION · 2026-06-12] Reemplaza el canal Realtime
     // `public:user_profiles` (la publicación Realtime murió con el cutover a
-    // Neon — supabase-js apunta al Postgres stale de Supabase). El callback
+    // Neon — el SDK de auth anterior apunta al Postgres stale de Neon Auth). El callback
     // del canal solo disparaba un refetch del perfil, así que el reemplazo es
     // el patrón estándar del repo: refetch on visibilitychange/focus (mismo
     // patrón que Dashboard) + los refetch post-mutación existentes
@@ -1181,7 +1180,7 @@ export const AssessmentProvider = ({ children }) => {
     // --- POLLING: Nuevas semanas del plan (Background Chunking) ---
     // [P1-NEON-DB-MIGRATION · 2026-06-12] Reemplaza el canal Realtime
     // `meal-plan-chunk-updates` (P2-REALTIME-PUB-SYNC quedó obsoleto: la
-    // publicación `supabase_realtime` murió con el cutover a Neon). Polling
+    // publicación `db_realtime` murió con el cutover a Neon). Polling
     // suave de GET /api/plans-data/latest cada 25s ÚNICAMENTE mientras el
     // plan en memoria está en un estado activo de generación — mismos 4
     // estados que el `_isActiveForChunkPoll` del Dashboard (partial /
@@ -1667,8 +1666,7 @@ export const AssessmentProvider = ({ children }) => {
 
             // 3. PERSISTENCIA ATÓMICA EN BACKEND
             // [P0-NEW-A · 2026-05-11] Reemplaza el patrón legacy
-            // `supabase.from('meal_plans').update({plan_data: updatedPlan}).eq('id', planId)`
-            // que pisaba el JSONB completo desde el cliente. Ese patrón
+            // de escritura directa del JSONB completo desde el cliente. Ese patrón
             // producía lost-update si `_chunk_worker` finalizaba un chunk
             // entre el read del state local y el write — los `days[7-14]`
             // (y `_chunk_lessons`, `aggregated_shopping_list`, etc.) recién
@@ -1889,7 +1887,7 @@ export const AssessmentProvider = ({ children }) => {
         // meta-state user-level que se construye con el tiempo y persiste server-side
         // (vía `/api/plans/like`). Antes este `setLikedMeals({})` provocaba:
         //   - Flicker visible: corazones vacíos en el dashboard hasta que
-        //     `restoreSessionData` rehidrataba desde Supabase.
+        //     `restoreSessionData` rehidrataba desde el backend.
         //   - Race con clicks tempranos: si el usuario hacía like inmediatamente
         //     tras aceptar, se escribía sobre el state vacío y se perdían
         //     likes históricos cargados después.
@@ -1898,7 +1896,7 @@ export const AssessmentProvider = ({ children }) => {
         // huérfanos), pero el like permanece para futuros planes que reusen
         // el nombre del plato — comportamiento user-friendly.
 
-        // NOTA: NO guardamos en Supabase aquí.
+        // NOTA: NO guardamos en Neon Auth aquí.
         // El backend ya lo hace en _save_plan_and_track_background() con datos más completos
         // (meal_names, ingredients, techniques, frequency tracking).
         // Guardarlo aquí también causaba duplicados en el historial.
@@ -1958,7 +1956,7 @@ export const AssessmentProvider = ({ children }) => {
         // dato para planes futuros).
         safeLocalStorageSet('mealfit_plan', pastPlanData);
 
-        // 2. Sincronizar con Supabase para que cloud sync no lo revierta
+        // 2. Sincronizar con Neon Auth para que cloud sync no lo revierta
         const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
         if (userId && userId !== 'guest') {
             try {
@@ -1998,9 +1996,9 @@ export const AssessmentProvider = ({ children }) => {
                     // atómico `POST /api/plans/{plan_id}/restore-local` para
                     // cerrar la última violación de invariante I6 (CLAUDE.md):
                     // direct-write desde cliente a `meal_plans`. Pre-fix
-                    // este bloque hacía `supabase.from('meal_plans').update(
-                    // {plan_data, name, calories, macros}).eq('id', planId)`
-                    // que producía lost-update vs `_chunk_worker` concurrente
+                    // este bloque hacía una escritura directa de
+                    // `{plan_data, name, calories, macros}` que producía
+                    // lost-update vs `_chunk_worker` concurrente
                     // (mismo modo de fallo que P0-NEW-A cerró para swap-meal,
                     // P0-NEW-B para grocery-start-date, P1-HIST-5 para rename).
                     // El endpoint nuevo toma advisory lock 'general' antes del
@@ -2172,7 +2170,7 @@ export const AssessmentProvider = ({ children }) => {
         // planData/userProfile en memoria sobrevivían hasta el próximo remount.
         // Toleramos el fallo de red para que el reset de estado siempre proceda.
         try {
-            await supabase.auth.signOut();
+            await authClient.auth.signOut();
         } catch (e) {
             console.warn('signOut() falló; el teardown local ya se completó.', e);
         }
@@ -2279,7 +2277,7 @@ export const AssessmentProvider = ({ children }) => {
             //     (sensitive cifrado con clave HKDF derivada del access_token,
             //     50-200ms).
             //   - `loadingProfile`: fetch de `user_profiles.health_profile`
-            //     desde Supabase + restoreSessionData + checkPlanLimit
+            //     desde el backend + restoreSessionData + checkPlanLimit
             //     (100-500ms en primer login en otro dispositivo).
             // Consumers (Plan.jsx, useRegeneratePlan, InteractiveAssessmentFlow)
             // deben gatear con `if (loadingSensitive) return;` antes de llamar a

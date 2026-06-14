@@ -1700,7 +1700,7 @@ const Settings = () => {
                     <main className={styles.contentPanel}>
                         <div className={styles.grid}>
 
-                    {/* SECCIÓN 1: PERFIL (CONECTADO A SUPABASE) + APARIENCIA */}
+                    {/* SECCIÓN 1: PERFIL + APARIENCIA */}
                     {activeSection === 'profile' && (
                     <>
                     <section className={styles.section}>

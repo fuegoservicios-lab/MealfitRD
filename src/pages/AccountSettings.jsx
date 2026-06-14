@@ -9,8 +9,8 @@
 //   - Tema: applyThemePref + localStorage('mealfit_theme') (utils/theme.js).
 //   - Nombre: updateUserProfile({ full_name }) (AssessmentContext, user_profiles).
 //   - Correo: SOLO LECTURA — no se cambia desde aquí (decisión del usuario).
-//   - Contraseña: reauth con la contraseña actual (cliente Supabase efímero) +
-//     supabase.auth.updateUser({ password }).
+//   - Contraseña: reauth con la contraseña actual (verifyCurrentPassword) +
+//     authClient.auth.updateUser({ password }).
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAssessment } from '../context/AssessmentContext';
-import { supabase, verifyCurrentPassword } from '../supabase';
+import { authClient, verifyCurrentPassword } from '../authClient';
 import { applyThemePref, getStoredThemePref } from '../utils/theme';
 import { safeLocalStorageSet } from '../utils/safeLocalStorage';
 
@@ -119,7 +119,7 @@ const AccountSettings = () => {
                 return;
             }
 
-            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            const { error } = await authClient.auth.updateUser({ password: newPassword });
             if (error) throw error;
             setCurrentPassword('');
             setNewPassword('');

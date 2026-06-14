@@ -20,7 +20,7 @@ import WaterTracker from '../components/dashboard/WaterTracker';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
 import EmptyState from '../components/common/EmptyState';
-// [P1-NEON-DB-MIGRATION · 2026-06-12] Import de `supabase` eliminado: los
+// [P1-NEON-DB-MIGRATION · 2026-06-12] Import de `el cliente anterior` eliminado: los
 // SELECTs/realtime directos a Postgres migraron a endpoints backend
 // (GET /api/inventory, GET /api/plans-data/{plan_id}) via fetchWithAuth.
 // [P2-LAZY-PDF · 2026-05-13] html2pdf.js (976 KB) se importa dinámico
@@ -114,7 +114,7 @@ const PANTRY_STAPLES_DELTA = new Set([
 
 // [P1-NEON-DB-MIGRATION · 2026-06-12] Fetcher único del inventario vía backend
 // (GET /api/inventory) — reemplaza los 5 SELECTs directos de `user_inventory`
-// via supabase-js (PostgREST apunta al Postgres de Supabase, stale post-cutover
+// via el SDK anterior (PostgREST apunta al Postgres de el backend anterior, stale post-cutover
 // a Neon). El endpoint ya aplica `quantity > 0` + ORDER BY ingredient_name y
 // devuelve el embed `master_ingredients` con el mismo shape anidado que el
 // select PostgREST legacy. Adapta la response al contrato `{ data, error }`
@@ -449,7 +449,7 @@ const DashboardInner = () => {
     //   - Initial mount fetch (`fetchFreshInventoryWithTimeout`) — true si timeout/error.
     //   - Visibility/focus refresh — idem.
     //   - Realtime postgres_changes callback — false al recibir push del server
-    //     (la data acaba de venir directo desde Supabase, es fresca por definición).
+    //     (la data acaba de venir directo desde el backend anterior, es fresca por definición).
     //   - `handleDownloadShoppingList` (PDF) — actualiza tras el fresh fetch.
     //   - `handleRestock` (P1-1) — actualiza tras el fresh fetch.
     //
@@ -570,7 +570,7 @@ const DashboardInner = () => {
         }
     }, [userProfile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Sync disabledIngredients → localStorage + Supabase (debounced) on every change
+    // Sync disabledIngredients → localStorage + el backend anterior (debounced) on every change
     useEffect(() => {
         try {
             if (disabledIngredients.length > 0) {
@@ -609,7 +609,7 @@ const DashboardInner = () => {
 
     // Fetch inventario real desde user_inventory (refleja consumos y ediciones de la Nevera)
     // [P1-5] Usa `fetchFreshInventoryWithTimeout` (cap 2000ms) y alimenta
-    // `inventoryStale`. Si Supabase tarda o falla en el mount inicial, el
+    // `inventoryStale`. Si el backend anterior tarda o falla en el mount inicial, el
     // Dashboard arranca con `inventoryStale=true` y el chip ámbar se muestra
     // sobre los botones — el usuario sabe ANTES de actuar que su Nevera puede
     // estar desactualizada. Si la fetch funciona, baja el flag a false.
@@ -659,7 +659,7 @@ const DashboardInner = () => {
 
     // [P1-NEON-DB-MIGRATION · 2026-06-12] Canal realtime `dashboard-inventory-sync`
     // (postgres_changes sobre user_inventory) ELIMINADO: la publicación Realtime de
-    // Supabase muere con el cutover a Neon. Su callback solo refetcheaba el
+    // el backend anterior muere con el cutover a Neon. Su callback solo refetcheaba el
     // inventario — el refetch on visibilitychange/focus de abajo + el custom event
     // `mealfit:refresh-inventory` + el refetch post-mutación (restock/PDF) quedan
     // como mecanismo único de sincronización.
@@ -1480,7 +1480,7 @@ const DashboardInner = () => {
             const rawSourceIngredients = getActiveShoppingList(effectivePlanData, duration) || allPlanIngredients || [];
 
             // [P1-PDF-1] Fetch de inventario fresco con timeout + degradación
-            // visible. Antes el bloque era un `try/catch` silencioso: si Supabase
+            // visible. Antes el bloque era un `try/catch` silencioso: si el backend anterior
             // tardaba o fallaba, `liveInventory` (potencialmente stale tras un
             // restock cuyo response falló pero sí persistió en BD) se usaba sin
             // alerta → items que ya están en la nevera reaparecían en el PDF →
@@ -1939,7 +1939,7 @@ const DashboardInner = () => {
                         const checkboxMarginRight = isHyperDense ? '4px' : isDense ? '6px' : '10px';
 
                         // [P1-1] `displayQty`, `display`, `_inventoryNote` vienen
-                        // del LLM, del user_inventory de Supabase o del formulario.
+                        // del LLM, del user_inventory de el backend anterior o del formulario.
                         // Escapamos los 5 metacaracteres HTML antes de interpolar
                         // para evitar markup roto en el PDF (categorías duplicadas,
                         // listado truncado, descarga malformada).
@@ -2231,7 +2231,7 @@ const DashboardInner = () => {
         try {
             // [P1-1] Refresco de inventario fresco con timeout + degradación
             // visible. Antes el bloque era un `try/catch` silencioso (raw
-            // `await supabase.from(...)`): si Supabase tardaba o fallaba,
+            // `await (cliente anterior)`): si el backend anterior tardaba o fallaba,
             // `liveInventory` (potencialmente stale tras un restock cuyo
             // response falló pero sí persistió en BD) se usaba sin alerta →
             // el delta se calculaba contra caché vieja y el restock duplicaba
@@ -3817,7 +3817,7 @@ const DashboardInner = () => {
                                                                 // [P3-RECALC-503-CLASSIFICATION · 2026-05-16] Retry 1×
                                                                 // tras 500ms si la respuesta es 5xx o el fetch falla
                                                                 // (network error). Backend ya clasifica transient → 503
-                                                                // (pool exhaustion, supabase RemoteProtocolError);
+                                                                // (pool exhaustion, el cliente anterior RemoteProtocolError);
                                                                 // determinístico → 500. Esta retry cubre el blip más
                                                                 // común: free tier pgBouncer saturado por ~500ms.
                                                                 // 4xx (401/400) NO se reintentan.

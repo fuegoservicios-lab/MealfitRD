@@ -1,4 +1,4 @@
-import { getBackendToken } from '../supabase';
+import { getBackendToken } from '../authClient';
 
 // Central API configuration
 // En desarrollo, apuntamos directamente al servidor Python local.
@@ -91,7 +91,7 @@ export const regenerateChunkSimplified = (planId, chunkId) =>
 // libera chunk_user_locks asociados, y sobrescribe plan_data + columnas
 // top-level (name/calories/macros/meal_names/ingredients/techniques) en
 // una sola transacción. El consumidor en AssessmentContext debe usar
-// esta función en lugar del UPDATE directo via supabase client cuando el
+// esta función en lugar del UPDATE directo del cliente legacy cuando el
 // origen sea un plan archivado del historial.
 export const restorePlanFromHistory = (sourcePlanId) =>
     fetchWithAuth('/api/plans/restore', {
@@ -105,8 +105,8 @@ export const restorePlanFromHistory = (sourcePlanId) =>
 // del DELETE (chunk_user_locks no tiene FK a meal_plans, así que el
 // CASCADE no los limpia). El DELETE cascadea plan_chunk_queue y, post
 // migración SSOT p0_hist_3_telemetry_orphan_fk, hace SET NULL en
-// chunk_lesson_telemetry y chunk_deferrals. Reemplaza el direct
-// supabase.from('meal_plans').delete() del frontend que dejaba locks
+// chunk_lesson_telemetry y chunk_deferrals. Reemplaza el DELETE directo
+// del cliente legacy del frontend que dejaba locks
 // zombi y telemetría huérfana.
 export const deletePlanFromHistory = (planId) =>
     fetchWithAuth(`/api/plans/${planId}`, { method: 'DELETE' });
@@ -137,7 +137,7 @@ export const renamePlan = (planId, newName) =>
     });
 
 // [P1-HIST-AUDIT-4 · 2026-05-09] Listado del Historial con projection
-// mínima. Reemplaza el `supabase.from('meal_plans').select('*')` del
+// mínima. Reemplaza el `el SELECT directo del cliente anterior` del
 // frontend que descargaba el `plan_data` jsonb completo (30-80KB por
 // plan). El endpoint extrae solo los keys que la card consume vía
 // operadores jsonb (`->`, `->>`, `jsonb_array_length`) y devuelve

@@ -321,7 +321,7 @@ export const clearFormStorage = () => {
 //    que termine `secureLoadFormData` (~50-200ms post-login), `formData`
 //    aún no tiene los campos sensibles (`medicalConditions`, `allergies`,
 //    `motivation`, `dislikes`, etc.) hidratados desde `mealfit_form_secure`.
-//    El spread los enviaría como `[]`/`""` y `supabase.update()` REEMPLAZA
+//    El spread los enviaría como `[]`/`""` y `el UPDATE del cliente anterior` REEMPLAZA
 //    la columna entera, BORRANDO datos médicos previos.
 //
 // El helper:
@@ -405,7 +405,7 @@ const _isHydrationLikelyPending = (formData, session) => {
  *
  * @param {object} formData — state actual del wizard.
  * @param {object} [overrides] — campos a sobrescribir/añadir (ej. `{householdSize: 4}`).
- * @param {{access_token?: string}|null|undefined} [session] — sesión Supabase.
+ * @param {{access_token?: string}|null|undefined} [session] — sesión de auth.
  *   Si se omite, el gate de hidratación se desactiva (no hay forma de detectar race).
  * @returns {object|null} payload listo para `health_profile`, o `null` si
  *   detectamos race de hidratación (caller debe abortar + dar feedback).
