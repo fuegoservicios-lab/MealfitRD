@@ -2035,10 +2035,19 @@ const DashboardInner = () => {
             }
 
 
+            // [P3-DATA-PROVENANCE · 2026-06-14] (Roadmap M1) Línea de trazabilidad de datos:
+            // muestra cuántos ingredientes están anclados a USDA FoodData Central (IDs públicos
+            // verificables). Convierte la precisión autoafirmada en proveniencia de terceros.
+            const _prov = planData?.data_provenance;
+            const provenanceHTML = (_prov && _prov.usda_traced > 0)
+                ? `<p style="margin: 3px 0 0; font-weight: 500; color: #9ca3af; font-size: 9px; letter-spacing: 0.3px;">Datos nutricionales anclados a USDA FoodData Central — ${escapeHtml(String(_prov.usda_traced))}/${escapeHtml(String(_prov.ingredients_resolved))} ingredientes trazables (IDs públicos en fdc.nal.usda.gov) · resto INCAP/curado es-DO</p>`
+                : '';
+
             htmlContent += `
                 <!-- Footer -->
                 <div style="margin-top: 15px; text-align: center; color: #9ca3af; font-size: 10px; border-top: 2px dashed #e5e7eb; padding-top: 10px;">
                     <p style="margin: 0; font-weight: 700; color: #6b7280; letter-spacing: 1px;">PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE</p>
+                    ${provenanceHTML}
                 </div>
             </div>
             `;
