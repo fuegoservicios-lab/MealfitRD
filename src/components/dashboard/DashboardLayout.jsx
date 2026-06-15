@@ -155,7 +155,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
 
                 <div className={styles.accountSection} ref={accountMenuRef}>
                     {isAccountMenuOpen && (
-                        <div className={styles.accountPopover} role="menu">
+                        <div id="dashboard-account-popover" className={styles.accountPopover} role="menu">
                             {/* [P3-UPGRADE-FUSION · 2026-05-26] Mini-sección
                                 del plan tier fusionada con el popover. Antes
                                 el chip ULTRA/PLUS/etc. vivía en el header del
@@ -269,6 +269,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         onClick={() => setIsAccountMenuOpen(prev => !prev)}
                         aria-haspopup="menu"
                         aria-expanded={isAccountMenuOpen}
+                        aria-controls="dashboard-account-popover"
                         aria-label="Abrir menú de cuenta"
                     >
                         <span className={styles.accountAvatar} aria-hidden="true">
