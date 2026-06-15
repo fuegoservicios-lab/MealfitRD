@@ -20,6 +20,8 @@ import WaterTracker from '../components/dashboard/WaterTracker';
 // [P2-CREDITS-METER · 2026-06-15] Gauge circular animado de créditos (reemplaza
 // el badge plano icono+número del header). Recibe la misma data del badge.
 import CreditsMeter from '../components/dashboard/CreditsMeter';
+// [P3-MICRONUTRIENT-PANEL · 2026-06-15] Panel de micros como medidores + dismissible.
+import MicronutrientPanel from '../components/dashboard/MicronutrientPanel';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
 import EmptyState from '../components/common/EmptyState';
@@ -4332,50 +4334,15 @@ const DashboardInner = () => {
                 techos de sodio/azúcar/satfat vs DRI/WHO) y `micronutrient_supplement_advice` (FS8), pero
                 ningún surface los leía → trabajo clínico invisible. Solo se muestra si hay gaps/suplementos
                 accionables (no ruido en el happy path). Cierra P2-6 del audit. */}
+            {/* [P3-MICRONUTRIENT-PANEL · 2026-06-15] Rediseñado como medidores de
+                progreso + dismissible (X). Ver components/dashboard/MicronutrientPanel. */}
             {(planData?.micronutrient_report?.gaps?.length > 0
                 || planData?.micronutrient_supplement_advice?.count > 0) && (
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    style={{
-                        background: isDark
-                            ? 'linear-gradient(135deg, rgba(20,184,166,0.10) 0%, rgba(13,148,136,0.18) 100%)'
-                            : 'linear-gradient(135deg, #F0FDFA 0%, #CCFBF1 100%)',
-                        border: isDark ? '1px solid rgba(45,212,191,0.30)' : '1.5px solid #5EEAD4',
-                        borderRadius: '1rem',
-                        padding: '1rem 1.25rem',
-                        marginBottom: '1.5rem',
-                        boxShadow: isDark
-                            ? '0 4px 12px -2px rgba(0,0,0,0.5)'
-                            : '0 4px 12px -2px rgba(13,148,136,0.12)'
-                    }}
-                    role="region"
-                    aria-label="Micronutrientes a vigilar"
-                >
-                    <span style={{ fontWeight: 700, color: isDark ? '#5EEAD4' : '#0F766E', fontSize: '0.95rem', display: 'block', marginBottom: '0.5rem' }}>
-                        🧪 Micronutrientes a vigilar
-                    </span>
-                    {(planData.micronutrient_report?.gaps || []).map((g, i) => {
-                        const _isCeil = g.techo !== undefined && g.techo !== null;
-                        const _statusTxt = g.status === 'alto' ? 'por encima del techo'
-                            : g.status === 'estimado_bajo' ? 'posiblemente bajo (estimado)' : 'por debajo del objetivo';
-                        const _ref = _isCeil ? `techo ${g.techo}${g.unidad}` : `objetivo ${g.piso}${g.unidad}`;
-                        return (
-                            <div key={`mngap-${i}`} style={{ color: isDark ? '#99F6E4' : '#115E59', fontSize: '0.82rem', marginBottom: '0.2rem' }}>
-                                • <strong>{g.nutriente}</strong>: {g.valor}{g.unidad} ({_ref}) — {_statusTxt}
-                            </div>
-                        );
-                    })}
-                    {(planData.micronutrient_supplement_advice?.items || []).map((it, i) => (
-                        <div key={`mnsupp-${i}`} style={{ color: isDark ? '#5EEAD4' : '#0F766E', fontSize: '0.82rem', marginTop: '0.35rem' }}>
-                            💊 <strong>{it.nutriente}</strong>: {it.suplemento} {it.dosis_sugerida}
-                            {it.primero_alimentos ? <span style={{ opacity: 0.85 }}> — primero alimentos: {it.primero_alimentos}</span> : null}
-                        </div>
-                    ))}
-                    <span style={{ color: isDark ? '#94A3B8' : '#0F766E', fontSize: '0.72rem', display: 'block', marginTop: '0.5rem', opacity: isDark ? 0.95 : 0.8 }}>
-                        {planData.micronutrient_supplement_advice?.disclaimer || planData.micronutrient_report?.disclaimer}
-                    </span>
-                </motion.div>
+                <MicronutrientPanel
+                    report={planData.micronutrient_report}
+                    advice={planData.micronutrient_supplement_advice}
+                    planId={planData?.plan_id || planData?.id}
+                />
             )}
 
             {/* [P1-LOW-SIGNAL-FALLBACK · 2026-05-21] Banner cuando la IA agotó los

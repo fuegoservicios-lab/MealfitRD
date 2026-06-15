@@ -1,0 +1,286 @@
+/* [P3-MICRONUTRIENT-PANEL · 2026-06-15] Panel "Micronutrientes a vigilar"
+   rediseñado como lectura de diagnóstico (medidores de progreso). Tema-aware vía
+   variables de index.css; acentos teal explícitos. Las barras son estáticas. */
+
+.panel {
+    position: relative;
+    border-radius: 1.1rem;
+    padding: 1.15rem 1.3rem 1.05rem;
+    margin-bottom: 1.5rem;
+    background:
+        radial-gradient(120% 140% at 0% 0%, rgba(45, 212, 191, 0.10), transparent 55%),
+        var(--bg-card);
+    border: 1px solid var(--border);
+    isolation: isolate;
+    overflow: hidden;
+    box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.05),
+        0 14px 34px -22px rgba(13, 148, 136, 0.5);
+}
+
+/* Borde-gradiente teal sutil (mask: solo el anillo de 1px). */
+.panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(45, 212, 191, 0.55), transparent 50%);
+    -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    opacity: 0.8;
+    pointer-events: none;
+}
+
+/* ---- header ---- */
+.head {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 0.95rem;
+}
+
+.badge {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 0.7rem;
+    color: #042f2e;
+    background: linear-gradient(135deg, #5EEAD4, #2DD4BF);
+    box-shadow: 0 4px 12px -3px rgba(45, 212, 191, 0.55);
+}
+
+.headText {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+}
+
+.title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+    line-height: 1.15;
+}
+
+.sub {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.close {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 0.6rem;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-light);
+    cursor: pointer;
+    transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.close:hover {
+    color: var(--text-main);
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+
+/* ---- medidores ---- */
+.meters {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.meter {
+    --tone: #2DD4BF;
+    --tone-2: #22D3EE;
+}
+
+.meterTop {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+
+.nutrient {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.values {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.cur {
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--tone);
+}
+
+.sep {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+.barRow {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.track {
+    position: relative;
+    flex: 1;
+    height: 8px;
+    border-radius: 99px;
+    background: rgba(148, 163, 184, 0.18);
+    overflow: hidden;
+}
+
+.fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    height: 100%;
+    min-width: 8px;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--tone), var(--tone-2));
+    box-shadow: 0 0 10px -1px var(--tone);
+}
+
+/* Brillo en el extremo de la barra (cabeza del progreso). */
+.fill::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 1px;
+    width: 5px;
+    height: 5px;
+    transform: translateY(-50%);
+    border-radius: 50%;
+    background: #fff;
+    opacity: 0.85;
+    box-shadow: 0 0 6px 1px var(--tone);
+}
+
+.pill {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 7px 2px 5px;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--tone);
+    background: color-mix(in srgb, var(--tone) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tone) 32%, transparent);
+}
+
+/* ---- tonos por severidad ---- */
+.near { --tone: #2DD4BF; --tone-2: #22D3EE; }
+.low  { --tone: #FBBF24; --tone-2: #FB923C; }
+.far  { --tone: #FB923C; --tone-2: #FB7185; }
+.over { --tone: #FB7185; --tone-2: #F43F5E; }
+
+/* ---- sugerencias (suplementos) ---- */
+.supps {
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.suppsLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #A78BFA;
+}
+
+.supp {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.35;
+}
+
+.suppIcon {
+    flex: none;
+    margin-top: 2px;
+    color: #A78BFA;
+}
+
+.suppText strong {
+    color: var(--text-main);
+    font-weight: 700;
+}
+
+.suppHint {
+    color: var(--text-light);
+}
+
+/* ---- disclaimer ---- */
+.foot {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    margin: 0.95rem 0 0;
+    font-size: 0.7rem;
+    line-height: 1.4;
+    color: var(--text-light);
+}
+
+.foot svg {
+    flex: none;
+    margin-top: 2px;
+    opacity: 0.8;
+}
+
+/* ---- tema claro: superficie + glow más suaves ---- */
+:global(html[data-theme="light"]) .panel {
+    background:
+        radial-gradient(120% 140% at 0% 0%, rgba(13, 148, 136, 0.08), transparent 55%),
+        linear-gradient(135deg, #F0FDFA 0%, #ECFEFF 100%);
+    border-color: #99F6E4;
+    box-shadow: 0 10px 26px -18px rgba(13, 148, 136, 0.45);
+}
+
+:global(html[data-theme="light"]) .track {
+    background: rgba(13, 148, 136, 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .panel { transition: none; }
+}
