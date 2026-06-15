@@ -2043,10 +2043,30 @@ const DashboardInner = () => {
                 ? `<p style="margin: 3px 0 0; font-weight: 500; color: #9ca3af; font-size: 9px; letter-spacing: 0.3px;">Datos nutricionales anclados a USDA FoodData Central — ${escapeHtml(String(_prov.usda_traced))}/${escapeHtml(String(_prov.ingredients_resolved))} ingredientes trazables (IDs públicos en fdc.nal.usda.gov) · resto INCAP/curado es-DO</p>`
                 : '';
 
+            // [P2-PRO-REVIEW-SURFACE + P2-MICRONUTRIENT-SURFACE · 2026-06-15] El plan IMPRESO que el
+            // usuario sigue debe llevar la advertencia de revisión profesional (crítico para renal) y los
+            // micros a vigilar — el backend ya los computa. escapeHtml en TODA interpolación (XSS, la nota
+            // y los nutrientes pueden incluir nombres de condición/ingrediente influenciados por el form).
+            const _rpr = planData?.requires_professional_review;
+            const clinicalNoteHTML = (_rpr && _rpr.flag && _rpr.note)
+                ? `<div style="margin-top: 15px; padding: 10px 12px; border: 1.5px solid ${_rpr.renal_gate ? '#fca5a5' : '#93c5fd'}; background: ${_rpr.renal_gate ? '#fef2f2' : '#eff6ff'}; border-radius: 8px; color: ${_rpr.renal_gate ? '#991b1b' : '#1e40af'}; font-size: 10px; line-height: 1.45;"><strong>${_rpr.renal_gate ? '🫘 Condición renal — requiere supervisión de tu nefrólogo' : '⚕️ Consulta a tu profesional de salud'}</strong><br/>${escapeHtml(String(_rpr.note))}</div>`
+                : '';
+            const _mnGaps = planData?.micronutrient_report?.gaps;
+            const _microItems = (Array.isArray(_mnGaps) ? _mnGaps : []).map((g) => {
+                const ref = (g.techo !== undefined && g.techo !== null)
+                    ? ('techo ' + g.techo + g.unidad) : ('objetivo ' + g.piso + g.unidad);
+                return escapeHtml(g.nutriente + ': ' + g.valor + g.unidad + ' (' + ref + ')');
+            }).join(' · ');
+            const microHTML = _microItems
+                ? `<p style="margin: 6px 0 0; font-size: 9px; color: #9ca3af;"><strong>Micronutrientes a vigilar:</strong> ${_microItems}</p>`
+                : '';
+
             htmlContent += `
+                ${clinicalNoteHTML}
                 <!-- Footer -->
                 <div style="margin-top: 15px; text-align: center; color: #9ca3af; font-size: 10px; border-top: 2px dashed #e5e7eb; padding-top: 10px;">
                     <p style="margin: 0; font-weight: 700; color: #6b7280; letter-spacing: 1px;">PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE</p>
+                    ${microHTML}
                     ${provenanceHTML}
                 </div>
             </div>
@@ -4232,6 +4252,106 @@ const DashboardInner = () => {
             {/* --- BANNER: GENERACIÓN EN BACKGROUND (Semanas 2-4) --- */}
             {/* Banner de Chunking Background eliminado para alinearse con la experiencia visual "silenciosa" */}
 
+            {/* [P2-PRO-REVIEW-SURFACE · 2026-06-15] Banner de revisión profesional. El backend YA computa
+                `requires_professional_review` (flag + note + renal_gate) en la capa clínica (FS9 / red de
+                seguridad renal) cuando el usuario declara una condición médica, PERO ningún surface lo
+                leía → el paciente (especialmente renal) nunca veía la advertencia de consultar a su
+                profesional. Aquí se muestra prominente; estilo rojo si es gate renal (mayor riesgo
+                iatrogénico), azul para el resto de condiciones. Cierra P2-7/P2-15 del audit. */}
+            {planData?.requires_professional_review?.flag && planData?.requires_professional_review?.note && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '0.75rem',
+                        background: planData.requires_professional_review.renal_gate
+                            ? 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)'
+                            : 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
+                        border: planData.requires_professional_review.renal_gate
+                            ? '1.5px solid #FCA5A5' : '1.5px solid #93C5FD',
+                        borderRadius: '1rem',
+                        padding: '1rem 1.25rem',
+                        marginBottom: '1.5rem',
+                        boxShadow: '0 4px 12px -2px rgba(0,0,0,0.10)',
+                        flexWrap: 'wrap'
+                    }}
+                    role="alert"
+                    aria-live="polite"
+                >
+                    <AlertCircle
+                        size={22}
+                        color={planData.requires_professional_review.renal_gate ? '#DC2626' : '#2563EB'}
+                        style={{ flexShrink: 0, marginTop: '2px' }}
+                    />
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                        <span style={{
+                            fontWeight: 700,
+                            color: planData.requires_professional_review.renal_gate ? '#991B1B' : '#1E40AF',
+                            fontSize: '0.95rem', display: 'block', marginBottom: '0.25rem'
+                        }}>
+                            {planData.requires_professional_review.renal_gate
+                                ? '🫘 Condición renal — este plan requiere supervisión de tu nefrólogo'
+                                : '⚕️ Declaraste una condición de salud — consulta a tu profesional'}
+                        </span>
+                        <span style={{
+                            color: planData.requires_professional_review.renal_gate ? '#B91C1C' : '#1D4ED8',
+                            fontSize: '0.85rem', whiteSpace: 'pre-line'
+                        }}>
+                            {planData.requires_professional_review.note}
+                        </span>
+                    </div>
+                </motion.div>
+            )}
+
+            {/* [P2-MICRONUTRIENT-SURFACE · 2026-06-15] Panel de micronutrientes a vigilar + suplementación.
+                El backend YA computa `micronutrient_report` (FS4: vit D/hierro/calcio/B12/potasio/Mg +
+                techos de sodio/azúcar/satfat vs DRI/WHO) y `micronutrient_supplement_advice` (FS8), pero
+                ningún surface los leía → trabajo clínico invisible. Solo se muestra si hay gaps/suplementos
+                accionables (no ruido en el happy path). Cierra P2-6 del audit. */}
+            {(planData?.micronutrient_report?.gaps?.length > 0
+                || planData?.micronutrient_supplement_advice?.count > 0) && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        background: 'linear-gradient(135deg, #F0FDFA 0%, #CCFBF1 100%)',
+                        border: '1.5px solid #5EEAD4',
+                        borderRadius: '1rem',
+                        padding: '1rem 1.25rem',
+                        marginBottom: '1.5rem',
+                        boxShadow: '0 4px 12px -2px rgba(13,148,136,0.12)'
+                    }}
+                    role="region"
+                    aria-label="Micronutrientes a vigilar"
+                >
+                    <span style={{ fontWeight: 700, color: '#0F766E', fontSize: '0.95rem', display: 'block', marginBottom: '0.5rem' }}>
+                        🧪 Micronutrientes a vigilar
+                    </span>
+                    {(planData.micronutrient_report?.gaps || []).map((g, i) => {
+                        const _isCeil = g.techo !== undefined && g.techo !== null;
+                        const _statusTxt = g.status === 'alto' ? 'por encima del techo'
+                            : g.status === 'estimado_bajo' ? 'posiblemente bajo (estimado)' : 'por debajo del objetivo';
+                        const _ref = _isCeil ? `techo ${g.techo}${g.unidad}` : `objetivo ${g.piso}${g.unidad}`;
+                        return (
+                            <div key={`mngap-${i}`} style={{ color: '#115E59', fontSize: '0.82rem', marginBottom: '0.2rem' }}>
+                                • <strong>{g.nutriente}</strong>: {g.valor}{g.unidad} ({_ref}) — {_statusTxt}
+                            </div>
+                        );
+                    })}
+                    {(planData.micronutrient_supplement_advice?.items || []).map((it, i) => (
+                        <div key={`mnsupp-${i}`} style={{ color: '#0F766E', fontSize: '0.82rem', marginTop: '0.35rem' }}>
+                            💊 <strong>{it.nutriente}</strong>: {it.suplemento} {it.dosis_sugerida}
+                            {it.primero_alimentos ? <span style={{ opacity: 0.85 }}> — primero alimentos: {it.primero_alimentos}</span> : null}
+                        </div>
+                    ))}
+                    <span style={{ color: '#0F766E', fontSize: '0.72rem', display: 'block', marginTop: '0.5rem', opacity: 0.8 }}>
+                        {planData.micronutrient_supplement_advice?.disclaimer || planData.micronutrient_report?.disclaimer}
+                    </span>
+                </motion.div>
+            )}
+
             {/* [P1-LOW-SIGNAL-FALLBACK · 2026-05-21] Banner cuando la IA agotó los
                 3 intentos sin lograr un plan que aprobara el revisor. El plan se
                 entrega igual (mejor versión disponible) pero el usuario debe
@@ -4277,6 +4397,8 @@ const DashboardInner = () => {
                                         max_attempts: 'El revisor de calidad no aprobó el plan tras varios intentos.',
                                         invalid_pipeline_start: 'Hubo un problema técnico al iniciar la generación.',
                                         budget_exhausted: 'Se alcanzó el límite de generación para este plan.',
+                                        // [P2-BAND-SCORE-GATE · 2026-06-15] motivo emitido por _maybe_mark_low_band_degraded
+                                        low_band_score: 'La precisión de macros de este plan quedó por debajo de la banda objetivo.',
                                     };
                                     const _label = _qReasonMap[planData._quality_degraded_reason] || 'Calidad por debajo del óptimo.';
                                     const _sev = planData?._quality_degraded_severity === 'high' ? 'Importante' : 'Menor';
