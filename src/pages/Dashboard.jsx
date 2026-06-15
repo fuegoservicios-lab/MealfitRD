@@ -4399,6 +4399,10 @@ const DashboardInner = () => {
                                         budget_exhausted: 'Se alcanzó el límite de generación para este plan.',
                                         // [P2-BAND-SCORE-GATE · 2026-06-15] motivo emitido por _maybe_mark_low_band_degraded
                                         low_band_score: 'La precisión de macros de este plan quedó por debajo de la banda objetivo.',
+                                        // [P2-PANEL-SOFT-REJECT · 2026-06-15] motivos de _maybe_mark_panel_degraded
+                                        condition_panel_gap: 'El balance de tu condición (grasa saturada / potasio / magnesio / fibra) quedó fuera de la meta tras los ajustes automáticos. Revísalo con tu profesional.',
+                                        low_micros: 'Algunos micronutrientes (fibra / potasio / magnesio / calcio) quedaron por debajo del objetivo diario.',
+                                        high_sodium_sugar: 'El sodio o el azúcar añadida quedaron por encima del techo recomendado por la OMS.',
                                     };
                                     const _label = _qReasonMap[planData._quality_degraded_reason] || 'Calidad por debajo del óptimo.';
                                     const _sev = planData?._quality_degraded_severity === 'high' ? 'Importante' : 'Menor';
