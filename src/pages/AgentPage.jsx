@@ -33,6 +33,9 @@ import { CHAT_MESSAGES_CACHE_KEY, CHAT_SESSIONS_CACHE_KEY } from '../utils/chatC
 const _CHAT_SESSIONS_CACHE_KEY = CHAT_SESSIONS_CACHE_KEY;
 const _CHAT_CACHE_KEY = CHAT_MESSAGES_CACHE_KEY;
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
+// [P3-AGENT-PREFILL · 2026-06-15] Pregunta pre-cargada desde el dashboard
+// (p.ej. tocar un micronutriente → "¿cómo subo mi fibra?").
+import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill';
 // [P2-AGENTPAGE-ERROR-SENTRY · 2026-05-15] Capture estructurada de los catch
 // blocks del agent page. ANTES: solo `console.error(...)` — esbuild conserva
 // el call pero el output queda en DevTools del cliente, NO en Sentry; los
@@ -770,6 +773,34 @@ const AgentPage = () => {
     // post-send (solo cuando tenía focus pre-send — preserva mobile UX
     // donde tap del botón send NO debe abrir keyboard).
     const chatInputRef = useRef(null);
+
+    // [P3-AGENT-PREFILL · 2026-06-15] Consumir una pregunta pre-cargada desde
+    // otra parte del dashboard (p.ej. tocar un micronutriente en
+    // MicronutrientPanel). Keep-alive-safe: se aplica al MONTAR (primera visita,
+    // recoge la pendiente dejada justo antes de navegar) y vía EVENTO (ya
+    // montado). Pre-carga el textarea + lo enfoca; NO auto-envía (el usuario
+    // revisa/edita y pulsa enviar).
+    useEffect(() => {
+        const apply = () => {
+            const text = consumeAgentPrefill();
+            if (!text) return;
+            setInput(text);
+            setTimeout(() => {
+                try {
+                    const el = chatInputRef.current;
+                    if (!el) return;
+                    el.focus();
+                    el.style.height = 'auto';
+                    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+                    el.setSelectionRange(text.length, text.length);
+                } catch { /* noop */ }
+            }, 120);
+        };
+        apply();
+        window.addEventListener(AGENT_PREFILL_EVENT, apply);
+        return () => window.removeEventListener(AGENT_PREFILL_EVENT, apply);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     // [P2-CHAT-SCROLL-RACE · 2026-05-19] Refs del scroll-race guard.
     //
     // Pre-fix: `useEffect(() => scrollToBottom(), [messages])` saltaba

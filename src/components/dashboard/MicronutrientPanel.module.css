@@ -110,6 +110,47 @@
     --tone-2: #22D3EE;
 }
 
+/* Medidor interactivo (tap → preguntarle al coach IA cómo mejorarlo). */
+.clickable {
+    display: block;
+    width: calc(100% + 1.3rem);
+    margin: 0 -0.65rem;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid transparent;
+    border-radius: 0.7rem;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.clickable:hover {
+    background: color-mix(in srgb, var(--tone) 9%, transparent);
+    border-color: color-mix(in srgb, var(--tone) 26%, transparent);
+}
+
+.clickable:focus-visible {
+    outline: none;
+    border-color: var(--tone);
+}
+
+.askIcon {
+    align-self: center;
+    margin-left: 3px;
+    color: var(--text-light);
+    opacity: 0.45;
+    transition: opacity 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.clickable:hover .askIcon,
+.clickable:focus-visible .askIcon {
+    opacity: 1;
+    color: var(--tone);
+    transform: scale(1.08);
+}
+
 .meterTop {
     display: flex;
     align-items: baseline;

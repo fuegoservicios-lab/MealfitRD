@@ -22,6 +22,8 @@ import WaterTracker from '../components/dashboard/WaterTracker';
 import CreditsMeter from '../components/dashboard/CreditsMeter';
 // [P3-MICRONUTRIENT-PANEL · 2026-06-15] Panel de micros como medidores + dismissible.
 import MicronutrientPanel from '../components/dashboard/MicronutrientPanel';
+// [P3-AGENT-PREFILL · 2026-06-15] Tocar un micronutriente → pregunta al coach IA.
+import { requestAgentPrefill } from '../utils/agentPrefill';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
 import EmptyState from '../components/common/EmptyState';
@@ -4342,6 +4344,20 @@ const DashboardInner = () => {
                     report={planData.micronutrient_report}
                     advice={planData.micronutrient_supplement_advice}
                     planId={planData?.plan_id || planData?.id}
+                    onAsk={(question) => {
+                        // [P3-AGENT-PREFILL · 2026-06-15] El chat es solo para
+                        // cuentas (el invitado no accede a /dashboard/agent). Para
+                        // invitados, convertir el tap en gancho de registro.
+                        if (isGuest) {
+                            toast('Crea tu cuenta para hablar con tu coach IA', {
+                                description: 'Te dirá exactamente cómo mejorar cada micronutriente de tu plan.',
+                            });
+                            navigate('/register');
+                            return;
+                        }
+                        requestAgentPrefill(question);
+                        navigate('/dashboard/agent');
+                    }}
                 />
             )}
 

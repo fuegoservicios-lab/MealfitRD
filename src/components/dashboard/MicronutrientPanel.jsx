@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FlaskConical, X, Pill, Info, ArrowDown, ArrowUp, Sparkles } from 'lucide-react';
+import { FlaskConical, X, Pill, Info, ArrowDown, ArrowUp, Sparkles, MessageCircle } from 'lucide-react';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import styles from './MicronutrientPanel.module.css';
 
@@ -28,7 +28,17 @@ function classify(g) {
     return { kind: 'floor', pct, fill: Math.min(pct, 100), over: false, tone, label, target: g.piso };
 }
 
-export default function MicronutrientPanel({ report, advice, planId }) {
+// Pregunta natural y accionable para el coach IA, con los números reales del gap.
+function buildQuestion(g) {
+    const isCeil = g.techo !== undefined && g.techo !== null;
+    const n = (g.nutriente || '').toLowerCase();
+    if (isCeil) {
+        return `En mi plan, el ${n} quedó por encima del objetivo (${g.valor}${g.unidad}, techo ${g.techo}${g.unidad}). ¿Cómo lo reduzco sin afectar mis otras metas?`;
+    }
+    return `Mi plan se queda corto en ${n} (${g.valor}${g.unidad} de ${g.piso}${g.unidad}). ¿Qué alimentos o ajustes me recomiendas para subirlo?`;
+}
+
+export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
     const gaps = report?.gaps || [];
     const supplements = advice?.items || [];
     const disclaimer = advice?.disclaimer || report?.disclaimer;
@@ -84,13 +94,29 @@ export default function MicronutrientPanel({ report, advice, planId }) {
                         <div className={styles.meters}>
                             {gaps.map((g, i) => {
                                 const s = classify(g);
+                                const ask = onAsk ? () => onAsk(buildQuestion(g), g.nutriente) : undefined;
+                                const Tag = ask ? 'button' : 'div';
                                 return (
-                                    <div key={`mn-${i}`} className={`${styles.meter} ${styles[s.tone]}`}>
+                                    <Tag
+                                        key={`mn-${i}`}
+                                        type={ask ? 'button' : undefined}
+                                        onClick={ask}
+                                        className={`${styles.meter} ${styles[s.tone]} ${ask ? styles.clickable : ''}`}
+                                        title={ask ? `Preguntarle al coach cómo mejorar tu ${(g.nutriente || '').toLowerCase()}` : undefined}
+                                    >
                                         <div className={styles.meterTop}>
                                             <span className={styles.nutrient}>{g.nutriente}</span>
                                             <span className={styles.values}>
                                                 <span className={styles.cur}>{g.valor}</span>
                                                 <span className={styles.sep}>/ {s.target}{g.unidad}</span>
+                                                {ask && (
+                                                    <MessageCircle
+                                                        size={14}
+                                                        strokeWidth={2.25}
+                                                        className={styles.askIcon}
+                                                        aria-hidden="true"
+                                                    />
+                                                )}
                                             </span>
                                         </div>
                                         <div className={styles.barRow}>
@@ -104,7 +130,7 @@ export default function MicronutrientPanel({ report, advice, planId }) {
                                                 {s.pct}%
                                             </span>
                                         </div>
-                                    </div>
+                                    </Tag>
                                 );
                             })}
                         </div>
