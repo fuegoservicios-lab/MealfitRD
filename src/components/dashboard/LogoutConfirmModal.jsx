@@ -8,7 +8,7 @@ import styles from './LogoutConfirmModal.module.css';
 // anunciaban como modal, y el foco se perdía tras cerrar.
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 
-const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel, userEmail }) => {
+const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel, userEmail, isGuest = false }) => {
     const [isClosing, setIsClosing] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -62,11 +62,18 @@ const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel, userEmail }) => {
                 className={`${styles.card} ${isLoading ? styles.loading : ''}`}
             >
                 <h2 id="logout-confirm-title" className={styles.title}>
-                    ¿Confirmas que quieres{'\n'}cerrar sesión?
+                    {isGuest
+                        ? <>¿Salir del{'\n'}modo invitado?</>
+                        : <>¿Confirmas que quieres{'\n'}cerrar sesión?</>}
                 </h2>
                 <p className={styles.subtitle}>
-                    ¿Cerrar sesión de MealfitRD como{' '}
-                    <span className={styles.email}>{userEmail || 'tu cuenta'}</span>?
+                    {isGuest ? (
+                        <>Perderás el plan y el progreso de tu sesión de invitado.{' '}
+                        <span className={styles.email}>Crea una cuenta gratis</span> antes de salir para guardarlo.</>
+                    ) : (
+                        <>¿Cerrar sesión de MealfitRD como{' '}
+                        <span className={styles.email}>{userEmail || 'tu cuenta'}</span>?</>
+                    )}
                 </p>
 
                 <div className={styles.actions}>
@@ -77,7 +84,9 @@ const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel, userEmail }) => {
                         id="logout-confirm-btn"
                     >
                         <LogOut size={16} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
-                        {isLoading ? 'Cerrando sesión...' : 'Cerrar sesión'}
+                        {isGuest
+                            ? (isLoading ? 'Saliendo...' : 'Salir')
+                            : (isLoading ? 'Cerrando sesión...' : 'Cerrar sesión')}
                     </button>
                     <button
                         className={styles.cancelBtn}

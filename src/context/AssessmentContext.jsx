@@ -9,6 +9,17 @@ import { authClient } from '../authClient';
 // para los reads en el initializer del provider (líneas 88+) donde un
 // throw de localStorage congela el provider entero.
 import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
+// [P1-GUEST-MODE · 2026-06-15] Helpers del modo invitado (funnel del plan
+// gratuito sin cuenta). Ver utils/guestMode.js.
+import {
+    GUEST_PLAN_CREDITS,
+    isGuestModeActive,
+    activateGuestMode as activateGuestModeStorage,
+    getGuestCreditsUsed,
+    incrementGuestCreditsUsed,
+    exitGuestMode,
+    clearGuestModeStorage,
+} from '../utils/guestMode';
 // [P2-CHAT-CACHE-XUSER · 2026-05-31] Keys del chat del Agente para limpiar en
 // logout/user-switch (SSOT en módulo liviano — no arrastra AgentPage al bundle).
 import { CHAT_MESSAGES_CACHE_KEY, CHAT_SESSIONS_CACHE_KEY, CHAT_CURRENT_SESSION_KEY } from '../utils/chatCacheKeys';
@@ -426,6 +437,74 @@ export const AssessmentProvider = ({ children }) => {
     // --- ESTADO PARA LOS CRÉDITOS ---
     const [planCount, setPlanCount] = useState(0);
     const PLAN_LIMIT = 15; // Límite del plan gratuito
+
+    // [P1-GUEST-MODE · 2026-06-15] Estado del modo invitado. `guestFlag` espeja
+    // el flag de localStorage (re-render al activar); `guestCreditsUsed` espeja
+    // el contador de créditos consumidos. `isGuest` es verdadero SOLO cuando no
+    // hay sesión real (un login válido siempre gana sobre el modo invitado).
+    const [guestFlag, setGuestFlag] = useState(() => isGuestModeActive());
+    const [guestCreditsUsed, setGuestCreditsUsed] = useState(() => getGuestCreditsUsed());
+
+    // Al confirmarse una sesión real, salir de modo invitado y limpiar TODAS las
+    // keys de invitado (flag + créditos + session_id efímero) para que el usuario
+    // logueado vea sus créditos reales y no quede rastro de la identidad anónima
+    // del invitado en el dispositivo. [P1-GUEST-KEY-HYGIENE · 2026-06-15] antes
+    // solo exitGuestMode() (flag+créditos) dejaba mealfit_guest_session_id stale.
+    useEffect(() => {
+        if (session) {
+            clearGuestModeStorage();
+            setGuestFlag(false);
+        }
+    }, [session]);
+
+    // [P1-GUEST-FRESH · 2026-06-15] Activa modo invitado arrancando una cuenta de
+    // invitado NUEVA y LIMPIA (lo invoca "Probar sin cuenta"). Antes solo seteaba
+    // el flag → el formulario/plan/likes que hubieran quedado en localStorage de
+    // una sesión previa (cuenta real cerrada o invitado anterior) se mostraban
+    // "medio llenos". Ahora limpiamos esos datos (localStorage + state de React) y
+    // rotamos session_id + créditos. El progreso del invitado NO se pierde al
+    // registrarse: la detección de cambio-de-usuario excluye 'guest' (no borra),
+    // así que su form/plan recién llenados se HEREDAN a la cuenta nueva.
+    const activateGuestMode = useCallback(() => {
+        safeLocalStorageRemove('mealfit_form');
+        safeLocalStorageRemove('mealfit_form_secure');
+        safeLocalStorageRemove('mealfit_plan');
+        safeLocalStorageRemove('mealfit_likes');
+        safeLocalStorageRemove('mealfit_dislikes');
+        safeLocalStorageRemove('mealfit_current_session');
+        // [P1-GUEST-XUSER-CACHE · 2026-06-15] Limpiar los caches global-keyed
+        // (inventario Nevera + listado Historial + 5 modal caches + depleted +
+        // chat) de CUALQUIER usuario previo ANTES de arrancar el invitado. Sin
+        // esto, A (que cargó Nevera/Historial aquí) → /login → "Probar sin cuenta"
+        // → registra cuenta B reabriría el leak PII cross-user P1-XTAB-CACHE-LEAK:
+        // la rama de wipe en handleAuthChange excluye 'guest' (herencia intencional
+        // del form/plan) y NO corre _clearUserScopedCaches en ese path. Paridad con
+        // exitGuestSession/resetApp. NO afecta la herencia (form/plan viven en
+        // mealfit_form/mealfit_plan, ya re-seteados, no en los caches global-keyed).
+        _clearUserScopedCaches();
+        // Marcar 'guest' como dueño del form: al registrarse, el form/plan recién
+        // llenados se HEREDAN (la rama de wipe en handleAuthChange excluye 'guest').
+        safeLocalStorageSet('mealfit_last_form_owner', 'guest');
+        const sid = activateGuestModeStorage();
+        setFormData(initialFormData);
+        setPlanData(null);
+        setLikedMeals({});
+        setDislikedMeals({});
+        setCurrentStep(0);
+        setMaxReachedStep(0);
+        editedFieldsRef.current.clear();
+        setGuestFlag(true);
+        setGuestCreditsUsed(0);
+        return sid;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Consume 1 crédito de invitado (tras una generación exitosa).
+    const consumeGuestCredit = useCallback(() => {
+        const n = incrementGuestCreditsUsed();
+        setGuestCreditsUsed(n);
+        return n;
+    }, []);
 
     // 🔒 [P0-B2] Lock para evitar que `restoreSessionData` (cloud sync) o el
     // canal Realtime sobreescriban planData mientras una operación local de
@@ -2156,6 +2235,11 @@ export const AssessmentProvider = ({ children }) => {
         safeLocalStorageRemove('mealfit_guest_sessions_list');
         safeLocalStorageRemove('mealfit_current_session');
         safeLocalStorageRemove('mealfit_dislikes');
+        // [P1-GUEST-KEY-HYGIENE · 2026-06-15] Las keys del modo invitado de PLAN
+        // (mealfit_guest_mode / _session_id / _credits_used) son distintas de las
+        // del chat (mealfit_guest_session / _sessions_list, arriba). Limpiarlas en
+        // el logout real deja el dispositivo sin rastro de la identidad efímera.
+        clearGuestModeStorage();
         // [P1-XTAB-CACHE-LEAK · 2026-05-30] Limpiar caches global-keyed
         // (inventario Nevera + listado Historial + ingredientes deshabilitados)
         // que NO están scopeadas por user_id y sobrevivirían al logout SPA →
@@ -2184,6 +2268,38 @@ export const AssessmentProvider = ({ children }) => {
         setMaxReachedStep(0);
         setLoadingData(false);
     };
+
+    // [P1-GUEST-LOGOUT · 2026-06-15] "Cerrar sesión" de un INVITADO. Como no hay
+    // sesión en el servidor, es un teardown puramente local: sale del modo
+    // invitado (flag + créditos), borra TODO el progreso efímero (form/plan/likes
+    // + caches user-scoped) para no dejar datos en un dispositivo compartido, y
+    // resetea el state de React. NO llama signOut (no hay sesión que cerrar) y NO
+    // es async. El caller navega a /login después.
+    const exitGuestSession = useCallback(() => {
+        safeLocalStorageRemove('mealfit_form');
+        safeLocalStorageRemove('mealfit_form_secure');
+        safeLocalStorageRemove('mealfit_plan');
+        safeLocalStorageRemove('mealfit_likes');
+        safeLocalStorageRemove('mealfit_dislikes');
+        safeLocalStorageRemove('mealfit_user_id');
+        safeLocalStorageRemove('mealfit_guest_session_id');
+        safeLocalStorageRemove('mealfit_current_session');
+        safeLocalStorageRemove('mealfit_last_form_owner');
+        exitGuestMode(); // limpia mealfit_guest_mode + mealfit_guest_credits_used
+        _clearUserScopedCaches();
+        setFormData(initialFormData);
+        setPlanData(null);
+        setLikedMeals({});
+        setDislikedMeals({});
+        setUserProfile(null);
+        setPlanCount(0);
+        setCurrentStep(0);
+        setMaxReachedStep(0);
+        editedFieldsRef.current.clear();
+        setGuestFlag(false);
+        setGuestCreditsUsed(0);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const upgradeUserPlan = async (tier = 'plus', subscriptionId = null) => {
         try {
@@ -2266,6 +2382,16 @@ export const AssessmentProvider = ({ children }) => {
     else if (userProfile?.plan_tier === 'plus') userPlanLimit = 200;
     else if (['ultra', 'admin'].includes(userProfile?.plan_tier)) userPlanLimit = 'Ilimitado';
 
+    // [P1-GUEST-MODE · 2026-06-15] Para invitados los créditos vienen del
+    // contador local (GUEST_PLAN_CREDITS), no del backend. `isGuest` es true
+    // SOLO sin sesión real + flag activo (un login válido siempre gana).
+    const isGuest = !session && guestFlag;
+    const effectivePlanLimit = isGuest ? GUEST_PLAN_CREDITS : userPlanLimit;
+    const effectivePlanCount = isGuest ? guestCreditsUsed : planCount;
+    const effectiveRemaining = isGuest
+        ? Math.max(0, GUEST_PLAN_CREDITS - guestCreditsUsed)
+        : (typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : '∞');
+
     return (
         <AssessmentContext.Provider value={{
             session,
@@ -2305,12 +2431,20 @@ export const AssessmentProvider = ({ children }) => {
             dislikedMeals,
             regenerateSingleMeal,
             resetApp,
-            planCount,
+            planCount: effectivePlanCount,
             PLAN_LIMIT,
-            userPlanLimit,
+            userPlanLimit: effectivePlanLimit,
             checkPlanLimit,
             isPremium,
-            remainingCredits: typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : '∞',
+            remainingCredits: effectiveRemaining,
+            // [P1-GUEST-MODE · 2026-06-15] Modo invitado (funnel del plan gratuito
+            // sin cuenta). Consumers: ProtectedRoute (allowlist de rutas), Login
+            // (botón "Probar sin cuenta"), Dashboard (oculta "en camino" + CTA
+            // crear cuenta), Plan.jsx (consume crédito al generar).
+            isGuest,
+            activateGuestMode,
+            consumeGuestCredit,
+            exitGuestSession,
             upgradeUserPlan,
             restorePlan,
             // [P0-HIST-1 · 2026-05-09] Variante atómica para Historial.

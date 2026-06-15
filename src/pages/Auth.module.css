@@ -464,12 +464,52 @@
 }
 
 .googleBtn:hover {
+    /* [P1-GUEST-MODE-BTN · 2026-06-15] Sin movimiento al hover (pedido del
+       usuario): se quitó `transform: translateY(-1px)`. Feedback = bg + sombra. */
     background: #f8fafc;
     border-color: #cbd5e1;
-    transform: translateY(-1px);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
+
+/* [P1-GUEST-MODE · 2026-06-15] Botón "Probar sin cuenta" — entrada al funnel
+   del plan gratuito sin registro. Secundario (no compite con "Entrar"/Google):
+   gradiente indigo→esmeralda muy sutil + borde fino `inset`.
+   [P1-GUEST-MODE-BTN · 2026-06-15] SIN movimiento al hover Y sin glow exterior
+   (pedido del usuario: "demasiado brillo"). Solo un borde fino; el hover apenas
+   sube el tinte/borde. */
+.guestTryBtn {
+    width: 100%;
+    margin-top: 1.1rem;
+    padding: 0.9rem;
+    border: none;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: #4338ca;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.06));
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.28);
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: box-shadow 0.25s ease, background 0.25s ease;
+}
+
+.guestTryBtn:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.10), rgba(16, 185, 129, 0.10));
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.4);
+}
+
+.guestTrySub {
+    margin-top: 0.65rem;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
 
 /* --- Footer Utilities --- */
 .footerText {
@@ -694,6 +734,24 @@
 
 :global(html[data-theme="dark"]) .link:hover {
     color: var(--primary-light);
+}
+
+/* [P1-GUEST-MODE-BTN · 2026-06-15] "Probar sin cuenta" sobre el card oscuro:
+   texto indigo-200 (buen contraste) + borde fino. SIN glow exterior (el usuario
+   lo veía con demasiado brillo) y hover muy contenido (solo sube tinte/borde). */
+:global(html[data-theme="dark"]) .guestTryBtn {
+    color: #C7D2FE;
+    background: linear-gradient(135deg, rgba(129, 140, 248, 0.10), rgba(52, 211, 153, 0.08));
+    box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.3);
+}
+
+:global(html[data-theme="dark"]) .guestTryBtn:hover {
+    background: linear-gradient(135deg, rgba(129, 140, 248, 0.15), rgba(52, 211, 153, 0.12));
+    box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.45);
+}
+
+:global(html[data-theme="dark"]) .guestTrySub {
+    color: var(--text-muted);
 }
 
 /* Divider */

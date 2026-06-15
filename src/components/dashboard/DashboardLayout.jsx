@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, User, Menu, X, Clock, Refrigerator, Home, ChevronUp, ChevronRight, Crown } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, User, Menu, X, Clock, Refrigerator, Home, ChevronUp, ChevronRight, Crown, Lock } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -12,6 +12,8 @@ import { useAssessment } from '../../context/AssessmentContext';
 // click-outside).
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import LogoutConfirmModal from './LogoutConfirmModal';
+// [P1-GUEST-APPEARANCE · 2026-06-15] Selector de tema inline para invitados.
+import GuestAppearanceToggle from './GuestAppearanceToggle';
 import BottomTabBar from './BottomTabBar';
 // [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al hover/touch
 import { prefetchRoute } from '../../utils/routePreload';
@@ -23,7 +25,7 @@ import styles from './DashboardLayout.module.css';
 const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { resetApp, planData, userProfile, session, isPremium } = useAssessment();
+    const { resetApp, planData, userProfile, session, isPremium, isGuest, exitGuestSession } = useAssessment();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMobileMoreMenuOpen, setIsMobileMoreMenuOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -49,6 +51,15 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     }, [isAccountMenuOpen]);
 
     const handleLogoutConfirm = async () => {
+        // [P1-GUEST-LOGOUT · 2026-06-15] Un invitado no tiene sesión en el
+        // servidor: salir es un teardown local (sin signOut). Lo mandamos a
+        // /login (no a '/', que volvería a enrutar como invitado si el flag
+        // siguiera vivo). Un usuario real: resetApp (signOut) + landing.
+        if (isGuest) {
+            exitGuestSession();
+            navigate('/login');
+            return;
+        }
         await resetApp();
         navigate('/');
     };
@@ -78,7 +89,9 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
         { icon: Clock, label: 'Historial', path: '/history' },
     ];
 
-    const userEmail = session?.user?.email || 'Cuenta';
+    // [P1-GUEST-LOGOUT · 2026-06-15] Un invitado no tiene email: mostrar "Invitado".
+    const userEmail = isGuest ? 'Invitado' : (session?.user?.email || 'Cuenta');
+    const logoutLabel = isGuest ? 'Salir del modo invitado' : 'Cerrar sesión';
 
     return (
         <div className={`${styles.container} ${isSettings ? styles.standalonePage : ''}`}>
@@ -108,8 +121,31 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                     {menuItems.map((item) => {
                         const Icon = item.icon;
                         const isActive = location.pathname === item.path;
-                        
-                        // Si está bloqueado, hacemos que el Link navegue a pricing opcionalmente 
+
+                        // [P1-GUEST-NAV-LOCK · 2026-06-15] Para invitados, las
+                        // secciones que requieren cuenta (Agente/Nevera/Recetas/
+                        // Historial — todo salvo Plan) NO están en GUEST_ROUTES y
+                        // rebotarían en silencio a /dashboard. Mostrarlas con
+                        // candado + link a /register en vez de un no-op confuso:
+                        // convierte el límite del invitado en un gancho de cuenta.
+                        if (isGuest && item.path !== '/dashboard') {
+                            return (
+                                <Link
+                                    to="/register"
+                                    key={item.path}
+                                    className={styles.navItem}
+                                    onClick={closeMenu}
+                                    style={{ opacity: 0.6 }}
+                                    title="Crea tu cuenta para desbloquear"
+                                >
+                                    <Icon size={20} strokeWidth={item.iconStroke ?? 2} />
+                                    <span style={{ flex: 1 }}>{item.label}</span>
+                                    <Lock size={13} strokeWidth={2.5} aria-hidden="true" />
+                                </Link>
+                            );
+                        }
+
+                        // Si está bloqueado, hacemos que el Link navegue a pricing opcionalmente
                         // o solo mostramos el ícono de candado.
                         if (item.locked) {
                             return (
@@ -231,18 +267,26 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                     );
                                 })()}
                             </div>
-                            <Link
-                                to="/dashboard/settings"
-                                className={styles.accountItem}
-                                onClick={() => { setIsAccountMenuOpen(false); closeMenu(); }}
-                                onMouseEnter={() => prefetchRoute('/dashboard/settings')}
-                                onFocus={() => prefetchRoute('/dashboard/settings')}
-                                onTouchStart={() => prefetchRoute('/dashboard/settings')}
-                                role="menuitem"
-                            >
-                                <Settings size={16} strokeWidth={2.25} />
-                                <span>Ajustes</span>
-                            </Link>
+                            {/* [P1-GUEST-APPEARANCE · 2026-06-15] Para invitados,
+                                "Ajustes" (página completa, gateada + fetches auth)
+                                se sustituye por el único ajuste que aplica sin
+                                cuenta: la apariencia (tema). Cuenta real → Ajustes. */}
+                            {isGuest ? (
+                                <GuestAppearanceToggle />
+                            ) : (
+                                <Link
+                                    to="/dashboard/settings"
+                                    className={styles.accountItem}
+                                    onClick={() => { setIsAccountMenuOpen(false); closeMenu(); }}
+                                    onMouseEnter={() => prefetchRoute('/dashboard/settings')}
+                                    onFocus={() => prefetchRoute('/dashboard/settings')}
+                                    onTouchStart={() => prefetchRoute('/dashboard/settings')}
+                                    role="menuitem"
+                                >
+                                    <Settings size={16} strokeWidth={2.25} />
+                                    <span>Ajustes</span>
+                                </Link>
+                            )}
                             <Link
                                 to="/"
                                 className={styles.accountItem}
@@ -259,7 +303,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 role="menuitem"
                             >
                                 <LogOut size={16} strokeWidth={2.25} />
-                                <span>Cerrar sesión</span>
+                                <span>{logoutLabel}</span>
                             </button>
                         </div>
                     )}
@@ -318,6 +362,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 onConfirm={handleLogoutConfirm}
                 onCancel={() => setShowLogoutModal(false)}
                 userEmail={session?.user?.email}
+                isGuest={isGuest}
             />
 
             {/* Mobile More Menu (Ajustes + Inicio + Cerrar Sesión) — rendered at container root to escape stacking contexts */}
@@ -328,16 +373,22 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         onClick={closeMoreMenu}
                     />
                     <div className={styles.mobileMoreMenu} role="menu" ref={moreMenuRef} tabIndex={-1}>
-                        <Link
-                            to="/dashboard/settings"
-                            className={styles.mobileMoreItem}
-                            onClick={closeMoreMenu}
-                            onTouchStart={() => prefetchRoute('/dashboard/settings')}
-                            role="menuitem"
-                        >
-                            <Settings size={18} strokeWidth={2.5} />
-                            <span>Ajustes</span>
-                        </Link>
+                        {/* [P1-GUEST-APPEARANCE · 2026-06-15] Invitado → apariencia
+                            (tema) en vez de Ajustes (gateado + fetches auth). */}
+                        {isGuest ? (
+                            <GuestAppearanceToggle />
+                        ) : (
+                            <Link
+                                to="/dashboard/settings"
+                                className={styles.mobileMoreItem}
+                                onClick={closeMoreMenu}
+                                onTouchStart={() => prefetchRoute('/dashboard/settings')}
+                                role="menuitem"
+                            >
+                                <Settings size={18} strokeWidth={2.5} />
+                                <span>Ajustes</span>
+                            </Link>
+                        )}
                         <Link
                             to="/"
                             className={styles.mobileMoreItem}
@@ -356,7 +407,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                             role="menuitem"
                         >
                             <LogOut size={18} strokeWidth={2.5} />
-                            <span>Cerrar Sesión</span>
+                            <span>{logoutLabel}</span>
                         </button>
                     </div>
                 </>

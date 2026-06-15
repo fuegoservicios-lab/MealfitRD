@@ -484,7 +484,10 @@ function getTotalDaysByGroceryDuration(groceryDuration) {
 
 const Plan = () => {
     // 1. HOOKS
-    const { formData, saveGeneratedPlan, restorePlan, setCurrentStep, userProfile, loadingSensitive } = useAssessment();
+    const { formData, saveGeneratedPlan, restorePlan, setCurrentStep, userProfile, loadingSensitive,
+        // [P1-GUEST-MODE · 2026-06-15] Créditos del invitado: consumir 1 al
+        // generar; bloquear nueva generación si ya no quedan.
+        isGuest, consumeGuestCredit, remainingCredits } = useAssessment();
     const [status, setStatus] = useState('analyzing'); // analyzing, generating, preview, ready
     const [planData, setPlanData] = useState(null);
     const [tempPlan, setTempPlan] = useState(null); // Nuevo estado para GAP 14
@@ -608,6 +611,20 @@ const Plan = () => {
                     }
                 } catch {
                     // Endpoint no disponible / red — caer al flujo SSE normal.
+                }
+
+                // [P1-GUEST-MODE · 2026-06-15] Invitado sin créditos → no iniciar
+                // otra generación; invitarlo a crear cuenta. La 1ª generación SÍ
+                // pasa (arranca con GUEST_PLAN_CREDITS disponibles).
+                if (isGuest && typeof remainingCredits === 'number' && remainingCredits <= 0) {
+                    import('sonner').then(({ toast }) => {
+                        toast.info('Crea tu cuenta para generar más planes', {
+                            description: 'Ya usaste tu plan de prueba gratis. Regístrate para obtener los créditos del plan gratuito (15/mes).',
+                            duration: 9000,
+                        });
+                    });
+                    navigate('/dashboard', { replace: true });
+                    return;
                 }
 
                 // FASE 1: UI de "Analizando"
@@ -773,6 +790,10 @@ const Plan = () => {
 
                 // Guardar + redirigir SIEMPRE. Sin branching por _hasObservations.
                 saveGeneratedPlan(generatedPlan);
+                // [P1-GUEST-MODE · 2026-06-15] Consumir 1 crédito de invitado por
+                // generación exitosa (el meter del dashboard pasa 1→0 y bloquea
+                // regeneraciones hasta crear cuenta).
+                if (isGuest) consumeGuestCredit();
                 setCurrentStep(0);
                 navigate('/dashboard', { replace: true });
 

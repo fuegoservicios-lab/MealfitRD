@@ -738,22 +738,20 @@
    bg ilustrado claro (burbujas) no encaja, así que en su lugar usamos glows
    indigo muy sutiles (mismo lenguaje que el splash de marca) sobre el slate
    profundo. Fijo (no scrollea), suave, no compite con el contenido.
-   [P3-DARK-BG-STRIPES · 2026-05-30] + capa de rayas diagonales blancas
-   ultra-sutiles (hairline 1px al ~3% cada 52px, 45°) para dar textura
-   minimalista sin competir con el contenido. Es la PRIMERA capa del
-   background-image (se pinta encima de los glows, pero al 3% deja ver el glow).
-   `background-size` por-capa: `auto` para que la raya repita por su propia
-   definición en px; `cover` para los glows. */
+   [P3-DARK-BG-STRIPES · 2026-05-30 · removida 2026-06-15] La capa de rayas
+   diagonales blancas (`repeating-linear-gradient(45deg, ...)`) se retiró a
+   pedido del usuario — el fondo oscuro queda solo con los glows indigo, sin la
+   textura de hairlines. `background-size`/`background-repeat` ahora solo
+   describen las 4 capas de glow (`cover`/`no-repeat`). */
 :global(html[data-theme="dark"]) .container::before {
     display: block;
     background-image:
-        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.04) 0, rgba(255, 255, 255, 0.04) 1px, transparent 1px, transparent 52px),
         radial-gradient(ellipse 70% 55% at 8% -10%, rgba(99, 102, 241, 0.28) 0%, transparent 55%),
         radial-gradient(ellipse 58% 50% at 100% 2%, rgba(129, 140, 248, 0.20) 0%, transparent 52%),
         radial-gradient(ellipse 55% 50% at 90% 96%, rgba(139, 92, 246, 0.14) 0%, transparent 55%),
         radial-gradient(ellipse 75% 55% at 28% 108%, rgba(79, 70, 229, 0.18) 0%, transparent 55%);
-    background-size: auto, cover, cover, cover, cover;
-    background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+    background-size: cover, cover, cover, cover;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
     opacity: 1;
 }
 :global(html[data-theme="dark"]) .container.standalonePage {

@@ -3,7 +3,7 @@ import { Navigate, useLocation, useNavigationType } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
 
 const ProtectedRoute = ({ children }) => {
-    const { session, loadingAuth, loadingData, userProfile, planData } = useAssessment();
+    const { session, loadingAuth, loadingData, userProfile, planData, isGuest } = useAssessment();
     const location = useLocation();
     const navigationType = useNavigationType();
 
@@ -13,8 +13,24 @@ const ProtectedRoute = ({ children }) => {
         return <div className="h-screen w-screen bg-slate-50/50" />;
     }
 
-    if (!session) {
+    // [P1-GUEST-MODE · 2026-06-15] Sin sesión Y sin modo invitado → login.
+    // Un invitado (flag activado por "Probar sin cuenta") SÍ pasa, pero acotado
+    // al funnel del plan gratuito abajo.
+    if (!session && !isGuest) {
         return <Navigate to="/login" replace />;
+    }
+
+    // [P1-GUEST-MODE · 2026-06-15] Modo invitado: permitir SOLO el funnel del
+    // plan gratuito (landing → formulario → plan → dashboard + upgrade). Las
+    // rutas con persistencia (despensa, historial, recetas, settings, chat) no
+    // aplican a un invitado efímero → redirigir al dashboard, que muestra los
+    // CTAs de "crea tu cuenta". El resto de la lógica (assessment incompleto,
+    // landing POP) corre igual: para invitados `hasCompletedAssessment` = !!planData.
+    if (!session && isGuest) {
+        const GUEST_ROUTES = ['/', '/assessment', '/plan', '/dashboard', '/dashboard/upgrade'];
+        if (!GUEST_ROUTES.includes(location.pathname)) {
+            return <Navigate to="/dashboard" replace />;
+        }
     }
 
     // Si el usuario está autenticado pero NO ha completado su evaluación,

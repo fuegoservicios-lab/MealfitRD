@@ -10,13 +10,16 @@ import {
     RefreshCw, ChefHat, Heart, Pill, Lock,
     Brain, Wallet, AlertCircle, Dumbbell,
     Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, ChevronDown,
-    ThumbsDown, Shuffle, X, Utensils, Copy, Infinity as InfinityIcon, ChevronRight, Crown, Refrigerator
+    ThumbsDown, Shuffle, X, Utensils, Copy, ChevronRight, Crown, Refrigerator, Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 import TrackingProgress from '../components/dashboard/TrackingProgress';
 // [P3-WATER-TRACKER · 2026-05-16] Tracker de hidratacion (8 vasos diarios)
 // reemplaza el card "Mi Nevera" que duplicaba la pagina Pantry.
 import WaterTracker from '../components/dashboard/WaterTracker';
+// [P2-CREDITS-METER · 2026-06-15] Gauge circular animado de créditos (reemplaza
+// el badge plano icono+número del header). Recibe la misma data del badge.
+import CreditsMeter from '../components/dashboard/CreditsMeter';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
 import EmptyState from '../components/common/EmptyState';
@@ -176,7 +179,9 @@ const DashboardInner = () => {
         // [P1-FORM-9] `session` requerido por `buildHealthProfilePayload` para
         // detectar race de hidratación cifrada. Si está ausente (guest), el
         // helper desactiva el gate y deja pasar el update.
-        session
+        session,
+        // [P1-GUEST-MODE · 2026-06-15] Invitado del funnel del plan gratuito.
+        isGuest
     } = useAssessment();
 
     const { regeneratePlan } = useRegeneratePlan();
@@ -3056,11 +3061,9 @@ const DashboardInner = () => {
                         align-items: stretch;
                         gap: 0.75rem;
                     }
-                    .credits-badge {
-                        width: 100%;
-                        flex: none;
-                        justify-content: center;
-                    }
+                    /* [P2-CREDITS-METER · 2026-06-15] El badge de créditos migró a
+                       <CreditsMeter/> (CSS module propio que ya maneja full-width
+                       en <=768px). La regla .credits-badge quedó sin elemento. */
                     .new-plan-wrapper {
                         flex: none;
                         width: 100%;
@@ -3592,53 +3595,14 @@ const DashboardInner = () => {
                 {/* --- ACTIONS GROUP --- */}
                 <div className="actions-group">
 
-                    {/* VISUALIZADOR DE CRÉDITOS */}
-                    <div className="credits-badge" style={{
-                        background: 'var(--bg-card)',
-                        padding: '0.6rem 1rem',
-                        borderRadius: '1rem',
-                        border: '2px solid var(--border)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.875rem',
-                        boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.08)',
-                    }}>
-                        <div style={{
-                            width: 36, height: 36,
-                            background: isDark
-                                ? (isLimitReached ? 'rgba(239, 68, 68, 0.16)' : 'rgba(59, 130, 246, 0.16)')
-                                : (isLimitReached ? '#FEF2F2' : '#EFF6FF'),
-                            color: isLimitReached ? (isDark ? '#F87171' : '#EF4444') : (isDark ? '#60A5FA' : '#3B82F6'),
-                            borderRadius: '0.75rem',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
-                            <Zap size={18} fill={isLimitReached ? (isDark ? '#F87171' : '#EF4444') : (isDark ? '#60A5FA' : '#3B82F6')} />
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.04em', WebkitTextStroke: isDark ? '0' : '0.5px var(--text-main)' }}>
-                                Créditos
-                            </span>
-                            <div style={{
-                                fontSize: '1rem',
-                                fontWeight: 800,
-                                color: 'var(--text-main)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                // [P3-CREDITS-INFINITY-CENTER · 2026-05-20] Centrar
-                                // horizontalmente cuando es ilimitado (solo icono ∞).
-                                // Para usuarios con plan (formato "5 / 50") mantener
-                                // alineación natural a la izquierda.
-                                justifyContent: remainingCredits === '∞' ? 'center' : 'flex-start',
-                                gap: '3px',
-                                whiteSpace: 'nowrap'
-                            }}>
-                                {remainingCredits === '∞'
-                                    ? <InfinityIcon size={20} strokeWidth={2.5} style={{ color: 'var(--text-main)', marginRight: '4px' }} />
-                                    : remainingCredits}
-                                {userPlanLimit !== 'Ilimitado' && <span style={{ color: 'var(--text-light)', fontSize: '0.85rem', fontWeight: 600 }}>/ {userPlanLimit}</span>}
-                            </div>
-                        </div>
-                    </div>
+                    {/* VISUALIZADOR DE CRÉDITOS — [P2-CREDITS-METER · 2026-06-15]
+                        gauge circular animado (ver components/dashboard/CreditsMeter). */}
+                    <CreditsMeter
+                        remainingCredits={remainingCredits}
+                        userPlanLimit={userPlanLimit}
+                        isLimitReached={isLimitReached}
+                        isGuest={isGuest}
+                    />
 
                     {/* REGENERACIÓN DE MENÚ Y EXPORTACIÓN */}
                     <div className="new-plan-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'stretch' }}>
@@ -4120,6 +4084,64 @@ const DashboardInner = () => {
                 </div>
             </header>
 
+            {/* [P1-GUEST-MODE · 2026-06-15] Banner de conversión para invitados:
+                el plan que ven es de muestra (efímero, 3 días). Invitarlos a crear
+                cuenta para guardarlo, desbloquear la semana completa y registrar
+                comidas. Solo en modo invitado. */}
+            {isGuest && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.85rem',
+                        background: isDark
+                            ? 'linear-gradient(135deg, rgba(99,102,241,0.14) 0%, rgba(16,185,129,0.12) 100%)'
+                            : 'linear-gradient(135deg, #EEF2FF 0%, #ECFDF5 100%)',
+                        border: isDark ? '1px solid rgba(129,140,248,0.35)' : '1.5px solid #C7D2FE',
+                        borderRadius: '1rem',
+                        padding: '1rem 1.25rem',
+                        marginBottom: '1.5rem',
+                        boxShadow: isDark ? '0 4px 12px -2px rgba(0,0,0,0.5)' : '0 4px 12px -2px rgba(99,102,241,0.12)',
+                        flexWrap: 'wrap'
+                    }}
+                    role="region"
+                    aria-label="Modo invitado"
+                >
+                    <Sparkles size={22} style={{ color: isDark ? '#A5B4FC' : '#4F46E5', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: '220px' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
+                            Estás en modo invitado
+                        </span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            Este es un plan de muestra. Crea tu cuenta gratis para guardarlo, desbloquear la semana completa y registrar tus comidas.
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/register')}
+                        style={{
+                            flexShrink: 0,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            background: 'linear-gradient(135deg, #4F46E5 0%, #10B981 100%)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '0.75rem',
+                            padding: '0.6rem 1.1rem',
+                            fontWeight: 700,
+                            fontSize: '0.875rem',
+                            cursor: 'pointer',
+                            boxShadow: '0 6px 16px -4px rgba(79,70,229,0.45)'
+                        }}
+                    >
+                        Crear cuenta gratis
+                        <ArrowRight size={16} />
+                    </button>
+                </motion.div>
+            )}
 
             {/* [P3-PLAN-CORRUPTED-BANNER · 2026-05-27] Banner persistente para
                 planes que quedaron en estado inválido. Va PRIMERO (antes que
@@ -4459,7 +4481,7 @@ const DashboardInner = () => {
             {/* --- DAILY TRACKER UI (incluye objetivo + progreso fusionados) --- */}
             <TrackingProgress
                 planData={planData}
-                userId={userProfile?.id || formData?.session_id || 'guest'}
+                userId={session?.user?.id || userProfile?.id || 'guest'}
             />
 
             {/* [P3-WATER-TRACKER · 2026-05-16] En mobile el WaterTracker
@@ -4472,7 +4494,7 @@ const DashboardInner = () => {
                 del ciclo de plan — un usuario sin plan activo igual debe poder
                 rastrear vasos. El propio componente se auto-oculta si el
                 usuario apago el toggle en Preferencias. */}
-            {isMobileViewport && <WaterTracker userId={userProfile?.id || formData?.session_id || 'guest'} />}
+            {isMobileViewport && <WaterTracker userId={session?.user?.id || userProfile?.id || 'guest'} />}
 
             {/* --- MAIN CONTENT COLUMNS --- */}
             <div className="main-grid">
@@ -4827,6 +4849,13 @@ const DashboardInner = () => {
                                                 // mostrando solo [Mi]).
                                                 const _missingSlots = _MAX_WINDOW - visiblePlanDays.length;
                                                 if (_missingSlots <= 0) return null;
+                                                // [P1-GUEST-MODE · 2026-06-15] En modo invitado NO hay
+                                                // chunking en background (plan efímero capado a 3 días),
+                                                // así que los slots "en camino" nunca resolverían y solo
+                                                // mienten. Mostrar SOLO los días disponibles. El gancho
+                                                // de la semana completa se comunica con el CTA de crear
+                                                // cuenta más abajo, no con un spinner colgado.
+                                                if (isGuest) return null;
                                                 const _genStatus = planData?.generation_status;
                                                 const _isGenerating = _genStatus === 'generating_next'
                                                     || _genStatus === 'generating'
@@ -5404,7 +5433,7 @@ const DashboardInner = () => {
                         NO gateado por `isPlanExpired` — la hidratacion es
                         independiente del plan. El componente se auto-oculta
                         via toggle en Preferencias. */}
-                    {!isMobileViewport && <WaterTracker userId={userProfile?.id || formData?.session_id || 'guest'} />}
+                    {!isMobileViewport && <WaterTracker userId={session?.user?.id || userProfile?.id || 'guest'} />}
 
                     {/* Insights Card */}
                     <div style={{

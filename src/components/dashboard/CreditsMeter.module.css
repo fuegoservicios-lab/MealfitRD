@@ -1,0 +1,175 @@
+/* CreditsMeter — medidor de "energía" de créditos del dashboard.
+   [P2-CREDITS-METER · 2026-06-15] Reemplaza el badge plano (icono + número)
+   por un gauge circular animado: el anillo se llena con la fracción de créditos
+   restantes y cambia de color por estado (sano / bajo / agotado / ilimitado).
+   Tema-aware (claro/oscuro via variables de index.css) + prefers-reduced-motion.
+   La variable --meter-glow / --meter-icon la inyecta el JSX por estado. */
+
+.badge {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.5rem 1.1rem 0.5rem 0.55rem;
+    border-radius: 1.05rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    isolation: isolate;
+    overflow: hidden;
+    cursor: default;
+    box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.05),
+        0 10px 26px -16px var(--meter-glow);
+}
+
+/* [P2-CREDITS-METER-STATIC · 2026-06-15] Sin efectos de hover: el badge es
+   informativo (no clickable) y el usuario pidió que NO se mueva al pasar el
+   mouse. Antes tenía lift (translateY), sheen diagonal y realce de borde —
+   todos eliminados. El borde-gradiente y la sombra quedan fijos. */
+
+/* Borde-gradiente sutil teñido al estado: el mask deja visible solo el anillo
+   de 1px del borde, el relleno se recorta. */
+.badge::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--meter-glow), transparent 55%);
+    -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    opacity: 0.85;
+    pointer-events: none;
+}
+
+/* ---- gauge ---- */
+.gauge {
+    position: relative;
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    flex: none;
+}
+
+/* Bloom ambiental detrás del rayo, teñido al estado, latiendo suave. */
+.gauge::before {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--meter-glow), transparent 68%);
+    filter: blur(5px);
+    opacity: 0.55;
+    z-index: 0;
+    animation: meterPulse 3.6s ease-in-out infinite;
+}
+
+.ring {
+    position: relative;
+    z-index: 1;
+    display: block;
+}
+
+.track {
+    stroke: rgba(148, 163, 184, 0.22);
+}
+
+.progress {
+    filter: drop-shadow(0 0 3px var(--meter-glow));
+}
+
+.core {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    z-index: 2;
+    color: var(--meter-icon);
+    filter: drop-shadow(0 0 5px var(--meter-glow));
+}
+
+@keyframes meterPulse {
+    0%, 100% { opacity: 0.42; transform: scale(0.94); }
+    50%      { opacity: 0.68; transform: scale(1.04); }
+}
+
+/* ---- texto ---- */
+.meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.label {
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-light);
+    line-height: 1;
+}
+
+.value {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.num {
+    font-size: 1.45rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+}
+
+.limit {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+/* ---- estados (gradiente del número + ritmo del bloom) ---- */
+.healthy .num   { background-image: linear-gradient(135deg, #818CF8, #22D3EE 55%, #34D399); }
+.low .num       { background-image: linear-gradient(135deg, #FBBF24, #FB923C); }
+.depleted .num  { background-image: linear-gradient(135deg, #FB7185, #F43F5E); }
+.unlimited .num { background-image: linear-gradient(135deg, #818CF8, #A78BFA 50%, #22D3EE); }
+/* [P1-GUEST-METER · 2026-06-15] Invitado: mismo indigo calmado que unlimited. */
+.guest .num    { background-image: linear-gradient(135deg, #818CF8, #A78BFA 50%, #22D3EE); }
+
+.unlimited .gauge::before {
+    animation-duration: 2.6s;
+    opacity: 0.7;
+}
+
+/* ---- tema oscuro ---- */
+:global(html[data-theme="dark"]) .track {
+    stroke: rgba(148, 163, 184, 0.16);
+}
+
+:global(html[data-theme="dark"]) .badge {
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.4),
+        0 12px 30px -16px var(--meter-glow);
+}
+
+/* ---- accesibilidad: sin movimiento ---- */
+@media (prefers-reduced-motion: reduce) {
+    .gauge::before { animation: none; }
+}
+
+/* ---- mobile: el actions-group stackea en columna (768px), el badge full-width ---- */
+@media (max-width: 768px) {
+    .badge {
+        width: 100%;
+        justify-content: center;
+    }
+}

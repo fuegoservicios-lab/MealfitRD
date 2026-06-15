@@ -1,10 +1,12 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styles from './Header.module.css';
 import { Menu, X, LayoutDashboard, LogOut, ChevronRight, ChevronDown, Settings as SettingsIcon } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAssessment } from '../../context/AssessmentContext';
 import { useHeroCta } from '../../context/HeroCtaContext';
 import LogoutConfirmModal from '../dashboard/LogoutConfirmModal';
+// [P1-GUEST-APPEARANCE · 2026-06-15] Selector de tema inline para invitados.
+import GuestAppearanceToggle from '../dashboard/GuestAppearanceToggle';
 
 const Header = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -15,9 +17,10 @@ const Header = () => {
 
     // Obtenemos planData para saber si el usuario ya tiene un plan activo
     // Obtener session y resetApp para el logout
-    const { planData, session, resetApp, userProfile } = useAssessment();
+    const { planData, session, resetApp, userProfile, isGuest, exitGuestSession } = useAssessment();
     const { heroCtaVisible } = useHeroCta();
     const location = useLocation();
+    const navigate = useNavigate();
 
     // No mostrar el botón "Empezar Ahora" si estamos en las rutas de evaluación o plan
     const hideStartNow = location.pathname.startsWith('/assessment') || location.pathname.startsWith('/plan');
@@ -35,9 +38,16 @@ const Header = () => {
     // [ACCOUNT-MENU · 2026-06-01] Identidad para el avatar (inicial) + la cabecera
     // del menú (nombre + correo). Fallbacks: nombre del perfil → parte local del
     // correo → genérico.
-    const accountEmail = userProfile?.email || session?.user?.email || '';
-    const accountName = userProfile?.full_name || (accountEmail ? accountEmail.split('@')[0] : 'Mi cuenta');
-    const accountInitial = (accountName || accountEmail || 'U').trim().charAt(0).toUpperCase() || 'U';
+    const accountEmail = isGuest ? '' : (userProfile?.email || session?.user?.email || '');
+    const accountName = isGuest ? 'Invitado' : (userProfile?.full_name || (accountEmail ? accountEmail.split('@')[0] : 'Mi cuenta'));
+    const accountInitial = isGuest ? 'I' : ((accountName || accountEmail || 'U').trim().charAt(0).toUpperCase() || 'U');
+
+    // [P1-GUEST-LOGOUT · 2026-06-15] El menú de cuenta (con la salida) también
+    // aparece para invitados — antes solo `session &&`, así que un invitado en la
+    // landing no tenía cómo salir del modo invitado. La salida de un invitado es
+    // un teardown local (exitGuestSession) + redirect a /login, sin signOut.
+    const showAccountMenu = (session || isGuest) && !isPlanLoading;
+    const logoutLabel = isGuest ? 'Salir del modo invitado' : 'Cerrar Sesión';
 
     // [ACCOUNT-MENU · 2026-06-01] Cerrar el menú con click-outside o Escape — mismo
     // patrón que el menú de cuenta del DashboardLayout (accountMenuRef + mousedown).
@@ -115,7 +125,7 @@ const Header = () => {
                         "Configuración" + "Cerrar Sesión" en un solo control
                         compacto (avatar + chevron) para no ocupar tanto espacio.
                         El menú móvil (hamburguesa) ya agrupaba ambos. */}
-                    {session && !isPlanLoading && (
+                    {showAccountMenu && (
                         <div className={styles.accountMenu} ref={accountMenuRef}>
                             <button
                                 type="button"
@@ -138,15 +148,23 @@ const Header = () => {
                                         <span className={styles.accountName}>{accountName}</span>
                                         {accountEmail && <span className={styles.accountEmailLine}>{accountEmail}</span>}
                                     </div>
-                                    <Link
-                                        to="/configuracion"
-                                        className={styles.accountItem}
-                                        role="menuitem"
-                                        onClick={() => setIsAccountMenuOpen(false)}
-                                    >
-                                        <SettingsIcon size={16} strokeWidth={2.25} />
-                                        <span>Configuración</span>
-                                    </Link>
+                                    {/* [P1-GUEST-LOGOUT] Configuración (página completa)
+                                        solo para cuentas reales — gateada para invitados.
+                                        [P1-GUEST-APPEARANCE · 2026-06-15] El invitado recibe
+                                        el único ajuste sin cuenta: la apariencia (tema). */}
+                                    {isGuest ? (
+                                        <GuestAppearanceToggle />
+                                    ) : (
+                                        <Link
+                                            to="/configuracion"
+                                            className={styles.accountItem}
+                                            role="menuitem"
+                                            onClick={() => setIsAccountMenuOpen(false)}
+                                        >
+                                            <SettingsIcon size={16} strokeWidth={2.25} />
+                                            <span>Configuración</span>
+                                        </Link>
+                                    )}
                                     <button
                                         type="button"
                                         className={`${styles.accountItem} ${styles.accountItemDanger}`}
@@ -154,7 +172,7 @@ const Header = () => {
                                         onClick={() => { setIsAccountMenuOpen(false); setShowLogoutModal(true); }}
                                     >
                                         <LogOut size={16} strokeWidth={2.25} />
-                                        <span>Cerrar Sesión</span>
+                                        <span>{logoutLabel}</span>
                                     </button>
                                 </div>
                             )}
@@ -203,8 +221,9 @@ const Header = () => {
                             </Link>
                         )}
 
-                        {/* [ACCOUNT-SETTINGS · 2026-05-31] Acceso a Configuración (móvil) */}
-                        {session && !isPlanLoading && (
+                        {/* [ACCOUNT-SETTINGS · 2026-05-31] Acceso a Configuración (móvil).
+                            [P1-GUEST-LOGOUT] No para invitados (settings gateado). */}
+                        {session && !isGuest && !isPlanLoading && (
                             <Link
                                 to="/configuracion"
                                 className={styles.navLinkMobile}
@@ -214,8 +233,12 @@ const Header = () => {
                             </Link>
                         )}
 
-                        {/* Botón Logout Móvil */}
-                        {session && !isPlanLoading && (
+                        {/* [P1-GUEST-APPEARANCE · 2026-06-15] Apariencia (tema) para
+                            invitados — el único ajuste sin cuenta. */}
+                        {isGuest && !isPlanLoading && <GuestAppearanceToggle />}
+
+                        {/* Botón Logout Móvil — [P1-GUEST-LOGOUT] también para invitados. */}
+                        {showAccountMenu && (
                             <button
                                 onClick={() => {
                                     setShowLogoutModal(true);
@@ -223,7 +246,7 @@ const Header = () => {
                                 }}
                                 className={styles.logoutBtnMobile}
                             >
-                                <LogOut size={18} /> Cerrar Sesión
+                                <LogOut size={18} /> {logoutLabel}
                             </button>
                         )}
                     </nav>
@@ -234,11 +257,19 @@ const Header = () => {
         <LogoutConfirmModal
             isOpen={showLogoutModal}
             onConfirm={async () => {
+                // [P1-GUEST-LOGOUT · 2026-06-15] Invitado: teardown local + /login.
+                if (isGuest) {
+                    exitGuestSession();
+                    setShowLogoutModal(false);
+                    navigate('/login');
+                    return;
+                }
                 await resetApp();
                 setShowLogoutModal(false);
             }}
             onCancel={() => setShowLogoutModal(false)}
             userEmail={session?.user?.email}
+            isGuest={isGuest}
         />
         </>
     );

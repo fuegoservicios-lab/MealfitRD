@@ -4,9 +4,12 @@ import { authClient } from '../authClient';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Lock, ArrowRight, AlertCircle, Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react';
 import styles from './Auth.module.css';
+import { useAssessment } from '../context/AssessmentContext';
 
 const Login = () => {
     const navigate = useNavigate();
+    // [P1-GUEST-MODE · 2026-06-15] Entrada al funnel del plan gratuito sin cuenta.
+    const { activateGuestMode } = useAssessment();
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -315,6 +318,22 @@ const Login = () => {
                                 Registrarse
                             </Link>
                         </div>
+
+                        {/* [P1-GUEST-MODE · 2026-06-15] Probar el plan gratuito sin
+                            crear cuenta: activa modo invitado y entra al formulario. */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                activateGuestMode();
+                                navigate('/assessment');
+                            }}
+                            className={styles.guestTryBtn}
+                        >
+                            Probar sin cuenta
+                        </button>
+                        <p className={styles.guestTrySub}>
+                            Genera un plan de muestra gratis. Crea tu cuenta cuando quieras guardarlo.
+                        </p>
                     </>
                 )}
             </div>
