@@ -257,15 +257,16 @@ const Header = () => {
         <LogoutConfirmModal
             isOpen={showLogoutModal}
             onConfirm={async () => {
-                // [P1-GUEST-LOGOUT · 2026-06-15] Invitado: teardown local + /login.
+                // [P1-GUEST-LOGOUT-RACE · 2026-06-15] Navegar a /login (ruta pública)
+                // ANTES del teardown para que la limpieza de estado no rebote al
+                // formulario vía el redirect de ProtectedRoute (ver DashboardLayout).
+                navigate('/login', { replace: true });
+                setShowLogoutModal(false);
                 if (isGuest) {
                     exitGuestSession();
-                    setShowLogoutModal(false);
-                    navigate('/login');
                     return;
                 }
                 await resetApp();
-                setShowLogoutModal(false);
             }}
             onCancel={() => setShowLogoutModal(false)}
             userEmail={session?.user?.email}
