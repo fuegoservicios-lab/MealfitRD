@@ -9,7 +9,8 @@ import { useAssessment } from '../context/AssessmentContext';
 const Login = () => {
     const navigate = useNavigate();
     // [P1-GUEST-MODE · 2026-06-15] Entrada al funnel del plan gratuito sin cuenta.
-    const { activateGuestMode } = useAssessment();
+    const { activateGuestMode, session } = useAssessment();
+    const [guestLoading, setGuestLoading] = useState(false);
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -320,16 +321,30 @@ const Login = () => {
                         </div>
 
                         {/* [P1-GUEST-MODE · 2026-06-15] Probar el plan gratuito sin
-                            crear cuenta: activa modo invitado y entra al formulario. */}
+                            crear cuenta: activa modo invitado y entra al formulario.
+                            [P1-GUEST-SIGNOUT · 2026-06-15] Si hay una sesión real
+                            activa, cerrarla PRIMERO — sin esto, isGuest = !session &&
+                            flag = false mientras la sesión viva, y la app seguiría
+                            mostrando la cuenta real en vez de "Invitado". */}
                         <button
                             type="button"
-                            onClick={() => {
-                                activateGuestMode();
-                                navigate('/assessment');
+                            disabled={guestLoading}
+                            onClick={async () => {
+                                if (guestLoading) return;
+                                setGuestLoading(true);
+                                try {
+                                    if (session) {
+                                        try { await authClient.auth.signOut(); } catch { /* best-effort */ }
+                                    }
+                                    activateGuestMode();
+                                    navigate('/assessment');
+                                } finally {
+                                    setGuestLoading(false);
+                                }
                             }}
                             className={styles.guestTryBtn}
                         >
-                            Probar sin cuenta
+                            {guestLoading ? 'Entrando…' : 'Probar sin cuenta'}
                         </button>
                         <p className={styles.guestTrySub}>
                             Genera un plan de muestra gratis. Crea tu cuenta cuando quieras guardarlo.
