@@ -240,6 +240,20 @@ const DashboardInner = () => {
         if (_planMicroSig) safeLocalStorageSet(`mealfit_qdeg_dismissed_${_planMicroSig}`, '1');
     };
 
+    // [P3-DASH-TABS-NO-MOUNT-JUMP · 2026-06-16] Las pestañas de día "se movían"
+    // unos ms al refrescar: el auto-select del día activo + la ventana rolling
+    // cambian el estado JUSTO tras el primer paint, y `layout="position"` + los
+    // transforms (y/scale) de framer animaban ese asentamiento. Gateamos las
+    // animaciones de las pestañas hasta que el estado inicial se asienta: durante
+    // ese rato aplican INSTANTÁNEO (sin layout, transición 0) → cero salto al
+    // cargar. Tras asentarse, se habilitan para interacciones reales (click,
+    // fin-de-día con su fade/reacomodo).
+    const [tabsSettled, setTabsSettled] = useState(false);
+    useEffect(() => {
+        const id = setTimeout(() => setTabsSettled(true), 80);
+        return () => clearTimeout(id);
+    }, []);
+
     // Estado local para saber qué tarjeta se está regenerando (loading spinner específico)
     const [regeneratingId, setRegeneratingId] = useState(null);
     // Background Chunking: controlar visibilidad del banner de generación
@@ -4797,11 +4811,11 @@ const DashboardInner = () => {
                                                 return (
                                                     <motion.button
                                                         key={globalIdx}
-                                                        layout="position"
+                                                        layout={tabsSettled ? 'position' : false}
                                                         initial={{ opacity: 0, scale: 0.85 }}
                                                         animate={{ opacity: (isPastDay && !isActive) ? 0.55 : 1, scale: 1, y: isActive ? -2 : 0 }}
                                                         exit={{ opacity: 0, scale: 0.8 }}
-                                                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                                                        transition={{ duration: tabsSettled ? 0.2 : 0, ease: 'easeOut' }}
                                                         onClick={() => setActiveDayIndex(globalIdx)}
                                                         className="option-btn"
                                                         title={
