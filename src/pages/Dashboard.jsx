@@ -192,6 +192,40 @@ const DashboardInner = () => {
 
     const navigate = useNavigate();
 
+    // [P3-MICRO-PERSIST · 2026-06-15] El panel "Micronutrientes a vigilar"
+    // desaparecía al refrescar: el `micronutrient_report` viaja DENTRO del plan,
+    // pero un refetch/overwrite de `planData` (o un plan que vive solo en
+    // localStorage sin fila en BD, como tras un persist fallido) podía dejar el
+    // plan SIN el report → el panel se ocultaba. Cacheamos el report/advice
+    // (keyed por una firma estable del plan) y lo usamos como FALLBACK, así el
+    // panel persiste pase lo que pase con `planData`. La firma cambia al
+    // regenerar (nuevo cycle_start_date) → cero stale entre planes distintos.
+    const _planMicroSig = planData?.cycle_start_date || planData?.id || planData?.plan_id || planData?.name || null;
+    useEffect(() => {
+        const rep = planData?.micronutrient_report;
+        const adv = planData?.micronutrient_supplement_advice;
+        if (rep && _planMicroSig) {
+            safeLocalStorageSet('mealfit_micros_cache', JSON.stringify({ sig: _planMicroSig, report: rep, advice: adv || null }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planData?.micronutrient_report, planData?.micronutrient_supplement_advice, _planMicroSig]);
+
+    const microReport = useMemo(() => {
+        if (planData?.micronutrient_report) return planData.micronutrient_report;
+        if (!_planMicroSig) return null;
+        const c = safeJSONParse(safeLocalStorageGet('mealfit_micros_cache', null), null);
+        return c && c.sig === _planMicroSig ? c.report : null;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planData?.micronutrient_report, _planMicroSig]);
+
+    const microAdvice = useMemo(() => {
+        if (planData?.micronutrient_supplement_advice) return planData.micronutrient_supplement_advice;
+        if (!_planMicroSig) return null;
+        const c = safeJSONParse(safeLocalStorageGet('mealfit_micros_cache', null), null);
+        return c && c.sig === _planMicroSig ? c.advice : null;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planData?.micronutrient_supplement_advice, _planMicroSig]);
+
     // Estado local para saber qué tarjeta se está regenerando (loading spinner específico)
     const [regeneratingId, setRegeneratingId] = useState(null);
     // Background Chunking: controlar visibilidad del banner de generación
@@ -4355,11 +4389,11 @@ const DashboardInner = () => {
                 accionables (no ruido en el happy path). Cierra P2-6 del audit. */}
             {/* [P3-MICRONUTRIENT-PANEL · 2026-06-15] Rediseñado como medidores de
                 progreso + dismissible (X). Ver components/dashboard/MicronutrientPanel. */}
-            {(planData?.micronutrient_report?.gaps?.length > 0
-                || planData?.micronutrient_supplement_advice?.count > 0) && (
+            {(microReport?.gaps?.length > 0
+                || microAdvice?.count > 0) && (
                 <MicronutrientPanel
-                    report={planData.micronutrient_report}
-                    advice={planData.micronutrient_supplement_advice}
+                    report={microReport}
+                    advice={microAdvice}
                     planId={planData?.plan_id || planData?.id}
                     onAsk={(question) => {
                         // [P3-AGENT-PREFILL · 2026-06-15] El chat es solo para
