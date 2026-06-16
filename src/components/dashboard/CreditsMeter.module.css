@@ -5,6 +5,16 @@
    Tema-aware (claro/oscuro via variables de index.css) + prefers-reduced-motion.
    La variable --meter-glow / --meter-icon la inyecta el JSX por estado. */
 
+/* [P3-CREDITS-BEAM · 2026-06-15] Ángulo animado del haz que orbita el perímetro.
+   Registrado con @property para que el conic-gradient interpole suave (sin
+   @property el custom-prop "salta" y no anima). Degradación: sin soporte, el haz
+   queda estático (fallback 0deg en el var) — solo se pierde el movimiento. */
+@property --credits-beam-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+
 .badge {
     position: relative;
     display: flex;
@@ -43,6 +53,40 @@
             mask-composite: exclude;
     opacity: 0.85;
     pointer-events: none;
+}
+
+/* [P3-CREDITS-BEAM · 2026-06-15] Haz de luz que ORBITA el borde: un conic-gradient
+   con un arco brillante (pico blanco + cola del color del estado), masked al
+   anillo de 1.4px. Al animar `--credits-beam-angle` 0→360°, el arco recorre el
+   perímetro → "celda de energía futurista". Nítido y en movimiento (distinto del
+   bloom difuso, que se atenuó). Va SOBRE el borde-gradiente estático del ::before. */
+.badge::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.4px;
+    background: conic-gradient(
+        from var(--credits-beam-angle, 0deg),
+        transparent 0deg,
+        transparent 280deg,
+        color-mix(in srgb, var(--meter-icon) 35%, transparent) 318deg,
+        var(--meter-icon) 344deg,
+        #ffffff 353deg,
+        var(--meter-icon) 360deg
+    );
+    -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    opacity: 0.95;
+    pointer-events: none;
+    animation: creditsBeamOrbit 4.2s linear infinite;
+}
+
+@keyframes creditsBeamOrbit {
+    to { --credits-beam-angle: 360deg; }
 }
 
 /* ---- gauge ---- */
@@ -164,6 +208,8 @@
 /* ---- accesibilidad: sin movimiento ---- */
 @media (prefers-reduced-motion: reduce) {
     .gauge::before { animation: none; }
+    /* Sin movimiento: ocultar el haz orbitante (un arco estático se vería raro). */
+    .badge::after { animation: none; opacity: 0; }
 }
 
 /* ---- mobile: el actions-group stackea en columna (768px), el badge full-width ---- */

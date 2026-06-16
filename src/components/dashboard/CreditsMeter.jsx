@@ -32,11 +32,13 @@ const GRADIENT = {
     guest: ['#818CF8', '#A78BFA', '#22D3EE'],
 };
 const GLOW = {
-    healthy: 'rgba(34, 211, 238, 0.55)',
-    low: 'rgba(251, 146, 60, 0.55)',
-    depleted: 'rgba(251, 113, 133, 0.55)',
-    unlimited: 'rgba(167, 139, 250, 0.55)',
-    guest: 'rgba(129, 140, 248, 0.5)',
+    healthy: 'rgba(34, 211, 238, 0.5)',
+    low: 'rgba(251, 146, 60, 0.5)',
+    // [P3-CREDITS-BEAM · 2026-06-15] Rojo "agotado" atenuado: el bloom difuso
+    // saturaba en móvil. El protagonista pasa a ser el haz nítido que orbita.
+    depleted: 'rgba(251, 113, 133, 0.28)',
+    unlimited: 'rgba(167, 139, 250, 0.5)',
+    guest: 'rgba(129, 140, 248, 0.46)',
 };
 const ICON = {
     healthy: '#22D3EE',
