@@ -80,13 +80,19 @@
         linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
             mask-composite: exclude;
-    opacity: 0.95;
     pointer-events: none;
-    animation: creditsBeamOrbit 4.2s linear infinite;
+    /* [P3-CREDITS-BEAM-ONESHOT · 2026-06-15] UNA sola vuelta al montar (refresh o
+       volver al dashboard), NO loop continuo. En reposo invisible (opacity 0); la
+       animación lo enciende, da una ronda y lo apaga (fade al final) → ni punto
+       estático ni movimiento perpetuo. Se re-dispara solo en cada mount. */
+    opacity: 0;
+    animation: creditsBeamOrbit 3.6s linear 1 forwards;
 }
 
 @keyframes creditsBeamOrbit {
-    to { --credits-beam-angle: 360deg; }
+    0%   { --credits-beam-angle: 0deg;   opacity: 0.95; }
+    78%  { opacity: 0.95; }
+    100% { --credits-beam-angle: 360deg; opacity: 0; }
 }
 
 /* ---- gauge ---- */
