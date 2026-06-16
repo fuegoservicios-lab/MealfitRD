@@ -1,0 +1,3 @@
+## 2026-06-16 - Pre-compile Regex for String Replacements
+**Learning:** Sequential `.replace()` calls on strings inside a hot loop (like `escapeHtml` for PDF generation) are highly inefficient. They iterate over the string multiple times, matching and allocating intermediate strings.
+**Action:** When performing multiple static dictionary string replacements, use a single pre-compiled `RegExp` object with the `|` OR operator and a dictionary map in the replacer function. This changes the text manipulation performance from O(N) to O(1) in the number of search strings. Adding a `.test()` fast-path guard also skips the replacer callback entirely when no matches exist.
