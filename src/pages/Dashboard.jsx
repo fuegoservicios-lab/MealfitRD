@@ -226,6 +226,20 @@ const DashboardInner = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planData?.micronutrient_supplement_advice, _planMicroSig]);
 
+    // [P3-QDEGRADED-DISMISS · 2026-06-15] El banner "La IA no logró un plan óptimo"
+    // persistía en CADA visita (molesto) y no se podía cerrar. Ahora es dismissible
+    // y se recuerda por plan (misma firma estable que el cache de micros); se
+    // resetea al cambiar de plan (otra firma → vuelve a mostrarse si aplica).
+    const [qDegradedHidden, setQDegradedHidden] = useState(false);
+    useEffect(() => {
+        const key = _planMicroSig ? `mealfit_qdeg_dismissed_${_planMicroSig}` : null;
+        setQDegradedHidden(!!(key && safeLocalStorageGet(key, '') === '1'));
+    }, [_planMicroSig]);
+    const dismissQDegraded = () => {
+        setQDegradedHidden(true);
+        if (_planMicroSig) safeLocalStorageSet(`mealfit_qdeg_dismissed_${_planMicroSig}`, '1');
+    };
+
     // Estado local para saber qué tarjeta se está regenerando (loading spinner específico)
     const [regeneratingId, setRegeneratingId] = useState(null);
     // Background Chunking: controlar visibilidad del banner de generación
@@ -4418,39 +4432,40 @@ const DashboardInner = () => {
                 saber que el sistema "se rindió" y que puede usar Cambiar Plato
                 para iterar manualmente. Flag viene de `plan_data._quality_degraded`
                 seteado en `should_retry` cuando `attempt >= MAX_ATTEMPTS=3`. */}
-            {planData?._quality_degraded && (
+            {planData?._quality_degraded && !qDegradedHidden && (
                 <motion.div
-                    initial={{ opacity: 0, y: -10 }}
+                    initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     style={{
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.75rem',
-                        background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
-                        border: '1.5px solid #FCD34D',
-                        borderRadius: '1rem',
-                        padding: '1rem 1.25rem',
-                        marginBottom: '1.5rem',
-                        boxShadow: '0 4px 12px -2px rgba(217,119,6,0.15)',
-                        flexWrap: 'wrap'
+                        alignItems: 'flex-start',
+                        gap: '0.6rem',
+                        background: isDark
+                            ? 'linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(217,119,6,0.16) 100%)'
+                            : 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+                        border: isDark ? '1px solid rgba(251,191,36,0.32)' : '1.5px solid #FCD34D',
+                        borderRadius: '0.85rem',
+                        padding: '0.7rem 0.85rem',
+                        marginBottom: '1.1rem',
+                        boxShadow: isDark ? '0 4px 12px -2px rgba(0,0,0,0.5)' : '0 4px 12px -2px rgba(217,119,6,0.15)'
                     }}
                     role="status"
                     aria-live="polite"
                 >
-                    <AlertCircle size={22} color="#D97706" style={{ flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: '200px' }}>
-                        <span style={{ fontWeight: 700, color: '#92400E', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
+                    <AlertCircle size={17} color={isDark ? '#FBBF24' : '#D97706'} style={{ flexShrink: 0, marginTop: '1px' }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontWeight: 700, color: isDark ? '#FDE68A' : '#92400E', fontSize: '0.82rem', display: 'block', marginBottom: '0.1rem' }}>
                             La IA no logró un plan óptimo tras {planData?._quality_degraded_attempts || 3} intentos
                         </span>
-                        <span style={{ color: '#B45309', fontSize: '0.85rem' }}>
-                            Te entregamos la mejor versión que produjo. Si alguna comida no te cuadra, usa <strong>Cambiar Plato</strong> para reemplazarla individualmente o regenera el plan completo.
+                        <span style={{ color: isDark ? '#FCD34D' : '#B45309', fontSize: '0.76rem', lineHeight: 1.4 }}>
+                            Te entregamos la mejor versión. Usa <strong>Cambiar Plato</strong> para reemplazar comidas o regenera el plan completo.
                         </span>
                         {/* [G10-QUALITY-DEGRADED-SURFACE · 2026-05-29] Surface de
                             _quality_degraded_reason / _quality_degraded_severity, escritos por
                             _mark_plan_result_quality_degraded en backend pero antes sin lector
                             (dead-write UI). Ahora el usuario ve POR QUÉ se degradó. */}
                         {planData?._quality_degraded_reason && (
-                            <span style={{ color: '#92400E', fontSize: '0.78rem', display: 'block', marginTop: '0.35rem', opacity: 0.85 }}>
+                            <span style={{ color: isDark ? '#FCD34D' : '#92400E', fontSize: '0.72rem', display: 'block', marginTop: '0.3rem', opacity: isDark ? 0.85 : 0.85 }}>
                                 {(() => {
                                     const _qReasonMap = {
                                         high_contextual: 'No pudimos adaptar el plan a una restricción tuya (despensa, alergia o condición).',
@@ -4471,6 +4486,29 @@ const DashboardInner = () => {
                             </span>
                         )}
                     </div>
+                    {/* [P3-QDEGRADED-DISMISS · 2026-06-15] Cerrar (recordado por plan). */}
+                    <button
+                        type="button"
+                        onClick={dismissQDegraded}
+                        aria-label="Ocultar este aviso"
+                        title="Ocultar"
+                        style={{
+                            flexShrink: 0,
+                            display: 'grid',
+                            placeItems: 'center',
+                            width: 24,
+                            height: 24,
+                            marginTop: '-1px',
+                            border: 'none',
+                            borderRadius: '0.5rem',
+                            background: 'transparent',
+                            color: isDark ? '#FCD34D' : '#B45309',
+                            opacity: 0.7,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <X size={15} strokeWidth={2.5} />
+                    </button>
                 </motion.div>
             )}
 
