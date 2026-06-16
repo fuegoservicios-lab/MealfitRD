@@ -3186,6 +3186,23 @@ const DashboardInner = () => {
                     border-left-color: rgba(16, 185, 129, 0.4);
                     box-shadow: none;
                 }
+                /* [PLAN-TIER-BADGE-FREE-DARK · 2026-06-15] El chip "GRATUITO" usaba
+                   el gradiente slate MUY claro (#F8FAFC→#F1F5F9) sin override dark →
+                   pill blanquecino/lavado sobre el fondo oscuro en móvil. Variante
+                   oscura: slate translúcido (gris más oscuro) + texto slate claro +
+                   CTA "Ver planes" a tono, sin bordes/sombras blancas. */
+                html[data-theme="dark"] .plan-tier-badge--free {
+                    background: rgba(148, 163, 184, 0.13);
+                    color: #CBD5E1;
+                    border-color: rgba(148, 163, 184, 0.34);
+                    box-shadow: none;
+                }
+                html[data-theme="dark"] .plan-tier-badge--free .plan-tier-badge-cta {
+                    background: rgba(148, 163, 184, 0.24);
+                    color: #E2E8F0;
+                    border-left-color: rgba(148, 163, 184, 0.32);
+                    box-shadow: none;
+                }
 
                 /* PLUS — indigo (pro, intermediate) */
                 .plan-tier-badge--plus {
