@@ -147,8 +147,8 @@ const AccountSettings = () => {
                    fijo al viewport, detrás del contenido (z-index:-1 → por encima del
                    canvas --bg-page del body, debajo de las tarjetas).
                    - Claro: la ilustración de burbujas (dashboard_bg.png, opacity 0.85).
-                   - Oscuro (regla de abajo): glows indigo + rayas diagonales hairline,
-                     igual que el DashboardLayout dark (la ilustración no encaja en dark). */
+                   - Oscuro (regla de abajo): solo glows indigo (las rayas diagonales
+                     hairline se quitaron — decisión del usuario 2026-06-18). */
                 .acct-wrap::before {
                     content: '';
                     position: fixed;
@@ -165,13 +165,12 @@ const AccountSettings = () => {
                 }
                 html[data-theme="dark"] .acct-wrap::before {
                     background-image:
-                        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.04) 0, rgba(255, 255, 255, 0.04) 1px, transparent 1px, transparent 52px),
                         radial-gradient(ellipse 70% 55% at 8% -10%, rgba(99, 102, 241, 0.28) 0%, transparent 55%),
                         radial-gradient(ellipse 58% 50% at 100% 2%, rgba(129, 140, 248, 0.20) 0%, transparent 52%),
                         radial-gradient(ellipse 55% 50% at 90% 96%, rgba(139, 92, 246, 0.14) 0%, transparent 55%),
                         radial-gradient(ellipse 75% 55% at 28% 108%, rgba(79, 70, 229, 0.18) 0%, transparent 55%);
-                    background-size: auto, cover, cover, cover, cover;
-                    background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+                    background-size: cover, cover, cover, cover;
+                    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
                     opacity: 1;
                 }
                 .acct-back {
