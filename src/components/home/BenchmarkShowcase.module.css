@@ -1,0 +1,512 @@
+/* ============================================================
+   BenchmarkShowcase — "modelo Mealfit vX" · benchmark de precisión.
+   [P3-BENCHMARK-SHOWCASE · 2026-06-19]
+   Estilo alineado con DashboardShowcase (badge / título gradiente /
+   container). Theme-aware vía CSS vars + override oscuro al final.
+   ============================================================ */
+
+.section {
+    position: relative;
+    padding: 5rem 0 6rem;
+    overflow: hidden;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F7F8FC 100%);
+}
+
+.bgGlow {
+    position: absolute;
+    bottom: -18%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 900px;
+    max-width: 120vw;
+    height: 700px;
+    background: radial-gradient(ellipse at center, rgba(79, 70, 229, 0.10) 0%, transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+/* ---------- Header ---------- */
+.header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.modelBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.95rem 0.4rem 0.8rem;
+    border: 1px solid rgba(79, 70, 229, 0.3);
+    background: rgba(79, 70, 229, 0.07);
+    color: var(--primary);
+    border-radius: 99px;
+    font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-bottom: 1.25rem;
+}
+
+.modelDot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--secondary, #10B981);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.85);
+    animation: benchDotPulse 2.4s ease-in-out infinite;
+}
+@keyframes benchDotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+.title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin: 0 0 1.1rem;
+}
+
+.gradientText {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light, #818CF8) 45%, var(--accent, #F43F5E) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: inline-block;
+}
+
+.subtitle {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* ---------- Benchmark card ---------- */
+.card {
+    max-width: 920px;
+    margin: 0 auto;
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border, #E2E8F0);
+    border-radius: 1.5rem;
+    padding: clamp(1.25rem, 4vw, 2.25rem);
+    box-shadow: 0 30px 60px -28px rgba(15, 23, 42, 0.22);
+}
+
+.cardHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.cardHeadLeft {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.cardHeadTitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+.cardHeadTitle svg { color: var(--primary); flex: none; }
+
+.cardHeadSub {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    line-height: 1.3;
+}
+
+.cardHeadBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: none;
+    padding: 0.35rem 0.75rem;
+    border-radius: 99px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--primary);
+    background: rgba(79, 70, 229, 0.08);
+    border: 1px solid rgba(79, 70, 229, 0.25);
+    white-space: nowrap;
+}
+.cardHeadBadge svg { flex: none; }
+
+/* ---------- Tabla comparativa (columna Mealfit resaltada) ---------- */
+.cmpWrap {
+    /* permite scroll horizontal en móvil sin romper el layout */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -0.25rem;
+    padding: 0 0.25rem 0.25rem;
+}
+
+.cmpTable {
+    width: 100%;
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+/* celda vacía esquina superior-izquierda */
+.cmpRowHeadEmpty {
+    width: 38%;
+    background: transparent;
+    border: 0;
+}
+
+/* cabeceras de columna */
+.cmpColHead {
+    padding: 0.65rem 0.5rem 0.95rem;
+    text-align: center;
+    vertical-align: bottom;
+    border-bottom: 1px solid var(--border);
+}
+.cmpColName {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1.1;
+}
+.cmpColSub {
+    display: block;
+    margin-top: 2px;
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.66rem;
+    color: var(--text-light, #94A3B8);
+}
+
+/* columna Mealfit resaltada — caja con borde + tinte */
+.cmpColHi {
+    background: rgba(79, 70, 229, 0.06);
+    border: 1px solid rgba(79, 70, 229, 0.32);
+    border-bottom-color: rgba(79, 70, 229, 0.32);
+    border-top-left-radius: 0.85rem;
+    border-top-right-radius: 0.85rem;
+}
+.cmpColHi .cmpColName { color: var(--primary); }
+.cmpColHi .cmpColSub { color: var(--primary); opacity: 0.85; }
+
+/* cabeceras de fila (métrica) */
+.cmpRowHead {
+    text-align: left;
+    padding: 0.7rem 0.9rem 0.7rem 0;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border);
+}
+.cmpMetric {
+    display: block;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.2;
+}
+.cmpMetricSub {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    line-height: 1.25;
+}
+
+/* celdas de datos */
+.cmpCell {
+    text-align: center;
+    vertical-align: middle;
+    padding: 0.7rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+/* celdas de la columna Mealfit (laterales de la caja) */
+.cmpCellHi {
+    background: rgba(79, 70, 229, 0.06);
+    border-left: 1px solid rgba(79, 70, 229, 0.32);
+    border-right: 1px solid rgba(79, 70, 229, 0.32);
+    border-bottom-color: rgba(79, 70, 229, 0.16);
+}
+.cmpCellHiLast {
+    border-bottom: 1px solid rgba(79, 70, 229, 0.32);
+    border-bottom-left-radius: 0.85rem;
+    border-bottom-right-radius: 0.85rem;
+}
+
+/* valores en celda */
+.cellVal {
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+.cellValHi {
+    font-size: 1.15rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary, #10B981) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.cellCheck { color: var(--secondary, #10B981); display: inline-block; vertical-align: middle; }
+.cellX { color: var(--text-light, #94A3B8); opacity: 0.7; display: inline-block; vertical-align: middle; }
+/* "parcial / limitado" → ámbar (estado intermedio entre ✓ y ✗), theme-aware */
+.cellPartial { color: var(--warning, #F59E0B); opacity: 1; display: inline-block; vertical-align: middle; }
+.cellDash { color: var(--text-light, #94A3B8); font-weight: 600; }
+
+/* ---------- Strip de precisión por macro ---------- */
+.macroStrip {
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+}
+.macroStripTitle {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 1.1rem;
+}
+
+/* ---------- Metrics grid ---------- */
+.metricsGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+}
+
+.metric {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.metricLabel {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.metricValue {
+    font-size: 1.85rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary, #10B981) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-variant-numeric: tabular-nums;
+}
+.metricValue small {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-left: 1px;
+}
+
+.metricBarTrack {
+    height: 5px;
+    border-radius: 99px;
+    background: var(--bg-muted, #F1F5F9);
+    overflow: hidden;
+    margin-top: 0.2rem;
+}
+
+.metricBarFill {
+    display: block;
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary, #10B981) 100%);
+}
+
+.metricSub {
+    font-size: 0.72rem;
+    color: var(--text-light, #94A3B8);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Highlights ---------- */
+.highlights {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.highlight {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    padding: 1rem 1.1rem;
+    border-radius: 1rem;
+    background: var(--bg-muted, #F8FAFC);
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+/* destello superior sutil tipo "glass" */
+.highlight::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    opacity: 0.6;
+}
+.highlightIcon {
+    flex: none;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 0.7rem;
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary, #10B981) 100%);
+    box-shadow: 0 6px 16px -5px rgba(79, 70, 229, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.highlightText {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.highlightText strong {
+    font-size: 1.3rem;
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary, #10B981) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-variant-numeric: tabular-nums;
+}
+.highlightText span {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.32;
+    margin-top: 3px;
+}
+
+/* ---------- Footnote ---------- */
+.footnote {
+    margin: 1.5rem auto 0;
+    font-size: 0.74rem;
+    line-height: 1.5;
+    color: var(--text-light, #94A3B8);
+    text-align: center;
+    max-width: 640px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 720px) {
+    .section { padding: 4rem 0 5rem; }
+    .header { margin-bottom: 2.25rem; }
+    .title { font-size: 2rem; }
+    .subtitle { font-size: 1rem; }
+    .metricsGrid { grid-template-columns: repeat(2, 1fr); gap: 1.1rem 1.25rem; }
+    .highlights { grid-template-columns: 1fr; }
+    .cardHead { flex-direction: column; align-items: flex-start; gap: 0.7rem; }
+    .cardHeadTitle { font-size: 0.92rem; }
+    .cmpMetric { font-size: 0.82rem; }
+    .cmpColName { font-size: 0.82rem; }
+    .cmpRowHeadEmpty { width: 34%; }
+    .cmpCell { padding: 0.7rem 0.3rem; }
+    .cmpColHead { padding: 0.6rem 0.3rem 0.85rem; }
+}
+
+/* ---------- Tema oscuro ---------- */
+:global(html[data-theme="dark"]) .section {
+    background: var(--bg-page);
+}
+:global(html[data-theme="dark"]) .card {
+    background: var(--bg-card);
+    border-color: var(--border);
+    box-shadow:
+        0 30px 70px -30px rgba(0, 0, 0, 0.6),
+        0 0 0 1px var(--border);
+}
+:global(html[data-theme="dark"]) .highlight {
+    background: linear-gradient(158deg, rgba(129, 140, 248, 0.12) 0%, rgba(129, 140, 248, 0.025) 60%, rgba(16, 185, 129, 0.04) 100%);
+    border-color: rgba(129, 140, 248, 0.22);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+:global(html[data-theme="dark"]) .highlight::before {
+    background: linear-gradient(90deg, transparent, rgba(165, 180, 252, 0.45), transparent);
+    opacity: 0.7;
+}
+:global(html[data-theme="dark"]) .highlightText strong {
+    background: linear-gradient(135deg, var(--primary-light, #A5B4FC) 0%, var(--secondary, #34D399) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+:global(html[data-theme="dark"]) .highlightText span {
+    color: var(--text-light, #94A3B8);
+}
+:global(html[data-theme="dark"]) .highlightIcon {
+    /* degradado más profundo y mate — evita el look neón/glossy en oscuro */
+    background: linear-gradient(135deg, #4338CA 0%, #0D9488 100%);
+    color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 4px 14px -7px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(129, 140, 248, 0.14);
+}
+:global(html[data-theme="dark"]) .metricBarTrack {
+    background: rgba(148, 163, 184, 0.14);
+}
+:global(html[data-theme="dark"]) .modelBadge {
+    border-color: rgba(129, 140, 248, 0.4);
+    background: rgba(129, 140, 248, 0.09);
+}
+:global(html[data-theme="dark"]) .cardHeadBadge {
+    color: var(--primary-light, #A5B4FC);
+    background: rgba(129, 140, 248, 0.12);
+    border-color: rgba(129, 140, 248, 0.3);
+}
+/* tabla comparativa — columna Mealfit resaltada en oscuro */
+:global(html[data-theme="dark"]) .cmpColHi,
+:global(html[data-theme="dark"]) .cmpCellHi {
+    background: rgba(129, 140, 248, 0.10);
+    border-color: rgba(129, 140, 248, 0.45);
+}
+:global(html[data-theme="dark"]) .cmpColHi .cmpColName,
+:global(html[data-theme="dark"]) .cmpColHi .cmpColSub {
+    color: var(--primary-light, #A5B4FC);
+}
+:global(html[data-theme="dark"]) .cmpCellHi {
+    border-bottom-color: rgba(129, 140, 248, 0.22);
+}
+:global(html[data-theme="dark"]) .cmpCellHiLast {
+    border-bottom-color: rgba(129, 140, 248, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .modelDot { animation: none; }
+}
