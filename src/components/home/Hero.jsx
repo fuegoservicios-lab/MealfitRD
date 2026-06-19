@@ -121,11 +121,6 @@ const Hero = () => {
                     initial="hidden"
                     animate="show"
                 >
-                    <motion.div className={styles.badge} variants={V.rise}>
-                        <span className={styles.badgeOrb} aria-hidden="true" />
-                        Nueva Generación en Nutrición
-                    </motion.div>
-
                     <h1 className={styles.title}>
                         {/* Wrapper anima (y/opacity/blur); el span interno clipea
                             el gradiente. Separar capas evita el artefacto WebKit

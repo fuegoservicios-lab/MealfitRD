@@ -151,61 +151,6 @@
     z-index: 1;
 }
 
-/* ── BADGE ───────────────────────────────────────────────────────────────── */
-.badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.5rem 1rem 0.5rem 0.7rem;
-    background: rgba(255, 255, 255, 0.72);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    color: var(--primary-dark);
-    border-radius: 99px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    margin-bottom: 2rem;
-    border: 1px solid rgba(255, 255, 255, 0.9);
-    box-shadow:
-        0 8px 24px -10px rgba(79, 70, 229, 0.35),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.5);
-}
-
-/* Orb del badge: mini-esfera 3D (misma dirección de luz que el orbe principal:
-   highlight 32% 28%) — coherencia de iluminación micro↔macro. Anima solo el
-   box-shadow (glow), no el layout. */
-.badgeOrb {
-    flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    position: relative;
-    background:
-        radial-gradient(circle at 32% 28%,
-            rgba(255, 255, 255, 0.95) 0%,
-            rgba(199, 210, 254, 0.55) 14%,
-            var(--primary) 50%,
-            var(--primary-dark) 100%);
-    box-shadow:
-        0 2px 5px rgba(79, 70, 229, 0.4),
-        inset 0 -2px 5px rgba(15, 23, 42, 0.22),
-        inset 0 1px 2px rgba(255, 255, 255, 0.25);
-    animation: orbPulse 3.6s ease-in-out infinite;
-}
-
-.badgeOrb::before {
-    content: '';
-    position: absolute;
-    top: 14%;
-    left: 22%;
-    width: 32%;
-    height: 22%;
-    background: rgba(255, 255, 255, 0.78);
-    border-radius: 50%;
-    filter: blur(1.2px);
-}
-
 /* ── TITULAR ─────────────────────────────────────────────────────────────── */
 .title {
     font-family: var(--font-heading);
@@ -545,22 +490,22 @@
    tarjeta en profundidad → parallax real cuando .stage3d rota. cardBobN anima
    un bob vertical sutil, con periodos desincronizados (6.5/7.5/8s) = vida. */
 .floatCard1 {
-    top: 8%;
-    left: -4%;
+    top: 14%;
+    left: 6%;
     transform: translateZ(70px);
     animation: cardBobA 6.5s ease-in-out infinite;
 }
 
 .floatCard2 {
-    bottom: 4%;
+    bottom: 14%;
     left: 50%;
     transform: translateX(-50%) translateZ(95px);
     animation: cardBobB 7.5s ease-in-out infinite;
 }
 
 .floatCard3 {
-    top: 44%;
-    right: -4%;
+    top: 42%;
+    right: 4%;
     transform: translateZ(55px);
     animation: cardBobC 8s ease-in-out infinite;
 }
@@ -585,11 +530,6 @@
 @keyframes auroraDriftB {
     0%, 100% { transform: translate(0, 0) scale(1); }
     50% { transform: translate(4%, -3%) scale(1.1); }
-}
-
-@keyframes orbPulse {
-    0%, 100% { box-shadow: 0 2px 5px rgba(79, 70, 229, 0.4), inset 0 -2px 5px rgba(15, 23, 42, 0.22), inset 0 1px 2px rgba(255, 255, 255, 0.25); }
-    50% { box-shadow: 0 2px 10px rgba(79, 70, 229, 0.6), inset 0 -2px 5px rgba(15, 23, 42, 0.22), inset 0 1px 2px rgba(255, 255, 255, 0.25); }
 }
 
 @keyframes stageTilt {
@@ -681,18 +621,18 @@
     }
 
     .floatCard1 {
-        top: 18%;
-        left: -8%;
+        top: 16%;
+        left: 2%;
     }
 
     .floatCard2 {
-        bottom: 8%;
-        left: 14%;
+        bottom: 12%;
+        left: 18%;
     }
 
     .floatCard3 {
-        top: 48%;
-        right: -8%;
+        top: 46%;
+        right: 2%;
     }
 }
 
@@ -733,16 +673,6 @@
 :global(html[data-theme="dark"]) .grid {
     background-image: radial-gradient(rgba(165, 180, 252, 0.14) 1px, transparent 1.4px);
     opacity: 0.45;
-}
-
-/* Badge → superficie slate translúcida. */
-:global(html[data-theme="dark"]) .badge {
-    background: rgba(30, 41, 59, 0.7);
-    border-color: var(--border);
-    color: var(--primary-light);
-    box-shadow:
-        0 8px 26px -10px rgba(0, 0, 0, 0.6),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 :global(html[data-theme="dark"]) .subtitle {
@@ -830,7 +760,6 @@
 @media (prefers-reduced-motion: reduce) {
     .spotlight,
     .aurora,
-    .badgeOrb,
     .orbRing,
     .orbGlow,
     .gradientText {
