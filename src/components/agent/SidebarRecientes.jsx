@@ -215,7 +215,7 @@ export const SidebarRecientes = ({
                                             onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
                                             onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-card)'}
                                         >
-                                            <Trash2 size={15} strokeWidth={2} />
+                                            <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
                                         </button>
 
                                     </div>
