@@ -1,0 +1,3 @@
+## 2026-06-01 - O(N) Array to O(1) Regex Compilation
+**Learning:** String manipulation inside a map loop over a large array of regex stop words is highly inefficient. It forces `replace` to iterate over every item in `STOP_WORD_REGEXES` for every text string evaluated, bringing worst-case complexity to O(N).
+**Action:** Consolidate multiple static string regex patterns into a single Regex object matching via `|` (`NAME_STOP_WORDS.join('|')`). Hoisting this combined precompiled RegExp (`STOP_WORDS_PATTERN`) to module scope and removing loop overhead scales string `replace` performance significantly.
