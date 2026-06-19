@@ -107,7 +107,7 @@ const NAME_STOP_WORDS = ['picada', 'picado', 'en tiras', 'en cubos', 'rallado', 
     'sin piel', 'sin hueso', 'crudo', 'cruda', 'asado', 'asada',
     'entero', 'entera', 'fina', 'finas', 'gruesa', 'gruesas',
     'horneado', 'grandes', 'firme'];
-const STOP_WORD_REGEXES = NAME_STOP_WORDS.map(s => new RegExp('\\b' + s + '\\b', 'gi'));
+const STOP_WORD_AGGREGATE_REGEX = new RegExp('\\b(' + NAME_STOP_WORDS.join('|') + ')\\b', 'gi');
 const NAME_IRREGULARS = {
     'nueces': 'nuez', 'aves': 'ave', 'maices': 'maiz', 'arroces': 'arroz',
     'peces': 'pez', 'carnes': 'carne', 'tomates': 'tomate'
@@ -1091,9 +1091,7 @@ const DashboardInner = () => {
             // [P5-SPEED-DELTA-CONSTS-HOIST · 2026-06-01] STOP_WORD_REGEXES precompiladas
             // a module-scope (antes: `new RegExp` por palabra por ítem). Flag `g` →
             // replace resetea lastIndex tras cada llamada → seguro reusar la instancia.
-            for (const re of STOP_WORD_REGEXES) {
-                n = n.replace(re, '');
-            }
+            n = n.replace(STOP_WORD_AGGREGATE_REGEX, '');
             n = n.replace(/,/g, '').replace(/\s+/g, ' ').trim();
 
             return n.split(/\s+/).map(w => {
