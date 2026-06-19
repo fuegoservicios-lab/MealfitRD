@@ -40,6 +40,33 @@ const updateSW = registerSW({
       },
     })
   },
+  // [P2-PWA-UPDATE-POLL · 2026-06-18] Chequeo PROACTIVO de actualizaciones.
+  // El SW solo se revisa al registrar (page load); si el usuario mantiene la
+  // PWA abierta o la REABRE sin recarga completa (caso típico iOS standalone),
+  // el navegador nunca re-fetcha el SW nuevo → el toast 'Nueva versión' no
+  // aparece y el usuario corre un bundle viejo hasta limpiar cache a mano.
+  // Forzamos registration.update() al volver el foco / reabrir la app (alto
+  // valor, costo casi cero porque solo dispara cuando el usuario regresa) + un
+  // backstop periódico para pestañas abiertas por horas. El SW nuevo auto-activa
+  // (skipWaiting + clients.claim en custom-sw.js, P3-PWA-SKIPWAITING-AUTO) y la
+  // navegación network-first+no-store sirve el bundle fresco en la próxima
+  // recarga; este poll cierra el último hueco: DETECTAR el SW nuevo sin que el
+  // usuario tenga que recargar/limpiar cache a mano.
+  onRegisteredSW(swUrl, registration) {
+    if (!registration) return
+    const UPDATE_INTERVAL_MS = 5 * 60 * 1000 // backstop para sesiones largas
+    const checkForUpdate = () => {
+      // Solo si la pestaña está visible y online → ahorra datos (es-DO mobile-first).
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return
+      registration.update().catch(() => {})
+    }
+    setInterval(checkForUpdate, UPDATE_INTERVAL_MS)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') checkForUpdate()
+    })
+    window.addEventListener('focus', checkForUpdate)
+  },
 })
 
 // [P3-AUDIT-4 · 2026-05-15] Listener para `pushsubscriptionchange` postMessage
