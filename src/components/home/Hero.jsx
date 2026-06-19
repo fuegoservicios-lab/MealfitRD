@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, FlaskConical, Wallet, Bot, ShieldCheck, Unlock, Utensils, Activity, TrendingUp, ChevronRight } from 'lucide-react';
+import { ArrowRight, ChevronRight, Utensils, Activity, TrendingUp, BookOpen, Stethoscope, HeartPulse, ClipboardCheck, Wallet } from 'lucide-react';
 import styles from './Hero.module.css';
 import { useAssessment } from '../../context/AssessmentContext';
 import { useHeroCta } from '../../context/HeroCtaContext';
@@ -126,18 +126,18 @@ const Hero = () => {
                             el gradiente. Separar capas evita el artefacto WebKit
                             de background-clip:text + filter:blur simultáneos. */}
                         <motion.span className={styles.titleLine} variants={V.titleLine}>
-                            <span className={styles.titleInner}>Nutrición Inteligente,</span>
+                            <span className={styles.titleInner}>Nutrición calculada,</span>
                         </motion.span>
                         <br />
                         <motion.span className={styles.titleLine} variants={V.titleLine}>
                             <span className={`${styles.titleInner} ${styles.gradientText}`}>
-                                Diseñada para Ti
+                                no improvisada
                             </span>
                         </motion.span>
                     </h1>
 
                     <motion.p className={styles.subtitle} variants={V.rise}>
-                        La IA que crea tu plan de comida basado en <strong>tus gustos</strong>, tu presupuesto y tu día a día. Comer bien nunca fue tan fácil.
+                        Planes personalizados a tu perfil de salud, con <strong>precisión de macronutrientes</strong> y criterios clínicos fundamentados en evidencia. Con revisión profesional cuando tu condición lo amerita.
                     </motion.p>
 
                     <motion.div className={styles.actions} ref={ctaRef} variants={V.rise}>
@@ -154,24 +154,24 @@ const Hero = () => {
 
                     <motion.div className={styles.trust} variants={V.rise}>
                         <div className={styles.trustItem}>
-                            <FlaskConical size={16} className={styles.trustIcon} strokeWidth={2.25} />
-                            <span>Fundamentado en Ciencia</span>
+                            <BookOpen size={16} className={styles.trustIcon} strokeWidth={2.25} />
+                            <span>Fundamentado en evidencia</span>
                         </div>
                         <div className={styles.trustItem}>
-                            <Bot size={16} className={styles.trustIcon} strokeWidth={2.25} />
-                            <span>Personalizado con IA</span>
+                            <Stethoscope size={16} className={styles.trustIcon} strokeWidth={2.25} />
+                            <span>Criterios clínicos</span>
+                        </div>
+                        <div className={styles.trustItem}>
+                            <HeartPulse size={16} className={styles.trustIcon} strokeWidth={2.25} />
+                            <span>Personalizado a tu perfil</span>
+                        </div>
+                        <div className={styles.trustItem}>
+                            <ClipboardCheck size={16} className={styles.trustIcon} strokeWidth={2.25} />
+                            <span>Revisión profesional</span>
                         </div>
                         <div className={styles.trustItem}>
                             <Wallet size={16} className={styles.trustIcon} strokeWidth={2.25} />
-                            <span>Adaptado a tu Presupuesto</span>
-                        </div>
-                        <div className={styles.trustItem}>
-                            <ShieldCheck size={16} className={styles.trustIcon} strokeWidth={2.25} />
-                            <span>Privacidad Garantizada</span>
-                        </div>
-                        <div className={styles.trustItem}>
-                            <Unlock size={16} className={styles.trustIcon} strokeWidth={2.25} />
-                            <span>Cancela Cuando Quieras</span>
+                            <span>Adaptado a tu presupuesto</span>
                         </div>
                     </motion.div>
                 </motion.div>
@@ -206,8 +206,8 @@ const Hero = () => {
                                 <Utensils size={22} />
                             </div>
                             <div className={styles.cardText}>
-                                <strong>Almuerzo Ideal</strong>
-                                <small>600 kcal • 30g Prot</small>
+                                <strong>Plan a tu medida</strong>
+                                <small>Macros calculados, no a ojo</small>
                             </div>
                         </motion.div>
 
@@ -216,8 +216,8 @@ const Hero = () => {
                                 <Activity size={22} />
                             </div>
                             <div className={styles.cardText}>
-                                <strong>Salud Optimizada</strong>
-                                <small>Metabolismo activo</small>
+                                <strong>Se ajusta a tus condiciones</strong>
+                                <small>DM2 · renal · HTA · alergias</small>
                             </div>
                         </motion.div>
 
@@ -226,8 +226,8 @@ const Hero = () => {
                                 <TrendingUp size={22} />
                             </div>
                             <div className={styles.cardText}>
-                                <strong>Progreso Real</strong>
-                                <small>Objetivo: -2kg/mes</small>
+                                <strong>Progreso medible</strong>
+                                <small>Valores estimados, trazables</small>
                             </div>
                         </motion.div>
                     </div>
