@@ -76,6 +76,21 @@ const ProtectedRoute = ({ children }) => {
     //     real es el formulario; antes llegaba ahí igual pero pasando por el flash).
     //   - Sin assessment → no se redirige (cae al `return children` → ve la landing).
     if (isOnLanding && navigationType === 'POP') {
+        // [LANDING-REFRESH-STAY · 2026-06-18] Un REFRESH (F5 / recargar) de la
+        // landing mantiene al usuario EN la landing — no lo rebota al dashboard.
+        // react-router marca refresh, cold-start y back/forward todos como 'POP';
+        // la Performance Navigation API sí los distingue (type === 'reload' solo
+        // en recarga del documento). Así, recargar la landing la conserva, mientras
+        // que cold-start (URL tecleada / lanzamiento PWA → 'navigate'), OAuth-landing
+        // y back/forward siguen cayendo en el redirect de abajo. Lectura pura del
+        // timing → sin mutación, StrictMode-safe (no reintroduce el bug del flag
+        // module-level). Si la API no existe, isReload=false → comportamiento previo.
+        const navEntry = typeof performance !== 'undefined' && typeof performance.getEntriesByType === 'function'
+            ? performance.getEntriesByType('navigation')[0]
+            : undefined;
+        if (navEntry?.type === 'reload') {
+            return children;
+        }
         if (planData) {
             return <Navigate to="/dashboard" replace />;
         }
