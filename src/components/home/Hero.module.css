@@ -505,7 +505,7 @@
 
 .floatCard3 {
     top: 42%;
-    right: -2%;
+    right: -7%;
     transform: translateZ(55px);
     animation: cardBobC 8s ease-in-out infinite;
 }
@@ -632,7 +632,7 @@
 
     .floatCard3 {
         top: 46%;
-        right: -4%;
+        right: -9%;
     }
 }
 
