@@ -94,7 +94,7 @@ describe('[P1-HIST-CLOSE-1] Recipes.jsx no usa restorePlan (server-side SSOT)', 
         // junto con el restorePlan, el usuario perdería la consistencia
         // inmediata — alertar al reviewer con un test específico.
         expect(src).toMatch(
-            /localStorage\.setItem\s*\(\s*['"]mealfit_plan['"]\s*,\s*JSON\.stringify\s*\(\s*planData\s*\)/
+            /safeLocalStorageSet\s*\(\s*['"]mealfit_plan['"]\s*,\s*planData\s*\)/
         );
     });
 
