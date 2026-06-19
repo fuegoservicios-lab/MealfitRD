@@ -606,7 +606,11 @@ const Recipes = () => {
     // useEffect de clamp (P-RECIPES-CHUNK-WINDOW); la guard sigue funcionando
     // igual porque chunkStart/Size/Days tienen defaults seguros para planData=null.
     if (!planData) {
-        return <Navigate to="/" replace />;
+        // [RECIPES-NO-PLAN-TO-ASSESSMENT · 2026-06-18] Antes mandaba a '/' (landing):
+        // un usuario autenticado-SIN-plan que refrescaba /dashboard/recipes se sentía
+        // "expulsado al landing". Ahora va a /assessment (onboarding), consistente con
+        // Dashboard.jsx y ProtectedRoute (autenticado-sin-plan → /assessment).
+        return <Navigate to="/assessment" replace />;
     }
 
     const generateRecipeHTML = (meal) => {

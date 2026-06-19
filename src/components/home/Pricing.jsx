@@ -1,5 +1,5 @@
-import { useState, lazy, Suspense } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, lazy, Suspense, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
 import { Check } from 'lucide-react';
 import styles from './Pricing.module.css';
@@ -28,8 +28,17 @@ const PRICING = {
     },
 };
 
+// [PAY-MODAL-PERSIST · 2026-06-18] Nombre de plan por tier (SSOT local) para
+// re-derivar el `name` del modal al rehidratarlo desde la URL tras un refresh.
+const NAME_BY_TIER = {
+    basic: 'Suscripción Básico',
+    plus: 'Suscripción Plus',
+    ultra: 'Suscripción Ultra Ilimitado',
+};
+
 const Pricing = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const {
         PLAN_LIMIT,
@@ -90,6 +99,30 @@ const Pricing = () => {
         const periodSuffix = isAnnual ? ' (Anual)' : ' (Mensual)';
         setSelectedPlan({ tier, price, name: name + periodSuffix, isAnnual });
         setIsPaymentOpen(true);
+        // [PAY-MODAL-PERSIST · 2026-06-18] Persistir el checkout en la URL para que
+        // sobreviva un refresh (re-abre el modal en mount). replace → no ensucia el
+        // history con cada click ni dispara el landing-skip POP.
+        setSearchParams((prev) => {
+            const p = new URLSearchParams(prev);
+            p.set('checkout', tier);
+            p.set('billing', isAnnual ? 'annual' : 'monthly');
+            return p;
+        }, { replace: true });
+    };
+
+    // [PAY-MODAL-PERSIST · 2026-06-18] Cierre centralizado del checkout: baja el
+    // modal, limpia el plan y BORRA ?checkout/?billing de la URL (replace → no
+    // ensucia history ni dispara el landing-skip POP). Un refresh posterior NO
+    // re-abre el modal.
+    const closePayment = () => {
+        setIsPaymentOpen(false);
+        setSelectedPlan(null);
+        setSearchParams((prev) => {
+            const p = new URLSearchParams(prev);
+            p.delete('checkout');
+            p.delete('billing');
+            return p;
+        }, { replace: true });
     };
 
     // Callback que se ejecuta cuando PayPal confirma el pago exitoso (Suscripciones)
@@ -101,9 +134,48 @@ const Pricing = () => {
         // (cierra el P2 de timing) y solo navegamos en éxito; en fallo el
         // toast.error de upgradeUserPlan informa y el usuario reintenta.
         const ok = await upgradeUserPlan(tier, subscriptionId);
-        setIsPaymentOpen(false);
-        if (ok) navigate('/dashboard');
+        if (ok) {
+            // Éxito: el cambio de ruta a /dashboard descarta los params de '/'.
+            navigate('/dashboard');
+        } else {
+            // [PAY-MODAL-PERSIST · 2026-06-18 · FIX-B1] Fallo de verify: el usuario
+            // se queda en la ruta → cerrar el modal Y limpiar los params; si no, un
+            // refresh re-abriría un checkout que ya falló.
+            closePayment();
+        }
     };
+
+    // [PAY-MODAL-PERSIST · 2026-06-18 · FIX-B2] Rehidratar el checkout tras un
+    // refresh: si la URL trae ?checkout=<tier>, re-abre el modal con el mismo plan.
+    // MOUNT-ONLY (deps []) leyendo searchParams por closure → corre 1 vez por
+    // montaje (= 1 vez por refresh); cerrar el modal NUNCA lo re-dispara. NO valida
+    // rank ni navega (el cobro real lo deriva el backend del plan_id de PayPal,
+    // I-Billing-1); solo valida que el tier sea conocido.
+    useEffect(() => {
+        const t = searchParams.get('checkout');
+        const b = searchParams.get('billing');
+        if (!['basic', 'plus', 'ultra'].includes(t)) {
+            if (t !== null || b !== null) {
+                setSearchParams((prev) => {
+                    const p = new URLSearchParams(prev);
+                    p.delete('checkout');
+                    p.delete('billing');
+                    return p;
+                }, { replace: true });
+            }
+            return;
+        }
+        const annual = b === 'annual';
+        setBillingPeriod(annual ? 'annual' : 'monthly');
+        setSelectedPlan({
+            tier: t,
+            price: PRICING[t][annual ? 'annual' : 'monthly'].price,
+            name: NAME_BY_TIER[t] + (annual ? ' (Anual)' : ' (Mensual)'),
+            isAnnual: annual,
+        });
+        setIsPaymentOpen(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Texto del botón según estado del usuario
     const getButtonText = (tier) => {
@@ -161,7 +233,7 @@ const Pricing = () => {
                 <Suspense fallback={null}>
                     <PaymentModal
                         isOpen={isPaymentOpen}
-                        onClose={() => setIsPaymentOpen(false)}
+                        onClose={closePayment}
                         onSuccess={(subId) => handlePaymentSuccess(selectedPlan?.tier, subId)}
                         price={selectedPlan?.price || "9.99"}
                         planName={selectedPlan?.name || "Suscripción Básico"}
