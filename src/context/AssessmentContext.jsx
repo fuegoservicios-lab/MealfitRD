@@ -716,16 +716,22 @@ export const AssessmentProvider = ({ children }) => {
                 // dejaba localGroceryStartDate/localCycleStartDate undefined y
                 // el backfill se aplicaba con planCreatedAt aunque el localStorage
                 // tuviera fechas válidas — drift cosmético del contador del Dashboard.
+                // [BOLT-OPTIMIZATION] Unificamos las 3 lecturas de 'mealfit_plan' y el JSON.parse
+                // en una sola operación para evitar redundancia y mejorar el rendimiento de la carga.
                 let didInjectGroceryDate = false;
-                if (!latestPlan.grocery_start_date) {
-                    const localSaved = safeLocalStorageGet('mealfit_plan', null);
-                    let localGroceryStartDate = null;
-                    if (localSaved) {
-                        try {
-                            const parsed = JSON.parse(localSaved);
-                            localGroceryStartDate = parsed.grocery_start_date;
-                        } catch(e) {}
+
+                const localSavedForCompare = safeLocalStorageGet('mealfit_plan', null);
+                let localSavedParsed = null;
+                if (localSavedForCompare) {
+                    try {
+                        localSavedParsed = JSON.parse(localSavedForCompare);
+                    } catch(e) {
+                        console.warn("⚠️ Error parseando plan local, forzando sincronización con la nube.");
                     }
+                }
+
+                if (!latestPlan.grocery_start_date) {
+                    let localGroceryStartDate = localSavedParsed ? localSavedParsed.grocery_start_date : null;
 
                     // Si el plan vino de la IA/Chat, no trae esta fecha.
                     // Priorizamos mantener la local, si no existe usamos la de creación.
@@ -738,28 +744,9 @@ export const AssessmentProvider = ({ children }) => {
                 // no sirve para medir cuántos días lleva activo el ciclo. Backfill para planes
                 // existentes con la fecha de creación de la fila DB.
                 if (!latestPlan.cycle_start_date) {
-                    const localSaved = safeLocalStorageGet('mealfit_plan', null);
-                    let localCycleStartDate = null;
-                    if (localSaved) {
-                        try {
-                            const parsed = JSON.parse(localSaved);
-                            localCycleStartDate = parsed.cycle_start_date;
-                        } catch(e) {}
-                    }
+                    let localCycleStartDate = localSavedParsed ? localSavedParsed.cycle_start_date : null;
                     latestPlan.cycle_start_date = localCycleStartDate || planCreatedAt;
                     didInjectGroceryDate = true;
-                }
-
-                // Leemos directamente del localStorage para la comparación
-                const localSavedForCompare = safeLocalStorageGet('mealfit_plan', null);
-
-                let localSavedParsed = null;
-                if (localSavedForCompare) {
-                    try {
-                        localSavedParsed = JSON.parse(localSavedForCompare);
-                    } catch(e) {
-                        console.warn("⚠️ Error parseando plan local, forzando sincronización con la nube.");
-                    }
                 }
 
                 // Solo actualizamos si el plan en la nube es diferente al local.
@@ -770,9 +757,10 @@ export const AssessmentProvider = ({ children }) => {
                 // Stringify cada objeto UNA vez y reusar: comparación byte-equivalente,
                 // y pasamos el string ya serializado a safeLocalStorageSet (acepta
                 // string directo → evita el 3er stringify).
-                const _localStr = localSavedParsed ? JSON.stringify(localSavedParsed) : null;
+                // [BOLT-OPTIMIZATION] Comparamos directamente contra localSavedForCompare (raw de storage)
+                // saltando el JSON.stringify del parseado local, que es muy costoso en planes grandes.
                 const _latestStr = JSON.stringify(latestPlan);
-                if (_localStr === null || _localStr !== _latestStr) {
+                if (localSavedForCompare === null || localSavedForCompare !== _latestStr) {
 
                     setPlanData(latestPlan);
                     safeLocalStorageSet('mealfit_plan', _latestStr);
