@@ -183,8 +183,24 @@ const toggleArrayWithExclusiveSentinel = (currentArr, value, sentinel) => {
 
 // --- PREGUNTAS INDIVIDUALES ---
 
+// [P1-PREGNANCY-INTAKE-CAPTURE · 2026-06-19] SSOT de los labels de embarazo/lactancia (chips de QMedical,
+// gender-gated). Compartido con QGender para limpiar el huérfano si el usuario vuelve atrás y cambia el
+// género a hombre tras haber marcado embarazo (evita un override silencioso e irrecuperable-vía-UI: el
+// chip se oculta pero el valor seguía vivo en medicalConditions → forzaba maintenance + FS9 a un varón).
+const PREGNANCY_CHIP_LABELS = ['Embarazo', 'Lactancia'];
+
 export const QGender = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
+    // [P1-PREGNANCY-INTAKE-CAPTURE · 2026-06-19] Al fijar el género, limpia los chips de embarazo/lactancia
+    // si el nuevo valor NO es mujer (los chips solo existen para mujeres; sin esto quedan huérfanos sin
+    // chip visible para deseleccionarlos). Idempotente para 'female' (filter no-op si no hay valores).
+    const setGender = (value) => {
+        if (value !== 'female') {
+            const cleaned = (formData.medicalConditions || []).filter(c => !PREGNANCY_CHIP_LABELS.includes(c));
+            if (cleaned.length !== (formData.medicalConditions || []).length) updateData('medicalConditions', cleaned);
+        }
+        updateData('gender', value);
+    };
     // [P6-FORM-RADIO-CLICK-FIX] Híbrido: `onChange` mantiene la persistencia
     // del valor en formData (necesario para back-navigation), `onClick`
     // SOLO dispara auto-advance cuando el valor YA estaba seleccionado
@@ -199,13 +215,13 @@ export const QGender = ({ onAutoAdvance }) => {
             <RadioCard
                 name="gender" value="female" label="Mujer" icon={Venus}
                 checked={formData.gender === 'female'}
-                onChange={(e) => { updateData('gender', e.target.value); onAutoAdvance(); }}
+                onChange={(e) => { setGender(e.target.value); onAutoAdvance(); }}
                 onClick={() => { if (formData.gender === 'female') onAutoAdvance(); }}
             />
             <RadioCard
                 name="gender" value="male" label="Hombre" icon={Mars}
                 checked={formData.gender === 'male'}
-                onChange={(e) => { updateData('gender', e.target.value); onAutoAdvance(); }}
+                onChange={(e) => { setGender(e.target.value); onAutoAdvance(); }}
                 onClick={() => { if (formData.gender === 'male') onAutoAdvance(); }}
             />
         </div>
@@ -888,16 +904,41 @@ export const QMedical = ({ onManualAdvance }) => {
                 type="text" placeholder="Otra condición médica..." value={formData.otherConditions || ''}
                 onChange={(e) => updateData('otherConditions', e.target.value)}
             />
+            {/* [P1-PREGNANCY-INTAKE-CAPTURE · 2026-06-19] (audit fresco P1-1) Captura explícita de
+                embarazo/lactancia — solo para mujeres (gender==='female'; QGender va antes que QMedical en el
+                flujo). ANTES el gate de seguridad (P1-PREGNANCY-DEFICIT-GATE, que bloquea el déficit calórico
+                en embarazo) dependía 100% de que la usuaria ESCRIBIERA "embarazo" en el texto libre — punto
+                ciego de alto riesgo/prevalencia, la simétrica faltante del campo `medications`. Los chips
+                escriben a `medicalConditions` con labels que matchean PREGNANCY_CONDITION_TERMS → disparan a la
+                vez el gate de déficit, la ConditionRule de embarazo (folato/hierro/listeria) y el reviewer
+                médico/FS9. Cero cambio backend. Reusa `handleToggle` (sentinel "Ninguna" exclusivo). */}
+            {formData.gender === 'female' && (
+                <>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '-0.75rem' }}>
+                        ¿Estás embarazada o lactando? (opcional)
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
+                        {PREGNANCY_CHIP_LABELS.map(opt => (
+                            <ChipOption
+                                key={opt} val={opt} label={opt} icon={Heart}
+                                isSelected={(formData.medicalConditions || []).includes(opt)}
+                                onToggle={handleToggle}
+                            />
+                        ))}
+                    </div>
+                </>
+            )}
             {/* [P1-MEDICATION-RULES · 2026-06-18] Medicamentos actuales (OPCIONAL, sin sentinel — vacío =
                 sin medicamentos). Alimenta el motor de interacciones fármaco-alimento del backend
                 (warfarina↔vit K, metformina↔B12, IECA/ARA-II↔potasio, levotiroxina↔Ca/Fe) + el gate de
                 revisión profesional (FS9). NO gatea el botón (es opcional); un medicamento no listado se
-                puede escribir en "Otra condición médica" (el backend lo detecta por backstop de texto libre). */}
+                escribe en el campo "Otro medicamento..." de abajo (P1-MEDICATION-FREETEXT; el backend
+                lo escanea vía medication_rules._norm_medications, mismo backstop de texto libre). */}
             <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '-0.75rem' }}>
                 Medicamentos actuales (opcional)
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
-                {['Metformina', 'Lisinopril', 'Losartán', 'Levotiroxina', 'Warfarina'].map(med => (
+                {['Metformina', 'Insulina', 'Glibenclamida', 'Lisinopril', 'Losartán', 'Amlodipina', 'Hidroclorotiazida', 'Espironolactona', 'Atorvastatina', 'Levotiroxina', 'Omeprazol', 'Prednisona', 'Warfarina', 'Alopurinol'].map(med => (
                     <ChipOption
                         key={med} val={med} label={med} icon={Pill}
                         isSelected={(formData.medications || []).includes(med)}
@@ -909,6 +950,16 @@ export const QMedical = ({ onManualAdvance }) => {
                     />
                 ))}
             </div>
+            {/* [P1-MEDICATION-FREETEXT · 2026-06-19] Medicamento no listado en los chips.
+                Mirror de "Otra condición médica" (otherConditions). El texto llega al prompt
+                (JSON dump de form_data: _sanitize_form_data_for_prompt preserva toda key sin `_`)
+                Y al motor de interacciones fármaco-alimento (medication_rules._norm_medications lo
+                escanea como backstop) → dispara las directivas de interacción + el gate de revisión
+                profesional (FS9). OPCIONAL: NO gatea el NextButton (igual que los chips de medications). */}
+            <Input
+                type="text" placeholder="Otro medicamento..." value={formData.otherMedications || ''}
+                onChange={(e) => updateData('otherMedications', e.target.value)}
+            />
             {/* [P1-FORM-7] Mismo patrón que QDislikes (P0-FORM-4): requiere
                 señal explícita (chip / "Ninguna" / free-text) antes de
                 avanzar. ANTES, el step se titulaba "Condiciones Médicas
