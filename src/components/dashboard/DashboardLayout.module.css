@@ -238,12 +238,49 @@
     justify-content: center;
 }
 
-.accountEmail {
+.accountIdentity {
     flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.accountEmail {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    line-height: 1.25;
+}
+
+/* [P1-GUEST-ACCOUNT-DARK · 2026-06-16] Sub-label del invitado ("Plan de muestra")
+   — jerarquía bajo "Invitado" sin recargar. */
+.accountSublabel {
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: 0.01em;
+    color: var(--primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* [P1-GUEST-ACCOUNT-DARK · 2026-06-16] Estado invitado: identidad indigo calmada
+   (coherente con CreditsMeter guest), distinta de una cuenta real. */
+.accountBtnGuest {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.06), rgba(34, 211, 238, 0.05));
+    border-color: rgba(79, 70, 229, 0.22);
+}
+
+.accountBtnGuest:hover {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(34, 211, 238, 0.08));
+    border-color: rgba(79, 70, 229, 0.35);
+}
+
+.accountBtnGuest .accountAvatar {
+    background: linear-gradient(135deg, #818CF8, #A78BFA 55%, #22D3EE);
 }
 
 .accountChevron {
@@ -408,11 +445,19 @@
     margin-top: -1px;
 }
 
-/* GRATUITO — slate gris sobrio */
+/* GRATUITO — slate gris sobrio.
+   [ACCOUNT-BADGE-FREE-CONTRAST · 2026-06-18] El fill #F8FAFC era idéntico al
+   tope del header del popover (#F8FAFC) → el chip se fundía con su contenedor.
+   Se baja medio escalón a slate-100/200 + borde slate-300/400 + texto slate-600
+   + sombra sutil para que lea como una pastilla definida sin perder la sobriedad
+   del tier gratuito (sin color de tier de pago). */
 .accountPlanBadgeFree {
-    background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
-    color: #64748B;
-    border: 1.5px solid #CBD5E1;
+    background: linear-gradient(135deg, #EEF2F7 0%, #DCE3EC 100%);
+    color: #475569;
+    border: 1.5px solid #B8C2D0;
+    box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 /* BÁSICO — emerald esmeralda (entry tier de pago) */
@@ -800,6 +845,24 @@
     border-color: var(--primary-dark);
     box-shadow: var(--shadow-md);
 }
+/* [P1-GUEST-ACCOUNT-DARK · 2026-06-16] Invitado en dark mode: el plano bg-muted +
+   border casi invisible (#1F2937) hacía que el widget se perdiera contra el
+   sidebar. Tinte indigo + borde visible + glow sutil → se lee como intencional. */
+:global(html[data-theme="dark"]) .accountBtnGuest {
+    background: linear-gradient(135deg, rgba(129, 140, 248, 0.14), rgba(34, 211, 238, 0.08));
+    border-color: rgba(129, 140, 248, 0.34);
+}
+:global(html[data-theme="dark"]) .accountBtnGuest:hover {
+    background: linear-gradient(135deg, rgba(129, 140, 248, 0.2), rgba(34, 211, 238, 0.12));
+    border-color: rgba(129, 140, 248, 0.5);
+    box-shadow: 0 6px 18px -6px rgba(129, 140, 248, 0.45);
+}
+:global(html[data-theme="dark"]) .accountBtnGuest .accountAvatar {
+    box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.35), 0 2px 8px -2px rgba(129, 140, 248, 0.55);
+}
+:global(html[data-theme="dark"]) .accountSublabel {
+    color: #A5B4FC; /* indigo-300 — legible sobre el tinte oscuro */
+}
 :global(html[data-theme="dark"]) .accountChevron {
     color: var(--text-light);
 }
@@ -838,11 +901,19 @@
     color: var(--text-muted);
 }
 /* Badge "GRATUITO": pill gris-claro + texto gris = bajo contraste en oscuro.
-   Re-pintar a slate sólido con texto claro y borde sutil. */
+   [ACCOUNT-BADGE-FREE-CONTRAST · 2026-06-18] El fill var(--bg-muted) (#1E293B)
+   era IDÉNTICO al tope del gradiente del header (#1E293B) y el borde var(--border)
+   (#1F2937) era casi invisible → el chip desaparecía dentro de su contenedor.
+   Se sube a slate-700 (más claro que el header slate-800) + texto slate-200 + borde
+   slate-600 + sombra/inset → la pastilla "flota" y se diferencia, sin usar color de
+   tier de pago (sigue siendo slate sobrio). */
 :global(html[data-theme="dark"]) .accountPlanBadgeFree {
-    background: var(--bg-muted);
-    color: var(--text-muted);
-    border: 1.5px solid var(--border);
+    background: linear-gradient(135deg, #3A4862 0%, #2C3A52 100%);
+    color: #E2E8F0;
+    border: 1.5px solid #4B5B76;
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 /* [ACCOUNT-BADGE-BASIC-DARK · 2026-06-01] El badge "BÁSICO" usaba el gradiente
    verde MUY claro (#ECFDF5→#A7F3D0) sin override dark → pill brillante/lavado
