@@ -280,6 +280,11 @@ export const AssessmentProvider = ({ children }) => {
         age: '', gender: '', height: '', weight: '', weightUnit: _getDefaultWeightUnit(), bodyFat: '', activityLevel: '',
         sleepHours: '', stressLevel: '', cookingTime: '', budget: '', budgetAmount: '', budgetCurrency: 'DOP', scheduleType: '',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
+        // [P1-MEDICATION-RULES · 2026-06-18] Medicamentos actuales (chips, OPCIONAL — array vacío = sin
+        // medicamentos, sin sentinel "Ninguno"). Alimenta el motor de interacciones fármaco-alimento
+        // (backend medication_rules.py): warfarina↔vit K, metformina↔B12, IECA/ARA-II↔potasio,
+        // levotiroxina↔Ca/Fe → directiva al generador + gate de revisión profesional (FS9).
+        medications: [],
         mainGoal: '', motivation: '', struggles: [],
         // [P1-FORM-3] Touched-flag para `weightUnit` (mismo patrón que otros
         // touched-flags del wizard).

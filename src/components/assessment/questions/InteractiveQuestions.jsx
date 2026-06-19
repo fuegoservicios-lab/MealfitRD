@@ -888,6 +888,27 @@ export const QMedical = ({ onManualAdvance }) => {
                 type="text" placeholder="Otra condición médica..." value={formData.otherConditions || ''}
                 onChange={(e) => updateData('otherConditions', e.target.value)}
             />
+            {/* [P1-MEDICATION-RULES · 2026-06-18] Medicamentos actuales (OPCIONAL, sin sentinel — vacío =
+                sin medicamentos). Alimenta el motor de interacciones fármaco-alimento del backend
+                (warfarina↔vit K, metformina↔B12, IECA/ARA-II↔potasio, levotiroxina↔Ca/Fe) + el gate de
+                revisión profesional (FS9). NO gatea el botón (es opcional); un medicamento no listado se
+                puede escribir en "Otra condición médica" (el backend lo detecta por backstop de texto libre). */}
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '-0.75rem' }}>
+                Medicamentos actuales (opcional)
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
+                {['Metformina', 'Lisinopril', 'Losartán', 'Levotiroxina', 'Warfarina'].map(med => (
+                    <ChipOption
+                        key={med} val={med} label={med} icon={Pill}
+                        isSelected={(formData.medications || []).includes(med)}
+                        onToggle={(value) => {
+                            const cur = Array.isArray(formData.medications) ? formData.medications : [];
+                            const next = cur.includes(value) ? cur.filter(m => m !== value) : [...cur, value];
+                            updateData('medications', next);
+                        }}
+                    />
+                ))}
+            </div>
             {/* [P1-FORM-7] Mismo patrón que QDislikes (P0-FORM-4): requiere
                 señal explícita (chip / "Ninguna" / free-text) antes de
                 avanzar. ANTES, el step se titulaba "Condiciones Médicas
