@@ -66,6 +66,10 @@ const PRICING = {
 
 const TIER_RANK = { gratis: 1, basic: 2, plus: 3, ultra: 4, admin: 5 };
 
+// [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no se ofrece en facturación anual —
+// siempre mensual. El toggle "Anual" no aplica a esta tarjeta. (= Pricing.jsx)
+const ANNUAL_DISABLED_TIERS = new Set(['ultra']);
+
 // [PAY-MODAL-PERSIST · 2026-06-18] Nombre de plan por tier (SSOT local, = ctaName de
 // renderPlanCard) para re-derivar el `name` del modal al rehidratarlo desde la URL
 // tras un refresh.
@@ -310,15 +314,18 @@ const Upgrade = () => {
     const [openFAQ, setOpenFAQ] = useState(null);
 
     const isAnnual = billingPeriod === 'annual';
+    // [ULTRA-MONTHLY-ONLY · 2026-06-19] Anual efectivo POR tier (Ultra excluido).
+    const isAnnualForTier = (tier) => isAnnual && !ANNUAL_DISABLED_TIERS.has(tier);
     const hasStarted = !!planData;
 
     const rawTier = (userProfile?.plan_tier || '').toLowerCase().trim();
     const currentTier = ['gratis', 'basic', 'plus', 'ultra', 'admin'].includes(rawTier) ? rawTier : 'gratis';
     const currentRank = TIER_RANK[currentTier] || 1;
 
-    const getPrice = (tier) => PRICING[tier]?.[billingPeriod]?.price || '0';
-    const getPeriodLabel = (tier) => PRICING[tier]?.[billingPeriod]?.label || '';
-    const getMonthlyEquiv = (tier) => isAnnual ? PRICING[tier]?.annual?.monthlyEquiv : null;
+    // tier-aware: Ultra siempre mensual (ver ANNUAL_DISABLED_TIERS).
+    const getPrice = (tier) => PRICING[tier]?.[isAnnualForTier(tier) ? 'annual' : 'monthly']?.price || '0';
+    const getPeriodLabel = (tier) => PRICING[tier]?.[isAnnualForTier(tier) ? 'annual' : 'monthly']?.label || '';
+    const getMonthlyEquiv = (tier) => isAnnualForTier(tier) ? PRICING[tier]?.annual?.monthlyEquiv : null;
 
     const handleFreePlanClick = () => {
         window.scrollTo(0, 0);
@@ -332,15 +339,17 @@ const Upgrade = () => {
             return;
         }
         const price = getPrice(tier);
-        const periodSuffix = isAnnual ? ' (Anual)' : ' (Mensual)';
-        setSelectedPlan({ tier, price, name: name + periodSuffix, isAnnual });
+        // [ULTRA-MONTHLY-ONLY · 2026-06-19] Periodo efectivo tier-aware (Ultra → mensual).
+        const annual = isAnnualForTier(tier);
+        const periodSuffix = annual ? ' (Anual)' : ' (Mensual)';
+        setSelectedPlan({ tier, price, name: name + periodSuffix, isAnnual: annual });
         setIsPaymentOpen(true);
         // [PAY-MODAL-PERSIST · 2026-06-18] Persistir el checkout en la URL para que
         // sobreviva un refresh (re-abre el modal en mount). replace → no ensucia history.
         setSearchParams((prev) => {
             const p = new URLSearchParams(prev);
             p.set('checkout', tier);
-            p.set('billing', isAnnual ? 'annual' : 'monthly');
+            p.set('billing', annual ? 'annual' : 'monthly');
             return p;
         }, { replace: true });
     };
@@ -400,7 +409,9 @@ const Upgrade = () => {
             }
             return;
         }
-        const annual = b === 'annual';
+        // [ULTRA-MONTHLY-ONLY · 2026-06-19] Un link viejo con ?billing=annual para un
+        // tier sin anual (Ultra) NO debe re-abrir un checkout anual: forzar mensual.
+        const annual = b === 'annual' && !ANNUAL_DISABLED_TIERS.has(t);
         setBillingPeriod(annual ? 'annual' : 'monthly');
         setSelectedPlan({
             tier: t,
@@ -480,6 +491,13 @@ const Upgrade = () => {
                     {!isFree && isAnnual && getMonthlyEquiv(tier) && (
                         <div className={styles.planPriceEquivalent}>
                             equivale a ${getMonthlyEquiv(tier)}/mes
+                        </div>
+                    )}
+                    {/* [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no tiene plan anual:
+                        con el toggle en "Anual" aclaramos que se factura mensual. */}
+                    {!isFree && isAnnual && ANNUAL_DISABLED_TIERS.has(tier) && (
+                        <div className={styles.planPriceEquivalent}>
+                            Disponible solo en facturación mensual
                         </div>
                     )}
                 </div>

@@ -28,6 +28,11 @@ const PRICING = {
     },
 };
 
+// [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no se ofrece en facturación anual —
+// siempre se factura mensual. El toggle "Anual" no aplica a esta tarjeta: cae a
+// su precio mensual y el checkout fuerza 'monthly'.
+const ANNUAL_DISABLED_TIERS = new Set(['ultra']);
+
 // [PAY-MODAL-PERSIST · 2026-06-18] Nombre de plan por tier (SSOT local) para
 // re-derivar el `name` del modal al rehidratarlo desde la URL tras un refresh.
 const NAME_BY_TIER = {
@@ -54,6 +59,10 @@ const Pricing = () => {
 
     const isAnnual = billingPeriod === 'annual';
 
+    // [ULTRA-MONTHLY-ONLY · 2026-06-19] Anual efectivo POR tier: Ultra queda
+    // excluido del anual aunque el toggle global esté en "Anual".
+    const isAnnualForTier = (tier) => isAnnual && !ANNUAL_DISABLED_TIERS.has(tier);
+
     // Lógica para determinar el estado del usuario
     const hasStarted = !!planData;
     const rawTier = (userProfile?.plan_tier || '').toLowerCase().trim(); // Ensure lowercase
@@ -70,9 +79,10 @@ const Pricing = () => {
     // de carga (un usuario Plus/Ultra veía todas las tarjetas pagas clickeables).
     const isProfileLoading = !userProfile?.id;
 
-    // Helper: obtener precio actual según billing period
-    const getPrice = (tier) => PRICING[tier]?.[billingPeriod]?.price || '0';
-    const getPeriodLabel = (tier) => PRICING[tier]?.[billingPeriod]?.label || '';
+    // Helper: obtener precio actual según billing period (tier-aware: Ultra
+    // siempre mensual, ver ANNUAL_DISABLED_TIERS).
+    const getPrice = (tier) => PRICING[tier]?.[isAnnualForTier(tier) ? 'annual' : 'monthly']?.price || '0';
+    const getPeriodLabel = (tier) => PRICING[tier]?.[isAnnualForTier(tier) ? 'annual' : 'monthly']?.label || '';
     const getMonthlyEquiv = (tier) => PRICING[tier]?.annual?.monthlyEquiv;
 
     // Manejador del botón Plan Gratis
@@ -96,8 +106,11 @@ const Pricing = () => {
             return;
         }
         const price = getPrice(tier);
-        const periodSuffix = isAnnual ? ' (Anual)' : ' (Mensual)';
-        setSelectedPlan({ tier, price, name: name + periodSuffix, isAnnual });
+        // [ULTRA-MONTHLY-ONLY · 2026-06-19] El periodo efectivo del checkout es
+        // tier-aware: Ultra siempre 'monthly' aunque el toggle esté en "Anual".
+        const annual = isAnnualForTier(tier);
+        const periodSuffix = annual ? ' (Anual)' : ' (Mensual)';
+        setSelectedPlan({ tier, price, name: name + periodSuffix, isAnnual: annual });
         setIsPaymentOpen(true);
         // [PAY-MODAL-PERSIST · 2026-06-18] Persistir el checkout en la URL para que
         // sobreviva un refresh (re-abre el modal en mount). replace → no ensucia el
@@ -105,7 +118,7 @@ const Pricing = () => {
         setSearchParams((prev) => {
             const p = new URLSearchParams(prev);
             p.set('checkout', tier);
-            p.set('billing', isAnnual ? 'annual' : 'monthly');
+            p.set('billing', annual ? 'annual' : 'monthly');
             return p;
         }, { replace: true });
     };
@@ -165,7 +178,9 @@ const Pricing = () => {
             }
             return;
         }
-        const annual = b === 'annual';
+        // [ULTRA-MONTHLY-ONLY · 2026-06-19] Un link viejo con ?billing=annual para
+        // un tier sin anual (Ultra) NO debe re-abrir un checkout anual: forzar mensual.
+        const annual = b === 'annual' && !ANNUAL_DISABLED_TIERS.has(t);
         setBillingPeriod(annual ? 'annual' : 'monthly');
         setSelectedPlan({
             tier: t,
@@ -396,8 +411,10 @@ const Pricing = () => {
                                 <span className={styles.amount}>{getPrice('ultra')}</span>
                                 <span className={styles.period}>{getPeriodLabel('ultra')}</span>
                             </div>
+                            {/* [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no tiene plan anual:
+                                cuando el toggle está en "Anual" aclaramos que se factura mensual. */}
                             {isAnnual && (
-                                <p className={styles.monthlyEquiv}>≈ USD${getMonthlyEquiv('ultra')}/mes, facturado anual</p>
+                                <p className={styles.monthlyEquiv}>Disponible solo en facturación mensual</p>
                             )}
 
                             <p className={styles.description}>

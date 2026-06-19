@@ -121,14 +121,27 @@
 .discountBadge {
     display: inline-flex;
     align-items: center;
-    padding: 0.15rem 0.5rem;
+    padding: 0.18rem 0.5rem;
     border-radius: 99px;
     font-size: 0.7rem;
     font-weight: 800;
+    line-height: 1;
     letter-spacing: 0.02em;
     background: rgba(16, 185, 129, 0.15);
     color: var(--secondary-dark);
     border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* [PRICING-TOGGLE-BADGE · 2026-06-19] El badge "-25%" vive DENTRO del botón
+   activo (fondo púrpura). El verde tenue + texto verde-oscuro perdía contraste
+   sobre el púrpura y se veía lavado/ilegible. Píldora blanca sólida + texto
+   emerald oscuro → alto contraste y el ahorro resalta. Vale para claro y oscuro
+   (el botón activo es púrpura en ambos temas). */
+.toggleActive .discountBadge {
+    background: #FFFFFF;
+    color: #047857;
+    border-color: transparent;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
 /* [P3-PRICING-MONTHLY-EQUIV · 2026-05-31] Equivalente mensual mostrado bajo el
