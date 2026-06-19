@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, FlaskConical, Wallet, Bot, ShieldCheck, Unlock, Utensils, Activity, TrendingUp, ChevronRight, Sparkles } from 'lucide-react';
+import { ArrowRight, FlaskConical, Wallet, Bot, ShieldCheck, Unlock, Utensils, Activity, TrendingUp, ChevronRight } from 'lucide-react';
 import styles from './Hero.module.css';
 import { useAssessment } from '../../context/AssessmentContext';
 import { useHeroCta } from '../../context/HeroCtaContext';
@@ -124,7 +124,6 @@ const Hero = () => {
                     <motion.div className={styles.badge} variants={V.rise}>
                         <span className={styles.badgeOrb} aria-hidden="true" />
                         Nueva Generación en Nutrición
-                        <Sparkles size={14} className={styles.badgeSpark} aria-hidden="true" />
                     </motion.div>
 
                     <h1 className={styles.title}>

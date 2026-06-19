@@ -172,11 +172,6 @@
         inset 0 0 0 1px rgba(255, 255, 255, 0.5);
 }
 
-.badgeSpark {
-    color: var(--secondary);
-    margin-left: 0.1rem;
-}
-
 /* Orb del badge: mini-esfera 3D (misma dirección de luz que el orbe principal:
    highlight 32% 28%) — coherencia de iluminación micro↔macro. Anima solo el
    box-shadow (glow), no el layout. */
