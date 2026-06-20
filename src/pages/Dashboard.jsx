@@ -2473,7 +2473,7 @@ const DashboardInner = () => {
                 ${_shopPricedCount > 0 ? `<div style="margin-top: 14px; padding: 11px 15px; background: linear-gradient(135deg,#ecfdf5,#f0fdf4); border: 1.5px solid #10b98133; border-radius: 9px; display: flex; justify-content: space-between; align-items: center; gap: 10px; break-inside: avoid; page-break-inside: avoid;">
                     <div style="min-width: 0;">
                         <div style="font-size: 12px; font-weight: 800; color: #065f46;">💵 Total estimado del mercado</div>
-                        <div style="font-size: 8px; color: #6b7280; margin-top: 2px; line-height: 1.25;">Precios de referencia de Supermercados Nacional · estimado, no es factura · ${_shopPricedCount} de ${_shopTotalItems} ítems con precio</div>
+                        <div style="font-size: 8px; color: #6b7280; margin-top: 2px; line-height: 1.25;">Estimado del mercado · no es factura · ${_shopPricedCount} de ${_shopTotalItems} ítems con precio</div>
                     </div>
                     <span style="font-size: 19px; font-weight: 800; color: #047857; white-space: nowrap;">RD$${Math.round(_shopTotalCost).toLocaleString('es-DO')}</span>
                 </div>` : ''}
@@ -2481,8 +2481,7 @@ const DashboardInner = () => {
                 <!-- Footer -->
                 <div style="margin-top: 15px; text-align: center; color: #9ca3af; font-size: 10px; border-top: 2px dashed #e5e7eb; padding-top: 10px;">
                     <p style="margin: 0; font-weight: 700; color: #6b7280; letter-spacing: 1px;">PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE</p>
-                    ${microHTML}
-                    ${provenanceHTML}
+                    <p style="margin: 6px 0 0; font-size: 9px; color: #9ca3af;">Los precios de esta lista están verificados en <strong>Supermercado La Sirena</strong>.</p>
                 </div>
             </div>
             `;
