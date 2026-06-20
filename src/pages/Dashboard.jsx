@@ -2439,34 +2439,12 @@ const DashboardInner = () => {
             }
 
 
-            // [P3-DATA-PROVENANCE · 2026-06-14] (Roadmap M1) Línea de trazabilidad de datos:
-            // muestra cuántos ingredientes están anclados a USDA FoodData Central (IDs públicos
-            // verificables). Convierte la precisión autoafirmada en proveniencia de terceros.
-            const _prov = planData?.data_provenance;
-            // [P2-PROVENANCE-FOOTER-HONEST · 2026-06-18] (audit fresco P2) El denominador es
-            // `ingredients_resolved` (ingredientes RESUELTOS únicos), NO el total del plan — decirlo
-            // explícitamente ("resueltos") evita inflar la cobertura percibida cuando hay ingredientes
-            // no-resueltos (0-silencioso) excluidos del denominador. Espejo del `note` server-side.
-            const provenanceHTML = (_prov && _prov.usda_traced > 0)
-                ? `<p style="margin: 3px 0 0; font-weight: 500; color: #9ca3af; font-size: 9px; letter-spacing: 0.3px;">Nutrición: USDA FoodData Central · ${escapeHtml(String(_prov.usda_traced))}/${escapeHtml(String(_prov.ingredients_resolved))} ingredientes resueltos trazables (fdc.nal.usda.gov) · resto INCAP/es-DO</p>`
-                : '';
-
-            // [P2-PRO-REVIEW-SURFACE + P2-MICRONUTRIENT-SURFACE · 2026-06-15] El plan IMPRESO que el
-            // usuario sigue debe llevar la advertencia de revisión profesional (crítico para renal) y los
-            // micros a vigilar — el backend ya los computa. escapeHtml en TODA interpolación (XSS, la nota
-            // y los nutrientes pueden incluir nombres de condición/ingrediente influenciados por el form).
+            // [P2-PRO-REVIEW-SURFACE · 2026-06-15] El plan IMPRESO que el usuario sigue debe llevar la
+            // advertencia de revisión profesional (crítico para renal). escapeHtml en TODA interpolación
+            // (XSS, la nota puede incluir nombres de condición/ingrediente influenciados por el form).
             const _rpr = planData?.requires_professional_review;
             const clinicalNoteHTML = (_rpr && _rpr.flag && _rpr.note)
                 ? `<div style="margin-top: 15px; padding: 10px 12px; border: 1.5px solid ${_rpr.renal_gate ? '#fca5a5' : '#93c5fd'}; background: ${_rpr.renal_gate ? '#fef2f2' : '#eff6ff'}; border-radius: 8px; color: ${_rpr.renal_gate ? '#991b1b' : '#1e40af'}; font-size: 10px; line-height: 1.45;"><strong>${_rpr.renal_gate ? '🫘 Condición renal — requiere supervisión de tu nefrólogo' : '⚕️ Consulta a tu profesional de salud'}</strong><br/>${escapeHtml(String(_rpr.note))}</div>`
-                : '';
-            const _mnGaps = planData?.micronutrient_report?.gaps;
-            const _microItems = (Array.isArray(_mnGaps) ? _mnGaps : []).map((g) => {
-                const tgt = (g.techo !== undefined && g.techo !== null)
-                    ? (g.techo + g.unidad + ' máx') : (g.piso + g.unidad);
-                return escapeHtml(g.nutriente + ' ' + g.valor + '/' + tgt);
-            }).join(' · ');
-            const microHTML = _microItems
-                ? `<p style="margin: 6px 0 0; font-size: 9px; color: #9ca3af;"><strong>Micronutrientes a vigilar:</strong> ${_microItems}</p>`
                 : '';
 
             htmlContent += `
