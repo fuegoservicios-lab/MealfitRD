@@ -1257,14 +1257,25 @@
     :global(html[data-theme="dark"]) .grid {
         background: var(--bg-page);
     }
-    /* [SETTINGS-MOBILE-DARK-BLEND · 2026-06-20] En dark+móvil cada fila tenía
-       `border + box-shadow + bg-card` → un contorno gris alrededor de cada
-       texto (General, Capacidades, …) que el owner veía "raro": el bg-card es
-       casi igual al bg-page, así que el borde quedaba como una línea suelta.
-       Se funde la fila con el fondo (transparente, sin borde ni sombra); el
-       chip de icono coloreado + el chevron + el gap dan la separación visual.
-       Solo dark — la versión clara (móvil) mantiene su card blanca con borde
-       porque ahí sí contrasta sobre la página blanca (SETTINGS-MOBILE-LIST-CARDS). */
+    /* [SETTINGS-MOBILE-DARK-BLEND · 2026-06-20] Dos fuentes del contorno gris
+       que el owner veía "raro" alrededor de las secciones (General, Capacidades,
+       …), ambas solo en dark+móvil:
+       (1) EL PANEL exterior `.sidebarNav`: la regla dark de desktop
+           (`html[data-theme="dark"] .sidebarNav`, ~L1151) le pone border + bg
+           + sombra y GANA por especificidad (0,2,1) sobre la regla móvil
+           transparente (`.sidebarNav`, 0,1,0) — las media queries no suman
+           especificidad. Hay que re-anularlo con un selector de igual
+           especificidad DENTRO del media query (este, que va después en orden).
+       (2) cada fila `.sidebarItem` tenía su propio border + box-shadow + bg-card.
+       Se funden ambos con el fondo de la página (transparente, sin borde ni
+       sombra) → "combina el fondo y el contenido". El chip de icono coloreado +
+       el chevron + el gap dan la separación. Desktop intacto (conserva el panel);
+       móvil claro intacto (su card blanca contrasta sobre la página blanca). */
+    :global(html[data-theme="dark"]) .sidebarNav {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+    }
     :global(html[data-theme="dark"]) .sidebarItem {
         background: transparent;
         border: none;
