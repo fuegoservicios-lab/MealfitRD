@@ -537,15 +537,14 @@ const Settings = () => {
     const computeInitialSection = () => {
         if (typeof window === 'undefined') return 'profile';
         const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
-        // Desktop: siempre arrancar con Perfil al entrar — ignora hash residual
-        // de navegaciones previas. Si el usuario después navega a otra sección
-        // dentro de Settings, el hash se actualiza vía replaceState; pero al
-        // entrar fresco (incluyendo refresh) siempre cae en Perfil.
-        if (!isMobile) return 'profile';
-        // Mobile: respetar hash si es válido (deep-linking), sino mostrar lista.
+        // [REFRESH-KEEPS-SECTION · 2026-06-20] Respetar el hash si es una sección
+        // válida — así un refresh (o deep-link) MANTIENE la sección donde estabas,
+        // tanto en desktop como en móvil. Sin hash válido: desktop arranca en
+        // Perfil, móvil en la vista de lista. Antes el desktop ignoraba el hash y
+        // siempre caía en Perfil → un refresh dentro de una sección te sacaba.
         const hash = window.location.hash.replace('#', '');
         if (SECTION_IDS.includes(hash)) return hash;
-        return null;
+        return isMobile ? null : 'profile';
     };
     const [activeSection, setActiveSection] = useState(computeInitialSection);
 
@@ -571,14 +570,14 @@ const Settings = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // En desktop, limpiar cualquier hash residual de la URL al mount. Sin esto
-    // el browser bar muestra e.g. `/dashboard/settings#preferences` mientras
-    // la UI ya está en Perfil — inconsistencia visual + el back button del
-    // navegador llevaría a una URL con hash que ya no refleja el state.
+    // [REFRESH-KEEPS-SECTION · 2026-06-20] Solo limpiar un hash INVÁLIDO/residual
+    // al mount; un hash de sección válido se CONSERVA para que el refresh
+    // mantenga la sección y el deep-link funcione (antes se borraba siempre en
+    // desktop, lo que tiraba al usuario a Perfil al refrescar dentro de una sección).
     useEffect(() => {
         if (typeof window === 'undefined') return;
-        const isMobile = window.matchMedia('(max-width: 768px)').matches;
-        if (!isMobile && window.location.hash) {
+        const hash = window.location.hash.replace('#', '');
+        if (window.location.hash && !SECTION_IDS.includes(hash)) {
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
