@@ -1284,5 +1284,24 @@
     :global(html[data-theme="dark"]) .sidebarItem:hover {
         background: rgba(99, 102, 241, 0.08);
     }
+
+    /* [SETTINGS-MOBILE-DARK-BLEND · 2026-06-20] Las MISMAS "rayas" grises
+       aparecían DENTRO de cada sección (General, Capacidades, …): el panel de
+       la sección (.grid), la card del correo, los facts y las cards de
+       tema/capacidad. Se quita la línea gris en dark+móvil conservando los
+       rellenos sutiles (los inputs/cards siguen legibles y tappables) y el
+       accent de la card ACTIVA (vía :not(...Active)). Desktop intacto. */
+    :global(html[data-theme="dark"]) .grid {
+        border: none;
+        box-shadow: none;
+    }
+    :global(html[data-theme="dark"]) .emailContainer,
+    :global(html[data-theme="dark"]) .factItem {
+        border: none;
+    }
+    :global(html[data-theme="dark"]) .preferenceCard:not(.preferenceCardActive),
+    :global(html[data-theme="dark"]) .themeOption:not(.themeOptionActive) {
+        border-color: transparent;
+    }
 }
 
