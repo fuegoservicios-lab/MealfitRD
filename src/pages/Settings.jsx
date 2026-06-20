@@ -2448,7 +2448,7 @@ const Settings = () => {
                     {activeSection === 'superpers' && (
                         <section className={styles.section}>
                             <h2 className={styles.sectionTitle}>
-                                Súper Personalización
+                                Tus gustos y preferencias
                             </h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
                                 Dale a la IA más contexto sobre ti para planes clínicos y respuestas más precisas.
