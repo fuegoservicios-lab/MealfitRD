@@ -2004,6 +2004,16 @@ const DashboardInner = () => {
                 };
             });
 
+            // [P3-SHOPPING-COST-TOTAL · 2026-06-20] Total estimado del mercado: suma de estimated_cost_rd
+            // por ítem (precios reales de Supermercados Nacional vía el motor de costeo del backend, en
+            // item_ref). Honesto: cuenta cuántos ítems tienen precio (los sin precio en master no suman).
+            let _shopTotalCost = 0, _shopPricedCount = 0, _shopTotalItems = 0;
+            Object.values(consData).forEach((_it) => {
+                _shopTotalItems++;
+                const _c = _it.item_ref && (_it.item_ref.estimated_cost_rd ?? _it.item_ref.estimated_cost);
+                if (typeof _c === 'number' && _c > 0) { _shopTotalCost += _c; _shopPricedCount++; }
+            });
+
             // [P1-PDF-2] SSOT del backend: cada item en `aggregated_shopping_list`
             // ahora trae `is_perishable: bool` calculado en `shopping_calculator.is_perishable_category`.
             // El frontend prefiere ese flag y deja la heurística de substring SOLO
@@ -2331,6 +2341,12 @@ const DashboardInner = () => {
                         // listado truncado, descarga malformada).
                         const qtyStr = displayQty && String(displayQty).trim() !== 'None' ? `<span style="font-weight: 700; color: ${tagColor}; font-size: ${qtyFont}; background-color: ${tagBg}; border: 1px solid ${tagBorder}; padding: ${qtyPad}; border-radius: 4px; margin-left: 4px; white-space: nowrap; align-self: flex-start;">${escapeHtml(displayQty)}</span>` : '';
 
+                        // [P3-SHOPPING-COST-TOTAL · 2026-06-20] Precio estimado por ítem (RD$, del motor de costeo).
+                        const _costVal = item.item_ref && (item.item_ref.estimated_cost_rd ?? item.item_ref.estimated_cost);
+                        const costStr = (typeof _costVal === 'number' && _costVal > 0)
+                            ? `<span style="font-weight: 600; color: #9ca3af; font-size: ${qtyFont}; margin-top: 2px; white-space: nowrap;">RD$${Math.round(_costVal).toLocaleString('es-DO')}</span>`
+                            : '';
+
                         // [P1-PDF-3] En hyper-dense, ocultamos `_inventoryNote`
                         // (libera ~10-12px verticales por item). El info no se
                         // pierde — sigue visible en la UI del Dashboard y en el
@@ -2347,7 +2363,7 @@ const DashboardInner = () => {
                                         <span style="font-size: ${itemFont}; font-weight: 600; color: #374151; line-height: 1.2;">${escapeHtml(display)}${lowConfWarn}</span>
                                         ${noteHTML}
                                     </div>
-                                    ${qtyStr}
+                                    <div style="display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0;">${qtyStr}${costStr}</div>
                                 </div>
                             </li>
                         `;
@@ -2457,6 +2473,13 @@ const DashboardInner = () => {
                 : '';
 
             htmlContent += `
+                ${_shopPricedCount > 0 ? `<div style="margin-top: 14px; padding: 11px 15px; background: linear-gradient(135deg,#ecfdf5,#f0fdf4); border: 1.5px solid #10b98133; border-radius: 9px; display: flex; justify-content: space-between; align-items: center; gap: 10px; break-inside: avoid; page-break-inside: avoid;">
+                    <div style="min-width: 0;">
+                        <div style="font-size: 12px; font-weight: 800; color: #065f46;">💵 Total estimado del mercado</div>
+                        <div style="font-size: 8px; color: #6b7280; margin-top: 2px; line-height: 1.25;">Precios de referencia de Supermercados Nacional · estimado, no es factura · ${_shopPricedCount} de ${_shopTotalItems} ítems con precio</div>
+                    </div>
+                    <span style="font-size: 19px; font-weight: 800; color: #047857; white-space: nowrap;">RD$${Math.round(_shopTotalCost).toLocaleString('es-DO')}</span>
+                </div>` : ''}
                 ${clinicalNoteHTML}
                 <!-- Footer -->
                 <div style="margin-top: 15px; text-align: center; color: #9ca3af; font-size: 10px; border-top: 2px dashed #e5e7eb; padding-top: 10px;">
