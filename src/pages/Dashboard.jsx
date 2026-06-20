@@ -2508,6 +2508,36 @@ const DashboardInner = () => {
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
+            // [P3-PDF-ONE-PAGE · 2026-06-20] Cuando la lista CABE (caso no-formal, <60 ítems): medir la
+            // ALTURA REAL del contenido y poner la página jsPDF a esa medida exacta → SIEMPRE 1 hoja.
+            // Cierra el bug "2ª hoja vacía": `avoid-all` igual paginaba cuando el contenido pasaba la A4 por
+            // unos mm (el footer/micros caía a una pág. 2 casi en blanco). Fit-to-content. Fail-safe → A4.
+            // El caso multi-página REAL (30 días / hyper-dense ≥60 ítems) NO se toca: necesita varias hojas.
+            if (!paginateFormally) {
+                try {
+                    // Fuentes listas → la altura medida coincide con la que renderiza html2canvas.
+                    if (document.fonts && document.fonts.ready) { await document.fonts.ready; }
+                    const _measureW = 800; // = html2canvas.windowWidth (el contenido se mide al mismo ancho)
+                    const _prev = element.getAttribute('style') || '';
+                    element.style.cssText = `position:absolute;left:-10000px;top:0;width:${_measureW}px;visibility:hidden;`;
+                    document.body.appendChild(element);
+                    const _contentH = element.scrollHeight; // px a 800px de ancho
+                    document.body.removeChild(element);
+                    element.setAttribute('style', _prev);
+                    // Alto de UNA página A4 en px al ancho de medición (A4 = 210×297mm).
+                    const _onePageHpx = (297 / 210) * _measureW;
+                    // Solo "fit a una hoja" si el contenido CABE en ~1.5 páginas (cierra el bug del
+                    // desbordamiento de unos mm). Si es genuinamente más largo, dejar A4 → pagina normal
+                    // (evita una hoja gigante para una lista de 45+ ítems).
+                    if (_contentH > 0 && _contentH <= _onePageHpx * 1.5) {
+                        const _pageW = 210; // ancho A4 en mm (márgenes L/R = 0 en el caso no-formal)
+                        const _pdfH = 4 /*margen top mm*/ + (_contentH * _pageW / _measureW) + 3 /*colchón*/;
+                        opt.jsPDF = { ...opt.jsPDF, format: [_pageW, _pdfH] };
+                        opt.pagebreak = { mode: ['avoid-all'] };
+                    }
+                } catch { /* fallback: queda el A4 de arriba (peor caso = comportamiento actual) */ }
+            }
+
             // [P2-LAZY-PDF · 2026-05-13] Dynamic import: ver nota en el
             // import section. El chunk html2pdf-*.js se fetch SOLO acá.
             //
