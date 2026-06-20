@@ -209,15 +209,15 @@ const BenchmarkShowcase = () => (
                 </div>
 
                 <p className={styles.footnote}>
-                    <strong>Metodología.</strong> Comparación A/B controlada de <strong>enfoques</strong> (no de
-                    productos con nombre): el mismo pipeline de generación ejecutado con y sin el motor de
-                    optimización determinista. «Sin motor (LLM solo)» es lo que produce pedirle el plan
-                    directamente a un modelo de lenguaje. La precisión se mide con el <strong>MAPE</strong> (error
-                    absoluto porcentual medio): el promedio de |valor entregado − objetivo| ÷ objetivo en cada
-                    macronutriente, donde 0% sería exacto. «En banda» = dentro del 90–112% del objetivo
-                    (95–105% en calorías). Son métricas de <strong>precisión de macros</strong> —qué tan cerca
-                    queda el plan de tus objetivos numéricos—, no de corrección clínica, y no constituyen consejo
-                    médico. Medición continua sobre planes reales (jun 2026).
+                    <strong>Metodología.</strong> Es una prueba A/B del mismo pipeline de generación, con y sin
+                    nuestro motor de optimización determinista — comparamos <strong>enfoques</strong>, no productos
+                    con nombre. «Sin motor (LLM solo)» es lo que obtienes al pedirle el plan directamente a un
+                    modelo de lenguaje, sin nada que cuadre tus macros. La precisión se mide con el{' '}
+                    <strong>MAPE</strong> (error absoluto porcentual medio): el promedio de |entregado − objetivo|
+                    ÷ objetivo en cada macro, donde 0% sería exacto. «En banda» = dentro del 90–112% del objetivo
+                    (95–105% en calorías). Son métricas de <strong>precisión de macros</strong> —qué tan cerca queda
+                    el plan de tus números—, no de corrección clínica, y no constituyen consejo médico. Medición
+                    continua sobre planes reales.
                 </p>
             </motion.div>
         </div>
