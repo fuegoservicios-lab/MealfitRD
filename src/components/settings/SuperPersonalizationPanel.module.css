@@ -30,8 +30,8 @@
     align-items: flex-start;
     padding: 0.9rem 1rem;
     border-radius: 0.85rem;
-    background: rgba(79, 70, 229, 0.06);
-    border: 1px solid rgba(79, 70, 229, 0.18);
+    background: rgba(245, 158, 11, 0.07);
+    border: 1px solid rgba(245, 158, 11, 0.2);
 }
 .intro p {
     margin: 0;
@@ -39,6 +39,9 @@
     line-height: 1.5;
     color: var(--text-muted);
 }
+/* [2026-06-19] Icono Fingerprint (personalización = único/tuyo). Chip plano y
+   mate en ámbar (matchea el chip del nav) — antes era un degradado neón blanco
+   que se veía demasiado brilloso y replicaba el sparkle de Gemini. */
 .introIcon {
     flex: none;
     width: 32px;
@@ -46,8 +49,8 @@
     display: grid;
     place-items: center;
     border-radius: 0.6rem;
-    color: #fff;
-    background: linear-gradient(135deg, var(--primary, #4F46E5) 0%, var(--secondary, #10B981) 100%);
+    color: var(--warning, #D97706);
+    background: rgba(245, 158, 11, 0.16);
 }
 
 /* ---- Field ---- */

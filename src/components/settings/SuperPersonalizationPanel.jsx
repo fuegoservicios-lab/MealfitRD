@@ -10,7 +10,7 @@
 // las alergias/condiciones/medicamentos siguen en sus campos estructurados del
 // wizard (este panel NO los toca).
 import { useState, useEffect, useCallback } from 'react';
-import { Sparkles, Save, Loader2, X, Plus } from 'lucide-react';
+import { Fingerprint, Save, Loader2, X, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -201,7 +201,7 @@ export default function SuperPersonalizationPanel({ onSaved }) {
     return (
         <div className={styles.panel}>
             <div className={styles.intro}>
-                <span className={styles.introIcon}><Sparkles size={18} /></span>
+                <span className={styles.introIcon}><Fingerprint size={18} /></span>
                 <p>
                     Mientras más te conozca la IA, mejores serán tus planes y respuestas. Esto es <strong>opcional</strong> y
                     no toca tus alergias ni condiciones médicas (esas viven en tu perfil). Puedes editarlo cuando quieras.
