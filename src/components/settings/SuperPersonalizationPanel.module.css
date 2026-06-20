@@ -255,16 +255,18 @@
     color: #fff;
     background: linear-gradient(135deg, var(--primary, #4F46E5) 0%, var(--secondary, #10B981) 100%);
     box-shadow: 0 10px 26px -10px rgba(79, 70, 229, 0.55);
-    transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.15s ease;
+    transition: box-shadow 0.2s ease, filter 0.15s ease;
 }
+/* Sin movimiento en hover — solo un glow bicolor (indigo + esmeralda, a juego
+   con el gradiente) + leve brillo. */
 .save:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 16px 34px -12px rgba(79, 70, 229, 0.6);
-    filter: brightness(1.04);
+    box-shadow: 0 12px 30px -8px rgba(79, 70, 229, 0.6),
+                0 0 24px -2px rgba(16, 185, 129, 0.42);
+    filter: brightness(1.06) saturate(1.04);
 }
 .save:active:not(:disabled) {
-    transform: translateY(0);
-    box-shadow: 0 8px 18px -10px rgba(79, 70, 229, 0.5);
+    box-shadow: 0 6px 16px -8px rgba(79, 70, 229, 0.5);
+    filter: brightness(0.98);
 }
 .save:disabled {
     opacity: 0.65;
