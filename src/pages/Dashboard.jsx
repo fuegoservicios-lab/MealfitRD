@@ -2169,13 +2169,10 @@ const DashboardInner = () => {
                              almacenamiento' (P3-SHOPPING-DISCLAIMER-EXPAND),
                              'Estables (aceite, vinagre, miel, especias)' +
                              '1 botella o sobre rinde' (P3-STABLES-NO-SCALE-UX). -->
-                        <strong>Smart Engine:</strong> Cantidades <strong>calculadas de manera exacta</strong> según empaques del mercado local. Ajusta a tu inventario. <strong>"Ud." significa "Unidad"</strong>.
+                        <strong>Smart Engine:</strong> cantidades exactas según empaques del mercado local — ajústalas a tu inventario. <strong>Ud.</strong> = unidad · <strong>~</strong> = conversión aproximada (<em>2 Cabezas ≈ 2.2 lbs</em>).
                         ${isUltraDense ? '' : `
                         <span style="display: block; margin-top: 2px; color: #475569;">
-                            <strong>"~"</strong> = conversión aproximada (ej.: <em>2 Cabezas ≈ 2.2 lbs</em>). Algunas se ajustan por <strong>realismo de almacenamiento</strong> (hierbas frescas, lácteos perecederos, cítricos).
-                        </span>
-                        <span style="display: block; margin-top: 2px; color: #475569;">
-                            <strong>Estables (aceite, vinagre, miel, especias):</strong> 1 botella o sobre rinde varias semanas — misma cantidad entre ciclos 7d/15d/30d.
+                            Algunas varían por <strong>realismo de almacenamiento</strong> (hierbas, lácteos, cítricos). <strong>Estables (aceite, vinagre, miel, especias):</strong> misma cantidad en ciclos de 7/15/30 días.
                         </span>
                         `}
                     </p>
@@ -2451,7 +2448,7 @@ const DashboardInner = () => {
             // explícitamente ("resueltos") evita inflar la cobertura percibida cuando hay ingredientes
             // no-resueltos (0-silencioso) excluidos del denominador. Espejo del `note` server-side.
             const provenanceHTML = (_prov && _prov.usda_traced > 0)
-                ? `<p style="margin: 3px 0 0; font-weight: 500; color: #9ca3af; font-size: 9px; letter-spacing: 0.3px;">Datos nutricionales anclados a USDA FoodData Central — ${escapeHtml(String(_prov.usda_traced))}/${escapeHtml(String(_prov.ingredients_resolved))} ingredientes resueltos trazables (IDs públicos en fdc.nal.usda.gov) · resto INCAP/curado es-DO</p>`
+                ? `<p style="margin: 3px 0 0; font-weight: 500; color: #9ca3af; font-size: 9px; letter-spacing: 0.3px;">Nutrición: USDA FoodData Central · ${escapeHtml(String(_prov.usda_traced))}/${escapeHtml(String(_prov.ingredients_resolved))} ingredientes resueltos trazables (fdc.nal.usda.gov) · resto INCAP/es-DO</p>`
                 : '';
 
             // [P2-PRO-REVIEW-SURFACE + P2-MICRONUTRIENT-SURFACE · 2026-06-15] El plan IMPRESO que el
@@ -2464,9 +2461,9 @@ const DashboardInner = () => {
                 : '';
             const _mnGaps = planData?.micronutrient_report?.gaps;
             const _microItems = (Array.isArray(_mnGaps) ? _mnGaps : []).map((g) => {
-                const ref = (g.techo !== undefined && g.techo !== null)
-                    ? ('techo ' + g.techo + g.unidad) : ('objetivo ' + g.piso + g.unidad);
-                return escapeHtml(g.nutriente + ': ' + g.valor + g.unidad + ' (' + ref + ')');
+                const tgt = (g.techo !== undefined && g.techo !== null)
+                    ? (g.techo + g.unidad + ' máx') : (g.piso + g.unidad);
+                return escapeHtml(g.nutriente + ' ' + g.valor + '/' + tgt);
             }).join(' · ');
             const microHTML = _microItems
                 ? `<p style="margin: 6px 0 0; font-size: 9px; color: #9ca3af;"><strong>Micronutrientes a vigilar:</strong> ${_microItems}</p>`
