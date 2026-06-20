@@ -10,7 +10,7 @@
 // las alergias/condiciones/medicamentos siguen en sus campos estructurados del
 // wizard (este panel NO los toca).
 import { useState, useEffect, useCallback } from 'react';
-import { Fingerprint, Save, Loader2, X, Plus } from 'lucide-react';
+import { Fingerprint, Loader2, X, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -304,8 +304,8 @@ export default function SuperPersonalizationPanel({ onSaved }) {
             </div>
 
             <button type="button" className={styles.save} onClick={save} disabled={saving}>
-                {saving ? <Loader2 size={17} className={styles.spin} /> : <Save size={17} />}
-                {saving ? 'Guardando…' : 'Guardar súper personalización'}
+                {saving && <Loader2 size={17} className={styles.spin} />}
+                {saving ? 'Guardando…' : 'Guardar preferencias'}
             </button>
         </div>
     );
