@@ -107,6 +107,72 @@
     transform: translateY(3px);
 }
 
+/* [P1-APP-VERSION · 2026-06-19] Stack marca + versión. El wordmark cede su
+   margen inferior al contenedor para que la versión quede pegada debajo. */
+.brandStack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+    margin-bottom: 2.5rem;
+}
+.brandStack .logo {
+    margin-bottom: 0;
+}
+
+/* [P1-APP-VERSION · 2026-06-19] Etiqueta de versión: pill tintado de marca con
+   punto-indicador en degradado (indigo→rosa, mismo dúo del wordmark RD) + glow.
+   Minimalista pero NOTORIO. Tints rgba hardcodeadas por tema (compat total, sin
+   color-mix); el texto y el punto usan los tokens de marca → adaptan solos. */
+.version {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    align-self: flex-start;
+    margin-left: 0.55rem;
+    font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    color: var(--primary);
+    padding: 0.32rem 0.64rem 0.32rem 0.56rem;
+    border: 1px solid rgba(79, 70, 229, 0.5);
+    border-radius: 999px;
+    background: rgba(79, 70, 229, 0.1);
+    box-shadow: 0 1px 8px -2px rgba(79, 70, 229, 0.35);
+    user-select: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.version::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex: none;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    box-shadow: 0 0 7px 0 rgba(244, 63, 94, 0.7);
+}
+.version:hover {
+    transform: translateY(-1px);
+    background: rgba(79, 70, 229, 0.16);
+    box-shadow: 0 3px 12px -2px rgba(79, 70, 229, 0.5);
+}
+/* Tema oscuro: indigo más claro (#818CF8) → tints/glow más brillantes para que
+   resalte sobre el sidebar oscuro. */
+:global(html[data-theme="dark"]) .version {
+    border-color: rgba(129, 140, 248, 0.55);
+    background: rgba(129, 140, 248, 0.16);
+    box-shadow: 0 1px 10px -2px rgba(129, 140, 248, 0.45);
+}
+:global(html[data-theme="dark"]) .version:hover {
+    background: rgba(129, 140, 248, 0.24);
+    box-shadow: 0 3px 14px -2px rgba(129, 140, 248, 0.6);
+}
+:global(html[data-theme="dark"]) .version::before {
+    box-shadow: 0 0 8px 0 rgba(251, 113, 133, 0.8);
+}
+
 .mobileLogo {
     font-size: 1.35rem;
     font-weight: 800;

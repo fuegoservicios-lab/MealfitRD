@@ -15,6 +15,8 @@ import LogoutConfirmModal from './LogoutConfirmModal';
 // [P1-GUEST-APPEARANCE · 2026-06-15] Selector de tema inline para invitados.
 import GuestAppearanceToggle from './GuestAppearanceToggle';
 import BottomTabBar from './BottomTabBar';
+// [P1-APP-VERSION · 2026-06-19] Versión visible bajo el wordmark (SSOT en config).
+import { APP_VERSION } from '../../config/appVersion';
 // [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al hover/touch
 import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del listado del Historial
@@ -107,9 +109,13 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
 
             {/* Sidebar */}
             <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div className={styles.logo}>
-                        Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div className={styles.brandStack}>
+                        <div className={styles.logo}>
+                            Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
+                        </div>
+                        {/* [P1-APP-VERSION · 2026-06-19] Versión minimalista (estilo Anthropic) bajo el wordmark. */}
+                        <span className={styles.version}>v{APP_VERSION}</span>
                     </div>
                     {/* Close button for mobile inside sidebar */}
                     <button className={styles.menuBtn} onClick={closeMenu} style={{ marginBottom: '3rem', display: 'none' }}>
