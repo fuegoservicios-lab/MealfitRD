@@ -1257,10 +1257,21 @@
     :global(html[data-theme="dark"]) .grid {
         background: var(--bg-page);
     }
+    /* [SETTINGS-MOBILE-DARK-BLEND · 2026-06-20] En dark+móvil cada fila tenía
+       `border + box-shadow + bg-card` → un contorno gris alrededor de cada
+       texto (General, Capacidades, …) que el owner veía "raro": el bg-card es
+       casi igual al bg-page, así que el borde quedaba como una línea suelta.
+       Se funde la fila con el fondo (transparente, sin borde ni sombra); el
+       chip de icono coloreado + el chevron + el gap dan la separación visual.
+       Solo dark — la versión clara (móvil) mantiene su card blanca con borde
+       porque ahí sí contrasta sobre la página blanca (SETTINGS-MOBILE-LIST-CARDS). */
     :global(html[data-theme="dark"]) .sidebarItem {
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        box-shadow: var(--shadow-sm);
+        background: transparent;
+        border: none;
+        box-shadow: none;
+    }
+    :global(html[data-theme="dark"]) .sidebarItem:hover {
+        background: rgba(99, 102, 241, 0.08);
     }
 }
 
