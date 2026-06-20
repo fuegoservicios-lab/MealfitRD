@@ -1,0 +1,3 @@
+## 2025-02-18 - Fast HTML escaping using a single pre-compiled RegExp
+**Learning:** For hot-path text manipulation (like HTML escaping during PDF generation), aggregating multiple static dictionary string replacements into a single pre-compiled `RegExp` object mapped to a replacement dictionary reduces the time complexity from O(M*N) to O(N).
+**Action:** Always use a single pre-compiled `RegExp` object (using the `|` OR operator for multi-character, or character classes like `/[&<>"']/g` for single characters) mapped to a replacement dictionary instead of sequential `.replace()` operations when making multiple character replacements.
