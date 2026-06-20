@@ -367,6 +367,17 @@ const Settings = () => {
     const [heightFeet, setHeightFeet] = useState(() => _ftInitial.ft);
     const [heightInches, setHeightInches] = useState(() => _ftInitial.in);
 
+    // [P3-PROFILE-AGE-SEX · 2026-06-20] Edad + Sexo biológico editables en Perfil.
+    // Completan las 4 entradas del BMR/TDEE (con peso/altura). A diferencia de
+    // peso/altura (que regeneran el plan), estos usan GUARDADO LIBRE: se
+    // persisten en health_profile con el botón "Guardar" (merge jsonb, sin costo)
+    // y aplican al PRÓXIMO plan — el plan vigente no se toca. Rango edad 12-100
+    // (espejo de formValidation); gender 'male'|'female' (espejo del onboarding).
+    const _initialAge = formData?.age ?? userProfile?.health_profile?.age ?? '';
+    const _initialGender = formData?.gender ?? userProfile?.health_profile?.gender ?? '';
+    const [ageInput, setAgeInput] = useState(() => (_initialAge === '' || _initialAge == null) ? '' : String(_initialAge));
+    const [genderInput, setGenderInput] = useState(() => _initialGender || '');
+
     // [P3-PROFILE-METRICS-COMMIT · 2026-05-20] Snapshot de los valores
     // originales al mount. Sirve para:
     //   1. Detectar si los body metrics cambiaron (mostrar botón "Actualizar
@@ -889,16 +900,48 @@ const Settings = () => {
         }
         setNameError('');
 
+        // [P3-PROFILE-AGE-SEX · 2026-06-20] Edad + sexo: GUARDADO LIBRE (sin
+        // regenerar). Validar edad si se ingresó (rango onboarding 12-100).
+        let ageNum = null;
+        if (ageInput !== '' && ageInput != null) {
+            ageNum = parseInt(ageInput, 10);
+            if (isNaN(ageNum) || ageNum < 12 || ageNum > 100) {
+                toast.error("Edad fuera de rango (12–100 años).");
+                return;
+            }
+        }
+
         setIsSaving(true);
         setSaveStatus('');
 
-        const fullNameResult = await updateUserProfile({ full_name: trimmedName });
+        // PATCH combinado: nombre + (edad/sexo en health_profile, merge jsonb que
+        // aplica al PRÓXIMO plan — el plan vigente no se recalcula).
+        const updatePayload = { full_name: trimmedName };
+        const hpOverrides = {};
+        if (ageNum != null) hpOverrides.age = ageNum;
+        if (genderInput === 'male' || genderInput === 'female') hpOverrides.gender = genderInput;
+        if (Object.keys(hpOverrides).length > 0) {
+            // buildHealthProfilePayload aplica el guard de hidratación (retorna
+            // null si el formData aún se carga → evita pisar datos buenos).
+            const hp = buildHealthProfilePayload(formData, hpOverrides, session);
+            if (hp) {
+                updatePayload.health_profile = hp;
+                // Reflejar en formData para que la PRÓXIMA generación los use.
+                if (hpOverrides.age != null) updateData('age', hpOverrides.age);
+                if (hpOverrides.gender) updateData('gender', hpOverrides.gender);
+            }
+        }
+
+        const result = await updateUserProfile(updatePayload);
 
         setIsSaving(false);
 
-        if (fullNameResult.success) {
+        if (result.success) {
             setSaveStatus('success');
-            toast.success("Perfil actualizado con éxito.");
+            toast.success("Perfil actualizado con éxito.", updatePayload.health_profile ? {
+                description: "Tu edad y sexo se aplicarán en tu próximo plan.",
+                duration: 4500,
+            } : undefined);
             setTimeout(() => setSaveStatus(''), 3000);
         } else {
             setSaveStatus('error');
@@ -1916,6 +1959,52 @@ const Settings = () => {
                                                         />
                                                     </div>
                                                 )}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* [P3-PROFILE-AGE-SEX · 2026-06-20] Edad + Sexo biológico —
+                                    completan las 4 entradas del BMR. Guardado libre con el botón
+                                    "Guardar" → aplican al PRÓXIMO plan (no regeneran el vigente).
+                                    gender 'male'/'female'; edad 12-100 (espejo formValidation). */}
+                                {(() => {
+                                    const _is = {
+                                        width: '100%', padding: '0.875rem 1.25rem', borderRadius: '0.75rem',
+                                        border: '2px solid transparent', outline: 'none', fontSize: '1rem',
+                                        transition: 'all 0.3s ease', background: 'var(--bg-muted)',
+                                        color: 'var(--text-main)', fontWeight: 500,
+                                    };
+                                    const _f = (e) => { e.target.style.background = 'var(--bg-card)'; e.target.style.borderColor = '#3B82F6'; e.target.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.1)'; };
+                                    const _b = (e) => { e.target.style.background = 'var(--bg-muted)'; e.target.style.borderColor = 'transparent'; e.target.style.boxShadow = 'none'; };
+                                    const _lbl = { display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.5rem' };
+                                    const _genderBtn = (active) => ({
+                                        padding: '0.875rem 0.5rem', borderRadius: '0.75rem',
+                                        border: active ? '2px solid #6366F1' : '2px solid transparent',
+                                        background: active ? 'rgba(99, 102, 241, 0.14)' : 'var(--bg-muted)',
+                                        color: active ? 'var(--text-main)' : 'var(--text-muted)',
+                                        fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease',
+                                    });
+                                    return (
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                            {/* EDAD */}
+                                            <div>
+                                                <label style={_lbl}>Edad</label>
+                                                <input
+                                                    type="number" inputMode="numeric" min="12" max="100" step="1"
+                                                    value={ageInput}
+                                                    onChange={(e) => setAgeInput(e.target.value)}
+                                                    placeholder="30"
+                                                    style={_is} onFocus={_f} onBlur={_b}
+                                                />
+                                            </div>
+                                            {/* SEXO BIOLÓGICO */}
+                                            <div>
+                                                <label style={_lbl}>Sexo biológico</label>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                                    <button type="button" onClick={() => setGenderInput('male')} style={_genderBtn(genderInput === 'male')}>Hombre</button>
+                                                    <button type="button" onClick={() => setGenderInput('female')} style={_genderBtn(genderInput === 'female')}>Mujer</button>
+                                                </div>
                                             </div>
                                         </div>
                                     );
