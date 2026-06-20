@@ -65,15 +65,15 @@
   <meta property="og:title" content="MealfitRD | Nutrición Personalizada con IA" />
   <meta property="og:description" content="Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis." />
   <meta property="og:url" content="https://mealfitrd.com/" />
-  <meta property="og:image" content="https://mealfitrd.com/og-image.png" />
+  <meta property="og:image" content="https://mealfitrd.com/og-image.png?v=3" />
   <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
+  <meta property="og:image:height" content="1200" />
   <meta property="og:image:alt" content="MealfitRD — Nutrición personalizada con IA para República Dominicana" />
   <meta property="og:locale" content="es_DO" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="MealfitRD | Nutrición Personalizada con IA" />
   <meta name="twitter:description" content="Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis." />
-  <meta name="twitter:image" content="https://mealfitrd.com/og-image.png" />
+  <meta name="twitter:image" content="https://mealfitrd.com/og-image.png?v=3" />
 
   <!-- [P3-SEO-JSONLD · 2026-05-31] Structured data Organization (bajo riesgo,
        alto retorno: elegibilidad para knowledge panel). NO se declara
@@ -100,7 +100,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="MealfitRD" />
-  <link rel="apple-touch-icon" href="/favicon.png" />
+  <!-- [P3-PWA-ICON-PADDING · 2026-06-16] Icono del home screen con padding (logo
+       ~66%, fondo blanco) — antes iba a sangre. El favicon web no se toca. ?v=2
+       bustea el cache del apple-touch-icon. -->
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=6" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180.png?v=6" />
   <!-- [P3-SELF-HOST-FONTS · 2026-05-12] Outfit + Plus Jakarta Sans ahora
        self-hosted en /fonts/*.woff2 (declaraciones @font-face viven en
        frontend/src/index.css). Pre-fix cargaba CSS + woff2 desde

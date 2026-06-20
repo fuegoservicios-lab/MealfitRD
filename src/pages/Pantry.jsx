@@ -231,6 +231,31 @@ const Pantry = () => {
     const [pickerQty, setPickerQty] = useState(1);
     const [pickerUnit, setPickerUnit] = useState('');
 
+    // [P3-PANTRY-ADD-MOBILE · 2026-06-19] El add-sheet es bottom-anchored + autoFocus,
+    // así que en MÓVIL el teclado virtual TAPABA el buscador y los resultados (incómodo).
+    // Con la VisualViewport API levantamos el sheet por ENCIMA del teclado (`bottom` =
+    // alto del teclado) y limitamos su alto al espacio visible → buscador + resultados
+    // siempre visibles, sin saltos. Fallback seguro: sin visualViewport (desktop viejo)
+    // → inset 0 y alto basado en innerHeight (idéntico al comportamiento previo).
+    const [kbInset, setKbInset] = useState(0);
+    const [vvHeight, setVvHeight] = useState(() => (typeof window !== 'undefined' ? window.innerHeight : 800));
+    useEffect(() => {
+        if (!showAddMenu) { setKbInset(0); return undefined; }
+        const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+        if (!vv) return undefined;
+        const update = () => {
+            setKbInset(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
+            setVvHeight(vv.height);
+        };
+        update();
+        vv.addEventListener('resize', update);
+        vv.addEventListener('scroll', update);
+        return () => {
+            vv.removeEventListener('resize', update);
+            vv.removeEventListener('scroll', update);
+        };
+    }, [showAddMenu]);
+
     // [P3-PANTRY-QTY-EDIT · 2026-05-18] Editor de cantidad exacta para items
     // ya en la nevera. Cierra el gap UX "tengo 5 cartones, no quiero clickear
     // + cinco veces ni mantener turbo presionado contando". Click en el número
@@ -4316,15 +4341,22 @@ const Pantry = () => {
                             tabIndex={-1}
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                             style={{
-                                position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--bg-card)',
-                                borderRadius: '2rem 2rem 0 0', padding: '2rem', zIndex: 101,
-                                boxShadow: '0 -10px 40px rgba(0,0,0,0.1)', maxHeight: '85vh', display: 'flex', flexDirection: 'column'
+                                position: 'fixed', bottom: kbInset, left: 0, right: 0, background: 'var(--bg-card)',
+                                // [P3-PANTRY-ADD-MOBILE · 2026-06-19] padding responsive (menos en móvil =
+                                // más espacio útil) + alto adaptado al viewport visible (sobre el teclado).
+                                borderRadius: '1.75rem 1.75rem 0 0',
+                                padding: 'clamp(1.1rem, 4.5vw, 2rem)',
+                                paddingTop: 'clamp(0.85rem, 3vw, 1.4rem)',
+                                zIndex: 101,
+                                boxShadow: '0 -12px 44px rgba(0,0,0,0.22)',
+                                maxHeight: kbInset > 0 ? `${Math.max(300, vvHeight - 10)}px` : `${Math.round(vvHeight * 0.9)}px`,
+                                display: 'flex', flexDirection: 'column',
                             }}
                         >
-                            <div style={{ width: '40px', height: '5px', background: 'var(--border)', borderRadius: '10px', margin: '0 auto 1.5rem', opacity: 0.8 }} />
+                            <div style={{ width: '40px', height: '5px', background: 'var(--border)', borderRadius: '10px', margin: '0 auto clamp(0.7rem, 2.5vw, 1.4rem)', opacity: 0.8 }} />
 
-                            <h2 id="pantry-add-title" style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 0.4rem 0', color: 'var(--text-main)' }}>Añade a tu Nevera</h2>
-                            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1rem 0', lineHeight: 1.4 }}>
+                            <h2 id="pantry-add-title" style={{ fontSize: 'clamp(1.3rem, 5vw, 1.5rem)', fontWeight: 800, margin: '0 0 0.3rem 0', color: 'var(--text-main)' }}>Añade a tu Nevera</h2>
+                            <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '0 0 0.85rem 0', lineHeight: 1.4 }}>
                                 Busca el alimento, ajusta la cantidad y elige cómo viene (botella, libra, paquete…).
                             </p>
 
@@ -4333,23 +4365,36 @@ const Pantry = () => {
                                 <input
                                     autoFocus
                                     type="text"
+                                    /* [P3-PANTRY-ADD-MOBILE · 2026-06-19] Teclado de búsqueda + sin
+                                       autocorrección/mayúsculas (nombres de alimentos). fontSize ≥16px
+                                       evita el auto-zoom de iOS al enfocar. */
+                                    inputMode="search"
+                                    enterKeyHint="search"
+                                    autoComplete="off"
+                                    autoCorrect="off"
+                                    autoCapitalize="none"
+                                    spellCheck={false}
                                     placeholder="¿Qué vas a añadir? (ej: vinagre, aceite, pollo)"
                                     value={addItemSearch}
                                     onChange={e => setAddItemSearch(e.target.value)}
                                     onKeyDown={handleKeyDown}
                                     style={{
-                                        width: '100%', padding: '1.2rem 1rem 1.2rem 3rem', borderRadius: '1rem', border: '2px solid var(--border)',
-                                        outline: 'none', fontSize: '1.1rem', fontWeight: 500, background: 'var(--bg-page)', color: 'var(--text-main)'
+                                        width: '100%', padding: '1.05rem 1rem 1.05rem 3rem', borderRadius: '1rem', border: '2px solid var(--border)',
+                                        outline: 'none', fontSize: '1.05rem', fontWeight: 500, background: 'var(--bg-page)', color: 'var(--text-main)'
                                     }}
                                 />
                             </div>
 
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem' }}>
-                                <AlertCircle size={14} /> Si no aparece, prueba con otro nombre o sinónimo.
-                            </p>
-
-                            {/* Resultados de búsqueda (Scrollable) */}
-                            <div style={{ overflowY: 'auto', flex: 1, paddingBottom: '2rem' }}>
+                            {/* Resultados de búsqueda (Scrollable). [P3-PANTRY-ADD-MOBILE · 2026-06-19]
+                                Quitamos el hint persistente "si no aparece, prueba otro nombre" (comía
+                                espacio en móvil); ya lo cubre el estado "No encontramos X" de abajo.
+                                paddingBottom respeta el safe-area (notch); scroll con inercia iOS y sin
+                                chaining a la página de atrás. */}
+                            <div style={{
+                                overflowY: 'auto', flex: 1, marginTop: '0.5rem',
+                                paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))',
+                                WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain',
+                            }}>
                                 {suggestedMasterItems.map((item, index) => {
                                     const isPickerOpen = pickerForId === item.id;
                                     const existing = inventory.find(i => i.master_ingredient_id === item.id);

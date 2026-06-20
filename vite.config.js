@@ -85,19 +85,22 @@ export default defineConfig(({ mode }) => ({
         theme_color: '#4F46E5',
         background_color: '#111827',
         display: 'standalone',
+        // [P3-PWA-ICON-PADDING · 2026-06-16] Iconos con padding (logo ~66%, fondo
+        // blanco) para el home screen — antes el logo iba a sangre (pegado a los
+        // bordes). El favicon de la web (favicon-transparent.png) NO se toca.
         icons: [
           {
-            src: '/favicon.png',
+            src: '/apple-touch-icon-192.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: '/favicon.png',
+            src: '/apple-touch-icon.png',
             sizes: '512x512',
             type: 'image/png'
           },
           {
-            src: '/favicon.png',
+            src: '/apple-touch-icon.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'

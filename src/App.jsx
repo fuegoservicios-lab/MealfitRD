@@ -14,6 +14,10 @@ import useThemeColor from './components/common/useThemeColor';
 // [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Boot hook que detecta planes pendientes
 // y redirige al dashboard cuando el pipeline backend completa fuera del SSE.
 import PendingPipelineRecovery from './components/PendingPipelineRecovery';
+// [SCROLL-RESTORE-REFRESH · 2026-06-19] Restaura la posición de scroll al
+// refrescar (el landing/otras páginas viven tras ProtectedRoute + lazy chunks, y
+// el restore nativo del browser falla porque el contenido aún no tiene altura).
+import ScrollRestoration from './components/ScrollRestoration';
 // [APPEARANCE-THEME · 2026-05-28] Motor de tema: re-aplica la preferencia
 // persistida en runtime + escucha cambios de prefers-color-scheme cuando la
 // preferencia es 'system'. El boot script inline en index.html ya evitó el
@@ -172,6 +176,7 @@ function App() {
   return (
     <AssessmentProvider>
       <Router>
+        <ScrollRestoration />
         <IOSInstallPrompt />
         {/* [P1-TOASTER-MISSING · 2026-05-30] <Toaster/> de sonner. SIN este
             componente montado, sonner NO renderiza NINGÚN toast (no auto-monta).

@@ -21,7 +21,16 @@ cleanupOutdatedCaches();
 registerRoute(new NavigationRoute(
     async ({ request }) => {
         try {
-            return await fetch(request);
+            // [P3-PWA-NAV-NOSTORE · 2026-06-16] `cache: 'no-store'` → el HTML se
+            // pide SIEMPRE fresco de la red, saltándose el HTTP cache del
+            // navegador. Sin esto, un reload normal podía servir un index.html
+            // cacheado que referenciaba bundles JS/CSS viejos → el usuario tenía
+            // que hacer HARD-refresh tras CADA deploy para ver los cambios. Con
+            // el HTML fresco, sus nuevos hashes de assets se descargan de red
+            // (precache miss) y un reload normal aplica el deploy. El precache
+            // sigue como fallback offline. Usamos request.url (GET de
+            // navegación) para evitar incompatibilidades del modo 'navigate'.
+            return await fetch(request.url, { cache: 'no-store' });
         } catch (_offline) {
             return (await matchPrecache('index.html')) || Response.error();
         }
@@ -29,18 +38,29 @@ registerRoute(new NavigationRoute(
     { denylist: [/^\/api\//] },
 ));
 
-// [P2-PWA-SKIPWAITING · 2026-05-30] Activación bajo demanda (flujo "prompt").
-// Sin un listener de SKIP_WAITING, el SW nuevo quedaba en estado 'waiting'
-// indefinidamente mientras hubiera UNA pestaña abierta controlada por el SW
-// viejo → el usuario seguía ejecutando el bundle viejo por días tras un deploy
-// (incluido un fix de seguridad/datos). Ahora `registerType: 'prompt'`
-// (vite.config) + el toast "Nueva versión" (main.jsx) postean este mensaje
-// cuando el usuario acepta → el SW skip-waitea y toma control de forma
-// controlada (sin reload abrupto a mitad de un formulario/chat).
+// [P2-PWA-SKIPWAITING · 2026-05-30] Activación bajo demanda (flujo "prompt") via
+// postMessage SKIP_WAITING desde main.jsx cuando el usuario acepta el toast.
 self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
     }
+});
+
+// [P3-PWA-SKIPWAITING-AUTO · 2026-06-16] Activación AUTOMÁTICA del SW nuevo en
+// install + clients.claim en activate. Razón: en el PWA STANDALONE de iOS
+// ("Agregar a inicio") el flujo 'prompt' casi nunca funciona — el toast "Nueva
+// versión" rara vez se ve y el usuario quedaba corriendo un bundle viejo
+// cacheado por DÍAS (no veía fixes; ej. la sesión first-party). skipWaiting hace
+// que el SW nuevo tome control en el siguiente LANZAMIENTO del PWA, y con la
+// navegación network-first+no-store ya sirve el bundle fresco. NO recarga la
+// página en curso (el código nuevo aplica en la próxima navegación/lanzamiento)
+// → sin reload abrupto a mitad de un formulario/chat (la preocupación de
+// P2-PWA-SKIPWAITING era el reload de autoUpdate, no skipWaiting en sí).
+self.addEventListener('install', () => {
+    self.skipWaiting();
+});
+self.addEventListener('activate', (event) => {
+    event.waitUntil(self.clients.claim());
 });
 
 // ----------------------------------------------------------------------------

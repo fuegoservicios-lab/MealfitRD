@@ -593,6 +593,23 @@ button {
   background: var(--text-muted);
 }
 
+/* [P3-SCROLLBAR-DARK-BLEND · 2026-06-19] En tema OSCURO el thumb claro
+   (var(--text-light) = slate claro) se veía como una franja BRILLANTE pegada al
+   borde derecho — justo donde vive el tirador de notificaciones (position:fixed;
+   right:0, que queda a la izquierda de la barra de scroll de 8px). Eso producía el
+   "espacio que molesta" al lado del tirador. Atenuamos el thumb para que se FUNDA
+   con el fondo oscuro (track ya es transparent), SIN mover el tirador de su sitio.
+   Cubrimos el scrollbar del documento (html, sin espacio) y el de los contenedores
+   internos (descendiente). */
+html[data-theme="dark"]::-webkit-scrollbar-thumb,
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.22);
+}
+html[data-theme="dark"]::-webkit-scrollbar-thumb:hover,
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.42);
+}
+
 /* Soft inline scrollbar for components */
 .soft-scrollbar::-webkit-scrollbar {
   width: 5px;

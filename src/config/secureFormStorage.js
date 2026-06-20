@@ -35,6 +35,13 @@ export const SENSITIVE_FIELDS = [
     'otherStruggles',
     'motivation',
     'bodyFat',
+    // [P1-MEDICATION-FREETEXT · 2026-06-19] Medicamentos = PII médica (misma clase que
+    // medicalConditions/allergies, que ya son sensibles). Cifrar en mealfit_form_secure en vez
+    // de plaintext en mealfit_form. `medications` (chips) cierra además un gap pre-existente de
+    // nombres de fármacos en claro. Para invitados (sin sesión) quedan solo en memoria, igual
+    // que el resto del paso médico — se pierden al recargar (costo aceptable, decisión P1-B7).
+    'medications',
+    'otherMedications',
 ];
 
 const PUBLIC_KEY = 'mealfit_form';
