@@ -1,15 +1,18 @@
 import PropTypes from 'prop-types';
 
 /**
- * Ícono de "Agente" — robot de cabeza grande (ocupa casi todo el viewBox),
- * antena corta con bombillo, ojos circulares amplios, sonrisa y orejas
- * laterales. Reemplazo del genérico `Bot` de lucide-react por algo con más
- * carácter y proporción. API compatible con lucide (size / strokeWidth /
- * color → currentColor por default) y, a diferencia de RecipesIcon, reenvía
- * `className` para que herede las transiciones de la tab bar (.tabIcon).
+ * Ícono de "Agente" — robot moderno y limpio. [P3-AGENT-ICON-QUALITY · 2026-06-19]
+ * Rediseño del anterior (cabeza cuadrada, ojos punto, orejas-stub sueltas) por
+ * algo más definido y balanceado: cabeza bien proporcionada (16×15, centrada),
+ * antena con bombillo, orejas conectadas, OJOS tipo pantalla (rounded-square,
+ * look "AI" digital) y una sonrisa sutil. Geometría alineada al grid de 24 para
+ * que renderice nítido a tamaños pequeños (sidebar / tab bar).
+ *
+ * API compatible con lucide (size / strokeWidth / color → currentColor por
+ * default) y reenvía `className` para heredar las transiciones de la tab bar.
  */
 const AgentIcon = ({ size = 24, strokeWidth = 2, color = 'currentColor', className }) => {
-    // Detalle fino (orejas/antena) un poco más delgado que el contorno.
+    // Detalle fino (antena/orejas/boca) un poco más delgado que el contorno.
     const detail = Math.max(strokeWidth * 0.85, 1);
     return (
         <svg
@@ -22,59 +25,48 @@ const AgentIcon = ({ size = 24, strokeWidth = 2, color = 'currentColor', classNa
             style={{ display: 'block' }}
             aria-hidden="true"
         >
-            {/* Antena corta: tallo + bombillo */}
+            {/* Antena: tallo + bombillo */}
             <line
-                x1="12" y1="1.5" x2="12" y2="4"
+                x1="12" y1="1.6" x2="12" y2="4"
                 stroke={color}
                 strokeWidth={detail}
                 strokeLinecap="round"
             />
-            <circle cx="12" cy="1.5" r="1" fill={color} stroke="none" />
+            <circle cx="12" cy="1.4" r="1.05" fill={color} stroke="none" />
 
-            {/* Cabeza grande — ocupa casi todo el alto/ancho */}
+            {/* Cabeza — rounded rect centrada, ligeramente más ancha que alta */}
             <rect
-                x="2.5" y="4" width="19" height="17" rx="5"
+                x="4" y="4" width="16" height="15" rx="4.2"
                 stroke={color}
                 strokeWidth={strokeWidth}
                 strokeLinejoin="round"
             />
 
-            {/* Orejas laterales */}
+            {/* Orejas — stubs cortos conectados a los lados de la cabeza */}
             <line
-                x1="2.5" y1="11" x2="0.75" y2="11"
+                x1="4" y1="11.5" x2="2.3" y2="11.5"
                 stroke={color}
                 strokeWidth={detail}
                 strokeLinecap="round"
             />
             <line
-                x1="2.5" y1="14" x2="0.75" y2="14"
-                stroke={color}
-                strokeWidth={detail}
-                strokeLinecap="round"
-            />
-            <line
-                x1="21.5" y1="11" x2="23.25" y2="11"
-                stroke={color}
-                strokeWidth={detail}
-                strokeLinecap="round"
-            />
-            <line
-                x1="21.5" y1="14" x2="23.25" y2="14"
+                x1="20" y1="11.5" x2="21.7" y2="11.5"
                 stroke={color}
                 strokeWidth={detail}
                 strokeLinecap="round"
             />
 
-            {/* Ojos amplios */}
-            <circle cx="8.5" cy="11.5" r="1.7" fill={color} stroke="none" />
-            <circle cx="15.5" cy="11.5" r="1.7" fill={color} stroke="none" />
+            {/* Ojos tipo pantalla — rounded-square, look digital/AI */}
+            <rect x="7.8" y="9.5" width="2.7" height="3.1" rx="1.05" fill={color} stroke="none" />
+            <rect x="13.5" y="9.5" width="2.7" height="3.1" rx="1.05" fill={color} stroke="none" />
 
-            {/* Boca: sonrisa */}
+            {/* Boca — sonrisa sutil */}
             <path
-                d="M 8.5 16 Q 12 18.3 15.5 16"
+                d="M 9.6 15.3 Q 12 16.7 14.4 15.3"
                 stroke={color}
                 strokeWidth={detail}
                 strokeLinecap="round"
+                strokeLinejoin="round"
                 fill="none"
             />
         </svg>

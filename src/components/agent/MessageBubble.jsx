@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+// [P3-BOT-AVATAR-3D · 2026-06-19] Avatar del bot = orbe 3D glossy de alto contraste
+// (reemplaza el emoji 🤖 / robot lineal que casi no se veía sobre el degradado).
+import BotAvatar from './BotAvatar';
 // [P3-LAZY-MARKDOWN · 2026-05-12] react-markdown movido a chunk async via
 // wrapper LazyMarkdown (Suspense + lazy import). Reduce el chunk AgentPage
 // porque react-markdown + remark deps (~60KB gzip) solo se descargan tras
@@ -139,16 +142,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
             alignItems: 'flex-start'
         }}>
             {msg.role === 'model' && (
-                <div className="bot-avatar-mobile" style={{
-                    width: 30, height: 30, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: 'white', flexShrink: 0,
-                    marginTop: '14px',
-                    fontSize: '1.1rem'
-                }}>
-                    🤖
-                </div>
+                <BotAvatar size={34} style={{ marginTop: '11px', flexShrink: 0 }} />
             )}
 
             {/* Mensaje */}

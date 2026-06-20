@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 // muerto. El uso real vive en MessageBubble + ChatWidget vía LazyMarkdown
 // wrapper que mueve la lib a un chunk async separado.
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
+// [P3-BOT-AVATAR-3D · 2026-06-19] Avatar del agente = orbe 3D glossy de alto contraste.
+import BotAvatar from '../components/agent/BotAvatar';
 // [P1-CHAT-VIRTUALIZE · 2026-05-19] Lista virtualizada para sesiones
 // >VIRTUALIZE_THRESHOLD mensajes (default 100).
 // [P2-AGENT-VIRTUOSO-LAZY · 2026-05-31] El threshold se lee desde su módulo
@@ -2835,7 +2837,7 @@ const AgentPage = () => {
                                         alignItems: 'center',
                                         gap: '0.6rem'
                                     }}>
-                                        <span style={{ fontSize: '2.5rem', lineHeight: 1 }}>🤖</span>
+                                        <BotAvatar size={54} float style={{ flexShrink: 0 }} />
                                         Hola, {userProfile?.full_name?.split(' ')[0] || formData?.name || 'amigo'}
                                     </h1>
                                     <h2 className="welcome-sub" style={{
@@ -3005,15 +3007,13 @@ const AgentPage = () => {
                                         padding: '0.5rem 0 0.5rem 1.5rem',
                                         marginBottom: '3.5rem',
                                         fontSize: '0.95rem',
-                                        fontWeight: 500,
-                                        animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                                        fontWeight: 500
                                     }}>
-                                        <div className="bot-avatar-mobile" style={{
-                                            width: 30, height: 30, borderRadius: '50%',
-                                            background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            color: 'white', flexShrink: 0, fontSize: '1.1rem'
-                                        }}>🤖</div>
+                                        {/* [P3-BOT-AVATAR-3D · 2026-06-19 v2] Avatar "pensando":
+                                            antena con glow pulsante + pupilas mirando alrededor +
+                                            cabeceo. Reemplaza el pulse de opacidad del row (mudaba
+                                            la animación del avatar). */}
+                                        <BotAvatar size={34} thinking style={{ flexShrink: 0 }} />
                                         <div className="typing-dots-container" style={{ display: 'none' }}>
                                             <div className="typing-dot" style={{ animation: 'typingBounce 1.4s ease-in-out infinite' }} />
                                             <div className="typing-dot" style={{ animation: 'typingBounce 1.4s ease-in-out 0.2s infinite' }} />
