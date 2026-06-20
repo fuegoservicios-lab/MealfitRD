@@ -14,20 +14,21 @@ import styles from './BenchmarkShowcase.module.css';
    cifras son de PRECISIÓN DE MACROS (cercanía a tus objetivos), no de corrección
    clínica. Datos: baseline vivo, jun 2026.
 
-   Números (reales):
-   - v1.0.0:  proteína 7.3% MAPE → 92.7% · 4-macros-en-banda 66.7% · 0% fallback (100% determinista)
+   Números (reales · benchmark N=8 jun 2026, con el motor de rebalanceo de macros P3-MACRO-REBALANCE):
+   - con motor:  proteína 1.5% MAPE → 98.5% · 4-macros-en-banda 91.7% · 0% fallback (100% determinista)
    - sin motor (A/B): proteína 16% MAPE → 84% · 4-macros-en-banda 24% · 45% fallback (55% determinista)
-   - precisión por macro v1.0.0: kcal 97.3% · grasas 97.1% · carbos 95.1% · proteína 92.7% */
+   - precisión por macro: kcal 98.0% · grasas 96.9% · carbos 96.8% · proteína 98.5%
+   (la proteína pasó de ser el macro MÁS incumplido al MÁS preciso al re-apuntar las 3 macros tras cuantizar) */
 
 // Versión minimalista para el landing: "V1" en vez de "v1.0.0" (deriva el major
 // del SSOT APP_VERSION → si sube a 2.x muestra "V2" automáticamente).
 const VERSION_SHORT = `V${String(APP_VERSION).split('.')[0]}`;
 
 const MACROS = [
-    { key: 'kcal', label: 'Calorías', mape: 2.7 },
-    { key: 'fat', label: 'Grasas', mape: 2.9 },
-    { key: 'carbs', label: 'Carbohidratos', mape: 4.9 },
-    { key: 'protein', label: 'Proteína', mape: 7.3 },
+    { key: 'kcal', label: 'Calorías', mape: 2.0 },
+    { key: 'fat', label: 'Grasas', mape: 3.1 },
+    { key: 'carbs', label: 'Carbohidratos', mape: 3.2 },
+    { key: 'protein', label: 'Proteína', mape: 1.5 },
 ];
 
 const COLS = [
@@ -40,12 +41,12 @@ const ROWS = [
     {
         metric: 'Precisión de proteína',
         sub: 'el macro más difícil de cuadrar',
-        cells: { mealfit: '92.7%', noengine: '84%' },
+        cells: { mealfit: '98.5%', noengine: '84%' },
     },
     {
         metric: 'Planes con los 4 macros en banda',
         sub: 'calorías + proteína + carbos + grasas',
-        cells: { mealfit: '66.7%', noengine: '24%' },
+        cells: { mealfit: '91.7%', noengine: '24%' },
     },
     {
         metric: 'Cálculo determinista',
@@ -112,7 +113,7 @@ const BenchmarkShowcase = () => (
                     </div>
                     <span className={styles.cardHeadBadge}>
                         <TrendingUp size={13} strokeWidth={2.75} aria-hidden="true" />
-                        2.8× más planes precisos
+                        3.8× más planes precisos
                     </span>
                 </div>
 
@@ -189,7 +190,7 @@ const BenchmarkShowcase = () => (
                 <div className={styles.highlights}>
                     {[
                         { icon: Cpu, value: '100%', label: 'planes con macros calculados, no a ojo' },
-                        { icon: Target, value: '±7.3%', label: 'error máximo en cualquier macro' },
+                        { icon: Target, value: '±3.2%', label: 'error máximo en cualquier macro' },
                         { icon: Layers, value: '4', label: 'macros calibrados a la vez en cada comida' },
                     ].map((h) => {
                         const Icon = h.icon;
