@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
     User, Shield, ChevronRight, ArrowLeft,
-    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat, GlassWater, Cog, Fingerprint, Pencil,
+    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat, GlassWater, Cog, Fingerprint,
     Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,9 +35,8 @@ import { buildHealthProfilePayload } from '../config/secureFormStorage';
 // [P1-SUPERPERSONALIZATION-1 · 2026-06-19] Panel opt-in de preferencias ricas
 // (gustos/cultura/equipo/sabor/nivel/texto libre) → health_profile.super_personalization.
 import SuperPersonalizationPanel from '../components/settings/SuperPersonalizationPanel';
-// [P3-AVATAR-PICKER · 2026-06-20] Selector de avatares minimalistas (clic en el avatar del perfil).
-import AvatarPicker from '../components/avatars/AvatarPicker';
-import { MinimalAvatar } from '../components/avatars/minimalAvatars';
+// [P3-AVATAR-CYCLE · 2026-06-20] Avatares minimalistas: clic en el avatar del perfil cicla al siguiente.
+import { MinimalAvatar, MINIMAL_AVATARS } from '../components/avatars/minimalAvatars';
 
 // [APPEARANCE-THEME · 2026-05-28] Opciones del selector de Apariencia de la
 // sección "Preferencias". `value` se persiste en localStorage('mealfit_theme')
@@ -533,15 +532,18 @@ const Settings = () => {
     const [showEvaluateModal, setShowEvaluateModal] = useState(false);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-    // [P3-AVATAR-PICKER · 2026-06-20] Avatar del perfil: id del avatar minimalista
-    // elegido (o null = inicial). Persistido en localStorage (cosmético, per-device).
+    // [P3-AVATAR-CYCLE · 2026-06-20] Avatar del perfil: id del avatar minimalista
+    // elegido (o null = inicial). Cada clic CICLA directo al siguiente, sin panel:
+    // inicial → avatar0 → … → avatarN → inicial. Persistido en localStorage.
     const [avatarId, setAvatarId] = useState(() => safeLocalStorageGet('mealfit_avatar', null));
-    const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
-    const handleSelectAvatar = (id) => {
-        setAvatarId(id);
-        if (id) safeLocalStorageSet('mealfit_avatar', id);
-        else safeLocalStorageRemove('mealfit_avatar');
-        setAvatarPickerOpen(false);
+    const _AVATAR_CYCLE = [null, ...MINIMAL_AVATARS.map((a) => a.id)];
+    const cycleAvatar = () => {
+        setAvatarId((prev) => {
+            const next = _AVATAR_CYCLE[(_AVATAR_CYCLE.indexOf(prev) + 1) % _AVATAR_CYCLE.length];
+            if (next) safeLocalStorageSet('mealfit_avatar', next);
+            else safeLocalStorageRemove('mealfit_avatar');
+            return next;
+        });
     };
 
     // --- NAVEGACIÓN DE SECCIONES ---
@@ -1727,14 +1729,15 @@ const Settings = () => {
 
                         <div className={styles.profileFlex}>
                             
-                            {/* [P3-AVATAR-PICKER · 2026-06-20] Avatar clicable → abre el selector
-                                de avatares minimalistas. Si hay uno elegido lo renderiza; si no,
-                                la inicial sobre el gradiente de siempre. */}
+                            {/* [P3-AVATAR-CYCLE · 2026-06-20] Avatar clicable → CICLA al siguiente
+                                avatar minimalista directo (sin panel). Si hay uno elegido lo
+                                renderiza; si no, la inicial sobre el gradiente de siempre. */}
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
                                 <button
                                     type="button"
-                                    onClick={() => setAvatarPickerOpen(true)}
-                                    aria-label="Cambiar avatar"
+                                    onClick={cycleAvatar}
+                                    title="Toca para cambiar tu avatar"
+                                    aria-label="Cambiar avatar (toca para alternar)"
                                     style={{ position: 'relative', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', borderRadius: '50%', lineHeight: 0 }}
                                 >
                                     {avatarId ? (
@@ -1762,18 +1765,10 @@ const Settings = () => {
                                             boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
                                         }}
                                     >
-                                        <Pencil size={13} />
+                                        <RefreshCw size={13} />
                                     </span>
                                 </button>
                             </div>
-
-                            <AvatarPicker
-                                open={avatarPickerOpen}
-                                current={avatarId}
-                                userInitial={userName ? userName.charAt(0).toUpperCase() : 'U'}
-                                onSelect={handleSelectAvatar}
-                                onClose={() => setAvatarPickerOpen(false)}
-                            />
                             
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                 {/* Nombre */}
