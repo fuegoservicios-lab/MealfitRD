@@ -17,6 +17,10 @@ import GuestAppearanceToggle from './GuestAppearanceToggle';
 import BottomTabBar from './BottomTabBar';
 // [P1-APP-VERSION · 2026-06-19] Versión visible bajo el wordmark (SSOT en config).
 import { APP_VERSION } from '../../config/appVersion';
+// [P3-AVATAR-CYCLE · 2026-06-20] Avatar minimalista elegido en Ajustes, reflejado
+// en el botón de cuenta del sidebar y sincronizado en vivo vía avatarStore.
+import { MinimalAvatar } from '../avatars/minimalAvatars';
+import { getAvatarId, subscribeAvatar } from '../../utils/avatarStore';
 // [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al hover/touch
 import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del listado del Historial
@@ -33,6 +37,11 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
     const accountMenuRef = useRef(null);
+
+    // [P3-AVATAR-CYCLE · 2026-06-20] Avatar elegido (en Ajustes); refleja el cambio
+    // en vivo en el botón de cuenta del sidebar vía avatarStore (mismo tab + cross-tab).
+    const [avatarId, setAvatarId] = useState(getAvatarId);
+    useEffect(() => subscribeAvatar(setAvatarId), []);
 
     useEffect(() => {
         if (!isAccountMenuOpen) return undefined;
@@ -325,7 +334,9 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         aria-label="Abrir menú de cuenta"
                     >
                         <span className={styles.accountAvatar} aria-hidden="true">
-                            <User size={16} strokeWidth={2.25} />
+                            {avatarId
+                                ? <MinimalAvatar id={avatarId} size={28} style={{ borderRadius: '50%', width: '100%', height: '100%' }} />
+                                : <User size={16} strokeWidth={2.25} />}
                         </span>
                         <span className={styles.accountEmail}>{userEmail}</span>
                         <ChevronUp

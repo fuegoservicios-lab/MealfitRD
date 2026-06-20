@@ -37,6 +37,7 @@ import { buildHealthProfilePayload } from '../config/secureFormStorage';
 import SuperPersonalizationPanel from '../components/settings/SuperPersonalizationPanel';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatares minimalistas: clic en el avatar del perfil cicla al siguiente.
 import { MinimalAvatar, MINIMAL_AVATARS } from '../components/avatars/minimalAvatars';
+import { getAvatarId, persistAvatar } from '../utils/avatarStore';
 
 // [APPEARANCE-THEME · 2026-05-28] Opciones del selector de Apariencia de la
 // sección "Preferencias". `value` se persiste en localStorage('mealfit_theme')
@@ -535,13 +536,12 @@ const Settings = () => {
     // [P3-AVATAR-CYCLE · 2026-06-20] Avatar del perfil: id del avatar minimalista
     // elegido (o null = inicial). Cada clic CICLA directo al siguiente, sin panel:
     // inicial → avatar0 → … → avatarN → inicial. Persistido en localStorage.
-    const [avatarId, setAvatarId] = useState(() => safeLocalStorageGet('mealfit_avatar', null));
+    const [avatarId, setAvatarId] = useState(getAvatarId);
     const _AVATAR_CYCLE = [null, ...MINIMAL_AVATARS.map((a) => a.id)];
     const cycleAvatar = () => {
         setAvatarId((prev) => {
             const next = _AVATAR_CYCLE[(_AVATAR_CYCLE.indexOf(prev) + 1) % _AVATAR_CYCLE.length];
-            if (next) safeLocalStorageSet('mealfit_avatar', next);
-            else safeLocalStorageRemove('mealfit_avatar');
+            persistAvatar(next); // escribe localStorage + emite evento → el sidebar se actualiza en vivo
             return next;
         });
     };
