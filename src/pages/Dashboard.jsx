@@ -2523,10 +2523,11 @@ const DashboardInner = () => {
                     element.setAttribute('style', _prev);
                     // Alto de UNA página A4 en px al ancho de medición (A4 = 210×297mm).
                     const _onePageHpx = (297 / 210) * _measureW;
-                    // Solo "fit a una hoja" si el contenido CABE en ~1.5 páginas (cierra el bug del
-                    // desbordamiento de unos mm). Si es genuinamente más largo, dejar A4 → pagina normal
-                    // (evita una hoja gigante para una lista de 45+ ítems).
-                    if (_contentH > 0 && _contentH <= _onePageHpx * 1.5) {
+                    // [P3-PDF-ONE-PAGE-2 · 2026-06-20] Cap subido 1.5→3.5: aquí solo se entra cuando
+                    // !paginateFormally (plan <60 ítems, NO hyper-dense/multipage), así que la altura está
+                    // acotada → fit-to-content a UNA sola hoja alta para TODO plan no-formal (el usuario
+                    // quiere 1 hoja, sin 2ª página casi vacía). Fail-safe >3.5 páginas → A4. Los 60+ paginan formal.
+                    if (_contentH > 0 && _contentH <= _onePageHpx * 3.5) {
                         const _pageW = 210; // ancho A4 en mm (márgenes L/R = 0 en el caso no-formal)
                         const _pdfH = 4 /*margen top mm*/ + (_contentH * _pageW / _measureW) + 3 /*colchón*/;
                         opt.jsPDF = { ...opt.jsPDF, format: [_pageW, _pdfH] };
