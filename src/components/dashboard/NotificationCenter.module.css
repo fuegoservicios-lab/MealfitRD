@@ -1,0 +1,862 @@
+/* NotificationCenter — centro de notificaciones del dashboard.
+   [P3-NOTIF-CENTER · 2026-06-16] Tirador-pestaña fijo en el borde derecho (PC) /
+   botón flotante (móvil) → drawer glassy que se desliza desde la derecha con las
+   notificaciones archivadas. Estética coherente con el resto del dashboard:
+   slate oscuro, acentos teal/indigo/ámbar, bordes-gradiente hairline, glow de
+   "celda de energía". Tema-aware vía variables de index.css. */
+
+/* ============================ TIRADOR / BORDE ============================ */
+.handle {
+    position: fixed;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    z-index: 860;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    width: 40px;
+    height: 96px;
+    padding: 0;
+    border: none;
+    border-right: none;
+    border-radius: 16px 0 0 16px;
+    cursor: pointer;
+    isolation: isolate;
+    overflow: visible;
+
+    color: #c7d2fe;
+    background:
+        linear-gradient(150deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.96));
+    box-shadow:
+        -6px 0 24px -12px rgba(34, 211, 238, 0.55),
+        -1px 0 0 0 rgba(148, 163, 184, 0.14),
+        inset 1px 0 0 0 rgba(148, 163, 184, 0.08);
+    -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.32s ease, color 0.2s ease;
+}
+
+/* Borde-gradiente teal→indigo solo en el contorno visible (mask exclude). */
+.handle::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(150deg, rgba(34, 211, 238, 0.7), rgba(129, 140, 248, 0.35) 60%, transparent);
+    -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.9;
+}
+
+/* Bloom ambiental detrás del tirador, latiendo lento. */
+.handleGlow {
+    position: absolute;
+    inset: 12px 4px;
+    border-radius: 12px;
+    background: radial-gradient(circle at 60% 50%, rgba(34, 211, 238, 0.4), transparent 70%);
+    filter: blur(8px);
+    z-index: -1;
+    opacity: 0.5;
+    animation: notifHandlePulse 3.8s ease-in-out infinite;
+}
+
+.handleIcon {
+    position: relative;
+    filter: drop-shadow(0 0 5px rgba(34, 211, 238, 0.45));
+}
+
+.handle:hover {
+    transform: translateY(-50%) translateX(-5px);
+    color: #e0e7ff;
+    box-shadow:
+        -10px 0 30px -12px rgba(34, 211, 238, 0.7),
+        -1px 0 0 0 rgba(148, 163, 184, 0.2),
+        inset 1px 0 0 0 rgba(148, 163, 184, 0.12);
+}
+
+.handleOpen {
+    transform: translateY(-50%) translateX(-4px);
+}
+
+.handleBadge {
+    position: absolute;
+    top: 8px;
+    right: 6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    font-size: 0.66rem;
+    font-weight: 800;
+    line-height: 1;
+    color: #1e1b3a;
+    background: linear-gradient(135deg, #67e8f9, #818cf8);
+    box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.95), 0 0 10px rgba(34, 211, 238, 0.6);
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes notifHandlePulse {
+    0%, 100% { opacity: 0.35; transform: scale(0.96); }
+    50%      { opacity: 0.6;  transform: scale(1.05); }
+}
+
+/* Con no leídas: glow más vivo + badge que late suave (sin ser intrusivo). */
+.handleAlert .handleGlow { opacity: 0.7; }
+.handleAlert .handleBadge { animation: notifBadgePulse 2s ease-in-out infinite; }
+
+@keyframes notifBadgePulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.14); }
+}
+
+/* ============================ OVERLAY + DRAWER ============================ */
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1460;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.scrim {
+    position: absolute;
+    inset: 0;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    background: rgba(8, 12, 24, 0.5);
+    -webkit-backdrop-filter: blur(3px);
+            backdrop-filter: blur(3px);
+}
+
+.drawer {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    width: min(384px, 92vw);
+    height: 100%;
+    overflow: hidden;
+    color: var(--text-main);
+    background:
+        radial-gradient(120% 60% at 100% 0%, rgba(34, 211, 238, 0.1), transparent 60%),
+        radial-gradient(120% 50% at 0% 100%, rgba(129, 140, 248, 0.1), transparent 55%),
+        linear-gradient(180deg, rgba(23, 31, 50, 0.97), rgba(13, 19, 33, 0.98));
+    border-left: 1px solid rgba(148, 163, 184, 0.16);
+    box-shadow: -24px 0 60px -28px rgba(0, 0, 0, 0.75);
+    -webkit-backdrop-filter: blur(18px);
+            backdrop-filter: blur(18px);
+}
+
+/* Hairline superior teal→indigo que recorre el tope del drawer. */
+.drawer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #22d3ee 30%, #818cf8 70%, transparent);
+    opacity: 0.85;
+}
+
+/* ---- header ---- */
+.head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 1.15rem 1.1rem 0.9rem;
+    /* [P3-NOTIF-CENTER · 2026-06-16] El drawer ocupa toda la altura con
+       viewport-fit=cover → en móvil el header se metía bajo la barra de estado
+       (notch/hora/batería). Empujamos el contenido por debajo del safe-area. */
+    padding-top: calc(1.15rem + env(safe-area-inset-top, 0px));
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.headTitle {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.headTitle h2 {
+    margin: 0;
+    font-size: 1.02rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+}
+
+.headDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #34d399;
+    box-shadow: 0 0 8px rgba(52, 211, 153, 0.8);
+}
+
+/* Con no leídas: el punto vira a teal y late. */
+.headDotAlert {
+    background: #22d3ee;
+    box-shadow: 0 0 8px rgba(34, 211, 238, 0.85);
+    animation: notifDotPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes notifDotPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
+.headCount {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #cffafe;
+    background: rgba(34, 211, 238, 0.16);
+    border: 1px solid rgba(34, 211, 238, 0.4);
+    font-variant-numeric: tabular-nums;
+}
+
+.headActions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.clearBtn {
+    padding: 0.32rem 0.6rem;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 0.6rem;
+    background: transparent;
+    color: var(--text-light);
+    font-size: 0.74rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.clearBtn:hover {
+    color: #fda4af;
+    border-color: rgba(251, 113, 133, 0.5);
+    background: rgba(251, 113, 133, 0.08);
+}
+
+/* "Marcar leídas" como botón de icono compacto (doble check) — el texto se
+   partía en dos líneas y no cabía. */
+.markBtn {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 0.6rem;
+    background: rgba(148, 163, 184, 0.06);
+    color: var(--text-light);
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.markBtn:hover {
+    color: #67e8f9;
+    border-color: rgba(34, 211, 238, 0.5);
+    background: rgba(34, 211, 238, 0.1);
+}
+
+/* Divisor entre las acciones (Marcar leídas / Limpiar) y la X de cerrar el
+   panel: separa visualmente "borrar contenido" de "cerrar la pestaña". */
+.headDivider {
+    width: 1px;
+    height: 18px;
+    margin: 0 0.3rem;
+    flex: none;
+    background: rgba(148, 163, 184, 0.28);
+    border-radius: 1px;
+}
+
+:global(html:not([data-theme="dark"])) .headDivider {
+    background: rgba(15, 23, 42, 0.16);
+}
+
+.closeBtn {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 0.6rem;
+    background: rgba(148, 163, 184, 0.06);
+    color: var(--text-light);
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.closeBtn:hover {
+    color: var(--text-main);
+    border-color: rgba(148, 163, 184, 0.3);
+    background: rgba(148, 163, 184, 0.14);
+}
+
+/* ---- lista ---- */
+.list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.85rem 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+
+.list::-webkit-scrollbar { width: 7px; }
+.list::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.25);
+    border-radius: 4px;
+}
+
+/* ---- tarjeta (columna: fila clickable + detalle expandido) ---- */
+.card {
+    --tone: #818cf8;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border-radius: 0.85rem;
+    background: rgba(30, 41, 59, 0.55);
+    border: 1px solid rgba(148, 163, 184, 0.13);
+    overflow: hidden;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+/* Barra de acento vertical teñida al tono (recorre toda la tarjeta). */
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--tone), color-mix(in srgb, var(--tone) 30%, transparent));
+    opacity: 0.9;
+    z-index: 1;
+}
+
+.card:hover {
+    border-color: color-mix(in srgb, var(--tone) 45%, transparent);
+    background: rgba(30, 41, 59, 0.72);
+}
+
+/* No leída: realce sutil + el acento más vivo. */
+.card.unread {
+    background: rgba(34, 41, 61, 0.7);
+    border-color: color-mix(in srgb, var(--tone) 30%, transparent);
+}
+.card.unread::before { opacity: 1; box-shadow: 0 0 10px -1px var(--tone); }
+
+.card.expanded {
+    border-color: color-mix(in srgb, var(--tone) 40%, transparent);
+}
+
+.tone_teal { --tone: #22d3ee; }
+.tone_amber { --tone: #fbbf24; }
+.tone_indigo { --tone: #818cf8; }
+
+/* fila principal: zona clickable (toggle) + safacón */
+.cardRow {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    /* [P3-NOTIF-CENTER · 2026-06-16] safacón centrado verticalmente (antes
+       `start` lo pegaba a la esquina superior y se veía flotando/desconectado). */
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.7rem 0.6rem 0.7rem 0.95rem;
+}
+
+/* el cuerpo (icono + texto) sigue alineado arriba dentro de su columna. */
+.cardToggle { align-self: start; }
+
+/* botón que envuelve icono + cuerpo + chevron (toda la zona de expansión) */
+.cardToggle {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: start;
+    gap: 0.7rem;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+}
+
+.cardIcon {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 0.6rem;
+    color: var(--tone);
+    background: color-mix(in srgb, var(--tone) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tone) 32%, transparent);
+    box-shadow: 0 0 12px -4px color-mix(in srgb, var(--tone) 70%, transparent);
+    flex: none;
+}
+
+.cardBody {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+}
+
+.cardTitle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.25;
+}
+
+.unreadDot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--tone);
+    box-shadow: 0 0 7px var(--tone);
+}
+
+.cardMsg {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--text-light);
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.cardTime {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--text-light) 75%, transparent);
+}
+
+/* Chevron de expandir: centrado verticalmente en la fila, como afford. junto al
+   safacón (antes vivía suelto en la esquina inferior del cuerpo). */
+.chevron {
+    align-self: center;
+    color: color-mix(in srgb, var(--text-light) 70%, transparent);
+    transition: transform 0.24s ease, color 0.2s ease;
+    flex: none;
+}
+.chevronOpen {
+    transform: rotate(180deg);
+    color: var(--tone);
+}
+
+/* ---- detalle expandido ---- */
+.cardExpanded {
+    overflow: hidden;
+}
+.cardExpandedInner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.2rem 0.85rem 0.85rem 0.95rem;
+}
+
+/* mini-barras por nutriente (mismo cálculo classify que el panel) */
+.exGaps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+.exGap { display: flex; flex-direction: column; gap: 0.28rem; }
+.exGapTop {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+.exNutrient {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+.exVals {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-light);
+    white-space: nowrap;
+}
+.exPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-size: 0.66rem;
+    font-weight: 800;
+}
+.exTrack {
+    height: 6px;
+    border-radius: 4px;
+    background: rgba(148, 163, 184, 0.16);
+    overflow: hidden;
+}
+.exFill {
+    height: 100%;
+    border-radius: 4px;
+}
+/* tonos de severidad (near=ok, low=ámbar, far=rojo, over=violeta) */
+.exTone_near { background: linear-gradient(90deg, #34d399, #22d3ee); color: #064e3b; }
+.exTone_low { background: linear-gradient(90deg, #fbbf24, #fb923c); color: #7c2d12; }
+.exTone_far { background: linear-gradient(90deg, #fb7185, #f43f5e); color: #fff; }
+.exTone_over { background: linear-gradient(90deg, #a78bfa, #818cf8); color: #fff; }
+.exPill.exTone_near { background: rgba(34, 211, 238, 0.16); color: #67e8f9; }
+.exPill.exTone_low { background: rgba(251, 146, 60, 0.18); color: #fdba74; }
+.exPill.exTone_far { background: rgba(251, 113, 133, 0.18); color: #fda4af; }
+.exPill.exTone_over { background: rgba(167, 139, 250, 0.2); color: #c4b5fd; }
+
+/* sugerencias */
+.exSupps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-top: 0.2rem;
+    border-top: 1px dashed rgba(148, 163, 184, 0.18);
+}
+.exLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--text-light) 80%, transparent);
+}
+.exSupp {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    font-size: 0.74rem;
+    line-height: 1.35;
+    color: var(--text-light);
+}
+.exSupp strong { color: var(--text-main); }
+.exHint { opacity: 0.8; }
+
+.exDisclaimer {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    margin: 0;
+    font-size: 0.68rem;
+    line-height: 1.4;
+    color: color-mix(in srgb, var(--text-light) 85%, transparent);
+}
+
+/* quality */
+.exReason {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--text-light);
+}
+.exReason strong { color: var(--text-main); }
+.exGuidance {
+    margin: 0;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    color: var(--text-light);
+}
+.exFallback {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--text-light);
+    overflow-wrap: anywhere;
+}
+
+/* CTA */
+.exAction {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    margin-top: 0.1rem;
+    padding: 0.5rem 0.7rem;
+    border-radius: 0.6rem;
+    border: 1px solid color-mix(in srgb, var(--tone) 45%, transparent);
+    background: color-mix(in srgb, var(--tone) 14%, transparent);
+    color: color-mix(in srgb, var(--tone) 90%, white 10%);
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+}
+.exAction:hover {
+    background: color-mix(in srgb, var(--tone) 24%, transparent);
+    border-color: color-mix(in srgb, var(--tone) 65%, transparent);
+}
+.exAction:active { transform: translateY(1px); }
+
+/* [P3-MICROS-RESTORE · 2026-06-19] Grupo de acciones de la tarjeta (restaurar + borrar). */
+.cardActions {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+/* Botón "volver a mostrar" (solo micros): mismo tamaño que el de borrar pero en
+   tono teal (acción positiva/no destructiva, coherente con el panel de micros). */
+.cardRestore {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 0.5rem;
+    background: rgba(148, 163, 184, 0.08);
+    color: var(--text-light);
+    cursor: pointer;
+    flex: none;
+    transition: color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+.cardRestore:hover {
+    color: #5eead4;
+    background: rgba(45, 212, 191, 0.16);
+    transform: scale(1.08);
+}
+.cardRestore:focus-visible {
+    outline: 2px solid var(--tone);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+}
+
+.cardX {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 0.5rem;
+    background: rgba(148, 163, 184, 0.08);
+    color: var(--text-light);
+    cursor: pointer;
+    flex: none;
+    transition: color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.cardX:hover {
+    color: #fda4af;
+    background: rgba(251, 113, 133, 0.16);
+    transform: scale(1.08);
+}
+
+/* [P3-NOTIF-CENTER · 2026-06-16] Anillo de foco visible para teclado (WCAG 2.1).
+   Botones dentro de la tarjeta (tienen --tone): se tiñen al tono. */
+.cardToggle:focus-visible,
+.cardX:focus-visible,
+.exAction:focus-visible {
+    outline: 2px solid var(--tone);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+}
+
+/* Botones del header / tirador (sin --tone): teal fijo. */
+.handle:focus-visible,
+.closeBtn:focus-visible,
+.clearBtn:focus-visible,
+.markBtn:focus-visible {
+    outline: 2px solid #22d3ee;
+    outline-offset: 2px;
+}
+
+/* ---- vacío ---- */
+.empty {
+    margin: auto;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.emptyOrb {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 0.4rem;
+    border-radius: 50%;
+    color: #94a3b8;
+    background: radial-gradient(circle, rgba(129, 140, 248, 0.16), transparent 70%);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.emptyTitle {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.emptyText {
+    margin: 0;
+    max-width: 240px;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--text-light);
+}
+
+/* ---- footer ---- */
+.foot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6rem;
+    /* Safe-area inferior (home indicator) por el mismo motivo que el header. */
+    padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+/* Wordmark de marca (sin icono): "Mealfit" tenue + R/D en colores de la app. */
+.footBrand {
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    color: color-mix(in srgb, var(--text-light) 70%, transparent);
+}
+.footR { color: var(--primary); }
+.footD { color: var(--accent); }
+
+/* ============================ TEMA CLARO ============================ */
+:global(html:not([data-theme="dark"])) .handle {
+    color: #0e7490;
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.96), rgba(236, 242, 250, 0.97));
+    box-shadow:
+        -6px 0 22px -14px rgba(34, 211, 238, 0.5),
+        -1px 0 0 0 rgba(15, 23, 42, 0.06);
+}
+
+:global(html:not([data-theme="dark"])) .handleBadge {
+    color: #ffffff;
+    box-shadow: 0 0 0 2px #ffffff, 0 0 8px rgba(34, 211, 238, 0.5);
+}
+
+:global(html:not([data-theme="dark"])) .drawer {
+    color: #0f172a;
+    background:
+        radial-gradient(120% 60% at 100% 0%, rgba(34, 211, 238, 0.1), transparent 60%),
+        radial-gradient(120% 50% at 0% 100%, rgba(129, 140, 248, 0.1), transparent 55%),
+        linear-gradient(180deg, #ffffff, #f1f5f9);
+    border-left: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: -24px 0 60px -30px rgba(15, 23, 42, 0.4);
+}
+
+:global(html:not([data-theme="dark"])) .card {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(15, 23, 42, 0.08);
+}
+
+:global(html:not([data-theme="dark"])) .card:hover {
+    background: #ffffff;
+}
+
+:global(html:not([data-theme="dark"])) .head {
+    border-bottom-color: rgba(15, 23, 42, 0.08);
+}
+
+:global(html:not([data-theme="dark"])) .list::-webkit-scrollbar-thumb {
+    background: rgba(15, 23, 42, 0.28);
+}
+
+:global(html:not([data-theme="dark"])) .foot {
+    color: #64748b;
+}
+
+/* ============================ MÓVIL ============================ */
+/* [P3-NOTIF-CENTER · 2026-06-16] En móvil se MANTIENE el tirador en el borde
+   derecho (sólo un poco más pequeño), NO un botón flotante inferior: un botón a
+   ~bottom:92px chocaba con el input del chat de la AgentPage (que usa
+   noPaddingMobile → sin barra de navegación inferior) y con la propia barra en
+   el resto de páginas. El borde derecho está siempre libre. El drawer usa el
+   ancho responsive por defecto min(384px, 92vw) → deja una franja de scrim para
+   descubrir el "tocar fuera para cerrar" (antes 100vw causaba overflow por el
+   scrollbar en iOS/Android). */
+@media (max-width: 768px) {
+    .handle {
+        width: 34px;
+        height: 84px;
+        /* [P3-NOTIF-CENTER · 2026-06-16] Solo móvil: el tirador sube al nivel del
+           saludo "Hola, ..." en vez del centro vertical de PC. El saludo arranca
+           tras la barra de estado (safe-area) + el header móvil (~52px) + el
+           padding del contenido (~24px); centramos el tirador (84px) ahí. */
+        top: calc(env(safe-area-inset-top, 0px) + 100px);
+        transform: none;
+        /* [P3-NOTIF-CENTER · 2026-06-16] absolute (no fixed) → el tirador se ANCLA
+           a la página y scrollea con el contenido en vez de flotar fijo sobre el
+           viewport (donde "chocaba" con tarjetas al bajar). Queda junto al saludo
+           y se va con el scroll. (body es position:relative → ancla correcta.) */
+        position: absolute;
+    }
+
+    /* En móvil el tirador ya no se centra con translateY → hover/open solo X. */
+    .handle:hover,
+    .handleOpen {
+        transform: translateX(-4px);
+    }
+
+    .handleIcon {
+        transform: scale(0.92);
+    }
+}
+
+/* ============================ accesibilidad ============================ */
+@media (prefers-reduced-motion: reduce) {
+    .handle { transition: none; }
+    .handleGlow { animation: none; }
+    .cardX:hover { transform: none; }
+    .cardRestore:hover { transform: none; }
+    .headDotAlert,
+    .handleAlert .handleBadge { animation: none; }
+    .chevron { transition: none; }
+}

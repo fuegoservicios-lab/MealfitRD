@@ -21,6 +21,10 @@ import { APP_VERSION } from '../../config/appVersion';
 // en el botón de cuenta del sidebar y sincronizado en vivo vía avatarStore.
 import { MinimalAvatar } from '../avatars/minimalAvatars';
 import { getAvatarId, subscribeAvatar } from '../../utils/avatarStore';
+// [P3-NOTIF-CENTER · 2026-06-16] Centro de notificaciones (tirador en el borde +
+// drawer) — global a todas las páginas del dashboard. Se auto-renderiza via
+// portal a <body>, así que basta montarlo una vez aquí.
+import NotificationCenter from './NotificationCenter';
 // [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al hover/touch
 import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del listado del Historial
@@ -327,7 +331,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                     )}
                     <button
                         type="button"
-                        className={styles.accountBtn}
+                        className={`${styles.accountBtn} ${isGuest ? styles.accountBtnGuest : ''}`}
                         onClick={() => setIsAccountMenuOpen(prev => !prev)}
                         aria-haspopup="menu"
                         aria-expanded={isAccountMenuOpen}
@@ -338,7 +342,16 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 ? <MinimalAvatar id={avatarId} size={28} style={{ borderRadius: '50%', width: '100%', height: '100%' }} />
                                 : <User size={16} strokeWidth={2.25} />}
                         </span>
-                        <span className={styles.accountEmail}>{userEmail}</span>
+                        {/* [P1-GUEST-ACCOUNT-DARK · 2026-06-16] Identidad propia del
+                            invitado: nombre + sub-label "Plan de muestra". El wrapper
+                            de columna NO cambia el layout de la cuenta real (un solo
+                            hijo cuando no es guest). */}
+                        <span className={styles.accountIdentity}>
+                            <span className={styles.accountEmail}>{userEmail}</span>
+                            {isGuest && (
+                                <span className={styles.accountSublabel}>Plan de muestra</span>
+                            )}
+                        </span>
                         <ChevronUp
                             size={16}
                             className={`${styles.accountChevron} ${isAccountMenuOpen ? styles.accountChevronOpen : ''}`}
@@ -384,6 +397,12 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 userEmail={session?.user?.email}
                 isGuest={isGuest}
             />
+
+            {/* [P3-NOTIF-CENTER · 2026-06-16] Tirador + drawer de notificaciones —
+                SOLO en la página "Plan" (/dashboard), que es de donde salen los
+                avisos (micros, calidad). En Agente/Nevera/Recetas/etc. no aparece. */}
+            {location.pathname.replace(/\/$/, '') === '/dashboard' && <NotificationCenter />}
+
 
             {/* Mobile More Menu (Ajustes + Inicio + Cerrar Sesión) — rendered at container root to escape stacking contexts */}
             {isMobileMoreMenuOpen && (

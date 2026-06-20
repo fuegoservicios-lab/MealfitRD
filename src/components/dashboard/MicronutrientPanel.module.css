@@ -76,6 +76,14 @@
     font-size: 0.72rem;
     font-weight: 600;
     color: var(--text-muted);
+    letter-spacing: -0.005em;
+}
+
+/* [P3-MICRO-SUBTITLE-ACCURACY · 2026-06-19] El conteo resaltado (feel de métrica
+   moderna): el número destaca, el resto queda muted. */
+.subCount {
+    color: var(--text-main);
+    font-weight: 800;
 }
 
 .close {
@@ -268,39 +276,71 @@
     color: #A78BFA;
 }
 
+/* [P3-MICRO-SUGGEST-CLARITY · 2026-06-19] Cada sugerencia = bloque de 2 líneas:
+   nutriente + dosis arriba (jerarquía clara), forma + alimentos abajo (muted).
+   Antes era una sola línea corrida difícil de leer. */
 .supp {
     display: flex;
     align-items: flex-start;
-    gap: 0.5rem;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    line-height: 1.35;
+    gap: 0.55rem;
 }
 
 .suppIcon {
     flex: none;
-    margin-top: 2px;
+    margin-top: 3px;
     color: #A78BFA;
 }
 
-.suppText strong {
-    color: var(--text-main);
+.suppBody {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.22rem;
+}
+
+.suppMain {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.1rem 0.5rem;
+}
+
+.suppName {
+    font-size: 0.88rem;
     font-weight: 700;
+    color: var(--text-main);
+    letter-spacing: -0.01em;
+}
+
+.suppDose {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #A78BFA;
 }
 
 .suppHint {
+    margin: 0;
+    font-size: 0.76rem;
+    line-height: 1.45;
     color: var(--text-light);
 }
 
-/* ---- disclaimer ---- */
+.suppForm {
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* ---- disclaimer (footnote discreto) ---- */
 .foot {
     display: flex;
     align-items: flex-start;
     gap: 0.4rem;
-    margin: 0.95rem 0 0;
-    font-size: 0.7rem;
-    line-height: 1.4;
+    margin: 0.9rem 0 0;
+    font-size: 0.68rem;
+    line-height: 1.45;
     color: var(--text-light);
+    opacity: 0.85;
 }
 
 .foot svg {

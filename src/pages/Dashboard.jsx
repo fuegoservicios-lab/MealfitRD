@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAssessment } from '../context/AssessmentContext';
 import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { requestNotificationPermission, subscribeToPushNotifications, isPushSupported } from '../utils/pushNotifications';
 
 import { useNavigate, Navigate, Link } from 'react-router-dom';
@@ -21,7 +21,9 @@ import WaterTracker from '../components/dashboard/WaterTracker';
 // el badge plano icono+número del header). Recibe la misma data del badge.
 import CreditsMeter from '../components/dashboard/CreditsMeter';
 // [P3-MICRONUTRIENT-PANEL · 2026-06-15] Panel de micros como medidores + dismissible.
-import MicronutrientPanel from '../components/dashboard/MicronutrientPanel';
+// [P3-NOTIF-CENTER · 2026-06-16] buildMicrosNotification = SSOT del resumen archivado;
+// microsContentSig = firma estable por contenido (clave de dismissal/backfill).
+import MicronutrientPanel, { buildMicrosNotification, microsContentSig } from '../components/dashboard/MicronutrientPanel';
 // [P3-AGENT-PREFILL · 2026-06-15] Tocar un micronutriente → pregunta al coach IA.
 import { requestAgentPrefill } from '../utils/agentPrefill';
 import Modal from '../components/common/Modal';
@@ -61,6 +63,9 @@ import {
 // SecurityError y el useEffect callback crasheaba silenciosamente, dejando
 // a usuarios nuevos sin el modal de onboarding push.
 import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
+// [P3-NOTIF-CENTER · 2026-06-16] Archivar el banner "plan no óptimo" al cerrarlo
+// + backfill de avisos descartados antes de que existiera el centro.
+import { addNotification, getNotifications, setNotificationData, openNotificationCenter } from '../utils/notifications';
 // [P2-CUSTOM-MODALS-A11Y · 2026-05-24] Hook SSOT para el restock modal inline
 // (4470-4580): role/aria-modal/focus trap/ESC/restore focus/body overflow.
 // Pre-fix el modal era keyboard-inaccesible (Tab escapaba al fondo, ESC no
@@ -151,6 +156,154 @@ const fetchInventoryFromApi = async () => {
 // monta `DashboardInner` cuando los datos están listos. Comportamiento idéntico
 // en el camino común; estrictamente más seguro en el borde (unmount limpio en
 // vez de crash). Hooks ahora incondicionales → contrato de orden estable.
+// [P3-NOTIF-CENTER · 2026-06-16] Mapa de motivos del banner "plan no óptimo",
+// elevado a módulo para que el banner (IIFE en JSX) y el archivado al centro de
+// notificaciones (dismissQDegraded) compartan el MISMO copy — cero drift.
+const Q_DEGRADED_REASON_MAP = {
+    high_contextual: 'No pudimos adaptar el plan a una restricción tuya (despensa, alergia o condición).',
+    max_attempts: 'El revisor de calidad no aprobó el plan tras varios intentos.',
+    invalid_pipeline_start: 'Hubo un problema técnico al iniciar la generación.',
+    budget_exhausted: 'Se alcanzó el límite de generación para este plan.',
+    // [P2-BAND-SCORE-GATE · 2026-06-15] motivo emitido por _maybe_mark_low_band_degraded
+    low_band_score: 'La precisión de macros de este plan quedó por debajo de la banda objetivo.',
+    // [P2-PANEL-SOFT-REJECT · 2026-06-15] motivos de _maybe_mark_panel_degraded
+    condition_panel_gap: 'El balance de tu condición (grasa saturada / potasio / magnesio / fibra) quedó fuera de la meta tras los ajustes automáticos. Revísalo con tu profesional.',
+    low_micros: 'Algunos micronutrientes (fibra / potasio / magnesio / calcio) quedaron por debajo del objetivo diario.',
+    high_sodium_sugar: 'El sodio o el azúcar añadida quedaron por encima del techo recomendado por la OMS.',
+};
+
+// [P3-NOTIF-CENTER-BACKFILL · 2026-06-16] Reconcilia (crea-o-enriquece) una
+// notificación archivada. Helper PURO a nivel de módulo (no cierra sobre estado
+// del componente → identidad estable, sin necesidad de useCallback). Tres casos:
+//  - no existe y NO se backfilleó nunca → crear (si la borraste, no reaparece).
+//  - existe sin `data` (notificación legacy pre-vista-expandida) → enriquecerla
+//    in-place (sin tocar lectura ni posición).
+//  - existe con data, o ya borrada tras backfill → no-op.
+// El flag SÓLO se fija si la operación persistió de verdad (en cuota agotada las
+// escrituras devuelven false → se reintenta en la próxima carga, no se pierde).
+function reconcileBackfill(notif, backfillKey) {
+    if (!notif || !notif.id) return; // sin contenido/id aún → reintentar luego (no marcar)
+    const existing = getNotifications().find((n) => n.id === notif.id);
+    let done;
+    if (existing) {
+        done = existing.data ? true : setNotificationData(notif.id, notif.data);
+    } else if (safeLocalStorageGet(backfillKey, '') !== '1') {
+        done = !!addNotification(notif);
+    } else {
+        done = true; // ya backfilleado y borrado por el usuario → nada que hacer
+    }
+    if (done) safeLocalStorageSet(backfillKey, '1');
+}
+
+// [P3-GREETING-ROTATE · 2026-06-19 · v2] El saludo del dashboard cambia cada ~2h de
+// RELOJ (no cada 9s): es DETERMINÍSTICO por bloque horario → estable dentro de la
+// ventana, distinto entre horas/visitas (más variedad) e INTELIGENTE (pool según la
+// franja del día). Si cruzas un bloque con la pestaña abierta, anima la transición
+// (blur + slide). Respeta prefers-reduced-motion (actualiza el texto sin animación).
+const _GREETING_SUBTITLES = [
+    'Aquí tienes tu estrategia nutricional.',
+    'Tu plan, hecho a tu medida.',
+    'Pequeños pasos, grandes resultados.',
+    'Comida real, metas reales.',
+    'Sigue tu plan, sin complicarte.',
+    'Hoy es un buen día para nutrirte bien.',
+    'Constancia, no perfección.',
+    'Tu progreso, un plato a la vez.',
+    'Lo simple, sostenido, gana.',
+];
+
+const _GREETING_NAME_STYLE = {
+    background: 'linear-gradient(to right, #3B82F6, #8B5CF6)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text',
+    display: 'inline-block',
+    paddingRight: '0.08em',
+    paddingBottom: '0.06em',
+    lineHeight: 1.2,
+    verticalAlign: 'baseline',
+};
+
+// Ventana de cambio: 2 horas de reloj.
+const _GREETING_BLOCK_MS = 2 * 60 * 60 * 1000;
+
+function _greetingSalutations(hour) {
+    if (hour < 5) return ['Buenas madrugadas', 'Aún despierto', 'Trasnochando', 'Sin sueño', 'Hola'];
+    if (hour < 12) return ['Buenos días', 'Buen día', 'Arriba', 'A darle', 'A por el día', 'Buen comienzo'];
+    if (hour < 19) return ['Buenas tardes', 'Qué tal', 'Seguimos', 'Buena tarde', 'A media marcha', 'Hola'];
+    return ['Buenas noches', 'Buenas', 'A cerrar el día', 'Ya de noche', 'Hola'];
+}
+
+function _pickGreeting() {
+    const now = Date.now();
+    const block = Math.floor(now / _GREETING_BLOCK_MS);
+    const sal = _greetingSalutations(new Date(now).getHours());
+    return {
+        block,
+        salutation: sal[block % sal.length],
+        subtitle: _GREETING_SUBTITLES[block % _GREETING_SUBTITLES.length],
+    };
+}
+
+function RotatingGreeting({ firstName }) {
+    const prefersReducedMotion = useReducedMotion();
+    const [g, setG] = useState(_pickGreeting);
+    useEffect(() => {
+        // Chequeo cada minuto; sólo actualiza (y anima) al cruzar el bloque de 2h.
+        const id = setInterval(() => {
+            setG((prev) => {
+                const next = _pickGreeting();
+                return next.block !== prev.block ? next : prev;
+            });
+        }, 60 * 1000);
+        return () => clearInterval(id);
+    }, []);
+
+    const name = <span style={_GREETING_NAME_STYLE}>{firstName}</span>;
+
+    if (prefersReducedMotion) {
+        return (
+            <>
+                <h1 className="dashboard-title">{g.salutation}, {name}</h1>
+                <p className="dashboard-subtitle">{g.subtitle}</p>
+            </>
+        );
+    }
+
+    return (
+        <>
+            <h1 className="dashboard-title" style={{ minHeight: '1.1em' }}>
+                <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                        key={g.salutation}
+                        initial={{ opacity: 0, y: 14, filter: 'blur(7px)' }}
+                        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                        exit={{ opacity: 0, y: -14, filter: 'blur(7px)' }}
+                        transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+                        style={{ display: 'inline-block' }}
+                    >
+                        {g.salutation}, {name}
+                    </motion.span>
+                </AnimatePresence>
+            </h1>
+            <p className="dashboard-subtitle" style={{ minHeight: '1.4em' }}>
+                <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                        key={g.subtitle}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                        style={{ display: 'inline-block' }}
+                    >
+                        {g.subtitle}
+                    </motion.span>
+                </AnimatePresence>
+            </p>
+        </>
+    );
+}
+
 const DashboardInner = () => {
     // [APPEARANCE-THEME · 2026-05-29] Tema activo para los botones de acción de
     // cada comida (Ver receta / Cambiar Plato / Like): en oscuro sus fondos
@@ -201,6 +354,14 @@ const DashboardInner = () => {
     // panel persiste pase lo que pase con `planData`. La firma cambia al
     // regenerar (nuevo cycle_start_date) → cero stale entre planes distintos.
     const _planMicroSig = planData?.cycle_start_date || planData?.id || planData?.plan_id || planData?.name || null;
+    // [P3-NOTIF-CENTER-STABLE-ID · 2026-06-16] Identificador estable para el panel
+    // de micros (dismiss + id de notificación). Antes el panel usaba
+    // `plan_id || id` que en planes solo-localStorage es undefined → la dismissal
+    // no se persistía (el panel REAPARECÍA) y la notificación recibía un id por
+    // timestamp (DUPLICADOS). Añadimos fallback a cycle_start_date/name (siempre
+    // presentes cuando hay reporte de micros). plan_id/id PRIMERO preserva la
+    // clave existente de planes que sí los tienen (cero migración para ellos).
+    const _microPlanId = planData?.plan_id || planData?.id || planData?.cycle_start_date || planData?.name || null;
     useEffect(() => {
         const rep = planData?.micronutrient_report;
         const adv = planData?.micronutrient_supplement_advice;
@@ -235,10 +396,110 @@ const DashboardInner = () => {
         const key = _planMicroSig ? `mealfit_qdeg_dismissed_${_planMicroSig}` : null;
         setQDegradedHidden(!!(key && safeLocalStorageGet(key, '') === '1'));
     }, [_planMicroSig]);
+    // [P3-NOTIF-CENTER · 2026-06-16] SSOT del payload de notificación del banner
+    // "plan no óptimo" (título + motivo, mismo copy que el banner). Compartido
+    // entre el descarte (X) y el backfill. null si el plan no está degradado.
+    const buildQualityNotification = useCallback(() => {
+        if (!planData?._quality_degraded) return null;
+        const _attempts = planData?._quality_degraded_attempts || 3;
+        const _reason = planData?._quality_degraded_reason;
+        const _sev = planData?._quality_degraded_severity === 'high' ? 'Importante' : 'Menor';
+        const _reasonLabel = _reason
+            ? (Q_DEGRADED_REASON_MAP[_reason] || 'Calidad por debajo del óptimo.')
+            : null;
+        const _reasonText = _reasonLabel
+            ? `Motivo (${_sev}): ${_reasonLabel}`
+            : 'Te entregamos la mejor versión. Usa Cambiar Plato o regenera el plan completo.';
+        return {
+            id: _planMicroSig ? `quality_${_planMicroSig}` : undefined,
+            kind: 'quality',
+            title: `Plan no óptimo (${_attempts} intentos)`,
+            message: _reasonText,
+            severity: 'warning',
+            // Payload estructurado para la vista expandida.
+            data: {
+                attempts: _attempts,
+                severityLabel: _sev,
+                reasonLabel: _reasonLabel,
+                guidance: 'Te entregamos la mejor versión disponible. Usa “Cambiar Plato” para reemplazar comidas puntuales, o regenera el plan completo si quieres reintentarlo.',
+            },
+        };
+    }, [planData?._quality_degraded, planData?._quality_degraded_attempts, planData?._quality_degraded_reason, planData?._quality_degraded_severity, _planMicroSig]);
+
     const dismissQDegraded = () => {
+        const notif = buildQualityNotification();
+        if (notif) addNotification(notif);
+        // Marca el backfill hecho → no re-crear si luego la borras del centro.
+        if (_planMicroSig) safeLocalStorageSet(`mealfit_qdeg_notif_backfilled_${_planMicroSig}`, '1');
         setQDegradedHidden(true);
         if (_planMicroSig) safeLocalStorageSet(`mealfit_qdeg_dismissed_${_planMicroSig}`, '1');
     };
+
+    // [P1-COHERENCE-BANNER-NOTIF · 2026-06-16] Mismo patrón que el banner "plan no
+    // óptimo": el aviso "Revisa tu lista de compras" (`_swap_coherence_warnings`)
+    // se puede CERRAR con su X — al cerrarlo se ARCHIVA en el centro de
+    // notificaciones (no se pierde) y se abre el centro ("redirige a
+    // notificaciones"). Recordado por plan para no re-molestar tras un reload.
+    const [coherenceHidden, setCoherenceHidden] = useState(false);
+    useEffect(() => {
+        const key = _planMicroSig ? `mealfit_coherence_dismissed_${_planMicroSig}` : null;
+        setCoherenceHidden(!!(key && safeLocalStorageGet(key, '') === '1'));
+    }, [_planMicroSig]);
+    const buildCoherenceNotification = useCallback(() => {
+        const cc = planData?._swap_coherence_warnings?.critical_count;
+        if (!cc) return null;
+        return {
+            id: _planMicroSig ? `coherence_${_planMicroSig}` : undefined,
+            kind: 'warning',
+            title: 'Revisa tu lista de compras',
+            message: `Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista (${cc} ${cc === 1 ? 'detalle' : 'detalles'}). Usa “Cambiar Plato” en las comidas que te parezcan inconsistentes.`,
+            severity: 'warning',
+        };
+    }, [planData?._swap_coherence_warnings?.critical_count, _planMicroSig]);
+    const dismissCoherence = () => {
+        const notif = buildCoherenceNotification();
+        if (notif) addNotification(notif);
+        setCoherenceHidden(true);
+        if (_planMicroSig) safeLocalStorageSet(`mealfit_coherence_dismissed_${_planMicroSig}`, '1');
+        // Abre el centro de notificaciones para que el usuario vea dónde quedó.
+        openNotificationCenter();
+    };
+
+    // [P3-NOTIF-CENTER-BACKFILL · 2026-06-16] Reconciliación para avisos
+    // descartados ANTES de que existiera el centro de notificaciones: quedaron
+    // marcados como "ocultos" en localStorage pero sin notificación archivada.
+    // Si el aviso está descartado, su contenido sigue disponible y todavía no se
+    // archivó (flag por-plan), se crea la notificación UNA vez. El flag se fija
+    // tras el primer backfill → si luego borras la notificación del centro, NO
+    // reaparece (el borrado es permanente). Idempotente y por-plan.
+    // Backfill de micros: reconcilia (crea-o-enriquece) la notificación de un
+    // panel descartado. Ver reconcileBackfill (módulo) para la semántica.
+    useEffect(() => {
+        // [P3-NOTIF-CENTER-CONTENT-DISMISS · 2026-06-16] Clave content-based
+        // (espeja el panel) + lee también la legacy por planId para migrar
+        // descartes previos. El flag de backfill también es content-based → el
+        // panel (archive directo) y este efecto comparten id de notificación y
+        // flag, sin asimetría.
+        const sig = microsContentSig(microReport, microAdvice);
+        const dismissedContent = !!sig && safeLocalStorageGet(`mealfit_micros_dismissed_c_${sig}`, '') === '1';
+        const dismissedLegacy = !!_microPlanId && safeLocalStorageGet(`mealfit_micros_dismissed_${_microPlanId}`, '') === '1';
+        if (!dismissedContent && !dismissedLegacy) return; // panel visible → se archiva al descartar
+        reconcileBackfill(
+            buildMicrosNotification({ report: microReport, advice: microAdvice }),
+            sig ? `mealfit_micros_notif_backfilled_c_${sig}` : `mealfit_micros_notif_backfilled_${_microPlanId}`,
+        );
+    }, [_microPlanId, microReport, microAdvice]);
+
+    // Backfill del banner "plan no óptimo".
+    useEffect(() => {
+        if (!_planMicroSig) return;
+        const dismissed = safeLocalStorageGet(`mealfit_qdeg_dismissed_${_planMicroSig}`, '') === '1';
+        if (!dismissed) return;
+        reconcileBackfill(
+            buildQualityNotification(),
+            `mealfit_qdeg_notif_backfilled_${_planMicroSig}`,
+        );
+    }, [_planMicroSig, buildQualityNotification]);
 
     // [P3-DASH-TABS-NO-MOUNT-JUMP · 2026-06-16] Las pestañas de día "se movían"
     // unos ms al refrescar: el auto-select del día activo + la ventana rolling
@@ -617,13 +878,26 @@ const DashboardInner = () => {
     //   3. Usa `formDataRef.current` para que el setTimeout debouncado de
     //      `disabledIngredients` (línea ~210) lea el snapshot MÁS RECIENTE
     //      cuando dispara, no el del momento en que se programó el timer.
-    const safeUpdateHealthProfile = useCallback((overrides) => {
+    const safeUpdateHealthProfile = useCallback((overrides, { silent = false } = {}) => {
         if (!userProfile || typeof updateUserProfile !== 'function') return false;
         const payload = buildHealthProfilePayload(formDataRef.current, overrides, session);
         if (!payload) {
-            toast.warning('Tu perfil aún se está cargando. Inténtalo en un momento.', {
-                duration: 3500,
-            });
+            // [P1-PROFILE-TOAST-SILENT · 2026-06-16] El guard de hidratación
+            // (buildHealthProfilePayload→null cuando allergies/medicalConditions
+            // leen como []) bloquea la escritura para no pisar datos médicos. PERO
+            // las escrituras de FONDO (sync debounced de disabled_ingredients, que
+            // corre en cada carga del dashboard + cada cambio) NO deben molestar al
+            // usuario con un toast — se reintentan solas en el próximo cambio y la
+            // copia en localStorage ya quedó guardada. Sin esto, un perfil cuyos
+            // arrays sensibles leen [] (race persistente o blob no-desencriptado)
+            // disparaba el toast "a cada rato". El toast queda SOLO para acciones
+            // explícitas del usuario (p.ej. cambiar duración de compras), donde el
+            // feedback sí es útil.
+            if (!silent) {
+                toast.warning('Tu perfil aún se está cargando. Inténtalo en un momento.', {
+                    duration: 3500,
+                });
+            }
             return false;
         }
         updateUserProfile({ health_profile: payload });
@@ -656,7 +930,10 @@ const DashboardInner = () => {
         disabledSyncTimer.current = setTimeout(() => {
             // [P1-FORM-9] safeUpdateHealthProfile lee `formDataRef.current` →
             // siempre snapshot más reciente, equivalente al spread anterior.
-            safeUpdateHealthProfile({ disabled_ingredients: disabledIngredients });
+            // [P1-PROFILE-TOAST-SILENT · 2026-06-16] `silent`: es un sync de FONDO
+            // → si el guard lo bloquea, NO toast (se reintenta + ya está en
+            // localStorage). Evita el nag "Tu perfil aún se está cargando" repetido.
+            safeUpdateHealthProfile({ disabled_ingredients: disabledIngredients }, { silent: true });
         }, 800);
     }, [disabledIngredients]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1548,7 +1825,29 @@ const DashboardInner = () => {
             }
 
             // Usar la lista consolidada correcta según el ciclo seleccionado
-            const rawSourceIngredients = getActiveShoppingList(effectivePlanData, duration) || allPlanIngredients || [];
+            const aggregatedList = getActiveShoppingList(effectivePlanData, duration);
+            // [P2-PDF-NO-AGG-GUARD · 2026-06-17] Si NO existe lista AGREGADA real (ni
+            // la del ciclo ni la base), el plan está incompleto/fallido. El fallback
+            // `allPlanIngredients` lista ingredientes CRUDOS por-comida (agua, sal "al
+            // gusto", fracciones tipo "0.5 huevos", duplicados, todo en "Otros") →
+            // inservible como lista de compras. En vez de renderizar esa basura,
+            // avisamos y abortamos (mismo copy que el caso lista-vacía). Sin este guard
+            // un plan fallido (generación incompleta) producía un PDF con decenas de
+            // ingredientes de receta sin consolidar.
+            if (!aggregatedList) {
+                toast.dismiss(loadingToast);
+                toast.error(
+                    'Tu plan no tiene lista de compras todavía. Esto suele pasar cuando la generación quedó incompleta. Genera un plan nuevo desde el formulario.',
+                    {
+                        duration: 8000,
+                        position: 'top-center',
+                        icon: '⚠️',
+                        style: { fontSize: '0.95rem', maxWidth: '480px', padding: '14px 18px', borderRadius: '12px', fontWeight: 500, lineHeight: 1.45 },
+                    }
+                );
+                return;
+            }
+            const rawSourceIngredients = aggregatedList;
 
             // [P1-PDF-1] Fetch de inventario fresco con timeout + degradación
             // visible. Antes el bloque era un `try/catch` silencioso: si el backend anterior
@@ -1943,18 +2242,34 @@ const DashboardInner = () => {
                     return a.localeCompare(b);
                 });
 
+                // [P2-PDF-HYPERDENSE-INNERCOLS · 2026-06-17] En hyper-dense (60+ items)
+                // las columnas van DENTRO de la <ul> (los items fluyen en N columnas
+                // dentro de cada tarjeta full-width), NO como columnas de tarjetas.
+                // Verificado headless (html2pdf real): una categoría con 64 items en
+                // columnas EXTERNAS deja la tarjeta atómica (display:table +
+                // break-inside:avoid-column) → no se parte entre columnas → 1 columna
+                // altísima → 2-3 páginas (hueco en pág. 1 + desborde). Con columnas
+                // internas → 1 página. Para <60 items se mantiene el layout previo
+                // (columnas de tarjetas), que ya rinde 1 página y es más compacto.
+                const cardStyle = isHyperDense
+                    ? 'display: block; width: 100%; page-break-inside: avoid;'
+                    : 'display: table; width: 100%; break-inside: avoid-column; page-break-inside: avoid;';
+                const ulStyle = isHyperDense
+                    ? `list-style: none; padding: 0; margin: 0; column-count: ${columnCount}; column-gap: ${columnGap};`
+                    : 'list-style: none; padding: 0; margin: 0;';
+
                 sortedKeys.forEach(cat => {
                     const icon = `<span style="background-color: #10b981; color: white; border-radius: 4px; padding: 3px; display: flex; align-items: center; justify-content: center; width: 14px; height: 14px;"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></span>`;
                     // [P1-PDF-3] Padding del header de cada tarjeta de categoría.
                     const catHeaderPadding = isHyperDense ? '3px 6px' : isUltraDense ? '4px 8px' : (isDense ? '6px 10px' : '8px 12px');
                     const catTitleFont = isHyperDense ? '8px' : isUltraDense ? '9.5px' : '11px';
                     innerHtml += `
-                    <div style="background-color: #ffffff; border: 1px solid #f3f4f6; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); break-inside: avoid-column; page-break-inside: avoid; margin-bottom: ${catMargin}; display: table; width: 100%;">
+                    <div style="background-color: #ffffff; border: 1px solid #f3f4f6; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); margin-bottom: ${catMargin}; ${cardStyle}">
                         <div style="background-color: #f8fafc; padding: ${catHeaderPadding}; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 6px;">
                             ${icon}
                             <h3 style="margin: 0; font-size: ${catTitleFont}; font-weight: 800; color: #1f2937; text-transform: uppercase; letter-spacing: 0.05em;">${escapeHtml(cat)}</h3>
                         </div>
-                        <ul style="list-style: none; padding: 0; margin: 0;">
+                        <ul style="${ulStyle}">
                     `;
                     groupObj[cat].forEach((item, index) => {
                         const isLast = index === groupObj[cat].length - 1;
@@ -2025,7 +2340,7 @@ const DashboardInner = () => {
                             : '';
 
                         innerHtml += `
-                            <li style="display: flex; align-items: flex-start; padding: ${ulPadding}; ${borderBottom} page-break-inside: avoid;">
+                            <li style="display: flex; align-items: flex-start; padding: ${ulPadding}; ${borderBottom} break-inside: avoid-column; page-break-inside: avoid;">
                                 <div style="width: ${checkboxSize}; height: ${checkboxSize}; border: 1.5px solid #d1d5db; border-radius: ${isDense ? '3px' : '4px'}; margin-right: ${checkboxMarginRight}; flex-shrink: 0; background-color: #ffffff; margin-top: 2px;"></div>
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
                                     <div style="display: flex; flex-direction: column;">
@@ -2046,6 +2361,11 @@ const DashboardInner = () => {
             // ultra-dense, 4 en hyper-dense (≥60 items) para empacar más sin
             // perder legibilidad. column-gap también se reduce en hyper-dense.
             const columnGap = isHyperDense ? '8px' : isUltraDense ? '12px' : '16px';
+            // [P2-PDF-HYPERDENSE-INNERCOLS · 2026-06-17] En hyper-dense las columnas
+            // viven DENTRO de cada tarjeta (ver generateBlocks) → el contenedor de
+            // sección NO lleva column-count (las tarjetas apilan full-width). Para
+            // <60 items se conservan las columnas de tarjetas (más compacto, ya rinde).
+            const sectionWrapStyle = isHyperDense ? '' : `column-count: ${columnCount}; column-gap: ${columnGap};`;
             const sectionLabelFont = isHyperDense ? '8.5px' : isUltraDense ? '9.5px' : '11px';
             const sectionDescFont = isHyperDense ? '7px' : isUltraDense ? '7.5px' : '9px';
 
@@ -2081,7 +2401,7 @@ const DashboardInner = () => {
                         ${perishableDesc}
                     </div>
                 </div>
-                <div style="column-count: ${columnCount}; column-gap: ${columnGap};">
+                <div style="${sectionWrapStyle}">
                 `;
                 htmlContent += generateBlocks(perishables, true);
                 htmlContent += `</div> <!-- End Columns -->`;
@@ -2099,7 +2419,7 @@ const DashboardInner = () => {
                        ${stableDesc}
                     </div>
                 </div>
-                <div style="column-count: ${columnCount}; column-gap: ${columnGap};">
+                <div style="${sectionWrapStyle}">
                 `;
                 htmlContent += generateBlocks(stables, false);
                 htmlContent += `</div> <!-- End Columns -->`;
@@ -2110,8 +2430,12 @@ const DashboardInner = () => {
             // muestra cuántos ingredientes están anclados a USDA FoodData Central (IDs públicos
             // verificables). Convierte la precisión autoafirmada en proveniencia de terceros.
             const _prov = planData?.data_provenance;
+            // [P2-PROVENANCE-FOOTER-HONEST · 2026-06-18] (audit fresco P2) El denominador es
+            // `ingredients_resolved` (ingredientes RESUELTOS únicos), NO el total del plan — decirlo
+            // explícitamente ("resueltos") evita inflar la cobertura percibida cuando hay ingredientes
+            // no-resueltos (0-silencioso) excluidos del denominador. Espejo del `note` server-side.
             const provenanceHTML = (_prov && _prov.usda_traced > 0)
-                ? `<p style="margin: 3px 0 0; font-weight: 500; color: #9ca3af; font-size: 9px; letter-spacing: 0.3px;">Datos nutricionales anclados a USDA FoodData Central — ${escapeHtml(String(_prov.usda_traced))}/${escapeHtml(String(_prov.ingredients_resolved))} ingredientes trazables (IDs públicos en fdc.nal.usda.gov) · resto INCAP/curado es-DO</p>`
+                ? `<p style="margin: 3px 0 0; font-weight: 500; color: #9ca3af; font-size: 9px; letter-spacing: 0.3px;">Datos nutricionales anclados a USDA FoodData Central — ${escapeHtml(String(_prov.usda_traced))}/${escapeHtml(String(_prov.ingredients_resolved))} ingredientes resueltos trazables (IDs públicos en fdc.nal.usda.gov) · resto INCAP/curado es-DO</p>`
                 : '';
 
             // [P2-PRO-REVIEW-SURFACE + P2-MICRONUTRIENT-SURFACE · 2026-06-15] El plan IMPRESO que el
@@ -2151,13 +2475,21 @@ const DashboardInner = () => {
             element.innerHTML = htmlContent;
 
             // [P1-PDF-3] Configuración de paginación según densidad.
-            // - 1 página (default): `avoid-all` evita cortes dentro de tarjetas
-            //   pero también dentro del bloque entero — comprime cuando hay
-            //   espacio suficiente.
-            // - multi-página (≥80 items): cambia a estrategia CSS+legacy que
-            //   respeta `page-break-inside: avoid` por elemento individual,
-            //   permitiendo que html2pdf paginee formalmente sin truncar.
-            const pagebreakMode = multiPage ? ['css', 'legacy'] : ['avoid-all'];
+            // - Normal/dense/ultra (<60 items): `avoid-all` evita cortes dentro
+            //   de tarjetas Y del bloque entero — comprime y cabe en 1 página.
+            // - hyper-dense / multi-página (≥60 items): estrategia CSS+legacy que
+            //   respeta `page-break-inside: avoid` por elemento individual.
+            //
+            // [P2-PDF-HYPERDENSE-PAGEBREAK · 2026-06-17] hyper-dense (60-79 items)
+            // SE MUEVE de avoid-all a css+legacy. Con avoid-all, html2pdf marcaba
+            // el contenedor multi-columna ENTERO como `page-break-inside: avoid`;
+            // al no caber en lo que resta de la página 1 tras el header, lo empujaba
+            // COMPLETO a la página 2 (hueco gigante en pág. 1) y, al ser más alto
+            // que una página, desbordaba a la 3 → "muy raro, 3 páginas". css+legacy
+            // deja que el contenido arranque en la página 1 y fluya/paginee por
+            // tarjeta sin truncar (1 página cuando cabe; corte limpio si no).
+            const paginateFormally = multiPage || isHyperDense;
+            const pagebreakMode = paginateFormally ? ['css', 'legacy'] : ['avoid-all'];
             // [P3-SHOPPING-1 · 2026-05-14] Nombre PDF con discriminador único:
             // fecha (YYYY-MM-DD) + prefix corto del plan_id. Antes el filename
             // era `Lista_de_compras_7_Días.pdf` y descargar 2 PDFs con la
@@ -2168,7 +2500,7 @@ const DashboardInner = () => {
             const _planIdPrefix = (effectivePlanData?.id || '').toString().slice(0, 8) || 'noid';
             const _today = new Date().toISOString().slice(0, 10);
             const opt = {
-                margin: multiPage ? [6, 4, 8, 4] : [4, 0, 0, 0],
+                margin: paginateFormally ? [6, 4, 8, 4] : [4, 0, 0, 0],
                 filename: `Lista_de_compras_${durationText.replace(/ /g, '_')}_${_today}_${_planIdPrefix}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, windowWidth: 800 },
@@ -3638,41 +3970,10 @@ const DashboardInner = () => {
                         })()}
                     </div>
 
-                    <h1 className="dashboard-title">
-                        Hola, <span style={{
-                            background: 'linear-gradient(to right, #3B82F6, #8B5CF6)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            backgroundClip: 'text',
-                            // [P3-GRADIENT-NAME-CLIP-FIX · 2026-05-26]
-                            // `background-clip: text` recorta el gradient al
-                            // bounding box del span, NO al outline real del
-                            // glyph. Eso causa 2 modos de truncamiento:
-                            //   1. Horizontal: `letter-spacing: -0.03em` del
-                            //      .dashboard-title encoge el bounding box
-                            //      → último glyph (e.g. "O" de "Angelo") se
-                            //      corta por la derecha. Fix: paddingRight.
-                            //   2. Vertical: `line-height: 1.1` del title es
-                            //      muy apretado → descenders ("g", "j", "p",
-                            //      "y") se cortan por abajo. Fix: paddingBottom
-                            //      + lineHeight propio del span.
-                            // `display: inline-block` es necesario para que
-                            // el padding y el lineHeight tomen efecto en un
-                            // span inline. `verticalAlign: baseline` mantiene
-                            // la alineación con "Hola," intacta. El gradient
-                            // visual NO cambia (sigue clipped al glyph).
-                            display: 'inline-block',
-                            paddingRight: '0.08em',
-                            paddingBottom: '0.06em',
-                            lineHeight: 1.2,
-                            verticalAlign: 'baseline',
-                        }}>
-                            {userProfile?.full_name?.split(' ')[0] || formData?.name || 'Nutrifit'}
-                        </span>
-                    </h1>
-                    <p className="dashboard-subtitle">
-                        Aquí tienes tu estrategia nutricional.
-                    </p>
+                    {/* [P3-GREETING-ROTATE · 2026-06-19] Saludo time-aware que rota cada ~9s
+                        con transición animada. El nombre conserva su gradient (estilo en
+                        `_GREETING_NAME_STYLE`, con los fixes de clip P3-GRADIENT-NAME-CLIP-FIX). */}
+                    <RotatingGreeting firstName={userProfile?.full_name?.split(' ')[0] || formData?.name || 'Nutrifit'} />
                 </div>
 
                 {/* --- ACTIONS GROUP --- */}
@@ -4422,7 +4723,7 @@ const DashboardInner = () => {
                 <MicronutrientPanel
                     report={microReport}
                     advice={microAdvice}
-                    planId={planData?.plan_id || planData?.id}
+                    planId={_microPlanId}
                     onAsk={(question) => {
                         // [P3-AGENT-PREFILL · 2026-06-15] El chat es solo para
                         // cuentas (el invitado no accede a /dashboard/agent). Para
@@ -4481,19 +4782,8 @@ const DashboardInner = () => {
                         {planData?._quality_degraded_reason && (
                             <span style={{ color: isDark ? '#FCD34D' : '#92400E', fontSize: '0.72rem', display: 'block', marginTop: '0.3rem', opacity: isDark ? 0.85 : 0.85 }}>
                                 {(() => {
-                                    const _qReasonMap = {
-                                        high_contextual: 'No pudimos adaptar el plan a una restricción tuya (despensa, alergia o condición).',
-                                        max_attempts: 'El revisor de calidad no aprobó el plan tras varios intentos.',
-                                        invalid_pipeline_start: 'Hubo un problema técnico al iniciar la generación.',
-                                        budget_exhausted: 'Se alcanzó el límite de generación para este plan.',
-                                        // [P2-BAND-SCORE-GATE · 2026-06-15] motivo emitido por _maybe_mark_low_band_degraded
-                                        low_band_score: 'La precisión de macros de este plan quedó por debajo de la banda objetivo.',
-                                        // [P2-PANEL-SOFT-REJECT · 2026-06-15] motivos de _maybe_mark_panel_degraded
-                                        condition_panel_gap: 'El balance de tu condición (grasa saturada / potasio / magnesio / fibra) quedó fuera de la meta tras los ajustes automáticos. Revísalo con tu profesional.',
-                                        low_micros: 'Algunos micronutrientes (fibra / potasio / magnesio / calcio) quedaron por debajo del objetivo diario.',
-                                        high_sodium_sugar: 'El sodio o el azúcar añadida quedaron por encima del techo recomendado por la OMS.',
-                                    };
-                                    const _label = _qReasonMap[planData._quality_degraded_reason] || 'Calidad por debajo del óptimo.';
+                                    // [P3-NOTIF-CENTER · 2026-06-16] Mapa elevado a módulo (Q_DEGRADED_REASON_MAP).
+                                    const _label = Q_DEGRADED_REASON_MAP[planData._quality_degraded_reason] || 'Calidad por debajo del óptimo.';
                                     const _sev = planData?._quality_degraded_severity === 'high' ? 'Importante' : 'Menor';
                                     return <>Motivo ({_sev}): {_label}</>;
                                 })()}
@@ -4533,34 +4823,60 @@ const DashboardInner = () => {
                 después; el usuario veía la inconsistencia sin contexto. Ahora
                 el plan_data trae inline `_swap_coherence_warnings` y el
                 Dashboard lo renderea en el primer paint del plan entregado. */}
-            {planData?._swap_coherence_warnings?.critical_count > 0 && (
+            {planData?._swap_coherence_warnings?.critical_count > 0 && !coherenceHidden && (
                 <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     style={{
                         display: 'flex',
-                        alignItems: 'center',
+                        alignItems: 'flex-start',
                         gap: '0.75rem',
-                        background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
-                        border: '1.5px solid #FCD34D',
+                        background: isDark
+                            ? 'linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(217,119,6,0.16) 100%)'
+                            : 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+                        border: isDark ? '1px solid rgba(251,191,36,0.32)' : '1.5px solid #FCD34D',
                         borderRadius: '1rem',
                         padding: '1rem 1.25rem',
                         marginBottom: '1.5rem',
-                        boxShadow: '0 4px 12px -2px rgba(217,119,6,0.15)',
+                        boxShadow: isDark ? '0 4px 12px -2px rgba(0,0,0,0.5)' : '0 4px 12px -2px rgba(217,119,6,0.15)',
                         flexWrap: 'wrap'
                     }}
                     role="status"
                     aria-live="polite"
                 >
-                    <AlertCircle size={22} color="#D97706" style={{ flexShrink: 0 }} />
+                    <AlertCircle size={22} color={isDark ? '#FBBF24' : '#D97706'} style={{ flexShrink: 0, marginTop: '1px' }} />
                     <div style={{ flex: 1, minWidth: '200px' }}>
-                        <span style={{ fontWeight: 700, color: '#92400E', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
+                        <span style={{ fontWeight: 700, color: isDark ? '#FDE68A' : '#92400E', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
                             Revisa tu lista de compras
                         </span>
-                        <span style={{ color: '#B45309', fontSize: '0.85rem' }}>
+                        <span style={{ color: isDark ? '#FCD34D' : '#B45309', fontSize: '0.85rem', lineHeight: 1.4 }}>
                             Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista ({planData._swap_coherence_warnings.critical_count} {planData._swap_coherence_warnings.critical_count === 1 ? 'detalle' : 'detalles'}). Usa <strong>Cambiar Plato</strong> en las comidas que te parezcan inconsistentes.
                         </span>
                     </div>
+                    {/* [P1-COHERENCE-BANNER-NOTIF · 2026-06-16] Cerrar → archiva el
+                        aviso en el centro de notificaciones y lo abre. */}
+                    <button
+                        type="button"
+                        onClick={dismissCoherence}
+                        aria-label="Ocultar y enviar a notificaciones"
+                        title="Ocultar (se guarda en notificaciones)"
+                        style={{
+                            flexShrink: 0,
+                            display: 'grid',
+                            placeItems: 'center',
+                            width: 26,
+                            height: 26,
+                            marginTop: '-1px',
+                            border: 'none',
+                            borderRadius: '0.5rem',
+                            background: 'transparent',
+                            color: isDark ? '#FCD34D' : '#B45309',
+                            opacity: 0.75,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <X size={16} strokeWidth={2.5} />
+                    </button>
                 </motion.div>
             )}
 
