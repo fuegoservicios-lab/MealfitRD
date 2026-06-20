@@ -1,0 +1,114 @@
+/* [P3-AVATAR-PICKER · 2026-06-20] Modal del selector de avatar. Theme-aware. */
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: grid;
+    place-items: center;
+    padding: 1.25rem;
+    background: rgba(8, 10, 20, 0.62);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: apFade 0.16s ease;
+}
+@keyframes apFade { from { opacity: 0; } to { opacity: 1; } }
+
+.sheet {
+    width: 100%;
+    max-width: 420px;
+    max-height: 86vh;
+    overflow-y: auto;
+    border-radius: 1.25rem;
+    padding: 1.25rem 1.35rem 1.5rem;
+    background: var(--bg-card, #14161f);
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    box-shadow: 0 30px 70px -24px rgba(0, 0, 0, 0.65);
+    animation: apPop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes apPop { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+.head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.25rem;
+}
+.title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-main, #fff);
+}
+.close {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--text-muted, #9aa3b2);
+    background: var(--bg-muted, rgba(255, 255, 255, 0.06));
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.close:hover { color: var(--text-main, #fff); background: rgba(255, 255, 255, 0.12); }
+
+.hint {
+    margin: 0 0 1.1rem;
+    font-size: 0.82rem;
+    color: var(--text-muted, #9aa3b2);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 0.7rem;
+}
+
+.opt {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    background: transparent;
+    transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+.opt:hover { transform: translateY(-2px); }
+.opt > svg, .opt > .letter { width: 100%; height: 100%; }
+
+/* anillo de selección */
+.optActive {
+    box-shadow: 0 0 0 2px var(--bg-card, #14161f), 0 0 0 4px var(--primary, #6366F1);
+}
+
+.letter {
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #6366F1 0%, #4F46E5 55%, #4338CA 100%);
+}
+
+.tick {
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    color: #fff;
+    background: var(--primary, #6366F1);
+    border: 2px solid var(--bg-card, #14161f);
+}

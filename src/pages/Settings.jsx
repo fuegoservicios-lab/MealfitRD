@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
     User, Shield, ChevronRight, ArrowLeft,
-    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat, GlassWater, Cog, Fingerprint,
+    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat, GlassWater, Cog, Fingerprint, Pencil,
     Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,6 +35,9 @@ import { buildHealthProfilePayload } from '../config/secureFormStorage';
 // [P1-SUPERPERSONALIZATION-1 · 2026-06-19] Panel opt-in de preferencias ricas
 // (gustos/cultura/equipo/sabor/nivel/texto libre) → health_profile.super_personalization.
 import SuperPersonalizationPanel from '../components/settings/SuperPersonalizationPanel';
+// [P3-AVATAR-PICKER · 2026-06-20] Selector de avatares minimalistas (clic en el avatar del perfil).
+import AvatarPicker from '../components/avatars/AvatarPicker';
+import { MinimalAvatar } from '../components/avatars/minimalAvatars';
 
 // [APPEARANCE-THEME · 2026-05-28] Opciones del selector de Apariencia de la
 // sección "Preferencias". `value` se persiste en localStorage('mealfit_theme')
@@ -529,6 +532,17 @@ const Settings = () => {
     // --- ESTADOS DE EVALUACIÓN ---
     const [showEvaluateModal, setShowEvaluateModal] = useState(false);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+    // [P3-AVATAR-PICKER · 2026-06-20] Avatar del perfil: id del avatar minimalista
+    // elegido (o null = inicial). Persistido en localStorage (cosmético, per-device).
+    const [avatarId, setAvatarId] = useState(() => safeLocalStorageGet('mealfit_avatar', null));
+    const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+    const handleSelectAvatar = (id) => {
+        setAvatarId(id);
+        if (id) safeLocalStorageSet('mealfit_avatar', id);
+        else safeLocalStorageRemove('mealfit_avatar');
+        setAvatarPickerOpen(false);
+    };
 
     // --- NAVEGACIÓN DE SECCIONES ---
     // activeSection puede ser un id de SECTION_IDS o null (en móvil = vista de lista).
@@ -1713,12 +1727,53 @@ const Settings = () => {
 
                         <div className={styles.profileFlex}>
                             
-                            {/* Avatar Centrado — sin marginBottom: profileFlex ya tiene gap. */}
+                            {/* [P3-AVATAR-PICKER · 2026-06-20] Avatar clicable → abre el selector
+                                de avatares minimalistas. Si hay uno elegido lo renderiza; si no,
+                                la inicial sobre el gradiente de siempre. */}
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                <div className={styles.avatar}>
-                                    {userName ? userName.charAt(0).toUpperCase() : 'U'}
-                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setAvatarPickerOpen(true)}
+                                    aria-label="Cambiar avatar"
+                                    style={{ position: 'relative', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', borderRadius: '50%', lineHeight: 0 }}
+                                >
+                                    {avatarId ? (
+                                        <MinimalAvatar
+                                            id={avatarId}
+                                            size={88}
+                                            style={{
+                                                borderRadius: '50%',
+                                                boxShadow: '0 8px 24px rgba(0,0,0,0.35), 0 0 0 4px rgba(255,255,255,0.7), 0 0 0 5px rgba(79,70,229,0.15)',
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className={styles.avatar}>
+                                            {userName ? userName.charAt(0).toUpperCase() : 'U'}
+                                        </div>
+                                    )}
+                                    <span
+                                        aria-hidden="true"
+                                        style={{
+                                            position: 'absolute', right: 2, bottom: 2,
+                                            width: 28, height: 28, borderRadius: '50%',
+                                            display: 'grid', placeItems: 'center',
+                                            color: '#fff', background: 'var(--primary, #4F46E5)',
+                                            border: '3px solid var(--bg-card, #14161f)',
+                                            boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                                        }}
+                                    >
+                                        <Pencil size={13} />
+                                    </span>
+                                </button>
                             </div>
+
+                            <AvatarPicker
+                                open={avatarPickerOpen}
+                                current={avatarId}
+                                userInitial={userName ? userName.charAt(0).toUpperCase() : 'U'}
+                                onSelect={handleSelectAvatar}
+                                onClose={() => setAvatarPickerOpen(false)}
+                            />
                             
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                 {/* Nombre */}
