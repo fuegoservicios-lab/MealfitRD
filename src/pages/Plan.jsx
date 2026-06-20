@@ -362,6 +362,12 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                 // cuando termine.
                 console.warn("🟡 Pipeline ya activo — propagando para recovery via dashboard.");
                 throw error;
+            } else if (error.code === 'critical_restriction') {
+                // [P2-CRITICAL-REJECTION-CODE · 2026-06-18] Rechazo crítico (alergia/condición
+                // declarada que la IA no logró satisfacer). Reintentar NO ayuda (restricción fija) →
+                // NO intentar el endpoint síncrono; propagar para que el caller muestre la guía correcta.
+                console.warn("🛑 Rechazo crítico de restricción declarada — propagando (no reintentar).");
+                throw error;
             } else if (error.code === 'llm_unavailable') {
                 // El backend YA decidió que la IA no está disponible (504 de Gemini,
                 // circuit breaker abierto, etc.). El endpoint síncrono devolverá el
@@ -406,12 +412,31 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                         e503.code = 'llm_unavailable';
                         throw e503;
                     }
+                    // [P2-CRITICAL-REJECTION-CODE · 2026-06-18] 422 con detail STRING = rechazo crítico de
+                    // restricción declarada (alergia/condición). Los errores de VALIDACIÓN del endpoint
+                    // (missing_required_fields / invalid_total_days / invalid_biometric_range) también devuelven
+                    // 422 pero con detail tipo DICT → NO los tratamos como critical_restriction (caerían al
+                    // handler genérico con su mensaje propio). Gate por typeof string para no mislabelar.
+                    if (response2.status === 422) {
+                        const body = await response2.json().catch(() => ({}));
+                        if (typeof body?.detail === 'string') {
+                            const e422 = new Error(body.detail || 'Revisa tus restricciones declaradas.');
+                            e422.code = 'critical_restriction';
+                            throw e422;
+                        }
+                        // 422 de validación (detail dict): propagar como error genérico (no critical).
+                        const eVal = new Error(
+                            (body?.detail && body.detail.message) || 'Revisa los datos del formulario.');
+                        throw eVal;
+                    }
                     const data = await response2.json();
                     return (Array.isArray(data) && data.length > 0) ? data[0] : data;
                 } catch (fallbackErr) {
                     console.error('❌ Fallback síncrono también falló:', fallbackErr);
                     // Si fue 503 de LLM, propagar el code para el caller
                     if (fallbackErr.code === 'llm_unavailable') throw fallbackErr;
+                    // [P2-CRITICAL-REJECTION-CODE] 422 rechazo crítico también propaga (no reintentar).
+                    if (fallbackErr.code === 'critical_restriction') throw fallbackErr;
                     // [P1-B10] 429 desde el fallback síncrono también propaga.
                     if (fallbackErr.code === 'rate_limited') throw fallbackErr;
                 }
@@ -878,6 +903,20 @@ const Plan = () => {
                     // congelada confunde — el user prefiere volver al formulario
                     // y reintentar desde ahí. Toast sigue visible en el
                     // formulario; el botón de generar relanza el plan.
+                    if (error.code === 'critical_restriction') {
+                        // [P2-CRITICAL-REJECTION-CODE · 2026-06-18] Rechazo crítico: la IA no logró un
+                        // plan que respete una restricción declarada (alergia/condición). Mensaje accionable
+                        // ("revisa tus restricciones"), NO "IA saturada" — reintentar a ciegas no ayuda.
+                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                        import('sonner').then(({ toast }) => {
+                            toast.error("Revisa tus restricciones", {
+                                description: error.message || "No pudimos generar un plan que respete tus restricciones declaradas. Ajústalas e intenta de nuevo.",
+                                duration: 10000,
+                            });
+                        });
+                        navigate('/assessment', { replace: true });
+                        return;
+                    }
                     if (error.code === 'llm_unavailable') {
                         // [P3-CLEAR-FLAG-ON-FATAL · 2026-05-16] Limpiar flag:
                         // el backend rechazó ANTES de iniciar pipeline (CB abierto).
@@ -1647,7 +1686,7 @@ PreviewScreen.propTypes = { oldPlan: PropTypes.object, newPlan: PropTypes.object
 // [P5-SPEED-LOADINGSCREEN-HOIST · 2026-06-01] `steps` (10 objetos con refs a íconos
 // lucide module-level) y `tips` (5 strings) izados a module-scope. Antes vivían DENTRO
 // de LoadingScreen → se reconstruían en cada render, y LoadingScreen re-renderiza a
-// sub-segundo durante 10-15 min (la barra de progreso + contador de tiempo + rotación
+// sub-segundo durante ~4-5 min (la barra de progreso + contador de tiempo + rotación
 // de tips). Dependen solo de imports module-level → se alocan una vez aquí.
 const LOADING_STEPS = [
     { text: "Iniciando motor de Inteligencia Artificial", icon: Server, pct: 5, phase: null },
@@ -1685,14 +1724,15 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     // plan" sin idea de cuánto duraría → ansiedad + intentos de cancelar
     // prematuros.
     //
-    // Calibración real (logs prod 2026-05-16): el pipeline completo tarda
-    // 12-13 min (775s observado: planner 60s + day_gen paralelo 170s +
-    // self-critique 136s + reviewer 80s + assembly + retries con el backend anterior
-    // free tier que satura pool). Rango honesto = 10-15 min. Copy adapta:
-    //   - <30s:     "Esto suele tomar entre 10 y 15 minutos."
-    //   - 30s-15m:  "Transcurrido X:XX · estimado 10-15 minutos"
-    //   - 15-20m:   "Transcurrido X:XX · ya casi terminamos, espera un poco más"
-    //   - >20m:     "Transcurrido X:XX · gracias por tu paciencia · cerca del final"
+    // Calibración real (logs prod 2026-06-17, era DeepSeek V4): el pipeline
+    // completo tarda ~3-5 min (skeleton ~22s + day_gen paralelo ~30s +
+    // self-critique ~2min + reviewer + assembly). MUCHO más rápido que los
+    // 12-13 min de la era Gemini (free-tier que saturaba pool). Rango honesto
+    // = 4-5 min. Copy adapta:
+    //   - <30s:    "Esto suele tomar entre 4 y 5 minutos."
+    //   - 30s-6m:  "Transcurrido X:XX · estimado 4-5 minutos"
+    //   - 6-10m:   "Transcurrido X:XX · ya casi terminamos, espera un poco más"
+    //   - >10m:    "Transcurrido X:XX · gracias por tu paciencia · cerca del final"
     // El startTimeRef se inicializa UNA VEZ al mount (useRef no re-init en
     // re-renders) — incluso si el componente re-renderea por cambios de
     // status/streamPhase, el contador es continuo desde el primer mount.
@@ -1807,12 +1847,12 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     const timeMessage = (() => {
         const transcurrido = formatElapsed(elapsedSec);
         if (elapsedSec < 30) {
-            return 'Esto suele tomar entre 10 y 15 minutos.';
+            return 'Esto suele tomar entre 4 y 5 minutos.';
         }
-        if (elapsedSec < 15 * 60) {
-            return `Transcurrido ${transcurrido} · estimado 10-15 minutos`;
+        if (elapsedSec < 6 * 60) {
+            return `Transcurrido ${transcurrido} · estimado 4-5 minutos`;
         }
-        if (elapsedSec < 20 * 60) {
+        if (elapsedSec < 10 * 60) {
             return `Transcurrido ${transcurrido} · ya casi terminamos, espera un poco más`;
         }
         return `Transcurrido ${transcurrido} · gracias por tu paciencia · cerca del final`;
