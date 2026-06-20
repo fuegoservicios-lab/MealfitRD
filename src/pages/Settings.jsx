@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
     User, Shield, ChevronRight, ArrowLeft,
-    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat, GlassWater, Cog,
+    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat, GlassWater, Cog, Sparkles,
     Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,6 +32,9 @@ import OptionPickerModal from '../components/common/OptionPickerModal';
 // flags `_*` y con guard contra race de hidratación cifrada. Ver
 // `secureFormStorage.js` para el rationale completo.
 import { buildHealthProfilePayload } from '../config/secureFormStorage';
+// [P1-SUPERPERSONALIZATION-1 · 2026-06-19] Panel opt-in de preferencias ricas
+// (gustos/cultura/equipo/sabor/nivel/texto libre) → health_profile.super_personalization.
+import SuperPersonalizationPanel from '../components/settings/SuperPersonalizationPanel';
 
 // [APPEARANCE-THEME · 2026-05-28] Opciones del selector de Apariencia de la
 // sección "Preferencias". `value` se persiste en localStorage('mealfit_theme')
@@ -530,7 +533,7 @@ const Settings = () => {
     // --- NAVEGACIÓN DE SECCIONES ---
     // activeSection puede ser un id de SECTION_IDS o null (en móvil = vista de lista).
     // Sincronizado con window.location.hash para deep-linking y back/forward del navegador.
-    const SECTION_IDS = ['profile', 'preferences', 'plan', 'subscription'];
+    const SECTION_IDS = ['profile', 'preferences', 'superpers', 'plan', 'subscription'];
     const computeInitialSection = () => {
         if (typeof window === 'undefined') return 'profile';
         const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
@@ -651,6 +654,7 @@ const Settings = () => {
     const sectionsConfig = [
         { id: 'profile', label: 'General', description: 'Cuenta, apariencia y notificaciones', Icon: Cog, iconBg: _settingsDark ? 'rgba(59, 130, 246, 0.16)' : '#EFF6FF', iconColor: _settingsDark ? '#60A5FA' : '#3B82F6' },
         { id: 'preferences', label: 'Capacidades', description: 'Modo automático, memoria y datos del agente', Icon: SlidersHorizontal, iconBg: _settingsDark ? 'rgba(219, 39, 119, 0.18)' : '#FCE7F3', iconColor: _settingsDark ? '#F472B6' : '#DB2777' },
+        { id: 'superpers', label: 'Súper Personalización', description: 'Gustos, cocina, equipo y más para mejores planes', Icon: Sparkles, iconBg: _settingsDark ? 'rgba(245, 158, 11, 0.18)' : '#FEF3C7', iconColor: _settingsDark ? '#FBBF24' : '#D97706' },
         { id: 'plan', label: 'Plan & Objetivo', description: 'Meta principal y calorías', Icon: Trophy, iconBg: _settingsDark ? 'rgba(16, 185, 129, 0.18)' : '#DCFCE7', iconColor: _settingsDark ? '#34D399' : '#166534' },
         { id: 'subscription', label: 'Suscripción', description: 'Plan, pagos y cancelación', Icon: CreditCard, iconBg: _settingsDark ? 'rgba(99, 102, 241, 0.18)' : '#E0E7FF', iconColor: _settingsDark ? '#A5B4FC' : '#4F46E5' },
     ];
@@ -2438,6 +2442,21 @@ const Settings = () => {
                         slate-200, icon container coloreado por meta, texto
                         slate-900, CTA slate-900 con ArrowRight + microinteracción
                         translateX hover. */}
+                    {/* [P1-SUPERPERSONALIZATION-1 · 2026-06-19] Panel opt-in de
+                        preferencias ricas. El componente carga/guarda vía el
+                        endpoint backend y sincroniza formData al guardar. */}
+                    {activeSection === 'superpers' && (
+                        <section className={styles.section}>
+                            <h2 className={styles.sectionTitle}>
+                                Súper Personalización
+                            </h2>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                                Dale a la IA más contexto sobre ti para planes clínicos y respuestas más precisas.
+                            </p>
+                            <SuperPersonalizationPanel />
+                        </section>
+                    )}
+
                     {activeSection === 'plan' && (
                         <section className={styles.section}>
                             <style>{`

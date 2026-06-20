@@ -1,0 +1,259 @@
+/* [P1-SUPERPERSONALIZATION-1 · 2026-06-19] Panel de Súper Personalización.
+   Theme-aware vía CSS vars globales (index.css). */
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 2rem 0;
+    color: var(--text-muted);
+    font-size: 0.92rem;
+}
+
+.spin {
+    animation: spPanelSpin 0.9s linear infinite;
+}
+@keyframes spPanelSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* ---- Intro ---- */
+.intro {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.9rem 1rem;
+    border-radius: 0.85rem;
+    background: rgba(79, 70, 229, 0.06);
+    border: 1px solid rgba(79, 70, 229, 0.18);
+}
+.intro p {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+.introIcon {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 0.6rem;
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary, #4F46E5) 0%, var(--secondary, #10B981) 100%);
+}
+
+/* ---- Field ---- */
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+.hint {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+.row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+}
+@media (max-width: 560px) {
+    .row { grid-template-columns: 1fr; }
+}
+
+/* ---- Tag input ---- */
+.tagBox {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.6rem;
+    min-height: 46px;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--bg-input, var(--bg-card, #fff));
+    transition: border-color 0.15s ease;
+}
+.tagBox:focus-within {
+    border-color: var(--primary, #4F46E5);
+}
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.3rem 0.25rem 0.6rem;
+    border-radius: 99px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--primary, #4F46E5);
+    background: rgba(79, 70, 229, 0.1);
+    border: 1px solid rgba(79, 70, 229, 0.22);
+}
+.tag button {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    color: inherit;
+    background: rgba(79, 70, 229, 0.16);
+}
+.tag button:hover {
+    background: rgba(79, 70, 229, 0.3);
+}
+.tagInput {
+    flex: 1;
+    min-width: 120px;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    padding: 0.25rem;
+}
+.tagInput::placeholder {
+    color: var(--text-light, #94A3B8);
+}
+.tagAdd {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    flex: none;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    color: #fff;
+    background: var(--primary, #4F46E5);
+}
+
+/* ---- Predefined chips (equipment) ---- */
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.chip {
+    padding: 0.45rem 0.85rem;
+    border-radius: 99px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--text-muted);
+    background: var(--bg-muted, #F1F5F9);
+    border: 1px solid var(--border);
+    transition: all 0.15s ease;
+}
+.chip:hover {
+    color: var(--text-main);
+}
+.chipActive {
+    color: #fff;
+    background: var(--primary, #4F46E5);
+    border-color: var(--primary, #4F46E5);
+}
+
+/* ---- Select ---- */
+.select {
+    width: 100%;
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.7rem;
+    border: 1px solid var(--border);
+    background: var(--bg-input, var(--bg-card, #fff));
+    color: var(--text-main);
+    font-size: 0.9rem;
+    cursor: pointer;
+    outline: none;
+}
+.select:focus {
+    border-color: var(--primary, #4F46E5);
+}
+
+/* ---- Flavor profile ---- */
+.flavors {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+@media (max-width: 560px) {
+    .flavors { grid-template-columns: 1fr; }
+}
+.flavor {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.flavor > span {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* ---- Textarea ---- */
+.textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 110px;
+    padding: 0.75rem 0.85rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--bg-input, var(--bg-card, #fff));
+    color: var(--text-main);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    font-family: inherit;
+    outline: none;
+}
+.textarea:focus {
+    border-color: var(--primary, #4F46E5);
+}
+.counter {
+    align-self: flex-end;
+    font-size: 0.72rem;
+    color: var(--text-light, #94A3B8);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Save ---- */
+.save {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    align-self: flex-start;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary, #4F46E5) 0%, var(--secondary, #10B981) 100%);
+    box-shadow: 0 8px 20px -8px rgba(79, 70, 229, 0.5);
+    transition: opacity 0.15s ease, transform 0.1s ease;
+}
+.save:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+.save:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
