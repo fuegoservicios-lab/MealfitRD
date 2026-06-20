@@ -21,19 +21,23 @@ const MAX_TAGS = 30;
 const MAX_TAG_LEN = 60;
 const MAX_FREETEXT = 1500;
 
+const MAX_OTHER = 80;
+
 const EMPTY = {
     foodLikes: [],
     cuisines: [],
     kitchenEquipment: [],
     religiousRestriction: '',
+    religiousRestrictionOther: '',
     cookingSkill: '',
     flavorProfile: {},
     freeText: '',
 };
 
 const EQUIPMENT_OPTIONS = [
-    'Estufa', 'Horno', 'Microondas', 'Airfryer', 'Licuadora',
-    'Olla de presión', 'Sartén / Caldero', 'Procesador',
+    'Estufa', 'Horno', 'Microondas', 'Airfryer', 'Licuadora', 'Batidora',
+    'Olla de presión', 'Olla arrocera', 'Sartén / Caldero', 'Sandwichera',
+    'Tostadora', 'Procesador', 'Parrilla / BBQ',
 ];
 const RELIGION_OPTIONS = [
     { value: '', label: 'Ninguna' },
@@ -41,7 +45,9 @@ const RELIGION_OPTIONS = [
     { value: 'kosher', label: 'Kosher' },
     { value: 'sin_cerdo', label: 'Sin cerdo' },
     { value: 'sin_res', label: 'Sin carne de res' },
+    { value: 'sin_mariscos', label: 'Sin mariscos' },
     { value: 'sin_alcohol', label: 'Sin alcohol' },
+    { value: 'otra', label: 'Otra…' },
 ];
 const SKILL_OPTIONS = [
     { value: '', label: 'Sin especificar' },
@@ -135,6 +141,7 @@ export default function SuperPersonalizationPanel({ onSaved }) {
                     kitchenEquipment: Array.isArray(payload.kitchenEquipment) ? payload.kitchenEquipment : [],
                     flavorProfile: (payload.flavorProfile && typeof payload.flavorProfile === 'object') ? payload.flavorProfile : {},
                     freeText: typeof payload.freeText === 'string' ? payload.freeText : '',
+                    religiousRestrictionOther: typeof payload.religiousRestrictionOther === 'string' ? payload.religiousRestrictionOther : '',
                 });
             }
         } catch {
@@ -166,6 +173,7 @@ export default function SuperPersonalizationPanel({ onSaved }) {
                 cuisines: sp.cuisines,
                 kitchenEquipment: sp.kitchenEquipment,
                 religiousRestriction: sp.religiousRestriction || '',
+                religiousRestrictionOther: sp.religiousRestriction === 'otra' ? (sp.religiousRestrictionOther || '').slice(0, MAX_OTHER) : '',
                 cookingSkill: sp.cookingSkill || '',
                 flavorProfile: sp.flavorProfile || {},
                 freeText: (sp.freeText || '').slice(0, MAX_FREETEXT),
@@ -267,6 +275,22 @@ export default function SuperPersonalizationPanel({ onSaved }) {
                     </select>
                 </div>
             </div>
+
+            {sp.religiousRestriction === 'otra' && (
+                <div className={styles.field}>
+                    <label className={styles.label}>Especifica tu restricción</label>
+                    <p className={styles.hint}>La IA la respetará como exclusión obligatoria — nunca incluirá lo que prohíbe.</p>
+                    <input
+                        className={styles.select}
+                        style={{ cursor: 'text' }}
+                        type="text"
+                        value={sp.religiousRestrictionOther || ''}
+                        onChange={(e) => set('religiousRestrictionOther', e.target.value.slice(0, MAX_OTHER))}
+                        maxLength={MAX_OTHER}
+                        placeholder="Ej: sin carne los viernes, jainista (sin raíces), sin cerdo ni alcohol…"
+                    />
+                </div>
+            )}
 
             <div className={styles.field}>
                 <label className={styles.label}>Perfil de sabor</label>
