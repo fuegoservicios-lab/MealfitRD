@@ -49,7 +49,8 @@ const Pricing = () => {
         PLAN_LIMIT,
         planData,
         upgradeUserPlan,
-        userProfile
+        userProfile,
+        isGuest
     } = useAssessment();
 
     // Estado para controlar billing period y modal
@@ -72,12 +73,15 @@ const Pricing = () => {
     const tierRank = { gratis: 1, basic: 2, plus: 3, ultra: 4, admin: 5 };
     const currentRank = tierRank[currentTier] || 1;
 
-    // [P2-PRICING-PROFILE-LOADING · 2026-05-31] El landing siempre vive tras
-    // ProtectedRoute (no existe invitado real). Mientras userProfile no hidrate,
+    // [P2-PRICING-PROFILE-LOADING · 2026-05-31] Mientras userProfile no hidrate,
     // tratamos los botones como "cargando" (disabled) en vez de la rama invitado
     // que mostraba upgrades/downgrades activos e incorrectos durante la ventana
     // de carga (un usuario Plus/Ultra veía todas las tarjetas pagas clickeables).
-    const isProfileLoading = !userProfile?.id;
+    // [P1-GUEST-PRICING · 2026-06-21] PERO un INVITADO nunca tiene userProfile (no
+    // hidrata jamás) → sin el guard de isGuest los botones quedaban atascados en
+    // "Cargando…" para siempre. Para invitado el estado está RESUELTO (no hay perfil
+    // que cargar): isProfileLoading=false → muestra "Invitado"/CTA de registro.
+    const isProfileLoading = !isGuest && !userProfile?.id;
 
     // Helper: obtener precio actual según billing period (tier-aware: Ultra
     // siempre mensual, ver ANNUAL_DISABLED_TIERS).
@@ -97,6 +101,13 @@ const Pricing = () => {
 
     // Manejador del botón Planes Pagos
     const handleUpgradeClick = (tier, name) => {
+        // [P1-GUEST-PRICING · 2026-06-21] Un invitado debe crear cuenta antes de
+        // suscribirse (el checkout/verify requiere auth). Redirige a registro.
+        if (isGuest) {
+            window.scrollTo(0, 0);
+            navigate('/register');
+            return;
+        }
         const targetRank = tierRank[tier] || 1;
 
         // Validacion de seguridad (aunque el boton este disabled)
@@ -197,6 +208,13 @@ const Pricing = () => {
         // Ventana de carga: sesión presente pero perfil aún sin hidratar.
         if (isProfileLoading) return "Cargando…";
 
+        // [P1-GUEST-PRICING · 2026-06-21] Invitado: el plan Gratis es su tier efectivo
+        // (etiqueta de estado "Invitado", como "Tu Plan Actual"); los planes pagos lo
+        // invitan a crear cuenta (el checkout requiere auth).
+        if (isGuest) {
+            return tier === 'gratis' ? 'Invitado' : 'Crear cuenta';
+        }
+
         // Plan Gratis: CTA de adquisición del usuario gratis sin plan (el target
         // de conversión). Antes este botón quedaba "Tu Plan Actual" + disabled
         // para el usuario gratis → CTA muerto en la tarjeta dirigida a él.
@@ -223,6 +241,10 @@ const Pricing = () => {
     const isButtonDisabled = (tier) => {
         // Durante la carga del perfil, deshabilitar para no exponer acciones erróneas.
         if (isProfileLoading) return true;
+
+        // [P1-GUEST-PRICING · 2026-06-21] Invitado: 'Invitado' (Gratis) es una etiqueta
+        // de estado → disabled; los planes pagos son CTA de registro → clickeables.
+        if (isGuest) return tier === 'gratis';
 
         // Gratis: solo deshabilitado si el usuario YA pagó un tier superior;
         // nunca para el usuario gratis (su CTA de conversión debe ser clickeable).

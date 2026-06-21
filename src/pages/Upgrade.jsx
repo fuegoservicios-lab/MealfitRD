@@ -305,7 +305,7 @@ const Upgrade = () => {
     // `PLAN_LIMIT` removidos del destructure — solo los usaba el
     // `userContextCard` que ya no se renderiza. `currentTierLabel` también
     // eliminado abajo por la misma razón.
-    const { planData, upgradeUserPlan, userProfile } = useAssessment();
+    const { planData, upgradeUserPlan, userProfile, isGuest } = useAssessment();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [billingPeriod, setBillingPeriod] = useState('monthly');
@@ -333,6 +333,13 @@ const Upgrade = () => {
     };
 
     const handleUpgradeClick = (tier, name) => {
+        // [P1-GUEST-PRICING · 2026-06-21] Invitado → crear cuenta antes de suscribirse
+        // (el checkout/verify requiere auth).
+        if (isGuest) {
+            window.scrollTo(0, 0);
+            navigate('/register');
+            return;
+        }
         const targetRank = TIER_RANK[tier] || 1;
         if (targetRank <= currentRank) {
             navigate('/dashboard');
@@ -424,6 +431,11 @@ const Upgrade = () => {
     }, []);
 
     const getButtonText = (tier) => {
+        // [P1-GUEST-PRICING · 2026-06-21] Invitado: Gratis = tier efectivo ("Invitado");
+        // pagos → "Crear cuenta" (el checkout requiere auth).
+        if (isGuest) {
+            return tier === 'gratis' ? 'Invitado' : 'Crear cuenta';
+        }
         if (!userProfile?.id) {
             return tier === 'gratis' ? 'Empezar Gratis' : `Cambiar a ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
         }
@@ -434,6 +446,9 @@ const Upgrade = () => {
     };
 
     const isButtonDisabled = (tier) => {
+        // [P1-GUEST-PRICING · 2026-06-21] Invitado: 'Invitado' (Gratis) es status →
+        // disabled; pagos → CTA de registro clickeable.
+        if (isGuest) return tier === 'gratis';
         if (!userProfile?.id) return false;
         if (currentTier === tier) return true;
         const targetRank = TIER_RANK[tier] || 1;
