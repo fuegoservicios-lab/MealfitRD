@@ -284,6 +284,7 @@ const History = () => {
     // Edit name state
     const [isEditing, setIsEditing] = useState(null);
     const [tempName, setTempName] = useState('');
+    const [sessionExpired, setSessionExpired] = useState(false);  // [P2-HISTORY-401-GRACEFUL · 2026-06-21]
 
     // [P0-HIST-VIS-REFRESH · 2026-05-09] Timestamp del último
     // fetchHistory exitoso. Lo usa el listener de `visibilitychange`
@@ -647,6 +648,7 @@ const History = () => {
             // y waste CPU). Si en el futuro este endpoint pierde el
             // ORDER BY, _effectiveModifiedAt sigue exportable para
             // re-sort defensivo.
+            setSessionExpired(false);  // [P2-HISTORY-401-GRACEFUL] limpia el flag tras un fetch OK
             setPlans(plans);
             // [P3-HIST-LIST-CACHE · 2026-05-19] Persiste al singleton para
             // que el próximo mount renderice instantáneo. Solo si la
@@ -665,6 +667,14 @@ const History = () => {
             if (error && error.name === 'AbortError') return;
             if (signal && signal.aborted) return;
             console.error('Error fetching history:', error);
+            // [P2-HISTORY-401-GRACEFUL · 2026-06-21] getHistoryList lanza `HTTP <status>`
+            // (Response cruda, línea 638). 401 → estado "sesión expirada" elegante en vez
+            // del toast rojo alarmante. El `finally` igual pone loading=false.
+            if (error && error.message === 'HTTP 401') {
+                setPlans([]);
+                setSessionExpired(true);
+                return;
+            }
             const _isTimeout = error && error.message === 'TIMEOUT_HISTORY_LIST';
             toast.error(_isTimeout
                 ? 'El historial tardó demasiado en cargar. Intenta refrescar.'
@@ -1573,6 +1583,23 @@ const History = () => {
         </div>
     );
 
+    // [P2-HISTORY-401-GRACEFUL · 2026-06-21] Sesión expirada (401): "inicia sesión"
+    // en vez del toast rojo "No se pudo cargar el historial".
+    const SessionExpiredState = () => (
+        <div className={styles.emptyState}>
+            <div className={styles.emptyIcon}>
+                <AlertTriangle size={36} />
+            </div>
+            <h3 className={styles.emptyTitle}>Sesión expirada</h3>
+            <p className={styles.emptyText}>
+                Tu sesión finalizó. Inicia sesión de nuevo para ver tu historial.
+            </p>
+            <button className={styles.emptyCta} onClick={() => navigate('/login')}>
+                Iniciar sesión
+            </button>
+        </div>
+    );
+
     // Filtrado por nombre del plan (case-insensitive, trim).
     const normalizedQuery = searchQuery.trim().toLowerCase();
     // [P3-HIST-SEARCH-MEMO · 2026-05-31] useMemo: el filtro solo recomputa
@@ -1626,6 +1653,8 @@ const History = () => {
         <>
             {loading ? (
                 <SkeletonLoader />
+            ) : sessionExpired ? (
+                <SessionExpiredState />
             ) : plans.length === 0 ? (
                 <EmptyState />
             ) : (

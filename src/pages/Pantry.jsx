@@ -835,7 +835,18 @@ const Pantry = () => {
             }
         } catch (error) {
             console.error('Error fetching pantry:', error);
-            if (isInitial) toast.error('Error al cargar la despensa.');
+            // [P2-PANTRY-401-GRACEFUL · 2026-06-21] _apiJson adjunta err.status. 401 =
+            // sesión expirada → mensaje neutro e informativo (no el rojo alarmante "Error
+            // al cargar la despensa"). El first-party session normalmente lo evita; esto
+            // es defensa. Pantry está route-bloqueado para invitados, así que esto solo
+            // ocurre en una sesión logueada-pero-expirada (raro).
+            if (isInitial) {
+                if (error?.status === 401) {
+                    toast('Tu sesión expiró. Inicia sesión de nuevo para ver tu despensa.');
+                } else {
+                    toast.error('Error al cargar la despensa.');
+                }
+            }
         } finally {
             if (isInitial) setLoading(false);
         }
