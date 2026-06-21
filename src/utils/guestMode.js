@@ -21,11 +21,12 @@ import {
     safeLocalStorageRemove,
 } from './safeLocalStorage';
 
-// Créditos (= generaciones de plan) que recibe un invitado antes de tener que
-// crear cuenta. 5 = suficiente para probar el producto de verdad sin abrir la
-// puerta a abuso anónimo masivo. El cliente que quiera más crea cuenta (plan
-// gratuito = 15/mes). [P1-GUEST-CREDITS-5 · 2026-06-21]
-export const GUEST_PLAN_CREDITS = 5;
+// Créditos (= generaciones de plan) que recibe un invitado: 1 — SOLO la primera
+// generación (el plan de muestra). Después debe crear cuenta o iniciar sesión en
+// una cuenta SIN plan para acceso completo; ese plan de muestra se adopta a la
+// cuenta vía el endpoint /api/plans/adopt-guest-plan (P1-GUEST-ADOPT-1).
+// [P1-GUEST-CREDITS-1 · 2026-06-21]
+export const GUEST_PLAN_CREDITS = 1;
 
 const K_MODE = 'mealfit_guest_mode';
 const K_USER = 'mealfit_user_id';
