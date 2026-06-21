@@ -38,12 +38,18 @@ const ProtectedRoute = ({ children }) => {
     const isOnAssessment = location.pathname === '/assessment';
     const isOnPlan = location.pathname === '/plan';
     const isOnLanding = location.pathname === '/';
+    // [ACCOUNT-SETTINGS-PREONBOARD · 2026-06-21] Configuración (apariencia + cuenta
+    // + cerrar sesión) es accesible AUNQUE el usuario no haya completado el
+    // assessment. Una cuenta recién creada (login OTP / OAuth nuevo) sin plan debe
+    // poder ver y manejar su cuenta sin ser forzada al formulario primero. Antes
+    // caía al gate de abajo y "Configuración" rebotaba a /assessment.
+    const isOnAccountSettings = location.pathname === '/configuracion';
     const hasHealthProfile = userProfile?.health_profile
         && Object.keys(userProfile.health_profile).length > 0;
     // Acceso garantizado si ya tiene un plan generado (aunque el perfil aún no esté sincronizado)
     const hasCompletedAssessment = hasHealthProfile || !!planData;
 
-    if (!hasCompletedAssessment && !isOnAssessment && !isOnPlan && !isOnLanding) {
+    if (!hasCompletedAssessment && !isOnAssessment && !isOnPlan && !isOnLanding && !isOnAccountSettings) {
         return <Navigate to="/assessment" replace />;
     }
 
