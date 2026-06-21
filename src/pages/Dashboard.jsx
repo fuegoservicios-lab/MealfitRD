@@ -5654,7 +5654,11 @@ const DashboardInner = () => {
                                                 {/* VER RECETA */}
                                                 <button
                                                     className="meal-act-btn"
-                                                    onClick={() => navigate('/dashboard/recipes')}
+                                                    onClick={() => {
+                                                        // [P3-GUEST-GATE-MEAL-ACTIONS · 2026-06-21] Invitado: ver recetas requiere cuenta.
+                                                        if (isGuest) { toast('Crea tu cuenta para ver las recetas paso a paso'); return; }
+                                                        navigate('/dashboard/recipes');
+                                                    }}
                                                     style={{
                                                         background: isDark ? 'rgba(59, 130, 246, 0.22)' : '#EFF6FF',
                                                         border: isDark ? '1.5px solid rgba(96, 165, 250, 0.6)' : '1.5px solid #BFDBFE',
@@ -5673,6 +5677,8 @@ const DashboardInner = () => {
                                                 <button
                                                     className="meal-act-btn"
                                                     onClick={() => {
+                                                        // [P3-GUEST-GATE-MEAL-ACTIONS · 2026-06-21] Invitado: cambiar plato (IA) requiere cuenta.
+                                                        if (isGuest) { toast('Crea tu cuenta para cambiar platos con IA'); return; }
                                                         if (regeneratingId === index) return;
                                                         // [2026-05-29] Abrir el modal al instante; validar cuota
                                                         // en paralelo y cerrar solo si no hay créditos (evita el
@@ -5713,6 +5719,8 @@ const DashboardInner = () => {
                                                 <button
                                                     className="meal-act-btn"
                                                     onClick={() => {
+                                                        // [P3-GUEST-GATE-MEAL-ACTIONS · 2026-06-21] Invitado: guardar favoritos requiere cuenta.
+                                                        if (isGuest) { toast('Crea tu cuenta para guardar tus favoritos'); return; }
                                                         const currentlyLiked = !!likedMeals[meal.name];
                                                         toggleMealLike(meal.name, meal.meal);
                                                         if (!currentlyLiked) {
