@@ -242,12 +242,16 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                     mobile): free=slate, basic=emerald,
                                     plus=indigo, ultra=amber+shimmer+Crown. */}
                                 {(() => {
+                                    // [P1-GUEST-BADGE · 2026-06-21] Invitado real → 'Invitado'
+                                    // (no 'GRATUITO', que es el free REGISTRADO). isGuest gana primero.
                                     const tierVariant = !isPremium
                                         ? 'free'
                                         : userProfile?.plan_tier === 'ultra' ? 'ultra'
                                         : userProfile?.plan_tier === 'plus' ? 'plus'
                                         : 'basic';
-                                    const tierLabel = !isPremium
+                                    const tierLabel = isGuest
+                                        ? 'Invitado'
+                                        : !isPremium
                                         ? 'GRATUITO'
                                         : userProfile?.plan_tier === 'ultra' ? 'ULTRA'
                                         : userProfile?.plan_tier === 'plus' ? 'PLUS'

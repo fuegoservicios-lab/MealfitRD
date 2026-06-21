@@ -3965,12 +3965,15 @@ const DashboardInner = () => {
                             plus=indigo, ultra=amber con shimmer + Crown.
                             Refuerza la jerarquía visual del upgrade path. */}
                         {(() => {
+                            // [P1-GUEST-BADGE · 2026-06-21] Invitado real → 'Invitado'.
                             const tierVariant = !isPremium
                                 ? 'free'
                                 : userProfile?.plan_tier === 'ultra' ? 'ultra'
                                 : userProfile?.plan_tier === 'plus' ? 'plus'
                                 : 'basic';
-                            const tierLabel = !isPremium
+                            const tierLabel = isGuest
+                                ? 'Invitado'
+                                : !isPremium
                                 ? 'GRATUITO'
                                 : userProfile?.plan_tier === 'ultra' ? 'ULTRA'
                                 : userProfile?.plan_tier === 'plus' ? 'PLUS'

@@ -22,9 +22,10 @@ import {
 } from './safeLocalStorage';
 
 // Créditos (= generaciones de plan) que recibe un invitado antes de tener que
-// crear cuenta. Mantener BAJO: limita costo LLM y abuso anónimo. El cliente que
-// quiera más créditos crea cuenta (plan gratuito = 15/mes).
-export const GUEST_PLAN_CREDITS = 1;
+// crear cuenta. 5 = suficiente para probar el producto de verdad sin abrir la
+// puerta a abuso anónimo masivo. El cliente que quiera más crea cuenta (plan
+// gratuito = 15/mes). [P1-GUEST-CREDITS-5 · 2026-06-21]
+export const GUEST_PLAN_CREDITS = 5;
 
 const K_MODE = 'mealfit_guest_mode';
 const K_USER = 'mealfit_user_id';
