@@ -98,7 +98,7 @@ function MicrosDetail({ data, onAction }) {
                                     </span>
                                 </div>
                                 <p className={styles.exGapText}>
-                                    {s.gapText} <span className={styles.exCur}>· vas en {g.valor}{g.unidad || ''}</span>
+                                    {s.gapText} <span className={styles.exCur}>· tu plan aporta {g.valor}{g.unidad || ''}</span>
                                 </p>
                             </div>
                         );

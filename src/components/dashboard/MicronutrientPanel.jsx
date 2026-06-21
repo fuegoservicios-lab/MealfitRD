@@ -255,6 +255,15 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                         </button>
                     </header>
 
+                    {/* [P3-MICRO-PLAIN-LANGUAGE · 2026-06-20] Aclara el MALENTENDIDO
+                        clave: estos números estiman lo que aportan las comidas del
+                        PLAN, no miden al usuario ni suplementos que haya tomado. */}
+                    {gaps.length > 0 && (
+                        <p className={styles.intro}>
+                            Estimado de lo que aportan las comidas de tu plan al día, comparado con lo recomendado. No mide lo que comes por fuera ni los suplementos que tomes.
+                        </p>
+                    )}
+
                     {gaps.length > 0 && (
                         <div className={styles.meters}>
                             {gaps.map((g, i) => {
@@ -281,7 +290,7 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                                         <p className={styles.gapText}>{s.gapText}</p>
                                         <div className={styles.meterFoot}>
                                             <span className={styles.values}>
-                                                vas en <span className={styles.cur}>{g.valor}{g.unidad}</span>
+                                                tu plan aporta <span className={styles.cur}>{g.valor}{g.unidad}</span>
                                             </span>
                                             {ask && (
                                                 <span className={styles.askHint}>

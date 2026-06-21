@@ -106,6 +106,15 @@
     border-color: var(--border);
 }
 
+/* Línea de contexto: deja claro que es un estimado de las comidas del PLAN,
+   no una medición del usuario ni de suplementos (P3-MICRO-PLAIN-LANGUAGE). */
+.intro {
+    margin: -0.35rem 0 0.95rem;
+    font-size: 0.74rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
 /* ---- medidores ---- */
 .meters {
     display: flex;
