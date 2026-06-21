@@ -675,6 +675,7 @@ const ChatWidget = () => {
                                 <button
                                     onClick={handleSend}
                                     disabled={!input.trim() || isLoading}
+                                    aria-label="Enviar mensaje"
                                     style={{
                                         background: input.trim() && !isLoading ? '#3B82F6' : '#CBD5E1',
                                         color: 'white',
@@ -689,7 +690,11 @@ const ChatWidget = () => {
                                         transition: 'all 0.2s'
                                     }}
                                 >
-                                    <Send size={18} />
+                                    {isLoading ? (
+                                        <Loader2 size={18} className="spin-fast" aria-hidden="true" />
+                                    ) : (
+                                        <Send size={18} aria-hidden="true" />
+                                    )}
                                 </button>
                             </div>
                             <div style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--text-light)' }}>
