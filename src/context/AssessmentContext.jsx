@@ -1178,6 +1178,48 @@ export const AssessmentProvider = ({ children }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planData, userProfile]);
 
+    // [P1-GUEST-ADOPT-SELFHEAL · 2026-06-21] Backstop del adopt de plan. El adopt de
+    // `restoreSessionData` (rama else, gateado por guestAdoptPendingRef) es FRÁGIL:
+    // múltiples callers (handleAuthChange + AgentPage:1826/1902) y un `finally` que
+    // resetea el ref en CADA llamada → puede no disparar → "historial vacío con plan
+    // activo" (el plan vive en localStorage pero nunca se persistió a la DB). Backstop:
+    // si un usuario logueado tiene un plan COMPLETO en planData, lo persistimos vía el
+    // endpoint adopt — IDEMPOTENTE (INSERTA si la cuenta no tiene plan, 409 si ya tiene),
+    // así que es seguro llamarlo siempre. Server-gated (no acepta user_id del cliente,
+    // valida JWT). One-shot por usuario-sesión.
+    const planPersistHealRef = useRef(null);
+    useEffect(() => {
+        const uid = userProfile?.id;
+        if (!uid) return;
+        if (planPersistHealRef.current === uid) return; // ya intentado para este usuario en esta sesión
+        const _hasDays = planData && Array.isArray(planData.days) && planData.days.length > 0;
+        if (!_hasDays) return;
+        planPersistHealRef.current = uid;
+        (async () => {
+            try {
+                const r = await fetchWithAuth('/api/plans/adopt-guest-plan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plan_data: planData }),
+                });
+                if (r.ok) {
+                    const _j = await r.json().catch(() => null);
+                    if (_j && _j.adopted && _j.plan_id) {
+                        const _updated = { ...planData, id: _j.plan_id };
+                        setPlanData(_updated);
+                        safeLocalStorageSet('mealfit_plan', JSON.stringify(_updated));
+                        try { invalidateHistoryListCache(); } catch { /* noop */ }
+                        console.log('✅ [P1-GUEST-ADOPT-SELFHEAL] Plan persistido a la cuenta (aparece en el historial).');
+                    }
+                }
+                // 409 (account_already_has_plan) → el plan ya estaba en la DB, no-op.
+            } catch (e) {
+                console.error('[P1-GUEST-ADOPT-SELFHEAL] persist falló', e);
+            }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planData, userProfile]);
+
     useEffect(() => {
         const handleAuthChange = async (currentSession) => {
             // Evitar actualizaciones innecesarias si la sesión es idéntica.

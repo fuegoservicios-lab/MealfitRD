@@ -1576,10 +1576,6 @@ const History = () => {
             <p className={styles.emptyText}>
                 Genera tu primer plan nutricional y lo encontrarás aquí.
             </p>
-            <button className={styles.emptyCta} onClick={() => navigate('/assessment')}>
-                <Wand2 size={18} />
-                Crear mi primer plan
-            </button>
         </div>
     );
 
