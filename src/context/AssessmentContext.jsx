@@ -614,6 +614,9 @@ export const AssessmentProvider = ({ children }) => {
     // debe ser sobrescrita por storage o DB. Reload re-monta el provider y
     // el set arranca vacío, que es el comportamiento deseado.
     const editedFieldsRef = useRef(new Set());
+    // [P1-GUEST-ADOPT-1 · 2026-06-21] True si veníamos de modo invitado en este login
+    // → restoreSessionData adopta el plan de localStorage a la cuenta nueva/sin-plan.
+    const guestAdoptPendingRef = useRef(false);
 
     // [P0-FORM-2 + P1-FORM-3] Re-arma la protección de campos con touched-flag
     // persistido tras remount/refresh. `editedFieldsRef` arranca vacío en cada
@@ -847,11 +850,47 @@ export const AssessmentProvider = ({ children }) => {
                     });
                 }
             } else {
-
+                // [P1-GUEST-ADOPT-1 · 2026-06-21] La cuenta NO tiene plan en DB. Si
+                // veníamos de modo invitado y hay un plan COMPLETO en localStorage, lo
+                // ADOPTAMOS hacia la cuenta (persiste vía endpoint backend). Si la cuenta
+                // YA tuviera plan, este branch NO corre (el plan de DB ganó arriba) → cero
+                // cambio para cuentas-con-plan (spec del owner).
+                if (guestAdoptPendingRef.current && userId && userId !== 'guest') {
+                    guestAdoptPendingRef.current = false; // one-shot
+                    let _guestPlan = null;
+                    const _guestRaw = safeLocalStorageGet('mealfit_plan', null);
+                    if (_guestRaw) {
+                        try { _guestPlan = JSON.parse(_guestRaw); } catch (e) { _guestPlan = null; }
+                    }
+                    // Solo adoptar un plan COMPLETO (días no vacíos); un parcial NO se persiste.
+                    const _isComplete = _guestPlan && Array.isArray(_guestPlan.days) && _guestPlan.days.length > 0;
+                    if (_isComplete) {
+                        try {
+                            const _resp = await fetchWithAuth('/api/plans/adopt-guest-plan', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ plan_data: _guestPlan }),
+                            });
+                            if (_resp.ok) {
+                                const _j = await _resp.json().catch(() => null);
+                                if (_j && _j.adopted && _j.plan_id) {
+                                    _guestPlan.id = _j.plan_id; // alinear con el id del DB plan
+                                    setPlanData(_guestPlan);
+                                    safeLocalStorageSet('mealfit_plan', JSON.stringify(_guestPlan));
+                                }
+                            }
+                            // 409 (account_already_has_plan) / no-ok → descartar el plan de
+                            // invitado silenciosamente (la cuenta existente manda).
+                        } catch (e) {
+                            console.error('[P1-GUEST-ADOPT-1] adopt fallback failed', e);
+                        }
+                    }
+                }
             }
         } catch (err) {
             console.error("❌ Error restaurando sesión:", err);
         } finally {
+            guestAdoptPendingRef.current = false; // [P1-GUEST-ADOPT-1] one-shot: nunca persiste cross-call
             setLoadingData(false);
         }
     }, []);
@@ -1134,6 +1173,11 @@ export const AssessmentProvider = ({ children }) => {
                 // hasta el primer clearFormStorage manual. Fallback null fuerza
                 // el path "no last owner conocido" sin crash del provider.
                 const lastOwner = safeLocalStorageGet('mealfit_last_form_owner', null);
+                // [P1-GUEST-ADOPT-1 · 2026-06-21] Recordar si veníamos de modo invitado
+                // ANTES de pisar el owner marker (más abajo) + antes de que el effect de
+                // session limpie el flag → restoreSessionData lo usa para ADOPTAR el plan
+                // de invitado hacia la cuenta nueva/sin-plan.
+                guestAdoptPendingRef.current = (lastOwner === 'guest');
                 if (lastOwner && lastOwner !== 'guest' && lastOwner !== userId) {
                     // Los datos pertenecen a un usuario diferente, por lo que limpiamos para el usuario nuevo/diferente
                     // [P1-B7] limpiar AMBAS keys (public plain + secure cifrado).
