@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { authClient, sendEmailOtp, signInWithEmailOtp } from '../authClient';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { KeyRound, ArrowRight, ArrowLeft, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import styles from './Auth.module.css';
 import { useAssessment } from '../context/AssessmentContext';
 import { logoutFirstPartySession } from '../utils/firstPartySession';
@@ -168,21 +168,18 @@ const Login = () => {
                     <>
                         <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <div className={styles.formGroup}>
-                                <label className={styles.label} htmlFor="login-email">Correo Electrónico <span className={styles.requiredAsterisk}>*</span></label>
-                                <div className={styles.inputWrapper}>
-                                    <input
-                                        id="login-email"
-                                        type="email"
-                                        required
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="Ingresa tu correo electrónico"
-                                        className={styles.input}
-                                        style={{ paddingLeft: '1rem' }}
-                                        autoComplete="email"
-                                        autoFocus
-                                    />
-                                </div>
+                                <input
+                                    id="login-email"
+                                    type="email"
+                                    required
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="Ingresa tu correo electrónico"
+                                    aria-label="Correo electrónico"
+                                    className={`${styles.input} ${styles.inputBare}`}
+                                    autoComplete="email"
+                                    autoFocus
+                                />
                             </div>
 
                             <button type="submit" disabled={loading} className={styles.submitBtn}>
@@ -260,26 +257,20 @@ const Login = () => {
                 ) : (
                     <form onSubmit={handleCodeSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         <div className={styles.formGroup}>
-                            <label className={styles.label} htmlFor="login-code">Código de verificación <span className={styles.requiredAsterisk}>*</span></label>
-                            <div className={styles.inputWrapper}>
-                                <div className={styles.inputIcon} aria-hidden="true">
-                                    <KeyRound size={18} />
-                                </div>
-                                <input
-                                    id="login-code"
-                                    ref={codeInputRef}
-                                    type="text"
-                                    inputMode="numeric"
-                                    autoComplete="one-time-code"
-                                    required
-                                    value={code}
-                                    onChange={(e) => setCode(e.target.value.replace(/\s/g, ''))}
-                                    placeholder="Ej. 123456"
-                                    className={styles.input}
-                                    maxLength={8}
-                                    style={{ letterSpacing: '0.3em', fontWeight: 700 }}
-                                />
-                            </div>
+                            <input
+                                id="login-code"
+                                ref={codeInputRef}
+                                type="text"
+                                inputMode="numeric"
+                                autoComplete="one-time-code"
+                                required
+                                value={code}
+                                onChange={(e) => setCode(e.target.value.replace(/\s/g, ''))}
+                                placeholder="123456"
+                                aria-label="Código de verificación"
+                                className={`${styles.input} ${styles.inputBare} ${styles.inputCode}`}
+                                maxLength={8}
+                            />
                         </div>
 
                         <button type="submit" disabled={loading} className={styles.submitBtn}>
