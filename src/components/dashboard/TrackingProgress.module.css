@@ -103,14 +103,17 @@
     max-width: 320px;
 }
 
+/* [P3-GUEST-BADGE-RESTYLE · 2026-06-21] Pill sutil con acento indigo de marca,
+   theme-adaptive — antes era crema/ámbar (#FFFBEB/#B45309) que clavaba en el
+   tema oscuro. Consistente con el ghost discreto del scanBtn del logueado. */
 .guestBadge {
     font-size: 0.8rem;
-    color: #B45309;
-    background: #FFFBEB;
-    padding: 0.6rem 1.2rem;
-    border-radius: 8px;
+    color: var(--text-muted, #64748B);
+    background: rgba(99, 102, 241, 0.08);
+    padding: 0.55rem 1rem;
+    border-radius: 9px;
     font-weight: 600;
-    border: 1px solid #FEF3C7;
+    border: 1px solid rgba(99, 102, 241, 0.22);
 }
 
 /* [P2-DIARY-SCAN-MACROS · 2026-05-30] Botón "Escanear comida" del header.
