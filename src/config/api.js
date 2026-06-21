@@ -1,4 +1,5 @@
 import { getBackendToken } from '../authClient';
+import { safeLocalStorageGet } from '../utils/safeLocalStorage';
 
 // Central API configuration
 // En desarrollo, apuntamos directamente al servidor Python local.
@@ -61,6 +62,16 @@ export const fetchWithAuth = async (url, options = {}) => {
     const headers = new Headers(options.headers || {});
     if (token) {
         headers.set('Authorization', `Bearer ${token}`);
+    }
+    // [P1-FIRST-PARTY-SESSION · 2026-06-16] Token de sesión first-party guardado
+    // en localStorage → header X-MF-Session. Hace que las requests autenticadas
+    // funcionen al reabrir el PWA de iOS (donde la cookie no persiste pero
+    // localStorage sí, y la sesión de Neon ya expiró). El backend lo verifica
+    // (HS256) como fallback del Bearer de Neon. Inofensivo en navegador (ahí
+    // gana el Bearer/cookie). NO se setea si no hay token.
+    const _mfSession = safeLocalStorageGet('mealfit_mf_session', null);
+    if (_mfSession) {
+        headers.set('X-MF-Session', _mfSession);
     }
 
     // Envolvemos cualquier ruta relativa (ej. "/api/analyze") con API_BASE

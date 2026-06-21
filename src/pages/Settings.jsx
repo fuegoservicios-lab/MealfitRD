@@ -107,7 +107,7 @@ const Settings = () => {
     // Obtenemos userProfile y updateUserProfile del contexto global
     // [P1-FORM-9] `session` necesario para el guard de hidratación cifrada en
     // `buildHealthProfilePayload`.
-    const { planData, formData, resetApp, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session, isPremium, updateData } = useAssessment();
+    const { planData, formData, resetApp, resetForNewAssessment, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session, isPremium, updateData } = useAssessment();
 
     // [P1-FORM-9] Wrapper análogo al de Dashboard.jsx: filtra flags `_*` y
     // bloquea si la hidratación cifrada del formData parece estar in-flight.
@@ -1511,18 +1511,32 @@ const Settings = () => {
                                         const toastId = toast.loading('Borrando preferencias...', { description: 'Preparando tu cuenta para un nuevo inicio.' });
 
                                         try {
+                                            // [P1-EVALUATE-SCRATCH-RESET · 2026-06-17] Borra el
+                                            // plan ACTIVO en la DB. `reset-preferences` vacía el
+                                            // health_profile + preferencias + inventario, pero NO
+                                            // borra `meal_plans` → sin esto, al recargar la app el
+                                            // plan viejo se re-hidrataba desde la DB y el dashboard
+                                            // volvía a ser accesible. Best-effort: si falla, el
+                                            // soft-reset en memoria igual fuerza el formulario.
+                                            const _planIdToDelete = planData?.id;
+                                            if (_planIdToDelete) {
+                                                await fetchWithAuth(`/api/plans/${_planIdToDelete}`, { method: 'DELETE' }).catch(() => {});
+                                            }
+
                                             // GAP 6: Invocar el endpoint para resetear preferencias en el backend
                                             await fetchWithAuth('/api/account/reset-preferences', {
                                                 method: 'POST'
                                             });
 
-                                            // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15]
-                                            // safeLocalStorageRemove para que iOS Private
-                                            // Mode no corte la cadena del reset.
-                                            safeLocalStorageRemove('mealfit_disabled_ingredients');
-                                            safeLocalStorageRemove('mealfit_plan');
-                                            safeLocalStorageRemove('mealfit_likes');
-                                            safeLocalStorageRemove('mealfit_dislikes');
+                                            // [P1-EVALUATE-SCRATCH-RESET · 2026-06-17] Soft-reset
+                                            // del estado EN MEMORIA + localStorage (plan, formulario,
+                                            // health_profile, likes/dislikes, step, editedFieldsRef).
+                                            // Sin esto, planData + userProfile.health_profile
+                                            // sobrevivían en memoria → ProtectedRoute
+                                            // (hasCompletedAssessment = health_profile || planData)
+                                            // dejaba volver al /dashboard con el plan viejo en vez de
+                                            // obligar a re-llenar el formulario.
+                                            resetForNewAssessment();
 
                                             toast.dismiss(toastId);
                                             toast.success('Cuenta reseteada', { description: 'Empecemos de nuevo.' });

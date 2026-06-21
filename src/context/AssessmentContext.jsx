@@ -1,6 +1,10 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { authClient } from '../authClient';
+// [P1-FIRST-PARTY-SESSION · 2026-06-16] Cookie de sesión first-party que NUESTRO
+// backend emite en mealfitrd.com → iOS PWA conserva la sesión al cerrar la app
+// (la de Neon es third-party y la borra). Ver utils/firstPartySession.js.
+import { mintFirstPartySession, checkFirstPartySession, logoutFirstPartySession } from '../utils/firstPartySession';
 // [P2-AUDIT-3 · 2026-05-15] Helper SSOT para `localStorage.setItem` defensivo.
 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] + `safeLocalStorageRemove` para
 // los flujos de logout/reset (iOS Private Mode lanza SecurityError en
@@ -167,6 +171,16 @@ const _clearUserScopedCaches = () => {
             window.__lastQuotaCheckTime = 0;
         }
     } catch { /* noop */ }
+    // [P2-NOTIF-PII-PURGE · 2026-06-19] (audit fresco P2-10) El store del NotificationCenter
+    // ('mealfit_notification_center') guarda PII de salud (gaps de micronutrientes + suplementos del
+    // plan del usuario) en una clave GLOBAL (sin user_id) → en dispositivo compartido el usuario B veía
+    // los avisos de A tras el logout SPA. Hermano omitido del sweep P1-XTAB-CACHE-LEAK / P2-CHAT-CACHE-XUSER.
+    safeLocalStorageRemove('mealfit_notification_center');
+    // [P2-WIZARD-STEP-PURGE · 2026-06-19] (audit fresco P2-13) La posición del wizard ('mealfit_wizard_step',
+    // solo enteros) no se purgaba en la rama SIGNED_OUT → el siguiente usuario/guest aterrizaba en un paso
+    // intermedio heredado. Centralizarlo aquí cubre los 5 paths de teardown (resetApp/SIGNED_OUT/user-switch/
+    // exitGuest/mount) de una vez.
+    safeLocalStorageRemove('mealfit_wizard_step');
 };
 
 export const AssessmentProvider = ({ children }) => {
@@ -186,6 +200,13 @@ export const AssessmentProvider = ({ children }) => {
     const _legacySensitive = _legacyMigration?.sensitiveData || null;
     const savedForm = safeLocalStorageGet('mealfit_form', null);
     const savedLikes = safeLocalStorageGet('mealfit_likes', null);
+    // [P1-FORM-RESUME · 2026-06-19] Posición del wizard persistida (paso actual +
+    // máximo alcanzado). Solo enteros, no PII → plain localStorage como el public
+    // `mealfit_form`. Sin esto, un refresh reseteaba `currentStep` a 0 y el usuario
+    // veía sus respuestas "perdidas" porque el wizard saltaba a la primera pregunta
+    // (el formData public SÍ se restaura en el useState de `formData`, pero la
+    // posición no, así que el usuario aterrizaba en el paso 0 en blanco).
+    const savedWizardStep = safeLocalStorageGet('mealfit_wizard_step', null);
 
     // --- ESTADOS DE LA APLICACIÓN ---
 
@@ -209,9 +230,25 @@ export const AssessmentProvider = ({ children }) => {
     const [userProfile, setUserProfile] = useState(null);
 
     // Navegación del Wizard (Pasos de la evaluación)
-    const [currentStep, setCurrentStep] = useState(0);
+    // [P1-FORM-RESUME · 2026-06-19] Restaurar la posición persistida para reanudar
+    // donde el usuario se quedó tras un refresh. Defensivo: solo enteros válidos en
+    // un rango razonable; cualquier basura cae a 0. `maxReachedStep` nunca menor que
+    // `currentStep`. El flow tolera índices fuera de rango (`steps[currentStep] ||
+    // steps[0]`), así que el clamp es cinturón-y-tirantes.
+    const _parsedWizardStep = (() => {
+        if (!savedWizardStep) return null;
+        try {
+            const s = JSON.parse(savedWizardStep);
+            return (s && typeof s === 'object') ? s : null;
+        } catch { return null; }
+    })();
+    const _clampWizardStep = (v) => (Number.isInteger(v) && v >= 0 && v <= 100) ? v : 0;
+    const _initialStep = _clampWizardStep(_parsedWizardStep?.currentStep);
+    const [currentStep, setCurrentStep] = useState(_initialStep);
     const [direction, setDirection] = useState(0);
-    const [maxReachedStep, setMaxReachedStep] = useState(0);
+    const [maxReachedStep, setMaxReachedStep] = useState(
+        Math.max(_initialStep, _clampWizardStep(_parsedWizardStep?.maxReachedStep))
+    );
 
     // Datos del Plan Generado (JSON devuelto por la IA)
     // [P2-B] try/catch defensivo: si `mealfit_plan` se corrompe (edición manual,
@@ -337,6 +374,10 @@ export const AssessmentProvider = ({ children }) => {
         // hogar sin revertir antes esta decisión (ver tests P0_12/P1_12).
         includeSupplements: false, selectedSupplements: [], groceryDuration: '', householdSize: 1,
         otherConditions: '',
+        // [P1-MEDICATION-FREETEXT · 2026-06-19] Free-text de un medicamento no listado en los
+        // chips (QMedical). Mirror de otherConditions. Lo escanea medication_rules._norm_medications
+        // (backstop) + llega al prompt vía el JSON dump de form_data. PII médica → SENSITIVE_FIELDS.
+        otherMedications: '',
         // [P1-B5] otherDislikes captura el free-text del step QDislikes (alimentos
         // no listados en los chips comunes, ej. "Apio, Curry, Picante").
         otherDislikes: '',
@@ -874,14 +915,27 @@ export const AssessmentProvider = ({ children }) => {
                     // y volvió, la siguiente pasada del wizard mostraba age=25
                     // (valor anterior persistido en DB). Ahora los campos
                     // tocados se preservan; los no tocados sí se hidratan.
+                    // [P1-FORM-PRESERVE-NONEMPTY · 2026-06-17] Preserva NO solo los
+                    // campos editados esta sesión (editedFieldsRef) sino TODO campo
+                    // que ya tiene valor en el form. `editedFieldsRef` es in-memory →
+                    // se vacía en un reload de página / reapertura de la PWA; tras
+                    // recargar, las respuestas persistidas (localStorage) quedaban
+                    // desprotegidas y este merge (o el de focus/visibilitychange) las
+                    // revertía a los valores viejos del DB → "las respuestas se borran
+                    // a veces". Regla: solo hidratamos campos VACÍOS desde el DB.
                     const edited = editedFieldsRef.current;
-                    const filtered = {};
-                    for (const [k, v] of Object.entries(data.health_profile)) {
-                        if (!edited.has(k)) filtered[k] = v;
-                    }
-                    if (Object.keys(filtered).length > 0) {
-                        setFormData(prev => ({ ...prev, ...filtered }));
-                    }
+                    setFormData(prev => {
+                        const next = { ...prev };
+                        let changed = false;
+                        for (const [k, v] of Object.entries(data.health_profile)) {
+                            if (edited.has(k)) continue;
+                            const cur = prev[k];
+                            const isEmpty = cur === null || cur === undefined || cur === '' || (Array.isArray(cur) && cur.length === 0);
+                            if (!isEmpty) continue;
+                            next[k] = v; changed = true;
+                        }
+                        return changed ? next : prev;
+                    });
                 }
             }
         } catch (error) {
@@ -918,14 +972,24 @@ export const AssessmentProvider = ({ children }) => {
                         // edición de wizard, así que no protege esta ventana.
                         // Los campos tocados se preservan; los no tocados sí
                         // se hidratan.
+                        // [P1-FORM-PRESERVE-NONEMPTY · 2026-06-17] Igual que en
+                        // fetchProfile: solo hidratamos campos VACÍOS desde el DB.
+                        // Este path corre en focus/visibilitychange (volver a la
+                        // app/pestaña) — sin este guard, tras recargar (editedFieldsRef
+                        // vacío) revertía respuestas en progreso a los valores del DB.
                         const edited = editedFieldsRef.current;
-                        const filtered = {};
-                        for (const [k, v] of Object.entries(data.health_profile)) {
-                            if (!edited.has(k)) filtered[k] = v;
-                        }
-                        if (Object.keys(filtered).length > 0) {
-                            setFormData(prev => ({ ...prev, ...filtered }));
-                        }
+                        setFormData(prev => {
+                            const next = { ...prev };
+                            let changed = false;
+                            for (const [k, v] of Object.entries(data.health_profile)) {
+                                if (edited.has(k)) continue;
+                                const cur = prev[k];
+                                const isEmpty = cur === null || cur === undefined || cur === '' || (Array.isArray(cur) && cur.length === 0);
+                                if (!isEmpty) continue;
+                                next[k] = v; changed = true;
+                            }
+                            return changed ? next : prev;
+                        });
                     }
                 }
             } catch (error) {
@@ -1053,6 +1117,15 @@ export const AssessmentProvider = ({ children }) => {
                 const userId = currentSession.user.id;
                 safeLocalStorageSet('mealfit_user_id', userId);
 
+                // [P1-FIRST-PARTY-SESSION · 2026-06-16] Tras un login REAL de Neon,
+                // emite/renueva la cookie first-party __Host-mf_session (iOS la
+                // conserva al cerrar la app). Gateado a sesiones de Neon: la sesión
+                // RECONSTRUIDA desde la cookie (`_firstParty`) NO tiene Bearer, así
+                // que no re-mintea (evita un 401 inútil). Fire-and-forget.
+                if (!currentSession._firstParty) {
+                    mintFirstPartySession().catch(() => {});
+                }
+
                 // [P1-FRONTEND-HARDEN · 2026-05-23] safeLocalStorageGet vs raw
                 // getItem: en iOS Private Mode el throw del raw getItem hacía
                 // que la rama de detección user-switch nunca corriera. Modo de
@@ -1070,6 +1143,11 @@ export const AssessmentProvider = ({ children }) => {
                     // ocupa storage y confunde la migración futura.
                     clearFormStorage();
                     setFormData(initialFormData);
+                    // [P1-FORM-RESUME · 2026-06-19] No heredar la posición del wizard
+                    // del usuario anterior al cambiar de cuenta. El effect de
+                    // persistencia reescribe {0,0} tras estos setters.
+                    setCurrentStep(0);
+                    setMaxReachedStep(0);
                     // [P1-EDITED-FIELDS-XUSER · 2026-06-01] Vaciar el touched-set
                     // heredado de A. `editedFieldsRef` acumula todo campo que A tocó
                     // vía updateData() durante la vida del provider, y los 3 writers
@@ -1189,10 +1267,38 @@ export const AssessmentProvider = ({ children }) => {
             ]);
         };
 
-        getSessionWithTimeout().then(({ data: { session: initialSession } }) => {
-            handleAuthChange(initialSession);
-        }).catch((err) => {
-            console.warn("⚠️ Advertencia: No se pudo verificar la sesión (Neon Auth inalcanzable — posible fallo de red, firewall o DNS). Iniciando en modo offline/guest.");
+        // [P1-FIRST-PARTY-SESSION · 2026-06-16] Si Neon no devuelve sesión (su
+        // cookie third-party la borró iOS al cerrar la app) O Neon es inalcanzable,
+        // probamos la cookie first-party __Host-mf_session de NUESTRO backend antes
+        // de declarar al usuario deslogueado. Si es válida, reconstruimos una sesión
+        // mínima (`_firstParty`) que dispara la hidratación normal — todas las
+        // fetches autenticadas funcionan porque el backend acepta la cookie.
+        const _resolveViaFirstParty = async () => {
+            const fp = await checkFirstPartySession();
+            if (fp && fp.user_id) {
+                // access_token: null EXPLÍCITO — la cookie no provee un token de
+                // Neon. Código que lo lea (p.ej. secureFormStorage) ve null y omite
+                // de forma segura; los datos sensibles se rehidratan del backend
+                // (health_profile via cookie-auth), no del cache cifrado local.
+                handleAuthChange({ user: { id: fp.user_id, email: fp.email || null }, access_token: null, _firstParty: true });
+                return true;
+            }
+            return false;
+        };
+
+        getSessionWithTimeout().then(async ({ data: { session: initialSession } }) => {
+            if (initialSession) {
+                handleAuthChange(initialSession);
+                return;
+            }
+            if (!(await _resolveViaFirstParty())) {
+                handleAuthChange(null);
+            }
+        }).catch(async (err) => {
+            console.warn("⚠️ Advertencia: No se pudo verificar la sesión de Neon (inalcanzable o sin sesión). Probando cookie first-party / modo offline.");
+            if (await _resolveViaFirstParty()) {
+                return;
+            }
             setLoadingAuth(false);
             setLoadingData(false);
             // [P1-10] Sin session verificable → NO hay profile que hidratar.
@@ -1206,7 +1312,18 @@ export const AssessmentProvider = ({ children }) => {
         // Escuchar cambios en tiempo real
         const {
             data: { subscription },
-        } = authClient.auth.onAuthStateChange((_event, newSession) => {
+        } = authClient.auth.onAuthStateChange(async (_event, newSession) => {
+            // [P1-FIRST-PARTY-SESSION · 2026-06-16] Cuando Neon reporta SIN sesión
+            // (p.ej. INITIAL_SESSION/SIGNED_OUT al reabrir el PWA, donde Neon
+            // perdió su cookie third-party), NO desloguear de inmediato: si nuestra
+            // sesión first-party sigue viva (token en localStorage), reconstruirla.
+            // Sin esto, este evento PISABA la reconstrucción first-party → el
+            // usuario se deslogueaba al reabrir pese al token válido. El logout
+            // real ya borra el token ANTES del signOut (ver resetApp), así que ahí
+            // _resolveViaFirstParty falla (401) y cae al handleAuthChange(null).
+            if (!newSession) {
+                if (await _resolveViaFirstParty()) return;
+            }
             handleAuthChange(newSession);
         });
 
@@ -1494,6 +1611,15 @@ export const AssessmentProvider = ({ children }) => {
     useEffect(() => {
         if (planData) safeLocalStorageSet('mealfit_plan', planData);
     }, [planData]);
+
+    // [P1-FORM-RESUME · 2026-06-19] Persistir la posición del wizard en cada cambio
+    // para que un refresh reanude donde el usuario se quedó (no reiniciar al paso 0).
+    // Solo enteros, no PII. Los reset sites (resetApp/exitGuestSession/enterGuestMode/
+    // wipe cross-user) ya llaman setCurrentStep(0)+setMaxReachedStep(0) → este effect
+    // persiste {0,0}, equivalente a "empezar de cero".
+    useEffect(() => {
+        safeLocalStorageSet('mealfit_wizard_step', { currentStep, maxReachedStep });
+    }, [currentStep, maxReachedStep]);
 
     useEffect(() => {
         if (likedMeals) safeLocalStorageSet('mealfit_likes', likedMeals);
@@ -2258,6 +2384,12 @@ export const AssessmentProvider = ({ children }) => {
         // resetApp se rechazaba y los setters de React de abajo NUNCA corrían →
         // planData/userProfile en memoria sobrevivían hasta el próximo remount.
         // Toleramos el fallo de red para que el reset de estado siempre proceda.
+        // [P1-FIRST-PARTY-SESSION · 2026-06-16] Borrar la sesión first-party (token
+        // de localStorage + cookie del backend) ANTES del signOut de Neon. El
+        // signOut dispara onAuthStateChange(null), que ahora intenta PRESERVAR la
+        // sesión first-party; si no la borramos primero, el logout no surtiría
+        // efecto (el guard la reconstruiría). Best-effort.
+        await logoutFirstPartySession();
         try {
             await authClient.auth.signOut();
         } catch (e) {
@@ -2274,6 +2406,37 @@ export const AssessmentProvider = ({ children }) => {
         setLoadingData(false);
     };
 
+    // [P1-EVALUATE-SCRATCH-RESET · 2026-06-17] Soft-reset para "Empezar Desde Cero"
+    // (modal Evaluar de Nuevo en Settings). A diferencia de `resetApp`, NO cierra
+    // sesión: vacía el plan + el formulario + el health_profile EN MEMORIA y en
+    // localStorage, dejando la cuenta como "sin assessment". Sin esto, `planData` y
+    // `userProfile.health_profile` sobrevivían en memoria tras el reset → ProtectedRoute
+    // (`hasCompletedAssessment = health_profile || planData`) seguía considerando la
+    // cuenta completa → el usuario podía volver al /dashboard con el plan viejo en vez
+    // de quedar obligado a re-llenar el formulario. El backend `/api/account/
+    // reset-preferences` ya vacía el health_profile en DB; esto sincroniza el estado
+    // en memoria. (El plan se borra aparte en el handler, vía DELETE /api/plans/{id},
+    // para que un reload no lo re-hidrate desde la DB.)
+    const resetForNewAssessment = () => {
+        safeLocalStorageRemove('mealfit_form');
+        safeLocalStorageRemove('mealfit_form_secure');
+        safeLocalStorageRemove('mealfit_plan');
+        safeLocalStorageRemove('mealfit_likes');
+        safeLocalStorageRemove('mealfit_dislikes');
+        safeLocalStorageRemove('mealfit_disabled_ingredients');
+        safeLocalStorageRemove('mealfit_wizard_step'); // [P1-FORM-RESUME · 2026-06-19]
+        setPlanData(null);
+        setFormData(initialFormData);
+        setLikedMeals({});
+        setDislikedMeals({});
+        // Vacía SOLO el health_profile (preserva tier/credits/id/nombre). El backend
+        // ya lo vació en DB → un refetch posterior devuelve {} (consistente).
+        setUserProfile(prev => (prev ? { ...prev, health_profile: {} } : prev));
+        setCurrentStep(0);
+        setMaxReachedStep(0);
+        editedFieldsRef.current.clear();
+    };
+
     // [P1-GUEST-LOGOUT · 2026-06-15] "Cerrar sesión" de un INVITADO. Como no hay
     // sesión en el servidor, es un teardown puramente local: sale del modo
     // invitado (flag + créditos), borra TODO el progreso efímero (form/plan/likes
@@ -2286,6 +2449,7 @@ export const AssessmentProvider = ({ children }) => {
         safeLocalStorageRemove('mealfit_plan');
         safeLocalStorageRemove('mealfit_likes');
         safeLocalStorageRemove('mealfit_dislikes');
+        safeLocalStorageRemove('mealfit_wizard_step'); // [P1-FORM-RESUME · 2026-06-19]
         safeLocalStorageRemove('mealfit_user_id');
         safeLocalStorageRemove('mealfit_guest_session_id');
         safeLocalStorageRemove('mealfit_current_session');
@@ -2436,6 +2600,7 @@ export const AssessmentProvider = ({ children }) => {
             dislikedMeals,
             regenerateSingleMeal,
             resetApp,
+            resetForNewAssessment,
             planCount: effectivePlanCount,
             PLAN_LIMIT,
             userPlanLimit: effectivePlanLimit,

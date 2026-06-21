@@ -4,6 +4,8 @@ import { authClient } from '../authClient';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { User, Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { checkLeakedPassword } from '../utils/checkLeakedPassword';
+import { clearStoredMfSession } from '../utils/firstPartySession';
+import { humanizeAuthError } from '../utils/authErrors';
 import styles from './Auth.module.css';
 
 const Register = () => {
@@ -17,6 +19,7 @@ const Register = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [error, setError] = useState(null);
+    const [googleLoading, setGoogleLoading] = useState(false);
 
     const handleRegister = async (e) => {
         e.preventDefault();
@@ -49,30 +52,62 @@ const Register = () => {
             return;
         }
 
+        const cleanEmail = email.trim();
         try {
             const { error: signUpError } = await authClient.auth.signUp({
-                email,
+                email: cleanEmail,
                 password,
                 options: {
                     data: {
-                        full_name: name,
+                        // [P1-REGISTER-NAME · 2026-06-18] El adapter de Neon Auth mapea
+                        // options.data.displayName → name del usuario; `full_name` NO se
+                        // leía, así que el nombre nunca se persistía. Enviamos ambos.
+                        displayName: name.trim(),
+                        full_name: name.trim(),
                     },
                 },
             });
 
             if (signUpError) throw signUpError;
 
-            navigate('/assessment');
+            // [P1-REGISTER-SESSION-FIX · 2026-06-16] `signUp` de Better Auth NO deja
+            // la sesión activa de forma síncrona en el cliente. Sin esto la app se
+            // quedaba en modo invitado (isGuest = !session && guestFlag — sin sesión
+            // el flag de invitado nunca se limpiaba) y OBLIGABA a refrescar; peor:
+            // en ese refresh un token first-party stale de OTRA cuenta del mismo
+            // dispositivo (vía _resolveViaFirstParty) "ganaba" y la app cargaba la
+            // cuenta vieja en vez de la recién creada.
+            //   (1) descartamos cualquier token first-party previo del dispositivo;
+            //   (2) forzamos el SIGNED_IN del NUEVO usuario → handleAuthChange setea
+            //       la sesión, limpia el modo invitado y mintea el token correcto.
+            try { clearStoredMfSession(); } catch { /* best-effort */ }
+            const { error: signInError } = await authClient.auth.signInWithPassword({ email: cleanEmail, password });
+            if (signInError) {
+                // Cuenta creada pero el auto-login no procedió (p.ej. confirmación
+                // de correo pendiente): mandamos a login con el email para entrar
+                // manualmente, en vez de dejar la app en un estado a medias.
+                navigate('/login', { state: { email: cleanEmail, justRegistered: true } });
+                return;
+            }
+
+            // [P0-LOGIN-SESSION-PROPAGATE · 2026-06-18] Recarga COMPLETA (no navigate SPA):
+            // el adapter de Neon Auth no emite el evento de sesión same-tab tras
+            // signInWithPassword → con navigate() la sesión quedaba null y ProtectedRoute
+            // rebotaba a /login tras registrarse. El reload remonta el provider →
+            // getSession lee la cookie fresca → la sesión se propaga.
+            window.location.assign('/assessment');
         } catch (err) {
-            let errorMessage = err.message;
-            if (errorMessage === 'User already registered' || errorMessage.includes('already registered')) {
+            const raw = err?.message || '';
+            let errorMessage;
+            if (raw === 'User already registered' || raw.includes('already registered')) {
                 errorMessage = 'Este correo electrónico ya está registrado. Por favor, inicia sesión.';
-            } else if (errorMessage.includes('Password should be at least')) {
+            } else if (raw.includes('Password should be at least')) {
                 errorMessage = 'La contraseña debe tener al menos 8 caracteres.';
-            } else if (errorMessage.toLowerCase().includes('invalid email')) {
+            } else if (raw.toLowerCase().includes('invalid email')) {
                 errorMessage = 'El correo electrónico ingresado no tiene un formato válido.';
-            } else if (errorMessage.toLowerCase().includes('rate limit') || errorMessage.toLowerCase().includes('too many')) {
-                errorMessage = 'Has intentado registrarte demasiadas veces. Por favor, espera un momento.';
+            } else {
+                // red caída / rate-limit / desconocido → mensaje es-DO accionable.
+                errorMessage = humanizeAuthError(err);
             }
             setError(errorMessage);
         } finally {
@@ -165,7 +200,6 @@ const Register = () => {
                                         type="button"
                                         className={styles.passwordToggle}
                                         onClick={() => setShowPassword(!showPassword)}
-                                        tabIndex="-1"
                                         aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                                     >
                                         {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
@@ -193,7 +227,6 @@ const Register = () => {
                                         type="button"
                                         className={styles.passwordToggle}
                                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                        tabIndex="-1"
                                         aria-label={showConfirmPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                                     >
                                         {showConfirmPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
@@ -224,7 +257,11 @@ const Register = () => {
 
                     <button
                         type="button"
+                        disabled={googleLoading}
                         onClick={async () => {
+                            if (googleLoading) return;
+                            setGoogleLoading(true);
+                            setError(null);
                             try {
                                 const { error } = await authClient.auth.signInWithOAuth({
                                     provider: 'google',
@@ -233,8 +270,10 @@ const Register = () => {
                                     }
                                 });
                                 if (error) throw error;
+                                // éxito → redirige a Google; no reseteamos loading.
                             } catch (error) {
-                                setError(error.message);
+                                setError(humanizeAuthError(error));
+                                setGoogleLoading(false);
                             }
                         }}
                         className={styles.googleBtn}
@@ -245,7 +284,7 @@ const Register = () => {
                             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                         </svg>
-                        Google
+                        {googleLoading ? 'Conectando con Google…' : 'Google'}
                     </button>
                 </form>
 

@@ -1,63 +1,69 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { authClient } from '../authClient';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { User, Lock, ArrowRight, AlertCircle, Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react';
 import styles from './Auth.module.css';
 import { useAssessment } from '../context/AssessmentContext';
+import { logoutFirstPartySession } from '../utils/firstPartySession';
+import { humanizeAuthError } from '../utils/authErrors';
 
 const Login = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     // [P1-GUEST-MODE · 2026-06-15] Entrada al funnel del plan gratuito sin cuenta.
     const { activateGuestMode, session } = useAssessment();
     const [guestLoading, setGuestLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [email, setEmail] = useState('');
+    // [LOGIN-LOCATION-STATE · 2026-06-18] Register manda {email, justRegistered} al
+    // rebotar a /login (auto-login pendiente de confirmación) → pre-rellenamos el correo
+    // y mostramos un banner, en vez de aterrizar en un login vacío sin contexto.
+    const [email, setEmail] = useState(location.state?.email || '');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [rememberMe, setRememberMe] = useState(false);
     const [isForgotPasswordMode, setIsForgotPasswordMode] = useState(false);
     const [error, setError] = useState(null);
+    const [infoMessage, setInfoMessage] = useState(
+        location.state?.justRegistered ? 'Cuenta creada. Inicia sesión para continuar.' : null
+    );
     const [resetLoading, setResetLoading] = useState(false);
     const [resetMessage, setResetMessage] = useState(null);
+
+    // Limpiar el location.state tras consumirlo (un refresh no debe re-mostrar el banner).
+    useEffect(() => {
+        if (location.state) navigate(location.pathname, { replace: true, state: null });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
+        setInfoMessage(null);
 
         try {
-            // Intentar establecer persistencia (puede fallar en algunas versiones/entornos)
-            try {
-                /* await authClient.auth.setPersistence(rememberMe ? 'local' : 'session'); */
-            } catch (pError) {
-                console.warn("No se pudo establecer persistencia:", pError);
-            }
-
             const { error } = await authClient.auth.signInWithPassword({
-                email,
+                email: email.trim(),
                 password,
             });
 
             if (error) throw error;
-            navigate('/');
+            // [P0-LOGIN-SESSION-PROPAGATE · 2026-06-18] Recarga COMPLETA en vez de
+            // navigate('/') SPA. El adapter de Neon Auth NO emite el evento de sesión en
+            // la MISMA pestaña tras signInWithPassword (el BroadcastChannel excluye el tab
+            // originante), así que con navigate() SPA la sesión quedaba null en el contexto
+            // y ProtectedRoute rebotaba a /login pese al login correcto (enmascarado porque
+            // el OAuth de Google sí hace redirect completo y es el camino dominante). Un
+            // full reload remonta el provider → getSession lee la cookie fresca → la sesión
+            // se propaga. El landing-skip enruta luego a /dashboard o /assessment según el
+            // estado del plan.
+            window.location.assign('/');
         } catch (err) {
-            if (err.message === 'Invalid login credentials') {
-                // [P2-LOGIN-WRONG-PW-REDIRECT · 2026-06-01] Antes esta rama consultaba
-                // user_profiles por email para decidir si redirigir a /register (usuario
-                // inexistente) o mostrar "contraseña incorrecta". Pero en la pantalla de
-                // login el cliente es ANÓNIMO y la única policy SELECT de user_profiles es
-                // `auth.uid() = id` → para un anon, auth.uid() es NULL → 0 filas SIEMPRE
-                // (cualquier email). Con `.single()` sobre 0 filas → {data:null} → `!data`
-                // siempre true → un usuario REGISTRADO que teclea mal su contraseña era
-                // expulsado a /register (donde vería "correo ya registrado"). La query era
-                // un round-trip que NUNCA podía leer bajo RLS; eliminarla también cierra la
-                // intención de user-enumeration. Resetear la contraseña sí funciona (usa el
-                // error de auth.resetPasswordForEmail, no una query RLS-gated).
-                setError('Correo o contraseña incorrectos.');
-            } else {
-                setError(err.message);
-            }
+            // humanizeAuthError mapea 'Invalid login credentials' → "Correo o contraseña
+            // incorrectos." (anti user-enumeration, P2-LOGIN-WRONG-PW-REDIRECT) y la red
+            // caída a un mensaje es-DO de conexión.
+            setError(humanizeAuthError(err));
         } finally {
             setLoading(false);
         }
@@ -75,25 +81,31 @@ const Login = () => {
 
         setResetLoading(true);
         try {
-            const { error } = await authClient.auth.resetPasswordForEmail(email.trim(), {
+            await authClient.auth.resetPasswordForEmail(email.trim(), {
                 redirectTo: `${window.location.origin}/reset-password`,
             });
-            if (error) throw error;
-            setResetMessage('Te hemos enviado un enlace para restablecer tu contraseña. Revisa tu correo.');
         } catch (err) {
-            let errorMessage = err.message;
-            if (errorMessage === 'User not found') {
-                navigate('/register', { state: { email: email.trim() } });
-                return; // Stop execution to let navigation happen smoothly
-            } else if (errorMessage.toLowerCase().includes('invalid')) {
-                errorMessage = 'El correo electrónico no es válido o está asociado a una cuenta de Google. Si usaste Google, por favor inicia sesión con el botón de abajo.';
-            } else if (errorMessage.toLowerCase().includes('rate limit') || errorMessage.toLowerCase().includes('too many')) {
-                errorMessage = 'Has solicitado esto demasiadas veces. Por favor, espera un momento.';
+            // [ANTI-ENUMERATION · 2026-06-18] Solo informamos errores de RED/rate-limit;
+            // la EXISTENCIA del correo NO se revela. Antes 'User not found' redirigía a
+            // /register → un atacante distinguía cuenta-existe (mensaje de éxito) de
+            // cuenta-no-existe (redirect). Misma clase que P2-LOGIN-WRONG-PW-REDIRECT
+            // cerró para el login, ahora cerrada también en el reset.
+            const lower = (err?.message || '').toLowerCase();
+            const isNetworkOrRate =
+                /rate limit|too many/.test(lower) ||
+                /failed to fetch|networkerror|network error|load failed/.test(lower) ||
+                (typeof navigator !== 'undefined' && navigator.onLine === false);
+            if (isNetworkOrRate) {
+                setError(humanizeAuthError(err));
+                setResetLoading(false);
+                return;
             }
-            setError(errorMessage);
-        } finally {
-            setResetLoading(false);
+            // Cualquier otro error (incl. "User not found") cae al mensaje neutro de abajo.
         }
+        // Mensaje neutro SIEMPRE: no revela si el correo existe. Si existe, Neon Auth
+        // envía el enlace; si no, no ocurre nada.
+        setResetMessage('Si existe una cuenta con ese correo, te enviamos un enlace para restablecer tu contraseña. Revisa tu bandeja (y la carpeta de spam).');
+        setResetLoading(false);
     };
 
     return (
@@ -134,6 +146,13 @@ const Login = () => {
                     <div className={styles.successBox} role="status" aria-live="polite">
                         <CheckCircle2 size={16} aria-hidden="true" />
                         {resetMessage}
+                    </div>
+                )}
+
+                {infoMessage && (
+                    <div className={styles.successBox} role="status" aria-live="polite">
+                        <CheckCircle2 size={16} aria-hidden="true" />
+                        {infoMessage}
                     </div>
                 )}
 
@@ -231,7 +250,6 @@ const Login = () => {
                                                 type="button"
                                                 className={styles.passwordToggle}
                                                 onClick={() => setShowPassword(!showPassword)}
-                                                tabIndex="-1"
                                                 aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                                             >
                                                 {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
@@ -239,19 +257,13 @@ const Login = () => {
                                         </div>
                                     </div>
 
-                                    <div className={styles.checkboxContainer}>
-                                        <div className={styles.checkboxWrapper}>
-                                            <label className={styles.checkboxLabel}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={rememberMe}
-                                                    onChange={(e) => setRememberMe(e.target.checked)}
-                                                    className={styles.checkboxInput}
-                                                />
-                                                <div className={styles.customCheckbox}></div>
-                                                Recordarme
-                                            </label>
-                                        </div>
+                                    {/* [LOGIN-REMEMBER-REMOVED · 2026-06-18] Se quitó la casilla
+                                        "Recordarme": era dead-UI (setPersistence comentado y ausente
+                                        en el adapter de Neon Auth). La sesión first-party (30d sliding,
+                                        __Host-mf_session) ya es "recordarme" por defecto; un checkbox
+                                        que no cambia nada es una promesa rota en dispositivos
+                                        compartidos. Se conserva el enlace de recuperar contraseña. */}
+                                    <div className={styles.checkboxContainer} style={{ justifyContent: 'flex-end' }}>
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -288,7 +300,11 @@ const Login = () => {
 
                             <button
                                 type="button"
+                                disabled={googleLoading}
                                 onClick={async () => {
+                                    if (googleLoading) return;
+                                    setGoogleLoading(true);
+                                    setError(null);
                                     try {
                                         const { error } = await authClient.auth.signInWithOAuth({
                                             provider: 'google',
@@ -297,8 +313,10 @@ const Login = () => {
                                             }
                                         });
                                         if (error) throw error;
+                                        // éxito → la página redirige a Google; no reseteamos loading.
                                     } catch (error) {
-                                        setError(error.message);
+                                        setError(humanizeAuthError(error));
+                                        setGoogleLoading(false);
                                     }
                                 }}
                                 className={styles.googleBtn}
@@ -309,7 +327,7 @@ const Login = () => {
                                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                                 </svg>
-                                Google
+                                {googleLoading ? 'Conectando con Google…' : 'Google'}
                             </button>
                         </form>
 
@@ -336,6 +354,15 @@ const Login = () => {
                                     if (session) {
                                         try { await authClient.auth.signOut(); } catch { /* best-effort */ }
                                     }
+                                    // [P1-GUEST-FIRSTPARTY-CLEAR · 2026-06-16] Limpiar
+                                    // SIEMPRE el token + cookie first-party de una cuenta
+                                    // anterior en este dispositivo. El signOut de Neon NO
+                                    // los toca (solo el logout real vía resetApp lo hacía)
+                                    // → sin esto, un refresh en modo invitado resucitaba
+                                    // la sesión vieja (_resolveViaFirstParty) y la app
+                                    // "agarraba" la cuenta previa en vez de quedarse como
+                                    // invitado.
+                                    try { await logoutFirstPartySession(); } catch { /* best-effort */ }
                                     activateGuestMode();
                                     navigate('/assessment');
                                 } finally {
