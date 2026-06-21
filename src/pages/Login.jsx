@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { authClient, sendEmailOtp, signInWithEmailOtp } from '../authClient';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import styles from './Auth.module.css';
 import { useAssessment } from '../context/AssessmentContext';
@@ -125,6 +125,16 @@ const Login = () => {
         setError(null);
         setInfoMessage(null);
     };
+
+    // [LOGIN-REDIRECT-IF-AUTHED · 2026-06-21] Si ya hay sesión viva (la cookie de
+    // Neon 7d o la sesión first-party 30d siguen vigentes) y el usuario cae en
+    // /login (revisita, bookmark), entra DIRECTO a la app — no le mostramos el
+    // formulario ni le pedimos código de nuevo. El destino real (dashboard o
+    // formulario) lo decide ProtectedRoute en '/'. Los invitados (session null +
+    // isGuest) no se afectan.
+    if (session) {
+        return <Navigate to="/" replace />;
+    }
 
     return (
         <div className={styles.authContainer}>
