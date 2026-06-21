@@ -142,3 +142,57 @@ export async function verifyCurrentPassword(email, password) {
         return false;
     }
 }
+
+// [P1-EMAIL-OTP · 2026-06-21] Login SIN contraseña: código de un solo uso al
+// correo (como OpenAI/Anthropic). El adapter beta de @neondatabase/neon-js NO
+// expone los métodos emailOtp, así que vamos directo a los endpoints REST de
+// Better Auth — verificados EN VIVO contra esta instancia de Neon (ambos
+// responden 400-validación, no 404). El primer código de un correo nuevo
+// AUTO-CREA la cuenta (Better Auth `disableSignUp=false`, y Neon no expone forma
+// de apagarlo) → por eso NO hace falta página de registro: este flujo registra
+// e inicia sesión en un solo paso.
+//   POST <base>/email-otp/send-verification-otp  {email, type:"sign-in"}
+//   POST <base>/sign-in/email-otp                {email, otp}
+// `/sign-in/email-otp` setea la cookie de sesión de Neon (credentials:include),
+// IGUAL que signInWithPassword → un full reload propaga la sesión (getSession +
+// mint first-party), sin tocar el resto de la plomería de auth.
+
+// Paso 1 — pide el código al correo. type "sign-in" sirve para nuevos y existentes.
+export async function sendEmailOtp(email) {
+    const clean = (email || '').trim();
+    try {
+        const res = await fetch(`${neonAuthUrl}/email-otp/send-verification-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: clean, type: 'sign-in' }),
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            return { error: { message: data?.message || `No se pudo enviar el código (HTTP ${res.status})`, status: res.status } };
+        }
+        return { error: null };
+    } catch (e) {
+        return { error: { message: e?.message || 'Error de red enviando el código.' } };
+    }
+}
+
+// Paso 2 — verifica el código e inicia sesión (auto-registra si es nuevo).
+export async function signInWithEmailOtp(email, otp) {
+    const clean = (email || '').trim();
+    const code = (otp || '').trim();
+    try {
+        const res = await fetch(`${neonAuthUrl}/sign-in/email-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // setea la cookie de sesión de Neon
+            body: JSON.stringify({ email: clean, otp: code }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            return { data: null, error: { message: data?.message || 'Código inválido o expirado.', status: res.status } };
+        }
+        return { data, error: null };
+    } catch (e) {
+        return { data: null, error: { message: e?.message || 'Error de red verificando el código.' } };
+    }
+}

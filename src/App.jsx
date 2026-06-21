@@ -6,7 +6,9 @@ import { Toaster } from 'sonner';
 import Layout from './components/layout/Layout';
 import DashboardLayout from './components/dashboard/DashboardLayout';
 import Login from './pages/Login';
-import Register from './pages/Register';
+// [P1-EMAIL-OTP · 2026-06-21] /register quedó retirado: el login por código crea
+// la cuenta en el primer acceso (un solo flujo). La ruta redirige a /login para
+// no romper los CTA "crear cuenta" repartidos por la app (Upgrade/Pricing/etc.).
 import { AssessmentProvider } from './context/AssessmentContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import IOSInstallPrompt from './components/IOSInstallPrompt';
@@ -211,7 +213,7 @@ function App() {
           <Route element={<AnimatedLayout />}>
             {/* Public Routes: Auth */}
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/register" element={<Navigate to="/login" replace />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Rutas Protegidas */}
