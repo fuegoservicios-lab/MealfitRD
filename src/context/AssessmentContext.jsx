@@ -105,6 +105,9 @@ import {
     loadFormData as secureLoadFormData,
     migrateLegacyFormStorage,
     clearFormStorage,
+    saveGuestSensitiveFields,
+    loadGuestSensitiveFields,
+    clearGuestSensitiveFields,
 } from '../config/secureFormStorage';
 
 const AssessmentContext = createContext();
@@ -500,6 +503,7 @@ export const AssessmentProvider = ({ children }) => {
     useEffect(() => {
         if (session) {
             clearGuestModeStorage();
+            clearGuestSensitiveFields(); // [P1-GUEST-FORM-PERSIST] al confirmar sesión real, descartar la copia plana de invitado
             setGuestFlag(false);
         }
     }, [session]);
@@ -515,6 +519,7 @@ export const AssessmentProvider = ({ children }) => {
     const activateGuestMode = useCallback(() => {
         safeLocalStorageRemove('mealfit_form');
         safeLocalStorageRemove('mealfit_form_secure');
+        clearGuestSensitiveFields(); // [P1-GUEST-FORM-PERSIST] CRÍTICO: limpiar la copia plana del invitado ANTERIOR antes de arrancar uno nuevo (el nuevo invitado SÍ la lee → evita bleed cross-guest en la misma pestaña)
         safeLocalStorageRemove('mealfit_plan');
         safeLocalStorageRemove('mealfit_likes');
         safeLocalStorageRemove('mealfit_dislikes');
@@ -1232,6 +1237,7 @@ export const AssessmentProvider = ({ children }) => {
                     // usuario — fallaría al descifrar (clave HKDF distinta) pero
                     // ocupa storage y confunde la migración futura.
                     clearFormStorage();
+                    clearGuestSensitiveFields(); // [P1-GUEST-FORM-PERSIST] defense-in-depth: cambio de usuario real → borrar también la copia plana de invitado (no depender solo del session-confirm effect)
                     setFormData(initialFormData);
                     // [P1-FORM-RESUME · 2026-06-19] No heredar la posición del wizard
                     // del usuario anterior al cambiar de cuenta. El effect de
@@ -1320,6 +1326,7 @@ export const AssessmentProvider = ({ children }) => {
                     // créditos + marcador + owner). El teardown de abajo borra el plan.
                     // Resultado: invitado que cerró y volvió = empieza de cero.
                     clearGuestModeStorage();
+                    clearGuestSensitiveFields(); // [P1-GUEST-FORM-PERSIST] sesión de tab muerta → borrar la copia plana de invitado
                     setGuestFlag(false);
                     safeLocalStorageRemove('mealfit_last_form_owner');
                 }
@@ -1659,6 +1666,14 @@ export const AssessmentProvider = ({ children }) => {
         // filtro `editedFieldsRef` que ya preserva edits in-flight del usuario.
         if (formData && !loadingSensitive) {
             secureSaveFormData(formData, session).catch(() => { /* logged dentro */ });
+            // [P1-GUEST-FORM-PERSIST · 2026-06-21] Solo el INVITADO (sin sesión + modo
+            // invitado activo) persiste sus campos sensibles a sessionStorage — no hay
+            // token para cifrar. saveGuestSensitiveFields SALTA si todo está vacío (defensa
+            // anti-clobber en mount). Un usuario con sesión los cifra arriba; jamás se
+            // persiste copia plana para un usuario logueado.
+            if (!session && isGuestModeActive()) {
+                saveGuestSensitiveFields(formData);
+            }
         }
     }, [formData, session, loadingSensitive]);
 
@@ -1682,6 +1697,25 @@ export const AssessmentProvider = ({ children }) => {
         // usuarios que aún no han logged-in, sesiones expiradas tras token
         // refresh fallido.
         if (!session?.user) {
+            // [P1-GUEST-FORM-PERSIST · 2026-06-21] Hidratar los sensibles del invitado desde
+            // sessionStorage SOLO cuando la auth YA RESOLVIÓ (!loadingAuth) y estamos en modo
+            // invitado. El gate !loadingAuth cierra la ventana de reload: en mount session es
+            // null AÚN para un usuario que está iniciando sesión → sin este gate le
+            // inyectaríamos la data de un invitado previo (leak cross-usuario de PII médica).
+            // Filtra editedFieldsRef (contrato P0-FORM-2: edits in-flight ganan).
+            if (!loadingAuth && isGuestModeActive()) {
+                try {
+                    const guestSensitive = loadGuestSensitiveFields();
+                    if (guestSensitive) {
+                        const edited = editedFieldsRef.current;
+                        const filtered = {};
+                        for (const [k, v] of Object.entries(guestSensitive)) {
+                            if (!edited.has(k)) filtered[k] = v;
+                        }
+                        if (Object.keys(filtered).length > 0) setFormData(prev => ({ ...prev, ...filtered }));
+                    }
+                } catch { /* sessionStorage no disponible → no-op */ }
+            }
             setLoadingSensitive(false);
             return;
         }
@@ -1715,7 +1749,9 @@ export const AssessmentProvider = ({ children }) => {
             }
         })();
         return () => { cancelled = true; };
-    }, [session?.user?.id, session?.access_token]);
+        // [P1-GUEST-FORM-PERSIST] loadingAuth en deps: la rama invitado hidrata SOLO tras
+        // resolver la auth (!loadingAuth) → el effect debe re-correr cuando loadingAuth baja.
+    }, [session?.user?.id, session?.access_token, loadingAuth]);
 
     useEffect(() => {
         if (planData) safeLocalStorageSet('mealfit_plan', planData);
@@ -2480,6 +2516,7 @@ export const AssessmentProvider = ({ children }) => {
         // del chat (mealfit_guest_session / _sessions_list, arriba). Limpiarlas en
         // el logout real deja el dispositivo sin rastro de la identidad efímera.
         clearGuestModeStorage();
+        clearGuestSensitiveFields(); // [P1-GUEST-FORM-PERSIST] logout real: borrar la copia plana de invitado
         // [P1-XTAB-CACHE-LEAK · 2026-05-30] Limpiar caches global-keyed
         // (inventario Nevera + listado Historial + ingredientes deshabilitados)
         // que NO están scopeadas por user_id y sobrevivirían al logout SPA →
@@ -2555,6 +2592,7 @@ export const AssessmentProvider = ({ children }) => {
     const exitGuestSession = useCallback(() => {
         safeLocalStorageRemove('mealfit_form');
         safeLocalStorageRemove('mealfit_form_secure');
+        clearGuestSensitiveFields(); // [P1-GUEST-FORM-PERSIST] no dejar PII médica del invitado en sessionStorage al salir (dispositivo compartido)
         safeLocalStorageRemove('mealfit_plan');
         safeLocalStorageRemove('mealfit_likes');
         safeLocalStorageRemove('mealfit_dislikes');

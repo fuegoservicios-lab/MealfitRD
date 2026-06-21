@@ -49,6 +49,48 @@ const SECURE_KEY = 'mealfit_form_secure';
 const HKDF_SALT = 'mealfit-form-storage-v1';
 const HKDF_INFO = 'mealfit-aes-gcm';
 
+// [P1-GUEST-FORM-PERSIST · 2026-06-21] Un INVITADO no tiene sesión → no hay token para
+// derivar la llave AES-GCM, así que los campos sensibles solo vivían en memoria y se
+// perdían al recargar. Los guardamos en sessionStorage (NO localStorage): sobrevive un
+// refresh/F5 dentro de la misma pestaña pero se BORRA al cerrar la pestaña → NUNCA queda
+// PII médica plana persistente en disco (a diferencia de localStorage). El consumidor
+// (AssessmentContext) hidrata SOLO cuando la auth resolvió a "sin sesión + modo invitado"
+// (gate !loadingAuth) para no inyectar data de un invitado a un usuario que inicia sesión.
+export const GUEST_SENSITIVE_KEY = 'mealfit_form_guest_sensitive';
+
+/** Persiste los campos sensibles del INVITADO a sessionStorage. SALTA si todos están
+ *  vacíos — el SAVE effect corre en mount ANTES de la hidratación con el formData inicial
+ *  (sensibles vacíos); sin este guard sobreescribiría una copia poblada con vacíos. */
+export function saveGuestSensitiveFields(formData) {
+    try {
+        if (!formData || typeof formData !== 'object') return;
+        const sensitive = {};
+        for (const k of SENSITIVE_FIELDS) {
+            if (k in formData) sensitive[k] = formData[k];
+        }
+        const hasNonEmpty = Object.values(sensitive).some(v =>
+            Array.isArray(v) ? v.length > 0 : (v !== '' && v != null)
+        );
+        if (!hasNonEmpty) return;
+        sessionStorage.setItem(GUEST_SENSITIVE_KEY, JSON.stringify(sensitive));
+    } catch { /* sessionStorage no disponible (modo privado) → no-op (comportamiento previo) */ }
+}
+
+/** Lee los campos sensibles del invitado desde sessionStorage (o null). */
+export function loadGuestSensitiveFields() {
+    try {
+        const raw = sessionStorage.getItem(GUEST_SENSITIVE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return (parsed && typeof parsed === 'object') ? parsed : null;
+    } catch { return null; }
+}
+
+/** Borra la copia plana del invitado. Llamar en TODO teardown de invitado/sesión. */
+export function clearGuestSensitiveFields() {
+    try { sessionStorage.removeItem(GUEST_SENSITIVE_KEY); } catch { /* noop */ }
+}
+
 // ============================================================
 // Split / merge helpers
 // ============================================================
