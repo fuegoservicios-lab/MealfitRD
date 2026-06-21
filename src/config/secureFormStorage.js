@@ -238,6 +238,24 @@ export const saveFormData = async (formData, session) => {
     const hasAuthAndCrypto = !!accessToken && isCryptoAvailable();
 
     if (hasAuthAndCrypto) {
+        // [FORM-DATA-PRESERVE · 2026-06-21] Anti-clobber. Si los arrays sensibles
+        // REQUERIDOS vienen vacíos `[]` (NO el sentinel `["Ninguna"]`) Y ya existe
+        // un blob, casi seguro es una hidratación FALLIDA: el token de sesión cambió
+        // (re-login / Brave borró la cookie → first-party con token distinto o null)
+        // → el decrypt falló → sensitive quedó vacío. Re-cifrar ese vacío DESTRUIRÍA
+        // el blob de forma permanente. Lo preservamos (queda recuperable cuando
+        // vuelva el token correcto). El primer llenado (sin blob) y `["Ninguna"]` SÍ
+        // guardan. Espeja la defensa de `_isHydrationLikelyPending` en el save path.
+        let _blobExists = false;
+        try { _blobExists = !!localStorage.getItem(SECURE_KEY); } catch { /* noop */ }
+        const _looksUnhydrated = _REQUIRED_SENSITIVE_ARRAYS.some((f) => {
+            const v = sensitiveData[f];
+            return Array.isArray(v) && v.length === 0;
+        });
+        if (_blobExists && _looksUnhydrated) {
+            // public ya se guardó arriba; NO tocamos el secure blob.
+            return;
+        }
         try {
             const key = await deriveAesKey(accessToken);
             const ciphertext = await encryptObject(sensitiveData, key);
