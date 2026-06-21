@@ -10,7 +10,7 @@ import {
     RefreshCw, ChefHat, Heart, Pill, Lock,
     Brain, Wallet, AlertCircle, Dumbbell,
     Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, ChevronDown,
-    ThumbsDown, Shuffle, X, Utensils, Copy, ChevronRight, Crown, Refrigerator, Sparkles
+    ThumbsDown, Shuffle, X, Utensils, Copy, ChevronRight, Crown, Refrigerator
 } from 'lucide-react';
 import { toast } from 'sonner';
 import TrackingProgress from '../components/dashboard/TrackingProgress';
@@ -4532,7 +4532,6 @@ const DashboardInner = () => {
                     role="region"
                     aria-label="Modo invitado"
                 >
-                    <Sparkles size={22} style={{ color: isDark ? '#A5B4FC' : '#4F46E5', flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: '220px' }}>
                         <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
                             Estás en modo invitado
