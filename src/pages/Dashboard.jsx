@@ -2529,7 +2529,15 @@ const DashboardInner = () => {
                     // quiere 1 hoja, sin 2ª página casi vacía). Fail-safe >3.5 páginas → A4. Los 60+ paginan formal.
                     if (_contentH > 0 && _contentH <= _onePageHpx * 3.5) {
                         const _pageW = 210; // ancho A4 en mm (márgenes L/R = 0 en el caso no-formal)
-                        const _pdfH = 4 /*margen top mm*/ + (_contentH * _pageW / _measureW) + 3 /*colchón*/;
+                        const _contentMm = _contentH * _pageW / _measureW;
+                        // [P3-PDF-ONE-PAGE-3 · 2026-06-21] Colchón robusto: el +3mm fijo era MUY ajustado y
+                        // reaparecía la 2ª hoja casi-blanca cuando html2canvas renderiza unos px más alto que el
+                        // `scrollHeight` medido (discrepancia sub-pixel × scale 2 / windowWidth). Cushion =
+                        // max(20mm, 3.5% del contenido) absorbe ambos modos (fijo + proporcional) sin whitespace
+                        // notable en una página ya alta. Reapareció el off-by-one al crecer la lista (habichuelas
+                        // en lata añadieron ítems). Sigue garantizando UNA sola hoja.
+                        const _cushion = Math.max(20, _contentMm * 0.035);
+                        const _pdfH = 4 /*margen top mm*/ + _contentMm + _cushion;
                         opt.jsPDF = { ...opt.jsPDF, format: [_pageW, _pdfH] };
                         opt.pagebreak = { mode: ['avoid-all'] };
                     }
