@@ -18,6 +18,7 @@ import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from
 import {
     GUEST_PLAN_CREDITS,
     isGuestModeActive,
+    isGuestTabAlive,
     activateGuestMode as activateGuestModeStorage,
     getGuestCreditsUsed,
     incrementGuestCreditsUsed,
@@ -1253,35 +1254,54 @@ export const AssessmentProvider = ({ children }) => {
                     setLoadingProfile(false);
                 }
             } else {
-                // Logout / No sesión
+                // Logout / No sesión — O un INVITADO (que nunca tiene sesión de Neon).
+                // [P1-GUEST-SESSION-PERSIST · 2026-06-21] Un invitado cae en esta rama
+                // en CADA mount (no tiene sesión de Neon). Antes el teardown de abajo
+                // borraba mealfit_plan (+ setPlanData(null)) → un simple REFRESH perdía
+                // el plan de invitado, tratándolo como un logout. Ahora distinguimos:
+                //  • REFRESH dentro de la misma sesión de tab (marcador 'tab alive' de
+                //    sessionStorage PRESENTE) → invitado continuando: PRESERVAMOS su plan
+                //    + keys (planData ya viene hidratado del useState inicial).
+                //  • Tab cerrada y reabierta = sesión NUEVA (marcador AUSENTE) → el
+                //    invitado "salió y volvió": limpiamos su plan + cuenta efímera (fresh
+                //    start), igual que un logout real.
                 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] safeLocalStorageRemove
-                // (iOS Private Mode lanza SecurityError en removeItem y corta
-                // la cadena de cleanup).
+                // (iOS Private Mode lanza SecurityError en removeItem y corta la cadena).
+                const _guestActive = isGuestModeActive();
+                const _guestRefresh = _guestActive && isGuestTabAlive();
+                if (_guestActive && !_guestRefresh) {
+                    // Sesión de tab muerta (pestaña cerrada y reabierta = sesión nueva)
+                    // → limpiar la identidad efímera del invitado (flag + session_id +
+                    // créditos + marcador + owner). El teardown de abajo borra el plan.
+                    // Resultado: invitado que cerró y volvió = empieza de cero.
+                    clearGuestModeStorage();
+                    setGuestFlag(false);
+                    safeLocalStorageRemove('mealfit_last_form_owner');
+                }
                 setUserProfile(null);
                 setPlanCount(0);
-                setPlanData(null);
-                // [P1-XTAB-CACHE-LEAK · 2026-05-30] Esta rama es alcanzable SIN
-                // pasar por resetApp: un SIGNED_OUT disparado por el auth provider
-                // (expiración de sesión/token, o sign-out desde OTRA pestaña).
-                // resetApp limpia los caches global-keyed (inventario Nevera +
-                // listado Historial = PII del usuario A) + likes/dislikes, pero
-                // esta rama no lo hacía → quedaban en memoria mientras el
-                // dispositivo seguía en /login o lo usaba un guest. Espejamos el
-                // cleanup de resetApp para cerrar la misma ventana de fuga.
-                _clearUserScopedCaches();
-                setLikedMeals({});
-                setDislikedMeals({});
-                safeLocalStorageRemove('mealfit_likes');
-                safeLocalStorageRemove('mealfit_dislikes');
-                safeLocalStorageRemove('mealfit_user_id');
-                safeLocalStorageRemove('mealfit_plan');
-                safeLocalStorageRemove('mealfit_guest_session');
-                // [P1-B7] Al cerrar sesión, borrar el secure storage cifrado:
-                // sin access_token ya no podremos descifrarlo, así que dejarlo
-                // ahí solo ocupa espacio. El public en `mealfit_form` se mantiene
-                // por compat (un guest puede seguir usando los campos no
-                // sensibles que llenó antes de cerrar sesión).
-                try { localStorage.removeItem('mealfit_form_secure'); } catch { /* noop */ }
+                if (!_guestRefresh) {
+                    setPlanData(null);
+                    // [P1-XTAB-CACHE-LEAK · 2026-05-30] Esta rama es alcanzable SIN
+                    // pasar por resetApp: un SIGNED_OUT disparado por el auth provider
+                    // (expiración de sesión/token, o sign-out desde OTRA pestaña).
+                    // resetApp limpia los caches global-keyed (inventario Nevera +
+                    // listado Historial = PII del usuario A) + likes/dislikes; espejamos
+                    // ese cleanup aquí para cerrar la misma ventana de fuga.
+                    _clearUserScopedCaches();
+                    setLikedMeals({});
+                    setDislikedMeals({});
+                    safeLocalStorageRemove('mealfit_likes');
+                    safeLocalStorageRemove('mealfit_dislikes');
+                    safeLocalStorageRemove('mealfit_user_id');
+                    safeLocalStorageRemove('mealfit_plan');
+                    safeLocalStorageRemove('mealfit_guest_session');
+                    // [P1-B7] Al cerrar sesión, borrar el secure storage cifrado:
+                    // sin access_token ya no podremos descifrarlo. El public en
+                    // `mealfit_form` se mantiene por compat (un guest puede seguir
+                    // usando los campos no sensibles que llenó antes).
+                    try { localStorage.removeItem('mealfit_form_secure'); } catch { /* noop */ }
+                }
                 setLoadingData(false);
                 // [P1-10] Sin session no hay profile que hidratar.
                 setLoadingProfile(false);
