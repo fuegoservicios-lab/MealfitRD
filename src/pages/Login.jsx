@@ -143,7 +143,7 @@ const Login = () => {
                     </h1>
                     <p className={styles.subtitle}>
                         {step === 'email'
-                            ? 'Entra con tu correo — te enviamos un código de acceso.'
+                            ? 'Tu transformación continúa aquí.'
                             : <>Escribe el código que enviamos a <strong>{email.trim()}</strong>.</>}
                     </p>
                 </div>
