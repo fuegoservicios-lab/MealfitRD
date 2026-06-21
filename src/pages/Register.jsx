@@ -95,7 +95,19 @@ const Register = () => {
             // signInWithPassword → con navigate() la sesión quedaba null y ProtectedRoute
             // rebotaba a /login tras registrarse. El reload remonta el provider →
             // getSession lee la cookie fresca → la sesión se propaga.
-            window.location.assign('/assessment');
+            // [P1-GUEST-ADOPT-REDIRECT · 2026-06-21] Si veníamos de invitado con un plan
+            // COMPLETO en localStorage, ir al DASHBOARD (el plan se adopta + se ve), NO al
+            // formulario. Sin esto un invitado que ya generó su plan caía en /assessment y
+            // tenía que salir manualmente para ver su plan ya conectado.
+            let _postRegisterDest = '/assessment';
+            try {
+                const _guestRaw = localStorage.getItem('mealfit_plan');
+                if (_guestRaw) {
+                    const _gp = JSON.parse(_guestRaw);
+                    if (_gp && Array.isArray(_gp.days) && _gp.days.length > 0) _postRegisterDest = '/dashboard';
+                }
+            } catch { /* storage inaccesible → default /assessment */ }
+            window.location.assign(_postRegisterDest);
         } catch (err) {
             const raw = err?.message || '';
             let errorMessage;

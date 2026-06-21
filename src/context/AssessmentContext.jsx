@@ -1128,6 +1128,51 @@ export const AssessmentProvider = ({ children }) => {
         return () => window.removeEventListener('storage', handlePlanStorageChange);
     }, []);
 
+    // [P1-GUEST-SHOPPING-SELFHEAL · 2026-06-21] Auto-heal de la lista de compras. Un
+    // plan ADOPTADO de invitado NACE sin lista (se generó con user_id=None → el gate
+    // `if _uid:` de graph_orchestrator dejaba las listas vacías). Si el plan TIENE
+    // recetas pero NO lista agregada, la reconstruimos desde las recetas UNA vez vía el
+    // endpoint canónico /recalculate-shopping-list y actualizamos planData. Cierra el
+    // "no me deja abrir la lista de compras / plan incompleto" tras registrarse, sin
+    // tener que regenerar. One-shot por plan id (evita loop tras setPlanData).
+    const shoppingHealRef = useRef(null);
+    useEffect(() => {
+        if (!planData?.id || !userProfile?.id) return;
+        if (shoppingHealRef.current === planData.id) return;
+        const _w = planData.aggregated_shopping_list_weekly;
+        const _b = planData.aggregated_shopping_list;
+        const _hasList = (Array.isArray(_w) && _w.length > 0) || (Array.isArray(_b) && _b.length > 0);
+        const _hasRecipes = Array.isArray(planData.days) && planData.days.length > 0;
+        if (_hasList || !_hasRecipes) return;
+        shoppingHealRef.current = planData.id;
+        (async () => {
+            try {
+                const r = await fetchWithAuth('/api/plans/recalculate-shopping-list', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userProfile.id,
+                        plan_id: planData.id,
+                        householdSize: planData.calc_household_size || formData?.householdSize || 1,
+                        groceryDuration: planData.calc_grocery_duration || formData?.groceryDuration || 'weekly',
+                        is_new_plan: false,
+                    }),
+                });
+                if (r.ok) {
+                    const _j = await r.json().catch(() => null);
+                    if (_j && _j.success && _j.plan_data) {
+                        setPlanData(_j.plan_data);
+                        safeLocalStorageSet('mealfit_plan', _j.plan_data);
+                        console.log('✅ [P1-GUEST-SHOPPING-SELFHEAL] Lista de compras reconstruida para plan adoptado.');
+                    }
+                }
+            } catch (e) {
+                console.error('[P1-GUEST-SHOPPING-SELFHEAL] recalc falló:', e);
+            }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planData, userProfile]);
+
     useEffect(() => {
         const handleAuthChange = async (currentSession) => {
             // Evitar actualizaciones innecesarias si la sesión es idéntica.
