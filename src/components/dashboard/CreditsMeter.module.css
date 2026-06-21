@@ -192,8 +192,11 @@
 .low .num       { background-image: linear-gradient(135deg, #FBBF24, #FB923C); }
 .depleted .num  { background-image: linear-gradient(135deg, #FB7185, #F43F5E); }
 .unlimited .num { background-image: linear-gradient(135deg, #818CF8, #A78BFA 50%, #22D3EE); }
-/* [P1-GUEST-METER · 2026-06-15] Invitado: mismo indigo calmado que unlimited. */
+/* [P1-GUEST-METER · 2026-06-15] Invitado CON crédito: mismo indigo calmado que unlimited. */
 .guest .num    { background-image: linear-gradient(135deg, #818CF8, #A78BFA 50%, #22D3EE); }
+/* [P1-GUEST-METER-DEPLETED · 2026-06-21] Invitado SIN crédito (0/1): ámbar/naranja → señal
+   visual distinta "muestra usada, crea tu cuenta para seguir". */
+.guestDepleted .num { background-image: linear-gradient(135deg, #FBBF24, #FB923C); }
 
 .unlimited .gauge::before {
     animation-duration: 2.6s;

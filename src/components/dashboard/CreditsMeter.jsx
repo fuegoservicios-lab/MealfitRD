@@ -27,9 +27,12 @@ const GRADIENT = {
     low: ['#FBBF24', '#FB923C', '#FB923C'],
     depleted: ['#FB7185', '#F43F5E', '#F43F5E'],
     unlimited: ['#818CF8', '#A78BFA', '#22D3EE'],
-    // [P1-GUEST-METER · 2026-06-15] Invitado: paleta indigo calmada (NO el rojo
-    // de "agotado"). Un 0/1 para un invitado es "muestra usada", no un error.
+    // [P1-GUEST-METER · 2026-06-15] Invitado CON crédito: paleta indigo calmada.
     guest: ['#818CF8', '#A78BFA', '#22D3EE'],
+    // [P1-GUEST-METER-DEPLETED · 2026-06-21] Invitado SIN crédito (0/1): ámbar/naranja
+    // → señal visual distinta "muestra usada, crea tu cuenta para seguir" (el owner
+    // pidió un color diferente en 0). No es el rojo "error" del usuario pago.
+    guestDepleted: ['#FBBF24', '#FB923C', '#FB923C'],
 };
 const GLOW = {
     healthy: 'rgba(34, 211, 238, 0.5)',
@@ -39,6 +42,7 @@ const GLOW = {
     depleted: 'rgba(251, 113, 133, 0.28)',
     unlimited: 'rgba(167, 139, 250, 0.5)',
     guest: 'rgba(129, 140, 248, 0.46)',
+    guestDepleted: 'rgba(251, 146, 60, 0.5)',
 };
 const ICON = {
     healthy: '#22D3EE',
@@ -46,6 +50,7 @@ const ICON = {
     depleted: '#FB7185',
     unlimited: '#A78BFA',
     guest: '#A5B4FC',
+    guestDepleted: '#FB923C',
 };
 
 export default function CreditsMeter({ remainingCredits, userPlanLimit, isLimitReached, isGuest = false }) {
@@ -65,7 +70,10 @@ export default function CreditsMeter({ remainingCredits, userPlanLimit, isLimitR
     // calmado) en vez de rojo "agotado": el anillo sigue mostrando la fracción
     // (1/1 → 0/1) pero se lee como "prueba", no como error/penalización.
     let state = 'healthy';
-    if (isGuest) state = 'guest';
+    // [P1-GUEST-METER-DEPLETED · 2026-06-21] Invitado sin crédito (0/1) → 'guestDepleted'
+    // (ámbar) para distinguirlo del 'guest' con crédito (indigo). El owner pidió un
+    // color diferente al llegar a 0.
+    if (isGuest) state = (remaining <= 0 || isLimitReached) ? 'guestDepleted' : 'guest';
     else if (isUnlimited) state = 'unlimited';
     else if (remaining <= 0 || isLimitReached) state = 'depleted';
     else if (fraction <= 0.34 || remaining <= 2) state = 'low';
