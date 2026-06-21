@@ -27,12 +27,15 @@ export function restoreMicrosPanel(sig) {
     }
 }
 
-/* [P3-MICRONUTRIENT-PANEL · 2026-06-15] Rediseño del panel "Micronutrientes a
-   vigilar". Antes era texto plano (bullets). Ahora cada gap es un MEDIDOR de
-   progreso (actual vs objetivo) con %, color por severidad y pill de estado —
-   el lenguaje de las plataformas de salud modernas. Dismissible (X, persistido
-   por plan_id). Las barras se renderizan ESTÁTICAS (sin animación de llenado)
-   para no leerse como "cargando" — el feel moderno lo dan gradiente/glow/layout.
+/* [P3-MICRONUTRIENT-PANEL · 2026-06-15 · P3-MICRO-PLAIN-LANGUAGE · 2026-06-20]
+   Panel "Micronutrientes a vigilar". Cada gap es una FILA DE ESTADO en palabras
+   claras: el nutriente, un chip BAJO/ALTO con flecha (dirección), y una frase
+   ("Te faltan 7g para tu meta de 38g" / "Te pasaste 247mg del límite de 2000mg").
+   Reemplaza la barra de progreso anterior, que se leía como "cargando" y era
+   INCOHERENTE — la misma barra casi llena significaba "bien" para un déficit
+   (fibra) pero "mal" para un exceso (sodio). El color = severidad; la flecha +
+   palabra = la dirección. Cada fila es tocable → preguntarle al coach IA cómo
+   mejorarla. Dismissible (X, persistido por contenido).
 
    Data del backend (FS4/FS8): report.gaps[] = {nutriente, valor, unidad, piso,
    techo, status}; advice.items[] = {nutriente, suplemento, dosis_sugerida,
@@ -58,19 +61,45 @@ export function microsContentSig(report, advice) {
     return raw ? _hashStr(raw) : '';
 }
 
-// Clasifica un gap → fracción de barra (0..100), % real, tono y etiqueta.
-// [P3-NOTIF-CENTER · 2026-06-16] Exportado para que la vista expandida del
-// centro de notificaciones dibuje las MISMAS mini-barras (SSOT del cálculo).
+// Formatea un número para mostrarlo: hasta 1 decimal, sin ceros colgantes.
+function _fmtN(n) {
+    if (n === null || n === undefined || Number.isNaN(Number(n))) return '';
+    return String(Math.round(Number(n) * 10) / 10);
+}
+
+// [P3-MICRO-PLAIN-LANGUAGE · 2026-06-20] Clasifica un gap → ESTADO EN PALABRAS,
+// no barra de progreso. El diseño anterior usaba una barra que se llenaba hacia
+// el objetivo; el problema: una barra "casi llena" significaba COSAS OPUESTAS —
+// buena para fibra/vit D (te acercas a la meta) pero MALA para sodio (te pasaste
+// del límite) — y de paso se leía como "cargando". Ahora cada gap dice en palabras
+// si te FALTA (piso) o te SOBRA (techo), cuánto, y con un color = severidad.
+// Devuelve: direction ('low'|'high'), statusWord (BAJO/MUY BAJO/ALTO…), gap
+// (brecha numérica), gapText (frase lista para mostrar) y tone (color).
+// [P3-NOTIF-CENTER · 2026-06-16] SSOT compartido con el centro de notificaciones
+// (mismas palabras/frases, cero drift). `fill`/`pct` se conservan por compat.
 export function classify(g) {
+    const unit = g.unidad || '';
     const isCeil = g.techo !== undefined && g.techo !== null;
     if (isCeil) {
-        const pct = g.techo ? Math.round((g.valor / g.techo) * 100) : 0;
-        return { kind: 'ceil', pct, fill: Math.min(pct, 100), over: pct > 100, tone: pct > 100 ? 'over' : 'near', label: 'sobre el techo', target: g.techo };
+        const target = g.techo;
+        const pct = target ? Math.round((g.valor / target) * 100) : 0;
+        const gap = Math.max(0, Number(g.valor) - Number(target));
+        const over = pct > 100;
+        const tone = over ? 'over' : 'near';
+        const statusWord = over ? 'ALTO' : 'EN EL LÍMITE';
+        const gapText = over
+            ? `Te pasaste ${_fmtN(gap)}${unit} del límite de ${_fmtN(target)}${unit}`
+            : `Estás en tu límite de ${_fmtN(target)}${unit}`;
+        return { kind: 'ceil', direction: 'high', pct, fill: Math.min(pct, 100), over, tone, statusWord, gap, gapText, label: 'sobre el techo', target };
     }
-    const pct = g.piso ? Math.round((g.valor / g.piso) * 100) : 0;
+    const target = g.piso;
+    const pct = target ? Math.round((g.valor / target) * 100) : 0;
+    const gap = Math.max(0, Number(target) - Number(g.valor));
     const tone = pct >= 90 ? 'near' : pct >= 70 ? 'low' : 'far';
+    const statusWord = pct >= 90 ? 'CASI' : pct >= 70 ? 'BAJO' : 'MUY BAJO';
+    const gapText = `Te faltan ${_fmtN(gap)}${unit} para tu meta de ${_fmtN(target)}${unit}`;
     const label = g.status === 'estimado_bajo' ? 'estimado bajo' : 'por debajo';
-    return { kind: 'floor', pct, fill: Math.min(pct, 100), over: false, tone, label, target: g.piso };
+    return { kind: 'floor', direction: 'low', pct, fill: Math.min(pct, 100), over: false, tone, statusWord, gap, gapText, label, target };
 }
 
 // [P3-NOTIF-CENTER · 2026-06-16] Construye el payload de notificación del panel
@@ -242,29 +271,24 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                                     >
                                         <div className={styles.meterTop}>
                                             <span className={styles.nutrient}>{g.nutriente}</span>
-                                            <span className={styles.values}>
-                                                <span className={styles.cur}>{g.valor}</span>
-                                                <span className={styles.sep}>/ {s.target}{g.unidad}</span>
-                                                {ask && (
-                                                    <MessageCircle
-                                                        size={14}
-                                                        strokeWidth={2.25}
-                                                        className={styles.askIcon}
-                                                        aria-hidden="true"
-                                                    />
-                                                )}
+                                            <span className={styles.status}>
+                                                {s.direction === 'high'
+                                                    ? <ArrowUp size={12} strokeWidth={2.75} aria-hidden="true" />
+                                                    : <ArrowDown size={12} strokeWidth={2.75} aria-hidden="true" />}
+                                                {s.statusWord}
                                             </span>
                                         </div>
-                                        <div className={styles.barRow}>
-                                            <div className={styles.track}>
-                                                <div className={styles.fill} style={{ width: `${s.fill}%` }} />
-                                            </div>
-                                            <span className={styles.pill}>
-                                                {s.kind === 'ceil'
-                                                    ? <ArrowUp size={11} strokeWidth={2.75} aria-hidden="true" />
-                                                    : <ArrowDown size={11} strokeWidth={2.75} aria-hidden="true" />}
-                                                {s.pct}%
+                                        <p className={styles.gapText}>{s.gapText}</p>
+                                        <div className={styles.meterFoot}>
+                                            <span className={styles.values}>
+                                                vas en <span className={styles.cur}>{g.valor}{g.unidad}</span>
                                             </span>
+                                            {ask && (
+                                                <span className={styles.askHint}>
+                                                    <MessageCircle size={13} strokeWidth={2.25} aria-hidden="true" />
+                                                    Mejorar
+                                                </span>
+                                            )}
                                         </div>
                                     </Tag>
                                 );

@@ -81,28 +81,25 @@ function MicrosDetail({ data, onAction }) {
         <>
             {gaps.length > 0 && (
                 <div className={styles.exGaps}>
+                    {/* [P3-MICRO-PLAIN-LANGUAGE · 2026-06-20] Mismo lenguaje claro que
+                        el panel: chip BAJO/ALTO + frase ("Te faltan…/Te pasaste…"), no
+                        barra. classify es el SSOT compartido. */}
                     {gaps.map((g, i) => {
                         const s = classify(g);
                         return (
                             <div key={`g-${i}`} className={styles.exGap}>
                                 <div className={styles.exGapTop}>
                                     <span className={styles.exNutrient}>{g.nutriente}</span>
-                                    <span className={styles.exVals}>
-                                        {g.valor}/{s.target}{g.unidad || ''}
-                                        <span className={`${styles.exPill} ${styles[`exTone_${s.tone}`]}`}>
-                                            {s.kind === 'ceil'
-                                                ? <ArrowUp size={10} strokeWidth={2.75} aria-hidden="true" />
-                                                : <ArrowDown size={10} strokeWidth={2.75} aria-hidden="true" />}
-                                            {s.pct}%
-                                        </span>
+                                    <span className={`${styles.exPill} ${styles[`exTone_${s.tone}`]}`}>
+                                        {s.kind === 'ceil'
+                                            ? <ArrowUp size={10} strokeWidth={2.75} aria-hidden="true" />
+                                            : <ArrowDown size={10} strokeWidth={2.75} aria-hidden="true" />}
+                                        {s.statusWord}
                                     </span>
                                 </div>
-                                <div className={styles.exTrack}>
-                                    <div
-                                        className={`${styles.exFill} ${styles[`exTone_${s.tone}`]}`}
-                                        style={{ width: `${s.fill}%` }}
-                                    />
-                                </div>
+                                <p className={styles.exGapText}>
+                                    {s.gapText} <span className={styles.exCur}>· vas en {g.valor}{g.unidad || ''}</span>
+                                </p>
                             </div>
                         );
                     })}

@@ -497,61 +497,53 @@
     padding: 0.2rem 0.85rem 0.85rem 0.95rem;
 }
 
-/* mini-barras por nutriente (mismo cálculo classify que el panel) */
+/* [P3-MICRO-PLAIN-LANGUAGE · 2026-06-20] estado por nutriente en palabras
+   (chip BAJO/ALTO + frase), mismo classify SSOT que el panel — ya no barras */
 .exGaps {
     display: flex;
     flex-direction: column;
-    gap: 0.55rem;
+    gap: 0.6rem;
 }
-.exGap { display: flex; flex-direction: column; gap: 0.28rem; }
+.exGap { display: flex; flex-direction: column; gap: 0.2rem; }
 .exGapTop {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
 }
 .exNutrient {
-    font-size: 0.76rem;
+    font-size: 0.78rem;
     font-weight: 700;
     color: var(--text-main);
 }
-.exVals {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.72rem;
-    font-variant-numeric: tabular-nums;
-    color: var(--text-light);
-    white-space: nowrap;
-}
 .exPill {
+    flex: none;
     display: inline-flex;
     align-items: center;
     gap: 2px;
-    padding: 1px 6px;
-    border-radius: 8px;
-    font-size: 0.66rem;
+    padding: 1px 7px;
+    border-radius: 99px;
+    font-size: 0.62rem;
     font-weight: 800;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
 }
-.exTrack {
-    height: 6px;
-    border-radius: 4px;
-    background: rgba(148, 163, 184, 0.16);
-    overflow: hidden;
+.exGapText {
+    margin: 0;
+    font-size: 0.74rem;
+    line-height: 1.35;
+    color: var(--text-muted);
 }
-.exFill {
-    height: 100%;
-    border-radius: 4px;
+.exCur {
+    color: var(--text-light);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
-/* tonos de severidad (near=ok, low=ámbar, far=rojo, over=violeta) */
-.exTone_near { background: linear-gradient(90deg, #34d399, #22d3ee); color: #064e3b; }
-.exTone_low { background: linear-gradient(90deg, #fbbf24, #fb923c); color: #7c2d12; }
-.exTone_far { background: linear-gradient(90deg, #fb7185, #f43f5e); color: #fff; }
-.exTone_over { background: linear-gradient(90deg, #a78bfa, #818cf8); color: #fff; }
+/* tonos de severidad del chip (near=ok teal, low=ámbar, far=rojo, over=rojo) */
 .exPill.exTone_near { background: rgba(34, 211, 238, 0.16); color: #67e8f9; }
 .exPill.exTone_low { background: rgba(251, 146, 60, 0.18); color: #fdba74; }
 .exPill.exTone_far { background: rgba(251, 113, 133, 0.18); color: #fda4af; }
-.exPill.exTone_over { background: rgba(167, 139, 250, 0.2); color: #c4b5fd; }
+.exPill.exTone_over { background: rgba(251, 113, 133, 0.18); color: #fda4af; }
 
 /* sugerencias */
 .exSupps {
