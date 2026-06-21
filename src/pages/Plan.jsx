@@ -227,6 +227,22 @@ export const generateAIPlanStream = async (formData, onProgress) => {
 
             clearTimeout(timeoutId);
 
+            // [P2-BUDGET-FLOOR · 2026-06-21] El backend rechaza con 4xx ANTES del stream cuando la
+            // validación del form falla (presupuesto insuficiente para las metas, biométricos fuera
+            // de rango, campos faltantes). Eso NO es event-stream ni un plan. Detectarlo y propagar
+            // el mensaje accionable como error TERMINAL (sin caer al fallback síncrono, que daría el
+            // mismo 4xx). clone() evita consumir el body si no aplica.
+            if (!response.ok && response.status >= 400 && response.status < 500) {
+                let _detail = null;
+                try { _detail = (await response.clone().json())?.detail; } catch { /* body no-JSON */ }
+                if (_detail && typeof _detail === 'object' && (_detail.message || _detail.code)) {
+                    const eForm = new Error(_detail.message || 'Revisa los datos del formulario.');
+                    eForm.code = _detail.code || 'form_invalid';
+                    eForm.terminal = true;
+                    throw eForm;
+                }
+            }
+
             // Si el servidor no soporta streaming, caer al endpoint síncrono
             const contentType = response.headers.get('content-type') || '';
             if (!contentType.includes('text/event-stream')) {
@@ -353,6 +369,12 @@ export const generateAIPlanStream = async (formData, onProgress) => {
             ) {
                 console.warn("🚫 Generación cancelada por el usuario (vía SSE).");
                 throw new Error("UserCancelled");
+            } else if (error.terminal || error.code === 'budget_insufficient' || error.code === 'budget_below_goal_floor' || error.code === 'form_invalid') {
+                // [P2-BUDGET-FLOOR · 2026-06-21] Validación de form terminal (presupuesto/datos)
+                // detectada pre-stream. El endpoint síncrono daría el MISMO 4xx → propagar el
+                // mensaje accionable sin caer al fallback.
+                console.warn(`🛑 Validación de form terminal (${error.code}) — propagando sin fallback.`);
+                throw error;
             } else if (error.code === 'pipeline_already_running') {
                 // [P3-409-PIPELINE-RUNNING · 2026-05-16] El guardrail del backend
                 // detectó otro pipeline activo del mismo user. El fallback
@@ -912,6 +934,20 @@ const Plan = () => {
                             toast.error("Revisa tus restricciones", {
                                 description: error.message || "No pudimos generar un plan que respete tus restricciones declaradas. Ajústalas e intenta de nuevo.",
                                 duration: 10000,
+                            });
+                        });
+                        navigate('/assessment', { replace: true });
+                        return;
+                    }
+                    if (error.code === 'budget_insufficient' || error.code === 'budget_below_goal_floor' || error.code === 'form_invalid') {
+                        // [P2-BUDGET-FLOOR · 2026-06-21] El presupuesto declarado no alcanza las metas
+                        // (o un dato del form es inválido). Mensaje accionable + volver al formulario
+                        // para ajustar presupuesto/metas. Reintentar a ciegas no ayuda.
+                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                        import('sonner').then(({ toast }) => {
+                            toast.error("Ajusta tu presupuesto o tus metas", {
+                                description: error.message || "Tu presupuesto no alcanza para tus metas. Súbelo o reduce los días, las personas o tu meta calórica.",
+                                duration: 12000,
                             });
                         });
                         navigate('/assessment', { replace: true });
