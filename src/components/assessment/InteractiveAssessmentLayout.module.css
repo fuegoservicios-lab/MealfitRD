@@ -20,23 +20,22 @@
     z-index: 0;
 }
 
-/* [FORM-DARK-BG · 2026-05-31] En oscuro, el formulario usa el MISMO fondo
-   ambiental que el Dashboard (P3-DARK-BG-STRIPES): rayas diagonales 1px al
-   ~4% cada 52px + glows indigo/purpura en las esquinas, sobre var(--bg-page).
-   Reemplaza el radial azul tenue del modo claro. Cubre todo el .layout. */
+/* [FORM-DARK-BG · 2026-05-31 · sin-rayas 2026-06-22] En oscuro, el formulario usa
+   glows indigo/púrpura en las esquinas sobre var(--bg-page). Se QUITARON las rayas
+   diagonales blancas (repeating-linear-gradient, P3-DARK-BG-STRIPES) por pedido del
+   owner — el fondo queda limpio, solo los glows ambientales. Cubre todo el .layout. */
 :global(html[data-theme="dark"]) .layout::before {
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     background:
-        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.04) 0, rgba(255, 255, 255, 0.04) 1px, transparent 1px, transparent 52px),
         radial-gradient(ellipse 70% 55% at 8% -10%, rgba(99, 102, 241, 0.28) 0%, transparent 55%),
         radial-gradient(ellipse 58% 50% at 100% 2%, rgba(129, 140, 248, 0.20) 0%, transparent 52%),
         radial-gradient(ellipse 55% 50% at 90% 96%, rgba(139, 92, 246, 0.14) 0%, transparent 55%),
         radial-gradient(ellipse 75% 55% at 28% 108%, rgba(79, 70, 229, 0.18) 0%, transparent 55%);
-    background-size: auto, cover, cover, cover, cover;
-    background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+    background-size: cover, cover, cover, cover;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
 }
 
 .header {
