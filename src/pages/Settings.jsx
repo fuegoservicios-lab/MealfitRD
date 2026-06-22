@@ -3003,7 +3003,11 @@ const Settings = () => {
                                     </button>
                                 </div>
                             )}
-                            {/* Zona de peligro — eliminar cuenta (P1-ACCOUNT-DELETE-1) */}
+                        </div>
+                        {/* [P1-ACCOUNT-DELETE-1] Zona de peligro: FUERA del bloque de
+                            "Suscripción y Pagos" (card propia con aire arriba) para que
+                            no se vea pegada, pero DENTRO de la sección de Suscripción. */}
+                        <div style={{ marginTop: '1.75rem' }}>
                             <DeleteAccountSection />
                         </div>
                     </section>
