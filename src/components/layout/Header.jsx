@@ -257,16 +257,19 @@ const Header = () => {
         <LogoutConfirmModal
             isOpen={showLogoutModal}
             onConfirm={async () => {
-                // [P1-GUEST-LOGOUT-RACE · 2026-06-15] Navegar a /login (ruta pública)
-                // ANTES del teardown para que la limpieza de estado no rebote al
-                // formulario vía el redirect de ProtectedRoute (ver DashboardLayout).
-                navigate('/login', { replace: true });
+                // [LOGOUT-SESSION-SYNC · 2026-06-21] resetApp ahora limpia `session`
+                // de forma síncrona → ProtectedRoute redirige a /login solo. Navegamos
+                // DESPUÉS del teardown (no antes): con el guard redirect-if-session de
+                // /login, navegar con la sesión aún stale rebotaba a / (el usuario "no
+                // se deslogueaba" sin refrescar).
                 setShowLogoutModal(false);
                 if (isGuest) {
                     exitGuestSession();
+                    navigate('/login', { replace: true });
                     return;
                 }
                 await resetApp();
+                navigate('/login', { replace: true });
             }}
             onCancel={() => setShowLogoutModal(false)}
             userEmail={session?.user?.email}

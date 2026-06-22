@@ -66,20 +66,18 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     }, [isAccountMenuOpen]);
 
     const handleLogoutConfirm = async () => {
-        // [P1-GUEST-LOGOUT-RACE · 2026-06-15] Navegar a /login (ruta PÚBLICA) ANTES
-        // del teardown de estado. Si limpiáramos primero, hay una ventana de
-        // re-render en /dashboard donde ProtectedRoute ve (isGuest||session) +
-        // planData=null y rebota al formulario (/assessment, su redirect de
-        // "assessment incompleto"). Saliendo primero de la ruta protegida, el
-        // teardown ocurre ya en /login (sin ProtectedRoute) → nunca rebota al form.
-        // Un invitado no tiene sesión en el servidor: salir es teardown local (sin
-        // signOut). Un usuario real: resetApp (signOut).
-        navigate('/login', { replace: true });
+        // [LOGOUT-SESSION-SYNC · 2026-06-21] resetApp limpia `session` de forma
+        // síncrona → el `!session` de ProtectedRoute (que corre ANTES del gate de
+        // assessment) redirige a /login de inmediato, sin rebotar al formulario.
+        // Navegamos DESPUÉS del teardown: con el guard redirect-if-session de /login,
+        // navegar con la sesión aún stale rebotaba a / (no se deslogueaba sin refresh).
         if (isGuest) {
             exitGuestSession();
+            navigate('/login', { replace: true });
             return;
         }
         await resetApp();
+        navigate('/login', { replace: true });
     };
 
     const toggleMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);

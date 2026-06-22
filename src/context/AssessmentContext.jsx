@@ -2584,6 +2584,13 @@ export const AssessmentProvider = ({ children }) => {
             console.warn('signOut() falló; el teardown local ya se completó.', e);
         }
 
+        // [LOGOUT-SESSION-SYNC · 2026-06-21] Limpiar `session` en React de forma
+        // SÍNCRONA. El adapter de Neon NO emite onAuthStateChange same-tab tras
+        // signOut, así que sin esto `session` quedaba stale → el usuario "seguía
+        // logueado" hasta refrescar (y el guard redirect-if-session de /login lo
+        // rebotaba). Con session=null, el `!session` de ProtectedRoute (que corre
+        // ANTES del gate de assessment) redirige a /login de inmediato, sin refresh.
+        setSession(null);
         setPlanData(null);
         setLikedMeals({});
         setDislikedMeals({});
