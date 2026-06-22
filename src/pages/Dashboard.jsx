@@ -6491,13 +6491,11 @@ const DashboardInner = () => {
                     }
                     setIsNavigatingOption(optionId);
 
-                    const toastId = toast.loading(
-                        isPlanExpired ? 'Preparando nuevo ciclo...' : 'Actualizando platos...',
-                        { description: 'Analizando opciones con IA...' }
-                    );
-
+                    // [TOAST-NOISE-CLEANUP · 2026-06-22] Sin toast.loading: el botón ya
+                    // muestra spinner (setIsNavigatingOption) y enseguida navega a /plan
+                    // (pantalla de carga propia). El toast flasheaba ~1s redundante.
                     try {
-                        await handleNewPlan(optionId, toastId, 'dashboard_refresh');
+                        await handleNewPlan(optionId, null, 'dashboard_refresh');
                         setShowUpdatePlanModal(false);
                     } finally {
                         setIsNavigatingOption(null);
@@ -6626,12 +6624,10 @@ const DashboardInner = () => {
                     }
                     if (isLimitReached || isNavigatingOption) return;
                     setIsNavigatingOption('confirm_dislike');
-                    const toastId = toast.loading(
-                        isPlanExpired ? 'Preparando nuevo ciclo...' : 'Actualizando platos...',
-                        { description: 'Analizando opciones con IA...' }
-                    );
+                    // [TOAST-NOISE-CLEANUP · 2026-06-22] Sin toast.loading redundante (botón
+                    // ya spinea + /plan tiene su loader). Ver nota arriba.
                     try {
-                        await handleNewPlan('dislike', toastId, 'dashboard_refresh');
+                        await handleNewPlan('dislike', null, 'dashboard_refresh');
                         setShowDislikeConfirmModal(false);
                     } finally {
                         setIsNavigatingOption(null);

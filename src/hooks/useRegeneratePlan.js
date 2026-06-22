@@ -137,11 +137,11 @@ export const useRegeneratePlan = () => {
                     const strLive = JSON.stringify(currentLiveInventory.map(i => ({n: i.ingredient_name, q: i.quantity, u: i.unit})).sort((a,b)=>a.n.localeCompare(b.n)));
 
                     if (strDb !== strLive) {
+                        // [TOAST-NOISE-CLEANUP · 2026-06-22] Se mantiene la sincronización
+                        // del inventario, pero SIN el toast "Inventario sincronizado": el
+                        // usuario va camino a la pantalla de carga del plan y la notificación
+                        // flasheaba ~1s sin aportar (la Nevera se aplica silenciosamente).
                         currentLiveInventory = dbInventory;
-                        toast.info('Inventario sincronizado', {
-                            description: 'Detectamos cambios recientes en tu Nevera y los aplicamos al nuevo plan.',
-                            icon: '📦'
-                        });
                     }
                 } catch (e) {
                     // Si falla la verificación, seguimos con el que nos pasaron

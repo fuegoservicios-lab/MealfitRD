@@ -1639,8 +1639,11 @@ const Settings = () => {
                                     // créditos restantes, están en /settings → Suscripción.
                                     if (isNavigatingRef.current) return;
                                     setIsNavigatingOption('renovar');
-                                    const toastId = toast.loading('Preparando renovación...', { description: 'Iniciando Chef IA...' });
-                                    await regeneratePlan({ reason: 'variety', isPlanExpired: false, toastId, entry_point: 'settings_renovar' });
+                                    // [TOAST-NOISE-CLEANUP · 2026-06-22] Sin toast.loading aquí:
+                                    // el botón ya muestra spinner (setIsNavigatingOption) y enseguida
+                                    // navega a /plan (que tiene su propia pantalla de carga). El toast
+                                    // flasheaba ~1s de forma redundante (pedido del owner: quitarlo).
+                                    await regeneratePlan({ reason: 'variety', isPlanExpired: false, entry_point: 'settings_renovar' });
                                     setIsNavigatingOption(null);
                                     setShowEvaluateModal(false);
                                 } else if (optionId === 'cero') {
