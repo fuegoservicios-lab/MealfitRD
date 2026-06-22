@@ -159,6 +159,32 @@ const fetchInventoryFromApi = async () => {
 // [P3-NOTIF-CENTER · 2026-06-16] Mapa de motivos del banner "plan no óptimo",
 // elevado a módulo para que el banner (IIFE en JSX) y el archivado al centro de
 // notificaciones (dismissQDegraded) compartan el MISMO copy — cero drift.
+// [P2-PDF-COST-DELTA-MISMATCH · 2026-06-22] (audit fresco P2-20) `buildDeltaShoppingList` degrada
+// `market_qty` por ciclo×inventario PERO conservaba `item_ref.estimated_cost_rd` original → mid-ciclo el
+// display decía "0.5 lb" pero el precio/total eran de la cantidad COMPLETA (sobre-estima; plan-nuevo es
+// exacto, por eso 119/119 no lo cazó). Este helper escala el costo al MISMO factor de la cantidad mostrada.
+// Para unidades de ENVASE no divisibles (pote/frasco/lata/unidad…) redondea hacia ARRIBA a paquetes
+// completos (compras el envase entero). tooltip-anchor: P2-PDF-COST-DELTA-MISMATCH
+const _PDF_PACKAGE_UNITS = new Set([
+    'pote', 'frasco', 'lata', 'unidad', 'unidades', 'ud', 'und', 'u', 'paquete', 'caja',
+    'botella', 'sobre', 'barra', 'docena', 'bandeja', 'funda', 'carton', 'cartón',
+]);
+function _scaleItemRefCost(obj, finalQty, rawQty, unit) {
+    const ref = obj && obj.item_ref;
+    if (!ref || !(rawQty > 0) || !(finalQty > 0)) return obj;
+    const origCost = ref.estimated_cost_rd ?? ref.estimated_cost;
+    if (typeof origCost !== 'number' || !(origCost > 0)) return obj;
+    let scaled;
+    const u = String(unit || '').toLowerCase().trim();
+    if (_PDF_PACKAGE_UNITS.has(u)) {
+        const perUnit = origCost / rawQty;            // costo por envase canónico
+        scaled = perUnit * Math.max(1, Math.ceil(finalQty));  // compras envases completos (≥1)
+    } else {
+        scaled = origCost * (finalQty / rawQty);      // peso/volumen: escala lineal
+    }
+    return { ...obj, item_ref: { ...ref, estimated_cost_rd: scaled, estimated_cost: scaled } };
+}
+
 const Q_DEGRADED_REASON_MAP = {
     high_contextual: 'No pudimos adaptar el plan a una restricción tuya (despensa, alergia o condición). Revisa tus datos en el formulario y regenera.',
     max_attempts: 'El revisor de calidad no aprobó el plan tras varios intentos. Te dimos la mejor versión disponible; revísala y usa Cambiar Plato si algo no cuadra.',
@@ -178,6 +204,12 @@ const Q_DEGRADED_REASON_MAP = {
     // proteína → disclaimer del plan de contingencia (Plan.jsx, `_review_disclaimer`); nevera baja →
     // banner en Mi Nevera. Por eso NO se duplican aquí (evita copy que nunca se dispara).
     shopping_list_incomplete: 'La lista de compras quedó incompleta para este plan. Regenera, o revisa que cada ingrediente de las recetas aparezca en tu lista.',
+    // [P2-DEGRADE-BANNER-CLINICAL-COPY · 2026-06-22] (audit fresco P2-13) Dos motivos que el backend SÍ
+    // emite (`_quality_degraded_reason`, graph_orchestrator.py:19030/19078) pero no tenían copy → caían al
+    // genérico. `clinical_layer_incomplete` es severity HIGH y SOLO para perfiles con condición/alergia real
+    // → es justo el subgrupo at-risk el que veía el copy menos accionable.
+    clinical_layer_incomplete: 'No pudimos aplicar por completo la capa de seguridad clínica de tu perfil (condición/alergia). El plan es ORIENTATIVO: revísalo con tu profesional de salud antes de seguirlo y, si puedes, regenéralo.',
+    composite_dish_unresolved: 'Algunos platos compuestos (ej. sancocho, mangú) no se pudieron desglosar en ingredientes con precisión, así que sus macros y su lista de compras son aproximados. Usa Cambiar Plato si necesitas más exactitud.',
 };
 
 // [P3-NOTIF-CENTER-BACKFILL · 2026-06-16] Reconcilia (crea-o-enriquece) una
@@ -1499,12 +1531,12 @@ const DashboardInner = () => {
                     itemsRemoved++;
                     return;
                 }
-                deltaList.push({
+                deltaList.push(_scaleItemRefCost({
                     ...item,
                     market_qty: shopQty,
                     display_qty: item.display_qty != null ? `${degradedQtyStr} ${shopUnit}` : undefined,
                     display_string: item.display_string != null ? `${degradedQtyStr} ${shopUnit} de ${item.name}` : undefined
-                });
+                }, shopQty, rawShopQty, shopUnit));
                 return;
             }
 
@@ -1518,14 +1550,14 @@ const DashboardInner = () => {
                     itemsRemoved++;
                     return;
                 }
-                deltaList.push({
+                deltaList.push(_scaleItemRefCost({
                     ...item,
                     market_qty: shopQty,
                     display_qty: item.display_qty != null ? `${degradedQtyStr} ${shopUnit}` : undefined,
                     display_string: item.display_string != null ? `${degradedQtyStr} ${shopUnit} de ${item.name}` : undefined,
                     _hasPartialInventory: true,
                     _inventoryNote: `Ya tienes ${invItem.quantity} ${invItem.unit} en tu Nevera`
-                });
+                }, shopQty, rawShopQty, shopUnit));
                 return;
             }
 
@@ -1549,14 +1581,14 @@ const DashboardInner = () => {
             const adjustedQty = shopQty * ratio;
             const displayAdjusted = formatQty(adjustedQty);
 
-            deltaList.push({
+            deltaList.push(_scaleItemRefCost({
                 ...item,
                 market_qty: adjustedQty,
                 display_qty: item.display_qty != null ? `${displayAdjusted} ${shopUnit}` : undefined,
                 display_string: item.display_string != null ? `${displayAdjusted} ${shopUnit} de ${item.name}` : undefined,
                 _adjustedFromInventory: true,
                 _inventoryNote: `Tienes ${invItem.quantity} ${invItem.unit} — comprar ${displayAdjusted} ${shopUnit}`
-            });
+            }, adjustedQty, rawShopQty, shopUnit));
         });
 
         // Metadata para UI
@@ -2460,7 +2492,10 @@ const DashboardInner = () => {
                 <!-- Footer -->
                 <div style="margin-top: 15px; text-align: center; color: #9ca3af; font-size: 10px; border-top: 2px dashed #e5e7eb; padding-top: 10px;">
                     <p style="margin: 0; font-weight: 700; color: #6b7280; letter-spacing: 1px;">PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE</p>
-                    <p style="margin: 6px 0 0; font-size: 9px; color: #9ca3af;">Los precios de esta lista están verificados en <strong>Supermercado La Sirena</strong>.</p>
+                    <!-- [P2-PDF-PRICE-SOURCE-COPY · 2026-06-22] (audit fresco P2-22) Copy suavizado: el precio
+                         por-ítem puede ser verificado O estimado (price_confidence/price_source por fila) → afirmar
+                         "verificados en La Sirena" universal era inexacto. -->
+                    <p style="margin: 6px 0 0; font-size: 9px; color: #9ca3af;">Precios estimados a partir de supermercados dominicanos (Nacional/La Sirena); pueden variar según tienda y fecha.</p>
                 </div>
             </div>
             `;

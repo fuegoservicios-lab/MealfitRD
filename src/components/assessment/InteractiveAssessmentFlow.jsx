@@ -154,6 +154,13 @@ const InteractiveAssessmentFlow = () => {
             component: <QStress onAutoAdvance={handleAutoAdvance} />
         },
         {
+            // [P2-FORM-KITCHEN-EQUIPMENT · 2026-06-22] (audit fresco P2-24) DECISIÓN DE PRODUCTO: el intake
+            // principal captura solo el TIEMPO de cocina, no el EQUIPO (estufa/horno/airfryer/licuadora). El
+            // equipo SÍ se captura vía el panel opt-in de Súper Personalización (`kitchenEquipment`) e inyecta
+            // al planner por `build_super_personalization_context` (gatea técnicas: "no asumas horno/airfryer si
+            // no están en la lista"). Añadir una pregunta de equipo al flujo principal va contra la dirección
+            // LEAN del intake (misma razón por la que se eliminó householdSize, P0-12). Gap acotado: solo el
+            // PRIMER plan de quien NO llena el panel es equipment-blind. Revisitar si el owner prioriza.
             title: <>¿Cuánto tiempo tienes para cocinar?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Te daremos recetas reales que se ajusten a tu agenda.",
             fields: ['cookingTime'],

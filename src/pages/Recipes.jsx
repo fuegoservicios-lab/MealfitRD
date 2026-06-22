@@ -691,6 +691,17 @@ const Recipes = () => {
                         <div style="color: #F97316; font-size: 11pt; font-weight: bold;">
                             🔥 ${escapeHtml(meal.cals)} kcal
                         </div>
+                        ${(() => {
+                            // [P2-PDF-RECIPE-MACROS · 2026-06-22] (audit fresco P2-21) El PDF de receta solo
+                            // interpolaba kcal; P/C/G existen en `meal` pero no aparecían (3 de 4 macros perdidos
+                            // en el impreso). Mini-línea con guards de presencia.
+                            const _macros = [
+                                (meal.protein != null && meal.protein !== '') ? `P: ${escapeHtml(meal.protein)}g` : '',
+                                (meal.carbs != null && meal.carbs !== '') ? `C: ${escapeHtml(meal.carbs)}g` : '',
+                                (meal.fats != null && meal.fats !== '') ? `G: ${escapeHtml(meal.fats)}g` : '',
+                            ].filter(Boolean).join('&nbsp;·&nbsp;');
+                            return _macros ? `<div style="color: #475569; font-size: 9pt; font-weight: 600; margin-top: 5px;">${_macros}</div>` : '';
+                        })()}
                     </div>
                 </div>
 

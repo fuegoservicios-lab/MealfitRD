@@ -718,6 +718,13 @@ export const QDietType = ({ onAutoAdvance }) => {
 };
 
 export const QAllergies = ({ onManualAdvance }) => {
+    // [P2-FORM-ALLERGY-SEVERITY · 2026-06-22] (audit fresco P2-25) DECISIÓN DE PRODUCTO documentada (el
+    // audit permite "implementar toggle de severidad O documentar la decisión fail-safe"): este step NO
+    // distingue alergia severa (IgE) de intolerancia leve — ambas se tratan como exclusión DURA. La dirección
+    // es FAIL-SAFE (sobre-restrictivo: nunca se sirve el alérgeno → cero riesgo de seguridad); lo único que
+    // se pierde es flexibilidad para una intolerancia leve (el usuario puede usar el free-text/Dislikes para
+    // matices). Un toggle de severidad requiere diseño de producto + cambia el contrato del form (tests de
+    // sentinel-drift); se difiere hasta que el owner lo priorice. NO añadir `allergySeverity` sin revisitar.
     const { formData, updateData } = useAssessment();
     // [P0-B1] sentinel mutuamente exclusivo con cualquier alergia real.
     // [P1-FORM-2] valor desde SSOT (sentinels.js).
