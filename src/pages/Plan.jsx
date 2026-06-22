@@ -95,6 +95,34 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
             err.code = 'quota_exceeded';
             throw err;
         }
+        // [P1-BUDGET-422-CODE-LOST · 2026-06-22] 422 = validación/gate pre-gen del backend
+        // (presupuesto insuficiente para las metas, datos del form inválidos, o restricción
+        // crítica desde el endpoint síncrono). El body trae `detail` como DICT
+        // {code, error_code, message, ...} o como STRING. SIN esta rama el 422 caía al throw
+        // genérico de abajo SIN `.code` → el caller no distinguía "presupuesto insuficiente"
+        // de "sin conexión", mostraba "No pudimos conectarnos a la IA" (mentira), y encima lo
+        // RE-INTENTABA (retries>1) desperdiciando el cálculo de macros. Propagamos el code real
+        // + `terminal=true` para que Plan.jsx muestre el toast accionable (Ajusta tu presupuesto/
+        // metas) y NO reintente. Espejo de las ramas 429/409/402 de arriba.
+        if (response.status === 422) {
+            let _detail = null;
+            try { _detail = (await response.json())?.detail; } catch { /* body no-JSON */ }
+            let _code, _msg;
+            if (_detail && typeof _detail === 'object') {
+                _code = _detail.code || _detail.error_code || 'form_invalid';
+                _msg = _detail.message || 'Revisa los datos del formulario.';
+            } else if (typeof _detail === 'string') {
+                _code = 'critical_restriction';
+                _msg = _detail;
+            } else {
+                _code = 'form_invalid';
+                _msg = 'Revisa los datos del formulario.';
+            }
+            const err = new Error(_msg);
+            err.code = _code;
+            err.terminal = true;
+            throw err;
+        }
         if (response.status >= 500) throw new Error(`Server Error ${response.status}`);
         if (!response.ok) {
             const txt = await response.text();
@@ -111,6 +139,9 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
         // [P1-QUOTA-402-UX · 2026-05-30] No reintentar 402 — el cap mensual no
         // se resuelve con backoff; reintentar solo desperdicia round-trips.
         if (err.code === 'quota_exceeded') throw err;
+        // [P1-BUDGET-422-CODE-LOST] No reintentar 422 — es validación/gate determinista
+        // (no se resuelve con backoff; reintentar re-corre el cálculo de macros en vano).
+        if (err.terminal) throw err;
 
         if (retries > 1) {
             console.warn(`⚠️ Intento fallido. Reintentando en ${backoff / 1000}s... (${retries - 1} intentos restantes)`);
@@ -461,6 +492,14 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                     if (fallbackErr.code === 'critical_restriction') throw fallbackErr;
                     // [P1-B10] 429 desde el fallback síncrono también propaga.
                     if (fallbackErr.code === 'rate_limited') throw fallbackErr;
+                    // [P1-BUDGET-422-CODE-LOST · 2026-06-22] Errores terminales (422: presupuesto
+                    // insuficiente / form inválido) DEBEN propagar con su code accionable — NO caer
+                    // al `offline_unavailable` genérico ("No pudimos conectarnos a la IA"), que es
+                    // engañoso (el problema es el presupuesto, no la conexión).
+                    if (fallbackErr.terminal || fallbackErr.code === 'budget_insufficient'
+                        || fallbackErr.code === 'budget_below_goal_floor' || fallbackErr.code === 'form_invalid') {
+                        throw fallbackErr;
+                    }
                 }
             }
 
