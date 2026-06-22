@@ -2,6 +2,14 @@ import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
+// [OPT-FRONTEND · 2026-06-22] eslint-plugin-react SOLO por la regla `jsx-uses-vars`
+// (NO el preset `recommended`, que metería decenas de reglas nuevas y volvería el
+// gate rojo). Sin ella, `no-unused-vars` es CIEGO al uso de identificadores en JSX
+// (`<motion.div>`, `<Componente/>`) → daba ~17 falsos positivos (motion + componentes
+// usados solo en JSX). Con ella el gate es FIABLE: un `no-unused-vars` restante es
+// dead-code REAL. Cierra la trampa donde `git` removía un import "unused" según
+// ESLint, el build pasaba, y el runtime crasheaba (ReferenceError en render).
+import reactPlugin from 'eslint-plugin-react'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 // [P2-FRONTEND-LOCALSTORAGE-LINT · 2026-05-23] Selector AST que matchea
@@ -44,6 +52,10 @@ export default defineConfig([
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
     ],
+    // [OPT-FRONTEND · 2026-06-22] Plugin `react` registrado SOLO para `jsx-uses-vars`
+    // (ver rules). `settings.react.version` evita el warning de auto-detección.
+    plugins: { react: reactPlugin },
+    settings: { react: { version: 'detect' } },
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
@@ -54,6 +66,11 @@ export default defineConfig([
       },
     },
     rules: {
+      // [OPT-FRONTEND · 2026-06-22] Marca como "usados" los identificadores
+      // referenciados en JSX (`<motion.div>`, `<Componente/>`). NO reporta por sí
+      // misma; habilita que `no-unused-vars` (abajo) deje de dar falsos positivos
+      // sobre componentes/`motion` usados solo en JSX.
+      'react/jsx-uses-vars': 'error',
       // [P3-LINT-GATE · 2026-05-30] Honra la convención `_` del repo para
       // "intencionalmente sin usar": `catch (_e)` / `catch (_lsErr)` y args
       // como `(_, idx)`. ESLint 9 marca por default los bindings de catch
