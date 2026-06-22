@@ -4,8 +4,8 @@
 // estilos (prefijo .mf-dz-) usando las CSS vars globales del tema, para verse
 // idéntica en ambos contextos sin depender del CSS de la página padre.
 //
-// UN SOLO ícono de peligro (en el header de la tarjeta) — la caja de aviso va
-// sin ícono (pedido del owner: "1 solo svg de peligro").
+// Diseño minimalista-premium: jerarquía tipográfica (eyebrow + título + cuerpo),
+// espaciado generoso, UN solo acento de peligro. Sin cajas que lo carguen.
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, AlertTriangle, Loader2 } from 'lucide-react';
@@ -16,57 +16,67 @@ import Modal from '../common/Modal';
 
 const DZ_STYLES = `
 .mf-dz-card {
-    position: relative; overflow: hidden;
     background: var(--bg-card);
-    border: 1px solid color-mix(in srgb, #ef4444 20%, var(--border));
-    border-radius: 18px; padding: 1.5rem 1.5rem 1.4rem;
-    box-shadow: var(--shadow-sm); margin-bottom: 1.25rem;
+    border: 1px solid color-mix(in srgb, #ef4444 15%, var(--border));
+    border-radius: 20px;
+    padding: 1.9rem 1.9rem 1.75rem;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.25rem;
 }
-/* acento superior sutil — da contexto "peligro" sin saturar de rojo */
-.mf-dz-card::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, color-mix(in srgb, #ef4444 75%, transparent), transparent);
+.mf-dz-eyebrow {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    margin-bottom: 0.95rem;
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: #f0656a;
 }
-.mf-dz-head { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1.05rem; }
-.mf-dz-icon {
-    width: 44px; height: 44px; flex-shrink: 0; display: grid; place-items: center;
-    border-radius: 13px;
-    background: color-mix(in srgb, #ef4444 12%, transparent);
-    color: #ef4444;
-    border: 1px solid color-mix(in srgb, #ef4444 22%, transparent);
+.mf-dz-eyebrow-dot {
+    width: 26px; height: 26px; flex-shrink: 0; display: grid; place-items: center;
+    border-radius: 8px;
+    background: color-mix(in srgb, #ef4444 13%, transparent);
+    color: #f0656a;
 }
-.mf-dz-title { font-weight: 800; font-size: 1.08rem; margin: 0; color: var(--text-main); letter-spacing: -0.01em; font-family: var(--font-heading, inherit); }
-.mf-dz-sub { color: var(--text-muted); font-size: 0.82rem; margin: 0.15rem 0 0; }
-.mf-dz-warn {
-    background: color-mix(in srgb, #ef4444 6%, transparent);
-    border: 1px solid color-mix(in srgb, #ef4444 16%, transparent);
-    border-radius: 13px; padding: 0.9rem 1rem;
-    color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; margin-bottom: 1.15rem;
+.mf-dz-title {
+    font-size: 1.4rem; font-weight: 800; letter-spacing: -0.025em; line-height: 1.15;
+    color: var(--text-main); margin: 0 0 0.7rem; font-family: var(--font-heading, inherit);
 }
-.mf-dz-warn strong { color: var(--text-main); font-weight: 700; }
+.mf-dz-text {
+    font-size: 0.94rem; line-height: 1.7; color: var(--text-muted);
+    margin: 0 0 1.75rem; max-width: 56ch;
+}
+.mf-dz-text strong { color: var(--text-main); font-weight: 650; }
 .mf-dz-btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-    width: 100%; padding: 0.85rem 1.1rem; border: none; border-radius: 13px; cursor: pointer;
-    background: linear-gradient(135deg, #f05252 0%, #dc2626 100%);
-    color: #fff; font-weight: 700; font-size: 0.95rem; font-family: inherit;
-    box-shadow: 0 4px 14px -3px color-mix(in srgb, #ef4444 55%, transparent);
-    transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+    padding: 0.85rem 1.6rem; border: none; border-radius: 13px; cursor: pointer;
+    background: #dc2626; color: #fff; font-weight: 700; font-size: 0.92rem; font-family: inherit;
+    transition: background 0.18s ease, transform 0.16s ease, box-shadow 0.16s ease;
 }
-.mf-dz-btn:hover:not(:disabled) { filter: brightness(1.05); transform: translateY(-1px); box-shadow: 0 7px 22px -4px color-mix(in srgb, #ef4444 60%, transparent); }
+.mf-dz-btn:hover:not(:disabled) {
+    background: #ef4444; transform: translateY(-1px);
+    box-shadow: 0 10px 26px -8px color-mix(in srgb, #ef4444 60%, transparent);
+}
 .mf-dz-btn:active:not(:disabled) { transform: translateY(0); }
 .mf-dz-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 .mf-dz-spin { animation: mf-dz-spin 0.8s linear infinite; }
 @keyframes mf-dz-spin { to { transform: rotate(360deg); } }
-.mf-dz-mtitle { font-weight: 800; font-size: 1.25rem; margin: 0 0 0.6rem; color: var(--text-main); letter-spacing: -0.01em; font-family: var(--font-heading, inherit); }
-.mf-dz-mtext { color: var(--text-muted); font-size: 0.92rem; line-height: 1.5; margin: 0 0 1.1rem; }
-.mf-dz-label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem; }
-.mf-dz-input { width: 100%; box-sizing: border-box; padding: 0.75rem 0.9rem; border: 1.5px solid var(--border); border-radius: 12px; background: var(--bg-page); color: var(--text-main); font-size: 0.95rem; font-family: inherit; letter-spacing: 0.04em; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
-.mf-dz-input::placeholder { color: var(--text-light, var(--text-muted)); letter-spacing: 0.04em; }
-.mf-dz-input:focus-visible { outline: none; border-color: #ef4444; box-shadow: 0 0 0 3px color-mix(in srgb, #ef4444 20%, transparent); }
-.mf-dz-actions { display: flex; gap: 0.6rem; margin-top: 1.35rem; }
+@media (max-width: 560px) { .mf-dz-btn { width: 100%; } }
+
+/* Modal */
+.mf-dz-mtitle { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 0.7rem; color: var(--text-main); font-family: var(--font-heading, inherit); }
+.mf-dz-mtext { color: var(--text-muted); font-size: 0.93rem; line-height: 1.6; margin: 0 0 1.4rem; }
+.mf-dz-label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem; }
+.mf-dz-input {
+    width: 100%; box-sizing: border-box; padding: 0.8rem 0.95rem;
+    border: 1.5px solid var(--border); border-radius: 12px;
+    background: var(--bg-page); color: var(--text-main);
+    font-size: 1rem; font-family: inherit; letter-spacing: 0.18em; text-align: center; font-weight: 700;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.mf-dz-input::placeholder { color: var(--text-light, var(--text-muted)); font-weight: 500; letter-spacing: 0.18em; }
+.mf-dz-input:focus-visible { outline: none; border-color: #ef4444; box-shadow: 0 0 0 3px color-mix(in srgb, #ef4444 18%, transparent); }
+.mf-dz-actions { display: flex; gap: 0.7rem; margin-top: 1.5rem; }
 .mf-dz-actions .mf-dz-btn { flex: 1; }
-.mf-dz-ghost { background: var(--bg-muted); color: var(--text-main); box-shadow: none; }
-.mf-dz-ghost:hover:not(:disabled) { filter: none; transform: none; box-shadow: none; background: color-mix(in srgb, var(--text-main) 8%, var(--bg-muted)); }
+.mf-dz-ghost { background: var(--bg-muted); color: var(--text-main); }
+.mf-dz-ghost:hover:not(:disabled) { background: color-mix(in srgb, var(--text-main) 9%, var(--bg-muted)); transform: none; box-shadow: none; }
 `;
 
 export default function DeleteAccountSection() {
@@ -108,17 +118,16 @@ export default function DeleteAccountSection() {
         <>
             <style>{DZ_STYLES}</style>
             <section className="mf-dz-card">
-                <div className="mf-dz-head">
-                    <div className="mf-dz-icon"><AlertTriangle size={20} /></div>
-                    <div>
-                        <h2 className="mf-dz-title">Zona de peligro</h2>
-                        <p className="mf-dz-sub">Eliminar tu cuenta es permanente.</p>
-                    </div>
-                </div>
-                <div className="mf-dz-warn">
-                    Se borrarán <strong>tu plan, tu progreso, tu nevera y todos tus datos</strong>.
-                    Si tienes una suscripción activa, la cancelaremos. Esta acción <strong>no se puede deshacer</strong>.
-                </div>
+                <span className="mf-dz-eyebrow">
+                    <span className="mf-dz-eyebrow-dot"><AlertTriangle size={15} strokeWidth={2.25} /></span>
+                    Zona de peligro
+                </span>
+                <h2 className="mf-dz-title">Eliminar tu cuenta</h2>
+                <p className="mf-dz-text">
+                    Esta acción es <strong>permanente</strong>. Se borrarán tu plan, tu progreso,
+                    tu nevera y todos tus datos, y se cancelará cualquier suscripción activa.
+                    No se puede deshacer.
+                </p>
                 <button className="mf-dz-btn" onClick={() => { setConfirmText(''); setShowModal(true); }}>
                     <Trash2 size={16} /> Eliminar mi cuenta
                 </button>
@@ -139,7 +148,7 @@ export default function DeleteAccountSection() {
                     No se puede deshacer.
                 </p>
                 <label className="mf-dz-label" htmlFor="mf-dz-confirm">
-                    Escribe <strong>ELIMINAR</strong> para confirmar
+                    Escribe ELIMINAR para confirmar
                 </label>
                 <input
                     id="mf-dz-confirm"
