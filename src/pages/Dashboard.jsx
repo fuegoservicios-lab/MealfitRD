@@ -5901,7 +5901,10 @@ const DashboardInner = () => {
                 </div>
 
                 {/* Right Column: INSIGHTS & INGREDIENTS */}
-                <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
+                {/* [DASH-RIGHTCOL-WIDER · 2026-06-22] flex 1 → 1.4: la columna de
+                    Razonamiento/insights se veía muy angosta (~⅓) y el texto se
+                    apilaba mucho. Sube a ~41% (meals queda ~59%, sigue cómodo). */}
+                <div style={{ flex: 1.4, minWidth: 0, width: '100%' }}>
 
                     {/* [P3-WATER-TRACKER · 2026-05-16] Tracker de hidratacion
                         diaria (8 vasos, reset a medianoche local). Reemplazo
