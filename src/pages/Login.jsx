@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { authClient, sendEmailOtp, signInWithEmailOtp } from '../authClient';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { ArrowRight, ArrowLeft, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import styles from './Auth.module.css';
 import { useAssessment } from '../context/AssessmentContext';
 import { logoutFirstPartySession } from '../utils/firstPartySession';
@@ -32,7 +33,6 @@ const Login = () => {
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [infoMessage, setInfoMessage] = useState(null);
     const [cooldown, setCooldown] = useState(0);
     const codeInputRef = useRef(null);
 
@@ -66,7 +66,6 @@ const Login = () => {
     const handleEmailSubmit = async (e) => {
         e.preventDefault();
         setError(null);
-        setInfoMessage(null);
         const clean = email.trim();
         if (!clean) {
             setError('Ingresa tu correo electrónico.');
@@ -78,7 +77,6 @@ const Login = () => {
         if (ok) {
             setStep('code');
             setCooldown(RESEND_COOLDOWN_S);
-            setInfoMessage(`Te enviamos un código a ${clean}.`);
         }
     };
 
@@ -109,13 +107,13 @@ const Login = () => {
     const handleResend = async () => {
         if (cooldown > 0 || loading) return;
         setError(null);
-        setInfoMessage(null);
         setLoading(true);
         const ok = await requestCode(email.trim());
         setLoading(false);
         if (ok) {
             setCooldown(RESEND_COOLDOWN_S);
-            setInfoMessage(`Reenviamos el código a ${email.trim()}.`);
+            // Feedback breve sin repetir el correo (ya está en el subtítulo).
+            toast.success('Te reenviamos el código.');
         }
     };
 
@@ -123,7 +121,6 @@ const Login = () => {
         setStep('email');
         setCode('');
         setError(null);
-        setInfoMessage(null);
     };
 
     // [LOGIN-REDIRECT-IF-AUTHED · 2026-06-21] Si ya hay sesión viva (la cookie de
@@ -164,13 +161,6 @@ const Login = () => {
                     <div className={styles.errorBox} role="alert" aria-live="assertive">
                         <AlertCircle size={16} aria-hidden="true" />
                         {error}
-                    </div>
-                )}
-
-                {infoMessage && (
-                    <div className={styles.successBox} role="status" aria-live="polite">
-                        <CheckCircle2 size={16} aria-hidden="true" />
-                        {infoMessage}
                     </div>
                 )}
 
