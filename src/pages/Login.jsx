@@ -146,7 +146,9 @@ const Login = () => {
 
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                     <h1 className={styles.title}>
-                        {step === 'email' ? 'Bienvenido de nuevo' : 'Revisa tu correo'}
+                        {/* [P1-EMAIL-OTP] Flujo unificado (login + registro): el título debe
+                            servir a usuarios nuevos Y existentes — "de nuevo" no aplica al primerizo. */}
+                        {step === 'email' ? 'Bienvenido' : 'Revisa tu correo'}
                     </h1>
                     <p className={styles.subtitle}>
                         {step === 'email'
