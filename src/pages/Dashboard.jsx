@@ -2490,12 +2490,15 @@ const DashboardInner = () => {
                 </div>` : ''}
                 ${clinicalNoteHTML}
                 <!-- Footer -->
-                <div style="margin-top: 15px; text-align: center; color: #9ca3af; font-size: 10px; border-top: 2px dashed #e5e7eb; padding-top: 10px;">
-                    <p style="margin: 0; font-weight: 700; color: #6b7280; letter-spacing: 1px;">PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE</p>
+                <!-- [PDF-FOOTER-CONTRAST · 2026-06-22] El footer se veía casi invisible
+                     (grises muy claros #6b7280/#9ca3af sobre papel blanco). Se oscurecen
+                     a gray-700/gray-600 + subtítulo 9px→11px para que se lea bien. -->
+                <div style="margin-top: 15px; text-align: center; color: #4b5563; font-size: 10px; border-top: 2px dashed #cbd5e1; padding-top: 10px;">
+                    <p style="margin: 0; font-weight: 800; color: #374151; letter-spacing: 1px;">PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE</p>
                     <!-- [P2-PDF-PRICE-SOURCE-COPY · 2026-06-22] (audit fresco P2-22) Copy suavizado: el precio
                          por-ítem puede ser verificado O estimado (price_confidence/price_source por fila) → afirmar
                          "verificados en La Sirena" universal era inexacto. -->
-                    <p style="margin: 6px 0 0; font-size: 9px; color: #9ca3af;">Precios estimados a partir de supermercados dominicanos (Nacional/La Sirena); pueden variar según tienda y fecha.</p>
+                    <p style="margin: 6px 0 0; font-size: 11px; color: #4b5563;">Precios estimados a partir de supermercados dominicanos (Nacional/La Sirena); pueden variar según tienda y fecha.</p>
                 </div>
             </div>
             `;
