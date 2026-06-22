@@ -15,17 +15,16 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Monitor, Sun, Moon, User, Lock, Loader2,
-    ArrowLeft, Check, ShieldCheck, Palette, Trash2, AlertTriangle,
+    ArrowLeft, Check, ShieldCheck, Palette,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAssessment } from '../context/AssessmentContext';
 import { authClient, verifyCurrentPassword } from '../authClient';
 import { applyThemePref, getStoredThemePref } from '../utils/theme';
 import { safeLocalStorageSet } from '../utils/safeLocalStorage';
-// [P1-ACCOUNT-DELETE-1 · 2026-06-22] Eliminar cuenta: modal a11y reutilizado +
-// llamada autenticada al endpoint self-service + logout completo (resetApp).
-import Modal from '../components/common/Modal';
-import { fetchWithAuth } from '../config/api';
+// [P1-ACCOUNT-DELETE-1 · 2026-06-22] Sección "Eliminar cuenta" reutilizable
+// (la MISMA se monta en el panel del dashboard /dashboard/settings).
+import DeleteAccountSection from '../components/account/DeleteAccountSection';
 
 const THEME_OPTIONS = [
     { value: 'system', label: 'Sistema', desc: 'Sigue tu dispositivo', Icon: Monitor },
@@ -35,7 +34,7 @@ const THEME_OPTIONS = [
 
 const AccountSettings = () => {
     const navigate = useNavigate();
-    const { userProfile, updateUserProfile, session, resetApp } = useAssessment();
+    const { userProfile, updateUserProfile, session } = useAssessment();
 
     // --- Apariencia ---
     const [themePref, setThemePref] = useState(() => getStoredThemePref());
@@ -69,14 +68,6 @@ const AccountSettings = () => {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [savingPassword, setSavingPassword] = useState(false);
-
-    // --- Eliminar cuenta (Zona de peligro) ---
-    // [P1-ACCOUNT-DELETE-1 · 2026-06-22] Acción IRREVERSIBLE: modal con confirmación
-    // type-'ELIMINAR' → endpoint self-service → resetApp() (logout total) → /login.
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [deleteConfirm, setDeleteConfirm] = useState('');
-    const [isDeleting, setIsDeleting] = useState(false);
-    const deleteReady = deleteConfirm.trim().toUpperCase() === 'ELIMINAR';
 
     const handleSaveName = async () => {
         const trimmed = name.trim();
@@ -142,33 +133,6 @@ const AccountSettings = () => {
             toast.error(err?.message || 'No se pudo actualizar la contraseña.');
         } finally {
             setSavingPassword(false);
-        }
-    };
-
-    const handleDeleteAccount = async () => {
-        if (!deleteReady || isDeleting) return;
-        setIsDeleting(true);
-        try {
-            const res = await fetchWithAuth('/api/account/delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ confirm: 'ELIMINAR' }),
-            });
-            if (!res.ok) {
-                let detail = 'No se pudo eliminar la cuenta. Inténtalo de nuevo.';
-                try { const j = await res.json(); if (j?.detail) detail = j.detail; } catch { /* sin body */ }
-                throw new Error(detail);
-            }
-            // Borrado OK → logout total (limpia localStorage/caches + signOut +
-            // session=null sincrónico) y al login. El componente se desmonta al
-            // navegar, por eso NO reseteamos isDeleting en el happy-path.
-            toast.success('Tu cuenta fue eliminada.');
-            await resetApp();
-            navigate('/login', { replace: true });
-        } catch (err) {
-            console.error('Error eliminando cuenta:', err);
-            toast.error(err?.message || 'No se pudo eliminar la cuenta.');
-            setIsDeleting(false);
         }
     };
 
@@ -325,29 +289,6 @@ const AccountSettings = () => {
 
                 .acct-spin { animation: acct-spin 0.8s linear infinite; }
                 @keyframes acct-spin { to { transform: rotate(360deg); } }
-
-                /* [P1-ACCOUNT-DELETE-1] Zona de peligro */
-                .acct-card-danger { border-color: color-mix(in srgb, #ef4444 40%, var(--border)); }
-                .acct-card-danger .acct-card-icon {
-                    background: color-mix(in srgb, #ef4444 14%, transparent); color: #ef4444;
-                }
-                .acct-btn-danger { background: #ef4444; }
-                .acct-btn-danger:hover:not(:disabled) { filter: brightness(1.07); }
-                .acct-danger-warn {
-                    display: flex; gap: 0.6rem; align-items: flex-start;
-                    background: color-mix(in srgb, #ef4444 10%, transparent);
-                    border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
-                    border-radius: var(--radius-md); padding: 0.85rem;
-                    color: var(--text-main); font-size: 0.85rem; line-height: 1.45;
-                    margin-bottom: 1rem;
-                }
-                .acct-danger-warn svg { color: #ef4444; flex-shrink: 0; margin-top: 1px; }
-                .acct-modal-title { font-family: var(--font-heading); font-weight: 800; font-size: 1.25rem; margin: 0 0 0.6rem; color: var(--text-main); }
-                .acct-modal-text { color: var(--text-muted); font-size: 0.92rem; line-height: 1.5; margin: 0 0 1rem; }
-                .acct-modal-actions { display: flex; gap: 0.6rem; margin-top: 1.25rem; }
-                .acct-modal-actions .acct-btn { flex: 1; }
-                .acct-btn-ghost { background: var(--bg-muted); color: var(--text-main); }
-                .acct-btn-ghost:hover:not(:disabled) { filter: brightness(0.97); }
 
                 @media (max-width: 520px) {
                     .acct-row { flex-direction: column; }
@@ -508,79 +449,8 @@ const AccountSettings = () => {
                 </div>
             </section>
 
-            {/* ZONA DE PELIGRO — Eliminar cuenta (P1-ACCOUNT-DELETE-1) */}
-            <section className="acct-card acct-card-danger">
-                <div className="acct-card-head">
-                    <div className="acct-card-icon"><AlertTriangle size={20} /></div>
-                    <div>
-                        <h2 className="acct-card-title">Zona de peligro</h2>
-                        <p className="acct-card-sub">Eliminar tu cuenta es permanente.</p>
-                    </div>
-                </div>
-                <div className="acct-danger-warn">
-                    <AlertTriangle size={16} />
-                    <span>
-                        Se borrarán <strong>tu plan, tu progreso, tu nevera y todos tus datos</strong>.
-                        Si tienes una suscripción activa, la cancelaremos. Esta acción <strong>no se puede deshacer</strong>.
-                    </span>
-                </div>
-                <button
-                    className="acct-btn acct-btn-danger"
-                    style={{ width: '100%' }}
-                    onClick={() => { setDeleteConfirm(''); setShowDeleteModal(true); }}
-                >
-                    <Trash2 size={16} /> Eliminar mi cuenta
-                </button>
-            </section>
-
-            <Modal
-                isOpen={showDeleteModal}
-                onClose={() => { if (!isDeleting) setShowDeleteModal(false); }}
-                titleId="acct-delete-title"
-                maxWidth="440px"
-                disableClose={isDeleting}
-                isBottomSheetOnMobile
-            >
-                <h3 id="acct-delete-title" className="acct-modal-title">¿Eliminar tu cuenta?</h3>
-                <p className="acct-modal-text">
-                    Esta acción es <strong>permanente</strong>. Se borrarán tu plan, tu progreso,
-                    tu nevera y todos tus datos, y se cancelará cualquier suscripción activa.
-                    No se puede deshacer.
-                </p>
-                <label className="acct-label" htmlFor="acct-delete-confirm">
-                    Escribe <strong>ELIMINAR</strong> para confirmar
-                </label>
-                <input
-                    id="acct-delete-confirm"
-                    className="acct-input"
-                    style={{ width: '100%' }}
-                    type="text"
-                    value={deleteConfirm}
-                    onChange={(e) => setDeleteConfirm(e.target.value)}
-                    placeholder="ELIMINAR"
-                    autoComplete="off"
-                    autoCapitalize="characters"
-                    disabled={isDeleting}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && deleteReady) handleDeleteAccount(); }}
-                />
-                <div className="acct-modal-actions">
-                    <button
-                        className="acct-btn acct-btn-ghost"
-                        onClick={() => setShowDeleteModal(false)}
-                        disabled={isDeleting}
-                    >
-                        Cancelar
-                    </button>
-                    <button
-                        className="acct-btn acct-btn-danger"
-                        onClick={handleDeleteAccount}
-                        disabled={!deleteReady || isDeleting}
-                    >
-                        {isDeleting && <Loader2 size={16} className="acct-spin" />}
-                        {isDeleting ? 'Eliminando…' : 'Eliminar definitivamente'}
-                    </button>
-                </div>
-            </Modal>
+            {/* ZONA DE PELIGRO — Eliminar cuenta (componente reutilizable, P1-ACCOUNT-DELETE-1) */}
+            <DeleteAccountSection />
 
         </div>
     );

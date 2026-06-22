@@ -35,6 +35,8 @@ import { buildHealthProfilePayload } from '../config/secureFormStorage';
 // [P1-SUPERPERSONALIZATION-1 · 2026-06-19] Panel opt-in de preferencias ricas
 // (gustos/cultura/equipo/sabor/nivel/texto libre) → health_profile.super_personalization.
 import SuperPersonalizationPanel from '../components/settings/SuperPersonalizationPanel';
+// [P1-ACCOUNT-DELETE-1 · 2026-06-22] Misma sección "Eliminar cuenta" que /configuracion.
+import DeleteAccountSection from '../components/account/DeleteAccountSection';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatares minimalistas: clic en el avatar del perfil cicla al siguiente.
 import { MinimalAvatar, MINIMAL_AVATARS } from '../components/avatars/minimalAvatars';
 import { getAvatarId, persistAvatar } from '../utils/avatarStore';
@@ -2998,6 +3000,8 @@ const Settings = () => {
                                     </button>
                                 </div>
                             )}
+                            {/* Zona de peligro — eliminar cuenta (P1-ACCOUNT-DELETE-1) */}
+                            <DeleteAccountSection />
                         </div>
                     </section>
                     )}
