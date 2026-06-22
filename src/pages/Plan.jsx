@@ -1927,22 +1927,21 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 @keyframes mfSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
                 .mf-pulse { animation: mfPulse 2.4s ease-in-out infinite; }
                 .mf-spin { animation: mfSpin 1.6s linear infinite; }
-                /* [LOADING-DARK-BG · 2026-05-31] Fondo del loading. Claro: radial slate
-                   premium legacy (#1E293B→#0F172A). Oscuro: MISMO fondo SSOT del
-                   Dashboard y el Formulario (P3-DARK-BG-STRIPES) — rayas diagonales 45°
-                   + glows indigo/púrpura sobre #0B1120. El fondo va aquí (no inline)
-                   para que el override de tema no compita con la especificidad inline. */
+                /* [LOADING-DARK-BG · 2026-05-31 · sin-rayas 2026-06-22] Fondo del loading.
+                   Claro: radial slate premium (#1E293B→#0F172A). Oscuro: glows indigo/
+                   púrpura sobre #0B1120. Se QUITARON las rayas diagonales blancas
+                   (repeating-linear-gradient, P3-DARK-BG-STRIPES) por pedido del owner —
+                   igual que en el formulario; quedan solo los glows ambientales. */
                 .mf-loading-bg { background: radial-gradient(ellipse at center, #1E293B 0%, #0F172A 70%); }
                 html[data-theme="dark"] .mf-loading-bg {
                     background-color: #0B1120;
                     background-image:
-                        repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 52px),
                         radial-gradient(ellipse 70% 55% at 8% -10%, rgba(99,102,241,0.28) 0%, transparent 55%),
                         radial-gradient(ellipse 58% 50% at 100% 2%, rgba(129,140,248,0.20) 0%, transparent 52%),
                         radial-gradient(ellipse 55% 50% at 90% 96%, rgba(139,92,246,0.14) 0%, transparent 55%),
                         radial-gradient(ellipse 75% 55% at 28% 108%, rgba(79,70,229,0.18) 0%, transparent 55%);
-                    background-size: auto, cover, cover, cover, cover;
-                    background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+                    background-size: cover, cover, cover, cover;
+                    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
                 }
             `}</style>
 
