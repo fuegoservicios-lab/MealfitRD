@@ -207,6 +207,26 @@ const Pantry = () => {
     const [loading, setLoading] = useState(() => !getCachedInventory());
     const [savingItem, setSavingItem] = useState(null); // ID of item being saved
     const [searchQuery, setSearchQuery] = useState('');
+    // [P2-PANTRY-LOW-BANNER · 2026-06-21] Estado + fetch del mínimo de nevera. El servidor es la
+    // FUENTE DE VERDAD (GET /api/plans/pantry-status expone el MISMO conteo que el guard de
+    // mantenimiento: _count_meaningful_pantry_items(get_user_inventory_net) vs
+    // CHUNK_MIN_FRESH_PANTRY_ITEMS) → cero drift. Debounce 700ms tras cada cambio de inventario
+    // para que el delete/add persista server-side antes de re-consultar (evita conteo stale).
+    // Cero costo LLM; fail-soft (sin aviso si falla). Guests → safe defaults (sin aviso).
+    const [pantryStatus, setPantryStatus] = useState(null);
+    useEffect(() => {
+        let cancelled = false;
+        const t = setTimeout(async () => {
+            try {
+                const resp = await fetchWithAuth('/api/plans/pantry-status');
+                if (resp?.ok) {
+                    const data = await resp.json();
+                    if (!cancelled) setPantryStatus(data);
+                }
+            } catch { /* fail-soft: sin aviso */ }
+        }, 700);
+        return () => { cancelled = true; clearTimeout(t); };
+    }, [inventory.length]);
     // [P6-SPEED-PANTRY-DEFER · 2026-06-01] El <input> sigue controlado por
     // `searchQuery` (caret instantáneo), pero las vistas pesadas
     // (filteredInventory/visibleDepletedItems → re-filtra+agrupa+mapea todas las
@@ -4105,6 +4125,32 @@ const Pantry = () => {
                     />
                 </div>
             </header>
+
+            {/* [P2-PANTRY-LOW-BANNER · 2026-06-21] Aviso inmediato cuando los frescos están bajo el
+                mínimo del guard de mantenimiento (conteo del servidor, cero drift). Informativo, NO
+                bloquea: las próximas listas de mantenimiento compran lo que falte. Es el escenario del
+                owner: "cuando se me acaben los alimentos y agregue los míos manualmente". */}
+            {pantryStatus?.is_below && (
+                <div
+                    role="status"
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: '0.6rem',
+                        margin: '0.75rem 1rem', padding: '0.7rem 0.9rem',
+                        borderRadius: '0.9rem', fontSize: '0.86rem', lineHeight: 1.35,
+                        background: 'rgba(251, 191, 36, 0.14)',
+                        border: '1px solid rgba(251, 146, 60, 0.45)',
+                        color: 'var(--text-primary, #1f2937)',
+                        position: 'relative', zIndex: 1,
+                    }}
+                >
+                    <PackageX size={18} strokeWidth={2.5} style={{ flexShrink: 0, color: '#f59e0b' }} />
+                    <span>
+                        Tu nevera está baja (<strong>{pantryStatus.meaningful_count} de {pantryStatus.min_required}</strong> alimentos).
+                        Tus próximas listas de mantenimiento comprarán lo que falte automáticamente —
+                        surte tu nevera para que tus planes la aprovechen.
+                    </span>
+                </div>
+            )}
 
             {/* Listado de Inventario Groupped by Category */}
             {/* [P3-PANTRY-FRIDGE-UNIT · 2026-05-19] padding 0 (no lateral)
