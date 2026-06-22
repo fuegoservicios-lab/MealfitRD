@@ -7,7 +7,7 @@ import { AlertTriangle, ArrowLeft } from 'lucide-react';
 const LegalLayout = ({ title, lastUpdated, children }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { userProfile } = useAssessment();
+    const { userProfile, session, isGuest } = useAssessment();
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -47,7 +47,14 @@ const LegalLayout = ({ title, lastUpdated, children }) => {
                         navigate('/dashboard');
                         return;
                     }
-                    if (path === '/' || path === '/login' || path === '/register') {
+                    // [P1-LEGAL-ACK · 2026-06-21] Si venías del login/registro, volver
+                    // al LOGIN (no al landing): un usuario sin sesión no debe aterrizar
+                    // en el landing (gateado por ProtectedRoute).
+                    if (path === '/login' || path === '/register') {
+                        navigate('/login');
+                        return;
+                    }
+                    if (path === '/') {
                         navigate('/');
                         return;
                     }
@@ -58,10 +65,14 @@ const LegalLayout = ({ title, lastUpdated, children }) => {
         }
 
         // 3. Fallback auth-based
-        if (userProfile?.id) {
+        if (userProfile?.id || session) {
             navigate('/dashboard');
+        } else if (isGuest) {
+            navigate('/'); // un invitado SÍ puede ver el landing/funnel del plan gratis
         } else {
-            navigate('/');
+            // [P1-LEGAL-ACK · 2026-06-21] Sin sesión ni modo invitado: el landing está
+            // gateado (ProtectedRoute) → mandar a /login en vez de /.
+            navigate('/login');
         }
     };
 

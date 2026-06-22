@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { authClient, sendEmailOtp, signInWithEmailOtp } from '../authClient';
-import { useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import styles from './Auth.module.css';
@@ -305,6 +305,15 @@ const Login = () => {
                         </p>
                     </form>
                 )}
+
+                {/* [P1-LEGAL-ACK · 2026-06-21] Reconocimiento de privacidad al pie.
+                    El Link pasa state.from='/login' → "Volver" en la página legal
+                    regresa al LOGIN (no al landing, que está gateado para usuarios sin
+                    sesión ni modo invitado). */}
+                <p className={styles.legalNote}>
+                    Al continuar, reconoces nuestra{' '}
+                    <Link to="/privacy" state={{ from: '/login' }} className={styles.legalLink}>Política de Privacidad</Link>.
+                </p>
             </div>
         </div>
     );
