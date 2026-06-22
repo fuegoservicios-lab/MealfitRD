@@ -147,14 +147,16 @@ describe('[P3-HISTORICAL-TOAST-DISMISS] emitHistoricalCoherenceToast — skip cu
             info: vi.fn(),
         };
         const history = [
-            { ts: _isoMinusHours(1), action_taken: 'warn_only_chunk_t2', block_set: false },
+            // [P1-COHERENCE-BANNER-NOISE] entry ACCIONABLE (block_set=true) — las
+            // benignas ya no disparan el toast.
+            { ts: _isoMinusHours(1), action_taken: 'warn_only_chunk_t2', block_set: true },
         ];
 
         const result = emitHistoricalCoherenceToast(toast, history);
 
         expect(result).not.toBeNull();
-        // info severity porque block_set=false y sin hypotheses críticas.
-        expect(toast.info).toHaveBeenCalledTimes(1);
+        // severity warning (lo accionable siempre es warning tras P1-COHERENCE-BANNER-NOISE).
+        expect(toast.warning).toHaveBeenCalledTimes(1);
     });
 });
 

@@ -1,39 +1,22 @@
 /**
- * [P2-SHOPPING-1 · 2026-05-14] Consumidor de `_shopping_coherence_block_history`
- * (telemetría visible al usuario en el flujo "abrir Dashboard → descargar PDF").
+ * [P2-SHOPPING-1 · 2026-05-14 · refinado P1-COHERENCE-BANNER-NOISE 2026-06-22]
+ * Consumidor de `_shopping_coherence_block_history` (telemetría visible al usuario
+ * en el flujo "abrir Dashboard → descargar PDF").
  *
- * Bug pre-fix:
- *   `emitCoherenceToast` solo se invocaba tras `/recalculate-shopping-list`
- *   o `modify_single_meal` (responses con `_coherence_warnings`). El handler
- *   PDF (`handleDownloadShoppingList`) no llamaba a recalc, así que el
- *   usuario que descarga PDF directo nunca veía las divergencias
- *   capturadas por chunk worker T2, cron diario, agent_tool, /recipe/expand,
- *   etc. — aunque esas fuentes SÍ persisten entries en
- *   `_shopping_coherence_block_history`.
+ * `buildHistoricalCoherenceToast(history, opts)` decide si mostrar el toast
+ * "Tu lista de compras tuvo N revisiones automáticas recientes".
  *
- * Fix:
- *   Nuevo helper `buildHistoricalCoherenceToast(history, opts)` +
- *   `emitHistoricalCoherenceToast(toast, history, opts)`. Filtra entries:
- *     - `action_taken ∈ {null, "not_applicable", "hydration_error"}` → skip.
- *     - Fuera de `windowHours` (default 48h) → skip.
- *   Severidad warning si AL MENOS UNO tiene `block_set=true` o `hypotheses`
- *   incluye {cap_swallowed_modifier, unit_mismatch}; resto = info.
+ * [P1-COHERENCE-BANNER-NOISE · 2026-06-22] El toast ahora cuenta SOLO entries
+ * ACCIONABLES — `block_set=true` o `hypotheses` con `cap_swallowed_modifier` /
+ * `pantry_overdeduct`. Las entries benignas (cada recálculo de duración/household
+ * appendea un `warn_only_recalc` con magnitudes unknown/unit_mismatch/yield sobre
+ * alimentos que SÍ están en la lista) ya NO disparan el toast — eran falsos
+ * positivos ("tu lista tuvo 2 revisiones" al cambiar a 15 y luego 7 días). Espejo
+ * del filtro de `summarize_divergences_for_ui` en el backend. Severidad siempre
+ * `warning` (lo que queda es accionable).
  *
- *   `Dashboard.jsx::handleDownloadShoppingList` invoca el helper tras
- *   el prefetch P2-NEW-14 (efectivo `effectivePlanData`).
- *
- * Cobertura del test:
- *   1. Sin history o lista vacía → null.
- *   2. Solo `not_applicable`/`hydration_error`/null → null.
- *   3. Entry reciente con action_taken válido → descriptor non-null.
- *   4. Entry fuera de ventana (>48h) → skip.
- *   5. Severity warning cuando block_set=true.
- *   6. Severity warning cuando hypotheses incluye cap_swallowed_modifier.
- *   7. Severity info cuando solo warn_only_* sin block_set/hypotheses críticas.
- *   8. Pluralización del title (1 vs N revisiones).
- *   9. `emitHistoricalCoherenceToast` invoca `toast.warning`/`toast.info`
- *      según severity y retorna descriptor.
- *  10. Fallback defensivo si `toast.warning` no existe (sonner API distinta).
+ * Filtros previos preservados: action_taken ∈ {null, not_applicable,
+ * hydration_error} → skip; fuera de windowHours (default 48h) → skip.
  */
 import { describe, it, expect, vi } from 'vitest';
 
@@ -45,19 +28,55 @@ import {
 
 const _isoMinusHours = (h) => new Date(Date.now() - h * 3600 * 1000).toISOString();
 
+// Helpers de fixture: entry ACCIONABLE (cuenta) vs BENIGNA (no cuenta).
+const _actionable = (h, extra = {}) => ({
+    ts: _isoMinusHours(h), action_taken: 'warn_only_recalc', block_set: false,
+    hypotheses: { cap_swallowed_modifier: 1 }, ...extra,
+});
+const _benign = (h, extra = {}) => ({
+    ts: _isoMinusHours(h), action_taken: 'warn_only_recalc', block_set: false,
+    hypotheses: { unknown: 3, unit_mismatch: 2 }, ...extra,
+});
+
 
 describe('[P2-SHOPPING-1] buildHistoricalCoherenceToast — input vacío/inválido', () => {
-    it('null → null', () => {
-        expect(buildHistoricalCoherenceToast(null)).toBeNull();
+    it('null → null', () => expect(buildHistoricalCoherenceToast(null)).toBeNull());
+    it('undefined → null', () => expect(buildHistoricalCoherenceToast(undefined)).toBeNull());
+    it('array vacío → null', () => expect(buildHistoricalCoherenceToast([])).toBeNull());
+    it('non-array (string) → null', () => expect(buildHistoricalCoherenceToast('not_an_array')).toBeNull());
+});
+
+
+describe('[P1-COHERENCE-BANNER-NOISE] Solo entries ACCIONABLES disparan el toast', () => {
+    it('recálculos benignos (unknown/unit_mismatch, sin block) → null (EL FIX)', () => {
+        const history = [_benign(1), _benign(2), _benign(3)];
+        expect(buildHistoricalCoherenceToast(history)).toBeNull();
     });
-    it('undefined → null', () => {
-        expect(buildHistoricalCoherenceToast(undefined)).toBeNull();
+
+    it('entry con cap_swallowed_modifier → cuenta', () => {
+        const out = buildHistoricalCoherenceToast([_actionable(1)]);
+        expect(out).not.toBeNull();
+        expect(out.count).toBe(1);
     });
-    it('array vacío → null', () => {
-        expect(buildHistoricalCoherenceToast([])).toBeNull();
+
+    it('entry con pantry_overdeduct → cuenta', () => {
+        const out = buildHistoricalCoherenceToast([
+            _benign(1, { hypotheses: { pantry_overdeduct: 1 } }),
+        ]);
+        expect(out).not.toBeNull();
     });
-    it('non-array (string) → null', () => {
-        expect(buildHistoricalCoherenceToast('not_an_array')).toBeNull();
+
+    it('entry con block_set=true (aunque hypotheses vacío) → cuenta', () => {
+        const out = buildHistoricalCoherenceToast([
+            { ts: _isoMinusHours(1), action_taken: 'degrade', block_set: true, hypotheses: {} },
+        ]);
+        expect(out).not.toBeNull();
+    });
+
+    it('mezcla benigno + accionable → cuenta solo el accionable', () => {
+        const history = [_benign(1), _benign(2), _actionable(3)];
+        const out = buildHistoricalCoherenceToast(history);
+        expect(out.count).toBe(1);
     });
 });
 
@@ -65,134 +84,66 @@ describe('[P2-SHOPPING-1] buildHistoricalCoherenceToast — input vacío/inváli
 describe('[P2-SHOPPING-1] Filtrado por action_taken', () => {
     it('solo not_applicable → null', () => {
         const history = [
-            { ts: _isoMinusHours(1), action_taken: 'not_applicable', block_set: false },
-            { ts: _isoMinusHours(2), action_taken: 'not_applicable', block_set: false },
+            { ts: _isoMinusHours(1), action_taken: 'not_applicable', block_set: true, hypotheses: { cap_swallowed_modifier: 1 } },
         ];
         expect(buildHistoricalCoherenceToast(history)).toBeNull();
     });
-
-    it('solo hydration_error → null (invariant violation interna)', () => {
-        const history = [
-            { ts: _isoMinusHours(1), action_taken: 'hydration_error', block_set: true },
-        ];
+    it('solo hydration_error → null', () => {
+        const history = [{ ts: _isoMinusHours(1), action_taken: 'hydration_error', block_set: true }];
         expect(buildHistoricalCoherenceToast(history)).toBeNull();
     });
-
-    it('action_taken null → null (entry pre-P2-2 sin hidratar)', () => {
-        const history = [
-            { ts: _isoMinusHours(1), action_taken: null, block_set: true },
-        ];
+    it('action_taken null → null', () => {
+        const history = [{ ts: _isoMinusHours(1), action_taken: null, block_set: true }];
         expect(buildHistoricalCoherenceToast(history)).toBeNull();
-    });
-
-    it('mezcla: ignora not_applicable + null y procesa warn_only_recalc', () => {
-        const history = [
-            { ts: _isoMinusHours(1), action_taken: 'not_applicable', block_set: false },
-            { ts: _isoMinusHours(2), action_taken: null, block_set: false },
-            { ts: _isoMinusHours(3), action_taken: 'warn_only_recalc', block_set: false, hypotheses: { unknown: 1 } },
-        ];
-        const out = buildHistoricalCoherenceToast(history);
-        expect(out).not.toBeNull();
-        expect(out.count).toBe(1);
     });
 });
 
 
-describe('[P2-SHOPPING-1] Filtrado por ventana temporal', () => {
-    it('entry hace 72h con windowHours=48 → skip', () => {
-        const history = [
-            { ts: _isoMinusHours(72), action_taken: 'warn_only_recalc', block_set: false },
-        ];
-        expect(buildHistoricalCoherenceToast(history)).toBeNull();
+describe('[P2-SHOPPING-1] Filtrado por ventana temporal (sobre entries accionables)', () => {
+    it('entry accionable hace 72h con windowHours=48 → skip', () => {
+        expect(buildHistoricalCoherenceToast([_actionable(72)])).toBeNull();
     });
-
-    it('entry hace 24h con windowHours=48 → incluido', () => {
-        const history = [
-            { ts: _isoMinusHours(24), action_taken: 'warn_only_recalc', block_set: false },
-        ];
-        expect(buildHistoricalCoherenceToast(history)).not.toBeNull();
+    it('entry accionable hace 24h con windowHours=48 → incluido', () => {
+        expect(buildHistoricalCoherenceToast([_actionable(24)])).not.toBeNull();
     });
-
-    it('windowHours=0 desactiva el filtro temporal (toda la historia válida)', () => {
-        const history = [
-            { ts: _isoMinusHours(300), action_taken: 'warn_only_recalc', block_set: false },
-        ];
-        expect(buildHistoricalCoherenceToast(history, { windowHours: 0 })).not.toBeNull();
+    it('windowHours=0 desactiva el filtro temporal', () => {
+        expect(buildHistoricalCoherenceToast([_actionable(300)], { windowHours: 0 })).not.toBeNull();
     });
-
     it('windowHours custom (1) recorta entries > 1h', () => {
-        const history = [
-            { ts: _isoMinusHours(2), action_taken: 'warn_only_recalc', block_set: false },
-            { ts: _isoMinusHours(0.5), action_taken: 'warn_only_recalc', block_set: false },
-        ];
-        const out = buildHistoricalCoherenceToast(history, { windowHours: 1 });
+        const out = buildHistoricalCoherenceToast([_actionable(2), _actionable(0.5)], { windowHours: 1 });
         expect(out.count).toBe(1);
     });
-
-    it('entry sin ts (campo ausente o no-string) → no se filtra por tiempo (defensivo)', () => {
-        const history = [
-            { action_taken: 'warn_only_recalc', block_set: false },
-        ];
-        expect(buildHistoricalCoherenceToast(history)).not.toBeNull();
+    it('entry accionable sin ts → no se filtra por tiempo (defensivo)', () => {
+        expect(buildHistoricalCoherenceToast([_actionable(1, { ts: undefined })])).not.toBeNull();
     });
 });
 
 
-describe('[P2-SHOPPING-1] Severity', () => {
-    it('block_set=true → severity warning', () => {
-        const history = [
+describe('[P2-SHOPPING-1] Severity (siempre warning para lo accionable)', () => {
+    it('block_set=true → warning', () => {
+        const out = buildHistoricalCoherenceToast([
             { ts: _isoMinusHours(1), action_taken: 'degrade', block_set: true, hypotheses: {} },
-        ];
-        expect(buildHistoricalCoherenceToast(history).severity).toBe('warning');
+        ]);
+        expect(out.severity).toBe('warning');
     });
-
-    it('hypotheses incluye cap_swallowed_modifier → severity warning', () => {
-        const history = [
-            { ts: _isoMinusHours(1), action_taken: 'warn_only_chunk_t2', block_set: false, hypotheses: { cap_swallowed_modifier: 2 } },
-        ];
-        expect(buildHistoricalCoherenceToast(history).severity).toBe('warning');
-    });
-
-    it('hypotheses incluye unit_mismatch → severity warning', () => {
-        const history = [
-            { ts: _isoMinusHours(1), action_taken: 'warn_only_recalc', block_set: false, hypotheses: { unit_mismatch: 1 } },
-        ];
-        expect(buildHistoricalCoherenceToast(history).severity).toBe('warning');
-    });
-
-    it('solo warn_only_* sin block_set ni hypotheses críticas → severity info', () => {
-        const history = [
-            { ts: _isoMinusHours(1), action_taken: 'warn_only_recalc', block_set: false, hypotheses: { unknown: 1 } },
-        ];
-        expect(buildHistoricalCoherenceToast(history).severity).toBe('info');
-    });
-
-    it('hypotheses ausente o no-object → info (no escala falsamente)', () => {
-        const history = [
-            { ts: _isoMinusHours(1), action_taken: 'warn_only_recalc', block_set: false },
-        ];
-        expect(buildHistoricalCoherenceToast(history).severity).toBe('info');
+    it('cap_swallowed_modifier → warning', () => {
+        expect(buildHistoricalCoherenceToast([_actionable(1)]).severity).toBe('warning');
     });
 });
 
 
 describe('[P2-SHOPPING-1] Pluralización + count', () => {
     it('1 entry → "una revisión"', () => {
-        const history = [
-            { ts: _isoMinusHours(1), action_taken: 'warn_only_recalc', block_set: false },
-        ];
-        const out = buildHistoricalCoherenceToast(history);
+        const out = buildHistoricalCoherenceToast([_actionable(1)]);
         expect(out.title.toLowerCase()).toContain('una revisión');
         expect(out.count).toBe(1);
     });
-
-    it('3 entries → "3 revisiones"', () => {
-        const history = [
-            { ts: _isoMinusHours(1), action_taken: 'warn_only_recalc', block_set: false },
+    it('3 entries accionables → "3 revisiones"', () => {
+        const out = buildHistoricalCoherenceToast([
+            _actionable(1),
             { ts: _isoMinusHours(2), action_taken: 'degrade', block_set: true },
-            { ts: _isoMinusHours(3), action_taken: 'warn_only_chunk_t2', block_set: false },
-        ];
-        const out = buildHistoricalCoherenceToast(history);
+            _actionable(3, { hypotheses: { pantry_overdeduct: 1 } }),
+        ]);
         expect(out.title).toContain('3 revisiones');
         expect(out.count).toBe(3);
     });
@@ -200,49 +151,33 @@ describe('[P2-SHOPPING-1] Pluralización + count', () => {
 
 
 describe('[P2-SHOPPING-1] emitHistoricalCoherenceToast — integración sonner', () => {
-    it('invoca toast.warning cuando severity=warning', () => {
+    it('invoca toast.warning cuando hay entry accionable', () => {
         const toast = { warning: vi.fn(), info: vi.fn() };
-        const history = [
+        const descriptor = emitHistoricalCoherenceToast(toast, [
             { ts: _isoMinusHours(1), action_taken: 'degrade', block_set: true },
-        ];
-        const descriptor = emitHistoricalCoherenceToast(toast, history);
+        ]);
         expect(descriptor).not.toBeNull();
         expect(descriptor.severity).toBe('warning');
         expect(toast.warning).toHaveBeenCalledTimes(1);
-        expect(toast.info).not.toHaveBeenCalled();
     });
 
-    it('invoca toast.info cuando severity=info', () => {
+    it('recálculos benignos → NO llama a toast (el fix)', () => {
         const toast = { warning: vi.fn(), info: vi.fn() };
-        const history = [
-            { ts: _isoMinusHours(1), action_taken: 'warn_only_recalc', block_set: false },
-        ];
-        emitHistoricalCoherenceToast(toast, history);
-        expect(toast.info).toHaveBeenCalledTimes(1);
+        expect(emitHistoricalCoherenceToast(toast, [_benign(1), _benign(2)])).toBeNull();
         expect(toast.warning).not.toHaveBeenCalled();
+        expect(toast.info).not.toHaveBeenCalled();
     });
 
     it('null history → no llama a toast', () => {
         const toast = { warning: vi.fn(), info: vi.fn() };
         expect(emitHistoricalCoherenceToast(toast, null)).toBeNull();
         expect(toast.warning).not.toHaveBeenCalled();
-        expect(toast.info).not.toHaveBeenCalled();
     });
 
-    it('fallback defensivo si toast.warning no existe (sonner API distinta)', () => {
+    it('fallback defensivo con toast=función', () => {
         const fnToast = vi.fn();
-        // Object con keys distintas — no tiene `.warning` ni `.info`. Pero
-        // el objeto callable per se NO se invoca acá; el fallback path
-        // requiere que `toast` sea una función. Verificamos que no crashea.
-        const descriptor = emitHistoricalCoherenceToast({}, [
-            { ts: _isoMinusHours(1), action_taken: 'warn_only_recalc', block_set: false },
-        ]);
+        const descriptor = emitHistoricalCoherenceToast(fnToast, [_actionable(1)]);
         expect(descriptor).not.toBeNull();
-        // Y con toast=función, sí invoca callable.
-        const descriptor2 = emitHistoricalCoherenceToast(fnToast, [
-            { ts: _isoMinusHours(1), action_taken: 'warn_only_recalc', block_set: false },
-        ]);
-        expect(descriptor2).not.toBeNull();
         expect(fnToast).toHaveBeenCalledTimes(1);
     });
 });

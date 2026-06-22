@@ -212,10 +212,34 @@ const _HISTORICAL_ACTION_BLACKLIST = new Set([
     'hydration_error',
 ]);
 
-const _CRITICAL_HYPOTHESES = new Set([
+// [P1-COHERENCE-BANNER-NOISE · 2026-06-22] Hipótesis ACCIONABLES para el usuario:
+// un alimento AUSENTE de la lista (cap_swallowed_modifier → "se te olvida comprarlo")
+// o SUB-SUMINISTRO severo (pantry_overdeduct → "te quedas corto"). Las divergencias
+// de magnitud benignas (unknown/unit_mismatch/yield_uncovered) son artefactos de
+// unidad de compra / rendimiento cocido↔crudo / unidad entera — el alimento SÍ está
+// en la lista. CADA recálculo (cambio de duración/household) appendea una entry
+// `warn_only_recalc` benigna al historial; sin este filtro, el toast histórico
+// ("Tu lista tuvo N revisiones automáticas") contaba esos recálculos benignos y
+// alarmaba al usuario sin razón. Espejo del filtro de `summarize_divergences_for_ui`
+// en el backend (banner en vivo). Tooltip-anchor: P1-COHERENCE-BANNER-NOISE.
+const _ACTIONABLE_HYPOTHESES = new Set([
     'cap_swallowed_modifier',
-    'unit_mismatch',
+    'pantry_overdeduct',
 ]);
+
+/**
+ * Una entry del historial es ACCIONABLE si bloqueó el plan (`block_set`) o si tuvo
+ * al menos una hipótesis accionable. Las entries benignas (recálculos que solo
+ * produjeron magnitud unknown/unit_mismatch/yield) NO cuentan para el toast.
+ * @param {Object} e
+ * @returns {boolean}
+ */
+const _isActionableHistoryEntry = (e) => {
+    if (!e || typeof e !== 'object') return false;
+    if (e.block_set) return true;
+    const hyps = e.hypotheses && typeof e.hypotheses === 'object' ? e.hypotheses : {};
+    return Object.keys(hyps).some((h) => _ACTIONABLE_HYPOTHESES.has(h));
+};
 
 /**
  * @param {Array|null|undefined} history - plan_data._shopping_coherence_block_history
@@ -242,6 +266,11 @@ export const buildHistoricalCoherenceToast = (history, opts = {}) => {
             const t = Date.parse(e.ts);
             if (!Number.isNaN(t) && t < cutoffMs) return false;
         }
+        // [P1-COHERENCE-BANNER-NOISE · 2026-06-22] Solo cuentan revisiones
+        // ACCIONABLES. Un recálculo benigno (warn_only_recalc que solo halló
+        // magnitudes unknown/unit_mismatch/yield sobre alimentos presentes en la
+        // lista) NO debe disparar "tu lista tuvo N revisiones automáticas".
+        if (!_isActionableHistoryEntry(e)) return false;
         return true;
     });
 
@@ -249,12 +278,9 @@ export const buildHistoricalCoherenceToast = (history, opts = {}) => {
         return null;
     }
 
-    const hasCritical = recent.some((e) => {
-        if (e.block_set) return true;
-        const hyps = e.hypotheses && typeof e.hypotheses === 'object' ? e.hypotheses : {};
-        return Object.keys(hyps).some((h) => _CRITICAL_HYPOTHESES.has(h));
-    });
-    const severity = hasCritical ? 'warning' : 'info';
+    // Todas las entries restantes son accionables (block o hipótesis accionable)
+    // → severidad warning (vale la pena que el usuario revise).
+    const severity = 'warning';
 
     const title = recent.length === 1
         ? 'Tu lista de compras tuvo una revisión automática reciente'
