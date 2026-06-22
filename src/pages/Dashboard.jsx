@@ -160,16 +160,24 @@ const fetchInventoryFromApi = async () => {
 // elevado a módulo para que el banner (IIFE en JSX) y el archivado al centro de
 // notificaciones (dismissQDegraded) compartan el MISMO copy — cero drift.
 const Q_DEGRADED_REASON_MAP = {
-    high_contextual: 'No pudimos adaptar el plan a una restricción tuya (despensa, alergia o condición).',
-    max_attempts: 'El revisor de calidad no aprobó el plan tras varios intentos.',
-    invalid_pipeline_start: 'Hubo un problema técnico al iniciar la generación.',
-    budget_exhausted: 'Se alcanzó el límite de generación para este plan.',
+    high_contextual: 'No pudimos adaptar el plan a una restricción tuya (despensa, alergia o condición). Revisa tus datos en el formulario y regenera.',
+    max_attempts: 'El revisor de calidad no aprobó el plan tras varios intentos. Te dimos la mejor versión disponible; revísala y usa Cambiar Plato si algo no cuadra.',
+    invalid_pipeline_start: 'Hubo un problema técnico al iniciar la generación. Intenta regenerar el plan.',
+    budget_exhausted: 'Se alcanzó el límite de tiempo de generación. Te dimos la mejor versión disponible.',
     // [P2-BAND-SCORE-GATE · 2026-06-15] motivo emitido por _maybe_mark_low_band_degraded
-    low_band_score: 'La precisión de macros de este plan quedó por debajo de la banda objetivo.',
+    low_band_score: 'La precisión de macros de este plan quedó por debajo de la banda objetivo (90-112% del target). Las porciones pueden no ser exactas; ajústalas a tu medida.',
     // [P2-PANEL-SOFT-REJECT · 2026-06-15] motivos de _maybe_mark_panel_degraded
     condition_panel_gap: 'El balance de tu condición (grasa saturada / potasio / magnesio / fibra) quedó fuera de la meta tras los ajustes automáticos. Revísalo con tu profesional.',
     low_micros: 'Algunos micronutrientes (fibra / potasio / magnesio / calcio) quedaron por debajo del objetivo diario.',
     high_sodium_sugar: 'El sodio o el azúcar añadida quedaron por encima del techo recomendado por la OMS.',
+    // [P2-FASE7-HONESTY · 2026-06-21] Lista de compras incompleta (preocupación #1 del owner):
+    // emitida por `_maybe_mark_shopping_incomplete_degraded` cuando el plan entregado quedó con la
+    // lista vacía pese a tener recetas. Sobrescribe el genérico max_attempts (motivo más específico
+    // + accionable). Las otras "honestidades" del build se surfacean en SU propia superficie, NO en
+    // este banner: presupuesto insuficiente → bloqueo + toast pre-generación (Plan.jsx); piso de
+    // proteína → disclaimer del plan de contingencia (Plan.jsx, `_review_disclaimer`); nevera baja →
+    // banner en Mi Nevera. Por eso NO se duplican aquí (evita copy que nunca se dispara).
+    shopping_list_incomplete: 'La lista de compras quedó incompleta para este plan. Regenera, o revisa que cada ingrediente de las recetas aparezca en tu lista.',
 };
 
 // [P3-NOTIF-CENTER-BACKFILL · 2026-06-16] Reconcilia (crea-o-enriquece) una
