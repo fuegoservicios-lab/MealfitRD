@@ -12,8 +12,25 @@
 
 import { api, fetchWithAuth } from '../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from './safeLocalStorage';
+// [P1-FORM-KEY · 2026-06-21] La llave estable de cifrado del form viaja en las
+// respuestas de /api/auth/session y /me; la empujamos al storage seguro.
+import { setFormCryptoSecret } from '../config/secureFormStorage';
 
 const MF_SESSION_KEY = 'mealfit_mf_session';
+
+// [P1-FORM-KEY · 2026-06-21] Evento que avisa que llegó la llave estable (async,
+// del backend) → AssessmentContext re-hidrata el form sensible con ella. Necesario
+// en el path de Neon (donde el mint es fire-and-forget y puede llegar DESPUÉS de
+// la primera hidratación). En el path first-party la llave llega antes (en /me).
+export const FORM_KEY_READY_EVENT = 'mealfit:form-key-ready';
+
+function _applyFormKey(data) {
+    const key = (data && data.form_key) || null;
+    const changed = setFormCryptoSecret(key);
+    if (changed && key && typeof window !== 'undefined') {
+        try { window.dispatchEvent(new CustomEvent(FORM_KEY_READY_EVENT)); } catch { /* SSR */ }
+    }
+}
 
 export function getStoredMfSession() {
     return safeLocalStorageGet(MF_SESSION_KEY, null);
@@ -35,6 +52,7 @@ export async function mintFirstPartySession() {
         if (!res || !res.ok) return false;
         const data = await res.json().catch(() => null);
         if (data && data.token) _storeToken(data.token);
+        _applyFormKey(data);
         return !!(data && data.ok);
     } catch {
         return false;
@@ -62,6 +80,7 @@ export async function checkFirstPartySession() {
         const data = await res.json().catch(() => null);
         if (!data || !data.user_id) return null;
         if (data.token) _storeToken(data.token); // sliding refresh
+        _applyFormKey(data);
         return data;
     } catch {
         return null;
@@ -71,6 +90,9 @@ export async function checkFirstPartySession() {
 // Cierra la sesión first-party: borra el token local + la cookie del servidor.
 export async function logoutFirstPartySession() {
     clearStoredMfSession();
+    // [P1-FORM-KEY · 2026-06-21] Olvidar la llave estable del usuario que sale (per-user;
+    // el próximo login setea la suya). Defensa: no dejar la llave de A en memoria para B.
+    setFormCryptoSecret(null);
     try {
         await fetch(api('/api/auth/logout'), { method: 'POST', credentials: 'include' });
     } catch {

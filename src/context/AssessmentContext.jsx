@@ -4,7 +4,7 @@ import { authClient } from '../authClient';
 // [P1-FIRST-PARTY-SESSION · 2026-06-16] Cookie de sesión first-party que NUESTRO
 // backend emite en mealfitrd.com → iOS PWA conserva la sesión al cerrar la app
 // (la de Neon es third-party y la borra). Ver utils/firstPartySession.js.
-import { mintFirstPartySession, checkFirstPartySession, logoutFirstPartySession } from '../utils/firstPartySession';
+import { mintFirstPartySession, checkFirstPartySession, logoutFirstPartySession, FORM_KEY_READY_EVENT } from '../utils/firstPartySession';
 // [P2-AUDIT-3 · 2026-05-15] Helper SSOT para `localStorage.setItem` defensivo.
 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] + `safeLocalStorageRemove` para
 // los flujos de logout/reset (iOS Private Mode lanza SecurityError en
@@ -1719,6 +1719,18 @@ export const AssessmentProvider = ({ children }) => {
         }
     }, [formData, session, loadingSensitive]);
 
+    // [P1-FORM-KEY · 2026-06-21] La llave ESTABLE de cifrado del form llega async del
+    // backend (firstPartySession → /api/auth/session|/me). Cuando llega, bumpeamos este
+    // contador → el effect de hidratación de abajo (que lo lista en deps) RE-CORRE con
+    // la llave correcta. Necesario en el path de Neon, donde el mint es fire-and-forget
+    // y puede resolver DESPUÉS de la 1ª hidratación (en first-party llega antes, en /me).
+    const [formKeyVersion, setFormKeyVersion] = useState(0);
+    useEffect(() => {
+        const onFormKeyReady = () => setFormKeyVersion((v) => v + 1);
+        window.addEventListener(FORM_KEY_READY_EVENT, onFormKeyReady);
+        return () => window.removeEventListener(FORM_KEY_READY_EVENT, onFormKeyReady);
+    }, []);
+
     // [P1-B7] Hidratación del sensitive cifrado al recibir session. Al login
     // (o page reload con sesión activa), descifra `mealfit_form_secure` y mergea
     // los campos sensibles al state actual. Sin session, no hace nada — el
@@ -1793,7 +1805,8 @@ export const AssessmentProvider = ({ children }) => {
         return () => { cancelled = true; };
         // [P1-GUEST-FORM-PERSIST] loadingAuth en deps: la rama invitado hidrata SOLO tras
         // resolver la auth (!loadingAuth) → el effect debe re-correr cuando loadingAuth baja.
-    }, [session?.user?.id, session?.access_token, loadingAuth]);
+        // [P1-FORM-KEY] formKeyVersion en deps: re-hidratar cuando llega la llave estable.
+    }, [session?.user?.id, session?.access_token, loadingAuth, formKeyVersion]);
 
     useEffect(() => {
         if (planData) safeLocalStorageSet('mealfit_plan', planData);

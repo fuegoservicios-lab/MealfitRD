@@ -58,6 +58,28 @@ const HKDF_INFO = 'mealfit-aes-gcm';
 // (gate !loadingAuth) para no inyectar data de un invitado a un usuario que inicia sesión.
 export const GUEST_SENSITIVE_KEY = 'mealfit_form_guest_sensitive';
 
+// [P1-FORM-KEY · 2026-06-21] Llave ESTABLE para cifrar el form sensible. El backend
+// (`auth.derive_form_key`) la deriva por usuario de un secreto del servidor y la
+// devuelve en `/api/auth/session` y `/api/auth/me`; `firstPartySession.js` la setea
+// aquí. Si está seteada, GANA sobre el `access_token` de Neon — que ROTABA (re-login
+// / Brave borra la cookie) y por eso el form "se borraba". Vive SOLO en memoria del
+// módulo (NO localStorage): un XSS no la encuentra persistida; se re-obtiene del
+// backend en cada sesión. Si nunca se setea (backend viejo) → fallback al token =
+// comportamiento anterior, cero regresión.
+let _formSecret = null;
+
+/** Setea la llave estable de cifrado del form. Devuelve true si cambió (para que
+ *  el caller dispare una re-hidratación). null/corta la limpia (logout). */
+export function setFormCryptoSecret(secret) {
+    const next = (typeof secret === 'string' && secret.length >= 16) ? secret : null;
+    if (next === _formSecret) return false;
+    _formSecret = next;
+    return true;
+}
+
+/** Diagnóstico/tests: ¿hay llave estable activa? */
+export function hasFormCryptoSecret() { return !!_formSecret; }
+
 /** Persiste los campos sensibles del INVITADO a sessionStorage. SALTA si todos están
  *  vacíos — el SAVE effect corre en mount ANTES de la hidratación con el formData inicial
  *  (sensibles vacíos); sin este guard sobreescribiría una copia poblada con vacíos. */
@@ -234,8 +256,10 @@ export const saveFormData = async (formData, session) => {
         console.warn('[secureFormStorage] No se pudo guardar mealfit_form:', e);
     }
 
-    const accessToken = session?.access_token;
-    const hasAuthAndCrypto = !!accessToken && isCryptoAvailable();
+    // [P1-FORM-KEY · 2026-06-21] Cifrar con la llave estable si está disponible;
+    // si no, fallback al access_token (comportamiento anterior / pre-migración).
+    const secret = _formSecret || session?.access_token;
+    const hasAuthAndCrypto = !!secret && isCryptoAvailable();
 
     if (hasAuthAndCrypto) {
         // [FORM-DATA-PRESERVE · 2026-06-21] Anti-clobber. Si los arrays sensibles
@@ -257,7 +281,7 @@ export const saveFormData = async (formData, session) => {
             return;
         }
         try {
-            const key = await deriveAesKey(accessToken);
+            const key = await deriveAesKey(secret);
             const ciphertext = await encryptObject(sensitiveData, key);
             localStorage.setItem(SECURE_KEY, ciphertext);
         } catch (e) {
@@ -303,15 +327,27 @@ export const loadFormData = async (session) => {
         console.warn('[secureFormStorage] mealfit_form corrupto, ignorando:', e);
     }
 
+    // [P1-FORM-KEY · 2026-06-21] Descifrado con DOBLE llave: primero la llave estable
+    // (`_formSecret`, sobrevive re-logins / Brave); si falla, fallback al access_token
+    // de Neon → esto MIGRA los blobs viejos que se cifraron con el token (se re-guardan
+    // bajo la llave estable en el próximo save). En first-party el token es null → solo
+    // se intenta la llave estable.
+    const candidates = [];
+    if (_formSecret) candidates.push(_formSecret);
     const accessToken = session?.access_token;
-    if (accessToken && isCryptoAvailable()) {
+    if (accessToken && accessToken !== _formSecret) candidates.push(accessToken);
+
+    if (candidates.length && isCryptoAvailable()) {
         try {
             const blob = localStorage.getItem(SECURE_KEY);
             if (blob) {
-                const key = await deriveAesKey(accessToken);
-                const decrypted = await decryptObject(blob, key);
-                if (decrypted && typeof decrypted === 'object') {
-                    sensitiveData = decrypted;
+                for (const secret of candidates) {
+                    const key = await deriveAesKey(secret);
+                    const decrypted = await decryptObject(blob, key);
+                    if (decrypted && typeof decrypted === 'object') {
+                        sensitiveData = decrypted;
+                        break;
+                    }
                 }
             }
         } catch (e) {
