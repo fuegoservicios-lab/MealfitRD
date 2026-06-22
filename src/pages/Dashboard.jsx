@@ -3111,7 +3111,9 @@ const DashboardInner = () => {
                     background-color: #FDFCF8;
                     border-radius: 0.5rem 1.75rem 1.75rem 0.5rem;
                     border: 1px solid var(--border);
-                    border-left: 20px solid #1E293B;
+                    /* [DASH-NOTEBOOK-SOFTEN · 2026-06-22] Lomo del cuaderno más
+                       fino (20px→14px) para que no pese tanto en la vista. */
+                    border-left: 14px solid #1E293B;
                     box-shadow: 4px 4px 0px rgba(0,0,0,0.02), 8px 8px 0px rgba(0,0,0,0.01), 0 25px 50px -12px rgba(0,0,0,0.15), inset 8px 0px 8px -4px rgba(0,0,0,0.2);
                     display: flex;
                     flex-direction: column;
@@ -3121,12 +3123,16 @@ const DashboardInner = () => {
                 .meals-container::before {
                     content: '';
                     position: absolute;
-                    top: 0;
-                    bottom: 0;
+                    /* [DASH-NOTEBOOK-SOFTEN · 2026-06-22] La línea de margen roja ya
+                       NO toca los bordes (top/bottom inset 1.25rem) → termina limpia y
+                       desaparece la "raya" pegada a la esquina de abajo. Alpha más bajo
+                       (0.4→0.22) para que sea un acento sutil, no un trazo fuerte. */
+                    top: 1.25rem;
+                    bottom: 1.25rem;
                     left: 2.5rem;
                     width: 3px;
-                    border-left: 1px solid rgba(248, 113, 113, 0.4);
-                    border-right: 1px solid rgba(248, 113, 113, 0.4);
+                    border-left: 1px solid rgba(248, 113, 113, 0.22);
+                    border-right: 1px solid rgba(248, 113, 113, 0.22);
                     z-index: 0;
                     pointer-events: none;
                 }
@@ -3887,9 +3893,12 @@ const DashboardInner = () => {
                        el pliegue del lomo, una sombra de valle que hunde la
                        página hacia el encuadernado, y una sombra de elevación
                        profunda que despega el cuaderno del fondo de página. */
-                    border-left-color: #3A4358;
+                    /* [DASH-NOTEBOOK-SOFTEN · 2026-06-22] Lomo más cercano al papel
+                       oscuro (#3A4358→#2C3442) y hairline del pliegue más tenue
+                       (0.22→0.12) → el encuadernado se nota pero ya no resalta. */
+                    border-left-color: #2C3442;
                     box-shadow:
-                        inset 1px 0 0 0 rgba(148, 163, 184, 0.22),
+                        inset 1px 0 0 0 rgba(148, 163, 184, 0.12),
                         inset 10px 0 12px -7px rgba(0, 0, 0, 0.6),
                         0 24px 50px -12px rgba(0, 0, 0, 0.7);
                 }
@@ -3897,8 +3906,8 @@ const DashboardInner = () => {
                     /* Línea de margen roja del cuaderno: +brillo y alpha para
                        que lea sobre el papel oscuro (en claro era 248,113,113
                        @ 0.4; aquí el accent oscuro #FB7185 @ 0.55). */
-                    border-left-color: rgba(251, 113, 133, 0.55);
-                    border-right-color: rgba(251, 113, 133, 0.55);
+                    border-left-color: rgba(251, 113, 133, 0.35);
+                    border-right-color: rgba(251, 113, 133, 0.35);
                 }
                 html[data-theme="dark"] .option-buttons {
                     /* La "línea de rasgado" punteada bajo los días: en claro es
