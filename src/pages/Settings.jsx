@@ -4,7 +4,7 @@ import {
     LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat, GlassWater, Cog, Fingerprint,
     Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAssessment } from '../context/AssessmentContext';
 import { useNavigate } from 'react-router-dom';
@@ -128,7 +128,6 @@ const Settings = () => {
     const { regeneratePlan } = useRegeneratePlan();
 
     // Estados GAP 8
-    const [hoveredEvaluateOption, setHoveredEvaluateOption] = useState(null);
     
     // Estados GAP 9
     const [isNavigatingOption, setIsNavigatingOption] = useState(null);
@@ -142,7 +141,7 @@ const Settings = () => {
     // [P1-FRONTEND-LEGACY-LOCALSTORAGE-CRITICAL · 2026-05-23] safeLocalStorageGet
     // evita SecurityError en iOS Private Mode dentro del lazy initializer.
     // Pre-fix, un throw aquí crasheaba el mount completo de Settings (página blanca).
-    const [notifications, setNotifications] = useState(() => {
+    const [notifications, _setNotifications] = useState(() => {
         return safeLocalStorageGet('mealfit_notifications') === 'true';
     });
 
@@ -1498,7 +1497,7 @@ const Settings = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 <button
                                     disabled={isResetting}
-                                    onClick={async (e) => {
+                                    onClick={async (_e) => {
                                         if (isNavigatingRef.current || isResetting) return;
                                         isNavigatingRef.current = true;
                                         // [P3-RESET-BUTTON-LOADING-STATE · 2026-05-16]

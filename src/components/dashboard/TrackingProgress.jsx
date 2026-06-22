@@ -42,7 +42,6 @@ const _getConsumedCacheKey = (userId) => {
 };
 
 const TrackingProgress = ({ planData, userId }) => {
-    const { userProfile } = useAssessment();
 
     // [P2-DIARY-SCAN-MACROS · 2026-05-30] Estado del modal de escaneo. Al
     // registrar una comida el modal dispara `mealfit:refresh-inventory`, que

@@ -97,7 +97,7 @@ const ChatWidget = () => {
         return newId;
     });
 
-    const [guestSessionIds, setGuestSessionIds] = useState(() => {
+    const [_guestSessionIds, setGuestSessionIds] = useState(() => {
         // [P1-B · 2026-05-08] try/catch defensivo + Array.isArray check.
         // ChatWidget vive en el Dashboard (componente global): un throw aquí
         // (storage corrupto por edición manual, downgrade de versión, write

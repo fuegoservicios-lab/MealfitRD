@@ -33,7 +33,6 @@ import {
     Hourglass,
     Armchair, Footprints, Bike, Dumbbell, Medal,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 // [P2-A] Activación por teclado para `<div role="button|switch">`. Replica el
 // comportamiento nativo de <button>: Enter dispara el callback, Space también

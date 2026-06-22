@@ -331,15 +331,11 @@ const DashboardInner = () => {
         isPremium,
         userProfile,
         loadingData,
-        setCurrentStep,
         updateData,
         refreshProfileAndPlan,
-        restoreSessionData,
         setPlanData,
-        setRecalcLock,
         withRecalcLock,
         updateUserProfile,
-        saveGeneratedPlan,
         checkPlanLimit,
         // [P1-FORM-9] `session` requerido por `buildHealthProfilePayload` para
         // detectar race de hidratación cifrada. Si está ausente (guest), el
@@ -647,8 +643,6 @@ const DashboardInner = () => {
     // Dashboard.jsx bajó ~8KB. Tooltip-anchor: P3-RESTOCK-NO-BAR.
 
     // Estados para GAP 8 (Bandas informativas de modales)
-    const [hoveredUpdateOption, setHoveredUpdateOption] = useState(null);
-    const [hoveredSwapOption, setHoveredSwapOption] = useState(null);
 
     // Estados para GAP 9 (Carga inline tras el clic)
     const [isNavigatingOption, setIsNavigatingOption] = useState(null);

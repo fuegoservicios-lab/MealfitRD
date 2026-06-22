@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { buildFieldToStepIndex, FIELD_LABELS, findFirstIncompleteField, minBudgetFor } from '../../config/formValidation';
 
 const InteractiveAssessmentFlow = () => {
-    const { currentStep, setCurrentStep, nextStep, formData, saveGeneratedPlan, maxReachedStep, planData, loadingSensitive } = useAssessment();
+    const { currentStep, setCurrentStep, nextStep, formData, maxReachedStep, planData, loadingSensitive } = useAssessment();
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
 

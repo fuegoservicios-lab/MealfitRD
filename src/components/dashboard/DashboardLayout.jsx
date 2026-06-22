@@ -35,7 +35,7 @@ import styles from './DashboardLayout.module.css';
 const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { resetApp, planData, userProfile, session, isPremium, isGuest, exitGuestSession } = useAssessment();
+    const { resetApp, userProfile, session, isPremium, isGuest, exitGuestSession } = useAssessment();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMobileMoreMenuOpen, setIsMobileMoreMenuOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -80,7 +80,6 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
         navigate('/login', { replace: true });
     };
 
-    const toggleMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
     const closeMenu = () => setIsMobileMenuOpen(false);
 
     // [P3-DASH-MODALS-A11Y · 2026-05-30] onClose memoizado + hook de a11y del

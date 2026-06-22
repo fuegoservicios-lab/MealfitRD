@@ -1452,7 +1452,7 @@ export const AssessmentProvider = ({ children }) => {
             if (!(await _resolveViaFirstParty())) {
                 handleAuthChange(null);
             }
-        }).catch(async (err) => {
+        }).catch(async (_err) => {
             console.warn("⚠️ Advertencia: No se pudo verificar la sesión de Neon (inalcanzable o sin sesión). Probando cookie first-party / modo offline.");
             if (await _resolveViaFirstParty()) {
                 return;

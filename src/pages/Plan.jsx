@@ -531,12 +531,11 @@ function getTotalDaysByGroceryDuration(groceryDuration) {
 
 const Plan = () => {
     // 1. HOOKS
-    const { formData, saveGeneratedPlan, restorePlan, setCurrentStep, userProfile, loadingSensitive,
+    const { formData, saveGeneratedPlan, restorePlan, setCurrentStep, loadingSensitive,
         // [P1-GUEST-MODE · 2026-06-15] Créditos del invitado: consumir 1 al
         // generar; bloquear nueva generación si ya no quedan.
         isGuest, consumeGuestCredit, remainingCredits } = useAssessment();
     const [status, setStatus] = useState('analyzing'); // analyzing, generating, preview, ready
-    const [planData, setPlanData] = useState(null);
     const [tempPlan, setTempPlan] = useState(null); // Nuevo estado para GAP 14
     const [oldPlan, setOldPlan] = useState(null); // Estado para el plan viejo
     const [streamPhase, setStreamPhase] = useState(null); // Fase actual del pipeline SSE

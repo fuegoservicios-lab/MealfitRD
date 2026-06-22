@@ -83,11 +83,6 @@ const CATEGORY_ICONS = {
     'OTROS': Package,
 };
 
-const getCategoryIcon = (cat) => {
-    if (!cat) return Package;
-    return CATEGORY_ICONS[cat.toUpperCase().trim()] || Package;
-};
-
 // [P3-PANTRY-FRIDGE-LAYOUT · 2026-05-19] Mapping categoría master_ingredients
 // → zona física de la nevera real. Las 25 variantes de `master_ingredients.category`
 // caen en 7 zonas: 3 estantes interiores + 2 gavetas (crispers) + puerta + alacena
@@ -195,7 +190,7 @@ const CATEGORY_NORMALIZE = {
 };
 
 const Pantry = () => {
-    const { session, userProfile, setPlanData } = useAssessment();
+    const { session, setPlanData } = useAssessment();
     // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate lazy-init.
     // Si hay cache vigente (inventory TTL 30s, masterList TTL 24h), el
     // primer render tiene rows visibles y skeleton oculto. El fetchData
@@ -4207,7 +4202,6 @@ const Pantry = () => {
                         const drawersHaveItems = drawerZones.some(z => (inventoryByZone[z.key] || []).length > 0);
                         const doorHasItems     = doorZone && (inventoryByZone[doorZone.key] || []).length > 0;
                         const shelvesHaveItems = shelfZones.some(z => (inventoryByZone[z.key] || []).length > 0);
-                        const pantryHasItems   = pantryZone && (inventoryByZone[pantryZone.key] || []).length > 0;
                         const fridgeHasAnyItem = shelvesHaveItems || doorHasItems || drawersHaveItems;
 
                         const renderZoneShelf = (zone) => {

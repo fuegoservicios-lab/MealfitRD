@@ -39,6 +39,9 @@ import { invalidateCachesForPlan } from '../utils/historyCaches';
 import EmptyState from '../components/common/EmptyState';
 // [P3-RECIPE-SAFE-LS · 2026-05-30] Helper SSOT no-throw para localStorage.
 import { safeLocalStorageSet } from '../utils/safeLocalStorage';
+// [P3-AJI-MORRON-DISPLAY · 2026-06-22] Terminología RD: pimiento dulce → "ají morrón"
+// en el texto del ingrediente mostrado (conservador; no toca cubanela/pimienta/paprika).
+import { displayAjiMorron } from '../utils/ingredientDisplay';
 // [P1-COOKMODE-A11Y · 2026-05-30] Hook SSOT de a11y para el overlay
 // full-screen del modo "Cocinar" (role=dialog + ESC + focus-trap + restore).
 // Pre-fix solo tenía aria-label en la X; un usuario keyboard-only no podía
@@ -667,7 +670,7 @@ const Recipes = () => {
 
         const ingredientsHTML = meal.ingredients ? meal.ingredients.map(ing => `
             <li style="margin-bottom: 8px; font-size: 12pt; color: #475569; display: flex; align-items: flex-start; line-height: 1.4;">
-                <span style="color: #10B981; margin-right: 8px; font-weight: bold;">•</span> ${escapeHtml(ing)}
+                <span style="color: #10B981; margin-right: 8px; font-weight: bold;">•</span> ${escapeHtml(displayAjiMorron(ing))}
             </li>
         `).join('') : '';
 
@@ -846,25 +849,6 @@ const Recipes = () => {
             } catch (_telFailErr) {
                 // No-op: telemetría best-effort.
             }
-        }
-    };
-
-    const containerVariants = {
-        hidden: { opacity: 0 },
-        visible: {
-            opacity: 1,
-            transition: {
-                staggerChildren: 0.1
-            }
-        }
-    };
-
-    const itemVariants = {
-        hidden: { y: 20, opacity: 0 },
-        visible: {
-            y: 0,
-            opacity: 1,
-            transition: { type: 'spring', stiffness: 100 }
         }
     };
 
@@ -1201,7 +1185,7 @@ const Recipes = () => {
                                                                                 }}>
                                                                                     {isChecked && <CheckCircle2 size={14} color="#FFFFFF" strokeWidth={3.5} />}
                                                                                 </div>
-                                                                                <span style={{ lineHeight: 1.4 }}>{ing}</span>
+                                                                                <span style={{ lineHeight: 1.4 }}>{displayAjiMorron(ing)}</span>
                                                                             </li>
                                                                         );
                                                                     })}
