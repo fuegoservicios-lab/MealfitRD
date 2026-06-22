@@ -23,7 +23,7 @@ import { trackEvent } from '../utils/analytics';
 // [P1-FRONTEND-LEGACY-LOCALSTORAGE-CRITICAL · 2026-05-23] safeLocalStorageGet
 // para el lazy initializer de `notifications` (era único raw getItem sin
 // try/catch en este archivo; las líneas 73-78 y 91-96 ya estaban envueltas).
-import { safeLocalStorageRemove, safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
+import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
 // [APPEARANCE-THEME · 2026-05-28] Aplicar el tema en vivo al elegir en el toggle.
 import { applyThemePref, isDarkActive } from '../utils/theme';
 import Modal from '../components/common/Modal';

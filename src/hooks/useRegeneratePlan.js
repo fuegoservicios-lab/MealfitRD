@@ -12,7 +12,6 @@ import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation
 
 import { calculateAllPlanIngredients } from '../utils/shoppingHelpers';
 
-import { trackEvent } from '../utils/analytics';
 
 export const useRegeneratePlan = () => {
     const { formData, planData, userProfile, setCurrentStep, checkPlanLimit, userPlanLimit, dislikedMeals, loadingSensitive } = useAssessment();

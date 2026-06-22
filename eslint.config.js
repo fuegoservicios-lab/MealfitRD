@@ -32,7 +32,11 @@ export default defineConfig([
   // fuera del lint. scratch usa globals de node/commonjs y NO se shippea —
   // lintearlo solo añadía ~13 errores de ruido que volvían `npm run lint`
   // rojo permanente e inútil como gate de CI.
-  globalIgnores(['dist', 'dev-dist', 'scratch']),
+  // [OPT-FRONTEND · 2026-06-22] `tmp` añadido: dir de scratch UNTRACKED (ej.
+  // plan_check.js, harnesses de verificación local) que NO se shippea. Sin
+  // ignorarlo aportaba ~114 problemas de ruido (89 `React is not defined`) que
+  // enmascaraban el lint del código real (318→204). Mismo criterio que `scratch`.
+  globalIgnores(['dist', 'dev-dist', 'scratch', 'tmp']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

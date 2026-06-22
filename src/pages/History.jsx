@@ -29,7 +29,7 @@ import { splitWithAbsorb, findChunkContaining, parseStartLocal } from '../utils/
 // Historial. Persisten cross-mount del componente <History> para
 // que un usuario que navega entre History ↔ Dashboard no dispare
 // los lazy fetches del modal de cero al volver.
-import { historyCaches, setCachedEntry, hydrateCacheDict, setCachedLifetimeEntry, hydrateLifetimeDict, invalidateCachesForPlan, getCachedHistoryList, getCachedHistoryListStale, setCachedHistoryList, invalidateHistoryListCache } from '../utils/historyCaches';
+import { historyCaches, setCachedEntry, hydrateCacheDict, setCachedLifetimeEntry, hydrateLifetimeDict, invalidateCachesForPlan, getCachedHistoryListStale, setCachedHistoryList, invalidateHistoryListCache } from '../utils/historyCaches';
 // [P2-HIST-AUDIT-13 · 2026-05-09] SSOT del set de coherence
 // anomalous actions. Mirror de `backend/constants.py::COHERENCE_ANOMALOUS_ACTIONS`.
 import { isAnomalousCoherenceAction } from '../utils/coherenceActions';
