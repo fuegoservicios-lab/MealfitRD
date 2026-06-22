@@ -131,17 +131,23 @@ export const REQUIRED_FORM_FIELDS = [
 // `QBudget` (hint + input min) y el `validateExtra` del step de presupuesto en
 // `InteractiveAssessmentFlow` (gatea "Siguiente Paso"). Si ajustas estos pisos,
 // este es el ÚNICO lugar a tocar.
-export const BUDGET_MIN_PER_DAY = { DOP: 200, USD: 4 };
+// [BUDGET-MIN-RAISE · 2026-06-22] Piso subido por pedido del owner: 7 días = RD$4,000
+// (antes RD$1,400). Per-día = 4000/7 ≈ 571.43 → 15 días ≈ RD$8,571, 30 días ≈ RD$17,143
+// (proporcional). USD a 50 DOP/USD: 7d=US$80, 15d≈US$171, 30d≈US$343. DEBE quedar
+// CONSISTENTE con el piso del backend (MEALFIT_BUDGET_FLOOR_PER_DAY_DOP=571.43 en
+// nutrition_calculator.py) — ambos son lineales per-día × días — para que el form no
+// permita un monto que el backend después rechace.
+export const BUDGET_MIN_PER_DAY = { DOP: 4000 / 7, USD: 80 / 7 };
 export const BUDGET_CYCLE_DAYS = { weekly: 7, biweekly: 15, monthly: 30 };
 
 /** Días del ciclo según la duración de compras elegida (default 7). */
 export const budgetCycleDays = (groceryDuration) =>
     BUDGET_CYCLE_DAYS[groceryDuration] || 7;
 
-/** Mínimo de presupuesto TOTAL para (moneda, duración). */
+/** Mínimo de presupuesto TOTAL para (moneda, duración). Redondeado a entero. */
 export const minBudgetFor = (currency, groceryDuration) => {
     const perDay = BUDGET_MIN_PER_DAY[currency] || BUDGET_MIN_PER_DAY.DOP;
-    return perDay * budgetCycleDays(groceryDuration);
+    return Math.round(perDay * budgetCycleDays(groceryDuration));
 };
 
 /**
