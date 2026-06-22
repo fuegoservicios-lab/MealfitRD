@@ -10,18 +10,25 @@
     padding: 1.5rem;
     position: relative;
     overflow: hidden;
-    background-color: #020617; /* Very dark slate fallback */
-    /* [P6-SPEED-IMG · 2026-06-01] WebP (43.6KB) con fallback PNG (655KB) vía
-       image-set. El fondo del login era casi seguro el elemento LCP de la
-       primera pantalla; el PNG de 655KB dominaba el paint inicial. */
-    background-image: url("/auth_bg_new.png");
-    background-image: image-set(url("/auth_bg_new.webp") type("image/webp"), url("/auth_bg_new.png") type("image/png"));
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    /* Fallback for Slate 900 */
+    /* [P1-AUTH-BG-3D · 2026-06-21] Fondo OSCURO y minimalista. Reemplaza la imagen
+       brillosa/colorida anterior (auth_bg_new). El movimiento + las figuras 3D los
+       aporta <AuthBackground/> (canvas wireframe "molecular", teal sutil). Gradiente
+       radial profundo SIN color para un look científico/profesional. También elimina
+       el LCP de 655KB del PNG anterior. */
+    background:
+        radial-gradient(ellipse 90% 70% at 50% 32%, #111c33 0%, #0a1120 46%, #05070e 100%);
     font-family: 'Plus Jakarta Sans', sans-serif;
-    perspective: 1000px;
+}
+
+/* Canvas de fondo (figuras 3D animadas) — detrás de la tarjeta, no captura clicks. */
+.bgCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+    display: block;
 }
 
 /* --- Dark Overlay for Readability --- */
@@ -34,8 +41,9 @@
     width: 100%;
     height: 100%;
     z-index: 0;
-    /* Dark gradient overlay so the form stands out and is legible */
-    background: radial-gradient(circle at center, rgba(2, 6, 23, 0.4) 0%, rgba(2, 6, 23, 0.85) 100%);
+    /* [P1-AUTH-BG-3D · 2026-06-21] Viñeta SUTIL detrás del canvas (z-index 0 < 1):
+       profundiza los bordes sin tapar las figuras 3D (que se dibujan encima). */
+    background: radial-gradient(circle at 50% 38%, transparent 42%, rgba(2, 5, 12, 0.6) 100%);
     pointer-events: none;
 }
 

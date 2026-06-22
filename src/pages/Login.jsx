@@ -8,6 +8,8 @@ import styles from './Auth.module.css';
 import { useAssessment } from '../context/AssessmentContext';
 import { logoutFirstPartySession } from '../utils/firstPartySession';
 import { humanizeAuthError } from '../utils/authErrors';
+// [P1-AUTH-BG-3D · 2026-06-21] Fondo 3D molecular animado (canvas, sin deps).
+import AuthBackground from '../components/auth/AuthBackground';
 
 // [P1-EMAIL-OTP · 2026-06-21] Login SIN contraseña: un solo flujo correo → código
 // (como OpenAI/Anthropic). El primer código de un correo nuevo crea la cuenta
@@ -135,7 +137,7 @@ const Login = () => {
 
     return (
         <div className={styles.authContainer}>
-            {/* Background handled by CSS ::before */}
+            <AuthBackground />
 
             <div className={styles.authCard}>
                 <div className={styles.logoWrapper}>
