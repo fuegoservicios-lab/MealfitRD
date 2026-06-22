@@ -543,17 +543,22 @@
 /* [P1-LEGAL-ACK · 2026-06-21] Nota de privacidad al pie del login (var-based →
    se adapta al tema; en el login el card es oscuro). */
 .legalNote {
-    margin-top: 1.4rem;
+    margin: 1.5rem auto 0;
+    max-width: 25rem;
     text-align: center;
-    font-size: 0.72rem;
-    line-height: 1.45;
+    font-size: 0.75rem;
+    line-height: 1.7;          /* más aire entre líneas */
+    letter-spacing: 0.015em;   /* descongestiona el kerning a tamaño pequeño */
     color: var(--text-light);
 }
 
 .legalLink {
     color: var(--text-muted);
+    font-weight: 600;
     text-decoration: underline;
-    text-underline-offset: 2px;
+    text-underline-offset: 3px;       /* el subrayado no pegado al texto */
+    text-decoration-thickness: 1px;
+    white-space: nowrap;              /* "Política de Privacidad" no se parte a media frase */
     transition: color 0.18s ease;
 }
 
