@@ -829,15 +829,18 @@ const Plan = () => {
                 // → recortaba el día 1 del plan recién generado, dejándolo con 2 días en
                 // vez de 3. Resultado: el viernes "desaparecía" sin que el usuario hiciera
                 // nada. `grocery_start_date` debe reflejar **cuándo se generó este plan**.
-                // `cycle_start_date` sí preservamos del oldPlan en renewal porque marca
-                // el inicio del ciclo de 30 días (no se resetea por regeneración intra-ciclo).
+                // [P3-CYCLE-RESET-ON-REGEN · 2026-06-23] `cycle_start_date` ahora se REINICIA a hoy en
+                // CADA generación completa (incluyendo regeneración/renewal con previousMeals). Antes se
+                // heredaba del oldPlan "para no resetear el ciclo intra-regeneración", pero el owner
+                // confirmó que una regeneración COMPLETA = menú nuevo = lista de compras nueva = ciclo
+                // nuevo → el badge "Nd" debe arrancar en 0/1, no quedarse en el día del plan anterior
+                // (visto en vivo: badge clavado en "6d" tras renovar). Esto NO afecta el shift-plan ni el
+                // corte de días: ésos dependen de `grocery_start_date` (siempre = now, arriba). El
+                // single-meal swap ("Cambiar Plato") NO pasa por aquí, así que no reinicia el ciclo.
+                // `oldPlan` ya no se usa para fechas; se conserva la lectura por compat de otros campos.
                 const now = new Date().toISOString();
                 generatedPlan.grocery_start_date = now;
-                if (previousMeals && previousMeals.length > 0) {
-                    generatedPlan.cycle_start_date = oldPlan.cycle_start_date || now;
-                } else {
-                    generatedPlan.cycle_start_date = now;
-                }
+                generatedPlan.cycle_start_date = now;
 
                 // --- Analítica enviada en éxito del endpoint ---
                 trackEvent('plan_regeneration_triggered', {
