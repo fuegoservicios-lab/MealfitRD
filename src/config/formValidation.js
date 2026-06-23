@@ -131,23 +131,26 @@ export const REQUIRED_FORM_FIELDS = [
 // `QBudget` (hint + input min) y el `validateExtra` del step de presupuesto en
 // `InteractiveAssessmentFlow` (gatea "Siguiente Paso"). Si ajustas estos pisos,
 // este es el ÚNICO lugar a tocar.
-// [BUDGET-MIN-RAISE · 2026-06-22] Piso subido por pedido del owner: 7 días = RD$4,000
-// (antes RD$1,400). Per-día = 4000/7 ≈ 571.43 → 15 días ≈ RD$8,571, 30 días ≈ RD$17,143
-// (proporcional). USD a 50 DOP/USD: 7d=US$80, 15d≈US$171, 30d≈US$343. DEBE quedar
-// CONSISTENTE con el piso del backend (MEALFIT_BUDGET_FLOOR_PER_DAY_DOP=571.43 en
-// nutrition_calculator.py) — ambos son lineales per-día × días — para que el form no
-// permita un monto que el backend después rechace.
-export const BUDGET_MIN_PER_DAY = { DOP: 4000 / 7, USD: 80 / 7 };
+// [BUDGET-MIN-NONLINEAR · 2026-06-23] Piso TOTAL por ciclo, NO lineal (descuento por
+// compra grande, pedido del owner): 7d=RD$4,000, 15d=RD$7,000, 30d=RD$13,000 (antes era
+// lineal 571.43/día → 15d=RD$8,571, 30d=RD$17,143). USD a ~50 DOP/USD para mantener
+// 7d=US$80 → 15d=US$140, 30d=US$260. DEBE quedar CONSISTENTE con el piso del backend
+// (_budget_cycle_floor_dop en nutrition_calculator.py: 4000/7000/13000) para que el form
+// no permita un monto que el backend después rechace.
+export const BUDGET_MIN_TOTAL = {
+    DOP: { weekly: 4000, biweekly: 7000, monthly: 13000 },
+    USD: { weekly: 80, biweekly: 140, monthly: 260 },
+};
 export const BUDGET_CYCLE_DAYS = { weekly: 7, biweekly: 15, monthly: 30 };
 
 /** Días del ciclo según la duración de compras elegida (default 7). */
 export const budgetCycleDays = (groceryDuration) =>
     BUDGET_CYCLE_DAYS[groceryDuration] || 7;
 
-/** Mínimo de presupuesto TOTAL para (moneda, duración). Redondeado a entero. */
+/** Mínimo de presupuesto TOTAL para (moneda, duración). */
 export const minBudgetFor = (currency, groceryDuration) => {
-    const perDay = BUDGET_MIN_PER_DAY[currency] || BUDGET_MIN_PER_DAY.DOP;
-    return Math.round(perDay * budgetCycleDays(groceryDuration));
+    const table = BUDGET_MIN_TOTAL[currency] || BUDGET_MIN_TOTAL.DOP;
+    return table[groceryDuration] ?? table.weekly;
 };
 
 /**
