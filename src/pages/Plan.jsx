@@ -815,11 +815,6 @@ const Plan = () => {
                 // storage corrupto: antes el throw aquí abortaba la generación
                 // del plan recién creado. Sin storageKey: NO sobrescribimos el
                 // plan local cacheado a `{}` (destruiría datos legítimos del
-                // usuario); el fallback `{}` solo afecta esta lectura local
-                // de `oldPlan` para preservar fechas de ciclo previas.
-                const oldPlanStr = localStorage.getItem('mealfit_plan');
-                const oldPlan = safeJSONParseObject(oldPlanStr);
-
                 // [GROCERY-START-DATE-FIX 2026-05-06] grocery_start_date SIEMPRE es ahora.
                 // Antes, en flujos con `previousMeals` (renewal/regeneración con historial)
                 // heredábamos `oldPlan.grocery_start_date` para "preservar el ciclo". Bug
@@ -835,9 +830,10 @@ const Plan = () => {
                 // confirmó que una regeneración COMPLETA = menú nuevo = lista de compras nueva = ciclo
                 // nuevo → el badge "Nd" debe arrancar en 0/1, no quedarse en el día del plan anterior
                 // (visto en vivo: badge clavado en "6d" tras renovar). Esto NO afecta el shift-plan ni el
-                // corte de días: ésos dependen de `grocery_start_date` (siempre = now, arriba). El
-                // single-meal swap ("Cambiar Plato") NO pasa por aquí, así que no reinicia el ciclo.
-                // `oldPlan` ya no se usa para fechas; se conserva la lectura por compat de otros campos.
+                // corte de días: ésos dependen de `grocery_start_date` (siempre = now). El single-meal
+                // swap ("Cambiar Plato") NO pasa por aquí, así que no reinicia el ciclo. La lectura local
+                // de `oldPlan` se eliminó: su único uso era heredar cycle_start_date (ahora innecesario);
+                // el `oldPlan` del state (useState) es independiente y sigue intacto para el PreviewScreen.
                 const now = new Date().toISOString();
                 generatedPlan.grocery_start_date = now;
                 generatedPlan.cycle_start_date = now;
