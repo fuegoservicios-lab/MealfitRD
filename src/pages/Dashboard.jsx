@@ -924,6 +924,13 @@ const DashboardInner = () => {
     // /regenerate-day → 2 créditos cobrados (confirmado en prod 2026-06-23). Un ref es
     // síncrono: el segundo tap ve `true` y aborta de inmediato. Mismo patrón que restockLock.
     const dayUpdateLock = useRef(false);
+    // [P5-LOADING-DISABLE · 2026-06-23] Estado visual del botón "Actualizar platos" (día completo):
+    // spinner + disabled mientras corre regenerateDay (dayUpdateLock es el guard SÍNCRONO; este
+    // STATE dispara el re-render del botón para que se vea cargando y no sea clickeable de nuevo).
+    const [isDayUpdating, setIsDayUpdating] = useState(false);
+    // Candado SÍNCRONO para el modal de "Cambiar Plato" individual contra doble-tap (mismo bug de
+    // doble-cobro que el día: setSwapModal(null) es async → un 2º tap pasaría antes del re-render).
+    const swapInFlightLock = useRef(false);
     // [P1-6] Candado síncrono para `handleDownloadShoppingList`. Mismo patrón
     // que `restockLock`: previene doble-disparo cuando el usuario hace
     // doble-click en el botón PDF antes de que `isRecalculating`/loading
@@ -4540,6 +4547,9 @@ const DashboardInner = () => {
                                 return (
                                     <button
                                         onClick={async () => {
+                                            // [P5-LOADING-DISABLE] Si el día ya se está actualizando, ignorar
+                                            // el click (botón en estado "Actualizando…", evita 2ª llamada).
+                                            if (isDayUpdating) return;
                                             if (planFinished) {
                                                 navigate('/assessment');
                                                 return;
@@ -4569,7 +4579,8 @@ const DashboardInner = () => {
                                             });
                                         }}
                                         className="new-plan-btn"
-                                        aria-disabled={isLimitReached}
+                                        aria-disabled={isLimitReached || isDayUpdating}
+                                        aria-busy={isDayUpdating}
                                         title={isPantryTooEmpty ? `Tu Nevera necesita al menos ${PANTRY_MIN_ITEMS_FOR_UPDATE} alimentos. Tap para añadirlos.` : undefined}
                                         style={{
                                             background: isLimitReached
@@ -4586,7 +4597,8 @@ const DashboardInner = () => {
                                                         // (~5.5:1, AA) — el violet-400 #8B5CF6 daba ~3.6:1.
                                                         : 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)',
                                             color: isLimitReached ? 'var(--text-light)' : 'white',
-                                            cursor: isLimitReached ? 'not-allowed' : 'pointer',
+                                            cursor: isDayUpdating ? 'wait' : (isLimitReached ? 'not-allowed' : 'pointer'),
+                                            opacity: isDayUpdating ? 0.85 : 1,
                                             // [2026-05-29] Mismo efecto de hover que el botón PDF:
                                             // anillo interno nítido (antes era rgba 0.1, casi
                                             // invisible). Ring blanco visible sobre el gradiente.
@@ -4620,21 +4632,25 @@ const DashboardInner = () => {
                                             whiteSpace: 'nowrap'
                                         }}
                                     >
-                                        {isLimitReached
-                                            ? <AlertCircle size={18} />
-                                            : planFinished
-                                                ? <RefreshCw size={18} />
-                                                : isPantryTooEmpty
-                                                    ? <Refrigerator size={18} />
-                                                    : <Wand2 size={18} />}
-                                        <span style={{ fontSize: '0.85rem' }}>
-                                            {isLimitReached
-                                                ? 'Límite'
+                                        {isDayUpdating
+                                            ? <Loader2 size={18} className="spin-fast" />
+                                            : isLimitReached
+                                                ? <AlertCircle size={18} />
                                                 : planFinished
-                                                    ? 'Reiniciar plan'
+                                                    ? <RefreshCw size={18} />
                                                     : isPantryTooEmpty
-                                                        ? 'Ir a mi Nevera'
-                                                        : 'Actualizar platos'}
+                                                        ? <Refrigerator size={18} />
+                                                        : <Wand2 size={18} />}
+                                        <span style={{ fontSize: '0.85rem' }}>
+                                            {isDayUpdating
+                                                ? 'Actualizando…'
+                                                : isLimitReached
+                                                    ? 'Límite'
+                                                    : planFinished
+                                                        ? 'Reiniciar plan'
+                                                        : isPantryTooEmpty
+                                                            ? 'Ir a mi Nevera'
+                                                            : 'Actualizar platos'}
                                         </span>
                                     </button>
                                 );
@@ -6587,6 +6603,10 @@ const DashboardInner = () => {
                         return;
                     }
 
+                    // [P5-LOADING-DISABLE] Candado síncrono contra doble-tap del modal de razón
+                    // (setSwapModal(null) es async → un 2º tap rápido haría 2 swaps = 2 créditos).
+                    if (swapInFlightLock.current) return;
+                    swapInFlightLock.current = true;
                     // Estado de carga
                     setRegeneratingId(mealIndex);
                     const toastId = toast.loading('🔄 Consultando al Chef IA...', { description: 'Buscando una alternativa deliciosa...' });
@@ -6619,6 +6639,7 @@ const DashboardInner = () => {
                         });
                     } finally {
                         setRegeneratingId(null);
+                        swapInFlightLock.current = false; // [P5-LOADING-DISABLE]
                     }
                 }}
                 infoBandRenderer={(hoveredOption) => (
@@ -6699,9 +6720,11 @@ const DashboardInner = () => {
                     // spinner in-modal de la transición corta (setIsNavigatingOption).
                     if (!isPlanExpired && typeof regenerateDay === 'function') {
                         setShowUpdatePlanModal(false);
+                        setIsDayUpdating(true); // [P5-LOADING-DISABLE] botón "Actualizando…" + disabled
                         try {
                             await regenerateDay(activeDayIndex, optionId);
                         } finally {
+                            setIsDayUpdating(false);
                             dayUpdateLock.current = false;
                         }
                     } else {
@@ -6777,6 +6800,9 @@ const DashboardInner = () => {
                     const { dayIndex, mealIndex, mealType, mealName } = swapDislikeConfirm;
                     setSwapDislikeConfirm(null);
 
+                    // [P5-LOADING-DISABLE] Candado síncrono contra doble-tap (mismo que el modal de razón).
+                    if (swapInFlightLock.current) return;
+                    swapInFlightLock.current = true;
                     setRegeneratingId(mealIndex);
                     const toastId = toast.loading('👎 Registrando preferencia...', { description: 'Buscando una alternativa deliciosa...' });
 
@@ -6803,6 +6829,7 @@ const DashboardInner = () => {
                         toast.error('No se pudo conectar con la IA', { description: 'Se usó una receta alternativa local.' });
                     } finally {
                         setRegeneratingId(null);
+                        swapInFlightLock.current = false; // [P5-LOADING-DISABLE]
                     }
                 }}
             />
@@ -6844,9 +6871,11 @@ const DashboardInner = () => {
                     // modal YA + toast no-bloqueante (regenerateDay). Vencido → Nuevo Ciclo navega.
                     if (!isPlanExpired && typeof regenerateDay === 'function') {
                         setShowDislikeConfirmModal(false);
+                        setIsDayUpdating(true); // [P5-LOADING-DISABLE]
                         try {
                             await regenerateDay(activeDayIndex, 'dislike');
                         } finally {
+                            setIsDayUpdating(false);
                             dayUpdateLock.current = false;
                         }
                     } else {
