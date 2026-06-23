@@ -193,6 +193,14 @@ export const getActiveShoppingList = (planData, duration) => {
     const key = keyMap[duration];
     if (key && Array.isArray(planData[key]) && planData[key].length > 0) return planData[key];
     if (Array.isArray(planData.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0) return planData.aggregated_shopping_list;
+    // [P5-EMPTY-ACTIVE-LIST-FALLBACK · 2026-06-23] Las listas de ciclo (biweekly/monthly) y la
+    // canónica pueden quedar VACÍAS cuando el usuario está restocked: `_build_hybrid` (RIESGO-1)
+    // SUPRIME los perecederos comprados dentro del ciclo. Eso NO es un plan roto — la lista
+    // SEMANAL canónica (`aggregated_shopping_list_weekly`, nunca restock-deducida) SÍ existe.
+    // Caer a ella evita el falso "tu plan no tiene lista de compras todavía" y desbloquea el
+    // PDF/restock; la deducción real contra la Nevera se hace at-render-time en
+    // buildDeltaShoppingList (si está todo restocked, el delta saldrá vacío = "ya tienes todo").
+    if (Array.isArray(planData.aggregated_shopping_list_weekly) && planData.aggregated_shopping_list_weekly.length > 0) return planData.aggregated_shopping_list_weekly;
     return null;
 };
 
