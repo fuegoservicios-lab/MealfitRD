@@ -1992,6 +1992,11 @@ export const AssessmentProvider = ({ children }) => {
         const planDays = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
         const currentMeals = planDays[dayIndex]?.meals || [];
         const targetCalories = currentMeals[mealIndex]?.cals || 400;
+        // [P5-PANTRY-SUFFICIENCY · 2026-06-23] Enviar las macros del plato (no solo kcal):
+        // el gate de suficiencia usa la PROTEÍNA como palanca; sin esto solo chequeaba kcal.
+        const targetProtein = currentMeals[mealIndex]?.protein ?? null;
+        const targetCarbs = currentMeals[mealIndex]?.carbs ?? null;
+        const targetFats = currentMeals[mealIndex]?.fats ?? null;
         const userDietType = formData.dietType || "balanced";
         const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
 
@@ -2032,6 +2037,9 @@ export const AssessmentProvider = ({ children }) => {
                     swap_reason: swapReason,
                     meal_type: mealType,
                     target_calories: targetCalories,
+                    target_protein: targetProtein,
+                    target_carbs: targetCarbs,
+                    target_fats: targetFats,
                     diet_type: userDietType,
                     allergies: formData.allergies || [],
                     dislikes: formData.dislikes || [],
