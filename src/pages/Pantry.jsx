@@ -3753,6 +3753,31 @@ const Pantry = () => {
                    blanco sobre el fondo profundo.
                    ============================================================ */
 
+                /* --- [PANTRY-LOW-BANNER-DARK · 2026-06-23] Banner "nevera baja"
+                   ámbar legible en AMBOS temas. Antes usaba inline
+                   color: var(--text-primary, #1f2937) → como --text-primary no existe,
+                   caía a gris oscuro INVISIBLE sobre el ámbar oscuro. Ahora clase
+                   theme-aware: texto ámbar oscuro en claro, ámbar claro/crema en
+                   oscuro; el conteo (strong) y el ícono también se adaptan. --- */
+                .pantry-low-banner {
+                    display: flex; align-items: center; gap: 0.6rem;
+                    margin: 0.75rem 1rem; padding: 0.8rem 1rem;
+                    border-radius: 0.9rem; font-size: 0.86rem; line-height: 1.45;
+                    position: relative; z-index: 1;
+                    background: rgba(251, 191, 36, 0.12);
+                    border: 1px solid rgba(245, 158, 11, 0.40);
+                    color: #92400e;
+                }
+                .pantry-low-banner strong { color: #b45309; font-weight: 800; }
+                .pantry-low-banner svg { color: #d97706; }
+                html[data-theme="dark"] .pantry-low-banner {
+                    background: rgba(251, 191, 36, 0.10);
+                    border-color: rgba(251, 191, 36, 0.30);
+                    color: #fcd34d;
+                }
+                html[data-theme="dark"] .pantry-low-banner strong { color: #fde68a; }
+                html[data-theme="dark"] .pantry-low-banner svg { color: #fbbf24; }
+
                 /* --- Marco exterior de la nevera (era metálico perlado claro) --- */
                 html[data-theme="dark"] .nevera-page-frame {
                     border-color: var(--border);
@@ -4126,19 +4151,8 @@ const Pantry = () => {
                 bloquea: las próximas listas de mantenimiento compran lo que falte. Es el escenario del
                 owner: "cuando se me acaben los alimentos y agregue los míos manualmente". */}
             {pantryStatus?.is_below && (
-                <div
-                    role="status"
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: '0.6rem',
-                        margin: '0.75rem 1rem', padding: '0.7rem 0.9rem',
-                        borderRadius: '0.9rem', fontSize: '0.86rem', lineHeight: 1.35,
-                        background: 'rgba(251, 191, 36, 0.14)',
-                        border: '1px solid rgba(251, 146, 60, 0.45)',
-                        color: 'var(--text-primary, #1f2937)',
-                        position: 'relative', zIndex: 1,
-                    }}
-                >
-                    <PackageX size={18} strokeWidth={2.5} style={{ flexShrink: 0, color: '#f59e0b' }} />
+                <div role="status" className="pantry-low-banner">
+                    <PackageX size={18} strokeWidth={2.5} style={{ flexShrink: 0 }} />
                     <span>
                         Tu nevera está baja (<strong>{pantryStatus.meaningful_count} de {pantryStatus.min_required}</strong> alimentos).
                         Tus próximas listas de mantenimiento comprarán lo que falte automáticamente —
