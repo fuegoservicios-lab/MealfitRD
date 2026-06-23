@@ -4153,10 +4153,14 @@ const Pantry = () => {
             {pantryStatus?.is_below && (
                 <div role="status" className="pantry-low-banner">
                     <PackageX size={18} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+                    {/* [P2-PANTRY-FLOOR-VS-NUDGE · 2026-06-23] Mostramos el conteo actual +
+                        un objetivo ASPIRACIONAL (recommended_target ~20), no el piso técnico.
+                        El owner sentía que "X de 5" se veía muy poco; el nudge a ~20 da una meta
+                        clara sin que el piso bajo (que gatea la pausa de mantenimiento) cambie. */}
                     <span>
-                        Tu nevera está baja (<strong>{pantryStatus.meaningful_count} de {pantryStatus.min_required}</strong> alimentos).
-                        Tus próximas listas de mantenimiento comprarán lo que falte automáticamente —
-                        surte tu nevera para que tus planes la aprovechen.
+                        Tu nevera está baja (tienes <strong>{pantryStatus.meaningful_count} {pantryStatus.meaningful_count === 1 ? 'alimento' : 'alimentos'}</strong>).
+                        Te recomendamos tener <strong>~{pantryStatus.recommended_target || 20}</strong> para que tus planes aprovechen mejor tu nevera.
+                        Mientras tanto, tus próximas listas de mantenimiento comprarán lo que falte automáticamente.
                     </span>
                 </div>
             )}
