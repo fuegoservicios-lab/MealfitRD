@@ -49,6 +49,14 @@ const Header = () => {
     const showAccountMenu = (session || isGuest) && !isPlanLoading;
     const logoutLabel = isGuest ? 'Salir del modo invitado' : 'Cerrar Sesión';
 
+    // [HEADER-EMPTY-MENU-HIDE · 2026-06-23] ¿El menú móvil tendría AL MENOS un item?
+    // En páginas legales (privacy/terms) SIN sesión ni invitado, todos los items se
+    // gatean (session/isGuest/!isLegalPage) → el menú salía VACÍO y la hamburguesa
+    // abría la nada (confunde, p.ej. al entrar a la Política desde el link del login).
+    // Ocultamos el botón cuando no hay nada que mostrar.
+    const _mobileCtaShows = !isHome && !isLegalPage && (Boolean(planData) || !hideStartNow);
+    const hasMobileMenuItems = (session || isGuest) || _mobileCtaShows;
+
     // [ACCOUNT-MENU · 2026-06-01] Cerrar el menú con click-outside o Escape — mismo
     // patrón que el menú de cuenta del DashboardLayout (accountMenuRef + mousedown).
     useEffect(() => {
@@ -184,7 +192,7 @@ const Header = () => {
                 {/* [P2-A11Y-LOGGING · 2026-05-13] aria-label + aria-expanded
                     para que lectores de pantalla anuncien tanto la acción
                     ("Abrir/Cerrar menú") como el estado actual del menú. */}
-                {!isPlanLoading && (
+                {!isPlanLoading && hasMobileMenuItems && (
                     <button
                         className={styles.mobileToggle}
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -197,7 +205,7 @@ const Header = () => {
                 </div>
 
                 {/* Navegación Móvil */}
-                {isMenuOpen && (
+                {isMenuOpen && hasMobileMenuItems && (
                     <nav className={styles.navMobile}>
 
 
