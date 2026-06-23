@@ -76,7 +76,6 @@ function MicrosDetail({ data, onAction }) {
     // un objeto (truthy) → .map lanzaría.
     const gaps = Array.isArray(data?.gaps) ? data.gaps : [];
     const supplements = Array.isArray(data?.supplements) ? data.supplements : [];
-    const disclaimer = data?.disclaimer;
     return (
         <>
             {gaps.length > 0 && (
@@ -123,13 +122,6 @@ function MicrosDetail({ data, onAction }) {
                         </div>
                     ))}
                 </div>
-            )}
-
-            {disclaimer && (
-                <p className={styles.exDisclaimer}>
-                    <Info size={11} strokeWidth={2.25} aria-hidden="true" />
-                    <span>{disclaimer}</span>
-                </p>
             )}
 
             <button type="button" className={styles.exAction} onClick={onAction}>

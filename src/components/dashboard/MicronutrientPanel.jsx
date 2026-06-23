@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FlaskConical, X, Pill, Info, ArrowDown, ArrowUp, MessageCircle } from 'lucide-react';
+import { FlaskConical, X, Pill, ArrowDown, ArrowUp, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../../utils/safeLocalStorage';
 // [P3-NOTIF-CENTER · 2026-06-16] Al descartar el panel, en vez de perderlo lo
@@ -150,7 +150,6 @@ function buildQuestion(g) {
 export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
     const gaps = report?.gaps || [];
     const supplements = advice?.items || [];
-    const disclaimer = advice?.disclaimer || report?.disclaimer;
     // [P3-MICRO-SUBTITLE-ACCURACY · 2026-06-19] Subtítulo honesto: "por debajo del
     // objetivo" SOLO si todos los gaps son floor (déficit). Si hay un techo excedido
     // (ej. sodio alto a 136%), el neutro "fuera de rango" es lo correcto — antes decía
@@ -336,12 +335,6 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                         </div>
                     )}
 
-                    {disclaimer && (
-                        <p className={styles.foot}>
-                            <Info size={12} strokeWidth={2.25} aria-hidden="true" />
-                            <span>{disclaimer}</span>
-                        </p>
-                    )}
                 </motion.section>
             )}
         </AnimatePresence>
