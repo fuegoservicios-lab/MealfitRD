@@ -1397,7 +1397,14 @@ const DashboardInner = () => {
                 return { value: qty, type: 'unit', ratio: 1 };
             }
             // Map package units to a single type
-            if (['pq', 'paq', 'paquete', 'paquetes', 'funda', 'fundita', 'fundas', 'sobre', 'sobres'].includes(u)) {
+            // [P3-RESTOCK-LECHE-UNIT · 2026-06-23] 'cartón'/'carton'/'cartones' DEBEN
+            // caer en 'pkg' igual que el backend: CANONICAL_UNIT_MAP (canonical_units.py)
+            // mapea cartón→paquete. Sin esto, la leche descremada (lista market_unit='cartón'
+            // vs Nevera unit='paquete', porque el restock canonicaliza cartón→paquete al
+            // persistir) nunca reconciliaba el delta (tipos 'cartón' ≠ 'pkg') → se mostraba
+            // como faltante y se RE-AGREGABA a la Nevera en cada recálculo de duración (7/15/30).
+            // Tooltip-anchor: P3-RESTOCK-LECHE-UNIT.
+            if (['pq', 'paq', 'paquete', 'paquetes', 'funda', 'fundita', 'fundas', 'sobre', 'sobres', 'cartón', 'carton', 'cartones'].includes(u)) {
                 return { value: qty, type: 'pkg', ratio: 1 };
             }
             if (['lata', 'latas'].includes(u)) {
