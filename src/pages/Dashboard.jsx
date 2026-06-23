@@ -918,6 +918,12 @@ const DashboardInner = () => {
     }, []);
 
     const restockLock = useRef(false);
+    // [P5-DAY-UPDATE-DOUBLECLICK · 2026-06-23] Candado SÍNCRONO contra doble-tap en
+    // "Actualizar platos" (día completo). El guard previo `isNavigatingOption` es STATE
+    // (async) → un doble-tap rápido pasa el check 2 veces antes del re-render → 2 requests
+    // /regenerate-day → 2 créditos cobrados (confirmado en prod 2026-06-23). Un ref es
+    // síncrono: el segundo tap ve `true` y aborta de inmediato. Mismo patrón que restockLock.
+    const dayUpdateLock = useRef(false);
     // [P1-6] Candado síncrono para `handleDownloadShoppingList`. Mismo patrón
     // que `restockLock`: previene doble-disparo cuando el usuario hace
     // doble-click en el botón PDF antes de que `isRecalculating`/loading
@@ -6706,6 +6712,9 @@ const DashboardInner = () => {
                         setShowDislikeConfirmModal(true);
                         return;
                     }
+                    // [P5-DAY-UPDATE-DOUBLECLICK] Candado síncrono: aborta el 2º tap antes del re-render.
+                    if (dayUpdateLock.current) return;
+                    dayUpdateLock.current = true;
                     setIsNavigatingOption(optionId);
 
                     // [TOAST-NOISE-CLEANUP · 2026-06-22] Sin toast.loading: el botón ya
@@ -6724,6 +6733,7 @@ const DashboardInner = () => {
                         }
                     } finally {
                         setIsNavigatingOption(null);
+                        dayUpdateLock.current = false;
                     }
                 }}
                 infoBandRenderer={(hoveredOption) => (
@@ -6848,6 +6858,9 @@ const DashboardInner = () => {
                         return;
                     }
                     if (isLimitReached || isNavigatingOption) return;
+                    // [P5-DAY-UPDATE-DOUBLECLICK] Candado síncrono contra doble-tap (mismo que el modal de motivos).
+                    if (dayUpdateLock.current) return;
+                    dayUpdateLock.current = true;
                     setIsNavigatingOption('confirm_dislike');
                     // [TOAST-NOISE-CLEANUP · 2026-06-22] Sin toast.loading redundante (botón
                     // ya spinea + /plan tiene su loader). Ver nota arriba.
@@ -6863,6 +6876,7 @@ const DashboardInner = () => {
                         }
                     } finally {
                         setIsNavigatingOption(null);
+                        dayUpdateLock.current = false;
                     }
                 }}
             />
