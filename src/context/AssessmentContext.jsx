@@ -1903,6 +1903,13 @@ export const AssessmentProvider = ({ children }) => {
             toast.error('No encontramos tu plan activo.');
             return { ok: false };
         }
+        // [P5-DAY-LOADING-UX · 2026-06-23] El día completo es lento (~1 min: 4 swaps
+        // secuenciales contra la IA). El caller cierra el modal de inmediato; aquí mostramos
+        // el progreso como toast NO-bloqueante para que el usuario ni quede atrapado ni a
+        // ciegas. Se descarta en el `finally` (éxito, soft-fail o error).
+        const _dayLoadingId = toast.loading('Actualizando tu día…', {
+            description: 'Cocinando con lo que tienes en tu Nevera. Puede tomar hasta ~1 minuto.',
+        });
         try {
             const resp = await fetchWithAuth(`/api/plans/${planId}/regenerate-day`, {
                 method: 'POST',
@@ -2012,6 +2019,8 @@ export const AssessmentProvider = ({ children }) => {
         } catch (_e) {
             toast.error('No se pudo actualizar el día', { description: 'Revisa tu conexión e inténtalo de nuevo.' });
             return { ok: false };
+        } finally {
+            toast.dismiss(_dayLoadingId);
         }
     };
 

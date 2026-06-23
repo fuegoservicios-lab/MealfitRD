@@ -6715,25 +6715,27 @@ const DashboardInner = () => {
                     // [P5-DAY-UPDATE-DOUBLECLICK] Candado síncrono: aborta el 2º tap antes del re-render.
                     if (dayUpdateLock.current) return;
                     dayUpdateLock.current = true;
-                    setIsNavigatingOption(optionId);
-
-                    // [TOAST-NOISE-CLEANUP · 2026-06-22] Sin toast.loading: el botón ya
-                    // muestra spinner (setIsNavigatingOption) y enseguida navega a /plan
-                    // (pantalla de carga propia). El toast flasheaba ~1s redundante.
-                    try {
-                        // [P5-PANTRY-SUFFICIENCY · 2026-06-23] Plan VIGENTE → actualizar SOLO los
-                        // platos del día activo cocinando desde la Nevera (regenerate-day). Plan
-                        // VENCIDO → flujo de Nuevo Ciclo (handleNewPlan, compra nueva).
-                        if (!isPlanExpired && typeof regenerateDay === 'function') {
-                            setShowUpdatePlanModal(false);
+                    // [P5-DAY-LOADING-UX · 2026-06-23] Plan VIGENTE → día EN SITIO (lento ~1 min):
+                    // cerrar el modal DE INMEDIATO en vez de atrapar al usuario tras `disableClose`
+                    // durante todo el regen; regenerateDay muestra el progreso como toast
+                    // no-bloqueante. Plan VENCIDO → Nuevo Ciclo navega a /plan → conservamos el
+                    // spinner in-modal de la transición corta (setIsNavigatingOption).
+                    if (!isPlanExpired && typeof regenerateDay === 'function') {
+                        setShowUpdatePlanModal(false);
+                        try {
                             await regenerateDay(activeDayIndex, optionId);
-                        } else {
+                        } finally {
+                            dayUpdateLock.current = false;
+                        }
+                    } else {
+                        setIsNavigatingOption(optionId);
+                        try {
                             await handleNewPlan(optionId, null, 'dashboard_refresh');
                             setShowUpdatePlanModal(false);
+                        } finally {
+                            setIsNavigatingOption(null);
+                            dayUpdateLock.current = false;
                         }
-                    } finally {
-                        setIsNavigatingOption(null);
-                        dayUpdateLock.current = false;
                     }
                 }}
                 infoBandRenderer={(hoveredOption) => (
@@ -6861,22 +6863,24 @@ const DashboardInner = () => {
                     // [P5-DAY-UPDATE-DOUBLECLICK] Candado síncrono contra doble-tap (mismo que el modal de motivos).
                     if (dayUpdateLock.current) return;
                     dayUpdateLock.current = true;
-                    setIsNavigatingOption('confirm_dislike');
-                    // [TOAST-NOISE-CLEANUP · 2026-06-22] Sin toast.loading redundante (botón
-                    // ya spinea + /plan tiene su loader). Ver nota arriba.
-                    try {
-                        // [P5-PANTRY-SUFFICIENCY · 2026-06-23] Plan vigente → regenerar SOLO el
-                        // día activo desde la Nevera (dislike). Vencido → Nuevo Ciclo.
-                        if (!isPlanExpired && typeof regenerateDay === 'function') {
-                            setShowDislikeConfirmModal(false);
+                    // [P5-DAY-LOADING-UX · 2026-06-23] Plan vigente → día en sitio (lento): cerrar
+                    // modal YA + toast no-bloqueante (regenerateDay). Vencido → Nuevo Ciclo navega.
+                    if (!isPlanExpired && typeof regenerateDay === 'function') {
+                        setShowDislikeConfirmModal(false);
+                        try {
                             await regenerateDay(activeDayIndex, 'dislike');
-                        } else {
+                        } finally {
+                            dayUpdateLock.current = false;
+                        }
+                    } else {
+                        setIsNavigatingOption('confirm_dislike');
+                        try {
                             await handleNewPlan('dislike', null, 'dashboard_refresh');
                             setShowDislikeConfirmModal(false);
+                        } finally {
+                            setIsNavigatingOption(null);
+                            dayUpdateLock.current = false;
                         }
-                    } finally {
-                        setIsNavigatingOption(null);
-                        dayUpdateLock.current = false;
                     }
                 }}
             />
