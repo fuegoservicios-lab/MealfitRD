@@ -395,16 +395,16 @@ const DashboardInner = () => {
     // MISMO mínimo que el backend exige al renovar (cero "422 sorpresa"). Fail-open al estático.
     const budgetFloor = useBudgetFloor(formData);
     // [P1-DASH-BUDGET-AUTOFILL · 2026-06-23] Se "arma" al cambiar la duración en modo Personalizar;
-    // este efecto ajusta el monto al mínimo PERSONALIZADO por calorías cuando el hook lo trae para
-    // la nueva duración (sincrónico con la meta del usuario, p.ej. RD$7,350 en vez del estático
-    // RD$7,000). Solo SUBE; no pisa un monto que el usuario teclee >= mínimo. Disarma tras actuar.
+    // este efecto SINCRONIZA el monto al mínimo PERSONALIZADO por calorías de la nueva duración
+    // cuando el hook lo trae (p.ej. 7d=RD$4,200, 15d=RD$7,350, 30d=RD$13,650). Sincroniza en AMBOS
+    // sentidos (sube o baja) → el monto siempre = el mínimo de la duración elegida. Disarma tras
+    // actuar, así no pisa lo que el usuario teclee DESPUÉS (hasta el próximo cambio de duración).
     const autofillArmedRef = useRef(false);
     useEffect(() => {
         if (!autofillArmedRef.current) return;
         if (formData?.budget !== 'custom') { autofillArmedRef.current = false; return; }
         if (!budgetFloor.isPersonalized) return; // espera el mínimo real del backend para la nueva duración
-        const _amt = Number(formData?.budgetAmount);
-        if (!(_amt >= budgetFloor.min)) {
+        if (String(budgetFloor.min) !== String(formData?.budgetAmount)) {
             updateData('budgetAmount', String(budgetFloor.min));
             safeUpdateHealthProfile({ budgetAmount: String(budgetFloor.min) });
         }
@@ -4328,17 +4328,16 @@ const DashboardInner = () => {
                                                     // [P1-FORM-9] Reemplaza spread `{...formData, groceryDuration}`.
                                                     safeUpdateHealthProfile({ groceryDuration: opt.value });
                                                     // [P1-DASH-BUDGET-AUTOFILL · 2026-06-23] En modo 'Personalizar', al
-                                                    // cambiar la duración auto-marcamos el monto al MÍNIMO de la nueva
-                                                    // duración (pedido del owner: que no se olvide de subirlo). Solo SUBE,
-                                                    // nunca baja. Ponemos el piso estático al instante (sin esperar la red)
-                                                    // y ARMAMOS el bump al mínimo PERSONALIZADO por calorías; cuando el hook
-                                                    // lo trae, el efecto de arriba lo ajusta a ESE valor ("según tus metas").
-                                                    // Si la red falla, queda el estático como fallback.
+                                                    // cambiar la duración SINCRONIZAMOS el monto al MÍNIMO de la nueva
+                                                    // duración (pedido del owner: el monto = el mínimo de la duración
+                                                    // elegida, suba o baje). Ponemos el piso estático al instante (sin
+                                                    // esperar la red) y ARMAMOS el sync al mínimo PERSONALIZADO por calorías;
+                                                    // cuando el hook lo trae, el efecto de arriba lo ajusta a ESE valor
+                                                    // ("según tus metas"). Si la red falla, queda el estático como fallback.
                                                     if (formData?.budget === 'custom') {
                                                         const _afCur = formData?.budgetCurrency || 'DOP';
                                                         const _afMin = minBudgetFor(_afCur, opt.value);
-                                                        const _afAmt = Number(formData?.budgetAmount);
-                                                        if (!(_afAmt >= _afMin)) {
+                                                        if (String(_afMin) !== String(formData?.budgetAmount)) {
                                                             updateData('budgetAmount', String(_afMin));
                                                             safeUpdateHealthProfile({ budgetAmount: String(_afMin) });
                                                         }
