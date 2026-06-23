@@ -1507,6 +1507,40 @@ const DashboardInner = () => {
             }
         });
 
+        // [P5-PRESENCE-FORWARD-LOOKING · 2026-06-23] (decisión confirmada por el owner) Un ítem
+        // agotado reaparece SOLO si el PLAN RESTANTE aún lo usa — no por "está ausente" a secas.
+        // `remainingNeedsSet` = nombres normalizados de los ingredientes de las comidas de HOY en
+        // adelante (días `todayPlanDayIndex..fin` del menú; computeRollingWindow es puro y sus
+        // entradas ya están arriba). Reglas:
+        //   - Ciclo TERMINADO (daysLeft<=0) → set vacío → nada reaparece (regeneras, no recompras).
+        //   - Ciclo activo + set construido → un ausente solo se muestra si está en el set.
+        //   - FAIL-OPEN: si el set queda vacío por datos raros (plan parcial/sin ingredientes), lo
+        //     dejamos en null = NO filtrar → preferimos MOSTRAR de más antes que ESCONDER algo que
+        //     el usuario sí necesita (un falso negativo = se queda sin comprarlo, peor que un extra).
+        let remainingNeedsSet = null;
+        try {
+            const _days = Array.isArray(planData?.days) ? planData.days : null;
+            if (_days && _days.length > 0) {
+                if (daysLeft <= 0) {
+                    remainingNeedsSet = new Set(); // ciclo terminado → nada se necesita
+                } else {
+                    const { todayPlanDayIndex: _todayIdx } = computeRollingWindow(_days.length, daysSinceCreation);
+                    const _set = new Set();
+                    for (let _di = Math.max(0, _todayIdx); _di < _days.length; _di++) {
+                        const _meals = _days[_di]?.meals || [];
+                        for (const _meal of _meals) {
+                            for (const _ing of (_meal?.ingredients || [])) {
+                                const _nm = typeof _ing === 'string' ? _ing : (_ing?.name || _ing?.display_name || _ing?.item || '');
+                                if (_nm) { _set.add(normalizeName(_nm)); _set.add(normalizeNameAlt(_nm)); }
+                            }
+                        }
+                    }
+                    // fail-open: set vacío con ciclo activo = datos raros → no filtrar.
+                    remainingNeedsSet = _set.size > 0 ? _set : null;
+                }
+            }
+        } catch (_rnErr) { remainingNeedsSet = null; /* ante cualquier error: no filtrar (seguro) */ }
+
         const deltaList = [];
         let itemsRemoved = 0;
 
@@ -1562,7 +1596,14 @@ const DashboardInner = () => {
                 itemsRemoved++;
                 return; // presente en la Nevera → ocultar
             }
-            // Ausente → mostrar el ítem completo (cantidad del plan, degradada al ciclo restante).
+            // [P5-PRESENCE-FORWARD-LOOKING] Ausente. ¿El plan que te queda aún lo usa? Si el menú
+            // restante (hoy en adelante) NO incluye este ingrediente → ya no lo necesitas → ocultar.
+            // (null = no filtrar; ver remainingNeedsSet arriba.)
+            if (remainingNeedsSet && !(remainingNeedsSet.has(nameKey1) || remainingNeedsSet.has(nameKey2))) {
+                itemsRemoved++;
+                return;
+            }
+            // Ausente y aún necesario por el plan restante → mostrar el ítem completo.
             deltaList.push(_scaleItemRefCost({
                 ...item,
                 market_qty: shopQty,
@@ -1585,7 +1626,7 @@ const DashboardInner = () => {
         // (off-by-one-día, ~14% sobre-escala). Son primitivos numéricos
         // (comparados por valor → sin re-creación espuria). groceryDuration/
         // todayDate quedan subsumidos (maxDays/daysLeft derivan de ellos).
-    }, [liveInventory, planData, maxDays, daysLeft]);
+    }, [liveInventory, planData, maxDays, daysLeft, daysSinceCreation]);
 
     // Calcular si la delta list de esta sesión actual todavia requiere compras
     // GUARD: No calcular hasta que liveInventory se haya cargado (evita flash del botón).
