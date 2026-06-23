@@ -1194,6 +1194,12 @@ export const AssessmentProvider = ({ children }) => {
         if (planPersistHealRef.current === uid) return; // ya intentado para este usuario en esta sesión
         const _hasDays = planData && Array.isArray(planData.days) && planData.days.length > 0;
         if (!_hasDays) return;
+        // [NO-409-NOISE · 2026-06-23] Si el plan YA tiene `id`, ya está persistido en la
+        // DB → adoptarlo solo devolvería 409 (account_already_has_plan), que el browser
+        // pinta como error rojo en consola (confunde). El self-heal es SOLO para planes
+        // locales NO persistidos (sin id); skip los que ya tienen id. Caso común de
+        // usuario logueado con su plan = sin llamada = sin 409.
+        if (planData.id) return;
         planPersistHealRef.current = uid;
         (async () => {
             try {
