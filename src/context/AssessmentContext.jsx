@@ -1886,6 +1886,107 @@ export const AssessmentProvider = ({ children }) => {
         }
     };
 
+    // [P5-PANTRY-SUFFICIENCY · 2026-06-23] "Actualizar el día completo": regenera TODOS
+    // los platos de UN día cocinando desde la NEVERA (POST /regenerate-day). El backend
+    // corre el gate de suficiencia (no genera + avisa si la Nevera no cubre el objetivo
+    // del día), itera swaps pantry-strict reservando inventario, y persiste days[i].meals
+    // atómicamente. Distinto de "Renovar Ciclo" (variety legacy que compra distinto). El
+    // crédito lo cobra el backend SOLO si genera (1/día).
+    const regenerateDay = async (dayIndex, reason = 'variety') => {
+        const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
+        if (!userId || userId === 'guest') {
+            toast.error('Crea tu cuenta para actualizar platos con IA.');
+            return { ok: false };
+        }
+        const planId = planData?.id || planData?.plan_id;
+        if (planId == null) {
+            toast.error('No encontramos tu plan activo.');
+            return { ok: false };
+        }
+        try {
+            const resp = await fetchWithAuth(`/api/plans/${planId}/regenerate-day`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: userId,
+                    day_index: dayIndex,
+                    reason,
+                    diet_type: formData?.dietType || 'balanced',
+                    goal: formData?.mainGoal || formData?.goal,
+                    gender: formData?.gender,
+                    age: formData?.age,
+                    weight: formData?.weight,
+                    height: formData?.height,
+                    activity_level: formData?.activityLevel,
+                    allergies: formData?.allergies || [],
+                    dislikes: formData?.dislikes || [],
+                }),
+            });
+            const data = resp.ok ? await resp.json() : null;
+            if (!resp.ok) {
+                toast.error('No se pudo actualizar el día', { description: 'Inténtalo de nuevo en un momento.' });
+                return { ok: false };
+            }
+            // Soft-fail: Nevera insuficiente → avisar, NO se consumió regeneración.
+            if (data?.regen_failed === true) {
+                if (data.error_code === 'pantry_insufficient_for_goal') {
+                    toast.error('Faltan ingredientes en tu Nevera', {
+                        description: data.error_message || 'Tu Nevera no alcanza para cubrir tu objetivo del día. Agrega más ítems (sobre todo proteína).',
+                        duration: 8000,
+                        action: { label: 'Mi Nevera', onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } } },
+                    });
+                } else {
+                    toast.error('No se pudo actualizar el día', { description: data.error_message || 'Inténtalo de nuevo.' });
+                }
+                return { ok: false, regen_failed: true };
+            }
+            // Éxito: el backend ya persistió atómicamente. Actualizamos el estado local.
+            if (Array.isArray(data?.meals)) {
+                const updatedPlan = { ...planData };
+                const days = [...(updatedPlan.days || [])];
+                if (days[dayIndex]) {
+                    days[dayIndex] = { ...days[dayIndex], meals: data.meals };
+                    updatedPlan.days = days;
+                    delete updatedPlan.aggregated_shopping_list;
+                    setPlanData(updatedPlan);
+                    safeLocalStorageSet('mealfit_plan', updatedPlan);
+                }
+            }
+            const kept = (data?.slots_kept || []).filter(Boolean);
+            if (kept.length > 0) {
+                toast.success('Día actualizado', { description: `Algunos platos se conservaron porque tu Nevera no daba para cambiarlos.` });
+            } else {
+                toast.success('¡Día actualizado con lo que tienes en tu Nevera!');
+            }
+            // Recalcular la lista de compras (el backend strippeó las listas agregadas).
+            try {
+                const r = await fetchWithAuth('/api/plans/recalculate-shopping-list', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        plan_id: planId,
+                        householdSize: planData?.calc_household_size || formData?.householdSize || 1,
+                        groceryDuration: planData?.calc_grocery_duration || formData?.groceryDuration || 'weekly',
+                        is_new_plan: false,
+                    }),
+                });
+                if (r.ok) {
+                    const rd = await r.json();
+                    if (rd.success && rd.plan_data) {
+                        setPlanData(rd.plan_data);
+                        safeLocalStorageSet('mealfit_plan', rd.plan_data);
+                        emitCoherenceToast(toast, rd._coherence_warnings);
+                    }
+                }
+            } catch (_recalcErr) { /* recalc best-effort: el día ya quedó persistido */ }
+            return { ok: true };
+        } catch (_e) {
+            toast.error('No se pudo actualizar el día', { description: 'Revisa tu conexión e inténtalo de nuevo.' });
+            return { ok: false };
+        }
+    };
+
     // --- REGENERACIÓN INTELIGENTE CON PERSISTENCIA DE DB ---
     const regenerateSingleMeal = async (dayIndex, mealIndex, mealType, currentName, swapReason = 'dislike', liveInventory = null) => {
         const planDays = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
@@ -1971,7 +2072,18 @@ export const AssessmentProvider = ({ children }) => {
             if (newMealData?.swap_failed === true) {
                 const errCode = newMealData.error_code || 'unknown';
                 const errMsg = newMealData.error_message || 'No se pudo generar una alternativa.';
-                if (errCode === 'swap_strict_pantry_no_inventory') {
+                if (errCode === 'pantry_insufficient_for_goal') {
+                    // [P5-PANTRY-SUFFICIENCY · 2026-06-23] La Nevera no cubre las macros del
+                    // objetivo para este plato → avisar y llevar a la Nevera para agregar ítems.
+                    toast.error('Faltan ingredientes en tu Nevera', {
+                        description: errMsg,
+                        duration: 8000,
+                        action: {
+                            label: 'Mi Nevera',
+                            onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } },
+                        },
+                    });
+                } else if (errCode === 'swap_strict_pantry_no_inventory') {
                     toast.error('Nevera vacía', { description: errMsg });
                 } else if (errCode === 'swap_llm_retries_exhausted') {
                     toast.error('Chef IA sin alternativa', { description: errMsg });
@@ -2814,6 +2926,7 @@ export const AssessmentProvider = ({ children }) => {
             toggleMealLike,
             dislikedMeals,
             regenerateSingleMeal,
+            regenerateDay,
             resetApp,
             resetForNewAssessment,
             planCount: effectivePlanCount,

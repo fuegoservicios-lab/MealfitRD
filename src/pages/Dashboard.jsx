@@ -364,6 +364,7 @@ const DashboardInner = () => {
         likedMeals,
         toggleMealLike,
         regenerateSingleMeal, // Ahora esta función es ASYNC (llama a la IA)
+        regenerateDay, // [P5-PANTRY-SUFFICIENCY · 2026-06-23] actualizar el día desde la Nevera
         formData,
         planCount,
         PLAN_LIMIT,
@@ -6711,8 +6712,16 @@ const DashboardInner = () => {
                     // muestra spinner (setIsNavigatingOption) y enseguida navega a /plan
                     // (pantalla de carga propia). El toast flasheaba ~1s redundante.
                     try {
-                        await handleNewPlan(optionId, null, 'dashboard_refresh');
-                        setShowUpdatePlanModal(false);
+                        // [P5-PANTRY-SUFFICIENCY · 2026-06-23] Plan VIGENTE → actualizar SOLO los
+                        // platos del día activo cocinando desde la Nevera (regenerate-day). Plan
+                        // VENCIDO → flujo de Nuevo Ciclo (handleNewPlan, compra nueva).
+                        if (!isPlanExpired && typeof regenerateDay === 'function') {
+                            setShowUpdatePlanModal(false);
+                            await regenerateDay(activeDayIndex, optionId);
+                        } else {
+                            await handleNewPlan(optionId, null, 'dashboard_refresh');
+                            setShowUpdatePlanModal(false);
+                        }
                     } finally {
                         setIsNavigatingOption(null);
                     }
@@ -6732,7 +6741,7 @@ const DashboardInner = () => {
                             ) : hoveredOption === 'weekend' ? (
                                 <><strong>Fin de semana:</strong> platos más elaborados y experiencias premium.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
                             ) : hoveredOption ? (
-                                <><strong>Regenerando:</strong> el menú completo del ciclo actual.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                                <><strong>{isPlanExpired ? 'Regenerando:' : 'Actualizando:'}</strong> {isPlanExpired ? 'el menú completo del ciclo actual' : 'los platos de este día, cocinando con lo que tienes en tu Nevera'}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
                             ) : (
                                 isPremium ? (
                                     <>Plan <strong>Premium</strong>: Regeneraciones ilimitadas activas.</>
@@ -6843,8 +6852,15 @@ const DashboardInner = () => {
                     // [TOAST-NOISE-CLEANUP · 2026-06-22] Sin toast.loading redundante (botón
                     // ya spinea + /plan tiene su loader). Ver nota arriba.
                     try {
-                        await handleNewPlan('dislike', null, 'dashboard_refresh');
-                        setShowDislikeConfirmModal(false);
+                        // [P5-PANTRY-SUFFICIENCY · 2026-06-23] Plan vigente → regenerar SOLO el
+                        // día activo desde la Nevera (dislike). Vencido → Nuevo Ciclo.
+                        if (!isPlanExpired && typeof regenerateDay === 'function') {
+                            setShowDislikeConfirmModal(false);
+                            await regenerateDay(activeDayIndex, 'dislike');
+                        } else {
+                            await handleNewPlan('dislike', null, 'dashboard_refresh');
+                            setShowDislikeConfirmModal(false);
+                        }
                     } finally {
                         setIsNavigatingOption(null);
                     }
