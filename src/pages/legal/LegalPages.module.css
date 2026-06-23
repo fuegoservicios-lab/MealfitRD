@@ -182,8 +182,12 @@
 }
 
 @media (max-width: 768px) {
+    /* [LEGAL-MOBILE-SPACING · 2026-06-23] (a) menos gap arriba: el Header es FIJO y
+       .main-content ya reserva ~84px para él → el 5rem extra solo alejaba "Volver"
+       del encabezado. Baja a 1.5rem para acercarlo. (b) más aire lateral: 1rem→1.5rem
+       para que el texto no quede pegado a los bordes (la tarjeta se quitó en móvil). */
     .container {
-        padding: 5rem 1rem 6rem;
+        padding: 1.5rem 1.5rem 4rem;
     }
 
     .contentWrapper {
