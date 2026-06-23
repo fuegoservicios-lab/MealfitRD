@@ -1988,6 +1988,10 @@ export const AssessmentProvider = ({ children }) => {
                         householdSize: planData?.calc_household_size || formData?.householdSize || 1,
                         groceryDuration: planData?.calc_grocery_duration || formData?.groceryDuration || 'weekly',
                         is_new_plan: false,
+                        // [P5-RESTOCK-PRESERVE · 2026-06-23] El día se regeneró pantry-strict (cocina
+                        // desde la Nevera) → este recalc NO debe limpiar is_restocked aunque el
+                        // household/duration se recompute distinto. La Nevera sigue cubriendo el plan.
+                        preserve_restock: true,
                     }),
                 });
                 if (!r.ok) return false;
@@ -2191,7 +2195,14 @@ export const AssessmentProvider = ({ children }) => {
             // mismo UPDATE atómico (`clear_is_restocked: true`) para que la
             // mutación local y la persistida no diverjan tras lost-update.
             let clearIsRestockedFlag = false;
-            if (updatedPlan.is_restocked && liveInventory && Array.isArray(liveInventory)) {
+            // [P5-RESTOCK-PRESERVE · 2026-06-23] Si el plato se generó PANTRY-STRICT (el backend
+            // lo señala con `pantry_constrained: true` cuando cocinó SOLO desde la despensa), NO
+            // limpiamos is_restocked: no introduce nada que el usuario deba comprar. El chequeo de
+            // substring contra el inventario daba FALSOS POSITIVOS por canonicalización
+            // ("Pechuga de pollo" vs "Pollo", "Leche descremada" vs "Leche") → reseteaba el flag y
+            // re-nagueaba al usuario tras CADA tweak (bug recurrente reportado). Solo un swap
+            // FREE_GENERATION (despensa vacía, pantry_constrained!==true) puede requerir compra nueva.
+            if (updatedPlan.is_restocked && liveInventory && Array.isArray(liveInventory) && newMealData?.pantry_constrained !== true) {
                 const newIngredients = newMealData.ingredients || [];
                 if (newIngredients.length > 0) {
                     // Normalizar nombres del inventario a lower-case para comparación rápida
