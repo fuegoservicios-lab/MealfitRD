@@ -279,3 +279,23 @@
 :global(html[data-theme="dark"]) .link:hover {
     color: #C7D2FE;
 }
+
+/* [LEGAL-MOBILE-NO-CARD · 2026-06-23] En móvil, quitar la tarjeta glassmorphism
+   (fondo translúcido + borde + sombra) que rodea el texto legal → el contenido va
+   directo sobre el fondo de la página (pedido del owner: se ve mejor así). Va al
+   FINAL del archivo para ganar por ORDEN DE FUENTE al override dark de
+   .contentWrapper (línea ~209), que es más específico que la regla mobile base.
+   El back-button sigue alineado: su margin-left:-0.75rem cancela su padding-left
+   → el icono queda al borde del contenido, igual que el texto del cuerpo. */
+@media (max-width: 768px) {
+    .contentWrapper,
+    :global(html[data-theme="dark"]) .contentWrapper {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        border-radius: 0;
+        padding: 0;
+    }
+}
