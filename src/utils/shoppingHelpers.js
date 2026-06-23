@@ -204,6 +204,42 @@ export const getActiveShoppingList = (planData, duration) => {
     return null;
 };
 
+// [P5-PRESENCE-SHOPPING-LIST · 2026-06-23] Set CANÓNICO COMPLETO de ingredientes del plan
+// (membresía). La lista `weekly` es la ÚNICA nunca restock-suprimida (las de ciclo
+// biweekly/monthly pueden quedar recortadas por `_build_hybrid` cuando el usuario está restocked
+// → un ítem agotado que solo vive en `weekly` jamás se chequearía). Esta es la fuente de
+// MEMBRESÍA para el delta de presencia; las CANTIDADES siguen viniendo de la lista del ciclo.
+export const getCanonicalIngredientSet = (planData) => {
+    if (!planData) return null;
+    if (Array.isArray(planData.aggregated_shopping_list_weekly) && planData.aggregated_shopping_list_weekly.length > 0) return planData.aggregated_shopping_list_weekly;
+    if (Array.isArray(planData.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0) return planData.aggregated_shopping_list;
+    return null;
+};
+
+const _deltaKey = (it) => (typeof it === 'object' && it ? (it.name || '') : String(it || '')).toLowerCase().split('(')[0].trim();
+
+// [P5-PRESENCE-SHOPPING-LIST · 2026-06-23] Fuente del delta de la lista: parte de la lista del
+// CICLO (cantidades ya escaladas → planes nuevos quedan correctos) y UNE los ingredientes del set
+// canónico que el ciclo recortó (restock-supresión) pero que SIGUEN siendo del plan. Así un
+// perecedero agotado que el backend quitó de la lista de ciclo se vuelve a chequear contra la
+// Nevera y reaparece si está ausente. Dedupe por nombre normalizado (sin duplicar filas en
+// PDF/restock). Para un plan NUEVO (ciclo no recortado) la unión no agrega nada → idéntico al previo.
+export const getDeltaSourceList = (planData, duration) => {
+    // Preserva `null` (no `[]`) cuando NO hay lista — el guard del PDF lo usa para detectar
+    // "plan sin lista de compras".
+    const durationList = getActiveShoppingList(planData, duration);
+    const canonical = getCanonicalIngredientSet(planData);
+    if (!Array.isArray(canonical) || canonical.length === 0) return durationList;
+    const base = Array.isArray(durationList) ? durationList : [];
+    const present = new Set(base.map(_deltaKey).filter(Boolean));
+    const recovered = canonical.filter((it) => {
+        const k = _deltaKey(it);
+        return k && !present.has(k);
+    });
+    if (recovered.length === 0) return durationList;
+    return [...base, ...recovered];
+};
+
 export const calculateAllPlanIngredients = (planData, isPlanExpired, liveInventory) => {
     if (!planData || isPlanExpired) return [];
 

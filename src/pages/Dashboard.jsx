@@ -80,7 +80,7 @@ import { addNotification, getNotifications, setNotificationData, openNotificatio
 // Pre-fix el modal era keyboard-inaccesible (Tab escapaba al fondo, ESC no
 // cerraba) y screen readers no lo anunciaban como dialog.
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
-import { getActiveShoppingList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
+import { getActiveShoppingList, getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P1-FORM-9] Helper que filtra flags internos `_*` y bloquea cuando la
 // hidratación cifrada del formData (post-login) parece estar en curso —
@@ -1365,31 +1365,12 @@ const DashboardInner = () => {
             return shoppingList;
         }
 
-        // 🔄 ROTACIÓN POST-RESTOCK: Solo suprimir ítems parciales/nuevos cuando el usuario
-        // YA registró sus compras (is_restocked=true) y luego rotó platos.
-        // Para planes NUEVOS, is_restocked es undefined → delta normal con todos los faltantes.
-        //
-        // [P3-RESTOCK-STALE-DEDUP · 2026-05-17] Defense-in-depth contra `is_restocked`
-        // stale en plan_data. Si el usuario vació la nevera (delete all en Pantry, RPC
-        // del agente, FK CASCADE) y `plan_data.is_restocked` quedó true en DB por la
-        // ventana frontend-helper-no-persiste-a-DB, este bloque ignoraría TODOS los
-        // items y el PDF/lista mostraría "Lista Vacía" pese a nevera real vacía.
-        // Heurística: si el inventario actual cubre <50% del `restocked_items` dict,
-        // el dedup es claramente obsoleto → forzamos modo normal (no-rotation).
-        // El backend self-heal de /restock cierra la raíz; este guard cubre la
-        // ventana antes del próximo /restock + cualquier ruta que vacíe pantry
-        // skip del helper SSOT (Pantry.jsx::_recalcShoppingListAfterPantryChange).
-        const _restockedItemsObj = planData?.restocked_items;
-        const _restockedCount = (_restockedItemsObj && typeof _restockedItemsObj === 'object')
-            ? Object.keys(_restockedItemsObj).length
-            : 0;
-        const _inventoryCount = inventoryToUse.length;
-        const _staleDedup = (
-            !!planData?.is_restocked &&
-            _restockedCount > 0 &&
-            _inventoryCount < Math.max(3, Math.floor(_restockedCount * 0.5))
-        );
-        const isPostRestockRotation = !!planData?.is_restocked && !_staleDedup;
+        // [P5-PRESENCE-SHOPPING-LIST · 2026-06-23] La supresión por ventana-de-tiempo
+        // is_restocked (isPostRestockRotation + _staleDedup) fue ELIMINADA. El modelo ahora es de
+        // PRESENCIA pura: un ítem se muestra SOLO si está ausente de la Nevera (ver loop abajo).
+        // Eso vuelve innecesario el flag (un ítem agotado nunca puede quedar oculto) y elimina la
+        // clase de bug "Lista Vacía pese a Nevera vacía" que _staleDedup parchaba. `is_restocked`
+        // se sigue persistiendo (lo lee el banner RestockNudge) pero ya NO suprime contenido.
 
         // [P5-SPEED-DELTA-CONSTS-HOIST · 2026-06-01] MASS_TO_G / VOL_TO_ML izados a
         // module-scope (arriba). Las referencias aquí abajo resuelven a la constante
@@ -1568,72 +1549,27 @@ const DashboardInner = () => {
 
             const degradedQtyStr = formatQty(shopQty);
 
-            if (!invItem || invItem.quantity <= 0) {
-                // No está en la Nevera → incluir aplicando degradación
-                // PERO: si es una rotación post-restock, NO debería haber ingredientes nuevos
-                // que no estén en la nevera. Si aparece uno, es un error de la IA → ignorar.
-                if (isPostRestockRotation) {
-                    itemsRemoved++;
-                    return;
-                }
-                deltaList.push(_scaleItemRefCost({
-                    ...item,
-                    market_qty: shopQty,
-                    display_qty: item.display_qty != null ? `${degradedQtyStr} ${shopUnit}` : undefined,
-                    display_string: item.display_string != null ? `${degradedQtyStr} ${shopUnit} de ${item.name}` : undefined
-                }, shopQty, rawShopQty, shopUnit));
-                return;
-            }
-
-            const shopBase = toBaseUnit(shopQty, shopUnit);
-            const invBase = toBaseUnit(invItem.quantity, invItem.unit);
-
-            // Solo restar si las unidades son del mismo tipo (masa-masa, vol-vol, unidad-unidad)
-            if (shopBase.type !== invBase.type) {
-                // Unidades incompatibles: si es rotación post-restock, ignorar
-                if (isPostRestockRotation) {
-                    itemsRemoved++;
-                    return;
-                }
-                deltaList.push(_scaleItemRefCost({
-                    ...item,
-                    market_qty: shopQty,
-                    display_qty: item.display_qty != null ? `${degradedQtyStr} ${shopUnit}` : undefined,
-                    display_string: item.display_string != null ? `${degradedQtyStr} ${shopUnit} de ${item.name}` : undefined,
-                    _hasPartialInventory: true,
-                    _inventoryNote: `Ya tienes ${invItem.quantity} ${invItem.unit} en tu Nevera`
-                }, shopQty, rawShopQty, shopUnit));
-                return;
-            }
-
-            const remaining = shopBase.value - invBase.value;
-
-            if (remaining <= 0) {
-                // El usuario ya tiene SUFICIENTE para los días que restan → excluir del shopping list
+            // [P5-PRESENCE-SHOPPING-LIST · 2026-06-23] MODELO DE PRESENCIA (spec del owner):
+            // un ítem aparece en la lista SOLO si está AUSENTE de la Nevera (qty<=0 o no existe).
+            // Presente en CUALQUIER cantidad → oculto. La lista es un espejo vivo de la Nevera:
+            // todo presente → vacía; se agota la leche → leche reaparece; y así con cada ítem.
+            // Reemplaza el delta cuantitativo (parcial / unit-mismatch) + la supresión por ventana
+            // is_restocked, que causaban (a) falsos re-add por canonicalización de unidad
+            // (P3-RESTOCK-LECHE-UNIT cartón vs paquete) y top-up parcial, y (b) que un ítem
+            // genuinamente agotado NO reapareciera (lo escondía isPostRestockRotation).
+            const _invQty = invItem ? (parseFloat(invItem.quantity) || 0) : 0;
+            if (_invQty > 0) {
                 itemsRemoved++;
-                return;
+                return; // presente en la Nevera → ocultar
             }
-
-            // Tiene algo pero no suficiente
-            // Si es rotación post-restock: la IA debería haber respetado cantidades → ignorar el faltante
-            if (isPostRestockRotation) {
-                itemsRemoved++;
-                return;
-            }
-
-            // Tiene algo pero no suficiente → mostrar lo restante
-            const ratio = remaining / shopBase.value;
-            const adjustedQty = shopQty * ratio;
-            const displayAdjusted = formatQty(adjustedQty);
-
+            // Ausente → mostrar el ítem completo (cantidad del plan, degradada al ciclo restante).
             deltaList.push(_scaleItemRefCost({
                 ...item,
-                market_qty: adjustedQty,
-                display_qty: item.display_qty != null ? `${displayAdjusted} ${shopUnit}` : undefined,
-                display_string: item.display_string != null ? `${displayAdjusted} ${shopUnit} de ${item.name}` : undefined,
-                _adjustedFromInventory: true,
-                _inventoryNote: `Tienes ${invItem.quantity} ${invItem.unit} — comprar ${displayAdjusted} ${shopUnit}`
-            }, adjustedQty, rawShopQty, shopUnit));
+                market_qty: shopQty,
+                display_qty: item.display_qty != null ? `${degradedQtyStr} ${shopUnit}` : undefined,
+                display_string: item.display_string != null ? `${degradedQtyStr} ${shopUnit} de ${item.name}` : undefined
+            }, shopQty, rawShopQty, shopUnit));
+            return;
         });
 
         // Metadata para UI
@@ -1656,7 +1592,7 @@ const DashboardInner = () => {
     const computedHasPendingShoppingItems = useMemo(() => {
         if (liveInventory !== null && planData && (planData.aggregated_shopping_list || allPlanIngredients)) {
             const duration = formData?.groceryDuration || 'weekly';
-            const rawList = getActiveShoppingList(planData, duration) || allPlanIngredients || [];
+            const rawList = getDeltaSourceList(planData, duration) || allPlanIngredients || [];
 
             const currentDelta = buildDeltaShoppingList(rawList);
             return currentDelta.length > 0;
@@ -1904,7 +1840,7 @@ const DashboardInner = () => {
             }
 
             // Usar la lista consolidada correcta según el ciclo seleccionado
-            const aggregatedList = getActiveShoppingList(effectivePlanData, duration);
+            const aggregatedList = getDeltaSourceList(effectivePlanData, duration);
             // [P2-PDF-NO-AGG-GUARD · 2026-06-17] Si NO existe lista AGREGADA real (ni
             // la del ciclo ni la base), el plan está incompleto/fallido. El fallback
             // `allPlanIngredients` lista ingredientes CRUDOS por-comida (agua, sal "al
@@ -2844,7 +2780,7 @@ const DashboardInner = () => {
 
             // Fuente Verdadera: Solo enviar a la BD lo que es estrictamente NUEVO de la Lista de Compras del Plan!
             const duration = formData?.groceryDuration || 'weekly';
-            const rawActiveShoppingList = getActiveShoppingList(planData, duration) || allPlanIngredients || [];
+            const rawActiveShoppingList = getDeltaSourceList(planData, duration) || allPlanIngredients || [];
 
             // 🔄 Delta Shopping: solo enviar lo que NO está ya en la Nevera
             const activeShoppingList = buildDeltaShoppingList(rawActiveShoppingList, freshInventoryForRestock);
