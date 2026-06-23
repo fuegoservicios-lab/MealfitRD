@@ -29,7 +29,10 @@ export function useBudgetFloor(formData) {
 
     useEffect(() => {
         // Refleja de inmediato el cambio de duración/moneda con el estático (sin esperar la red).
-        setResult((r) => ({ ...r, min: staticMin }));
+        // [P1-DASH-BUDGET-AUTOFILL · 2026-06-23] isPersonalized=false hasta que llegue el valor
+        // real del backend para ESTOS inputs → el Dashboard espera ese flanco para auto-marcar el
+        // monto al mínimo PERSONALIZADO de la nueva duración (no al estático).
+        setResult((r) => ({ ...r, min: staticMin, isPersonalized: false }));
         if (debounceRef.current) clearTimeout(debounceRef.current);
         let cancelled = false;
         debounceRef.current = setTimeout(async () => {

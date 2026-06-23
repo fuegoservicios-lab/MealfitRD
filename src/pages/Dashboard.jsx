@@ -394,6 +394,23 @@ const DashboardInner = () => {
     // del usuario (calorías × hogar × ciclo) — el editor de presupuesto del dashboard muestra el
     // MISMO mínimo que el backend exige al renovar (cero "422 sorpresa"). Fail-open al estático.
     const budgetFloor = useBudgetFloor(formData);
+    // [P1-DASH-BUDGET-AUTOFILL · 2026-06-23] Se "arma" al cambiar la duración en modo Personalizar;
+    // este efecto ajusta el monto al mínimo PERSONALIZADO por calorías cuando el hook lo trae para
+    // la nueva duración (sincrónico con la meta del usuario, p.ej. RD$7,350 en vez del estático
+    // RD$7,000). Solo SUBE; no pisa un monto que el usuario teclee >= mínimo. Disarma tras actuar.
+    const autofillArmedRef = useRef(false);
+    useEffect(() => {
+        if (!autofillArmedRef.current) return;
+        if (formData?.budget !== 'custom') { autofillArmedRef.current = false; return; }
+        if (!budgetFloor.isPersonalized) return; // espera el mínimo real del backend para la nueva duración
+        const _amt = Number(formData?.budgetAmount);
+        if (!(_amt >= budgetFloor.min)) {
+            updateData('budgetAmount', String(budgetFloor.min));
+            safeUpdateHealthProfile({ budgetAmount: String(budgetFloor.min) });
+        }
+        autofillArmedRef.current = false;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [budgetFloor.min, budgetFloor.isPersonalized]);
 
     // [P3-MICRO-PERSIST · 2026-06-15] El panel "Micronutrientes a vigilar"
     // desaparecía al refrescar: el `micronutrient_report` viaja DENTRO del plan,
@@ -4310,12 +4327,13 @@ const DashboardInner = () => {
                                                     updateData('groceryDuration', opt.value);
                                                     // [P1-FORM-9] Reemplaza spread `{...formData, groceryDuration}`.
                                                     safeUpdateHealthProfile({ groceryDuration: opt.value });
-                                                    // [P1-DASH-BUDGET-AUTOFILL · 2026-06-23] Si el presupuesto está en
-                                                    // 'Personalizar' y el monto actual quedó por debajo del mínimo de la
-                                                    // NUEVA duración, lo auto-marcamos al mínimo para que el usuario no
-                                                    // olvide subirlo (pedido del owner). Solo SUBE, nunca baja: si ya tiene
-                                                    // un monto >= mínimo, se respeta. Usa el piso estático (inmediato); si
-                                                    // las calorías exigen más, el hint personalizado lo señala al reabrir.
+                                                    // [P1-DASH-BUDGET-AUTOFILL · 2026-06-23] En modo 'Personalizar', al
+                                                    // cambiar la duración auto-marcamos el monto al MÍNIMO de la nueva
+                                                    // duración (pedido del owner: que no se olvide de subirlo). Solo SUBE,
+                                                    // nunca baja. Ponemos el piso estático al instante (sin esperar la red)
+                                                    // y ARMAMOS el bump al mínimo PERSONALIZADO por calorías; cuando el hook
+                                                    // lo trae, el efecto de arriba lo ajusta a ESE valor ("según tus metas").
+                                                    // Si la red falla, queda el estático como fallback.
                                                     if (formData?.budget === 'custom') {
                                                         const _afCur = formData?.budgetCurrency || 'DOP';
                                                         const _afMin = minBudgetFor(_afCur, opt.value);
@@ -4324,6 +4342,7 @@ const DashboardInner = () => {
                                                             updateData('budgetAmount', String(_afMin));
                                                             safeUpdateHealthProfile({ budgetAmount: String(_afMin) });
                                                         }
+                                                        autofillArmedRef.current = true;
                                                     }
                                                     // [P3-DURATION-DROPDOWN-CLOSE-IMMEDIATE · 2026-05-17]
                                                     // Cerrar el dropdown INMEDIATAMENTE tras seleccionar, no esperar
