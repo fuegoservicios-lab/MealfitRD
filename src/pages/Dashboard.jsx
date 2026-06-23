@@ -2116,6 +2116,28 @@ const DashboardInner = () => {
                 }
             });
 
+            // [P3-CYCLE-COST-TOTAL · 2026-06-23] Costo REAL del ciclo completo.
+            // `_shopTotalCost` (suma cruda arriba) es lo que compras EN ESTA IDA al
+            // súper: perecederos de 1 semana + despensa del periodo. Para 15/30 días
+            // los perecederos se RECOMPRAN cada 7 días (ver `_build_hybrid_shopping_list`
+            // en backend/shopping_calculator.py), así que el costo real del ciclo es
+            //   estables (1×, compra única) + perecederos × nº de semanas del ciclo.
+            // weeks alineado con el multiplier del backend (biweekly=2×, monthly=4×).
+            // Pre-fix: el total de 7 y 15 días salía idéntico → el usuario sub-presupuestaba.
+            const _sumBucketCost = (dict) => Object.values(dict).reduce((acc, arr) => (
+                acc + (Array.isArray(arr) ? arr.reduce((s, it) => {
+                    const c = it.item_ref && (it.item_ref.estimated_cost_rd ?? it.item_ref.estimated_cost);
+                    return s + (typeof c === 'number' && c > 0 ? c : 0);
+                }, 0) : 0)
+            ), 0);
+            const _perishableCost = _sumBucketCost(perishables);
+            const _stableCost = _sumBucketCost(stables);
+            const _cycleWeeks = duration === 'monthly' ? 4 : duration === 'biweekly' ? 2 : 1;
+            const _fullCycleCost = _stableCost + _perishableCost * _cycleWeeks;
+            // Solo mostramos el segundo número cuando aporta info (ciclo > 1 semana y
+            // de hecho cuesta más que la compra de esta semana).
+            const _showCycleCost = duration !== 'weekly' && _fullCycleCost > _shopTotalCost + 1;
+
             // [P1-PDF-3] Decisión centralizada de densidad y paginación.
             // El helper devuelve `isHyperDense` (≥60 items) y `multiPage` (≥80
             // items), añadidos por encima de los niveles existentes
@@ -2426,7 +2448,7 @@ const DashboardInner = () => {
                 : 'COMPRA ESTA SEMANA — PERECEDEROS (REPITE CADA 7 DÍAS)';
             const perishableDesc = isWeekly
                 ? 'Carnes, lácteos, frutas y vegetales frescos. Consume o refrigera pronto.'
-                : 'Estos se dañan rápido, por eso aparecen solo para 7 días aunque tu plan sea más largo. Vuelve a comprar cada semana.';
+                : `Esta comida fresca alcanza ~7 días: en tu ciclo de ${durationText} la recompras ${_cycleWeeks} veces. Se dañan rápido, por eso no se compran todas de una vez.`;
             const stableLabel = duration === 'monthly'
                 ? 'DESPENSA DEL MES — ESTABLES (COMPRA UNA SOLA VEZ)'
                 : duration === 'biweekly'
@@ -2482,11 +2504,15 @@ const DashboardInner = () => {
                 : '';
 
             htmlContent += `
-                ${_shopPricedCount > 0 ? `<div style="margin-top: 14px; padding: 11px 15px; background: linear-gradient(135deg,#ecfdf5,#f0fdf4); border: 1.5px solid #10b98133; border-radius: 9px; display: flex; justify-content: space-between; align-items: center; gap: 10px; break-inside: avoid; page-break-inside: avoid;">
-                    <div style="min-width: 0;">
-                        <div style="font-size: 12px; font-weight: 800; color: #065f46;">💵 Total estimado del mercado</div>
+                ${_shopPricedCount > 0 ? `<div style="margin-top: 14px; padding: 11px 15px; background: linear-gradient(135deg,#ecfdf5,#f0fdf4); border: 1.5px solid #10b98133; border-radius: 9px; break-inside: avoid; page-break-inside: avoid;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                        <div style="font-size: 12px; font-weight: 800; color: #065f46;">💵 ${_showCycleCost ? 'Esta compra <span style="font-weight: 600; color: #059669;">(frescos de 1 semana + despensa)</span>' : 'Total estimado del mercado'}</div>
+                        <span style="font-size: 19px; font-weight: 800; color: #047857; white-space: nowrap;">RD$${Math.round(_shopTotalCost).toLocaleString('es-DO')}</span>
                     </div>
-                    <span style="font-size: 19px; font-weight: 800; color: #047857; white-space: nowrap;">RD$${Math.round(_shopTotalCost).toLocaleString('es-DO')}</span>
+                    ${_showCycleCost ? `<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155;">
+                        <div style="font-size: 11.5px; font-weight: 800; color: #065f46;">🛒 Costo real del ciclo de ${escapeHtml(durationText)}<div style="font-size: 9px; font-weight: 500; color: #059669; margin-top: 1px; letter-spacing: normal;">Despensa 1× + frescos recomprados ${_cycleWeeks}× (cada 7 días)</div></div>
+                        <span style="font-size: 18px; font-weight: 800; color: #065f46; white-space: nowrap;">RD$${Math.round(_fullCycleCost).toLocaleString('es-DO')}</span>
+                    </div>` : ''}
                 </div>` : ''}
                 ${clinicalNoteHTML}
                 <!-- Footer -->
