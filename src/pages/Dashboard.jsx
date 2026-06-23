@@ -43,7 +43,7 @@ import EmptyState from '../components/common/EmptyState';
 // descarguen PDF. Tooltip-anchor: P2-LAZY-PDF.
 import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
 // [P1-DASH-BUDGET-EDIT · 2026-06-23] Ciclo de compras (días) para el editor de presupuesto.
-import { budgetCycleDays } from '../config/formValidation';
+import { minBudgetFor, budgetCycleDays } from '../config/formValidation';
 // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo de presupuesto personalizado por las metas
 // (calorías × hogar × ciclo) — mismo número que exige el backend; fail-open al estático.
 import { useBudgetFloor } from '../hooks/useBudgetFloor';
@@ -4310,6 +4310,21 @@ const DashboardInner = () => {
                                                     updateData('groceryDuration', opt.value);
                                                     // [P1-FORM-9] Reemplaza spread `{...formData, groceryDuration}`.
                                                     safeUpdateHealthProfile({ groceryDuration: opt.value });
+                                                    // [P1-DASH-BUDGET-AUTOFILL · 2026-06-23] Si el presupuesto está en
+                                                    // 'Personalizar' y el monto actual quedó por debajo del mínimo de la
+                                                    // NUEVA duración, lo auto-marcamos al mínimo para que el usuario no
+                                                    // olvide subirlo (pedido del owner). Solo SUBE, nunca baja: si ya tiene
+                                                    // un monto >= mínimo, se respeta. Usa el piso estático (inmediato); si
+                                                    // las calorías exigen más, el hint personalizado lo señala al reabrir.
+                                                    if (formData?.budget === 'custom') {
+                                                        const _afCur = formData?.budgetCurrency || 'DOP';
+                                                        const _afMin = minBudgetFor(_afCur, opt.value);
+                                                        const _afAmt = Number(formData?.budgetAmount);
+                                                        if (!(_afAmt >= _afMin)) {
+                                                            updateData('budgetAmount', String(_afMin));
+                                                            safeUpdateHealthProfile({ budgetAmount: String(_afMin) });
+                                                        }
+                                                    }
                                                     // [P3-DURATION-DROPDOWN-CLOSE-IMMEDIATE · 2026-05-17]
                                                     // Cerrar el dropdown INMEDIATAMENTE tras seleccionar, no esperar
                                                     // a que termine el recalc (~1-3s). El toast.loading('Calculando...')
