@@ -1947,7 +1947,14 @@ export const AssessmentProvider = ({ children }) => {
                 if (days[dayIndex]) {
                     days[dayIndex] = { ...days[dayIndex], meals: data.meals };
                     updatedPlan.days = days;
+                    // [P5-REGEN-DAY-STALE-LIST · 2026-06-23] El backend strippea las CUATRO
+                    // listas agregadas; el local debe hacer lo mismo o quedarían listas
+                    // VIEJAS (de los platos pre-cambio) bajo las keys de duración → el PDF/
+                    // restock comprarían los ingredientes equivocados si el recalc fallara.
                     delete updatedPlan.aggregated_shopping_list;
+                    delete updatedPlan.aggregated_shopping_list_weekly;
+                    delete updatedPlan.aggregated_shopping_list_biweekly;
+                    delete updatedPlan.aggregated_shopping_list_monthly;
                     setPlanData(updatedPlan);
                     safeLocalStorageSet('mealfit_plan', updatedPlan);
                 }
@@ -1959,7 +1966,12 @@ export const AssessmentProvider = ({ children }) => {
                 toast.success('¡Día actualizado con lo que tienes en tu Nevera!');
             }
             // Recalcular la lista de compras (el backend strippeó las listas agregadas).
-            try {
+            // [P5-REGEN-DAY-RECALC-RETRY · 2026-06-23] El día ya quedó persistido atómicamente
+            // en el backend; el recalc repuebla las listas agregadas. Antes era 1 solo intento
+            // con error tragado en silencio → si fallaba (5xx/red), las listas quedaban vacías
+            // y el PDF/restock mostraban el falso "tu plan no tiene lista de compras". Ahora:
+            // reintento (2 intentos) + aviso honesto si ambos fallan (espejo de regenerateSingleMeal).
+            const _recalcOnce = async () => {
                 const r = await fetchWithAuth('/api/plans/recalculate-shopping-list', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1971,15 +1983,31 @@ export const AssessmentProvider = ({ children }) => {
                         is_new_plan: false,
                     }),
                 });
-                if (r.ok) {
-                    const rd = await r.json();
-                    if (rd.success && rd.plan_data) {
-                        setPlanData(rd.plan_data);
-                        safeLocalStorageSet('mealfit_plan', rd.plan_data);
-                        emitCoherenceToast(toast, rd._coherence_warnings);
-                    }
+                if (!r.ok) return false;
+                const rd = await r.json();
+                if (rd.success && rd.plan_data) {
+                    setPlanData(rd.plan_data);
+                    safeLocalStorageSet('mealfit_plan', rd.plan_data);
+                    emitCoherenceToast(toast, rd._coherence_warnings);
+                    return true;
                 }
-            } catch (_recalcErr) { /* recalc best-effort: el día ya quedó persistido */ }
+                return false;
+            };
+            let _recalcOk = false;
+            for (let _attempt = 0; _attempt < 2 && !_recalcOk; _attempt++) {
+                try { _recalcOk = await _recalcOnce(); }
+                catch (_recalcErr) { _recalcOk = false; }
+                if (!_recalcOk && _attempt === 0) {
+                    await new Promise((res) => setTimeout(res, 700));
+                }
+            }
+            if (!_recalcOk) {
+                // No dejamos al usuario con un PDF/lista potencialmente desincronizada sin aviso.
+                toast('Tu lista de compras se está actualizando', {
+                    description: 'Si el PDF se ve incompleto, recárgalo en unos segundos.',
+                    duration: 6000,
+                });
+            }
             return { ok: true };
         } catch (_e) {
             toast.error('No se pudo actualizar el día', { description: 'Revisa tu conexión e inténtalo de nuevo.' });
