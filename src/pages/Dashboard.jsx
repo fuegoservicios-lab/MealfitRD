@@ -38,6 +38,8 @@ import EmptyState from '../components/common/EmptyState';
 // al entrar al Dashboard, 100% de usuarios pagan el costo aunque jamás
 // descarguen PDF. Tooltip-anchor: P2-LAZY-PDF.
 import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
+// [P1-DASH-BUDGET-EDIT · 2026-06-23] Piso de presupuesto por ciclo (mismo SSOT que el form).
+import { minBudgetFor, budgetCycleDays } from '../config/formValidation';
 import { trackEvent } from '../utils/analytics';
 // [P3-RESTOCK-FLOW-SPEED · 2026-05-20] Cache compartido de inventory. Tras
 // el restock, Dashboard populá este singleton de modo que Pantry.jsx monta
@@ -4254,13 +4256,18 @@ const DashboardInner = () => {
                                         exit={{ opacity: 0 }}
                                         transition={{ duration: 0.15, ease: 'easeOut' }}
                                         style={{
-                                            position: 'absolute', top: 'calc(100% + 6px)', left: '-4px', right: '-4px',
+                                            // [P1-DASH-BUDGET-EDIT · 2026-06-23] Panel ensanchado para alojar
+                                            // el editor de presupuesto debajo de la duración (antes era tan
+                                            // angosto como el chip). Anclado a la izquierda + maxWidth/scroll
+                                            // de seguridad para no desbordar el viewport ni recortar contenido.
+                                            position: 'absolute', top: 'calc(100% + 6px)', left: '-4px',
+                                            minWidth: '252px', maxWidth: 'min(340px, calc(100vw - 24px))',
                                             zIndex: 9999,
                                             background: 'var(--bg-card)',
                                             borderRadius: '12px',
                                             border: '1.5px solid var(--border)',
                                             boxShadow: '0 20px 40px -10px rgba(0,0,0,0.15)',
-                                            overflow: 'hidden',
+                                            overflowX: 'hidden', overflowY: 'auto', maxHeight: '78vh',
                                             padding: '6px'
                                         }}
                                     >
@@ -4370,6 +4377,98 @@ const DashboardInner = () => {
                                                 {groceryDuration === opt.value && <CheckCircle size={13} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.5} />}
                                             </div>
                                         ))}
+
+                                        {/* [P1-DASH-BUDGET-EDIT · 2026-06-23] Presupuesto editable desde el
+                                            dashboard. Antes el owner no podía renovar tras cambiar la duración:
+                                            su presupuesto 'custom' quedaba bajo el piso de la nueva duración y
+                                            SOLO se editaba en el formulario → la renovación chocaba con el gate
+                                            P2-BUDGET-FLOOR (422) y lo botaba al /assessment. Ahora se ajusta aquí
+                                            (mismo panel que la duración); persiste a formData + health profile,
+                                            así la próxima renovación usa el monto nuevo. El mínimo mostrado se
+                                            recalcula con la duración elegida (mismo SSOT minBudgetFor). */}
+                                        <div style={{ height: 1, background: 'var(--border)', margin: '6px 4px' }} />
+                                        <div style={{ padding: '2px 8px 4px' }}>
+                                            <span style={{ fontSize: '0.62rem', color: isDark ? '#34D399' : '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                <Wallet size={10} /> Presupuesto
+                                            </span>
+                                        </div>
+                                        {(() => {
+                                            const _cur = formData?.budgetCurrency || 'DOP';
+                                            const _sym = _cur === 'USD' ? 'US$' : 'RD$';
+                                            const _min = minBudgetFor(_cur, groceryDuration);
+                                            const _cycleDays = budgetCycleDays(groceryDuration);
+                                            const _amt = Number(formData?.budgetAmount);
+                                            const _isCustom = formData?.budget === 'custom';
+                                            const _belowMin = _isCustom && formData?.budgetAmount !== '' && formData?.budgetAmount != null && _amt > 0 && _amt < _min;
+                                            const _setBudget = (field, value) => { updateData(field, value); safeUpdateHealthProfile({ [field]: value }); };
+                                            const _opts = [
+                                                { val: 'low', label: 'Económico' },
+                                                { val: 'medium', label: 'Moderado' },
+                                                { val: 'high', label: 'Alto' },
+                                                { val: 'unlimited', label: 'Sin límite' },
+                                                { val: 'custom', label: 'Personalizar' },
+                                            ];
+                                            return (
+                                                <div style={{ padding: '0 4px' }}>
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                        {_opts.map(o => {
+                                                            const sel = (formData?.budget || '') === o.val;
+                                                            return (
+                                                                <button
+                                                                    key={o.val}
+                                                                    type="button"
+                                                                    onClick={() => _setBudget('budget', o.val)}
+                                                                    style={{
+                                                                        flex: o.val === 'custom' ? '1 1 100%' : '1 1 calc(50% - 4px)',
+                                                                        padding: '0.35rem 0.5rem', borderRadius: '7px', cursor: 'pointer',
+                                                                        fontSize: '0.7rem', fontWeight: 700, textAlign: 'center',
+                                                                        background: sel ? (isDark ? 'rgba(16,185,129,0.14)' : 'linear-gradient(135deg,#F0FDF4,#DCFCE7)') : 'var(--bg-muted)',
+                                                                        border: sel ? (isDark ? '1px solid rgba(52,211,153,0.45)' : '1px solid #BBF7D0') : '1px solid transparent',
+                                                                        color: sel ? (isDark ? '#34D399' : '#059669') : 'var(--text-main)',
+                                                                        transition: 'all 0.15s ease',
+                                                                    }}
+                                                                >{o.label}</button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    {_isCustom && (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
+                                                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                                                <div style={{ position: 'relative', flex: 1 }}>
+                                                                    <span style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.8rem', pointerEvents: 'none' }}>{_sym}</span>
+                                                                    <input
+                                                                        type="number" inputMode="decimal" min={_min} step="1"
+                                                                        placeholder={_cur === 'USD' ? 'Ej. 100' : 'Ej. 5000'}
+                                                                        value={formData?.budgetAmount || ''}
+                                                                        onChange={(e) => _setBudget('budgetAmount', e.target.value)}
+                                                                        aria-label={`Presupuesto total en ${_cur === 'USD' ? 'dólares' : 'pesos dominicanos'}`}
+                                                                        style={{
+                                                                            width: '100%', boxSizing: 'border-box',
+                                                                            padding: '0.4rem 0.5rem 0.4rem 2.4rem', borderRadius: '7px',
+                                                                            border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)',
+                                                                            fontSize: '0.78rem', fontWeight: 600, outline: 'none',
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                                <div style={{ display: 'flex', background: 'var(--bg-muted)', borderRadius: '0.5rem', padding: '2px', flexShrink: 0 }}>
+                                                                    {['DOP', 'USD'].map(c => {
+                                                                        const on = (_cur === c);
+                                                                        return (
+                                                                            <button key={c} type="button" onClick={() => _setBudget('budgetCurrency', c)} aria-pressed={on}
+                                                                                style={{ border: 'none', background: on ? 'var(--bg-card)' : 'transparent', padding: '3px 7px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 700, color: on ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}
+                                                                            >{c === 'USD' ? 'US$' : 'RD$'}</button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                            <span style={{ fontSize: '0.66rem', lineHeight: 1.35, fontWeight: _belowMin ? 700 : 500, color: _belowMin ? 'var(--warning)' : 'var(--text-muted)' }}>
+                                                                {_belowMin ? '⚠️ ' : ''}Mínimo {_sym}{_min.toLocaleString('en-US')} para {_cycleDays} días.
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
 
                                     </motion.div>
                                 )}
