@@ -64,6 +64,13 @@ export async function mintFirstPartySession() {
 // persiste). Devuelve { user_id, ... } o null. Re-guarda el token re-emitido.
 export async function checkFirstPartySession() {
     const tok = getStoredMfSession();
+    // [NO-401-NOISE · 2026-06-23] Sin token first-party en localStorage NO hay sesión
+    // que restaurar → no pegamos a /api/auth/me. El token se guarda SIEMPRE al mint
+    // (cookie + localStorage en sync), así que su ausencia ⇒ visitante no logueado.
+    // Evita el 401 rojo y ruidoso en consola (p.ej. al abrir la Política desde el
+    // link del login sin sesión). Caso raro cookie-sin-localStorage: el usuario
+    // simplemente vuelve a iniciar sesión (sin pérdida de datos).
+    if (!tok) return null;
     try {
         const headers = {};
         if (tok) headers['X-MF-Session'] = tok;
