@@ -188,8 +188,11 @@ const InteractiveAssessmentFlow = () => {
             // ([BUDGET-MIN]: escalado por duración + moneda vía `minBudgetFor`,
             // SSOT compartido con el hint de QBudget) para habilitar "Siguiente
             // Paso". Scoped a este step para no bloquear otros cuando budget='custom'.
+            // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Usa el piso PERSONALIZADO que QBudget
+            // sincronizó a `_budgetFloorMin` (calorías × hogar × ciclo, = el que exige el backend);
+            // fallback al estático `minBudgetFor` si aún no llegó (red lenta / offline).
             validateExtra: (fd) => fd.budget !== 'custom'
-                || Number(fd.budgetAmount) >= minBudgetFor(fd.budgetCurrency || 'DOP', fd.groceryDuration),
+                || Number(fd.budgetAmount) >= (Number(fd._budgetFloorMin) || minBudgetFor(fd.budgetCurrency || 'DOP', fd.groceryDuration)),
             component: <QBudget onAutoAdvance={handleAutoAdvance} />
         },
         {

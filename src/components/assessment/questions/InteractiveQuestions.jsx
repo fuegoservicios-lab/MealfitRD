@@ -12,7 +12,9 @@ import { RadioCard, Input, Label } from '../../common/FormUI';
 // metadata UI (`DIET_TYPE_META`) cubre exactamente la misma lista — si un
 // futuro PR añade un tipo a `DIET_TYPES` sin actualizar la metadata, el
 // componente avisa explícitamente en consola.
-import { BIO_RANGES, DIET_TYPES, SUPPLEMENTS, isBiometricInRange, minBudgetFor, budgetCycleDays } from '../../../config/formValidation';
+import { BIO_RANGES, DIET_TYPES, SUPPLEMENTS, isBiometricInRange, budgetCycleDays } from '../../../config/formValidation';
+// [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo personalizado por las metas (backend).
+import { useBudgetFloor } from '../../../hooks/useBudgetFloor';
 // [P1-FORM-2] SSOT de sentinels exclusivos. Antes cada Q* declaraba su
 // `const SENTINEL = "Ninguna"` o `"Ninguno"` localmente; cambiar el copy en
 // uno y olvidar los demás rompía la detección de exclusividad y la
@@ -575,12 +577,19 @@ export const QBudget = ({ onAutoAdvance }) => {
     // al backend y `build_budget_context` la usa para el símbolo + escala.
     const budgetCurrency = formData.budgetCurrency || 'DOP';
     const currencySymbol = budgetCurrency === 'USD' ? 'US$' : 'RD$';
-    // [BUDGET-MIN · 2026-05-31] Mínimo VIABLE, escalado por duración del ciclo
-    // (7/15/30 días, ya elegida en el step previo) + moneda. Bajo este monto no
-    // alcanza para un plan. `belowMin` pinta la advertencia; el `validateExtra`
-    // del flow gatea "Siguiente Paso" con el mismo `minBudgetFor` (SSOT).
-    const minBudget = minBudgetFor(budgetCurrency, formData.groceryDuration);
+    // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo PERSONALIZADO por las metas (calorías ×
+    // hogar × ciclo) vía backend — el MISMO número que exige el gate de generación; fail-open al
+    // estático mientras carga / si falla. Lo sincronizamos a `_budgetFloorMin` para que el gate
+    // "Siguiente Paso" (validateExtra del flow) use EXACTAMENTE el mismo piso que mostramos
+    // (evita "warning pero puede avanzar" → luego 422 del backend).
+    const { min: minBudget, isPersonalized: budgetIsPersonalized } = useBudgetFloor(formData);
     const cycleDays = budgetCycleDays(formData.groceryDuration);
+    useEffect(() => {
+        if (Number(formData._budgetFloorMin) !== Number(minBudget)) {
+            updateData('_budgetFloorMin', minBudget);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [minBudget]);
     const _amountNum = Number(formData.budgetAmount);
     const belowMin = isCustom && formData.budgetAmount !== '' && formData.budgetAmount != null
         && _amountNum > 0 && _amountNum < minBudget;
@@ -657,7 +666,7 @@ export const QBudget = ({ onAutoAdvance }) => {
                         </span>
                     ) : (
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                            La IA ajustará los ingredientes para acercarse a este monto. Mínimo {currencySymbol}{minBudget.toLocaleString('en-US')} para {cycleDays} días.
+                            La IA ajustará los ingredientes para acercarse a este monto. Mínimo {currencySymbol}{minBudget.toLocaleString('en-US')} para {cycleDays} días{budgetIsPersonalized ? ' (según tus calorías y metas)' : ''}.
                         </span>
                     )}
                 </div>

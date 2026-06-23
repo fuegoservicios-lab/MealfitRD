@@ -24,6 +24,10 @@ import CreditsMeter from '../components/dashboard/CreditsMeter';
 // [P3-NOTIF-CENTER · 2026-06-16] buildMicrosNotification = SSOT del resumen archivado;
 // microsContentSig = firma estable por contenido (clave de dismissal/backfill).
 import MicronutrientPanel, { buildMicrosNotification, microsContentSig } from '../components/dashboard/MicronutrientPanel';
+// [P3-RESTOCK-NUDGE · 2026-06-23] Nudge para que el usuario llene la Nevera tras
+// comprar (banner + prompt + auto-fill + recordatorio). Cierra el olvido de tocar
+// "Ya compré la lista". Lógica de decisión en utils/restockNudge.js.
+import RestockNudge from '../components/dashboard/RestockNudge';
 // [P3-AGENT-PREFILL · 2026-06-15] Tocar un micronutriente → pregunta al coach IA.
 import { requestAgentPrefill } from '../utils/agentPrefill';
 import Modal from '../components/common/Modal';
@@ -38,8 +42,11 @@ import EmptyState from '../components/common/EmptyState';
 // al entrar al Dashboard, 100% de usuarios pagan el costo aunque jamás
 // descarguen PDF. Tooltip-anchor: P2-LAZY-PDF.
 import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
-// [P1-DASH-BUDGET-EDIT · 2026-06-23] Piso de presupuesto por ciclo (mismo SSOT que el form).
-import { minBudgetFor, budgetCycleDays } from '../config/formValidation';
+// [P1-DASH-BUDGET-EDIT · 2026-06-23] Ciclo de compras (días) para el editor de presupuesto.
+import { budgetCycleDays } from '../config/formValidation';
+// [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo de presupuesto personalizado por las metas
+// (calorías × hogar × ciclo) — mismo número que exige el backend; fail-open al estático.
+import { useBudgetFloor } from '../hooks/useBudgetFloor';
 import { trackEvent } from '../utils/analytics';
 // [P3-RESTOCK-FLOW-SPEED · 2026-05-20] Cache compartido de inventory. Tras
 // el restock, Dashboard populá este singleton de modo que Pantry.jsx monta
@@ -382,6 +389,11 @@ const DashboardInner = () => {
     const { regeneratePlan } = useRegeneratePlan();
 
     const navigate = useNavigate();
+
+    // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Piso de presupuesto personalizado por las metas
+    // del usuario (calorías × hogar × ciclo) — el editor de presupuesto del dashboard muestra el
+    // MISMO mínimo que el backend exige al renovar (cero "422 sorpresa"). Fail-open al estático.
+    const budgetFloor = useBudgetFloor(formData);
 
     // [P3-MICRO-PERSIST · 2026-06-15] El panel "Micronutrientes a vigilar"
     // desaparecía al refrescar: el `micronutrient_report` viaja DENTRO del plan,
@@ -2729,9 +2741,16 @@ const DashboardInner = () => {
         }
     };
 
-    const handleRestock = async () => {
+    const handleRestock = async (opts = {}) => {
+        // [P3-RESTOCK-NUDGE · 2026-06-23] `silent`=true para el auto-fill de fondo
+        // (RestockNudge #3): mismo POST/delta/persistencia, pero SIN overlay
+        // full-screen, SIN toasts de éxito y SIN navegar a la Nevera (sería intrusivo
+        // al abrir la app). El nudge emite su propia notificación reversible. `opts`
+        // puede ser un SyntheticEvent (el modal pasa onClick={handleRestock}) →
+        // `?.silent` es undefined ⇒ false. Default (botón/modal) = no silencioso.
+        const silent = opts?.silent === true;
         if (!userProfile?.id) {
-            toast.error('Debes iniciar sesión para usar esta función.');
+            if (!silent) toast.error('Debes iniciar sesión para usar esta función.');
             return;
         }
 
@@ -2741,13 +2760,13 @@ const DashboardInner = () => {
 
         // Validación Unica: Si matemáticamente y en tiempo real faltan ingredientes, lo permitimos.
         if (!hasPendingShoppingItems) {
-            toast.info('Ya tienes todos estos ingredientes en tu Nevera.', { icon: '📦' });
+            if (!silent) toast.info('Ya tienes todos estos ingredientes en tu Nevera.', { icon: '📦' });
             setShowRestockModal(false);
             restockLock.current = false;
             return;
         }
 
-        setIsRestocking(true);
+        if (!silent) setIsRestocking(true);
         // [P3-RESTOCK-SINGLE-LOADER · 2026-06-01] Sin toast.loading aquí: el
         // overlay full-screen `isRestocking` ("Registrando compras") ya cubre la
         // fase de carga. Antes coexistían el toast pequeño + el overlay → doble
@@ -2781,7 +2800,7 @@ const DashboardInner = () => {
             } else {
                 freshInventoryForRestock = [];
                 setInventoryStale(true);
-                toast.warning('Tu Nevera puede estar desactualizada', {
+                if (!silent) toast.warning('Tu Nevera puede estar desactualizada', {
                     description: 'No pudimos validar tu inventario en vivo. Procediendo con la lista completa — la DB es la fuente de verdad.',
                     duration: 6000,
                 });
@@ -2850,7 +2869,7 @@ const DashboardInner = () => {
             const data = await response.json();
 
             if (response.ok && data.success) {
-                toast.success('¡Ingredientes ingresados a tu Nevera Virtual!', { icon: '📦' });
+                if (!silent) toast.success('¡Ingredientes ingresados a tu Nevera Virtual!', { icon: '📦' });
                 setSessionRestocked(true);
 
                 // ✅ Marcar planData como restocked para que el PDF delta suprima residuos
@@ -2894,15 +2913,18 @@ const DashboardInner = () => {
                 setDisabledIngredients([]);
 
                 // [P3-RESTOCK-FLOW-SPEED · 2026-05-20] Navigate síncrono.
-                navigate('/dashboard/pantry');
+                // [P3-RESTOCK-NUDGE] En auto-fill silencioso NO navegamos (intrusivo).
+                if (!silent) navigate('/dashboard/pantry');
             } else {
-                toast.error(data.message || 'Error al actualizar la despensa.');
+                if (!silent) toast.error(data.message || 'Error al actualizar la despensa.');
+                else throw new Error(data.message || 'restock failed'); // deja que el nudge reintente
             }
         } catch (error) {
             console.error('🛒 [RESTOCK] CATCH ERROR:', error);
-            toast.error('Hubo un error de conexión al registrar la compra.');
+            if (!silent) toast.error('Hubo un error de conexión al registrar la compra.');
+            else throw error; // propaga para que RestockNudge resetee y reintente
         } finally {
-            setIsRestocking(false);
+            if (!silent) setIsRestocking(false);
             restockLock.current = false;
         }
     };
@@ -4395,7 +4417,7 @@ const DashboardInner = () => {
                                         {(() => {
                                             const _cur = formData?.budgetCurrency || 'DOP';
                                             const _sym = _cur === 'USD' ? 'US$' : 'RD$';
-                                            const _min = minBudgetFor(_cur, groceryDuration);
+                                            const _min = budgetFloor.min;
                                             const _cycleDays = budgetCycleDays(groceryDuration);
                                             const _amt = Number(formData?.budgetAmount);
                                             const _isCustom = formData?.budget === 'custom';
@@ -4462,7 +4484,7 @@ const DashboardInner = () => {
                                                                 </div>
                                                             </div>
                                                             <span style={{ fontSize: '0.66rem', lineHeight: 1.35, fontWeight: _belowMin ? 700 : 500, color: _belowMin ? 'var(--warning)' : 'var(--text-muted)' }}>
-                                                                {_belowMin ? '⚠️ ' : ''}Mínimo {_sym}{_min.toLocaleString('en-US')} para {_cycleDays} días.
+                                                                {_belowMin ? '⚠️ ' : ''}Mínimo {_sym}{_min.toLocaleString('en-US')} para {_cycleDays} días{budgetFloor.isPersonalized ? ' (según tus metas)' : ''}.
                                                             </span>
                                                         </div>
                                                     )}
@@ -4809,6 +4831,20 @@ const DashboardInner = () => {
                     </button>
                 </motion.div>
             )}
+
+            {/* [P3-RESTOCK-NUDGE · 2026-06-23] Banner + prompt + auto-fill de respaldo
+                para que el usuario llene la Nevera tras comprar (cierra el olvido de
+                tocar "Ya compré la lista"). Solo en planes válidos con compras
+                pendientes. La lógica de cuándo mostrar cada capa vive en
+                utils/restockNudge.js; el restock real reusa handleRestock (SSOT). */}
+            <RestockNudge
+                planData={planData}
+                hasPendingItems={hasPendingShoppingItems && !isPlanExpired && !planFinished && !isPlanCorrupted}
+                restocked={!!planData?.is_restocked || sessionRestocked}
+                daysSinceGroceryStart={daysSinceCreation}
+                onConfirmRestock={() => handleRestock()}
+                onSilentRestock={() => handleRestock({ silent: true })}
+            />
 
             {/* --- BANNER: PLAN EXPIRADO --- */}
             {isPlanExpired && planData?.generation_status !== 'partial' && (
