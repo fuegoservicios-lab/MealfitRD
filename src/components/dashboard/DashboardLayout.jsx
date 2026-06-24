@@ -103,6 +103,9 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     // Recetas: el recuadro llena ancho + alto y reserva por dentro el espacio del
     // BottomTabBar (sin franja gris). Reusa la misma regla .mainContent.recipesEdge.
     const isPantry = location.pathname.startsWith('/dashboard/pantry');
+    // [P3-HIST-EDGE-MOBILE · 2026-06-24] Historial también edge-to-edge en móvil
+    // (mismo tratamiento que Recetas/Nevera: la superficie llena ancho + alto).
+    const isHistory = location.pathname.startsWith('/history');
 
     const menuItems = [
         { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
@@ -390,7 +393,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 )}
 
                 <main
-                    className={`${styles.mainContent} ${noPaddingMobile ? styles.noPaddingMobile : ''} ${isSettings ? styles.bottomBarHidden : ''} ${(isRecipes || isPantry) ? styles.recipesEdge : ''}`}
+                    className={`${styles.mainContent} ${noPaddingMobile ? styles.noPaddingMobile : ''} ${isSettings ? styles.bottomBarHidden : ''} ${(isRecipes || isPantry || isHistory) ? styles.recipesEdge : ''}`}
                     style={noPaddingMobile ? { padding: 0, maxWidth: '100vw', overflow: 'hidden', margin: 0, width: '100%' } : {}}
                 >
                     {children}

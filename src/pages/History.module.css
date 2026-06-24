@@ -2543,6 +2543,22 @@
         0 28px 56px -20px rgba(0, 0, 0, 0.5);
 }
 
+/* [P3-HIST-EDGE-MOBILE · 2026-06-24] En móvil el Historial va edge-to-edge igual
+   que Recetas/Nevera: la superficie (.cardGrid) llena el ancho (sin bordes
+   laterales ni esquinas redondeadas) y el alto disponible, reservando por dentro
+   el espacio del BottomTabBar. El padding del shell se anula vía
+   .mainContent.recipesEdge (DashboardLayout). */
+@media (max-width: 768px) {
+    .cardGrid {
+        margin-top: 0;
+        border-left: 0;
+        border-right: 0;
+        border-radius: 0;
+        min-height: calc(100dvh - env(safe-area-inset-top, 0px) - 48px);
+        padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    }
+}
+
 :global(html[data-theme="dark"]) .surfaceHeader {
     border-bottom-color: var(--border);
     background: linear-gradient(180deg, rgba(30, 27, 75, 0.2) 0%, rgba(17, 24, 39, 0) 100%);
