@@ -1,0 +1,41 @@
+{
+  "projectId": "98197eed-d85d-4c98-9501-6c85ac061c45",
+  "shape": "package",
+  "pkg": "mealfit-rd-ia",
+  "globalName": "MealfitUI",
+  "cssEntry": "src/index.css",
+  "readmeHeader": ".design-sync/conventions.md",
+  "extraFonts": [
+    "public/fonts/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "public/fonts/QGYvz_MVcBeNP4NJuktqQ4E.woff2",
+    "public/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yw.woff2",
+    "public/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko40yyygA.woff2",
+    "public/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko50yyygA.woff2",
+    "public/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko70yyygA.woff2"
+  ],
+  "componentSrcMap": {
+    "ProteinIcon": "src/components/icons/ProteinIcon.jsx",
+    "FlameMacroIcon": "src/components/icons/FlameMacroIcon.jsx",
+    "FatDropIcon": "src/components/icons/FatDropIcon.jsx",
+    "WheatFilledIcon": "src/components/icons/WheatFilledIcon.jsx",
+    "RecipesIcon": "src/components/icons/RecipesIcon.jsx",
+    "AgentIcon": "src/components/icons/AgentIcon.jsx",
+    "Label": "src/components/common/FormUI.jsx",
+    "Input": "src/components/common/FormUI.jsx",
+    "Select": "src/components/common/FormUI.jsx",
+    "RadioCard": "src/components/common/FormUI.jsx",
+    "Checkbox": "src/components/common/FormUI.jsx",
+    "TextArea": "src/components/common/FormUI.jsx",
+    "Modal": "src/components/common/Modal.jsx",
+    "EmptyState": "src/components/common/EmptyState.jsx",
+    "OptionPickerModal": "src/components/common/OptionPickerModal.jsx",
+    "MicronutrientPanel": "src/components/dashboard/MicronutrientPanel.jsx",
+    "RestockNudge": "src/components/dashboard/RestockNudge.jsx",
+    "GuestAppearanceToggle": "src/components/dashboard/GuestAppearanceToggle.jsx",
+    "LogoutConfirmModal": "src/components/dashboard/LogoutConfirmModal.jsx",
+    "BotAvatar": "src/components/agent/BotAvatar.jsx",
+    "MinimalAvatar": "src/components/avatars/minimalAvatars.jsx",
+    "HowItWorks": "src/components/home/HowItWorks.jsx",
+    "AuthBackground": "src/components/auth/AuthBackground.jsx"
+  }
+}
