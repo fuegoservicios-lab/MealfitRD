@@ -65,7 +65,9 @@
 .actions { display: flex; gap: 10px; margin: 16px 2px 0; }
 .btn { appearance: none; cursor: pointer; font: inherit; font-size: .84rem; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 20px; border-radius: 14px; border: 1px solid transparent; transition: .15s; }
 .btn:disabled { opacity: .7; cursor: wait; }
-.primary { color: #0B1120; background: linear-gradient(120deg, var(--primary-light), var(--primary)); box-shadow: 0 8px 20px -8px var(--primary); }
+/* [P3-RECIPES-ACTIONS-GAP · 2026-06-24] Sombra contenida para que al apilarse
+   (móvil) el glow no haga ver "Cocinar"/"PDF" pegados. */
+.primary { color: #0B1120; background: linear-gradient(120deg, var(--primary-light), var(--primary)); box-shadow: 0 6px 14px -10px var(--primary); }
 .ghost { color: var(--text-main); background: var(--bg-muted); border-color: var(--border); }
 
 /* Columnas */
@@ -130,7 +132,7 @@
   .macros { flex-direction: column; align-items: stretch; }
   .donut { align-self: center; }
   .macroRow { flex-direction: column; }
-  .actions { flex-direction: column; }
+  .actions { flex-direction: column; gap: 14px; }
   .btn { width: 100%; justify-content: center; }
 }
 @media (max-width: 560px) {
@@ -139,6 +141,6 @@
   .macros { flex-direction: column; align-items: stretch; }
   .donut { align-self: center; }
   .macroRow { flex-direction: column; }
-  .actions { flex-direction: column; }
+  .actions { flex-direction: column; gap: 14px; }
   .btn { width: 100%; justify-content: center; }
 }
