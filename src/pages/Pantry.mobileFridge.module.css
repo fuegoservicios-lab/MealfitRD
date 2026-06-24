@@ -1,0 +1,103 @@
+/* [P3-PANTRY-FRIDGE-REDESIGN · 2026-06-24] Layout móvil dedicado del apartado
+   "Nevera": topbar apilado + zonas + chips + tarjeta compacta por alimento.
+   Distinto del desktop (sidebar + lista densa); se elige por breakpoint JS
+   (useMediaQuery 760px), no por container query. Cableado a datos/handlers
+   reales (sin mock). Diseño aportado por el owner; tokens var(--*) del repo. */
+
+.app { overflow: hidden; background: var(--bg-card); border: 1px solid var(--border); border-radius: 26px; box-shadow: var(--shadow-lg); }
+
+/* Topbar */
+.top { padding: 16px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 13px; }
+.toprow { display: flex; align-items: center; gap: 11px; }
+.title { margin: 0; font-family: var(--font-heading); font-size: 1.2rem; font-weight: 800; letter-spacing: -.02em; display: flex; align-items: center; gap: 9px; color: var(--text-main); }
+.title svg { color: var(--primary); }
+.count { margin-left: auto; font-size: .72rem; font-weight: 700; color: var(--text-muted); background: var(--bg-muted); border: 1px solid var(--border); padding: 4px 10px; border-radius: 99px; white-space: nowrap; }
+.count b { color: var(--text-main); font-weight: 800; }
+
+.search { position: relative; }
+.search > svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-light); pointer-events: none; }
+.search input { width: 100%; height: 44px; border-radius: 13px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text-main); font: inherit; font-size: 16px; padding: 0 14px 0 40px; outline: none; transition: .15s; }
+.search input::placeholder { color: var(--text-light); }
+.search input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent); }
+
+.actions { display: flex; gap: 9px; }
+.btn { flex: 1; appearance: none; cursor: pointer; font: inherit; font-size: .8rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid transparent; transition: .15s; }
+.add { color: #0B1120; background: linear-gradient(120deg, var(--primary-light), var(--primary)); box-shadow: 0 8px 18px -8px var(--primary); }
+.add:hover { filter: brightness(1.06); }
+.clear { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
+
+/* Zonas + temperatura */
+.bar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.zones { display: inline-flex; gap: 4px; background: var(--bg-muted); border: 1px solid var(--border); border-radius: 12px; padding: 4px; }
+.zone { appearance: none; border: 0; cursor: pointer; font: inherit; font-size: .8rem; font-weight: 700; padding: 8px 15px; border-radius: 9px; color: var(--text-muted); background: transparent; transition: .16s; display: inline-flex; align-items: center; gap: 7px; }
+.zone[aria-selected="true"] { background: var(--bg-card); color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.temp { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: .76rem; font-weight: 700; color: #67E8F9; background: color-mix(in srgb, #22D3EE 12%, transparent); border: 1px solid color-mix(in srgb, #22D3EE 30%, transparent); padding: 7px 13px; border-radius: 99px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #34D399; box-shadow: 0 0 8px #34D399; }
+
+/* Chips */
+.chips { display: flex; gap: 7px; padding: 12px 16px 2px; overflow-x: auto; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.fchip { --cat: var(--primary); appearance: none; cursor: pointer; font: inherit; font-size: .76rem; font-weight: 700; white-space: nowrap; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 99px; color: var(--text-muted); background: var(--bg-page); border: 1px solid var(--border); transition: .15s; }
+.fchip:hover { color: var(--text-main); }
+.fchip[aria-pressed="true"] { color: var(--cat); background: color-mix(in srgb, var(--cat) 13%, transparent); border-color: color-mix(in srgb, var(--cat) 35%, transparent); }
+.fchip b { font-weight: 800; }
+.cdot { width: 8px; height: 8px; border-radius: 3px; background: var(--cat); }
+
+/* Banner: nevera baja (server-driven) */
+.lowBanner { display: flex; align-items: flex-start; gap: 10px; margin: 14px 16px 0; padding: 12px 14px; border-radius: 13px; font-size: .82rem; line-height: 1.45; color: var(--text-main); background: color-mix(in srgb, #FBBF24 11%, transparent); border: 1px solid color-mix(in srgb, #FBBF24 30%, transparent); }
+.lowBanner svg { flex: none; color: #FBBF24; margin-top: 1px; }
+.lowBanner strong { font-weight: 800; }
+
+/* Contenido */
+.body { padding: 4px 16px 24px; }
+.cat { margin-top: 18px; }
+.cathead { display: flex; align-items: center; gap: 9px; margin: 0 0 11px; font-size: .74rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.catico { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--cat); background: color-mix(in srgb, var(--cat) 16%, transparent); border: 1px solid color-mix(in srgb, var(--cat) 28%, transparent); }
+.catname { color: var(--text-main); }
+.catn { font-size: .66rem; font-weight: 800; color: var(--cat); background: color-mix(in srgb, var(--cat) 14%, transparent); padding: 2px 8px; border-radius: 99px; }
+
+.grid { display: flex; flex-direction: column; gap: 8px; }
+
+/* Tarjeta compacta de una fila (móvil) */
+.item { --cat: var(--primary); position: relative; background: var(--bg-page); border: 1px solid var(--border); border-radius: 15px; padding: 12px 13px; display: flex; align-items: center; flex-wrap: wrap; row-gap: 10px; column-gap: 8px; transition: border-color .15s, opacity .2s; }
+.item.low { border-color: color-mix(in srgb, #FBBF24 45%, transparent); }
+.item.out { opacity: .55; }
+.itop { flex: 1 1 100%; display: flex; align-items: center; gap: 8px; }
+.iname { font-size: .92rem; font-weight: 700; line-height: 1.25; color: var(--text-main); flex: 1; min-width: 0; }
+.del { flex: none; width: 26px; height: 26px; border-radius: 7px; border: 1px solid transparent; background: transparent; color: var(--text-light); cursor: pointer; display: grid; place-items: center; transition: .15s; }
+.del:hover { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
+.imeta { order: 2; flex: 1 1 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.unit { font-size: .66rem; font-weight: 700; color: var(--cat); background: color-mix(in srgb, var(--cat) 13%, transparent); border: 1px solid color-mix(in srgb, var(--cat) 28%, transparent); padding: 3px 9px; border-radius: 7px; white-space: nowrap; }
+.lowtag { display: inline-flex; align-items: center; gap: 4px; font-size: .62rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: #FBBF24; }
+.shelf { display: inline-flex; align-items: center; gap: 4px; font-size: .62rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.disabledTag { display: inline-flex; align-items: center; gap: 4px; font-size: .62rem; font-weight: 800; text-transform: uppercase; color: var(--danger-text); }
+.irow { flex: 1 1 100%; display: flex; align-items: center; gap: 8px; }
+.stepper { display: inline-flex; align-items: center; background: var(--bg-card); border: 1px solid var(--border); border-radius: 11px; overflow: hidden; }
+.stepBtn { appearance: none; border: 0; cursor: pointer; width: 36px; height: 38px; background: transparent; color: var(--text-main); display: grid; place-items: center; transition: .14s; touch-action: manipulation; user-select: none; }
+.stepBtn:hover:not(:disabled) { background: var(--bg-muted); }
+.stepBtn:disabled { opacity: .3; cursor: default; }
+.qty { appearance: none; border: 0; cursor: pointer; min-width: 48px; height: 38px; text-align: center; font: inherit; font-weight: 800; font-size: .92rem; font-variant-numeric: tabular-nums; color: var(--text-main); background: transparent; touch-action: manipulation; }
+.qty:hover { background: var(--bg-muted); }
+.agotar { margin-left: auto; appearance: none; cursor: pointer; font: inherit; font-size: .74rem; font-weight: 700; color: var(--text-muted); background: transparent; border: 1px solid var(--border); border-radius: 10px; min-height: 38px; padding: 0 13px; transition: .15s; white-space: nowrap; }
+.agotar:hover { color: var(--danger-text); border-color: var(--danger-border); background: var(--danger-bg); }
+
+.empty { padding: 44px 12px; text-align: center; color: var(--text-light); font-size: .88rem; line-height: 1.5; }
+.empty b { display: block; color: var(--text-muted); font-size: 1rem; font-weight: 800; margin-bottom: 6px; }
+
+/* Agotados (depleted) */
+.depleted { margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--border); }
+.depHead { display: flex; align-items: center; gap: 8px; font-size: .82rem; font-weight: 800; color: var(--text-muted); }
+.depHead svg { color: var(--text-light); }
+.depCount { font-size: .7rem; font-weight: 800; color: var(--text-muted); background: var(--bg-muted); border: 1px solid var(--border); padding: 1px 8px; border-radius: 99px; }
+.depSub { margin: 5px 0 11px; font-size: .74rem; color: var(--text-light); }
+.depItem { background: var(--bg-page); border: 1px solid var(--border); border-radius: 15px; padding: 12px 13px; display: flex; align-items: center; flex-wrap: wrap; gap: 9px; opacity: .85; margin-bottom: 8px; }
+.depName { flex: 1 1 100%; font-size: .9rem; font-weight: 700; color: var(--text-muted); }
+.depMeta { font-size: .72rem; color: var(--text-light); }
+.reponer { margin-left: auto; appearance: none; cursor: pointer; font: inherit; font-size: .74rem; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; color: var(--secondary); background: color-mix(in srgb, var(--secondary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--secondary) 32%, transparent); border-radius: 10px; min-height: 36px; padding: 0 13px; transition: .15s; }
+.reponer:hover { filter: brightness(1.08); }
+.dismiss { flex: none; width: 32px; height: 36px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--text-light); cursor: pointer; display: grid; place-items: center; transition: .15s; }
+.dismiss:hover { color: var(--danger-text); background: var(--danger-bg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .zone, .fchip, .item, .btn, .add, .stepBtn, .agotar, .del, .reponer, .dismiss { transition: none; }
+}
