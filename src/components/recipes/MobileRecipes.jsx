@@ -67,7 +67,7 @@ export function MobileRecipes({
       {/* Barra superior fija */}
       <header className={styles.top}>
         <div className={styles.topRow}>
-          <h1>Recetas</h1>
+          <h1>Recetario</h1>
           <span className={styles.sum}>Meta · <b>{Number(dayKcal || 0).toLocaleString('es-DO')}</b> kcal</span>
         </div>
         {days.length > 1 && (
