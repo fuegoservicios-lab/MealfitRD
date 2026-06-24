@@ -196,26 +196,30 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onC
         <div>
           <h3 className={styles.secHead} style={{ '--accent': t.tone }}>Instrucciones</h3>
           {steps.length > 0 ? (
-            <>
-              <div className={styles.steps}>
-                {steps.map((raw, i) => {
-                  const si = STEP_ICONS[i % STEP_ICONS.length];
-                  const done = doneSteps.has(i);
-                  const { title, body } = parseStep(raw);
-                  return (
-                    <div key={i} className={`${styles.step} ${done ? styles.done : ''}`}
-                         style={{ '--stone': si.c }} onClick={() => toggleStep(i)}>
-                      <span className={styles.node}>{done ? <Svg d={ICONS.check} size={18} /> : i + 1}</span>
-                      <div className={styles.stepCard}>
-                        {title && <div className={styles.stepTitle}>{title}</div>}
-                        <div className={styles.stepText}>{renderBold(body)}</div>
-                      </div>
+            <div className={styles.steps}>
+              {steps.map((raw, i) => {
+                const si = STEP_ICONS[i % STEP_ICONS.length];
+                const done = doneSteps.has(i);
+                const { title, body } = parseStep(raw);
+                return (
+                  <div key={i} className={`${styles.step} ${done ? styles.done : ''}`}
+                       style={{ '--stone': si.c }} onClick={() => toggleStep(i)}>
+                    <span className={styles.node}>{done ? <Svg d={ICONS.check} size={18} /> : i + 1}</span>
+                    <div className={styles.stepCard}>
+                      {title && <div className={styles.stepTitle}>{title}</div>}
+                      <div className={styles.stepText}>{renderBold(body)}</div>
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              })}
+              {/* Cierre del timeline: nodo verde + tarjeta — mismo diseño que los pasos. */}
+              <div className={`${styles.step} ${styles.finish}`}>
+                <span className={styles.node}><Svg d={ICONS.check} size={18} /></span>
+                <div className={styles.stepCard}>
+                  <div className={styles.finishText}>¡Listo para disfrutar!</div>
+                </div>
               </div>
-              <div className={styles.stepDone}><Svg d={ICONS.check} size={17} /> ¡Listo para disfrutar!</div>
-            </>
+            </div>
           ) : (
             <div className={styles.empty}>No hay pasos detallados. Guíate de la descripción general.</div>
           )}

@@ -95,11 +95,11 @@
 .step.done .node { background: var(--secondary); border-color: var(--secondary); color: #04221d; }
 .step.done .stepCard { background: color-mix(in srgb, var(--secondary) 8%, var(--bg-page)); border-color: color-mix(in srgb, var(--secondary) 35%, transparent); }
 .step.done .stepTitle { color: var(--secondary); }
-/* [P3-RECIPES-STEPDONE-ALIGN · 2026-06-24] Alinea con las TARJETAS de paso
-   (margin-left = nodo 38px + gap 14px). [P3-RECIPES-STEPDONE-SUBTLE] Tarjeta
-   verde sutil (no bloque sólido brillante) para no chocar con el tema oscuro. */
-.stepDone { display: flex; align-items: center; gap: 10px; margin: 8px 0 0 52px; padding: 12px 15px; border-radius: 14px; font-size: .84rem; font-weight: 700; color: var(--text-main); background: color-mix(in srgb, var(--secondary) 11%, var(--bg-page)); border: 1px solid color-mix(in srgb, var(--secondary) 32%, transparent); }
-.stepDone svg { flex: none; color: var(--secondary); }
+/* [P3-RECIPES-STEPDONE-CARD · 2026-06-24] "¡Listo!" = paso final del timeline:
+   nodo verde (check) + tarjeta dark idéntica a los pasos (no un banner aparte). */
+.finish { cursor: default; }
+.finish .node { background: var(--secondary); border-color: var(--secondary); color: #04221d; }
+.finishText { font-family: var(--font-heading); font-size: .92rem; font-weight: 800; letter-spacing: -.01em; color: var(--secondary); }
 
 .empty { text-align: center; padding: 3rem 1.5rem; background: var(--bg-page); border: 1px dashed var(--border); border-radius: 16px; color: var(--text-muted); font-size: .9rem; }
 
