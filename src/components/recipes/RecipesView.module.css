@@ -95,7 +95,9 @@
 .step.done .node { background: var(--secondary); border-color: var(--secondary); color: #04221d; }
 .step.done .stepCard { background: color-mix(in srgb, var(--secondary) 8%, var(--bg-page)); border-color: color-mix(in srgb, var(--secondary) 35%, transparent); }
 .step.done .stepTitle { color: var(--secondary); }
-.stepDone { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 11px 14px; border-radius: 13px; font-size: .82rem; font-weight: 700; color: #04221d; background: linear-gradient(120deg, var(--secondary-light), var(--secondary)); }
+/* [P3-RECIPES-STEPDONE-ALIGN · 2026-06-24] Alinea el banner con las TARJETAS de
+   paso (no con los nodos): margin-left = ancho del nodo (38px) + gap (14px). */
+.stepDone { display: flex; align-items: center; gap: 8px; margin: 6px 0 0 52px; padding: 11px 14px; border-radius: 13px; font-size: .82rem; font-weight: 700; color: #04221d; background: linear-gradient(120deg, var(--secondary-light), var(--secondary)); }
 
 .empty { text-align: center; padding: 3rem 1.5rem; background: var(--bg-page); border: 1px dashed var(--border); border-radius: 16px; color: var(--text-muted); font-size: .9rem; }
 
