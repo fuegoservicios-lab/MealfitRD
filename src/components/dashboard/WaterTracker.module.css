@@ -1,0 +1,168 @@
+/* [P3-WATER-TRACKER · 2026-05-16 · P3-WATER-HALF-GLASS · 2026-06-24]
+   Card "Hidratación" rediseñado: vaso animado con olas, vasos táctiles (medios
+   vasos), atajos (Sorbo/Vaso/Botella), stepper de ½, reiniciar y racha.
+   Responsive por ANCHO DEL CONTENEDOR (container query) → funciona igual en la
+   columna del Dashboard (desktop) y full-width (móvil). El resto usa tokens del DS. */
+
+.card {
+  --water-1: #67E8F9;
+  --water-2: #22D3EE;
+  --water-3: #0EA5E9;
+  --water-deep: #0284C7;
+
+  container-type: inline-size;
+  overflow: hidden;
+  margin-bottom: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(34, 211, 238, .10), transparent 45%),
+    var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+.inner {
+  display: grid;
+  grid-template-columns: minmax(190px, 240px) 1fr;
+  align-items: stretch;
+  gap: 22px;
+  padding: 22px;
+}
+
+/* ---------- Vaso ---------- */
+.vessel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 6px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--water-3) 6%, transparent);
+}
+.glass {
+  position: relative;
+  width: 128px;
+  height: 196px;
+  flex: none;
+  border-radius: 18px 18px 26px 26px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--text-light) 12%, transparent);
+  box-shadow:
+    inset 0 0 0 3px color-mix(in srgb, var(--text-light) 22%, transparent),
+    inset 0 -10px 24px rgba(0, 0, 0, .18);
+}
+.water {
+  position: absolute;
+  inset: auto 0 0 0;
+  background: linear-gradient(180deg, var(--water-2), var(--water-3) 60%, var(--water-deep));
+  box-shadow: 0 0 30px rgba(34, 211, 238, .5);
+  transition: height .7s cubic-bezier(.16, 1, .3, 1);
+}
+.waveWrap { position: absolute; left: 0; top: -13px; width: 200%; height: 15px; line-height: 0; }
+.waveWrap svg { width: 100%; height: 100%; display: block; }
+.wave1, .wave2 { fill: var(--water-2); }
+.wave1 { opacity: .55; animation: wave 2.6s linear infinite; }
+.wave2 { opacity: 1; animation: wave 3.8s linear infinite reverse; }
+@keyframes wave { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .wave1, .wave2 { animation: none; } }
+
+.glassCenter {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  pointer-events: none; text-shadow: 0 1px 6px rgba(0, 0, 0, .35);
+}
+.pct { font-family: var(--font-heading); font-size: 2.3rem; font-weight: 800; line-height: 1; color: #fff; letter-spacing: -.02em; }
+.pctSub { font-size: .72rem; font-weight: 700; color: rgba(255, 255, 255, .92); margin-top: 4px; }
+.meta { margin: 0; font-size: .82rem; font-weight: 600; color: var(--text-muted); text-align: center; }
+.meta b { color: var(--text-main); font-weight: 800; }
+
+/* ---------- Cabecera ---------- */
+.body { display: flex; flex-direction: column; min-width: 0; }
+.head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.badge {
+  flex: none; width: 42px; height: 42px; border-radius: 13px;
+  display: grid; place-items: center; color: #04222e;
+  background: linear-gradient(150deg, var(--water-1), var(--water-3));
+  box-shadow: 0 6px 16px -5px rgba(14, 165, 233, .7);
+}
+.title { margin: 0; font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800; letter-spacing: -.02em; color: var(--text-main); }
+.sub { margin: 2px 0 0; font-size: .78rem; font-weight: 600; color: var(--text-muted); line-height: 1.35; }
+.sub b { color: var(--water-2); font-weight: 800; }
+
+/* ---------- Vasos ---------- */
+.cups { display: grid; grid-template-columns: repeat(var(--cols, 8), 1fr); gap: 8px; }
+.cup {
+  appearance: none; border: 0; background: transparent; cursor: pointer; padding: 0;
+  position: relative; aspect-ratio: 3 / 4; border-radius: 8px 8px 11px 11px; overflow: hidden;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--text-light) 22%, transparent);
+  transition: transform .12s, box-shadow .18s;
+}
+.cup:hover { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--water-2) 55%, transparent); }
+.cup:active { transform: scale(.92); }
+.cup:focus-visible { outline: 2px solid var(--water-2); outline-offset: 2px; }
+.cupWater {
+  position: absolute; inset: auto 0 0 0;
+  background: linear-gradient(180deg, var(--water-1), var(--water-3));
+  transition: height .45s cubic-bezier(.16, 1, .3, 1);
+}
+.cupFull { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--water-2) 60%, transparent), 0 4px 14px -6px rgba(14, 165, 233, .6); }
+
+/* ---------- Acciones ---------- */
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 20px; }
+.chip {
+  appearance: none; cursor: pointer; font: inherit; font-size: .8rem; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 7px; min-height: 42px; padding: 0 15px; border-radius: 13px;
+  color: var(--water-2);
+  background: color-mix(in srgb, var(--water-2) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--water-2) 28%, transparent);
+  transition: .15s;
+}
+.chip:hover { background: color-mix(in srgb, var(--water-2) 20%, transparent); }
+.chip:active { transform: translateY(1px); }
+.chip:disabled { opacity: .4; cursor: default; transform: none; }
+.chip small { font-size: .66rem; font-weight: 600; color: var(--text-muted); }
+
+.stepper {
+  display: inline-flex; align-items: center; gap: 2px; margin-left: auto;
+  background: var(--bg-muted); border: 1px solid var(--border); border-radius: 13px; padding: 3px;
+}
+.stepper button {
+  appearance: none; border: 0; cursor: pointer; width: 38px; height: 38px; border-radius: 10px;
+  background: transparent; color: var(--text-main); display: grid; place-items: center; transition: .15s;
+}
+.stepper button:hover { background: var(--bg-card); }
+.stepper button:disabled { opacity: .35; cursor: default; }
+
+/* ---------- Pie: racha + reiniciar ---------- */
+.foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border);
+}
+.streak { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; font-weight: 700; color: var(--water-2); }
+.streak svg { color: var(--water-3); }
+.reset {
+  appearance: none; cursor: pointer; font: inherit; font-size: .78rem; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px;
+  background: transparent; border: 0; color: var(--text-light); transition: .15s;
+}
+.reset:hover { color: var(--text-main); background: var(--bg-muted); }
+.reset:disabled { opacity: .4; cursor: default; }
+
+.done {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; padding: 11px 14px; border-radius: 13px;
+  font-size: .84rem; font-weight: 700; color: #04222e;
+  background: linear-gradient(120deg, var(--water-1), var(--water-2));
+  animation: pop .4s cubic-bezier(.16, 1, .3, 1);
+}
+@keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* ---------- Responsive (por ancho del contenedor) ---------- */
+@container (max-width: 540px) {
+  .inner { grid-template-columns: 1fr; padding: 18px; }
+  .vessel { flex-direction: row; justify-content: center; gap: 18px; padding: 14px; }
+  .glass { width: 104px; height: 158px; }
+  .pct { font-size: 1.9rem; }
+  .stepper { margin-left: 0; }
+}
