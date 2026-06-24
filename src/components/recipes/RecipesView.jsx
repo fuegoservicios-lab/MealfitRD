@@ -122,7 +122,6 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onC
   }, [meal]);
 
   const ingredients = meal.ingredients || [];
-  const allStepsDone = doneSteps.size >= steps.length && steps.length > 0;
 
   return (
     <div className={styles.detail} style={{ '--tone': t.tone }}>
@@ -212,9 +211,7 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onC
                   );
                 })}
               </div>
-              {allStepsDone && (
-                <div className={styles.stepDone}><Svg d={ICONS.check} size={17} /> ¡Listo para disfrutar!</div>
-              )}
+              <div className={styles.stepDone}><Svg d={ICONS.check} size={17} /> ¡Listo para disfrutar!</div>
             </>
           ) : (
             <div className={styles.empty}>No hay pasos detallados. Guíate de la descripción general.</div>

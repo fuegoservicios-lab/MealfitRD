@@ -93,7 +93,11 @@
 
 .empty { text-align: center; padding: 3rem 1.5rem; background: var(--bg-page); border: 1px dashed var(--border); border-radius: 16px; color: var(--text-muted); font-size: .9rem; }
 
-/* Responsive según ancho del contenedor */
+/* Responsive según ancho del contenedor (container query) Y del viewport
+   (@media, fallback fiable). [P3-RECIPES-MOBILE-FIX · 2026-06-24] El container
+   query no siempre dispara en el contexto del app-shell (la columna del riel a
+   330px dejaba el detalle invisible en móvil); el @media garantiza el colapso a
+   1 columna en pantallas estrechas. Ambos comparten reglas. */
 @container (max-width: 880px) {
   .layout { grid-template-columns: 1fr; }
   .rail { border-right: 0; border-bottom: 1px solid var(--border); flex-direction: row; overflow-x: auto; scrollbar-width: none; }
@@ -103,7 +107,25 @@
   .cols { grid-template-columns: 1fr; gap: 24px; }
   .title { font-size: 1.4rem; }
 }
+@media (max-width: 880px) {
+  .layout { grid-template-columns: 1fr; }
+  .rail { border-right: 0; border-bottom: 1px solid var(--border); flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  .rail::-webkit-scrollbar { display: none; }
+  .railHead { display: none; }
+  .meal { flex: 0 0 232px; min-width: 0; }
+  .cols { grid-template-columns: 1fr; gap: 24px; }
+  .title { font-size: 1.4rem; }
+}
 @container (max-width: 560px) {
+  .macros { flex-direction: column; align-items: stretch; }
+  .donut { align-self: center; }
+  .macroRow { flex-direction: column; }
+  .actions { flex-direction: column; }
+  .btn { width: 100%; justify-content: center; }
+}
+@media (max-width: 560px) {
+  .top { padding: 14px 14px; }
+  .detail { padding: 14px; }
   .macros { flex-direction: column; align-items: stretch; }
   .donut { align-self: center; }
   .macroRow { flex-direction: column; }
