@@ -129,15 +129,22 @@ export const resolveShopQty = (item) => {
  * @param {string|number|null|undefined} value
  * @returns {string} Texto seguro para interpolar dentro de innerHTML.
  */
+const HTML_ESCAPES = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+};
+
+const HTML_ESCAPE_REGEX = /[&<>"']/g;
+
+// ⚡ Bolt: Aggregated sequential string replacements into a single pre-compiled RegExp
+// mapped to a dictionary to reduce O(M*N) string passes to a single O(N) pass.
 export const escapeHtml = (value) => {
     if (value === null || value === undefined) return '';
     const str = typeof value === 'string' ? value : String(value);
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    return str.replace(HTML_ESCAPE_REGEX, (match) => HTML_ESCAPES[match]);
 };
 
 export const getActiveShoppingList = (planData, duration) => {
