@@ -55,7 +55,7 @@ export function RecipesView({
             ))}
           </div>
         )}
-        <span className={styles.sum}>Total del día · <b>{Number(dayKcal || 0).toLocaleString('es-DO')}</b> kcal</span>
+        <span className={styles.sum}>Meta del día · <b>{Number(dayKcal || 0).toLocaleString('es-DO')}</b> kcal</span>
       </header>
 
       <div className={styles.layout}>

@@ -901,7 +901,13 @@ const Recipes = () => {
                         const activeMeal = validMeals[currentMealIndex];
                         // [P2-RECIPE-DISCLAIMER-LIST] pasos coercidos a array (defensa).
                         const activeRecipeSteps = toRecipeSteps(activeMeal.recipe);
-                        const dayKcal = validMeals.reduce((s, m) => s + (m.cals || 0), 0);
+                        // [P3-RECIPES-DAY-GOAL · 2026-06-24] El header muestra la META
+                        // calórica del día (objetivo del plan = mismo `planData.calories`
+                        // que usa TrackingProgress), NO la suma de los platos — que puede
+                        // quedar ~50 kcal corta por redondeo de porciones. Fallback a la
+                        // suma si el plan no trae target.
+                        const _mealsKcal = validMeals.reduce((s, m) => s + (m.cals || 0), 0);
+                        const dayKcal = parseInt(planData?.calories) || _mealsKcal;
 
                         // Días del chunk → pestañas (nombre = grocery_start_date + globalIdx).
                         const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
