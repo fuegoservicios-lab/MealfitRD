@@ -344,96 +344,83 @@
 --------------------------------------------------------------------------- */
 @media (max-width: 540px) {
     .panel {
-        padding: 1.15rem 0.95rem 1.2rem;
+        padding: 1.25rem 1.1rem 1.35rem;
         border-radius: 1.25rem;
     }
 
     /* Header con un poco más de presencia en pantalla chica. */
-    .head { margin-bottom: 1.05rem; }
+    .head { margin-bottom: 1rem; }
     .headText { gap: 3px; }
     .title { font-size: 1rem; }
     .sub { line-height: 1.4; }
 
     .intro {
-        margin: -0.05rem 0 1.05rem;
+        margin: -0.05rem 0 0.55rem;
         font-size: 0.78rem;
         line-height: 1.55;
     }
 
-    /* ===== Tarjetas por nutriente (diseño exclusivo de móvil) =====
-       Cada métrica deja de ser una fila plana y pasa a ser una TARJETA con
-       tinte + barra de acento lateral del color de severidad → la gravedad se
-       escanea de un vistazo y cada nutriente respira en su propio recuadro. */
-    .meters { gap: 0.7rem; }
+    /* ===== Diseño minimalista y aireado (exclusivo de móvil) =====
+       Sin tarjetas ni fondos de color: mucho aire, una hairline fina de
+       separación entre nutrientes y tipografía clara. El color vive SÓLO en
+       el chip de estado. */
+    .meters { gap: 0; }
 
+    /* Cada nutriente: respiro generoso arriba + línea fina full-bleed. */
     .meter {
-        position: relative;
-        padding: 0.85rem 0.95rem 0.8rem 1.1rem;
-        border-radius: 1rem;
-        background: color-mix(in srgb, var(--tone) 9%, var(--bg-card));
-        border: 1px solid color-mix(in srgb, var(--tone) 26%, transparent);
-        overflow: hidden;
+        padding: 1.1rem 0 0;
+        margin-top: 1.1rem;
+        border-top: 1px solid var(--border);
     }
-    /* Barra de acento lateral = severidad. */
-    .meter::before {
-        content: '';
-        position: absolute;
-        inset: 0 auto 0 0;
-        width: 4px;
-        background: linear-gradient(180deg, var(--tone), var(--tone-2));
+    .meter:first-child {
+        padding-top: 0.65rem;
+        margin-top: 0;
+        border-top: none;
     }
 
-    /* La métrica interactiva usa la MISMA tarjeta (anula el bleed de escritorio)
-       y da feedback de toque con :active (en móvil no hay hover). */
+    /* La métrica interactiva: misma fila aireada, sin bleed ni recuadro. */
     .clickable {
         width: 100%;
-        margin: 0;
-        padding: 0.85rem 0.95rem 0.8rem 1.1rem;
-        border-radius: 1rem;
-        background: color-mix(in srgb, var(--tone) 9%, var(--bg-card));
-        border: 1px solid color-mix(in srgb, var(--tone) 26%, transparent);
+        margin: 1.1rem 0 0;
+        padding: 1.1rem 0 0;
+        border: none;
+        border-top: 1px solid var(--border);
+        border-radius: 0;
+        background: transparent;
     }
-    .clickable:active {
-        background: color-mix(in srgb, var(--tone) 16%, var(--bg-card));
-        border-color: color-mix(in srgb, var(--tone) 42%, transparent);
+    .clickable:first-child {
+        margin-top: 0;
+        padding-top: 0.65rem;
+        border-top: none;
     }
+    .clickable:active { background: transparent; }
 
-    .meterTop { margin-bottom: 0.4rem; }
-    .nutrient { font-size: 0.95rem; }
+    .meterTop { margin-bottom: 0.5rem; }
+    .nutrient { font-size: 0.98rem; }
 
     .gapText {
-        font-size: 0.88rem;
-        line-height: 1.45;
-        margin-bottom: 0.6rem;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin-bottom: 0.55rem;
     }
 
-    .values { font-size: 0.74rem; }
+    .values { font-size: 0.75rem; }
 
-    /* "Mejorar": sin hover en móvil, lo volvemos un chip SIEMPRE visible. */
+    /* "Mejorar": sin hover en móvil → siempre visible, pero discreto:
+       sólo texto + icono en el color de severidad, sin chip ni fondo. */
     .askHint {
         opacity: 1;
         color: var(--tone);
-        padding: 3px 10px;
-        border-radius: 99px;
-        background: color-mix(in srgb, var(--tone) 15%, transparent);
-        border: 1px solid color-mix(in srgb, var(--tone) 32%, transparent);
-        font-size: 0.7rem;
+        font-size: 0.72rem;
     }
 
-    /* ===== Sugerencias como mini-tarjetas violeta (mismo lenguaje visual) ===== */
+    /* Sugerencias: más aire entre ítems, sin recuadros. */
     .supps {
-        margin-top: 1.3rem;
-        padding-top: 1.1rem;
-        gap: 0.6rem;
+        margin-top: 1.4rem;
+        padding-top: 1.15rem;
+        gap: 1rem;
     }
-    .supp {
-        padding: 0.7rem 0.8rem;
-        border-radius: 0.85rem;
-        background: color-mix(in srgb, #A78BFA 8%, var(--bg-card));
-        border: 1px solid color-mix(in srgb, #A78BFA 22%, transparent);
-    }
-    .suppIcon { margin-top: 2px; }
-    .suppBody { gap: 0.3rem; }
+    .suppBody { gap: 0.32rem; }
     .suppName { font-size: 0.9rem; }
     .suppHint { line-height: 1.55; }
 }
