@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 // apunta al Postgres stale de el backend anterior).
 import { fetchWithAuth, deletePlanFromHistory, getHistoryList, getLessonsCounts, getPlanLessonsDetail, getPlanCoherenceHistory, getHistoryStatusSummary, getPlanBlockedReasons, getPlanChunkMetrics, getPlanLifetimeLessons, renamePlan } from '../config/api';
 import { useAssessment } from '../context/AssessmentContext';
-import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles, Search } from 'lucide-react';
+import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles, Search, Sun, Moon, Coffee, Fish } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -58,6 +58,24 @@ import HistoryMobilePanel from '../components/history/HistoryMobilePanel';
 // [P-HISTORY-DAY-LABELS] Nombres de día (mismo SSOT que Recipes.jsx y
 // Dashboard.jsx). Capitalizados para títulos ("Menú — Viernes") y tabs.
 const _DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+// [P3-HIST-MODAL-MENU-CARDS · 2026-06-24] Estilo por tipo de comida para las
+// tarjetas del menú del modal (diseño del owner: cuadro de ícono coloreado +
+// label coloreado). Mapea por el texto del tipo; fallback ciclando por índice.
+const _MEAL_TYPE_STYLES = [
+    { tone: '#FBBF24', Icon: Sun },    // Desayuno
+    { tone: '#34D399', Icon: Fish },   // Almuerzo
+    { tone: '#38BDF8', Icon: Coffee }, // Merienda
+    { tone: '#A78BFA', Icon: Moon },   // Cena
+];
+function _mealTypeStyle(label, idx) {
+    const s = String(label || '').toLowerCase();
+    if (s.includes('desayuno')) return _MEAL_TYPE_STYLES[0];
+    if (s.includes('almuerzo') || s.includes('comida')) return _MEAL_TYPE_STYLES[1];
+    if (s.includes('merienda') || s.includes('snack')) return _MEAL_TYPE_STYLES[2];
+    if (s.includes('cena')) return _MEAL_TYPE_STYLES[3];
+    return _MEAL_TYPE_STYLES[idx % _MEAL_TYPE_STYLES.length];
+}
 
 // [P1-HIST-4 · 2026-05-09] Timestamp efectivo para ordenar el historial.
 // Antes el listado se ordenaba solo por `created_at` desc — un plan
@@ -4442,21 +4460,27 @@ const History = () => {
                                         // [P4-HIST-ARRAY-GUARD] Array.isArray: un meals no-array
                                         // (legacy) lanzaba TypeError en .map y tumbaba el modal.
                                         return Array.isArray(_mealsArr) ? _mealsArr : [];
-                                    })()?.map((meal, idx) => (
-                                        <div key={idx} className={styles.menuItem}>
-                                            <div className={styles.menuIcon}>
-                                                {idx === 0 ? '🍳' : idx === 1 ? '🍲' : idx === 2 ? '🥗' : '🍎'}
-                                            </div>
-                                            <div style={{ flex: 1 }}>
-                                                <div className={styles.menuMealType}>{meal.meal}</div>
-                                                <div className={styles.menuMealName}>{meal.name}</div>
+                                    })()?.map((meal, idx) => {
+                                        // [P3-HIST-MODAL-MENU-CARDS · 2026-06-24] Tarjeta estilo
+                                        // bottom-sheet (diseño del owner): cuadro de ícono coloreado
+                                        // por tipo (sol/pez/taza/luna) + label coloreado + nombre +
+                                        // pastilla kcal. El color es dinámico → estilos inline.
+                                        const _ms = _mealTypeStyle(meal.meal, idx);
+                                        const MealIcon = _ms.Icon;
+                                        return (
+                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: 12, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--bg-page)' }}>
+                                            <span style={{ flex: 'none', width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', color: _ms.tone, background: `color-mix(in srgb, ${_ms.tone} 16%, transparent)`, border: `1px solid color-mix(in srgb, ${_ms.tone} 28%, transparent)` }}>
+                                                <MealIcon size={21} />
+                                            </span>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: _ms.tone }}>{meal.meal}</div>
+                                                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.3, marginTop: 2 }}>{meal.name}</div>
                                             </div>
                                             {meal.cals && (
                                                 /* [P3-HIST-KCAL-BADGE-DARK · 2026-06-24] Tinte naranja
-                                                   translúcido (en vez del fondo crema #FFF7ED hardcoded
-                                                   que en modo oscuro se veía como una pastilla brillante).
-                                                   Adapta a ambos temas: el tinte se mezcla con la superficie. */
+                                                   translúcido, adapta a ambos temas. */
                                                 <span style={{
+                                                    flex: 'none',
                                                     fontSize: '0.78rem', fontWeight: 800,
                                                     color: '#FB923C',
                                                     background: 'color-mix(in srgb, #FB923C 15%, transparent)',
@@ -4467,7 +4491,8 @@ const History = () => {
                                                 </span>
                                             )}
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
 
                                 {/* [P3-HIST-MISSING-DAYS-REMOVED · 2026-05-19]

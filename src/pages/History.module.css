@@ -1747,6 +1747,22 @@
         font-size: 0.65rem;
     }
 
+    /* [P3-HIST-MODAL-BOTTOMSHEET · 2026-06-24] En móvil el modal de detalle es un
+       bottom-sheet: anclado abajo (overlay flex-end), ancho completo, esquinas
+       redondeadas solo arriba. El footer "Reactivar este Plan" ya es un footer fijo
+       del flex-column de .modalContent → así queda pegado al borde inferior. */
+    .modalOverlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .modalContent {
+        width: 100%;
+        max-width: 100%;
+        max-height: 92vh;
+        border-radius: 1.5rem 1.5rem 0 0;
+    }
+
     .modalHeader {
         padding: 1.25rem;
     }
