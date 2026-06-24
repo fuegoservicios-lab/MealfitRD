@@ -344,59 +344,97 @@
 --------------------------------------------------------------------------- */
 @media (max-width: 540px) {
     .panel {
-        padding: 1.2rem 1.05rem 1.2rem;
+        padding: 1.15rem 0.95rem 1.2rem;
+        border-radius: 1.25rem;
     }
 
-    /* Header: el subtítulo respira y no se pega al título. */
-    .head { margin-bottom: 1.1rem; }
+    /* Header con un poco más de presencia en pantalla chica. */
+    .head { margin-bottom: 1.05rem; }
     .headText { gap: 3px; }
+    .title { font-size: 1rem; }
     .sub { line-height: 1.4; }
 
     .intro {
-        margin: -0.1rem 0 1rem;
+        margin: -0.05rem 0 1.05rem;
         font-size: 0.78rem;
         line-height: 1.55;
     }
 
-    /* La separación entre filas la dan el padding y el divisor (no el gap del
-       flex) para que el divisor quede alineado full-bleed con la fila. */
-    .meters { gap: 0; }
+    /* ===== Tarjetas por nutriente (diseño exclusivo de móvil) =====
+       Cada métrica deja de ser una fila plana y pasa a ser una TARJETA con
+       tinte + barra de acento lateral del color de severidad → la gravedad se
+       escanea de un vistazo y cada nutriente respira en su propio recuadro. */
+    .meters { gap: 0.7rem; }
 
-    .meterTop { margin-bottom: 0.45rem; }
+    .meter {
+        position: relative;
+        padding: 0.85rem 0.95rem 0.8rem 1.1rem;
+        border-radius: 1rem;
+        background: color-mix(in srgb, var(--tone) 9%, var(--bg-card));
+        border: 1px solid color-mix(in srgb, var(--tone) 26%, transparent);
+        overflow: hidden;
+    }
+    /* Barra de acento lateral = severidad. */
+    .meter::before {
+        content: '';
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 4px;
+        background: linear-gradient(180deg, var(--tone), var(--tone-2));
+    }
+
+    /* La métrica interactiva usa la MISMA tarjeta (anula el bleed de escritorio)
+       y da feedback de toque con :active (en móvil no hay hover). */
+    .clickable {
+        width: 100%;
+        margin: 0;
+        padding: 0.85rem 0.95rem 0.8rem 1.1rem;
+        border-radius: 1rem;
+        background: color-mix(in srgb, var(--tone) 9%, var(--bg-card));
+        border: 1px solid color-mix(in srgb, var(--tone) 26%, transparent);
+    }
+    .clickable:active {
+        background: color-mix(in srgb, var(--tone) 16%, var(--bg-card));
+        border-color: color-mix(in srgb, var(--tone) 42%, transparent);
+    }
+
+    .meterTop { margin-bottom: 0.4rem; }
+    .nutrient { font-size: 0.95rem; }
 
     .gapText {
-        font-size: 0.86rem;
-        line-height: 1.5;
-        margin-bottom: 0.5rem;
+        font-size: 0.88rem;
+        line-height: 1.45;
+        margin-bottom: 0.6rem;
     }
 
     .values { font-size: 0.74rem; }
 
-    /* Caso interactivo (cada métrica es un botón "Mejorar"): respiros por
-       padding generoso + divisor full-bleed entre filas. */
-    .clickable {
-        padding: 0.95rem 0.65rem;
-        border-radius: 0;
-    }
-    .clickable:first-child { padding-top: 0.35rem; }
-    .clickable + .clickable {
-        border-top: 1px solid var(--border);
-    }
-
-    /* Caso NO interactivo (sin coach): separación por margen + divisor. */
-    .meter:not(.clickable) + .meter {
-        margin-top: 1.1rem;
-        padding-top: 1.1rem;
-        border-top: 1px solid var(--border);
+    /* "Mejorar": sin hover en móvil, lo volvemos un chip SIEMPRE visible. */
+    .askHint {
+        opacity: 1;
+        color: var(--tone);
+        padding: 3px 10px;
+        border-radius: 99px;
+        background: color-mix(in srgb, var(--tone) 15%, transparent);
+        border: 1px solid color-mix(in srgb, var(--tone) 32%, transparent);
+        font-size: 0.7rem;
     }
 
-    /* Sugerencias: más aire entre el título de sección y cada ítem. */
+    /* ===== Sugerencias como mini-tarjetas violeta (mismo lenguaje visual) ===== */
     .supps {
         margin-top: 1.3rem;
         padding-top: 1.1rem;
-        gap: 0.9rem;
+        gap: 0.6rem;
     }
-    .suppBody { gap: 0.32rem; }
+    .supp {
+        padding: 0.7rem 0.8rem;
+        border-radius: 0.85rem;
+        background: color-mix(in srgb, #A78BFA 8%, var(--bg-card));
+        border: 1px solid color-mix(in srgb, #A78BFA 22%, transparent);
+    }
+    .suppIcon { margin-top: 2px; }
+    .suppBody { gap: 0.3rem; }
+    .suppName { font-size: 0.9rem; }
     .suppHint { line-height: 1.55; }
 }
 
