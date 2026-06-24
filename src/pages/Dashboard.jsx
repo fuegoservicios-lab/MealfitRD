@@ -1657,6 +1657,28 @@ const DashboardInner = () => {
         return null;  // null = "no sabemos aún" (vs false = "sabemos que NO hay items")
     }, [liveInventory, planData, formData?.groceryDuration, allPlanIngredients, buildDeltaShoppingList]);
 
+    // [P2-NEVERA-DELTA-NOTICE · 2026-06-24] Metadata del delta para el aviso IN-APP de la Nevera
+    // Inteligente. computedHasPendingShoppingItems descarta `_itemsRemoved`; este useMemo lo conserva
+    // del MISMO buildDeltaShoppingList. Antes el aviso "N ítems ya en tu Nevera / lista vacía" vivía
+    // SOLO en el HTML del PDF → tras renovar, el usuario veía la lista corta (o el botón desaparecía)
+    // sin saber que fue la Nevera Inteligente ("no aparecen los alimentos nuevos"). tooltip-anchor: P2-NEVERA-DELTA-NOTICE
+    const shoppingDeltaMeta = useMemo(() => {
+        if (liveInventory !== null && planData && (planData.aggregated_shopping_list || allPlanIngredients)) {
+            const duration = formData?.groceryDuration || 'weekly';
+            const rawList = getDeltaSourceList(planData, duration) || allPlanIngredients || [];
+            const currentDelta = buildDeltaShoppingList(rawList);
+            const itemsRemoved = currentDelta._itemsRemoved || 0;
+            const hasItems = currentDelta.length > 0;
+            return {
+                itemsRemoved,
+                isAdjusted: !!currentDelta._isAdjusted || itemsRemoved > 0,
+                hasItems,
+                isEmptyDueToPantry: !hasItems && itemsRemoved > 0,
+            };
+        }
+        return null;
+    }, [liveInventory, planData, formData?.groceryDuration, allPlanIngredients, buildDeltaShoppingList]);
+
     // [P3-RESTOCK-BTN-STABLE · 2026-05-19] Cache localStorage del último valor
     // conocido de `hasPendingShoppingItems` para bootstrap del primer paint del
     // botón "Ya compré todo". Pre-fix: P3-RESTOCK-BTN-NO-FLASH (2026-05-18)
@@ -2940,8 +2962,12 @@ const DashboardInner = () => {
                 // [P3-RESTOCK-NUDGE] En auto-fill silencioso NO navegamos (intrusivo).
                 if (!silent) navigate('/dashboard/pantry');
             } else {
-                if (!silent) toast.error(data.message || 'Error al actualizar la despensa.');
-                else throw new Error(data.message || 'restock failed'); // deja que el nudge reintente
+                // [P2-NEVERA-QUOTA-EXEMPT · 2026-06-24] Generalizar a `data.detail || data.message`: los
+                // errores tipados del backend (HTTPException) traen `detail`, no `message`, así que el
+                // genérico tragaba el motivo real. (El 402 del paywall ya no ocurre tras P1-NEVERA-QUOTA-EXEMPT.)
+                const _msg = data.detail || data.message;
+                if (!silent) toast.error(_msg || 'Error al actualizar la despensa.');
+                else throw new Error(_msg || 'restock failed'); // deja que el nudge reintente
             }
         } catch (error) {
             console.error('🛒 [RESTOCK] CATCH ERROR:', error);
@@ -4537,6 +4563,31 @@ const DashboardInner = () => {
                             </AnimatePresence>
                         </div>
 
+
+                        {/* [P2-NEVERA-DELTA-NOTICE · 2026-06-24] Aviso IN-APP de la Nevera Inteligente.
+                          * Antes el banner "N ítems ya en tu Nevera" y el empty-state "ya tienes todo"
+                          * vivían SOLO en el PDF → tras renovar, la lista salía corta o el botón "Ya compré
+                          * la lista" desaparecía sin explicación (la queja "no aparecen los alimentos nuevos").
+                          * Ahora se surfacea en pantalla. Solo con plan válido. La deducción es by-design;
+                          * esto es comunicación. */}
+                        {shoppingDeltaMeta?.itemsRemoved > 0 && !isPlanExpired && !planFinished && !isPlanCorrupted && (
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%',
+                                padding: '0.6rem 0.85rem',
+                                borderRadius: '0.85rem',
+                                background: isDark ? 'rgba(16,185,129,0.10)' : 'rgba(16,185,129,0.08)',
+                                border: `1px solid ${isDark ? 'rgba(16,185,129,0.35)' : 'rgba(16,185,129,0.30)'}`,
+                                color: isDark ? '#6EE7B7' : '#065f46',
+                                fontSize: '0.8rem', lineHeight: 1.35,
+                            }}>
+                                <Refrigerator size={16} style={{ flexShrink: 0 }} aria-hidden="true" />
+                                <span>
+                                    {shoppingDeltaMeta.isEmptyDueToPantry
+                                        ? <><strong>Ya tienes todo en tu Nevera</strong> para este ciclo ({shoppingDeltaMeta.itemsRemoved} ingrediente{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''}) — no necesitas comprar nada.</>
+                                        : <><strong>Nevera Inteligente:</strong> ajustamos tu lista — {shoppingDeltaMeta.itemsRemoved} ingrediente{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} ya {shoppingDeltaMeta.itemsRemoved > 1 ? 'están' : 'está'} en tu Nevera.</>}
+                                </span>
+                            </div>
+                        )}
 
                         {/* BOTONES LADO A LADO */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', width: '100%' }}>
