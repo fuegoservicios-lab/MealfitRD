@@ -1,4 +1,11 @@
 import React, { useMemo, useState } from "react";
+// [P3-HIST-DESKTOP-ICONS · 2026-06-24] El owner prefiere los íconos reales del
+// Historial: emojis de comida en los chips + el calendario lucide. No usar los
+// glyphs propios (sol/pez/taza/luna) para las comidas.
+import { CalendarDays } from "lucide-react";
+
+// Emojis de comida por orden (mismo SSOT que renderMealPreview / el modal real).
+const MEAL_EMOJIS = ["🍳", "🍲", "🥗", "🍎"];
 
 /**
  * HistoryDesktopPanel — vista "Historial" de escritorio (MealfitRD).
@@ -77,11 +84,7 @@ function normalizePlan(raw, activePlanId) {
     : (raw.plan_data?.days?.[0]?.meals || raw.plan_data?.meals || raw.plan_data?.perfectDay || []);
   const meals = (Array.isArray(rawMeals) ? rawMeals : [])
     .filter((m) => m && m.name && !m.isSkipped)
-    .map((m, i) => {
-      const type = TYPE_ORDER[i] || "Cena";
-      const t = MEAL_TYPES[type];
-      return { name: m.name, type, icon: t.icon, tone: t.tone };
-    });
+    .map((m, i) => ({ name: m.name, emoji: MEAL_EMOJIS[i] || "🍽️" }));
   return {
     raw,
     id: String(raw.id),
@@ -131,8 +134,8 @@ function RecipeChips({ meals, max }) {
       {shown.map((m, i) => (
         <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: ".76rem", fontWeight: 600,
           color: "var(--text-main)", background: "var(--bg-card)", border: "1px solid var(--border)", padding: "5px 10px 5px 6px", borderRadius: 99, maxWidth: 230 }}>
-          <span style={{ width: 20, height: 20, borderRadius: 6, flex: "none", display: "grid", placeItems: "center", color: m.tone }}>
-            <Icon name={m.icon} size={12} />
+          <span style={{ width: 20, height: 20, borderRadius: 6, flex: "none", display: "grid", placeItems: "center", fontSize: 12, background: "var(--bg-muted)" }}>
+            {m.emoji}
           </span>
           <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.name}</span>
         </span>
@@ -186,7 +189,7 @@ function PlanHero({ plan, onOpen, onEdit, editing, tempName, setTempName, onEdit
       background: "linear-gradient(135deg, color-mix(in srgb, var(--secondary) 14%, transparent), transparent 55%), var(--bg-page)" }}>
       <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: "linear-gradient(var(--secondary), color-mix(in srgb, var(--secondary) 40%, transparent))" }} />
       <div style={{ display: "flex", alignItems: "flex-start", gap: 15 }}>
-        <span style={emblem(50)}><Icon name="cal" size={25} /></span>
+        <span style={emblem(50)}><CalendarDays size={25} strokeWidth={2.25} /></span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", fontSize: ".62rem", fontWeight: 800,
             letterSpacing: ".07em", textTransform: "uppercase", color: "var(--secondary)", background: "color-mix(in srgb, var(--secondary) 16%, transparent)",
@@ -226,7 +229,7 @@ function PlanRow({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNam
         border: `1px solid ${h ? "color-mix(in srgb, var(--primary) 45%, var(--border))" : "var(--border)"}`,
         background: h ? "color-mix(in srgb, var(--primary) 5%, transparent)" : "var(--bg-page)",
         transform: h ? "translateY(-1px)" : "none", transition: ".15s" }}>
-      <span style={emblem(44)}><Icon name="cal" size={22} /></span>
+      <span style={emblem(44)}><CalendarDays size={22} strokeWidth={2.25} /></span>
       <div style={{ minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
           {editing ? (
