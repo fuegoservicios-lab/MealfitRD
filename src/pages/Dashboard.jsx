@@ -5928,7 +5928,7 @@ const DashboardInner = () => {
                                                     onClick={() => {
                                                         // [P3-GUEST-GATE-MEAL-ACTIONS · 2026-06-21] Invitado: cambiar plato (IA) requiere cuenta.
                                                         if (isGuest) { toast('Crea tu cuenta para cambiar platos con IA'); return; }
-                                                        if (regeneratingId === index) return;
+                                                        if (regeneratingId === index || isDayUpdating) return;
                                                         // [2026-05-29] Abrir el modal al instante; validar cuota
                                                         // en paralelo y cerrar solo si no hay créditos (evita el
                                                         // delay del fetch en cache-miss).
@@ -5938,7 +5938,7 @@ const DashboardInner = () => {
                                                             if (!hasCredits) setSwapModal(null);
                                                         });
                                                     }}
-                                                    disabled={regeneratingId === index}
+                                                    disabled={regeneratingId === index || isDayUpdating}
                                                     style={{
                                                         background: isDark ? 'linear-gradient(135deg, #EA580C 0%, #C2410C 100%)' : '#FFF7ED',
                                                         border: isDark ? '1.5px solid transparent' : '1.5px solid #FED7AA',
@@ -5946,7 +5946,7 @@ const DashboardInner = () => {
                                                         padding: '0 0.85rem',
                                                         height: 44,
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-                                                        cursor: regeneratingId === index ? 'wait' : 'pointer',
+                                                        cursor: (regeneratingId === index || isDayUpdating) ? 'wait' : 'pointer',
                                                         transition: 'all 0.2s',
                                                         opacity: 1,
                                                         fontWeight: isDark ? 750 : 650,
@@ -5959,7 +5959,7 @@ const DashboardInner = () => {
                                                     <RefreshCw
                                                         size={18}
                                                         color={isDark ? '#FFFFFF' : '#EA580C'}
-                                                        className={regeneratingId === index ? "spin-fast" : ""}
+                                                        className={(regeneratingId === index || isDayUpdating) ? "spin-fast" : ""}
                                                     />
                                                     <span style={{ whiteSpace: 'nowrap' }}>Cambiar Plato</span>
                                                 </button>
