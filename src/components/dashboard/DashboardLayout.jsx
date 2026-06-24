@@ -99,6 +99,10 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     // (sin el padding horizontal del mainContent) para máxima visibilidad —
     // conservando header y BottomTabBar (a diferencia de noPaddingMobile).
     const isRecipes = location.pathname.startsWith('/dashboard/recipes');
+    // [P3-PANTRY-EDGE-MOBILE · 2026-06-24] Nevera edge-to-edge en móvil igual que
+    // Recetas: el recuadro llena ancho + alto y reserva por dentro el espacio del
+    // BottomTabBar (sin franja gris). Reusa la misma regla .mainContent.recipesEdge.
+    const isPantry = location.pathname.startsWith('/dashboard/pantry');
 
     const menuItems = [
         { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
@@ -386,7 +390,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 )}
 
                 <main
-                    className={`${styles.mainContent} ${noPaddingMobile ? styles.noPaddingMobile : ''} ${isSettings ? styles.bottomBarHidden : ''} ${isRecipes ? styles.recipesEdge : ''}`}
+                    className={`${styles.mainContent} ${noPaddingMobile ? styles.noPaddingMobile : ''} ${isSettings ? styles.bottomBarHidden : ''} ${(isRecipes || isPantry) ? styles.recipesEdge : ''}`}
                     style={noPaddingMobile ? { padding: 0, maxWidth: '100vw', overflow: 'hidden', margin: 0, width: '100%' } : {}}
                 >
                     {children}

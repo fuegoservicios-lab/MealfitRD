@@ -4,7 +4,19 @@
    (useMediaQuery 760px), no por container query. Cableado a datos/handlers
    reales (sin mock). Diseño aportado por el owner; tokens var(--*) del repo. */
 
-.app { overflow: hidden; background: var(--bg-card); border: 1px solid var(--border); border-radius: 26px; box-shadow: var(--shadow-lg); }
+/* [P3-PANTRY-EDGE-MOBILE · 2026-06-24] Edge-to-edge + llena el alto disponible,
+   igual que Recetas (MobileRecipes): sin esquinas redondeadas ni bordes laterales
+   para cubrir todo el ancho; min-height llena el viewport y el padding-bottom
+   reserva por dentro el BottomTabBar → el fondo del recuadro cubre todo hasta la
+   barra de pestañas, sin franja gris. El padding del shell se anula vía
+   .mainContent.recipesEdge (DashboardLayout). */
+.app {
+  box-sizing: border-box;
+  background: var(--bg-card);
+  border: 1px solid var(--border); border-left: 0; border-right: 0; border-radius: 0;
+  min-height: calc(100dvh - env(safe-area-inset-top, 0px) - 48px);
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
 
 /* Topbar */
 .top { padding: 16px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 13px; }
@@ -49,7 +61,7 @@
 .lowBanner strong { font-weight: 800; }
 
 /* Contenido */
-.body { padding: 4px 16px 24px; }
+.body { padding: 4px 16px 8px; }
 .cat { margin-top: 18px; }
 .cathead { display: flex; align-items: center; gap: 9px; margin: 0 0 11px; font-size: .74rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .catico { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--cat); background: color-mix(in srgb, var(--cat) 16%, transparent); border: 1px solid color-mix(in srgb, var(--cat) 28%, transparent); }
