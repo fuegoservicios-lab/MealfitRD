@@ -3291,6 +3291,16 @@ const DashboardInner = () => {
                 .new-plan-wrapper {
                     max-width: 420px;
                 }
+                /* [P3-NEVERA-NOTICE-CENTER-MOBILE · 2026-06-24] El chip del aviso de
+                   la Nevera va a la izquierda en PC; en móvil, centrado. */
+                .nevera-notice-chip {
+                    align-self: flex-start;
+                }
+                @media (max-width: 768px) {
+                    .nevera-notice-chip {
+                        align-self: center;
+                    }
+                }
                 .new-plan-btn {
                     padding: 0.85rem 1.75rem;
                     border-radius: 1rem;
@@ -4787,8 +4797,8 @@ const DashboardInner = () => {
                             una línea) — antes era caja rellena que cubría mucho / texto flotante que
                             en móvil se partía raro. Solo con plan válido; la deducción es by-design. */}
                         {shoppingDeltaMeta?.itemsRemoved > 0 && !isPlanExpired && !planFinished && !isPlanCorrupted && (
-                            <span style={{
-                                alignSelf: 'flex-start', maxWidth: '100%',
+                            <span className="nevera-notice-chip" style={{
+                                maxWidth: '100%',
                                 display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
                                 padding: '0.28rem 0.65rem', borderRadius: '99px',
                                 background: isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.10)',
