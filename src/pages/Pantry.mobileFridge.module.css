@@ -23,7 +23,10 @@
 .toprow { display: flex; align-items: center; gap: 11px; }
 .title { margin: 0; font-family: var(--font-heading); font-size: 1.2rem; font-weight: 800; letter-spacing: -.02em; display: flex; align-items: center; gap: 9px; color: var(--text-main); }
 .title svg { color: var(--primary); }
-.count { margin-left: auto; font-size: .72rem; font-weight: 700; color: var(--text-muted); background: var(--bg-muted); border: 1px solid var(--border); padding: 4px 10px; border-radius: 99px; white-space: nowrap; }
+/* [P3-PANTRY-COUNT-PEGADO-MOBILE · 2026-06-24] El contador va PEGADO al título
+   (justo después), no empujado al extremo derecho — como el diseño. Sin
+   margin-left:auto; el gap de .toprow (11px) lo separa del título. */
+.count { font-size: .72rem; font-weight: 700; color: var(--text-muted); background: var(--bg-muted); border: 1px solid var(--border); padding: 4px 10px; border-radius: 99px; white-space: nowrap; }
 .count b { color: var(--text-main); font-weight: 800; }
 
 .search { position: relative; }
