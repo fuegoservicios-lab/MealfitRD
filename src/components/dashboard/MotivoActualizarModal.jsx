@@ -7,28 +7,35 @@ import { useModalAccessibility } from "../../hooks/useModalAccessibility";
  * Selector de motivo para regenerar los platos del día completo (MealfitRD).
  *
  * [P3-MOTIVO-MODAL-REDESIGN · 2026-06-24] Diseño aportado por el owner; injertado
- * sobre el flujo real de Dashboard (regenerateDay / cuota de regeneraciones /
- * dislike). Self-contained: overlay + a11y vía useModalAccessibility (ESC,
- * focus-trap, restore-focus, backdrop-close). No usa el Modal compartido porque
- * su botón de cerrar (top-right) chocaría con la pastilla de cupo del header.
+ * sobre el flujo real de Dashboard (regenerateDay / cuota / dislike). Self-contained:
+ * overlay + a11y vía useModalAccessibility (ESC, focus-trap, restore-focus,
+ * backdrop-close). No usa el Modal compartido porque su botón de cerrar (top-right)
+ * chocaría con la pastilla de cupo del header.
  *
- * Se estiliza con los tokens del design system (var(--*) de index.css):
- * superficies, texto y bordes salen de los tokens; los acentos por opción usan
- * el color de la opción con alfa (idéntico a OptionPickerModal).
+ * [P3-MOTIVO-MODAL-MOBILE-SHEET · 2026-06-24] Responsive:
+ *   - Escritorio: tarjeta centrada + bento (1 destacado + 2 tiles).
+ *   - Móvil (≤768px): bottom-sheet (pegado abajo, drag handle, drag-to-close) con
+ *     lista vertical de filas. Mismo contenido y handlers.
  *
  * Props:
- *   open        boolean                       — controla la visibilidad
- *   quota       { left, total }               — cupo de regeneraciones del mes
- *   unlimited   boolean                        — Premium (cupo ilimitado)
- *   options     Option[]                       — motivos seleccionables (1º = destacado)
- *   coming      Coming | null                  — opción "fin de semana" (locked o clickable)
- *   pickingId   string | null                  — id en curso (muestra spinner + atenúa)
- *   onPick      (id: string) => void           — al elegir un motivo / "no me gustan"
- *   onClose     () => void                     — cerrar
- *
- *   type Option = { id, label, desc, color, icon, recommended? }
- *   type Coming = { id, label, desc, color, icon, unlockLabel, unlocked? }
+ *   open, quota {left,total}, unlimited, options[], coming|null, pickingId, onPick, onClose
  */
+
+/* --------------------------------------------------------- media query (SSR-safe) */
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(query).matches : false
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const m = window.matchMedia(query);
+    setMatches(m.matches);
+    const on = (e) => setMatches(e.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, [query]);
+  return matches;
+}
 
 /* ---------------------------------------------------------------- iconos */
 const PATHS = {
@@ -71,14 +78,8 @@ function Icon({ name, size = 20, fill = "none" }) {
   );
 }
 
-/* --------------------------------------------------------- datos por defecto */
-const DEFAULT_OPTIONS = [
-  { id: "variety", label: "Quiero más variedad", desc: "Me apetecen platos distintos hoy", color: "#818CF8", icon: "shuffle", recommended: true },
-  { id: "time", label: "No tengo tiempo hoy", desc: "Busco algo más rápido de preparar", color: "#A78BFA", icon: "clock" },
-  { id: "cravings", label: "Tengo un antojo distinto", desc: "Un capricho que encaja en tu plan", color: "#FB7185", icon: "heart" },
-];
-
 const DANGER = "#F87171";
+const brightOf = (c) => `color-mix(in srgb, ${c}, #fff 42%)`;
 
 /* ---------------------------------------------------------- spinner inline */
 function Spinner({ size = 20 }) {
@@ -111,14 +112,39 @@ function LoadingOverlay() {
   );
 }
 
-/* --------------------------------------------------------------- tile / hero */
+/* etiqueta "Más elegida" — reutilizada por bento + lista móvil */
+function RecommendedBadge({ c, size = "md" }) {
+  const accent = brightOf(c);
+  const small = size === "sm";
+  return (
+    <span
+      style={{
+        alignSelf: "flex-start",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        marginBottom: small ? 3 : 13,
+        padding: small ? "3px 8px" : "4px 9px",
+        borderRadius: 99,
+        fontSize: small ? ".52rem" : ".55rem",
+        fontWeight: 800,
+        letterSpacing: ".06em",
+        textTransform: "uppercase",
+        whiteSpace: "nowrap",
+        color: accent,
+        background: `${c}40`,
+        border: `1px solid ${c}85`,
+      }}
+    >
+      <Icon name="star" size={small ? 10 : 11} fill={accent} /> Más elegida
+    </span>
+  );
+}
+
+/* --------------------------------------------------------------- tile / hero (bento, escritorio) */
 function OptionTile({ option, hero, faded, loading, onPick }) {
   const [hover, setHover] = useState(false);
   const c = option.color;
-  // [P3-MOTIVO-MODAL-ICON-POLISH · 2026-06-24] Tono claro del acento para la
-  // pastilla "Más elegida": el color base sobre la tarjeta del mismo color se
-  // veía apagado. Mezcla con blanco → texto + estrella vivos sobre el oscuro.
-  const accentBright = `color-mix(in srgb, ${c}, #fff 42%)`;
 
   return (
     <button
@@ -141,7 +167,6 @@ function OptionTile({ option, hero, faded, loading, onPick }) {
         gridRow: hero ? "span 2" : undefined,
         padding: hero ? 16 : 14,
         borderRadius: 18,
-        // tinte translúcido del color sobre la tarjeta (no usa color-mix con --bg-card)
         background: `linear-gradient(155deg, ${c}26, ${c}0D)`,
         border: `1.5px solid ${hover ? `${c}8C` : `${c}3D`}`,
         opacity: faded ? 0.42 : 1,
@@ -151,32 +176,8 @@ function OptionTile({ option, hero, faded, loading, onPick }) {
         transition: "transform .14s, border-color .14s, box-shadow .14s, opacity .15s",
       }}
     >
-      {/* etiqueta recomendado (solo destacado), en su propia línea */}
-      {option.recommended && (
-        <span
-          style={{
-            alignSelf: "flex-start",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            marginBottom: 13,
-            padding: "4px 9px",
-            borderRadius: 99,
-            fontSize: ".55rem",
-            fontWeight: 800,
-            letterSpacing: ".06em",
-            textTransform: "uppercase",
-            whiteSpace: "nowrap",
-            color: accentBright,
-            background: `${c}40`,
-            border: `1px solid ${c}85`,
-          }}
-        >
-          <Icon name="star" size={11} fill={accentBright} /> Más elegida
-        </span>
-      )}
+      {option.recommended && <RecommendedBadge c={c} />}
 
-      {/* medallón del icono */}
       <span
         style={{
           width: hero ? 50 : 44,
@@ -219,7 +220,6 @@ function OptionTile({ option, hero, faded, loading, onPick }) {
         {option.desc}
       </span>
 
-      {/* flecha (solo destacado), anclada abajo */}
       {hero && (
         <span
           style={{
@@ -246,7 +246,78 @@ function OptionTile({ option, hero, faded, loading, onPick }) {
   );
 }
 
-/* ------------------------------------------------------------- banner próximo */
+/* --------------------------------------------------------- fila horizontal (lista móvil) */
+function OptionRow({ option, faded, loading, onPick }) {
+  const [hover, setHover] = useState(false);
+  const c = option.color;
+  const rec = !!option.recommended;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onPick(option.id)}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onFocus={() => setHover(true)}
+      onBlur={() => setHover(false)}
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        appearance: "none",
+        font: "inherit",
+        textAlign: "left",
+        cursor: "pointer",
+        color: "inherit",
+        display: "flex",
+        alignItems: "center",
+        gap: 13,
+        width: "100%",
+        padding: "13px 14px",
+        borderRadius: 16,
+        background: `linear-gradient(155deg, ${c}26, ${c}0D)`,
+        border: `1.5px solid ${hover ? `${c}8C` : `${c}3D`}`,
+        opacity: faded ? 0.42 : 1,
+        transform: hover && !faded ? "translateY(-2px)" : "none",
+        boxShadow: hover && !faded ? `0 14px 30px -16px ${c}D9` : "none",
+        transition: "transform .14s, border-color .14s, box-shadow .14s, opacity .15s",
+      }}
+    >
+      <span
+        style={{
+          flex: "none",
+          width: 46,
+          height: 46,
+          borderRadius: 13,
+          display: "grid",
+          placeItems: "center",
+          ...(rec
+            ? { color: "#0B1120", background: `linear-gradient(150deg, ${c}, ${c})`, boxShadow: `0 10px 22px -10px ${c}` }
+            : { color: c, background: `${c}33`, border: `1px solid ${c}52` }),
+        }}
+      >
+        <Icon name={option.icon} size={23} />
+      </span>
+
+      <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+        {rec && <RecommendedBadge c={c} size="sm" />}
+        <span style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: "1rem", lineHeight: 1.2, color: "var(--text-main)", letterSpacing: "-.01em" }}>
+          {option.label}
+        </span>
+        <span style={{ fontSize: ".8rem", fontWeight: 500, lineHeight: 1.3, color: "var(--text-muted)" }}>
+          {option.desc}
+        </span>
+      </span>
+
+      <span style={{ flex: "none", display: "grid", color: hover ? brightOf(c) : `${c}AD` }}>
+        <Icon name="chevron" size={18} />
+      </span>
+
+      {loading && <LoadingOverlay />}
+    </button>
+  );
+}
+
+/* ------------------------------------------------------------- banner / fila "fin de semana" */
 function ComingBanner({ coming, faded, loading, onPick }) {
   const c = coming.color;
   const unlocked = !!coming.unlocked;
@@ -352,10 +423,19 @@ function ComingBanner({ coming, faded, loading, onPick }) {
 }
 
 /* -------------------------------------------------------------- fila destructiva */
-function DislikeRow({ faded, loading, onPick }) {
+function DislikeRow({ faded, loading, onPick, heading }) {
   const [hover, setHover] = useState(false);
   return (
-    <div style={{ marginTop: 14, paddingTop: 13, borderTop: "1px solid var(--border)" }}>
+    <div style={{ marginTop: 14, ...(heading ? {} : { paddingTop: 13, borderTop: "1px solid var(--border)" }) }}>
+      {heading && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "2px 0 12px" }}>
+          <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
+          <span style={{ fontSize: ".6rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--text-light)", whiteSpace: "nowrap" }}>
+            {heading}
+          </span>
+          <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
+        </div>
+      )}
       <button
         type="button"
         onClick={() => onPick("dislike")}
@@ -416,12 +496,13 @@ export default function MotivoActualizarModal({
   open = false,
   quota = { left: 0, total: 0 },
   unlimited = false,
-  options = DEFAULT_OPTIONS,
+  options = [],
   coming = null,
   pickingId = null,
   onPick = () => {},
   onClose = () => {},
 }) {
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const busy = pickingId != null;
   const handleClose = useCallback(() => {
     if (pickingId == null) onClose();
@@ -430,29 +511,29 @@ export default function MotivoActualizarModal({
   const { containerRef } = useModalAccessibility({ isOpen: open, onClose: handleClose, disableClose: busy });
 
   // [P3-MOTIVO-MODAL-HIDE-NOTIF · 2026-06-24] En móvil, ocultar el launcher
-  // flotante de notificaciones (la campana se queda "encima" del modal por
-  // estar atrapada en otro stacking context). Marca el body mientras el modal
-  // está abierto; NotificationCenter.module.css oculta `.handle` con esa clase.
+  // flotante de notificaciones mientras el modal está abierto.
   useEffect(() => {
     if (typeof document === "undefined" || !open) return undefined;
     document.body.classList.add("mealfit-hide-notif-mobile");
     return () => document.body.classList.remove("mealfit-hide-notif-mobile");
   }, [open]);
 
-  const [hero, ...minis] = options.length ? options : DEFAULT_OPTIONS;
+  const [hero, ...minis] = options.length ? options : [];
+
+  const sheet = isMobile;
 
   return (
     <AnimatePresence>
-      {open && (
+      {open && hero && (
         <div
           style={{
             position: "fixed",
             inset: 0,
             zIndex: 9999,
             display: "flex",
-            alignItems: "center",
+            alignItems: sheet ? "flex-end" : "center",
             justifyContent: "center",
-            padding: "1rem",
+            padding: sheet ? 0 : "1rem",
           }}
         >
           <motion.div
@@ -471,27 +552,41 @@ export default function MotivoActualizarModal({
             aria-labelledby="motivo-actualizar-title"
             tabIndex={-1}
             className="mealfit-modal-content"
-            initial={{ opacity: 0, scale: 0.96, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 12 }}
-            transition={{ duration: 0.2 }}
+            initial={sheet ? { y: "100%" } : { opacity: 0, scale: 0.96, y: 12 }}
+            animate={sheet ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
+            exit={sheet ? { y: "100%" } : { opacity: 0, scale: 0.96, y: 12 }}
+            transition={sheet ? { type: "spring", damping: 30, stiffness: 320 } : { duration: 0.2 }}
+            drag={sheet ? "y" : false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.6 }}
+            onDragEnd={(e, info) => {
+              if (sheet && info.offset.y > 110 && !busy) handleClose();
+            }}
             style={{
               position: "relative",
               zIndex: 1,
               width: "100%",
-              maxWidth: 404,
-              maxHeight: "92dvh",
+              maxWidth: sheet ? "none" : 404,
+              maxHeight: sheet ? "92dvh" : "92dvh",
               overflowY: "auto",
               background: "var(--bg-card)",
               border: "1px solid var(--border)",
-              borderRadius: 24,
-              boxShadow: "0 30px 70px -24px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.02)",
-              padding: 22,
+              borderTopWidth: sheet ? "1px" : "1px",
+              borderRadius: sheet ? "24px 24px 0 0" : 24,
+              boxShadow: sheet ? "0 -16px 50px -16px rgba(0,0,0,.6)" : "0 30px 70px -24px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.02)",
+              padding: sheet ? "8px 18px calc(18px + env(safe-area-inset-bottom, 0px))" : 22,
               fontFamily: "var(--font-body)",
               color: "var(--text-main)",
               pointerEvents: busy ? "none" : "auto",
             }}
           >
+            {/* drag handle (solo móvil) */}
+            {sheet && (
+              <div style={{ display: "flex", justifyContent: "center", padding: "6px 0 12px" }}>
+                <span style={{ width: 40, height: 4, borderRadius: 99, background: "var(--border)" }} />
+              </div>
+            )}
+
             {/* cabecera: título + cupo del mes */}
             <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
               <h2
@@ -501,7 +596,7 @@ export default function MotivoActualizarModal({
                   minWidth: 0,
                   margin: 0,
                   fontFamily: "var(--font-heading)",
-                  fontSize: "1.34rem",
+                  fontSize: sheet ? "1.28rem" : "1.34rem",
                   fontWeight: 800,
                   letterSpacing: "-.02em",
                   lineHeight: 1.12,
@@ -538,36 +633,44 @@ export default function MotivoActualizarModal({
             </div>
 
             <p style={{ margin: "5px 0 0", fontSize: ".86rem", lineHeight: 1.45, color: "var(--text-muted)", fontWeight: 500 }}>
-              {unlimited ? (
+              {sheet ? (
+                "Toca el motivo que mejor describe lo que buscas hoy."
+              ) : unlimited ? (
                 <>Toca el motivo que mejor describe lo que buscas hoy. Tienes <b style={{ color: "var(--primary)" }}>regeneraciones ilimitadas</b> (Premium).</>
               ) : (
-                <>
-                  Toca el motivo que mejor describe lo que buscas hoy. Te quedan{" "}
-                  <b style={{ color: "var(--primary)" }}>{quota.left} regeneraciones</b> este mes.
-                </>
+                <>Toca el motivo que mejor describe lo que buscas hoy. Te quedan <b style={{ color: "var(--primary)" }}>{quota.left} regeneraciones</b> este mes.</>
               )}
             </p>
 
-            {/* bento: destacado + dos tiles */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 18 }}>
-              <OptionTile option={hero} hero faded={busy && pickingId !== hero.id} loading={pickingId === hero.id} onPick={onPick} />
-              {minis.map((o) => (
-                <OptionTile key={o.id} option={o} faded={busy && pickingId !== o.id} loading={pickingId === o.id} onPick={onPick} />
-              ))}
-            </div>
-
-            {/* próximamente / fin de semana */}
-            {coming && (
-              <ComingBanner
-                coming={coming}
-                faded={busy && pickingId !== coming.id}
-                loading={pickingId === coming.id}
-                onPick={onPick}
-              />
+            {sheet ? (
+              /* ---- lista vertical (bottom-sheet móvil) ---- */
+              <>
+                <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <OptionRow option={hero} faded={busy && pickingId !== hero.id} loading={pickingId === hero.id} onPick={onPick} />
+                  {minis.map((o) => (
+                    <OptionRow key={o.id} option={o} faded={busy && pickingId !== o.id} loading={pickingId === o.id} onPick={onPick} />
+                  ))}
+                </div>
+                {coming && (
+                  <ComingBanner coming={coming} faded={busy && pickingId !== coming.id} loading={pickingId === coming.id} onPick={onPick} />
+                )}
+                <DislikeRow heading="¿No es lo que buscas?" faded={busy && pickingId !== "dislike"} loading={pickingId === "dislike"} onPick={onPick} />
+              </>
+            ) : (
+              /* ---- bento (escritorio) ---- */
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 18 }}>
+                  <OptionTile option={hero} hero faded={busy && pickingId !== hero.id} loading={pickingId === hero.id} onPick={onPick} />
+                  {minis.map((o) => (
+                    <OptionTile key={o.id} option={o} faded={busy && pickingId !== o.id} loading={pickingId === o.id} onPick={onPick} />
+                  ))}
+                </div>
+                {coming && (
+                  <ComingBanner coming={coming} faded={busy && pickingId !== coming.id} loading={pickingId === coming.id} onPick={onPick} />
+                )}
+                <DislikeRow faded={busy && pickingId !== "dislike"} loading={pickingId === "dislike"} onPick={onPick} />
+              </>
             )}
-
-            {/* destructiva */}
-            <DislikeRow faded={busy && pickingId !== "dislike"} loading={pickingId === "dislike"} onPick={onPick} />
           </motion.div>
         </div>
       )}
