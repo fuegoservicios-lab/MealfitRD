@@ -34,8 +34,10 @@ import { useModalAccessibility } from "../../hooks/useModalAccessibility";
 const PATHS = {
   shuffle: "M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5",
   clock: "M12 7v5l3.5 2",
+  // [P3-MOTIVO-MODAL-ICON-POLISH · 2026-06-24] Corazón simétrico (lucide) — el
+  // path anterior tenía el hueco central descentrado y se veía "partido".
   heart:
-    "M12 20s-7-4.4-9.2-8.5C1.2 8.3 2.8 5 6 5c2 0 3.2 1.3 4 2.5C10.8 6.3 12 5 14 5c3.2 0 4.8 3.3 3.2 6.5C19 15.6 12 20 12 20Z",
+    "M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z",
   bolt: "M13 2 4 14h7l-1 8 9-12h-7l1-8Z",
   thumbDown:
     "M10 15v4a3 3 0 0 0 3 3l4-9V3H6.2a2 2 0 0 0-2 1.7l-1.4 9A2 2 0 0 0 4.8 16H10ZM17 3h3a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-3",
@@ -47,16 +49,17 @@ const PATHS = {
   check: "M20 6 9 17l-5-5",
 };
 
-function Icon({ name, size = 20 }) {
+function Icon({ name, size = 20, fill = "none" }) {
   const isCircle = name === "clock"; // el reloj necesita su círculo base
+  const filled = fill !== "none";
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="none"
+      fill={fill}
       stroke="currentColor"
-      strokeWidth={1.9}
+      strokeWidth={filled ? 1 : 1.9}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -112,6 +115,10 @@ function LoadingOverlay() {
 function OptionTile({ option, hero, faded, loading, onPick }) {
   const [hover, setHover] = useState(false);
   const c = option.color;
+  // [P3-MOTIVO-MODAL-ICON-POLISH · 2026-06-24] Tono claro del acento para la
+  // pastilla "Más elegida": el color base sobre la tarjeta del mismo color se
+  // veía apagado. Mezcla con blanco → texto + estrella vivos sobre el oscuro.
+  const accentBright = `color-mix(in srgb, ${c}, #fff 42%)`;
 
   return (
     <button
@@ -160,12 +167,12 @@ function OptionTile({ option, hero, faded, loading, onPick }) {
             letterSpacing: ".06em",
             textTransform: "uppercase",
             whiteSpace: "nowrap",
-            color: c,
-            background: `${c}2E`,
-            border: `1px solid ${c}5C`,
+            color: accentBright,
+            background: `${c}40`,
+            border: `1px solid ${c}85`,
           }}
         >
-          <Icon name="star" size={11} /> Más elegida
+          <Icon name="star" size={11} fill={accentBright} /> Más elegida
         </span>
       )}
 
