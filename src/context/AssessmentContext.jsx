@@ -1967,7 +1967,25 @@ export const AssessmentProvider = ({ children }) => {
                 }
             }
             const kept = (data?.slots_kept || []).filter(Boolean);
-            if (kept.length > 0) {
+            if (data?.ai_interrupted === true) {
+                // [P1-REGEN-DAY-PARTIAL-AI-DEGRADE · 2026-06-24] La IA se cayó a mitad del día: se persistió
+                // lo logrado SIN cobrar crédito y SIN perder platos. Aviso accionable "Reintentar" (distinto
+                // del toast de slots_kept, que comunica falta de inventario, no caída del proveedor).
+                toast.warning('La IA se interrumpió', {
+                    description: data.ai_interrupted_message || 'Algunos platos no se actualizaron. Reintenta para completar el día (no se descontó tu crédito).',
+                    duration: 9000,
+                    action: { label: 'Reintentar', onClick: () => { try { regenerateDay(dayIndex, reason); } catch (_) { /* no-op */ } } },
+                });
+            } else if (data?.day_quality_warning) {
+                // [P1-REGEN-DAY-WARNING-SURFACE · 2026-06-24] (re-audit P1-3) El backend computa este aviso
+                // honesto cuando el día quedó por debajo del objetivo de proteína; antes el frontend lo
+                // descartaba y mostraba "¡Día actualizado!" verde sobre un día sub-objetivo.
+                toast.warning('Día actualizado, pero por debajo de tu objetivo', {
+                    description: data.day_quality_warning,
+                    duration: 9000,
+                    action: { label: 'Mi Nevera', onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } } },
+                });
+            } else if (kept.length > 0) {
                 toast.success('Día actualizado', { description: `Algunos platos se conservaron porque tu Nevera no daba para cambiarlos.` });
             } else {
                 toast.success('¡Día actualizado con lo que tienes en tu Nevera!');
