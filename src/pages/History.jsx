@@ -5001,11 +5001,16 @@ const History = () => {
                                                 <div className={styles.menuMealName}>{meal.name}</div>
                                             </div>
                                             {meal.cals && (
+                                                /* [P3-HIST-KCAL-BADGE-DARK · 2026-06-24] Tinte naranja
+                                                   translúcido (en vez del fondo crema #FFF7ED hardcoded
+                                                   que en modo oscuro se veía como una pastilla brillante).
+                                                   Adapta a ambos temas: el tinte se mezcla con la superficie. */
                                                 <span style={{
-                                                    fontSize: '0.78rem', fontWeight: 700,
-                                                    color: '#EA580C', background: '#FFF7ED',
-                                                    padding: '0.2rem 0.5rem', borderRadius: '99px',
-                                                    border: '1px solid #FFEDD5', whiteSpace: 'nowrap'
+                                                    fontSize: '0.78rem', fontWeight: 800,
+                                                    color: '#FB923C',
+                                                    background: 'color-mix(in srgb, #FB923C 15%, transparent)',
+                                                    padding: '0.25rem 0.6rem', borderRadius: '99px',
+                                                    border: '1px solid color-mix(in srgb, #FB923C 32%, transparent)', whiteSpace: 'nowrap'
                                                 }}>
                                                     {meal.cals} kcal
                                                 </span>
