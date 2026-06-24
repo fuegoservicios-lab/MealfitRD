@@ -2097,10 +2097,10 @@ const Pantry = () => {
     // apilado + zonas + chips + tarjeta por alimento). Usa los MISMOS
     // derivados y handlers que el desktop; solo cambia la composición visual.
     const renderMobileShell = () => (
-        <section className={mstyles.app} aria-label="Nevera">
+        <section className={mstyles.app} aria-label="Mi Cocina">
             <div className={mstyles.top}>
                 <div className={mstyles.toprow}>
-                    <h1 className={mstyles.title}><FridgeGlyph size={22} />Nevera</h1>
+                    <h1 className={mstyles.title}><FridgeGlyph size={22} />Mi Cocina</h1>
                     <span className={mstyles.count}><b>{inventory.length}</b> {inventory.length === 1 ? 'alimento' : 'alimentos'}</span>
                 </div>
                 <div className={mstyles.search}>
@@ -2222,14 +2222,14 @@ const Pantry = () => {
     return (
         <div className={fstyles.page}>
             {isMobileLayout ? renderMobileShell() : (
-            <section className={fstyles.app} aria-label="Nevera">
+            <section className={fstyles.app} aria-label="Mi Cocina">
                 <div className={fstyles.shell}>
                     {/* ===== Sidebar (escritorio) ===== */}
                     <aside className={fstyles.side}>
                         <div className={fstyles.brand}>
                             <FridgeGlyph size={22} />
                             <div>
-                                <h1>Nevera</h1>
+                                <h1>Mi Cocina</h1>
                                 <small>{inventory.length} {inventory.length === 1 ? 'alimento' : 'alimentos'}</small>
                             </div>
                         </div>
