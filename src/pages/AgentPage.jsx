@@ -2716,6 +2716,8 @@ const AgentPage = () => {
                         <div ref={navMenuRef} className="nav-menu-wrapper" style={{ position: 'relative', marginRight: '-0.4rem' }}>
                             <button
                                 onClick={() => setShowNavMenu(!showNavMenu)}
+                                aria-label={showNavMenu ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
+                                aria-expanded={showNavMenu}
                                 style={{
                                     background: 'transparent',
                                     border: 'none',
