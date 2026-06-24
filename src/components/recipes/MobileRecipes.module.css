@@ -2,7 +2,10 @@
    header sticky, pestañas de día full-width, riel compacto de comidas, detalle
    con dona arriba y macros en fila. Usa tokens del DS. */
 
-.app { background: var(--bg-card); border: 1px solid var(--border); border-radius: 24px; overflow: hidden; }
+/* [P3-RECIPES-EDGE-MOBILE · 2026-06-24] Edge-to-edge: sin esquinas redondeadas
+   ni bordes laterales para cubrir el ancho completo de la pantalla. El padding
+   horizontal del shell se anula vía .mainContent.recipesEdge (DashboardLayout). */
+.app { background: var(--bg-card); border: 1px solid var(--border); border-left: 0; border-right: 0; border-radius: 0; overflow: hidden; }
 
 /* Top fijo */
 .top { position: sticky; top: 0; z-index: 5; background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 16px 12px; }

@@ -820,6 +820,15 @@
         padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     }
 
+    /* [P3-RECIPES-EDGE-MOBILE · 2026-06-24] Recetas edge-to-edge en móvil:
+       quita el padding horizontal y el superior (conserva el inferior para el
+       BottomTabBar). El header y la barra de pestañas se mantienen. */
+    .mainContent.recipesEdge {
+        padding-left: 0;
+        padding-right: 0;
+        padding-top: 0;
+    }
+
     .noPaddingMobile {
         padding: 0 !important;
         max-width: 100vw !important;
