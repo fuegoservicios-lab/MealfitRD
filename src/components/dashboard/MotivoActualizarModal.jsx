@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useModalAccessibility } from "../../hooks/useModalAccessibility";
 
@@ -421,6 +421,16 @@ export default function MotivoActualizarModal({
   }, [pickingId, onClose]);
 
   const { containerRef } = useModalAccessibility({ isOpen: open, onClose: handleClose, disableClose: busy });
+
+  // [P3-MOTIVO-MODAL-HIDE-NOTIF · 2026-06-24] En móvil, ocultar el launcher
+  // flotante de notificaciones (la campana se queda "encima" del modal por
+  // estar atrapada en otro stacking context). Marca el body mientras el modal
+  // está abierto; NotificationCenter.module.css oculta `.handle` con esa clase.
+  useEffect(() => {
+    if (typeof document === "undefined" || !open) return undefined;
+    document.body.classList.add("mealfit-hide-notif-mobile");
+    return () => document.body.classList.remove("mealfit-hide-notif-mobile");
+  }, [open]);
 
   const [hero, ...minis] = options.length ? options : DEFAULT_OPTIONS;
 

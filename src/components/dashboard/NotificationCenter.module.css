@@ -41,6 +41,14 @@
                 box-shadow 0.32s ease, color 0.2s ease;
 }
 
+/* [P3-MOTIVO-MODAL-HIDE-NOTIF · 2026-06-24] En móvil, ocultar el tirador cuando
+   un modal bloqueante lo marca en el body (la campana se quedaba "encima" del
+   modal por estar atrapada en otro stacking context). El modal añade/quita la
+   clase global mientras está abierto. */
+@media (max-width: 768px) {
+    :global(body.mealfit-hide-notif-mobile) .handle { display: none; }
+}
+
 /* Borde-gradiente teal→indigo solo en el contorno visible (mask exclude). */
 .handle::before {
     content: '';
