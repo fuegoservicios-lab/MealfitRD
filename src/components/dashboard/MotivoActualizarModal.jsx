@@ -51,6 +51,7 @@ const PATHS = {
   star: "M12 3l2.6 5.7 6.2.6-4.7 4.1 1.4 6.1L12 16.9 6.5 19.6l1.4-6.1L3.2 9.3l6.2-.6L12 3Z",
   refresh: "M21 12a9 9 0 1 1-2.6-6.4M21 3v5h-5",
   chevron: "M9 6l6 6-6 6",
+  copy: "M8 8h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z M4 16a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1",
   lock: "M7 11V8a5 5 0 0 1 10 0v3M5 11h14v9H5z",
   calendar: "M7 3v3M17 3v3M4 8h16M5 6h14v15H5z",
   check: "M20 6 9 17l-5-5",
@@ -423,7 +424,7 @@ function ComingBanner({ coming, faded, loading, onPick }) {
 }
 
 /* -------------------------------------------------------------- fila destructiva */
-function DislikeRow({ faded, loading, onPick, heading }) {
+function DislikeRow({ faded, loading, onPick, heading, label = "No me gustan estos platos", desc = "Evitar sugerencias similares" }) {
   const [hover, setHover] = useState(false);
   return (
     <div style={{ marginTop: 14, ...(heading ? {} : { paddingTop: 13, borderTop: "1px solid var(--border)" }) }}>
@@ -479,10 +480,10 @@ function DislikeRow({ faded, loading, onPick, heading }) {
         </span>
         <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
           <span style={{ fontSize: ".9rem", fontWeight: 700, color: hover ? "var(--danger-text)" : "var(--text-main)" }}>
-            No me gustan estos platos
+            {label}
           </span>
           <span style={{ fontSize: ".78rem", fontWeight: 500, color: "var(--text-muted)" }}>
-            Evitar sugerencias similares
+            {desc}
           </span>
         </span>
         {loading && <LoadingOverlay />}
@@ -494,10 +495,15 @@ function DislikeRow({ faded, loading, onPick, heading }) {
 /* ============================================================ componente raíz */
 export default function MotivoActualizarModal({
   open = false,
+  title = "¿Por qué quieres actualizar?",
+  subtitle = null,
+  contextLabel = null,
   quota = { left: 0, total: 0 },
   unlimited = false,
   options = [],
   coming = null,
+  extraRows = [],
+  dislike = { label: "No me gustan estos platos", desc: "Evitar sugerencias similares" },
   pickingId = null,
   onPick = () => {},
   onClose = () => {},
@@ -602,7 +608,7 @@ export default function MotivoActualizarModal({
                   lineHeight: 1.12,
                 }}
               >
-                ¿Por qué quieres actualizar?
+                {title}
               </h2>
               <span
                 title={unlimited ? "Regeneraciones ilimitadas (Premium)" : `Te quedan ${quota.left} de ${quota.total} regeneraciones este mes`}
@@ -633,7 +639,9 @@ export default function MotivoActualizarModal({
             </div>
 
             <p style={{ margin: "5px 0 0", fontSize: ".86rem", lineHeight: 1.45, color: "var(--text-muted)", fontWeight: 500 }}>
-              {sheet ? (
+              {subtitle != null ? (
+                subtitle
+              ) : sheet ? (
                 "Toca el motivo que mejor describe lo que buscas hoy."
               ) : unlimited ? (
                 <>Toca el motivo que mejor describe lo que buscas hoy. Tienes <b style={{ color: "var(--primary)" }}>regeneraciones ilimitadas</b> (Premium).</>
@@ -641,6 +649,28 @@ export default function MotivoActualizarModal({
                 <>Toca el motivo que mejor describe lo que buscas hoy. Te quedan <b style={{ color: "var(--primary)" }}>{quota.left} regeneraciones</b> este mes.</>
               )}
             </p>
+
+            {contextLabel && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  marginTop: 14,
+                  padding: "12px 14px",
+                  borderRadius: 14,
+                  background: "color-mix(in srgb, #FB923C 13%, transparent)",
+                  border: "1px solid color-mix(in srgb, #FB923C 38%, transparent)",
+                }}
+              >
+                <span style={{ flex: "none", color: "#FB923C", display: "grid" }}>
+                  <Icon name="refresh" size={18} />
+                </span>
+                <span style={{ fontSize: ".88rem", fontWeight: 700, lineHeight: 1.3, color: "#FDBA74" }}>
+                  {contextLabel}
+                </span>
+              </div>
+            )}
 
             {sheet ? (
               /* ---- lista vertical (bottom-sheet móvil) ---- */
@@ -654,7 +684,14 @@ export default function MotivoActualizarModal({
                 {coming && (
                   <ComingBanner coming={coming} faded={busy && pickingId !== coming.id} loading={pickingId === coming.id} onPick={onPick} />
                 )}
-                <DislikeRow heading="¿No es lo que buscas?" faded={busy && pickingId !== "dislike"} loading={pickingId === "dislike"} onPick={onPick} />
+                {extraRows.length > 0 && (
+                  <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+                    {extraRows.map((o) => (
+                      <OptionRow key={o.id} option={o} faded={busy && pickingId !== o.id} loading={pickingId === o.id} onPick={onPick} />
+                    ))}
+                  </div>
+                )}
+                <DislikeRow heading="¿No es lo que buscas?" label={dislike.label} desc={dislike.desc} faded={busy && pickingId !== "dislike"} loading={pickingId === "dislike"} onPick={onPick} />
               </>
             ) : (
               /* ---- bento (escritorio) ---- */
@@ -668,7 +705,12 @@ export default function MotivoActualizarModal({
                 {coming && (
                   <ComingBanner coming={coming} faded={busy && pickingId !== coming.id} loading={pickingId === coming.id} onPick={onPick} />
                 )}
-                <DislikeRow faded={busy && pickingId !== "dislike"} loading={pickingId === "dislike"} onPick={onPick} />
+                {extraRows.map((o) => (
+                  <div key={o.id} style={{ marginTop: 10 }}>
+                    <OptionRow option={o} faded={busy && pickingId !== o.id} loading={pickingId === o.id} onPick={onPick} />
+                  </div>
+                ))}
+                <DislikeRow label={dislike.label} desc={dislike.desc} faded={busy && pickingId !== "dislike"} loading={pickingId === "dislike"} onPick={onPick} />
               </>
             )}
           </motion.div>

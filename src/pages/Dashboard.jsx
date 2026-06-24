@@ -6553,122 +6553,80 @@ const DashboardInner = () => {
                 )}
             </AnimatePresence>
 
-            {/* ═══════════ MODAL: ¿Por qué quieres cambiar? ═══════════ */}
-            <OptionPickerModal
-                isOpen={!!swapModal}
+            {/* ═══════════ MODAL (rediseño): ¿Por qué quieres cambiar? — un plato (PC + móvil) ═══════════ */}
+            <MotivoActualizarModal
+                open={!!swapModal}
                 onClose={() => setSwapModal(null)}
                 title="¿Por qué quieres cambiar?"
-                subtitle={
-                    swapModal && (
-                        <>
-                            <p style={{ margin: '0 0 1.15rem 0' }}>
-                                Tu respuesta nos ayuda a mejorar tus futuros planes.
-                            </p>
-                            <div style={{
-                                background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '0.85rem',
-                                padding: '0.65rem 0.9rem', marginBottom: '1rem',
-                                display: 'flex', alignItems: 'center', gap: '0.5rem'
-                            }}>
-                                <RefreshCw size={15} color="#EA580C" />
-                                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#9A3412' }}>
-                                    {swapModal.mealName}
-                                </span>
-                            </div>
-                        </>
-                    )
-                }
-                options={(() => {
-                    const todayDow = new Date().getDay(); // 0=Dom, 6=Sáb
+                subtitle="Tu respuesta nos ayuda a mejorar tus futuros planes."
+                contextLabel={swapModal?.mealName}
+                unlimited={isPremium || typeof userPlanLimit !== 'number'}
+                quota={{
+                    left: typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : 0,
+                    total: typeof userPlanLimit === 'number' ? userPlanLimit : 0,
+                }}
+                options={[
+                    { id: 'variety',  label: 'Quiero variedad',     desc: 'Me gusta, pero quiero algo diferente', color: '#818CF8', icon: 'shuffle' },
+                    { id: 'time',     label: 'No tengo tiempo hoy',  desc: 'Busco algo más rápido de preparar',    color: '#A78BFA', icon: 'clock' },
+                    { id: 'cravings', label: 'Tengo un antojo',      desc: 'Un capricho que encaja en tu plan',    color: '#FB7185', icon: 'heart' },
+                ]}
+                coming={(() => {
+                    const todayDow = new Date().getDay(); // 0=Dom … 6=Sáb
                     const isWeekend = todayDow === 0 || todayDow === 6;
-                    const daysUntilSat = 6 - todayDow;
-                    const weekendOpt = isWeekend
-                        ? { id: 'weekend', icon: Zap, label: 'Fin de semana especial', color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)' }
-                        : { id: 'weekend', icon: Zap, label: 'Fin de semana especial', color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)', disabled: true, disabledDesc: `Disponible en ${daysUntilSat} ${daysUntilSat === 1 ? 'día' : 'días'} (sábado)` };
-                    return [
-                        // [P3-SWAP-PANTRY-DEFAULT · 2026-05-22] Opción 'budget'
-                        // ("Usar solo lo que tengo") removida — el comportamiento
-                        // que prometía es el DEFAULT del swap-meal: todos los
-                        // reasons base respetan estrictamente la nevera + lista
-                        // de compras. Solo 'cravings' y 'weekend' permiten 1-2
-                        // ingredientes externos (capricho/premium explícito).
-                        // Exponer la opción al usuario era redundante y sugería
-                        // (falsamente) que los demás reasons NO usaban la nevera.
-                        { id: 'variety',      icon: Shuffle,      label: 'Quiero variedad',        color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me gusta, pero quiero algo diferente' },
-                        { id: 'time',         icon: Clock,        label: 'No tengo tiempo hoy',    color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco algo más rápido de preparar' },
-                        { id: 'cravings',     icon: Heart,        label: 'Tengo un antojo',        color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Un capricho que encaja en tu plan' },
-                        weekendOpt,
-                        { id: 'similar',      icon: Copy,         label: 'Ya comí algo similar',   color: '#F97316', bg: '#FFF7ED', border: '#FED7AA', desc: 'Hoy ya tuve un plato parecido' },
-                        { id: 'dislike',      icon: ThumbsDown,   label: 'No me gusta este plato', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'La IA evitará sugerirlo en el futuro' }
-                    ];
+                    const d = 6 - todayDow;
+                    return {
+                        id: 'weekend',
+                        label: 'Fin de semana especial',
+                        desc: isWeekend
+                            ? 'Platos más elaborados y premium · disponible hoy'
+                            : 'Platos más elaborados y premium · se desbloquea el sábado',
+                        color: '#FBBF24',
+                        icon: 'bolt',
+                        unlockLabel: `En ${d} ${d === 1 ? 'día' : 'días'}`,
+                        unlocked: isWeekend,
+                    };
                 })()}
-                onOptionClick={async (optionId) => {
+                extraRows={[
+                    { id: 'similar', label: 'Ya comí algo similar', desc: 'Hoy ya tuve un plato parecido', color: '#FB923C', icon: 'copy' },
+                ]}
+                dislike={{ label: 'No me gusta este plato', desc: 'La IA evitará sugerirlo en el futuro' }}
+                onPick={async (optionId) => {
                     if (!swapModal) return;
                     const { dayIndex, mealIndex, mealType, mealName } = swapModal;
                     setSwapModal(null);
-
-                    // Dislike requiere confirmación explícita antes de ejecutar el bloqueo permanente
                     if (optionId === 'dislike') {
                         setSwapDislikeConfirm({ dayIndex, mealIndex, mealType, mealName });
                         return;
                     }
-
-                    // [P5-LOADING-DISABLE] Candado síncrono contra doble-tap del modal de razón
-                    // (setSwapModal(null) es async → un 2º tap rápido haría 2 swaps = 2 créditos).
+                    // [P5-LOADING-DISABLE] Candado síncrono contra doble-tap (setSwapModal es async).
                     if (swapInFlightLock.current) return;
                     swapInFlightLock.current = true;
-                    // Estado de carga
                     setRegeneratingId(mealIndex);
                     const toastId = toast.loading('🔄 Consultando al Chef IA...', { description: 'Buscando una alternativa deliciosa...' });
-
                     try {
                         const newName = await regenerateSingleMeal(
                             dayIndex, mealIndex, mealType, mealName,
                             optionId, // ← swap_reason
-                            liveInventory // ← [P0-1] para detectar ingredientes nuevos post-restock
+                            liveInventory // ← [P0-1] detectar ingredientes nuevos post-restock
                         );
-
                         trackEvent('plan_regeneration_triggered', {
                             reason: optionId,
                             source: 'dashboard',
                             is_expired: isPlanExpired,
                             has_pantry: liveInventory && liveInventory.length > 0,
-                            type: 'single_meal'
+                            type: 'single_meal',
                         });
-
                         toast.dismiss(toastId);
-                        toast.success('¡Menú Actualizado!', {
-                            description: `Cambiado por: ${newName}`,
-                            icon: '👨‍🍳'
-                        });
+                        toast.success('¡Menú Actualizado!', { description: `Cambiado por: ${newName}`, icon: '👨‍🍳' });
                     } catch (error) {
                         console.error('Error al regenerar:', error);
                         toast.dismiss(toastId);
-                        toast.error('No se pudo conectar con la IA', {
-                            description: 'Se usó una receta alternativa local.'
-                        });
+                        toast.error('No se pudo conectar con la IA', { description: 'Se usó una receta alternativa local.' });
                     } finally {
                         setRegeneratingId(null);
                         swapInFlightLock.current = false; // [P5-LOADING-DISABLE]
                     }
                 }}
-                infoBandRenderer={(hoveredOption) => (
-                    <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: 'var(--bg-muted)', borderRadius: '0.8rem', border: '1px solid var(--border)', fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                        <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--text-muted)' }} />
-                        <div>
-                            {hoveredOption === 'dislike' ? (
-                                <><strong>Se evitará:</strong> {swapModal?.mealName}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~4s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}. ⚠️ Este plato se excluirá permanentemente de futuros planes.</span></>
-                            ) : hoveredOption ? (
-                                <><strong>Regenerando:</strong> 1 plato ({swapModal?.mealType || 'Comida'}).<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~4s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
-                            ) : (
-                                isPremium ? (
-                                    <>Plan <strong>Premium</strong>: Regeneraciones ilimitadas activas.</>
-                                ) : (
-                                    <>Te quedan <strong>{typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : 'ilimitadas'}</strong> regeneraciones este mes.</>
-                                )
-                            )}
-                        </div>
-                    </div>
-                )}
             />
 
             {/* ═══════════ MODAL: Nuevo Ciclo de Compras (plan VENCIDO) ═══════════ */}
