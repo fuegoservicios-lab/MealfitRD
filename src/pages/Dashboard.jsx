@@ -4572,32 +4572,6 @@ const DashboardInner = () => {
                         </div>
 
 
-                        {/* [P2-NEVERA-DELTA-NOTICE · 2026-06-24] Aviso IN-APP de la Nevera Inteligente.
-                          * Antes el banner "N ítems ya en tu Nevera" y el empty-state "ya tienes todo"
-                          * vivían SOLO en el PDF → tras renovar, la lista salía corta o el botón "Ya compré
-                          * la lista" desaparecía sin explicación (la queja "no aparecen los alimentos nuevos").
-                          * Ahora se surfacea en pantalla. Solo con plan válido. La deducción es by-design;
-                          * esto es comunicación. */}
-                        {shoppingDeltaMeta?.itemsRemoved > 0 && !isPlanExpired && !planFinished && !isPlanCorrupted && (
-                            /* [P3-NEVERA-NOTICE-DISCREET · 2026-06-24] Aviso sutil: solo ícono +
-                               texto verde pequeño (sin caja rellena ni borde, que se veía pesada y
-                               "cubría mucho"). Texto recortado a una línea — el "no compras nada"
-                               ya está implícito en "ya tienes todo". */
-                            <div style={{
-                                display: 'flex', alignItems: 'center', gap: '0.4rem', width: '100%',
-                                padding: '0.1rem 0.15rem',
-                                color: isDark ? '#6EE7B7' : '#047857',
-                                fontSize: '0.72rem', lineHeight: 1.3, fontWeight: 600,
-                            }}>
-                                <Refrigerator size={13} style={{ flexShrink: 0, opacity: 0.85 }} aria-hidden="true" />
-                                <span>
-                                    {shoppingDeltaMeta.isEmptyDueToPantry
-                                        ? <>Ya tienes todo en tu Nevera para este ciclo ({shoppingDeltaMeta.itemsRemoved} ingrediente{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''}).</>
-                                        : <>{shoppingDeltaMeta.itemsRemoved} ingrediente{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} ya {shoppingDeltaMeta.itemsRemoved > 1 ? 'están' : 'está'} en tu Nevera.</>}
-                                </span>
-                            </div>
-                        )}
-
                         {/* BOTONES LADO A LADO */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', width: '100%' }}>
                             {(() => {
@@ -4807,6 +4781,25 @@ const DashboardInner = () => {
                                 <span style={{ fontSize: '0.85rem' }}>PDF</span>
                             </button>
                         </div>
+
+                        {/* [P2-NEVERA-DELTA-NOTICE · 2026-06-24] Aviso sutil de la Nevera
+                            Inteligente, DEBAJO de los botones (decisión del owner). Solo con plan
+                            válido; la deducción es by-design — esto es comunicación. */}
+                        {shoppingDeltaMeta?.itemsRemoved > 0 && !isPlanExpired && !planFinished && !isPlanCorrupted && (
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: '0.4rem', width: '100%',
+                                padding: '0.1rem 0.15rem',
+                                color: isDark ? '#6EE7B7' : '#047857',
+                                fontSize: '0.72rem', lineHeight: 1.3, fontWeight: 600,
+                            }}>
+                                <Refrigerator size={13} style={{ flexShrink: 0, opacity: 0.85 }} aria-hidden="true" />
+                                <span>
+                                    {shoppingDeltaMeta.isEmptyDueToPantry
+                                        ? <>Ya tienes todo en tu Nevera para este ciclo ({shoppingDeltaMeta.itemsRemoved} ingrediente{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''}).</>
+                                        : <>{shoppingDeltaMeta.itemsRemoved} ingrediente{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} ya {shoppingDeltaMeta.itemsRemoved > 1 ? 'están' : 'está'} en tu Nevera.</>}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </header>
