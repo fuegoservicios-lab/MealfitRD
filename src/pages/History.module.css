@@ -1764,6 +1764,17 @@
         width: 100%;
         flex: none;
     }
+
+    /* [P3-HIST-MODAL-REACTIVATE-SIZE · 2026-06-24] En móvil el footer es
+       flex-direction: column, así que el `flex: 0 1 320px` heredado de
+       `.modalFooterSingle .modalActionBtn` ponía flex-basis = ALTO → el botón
+       "Reactivar este Plan" salía gigante (~320px de alto). Override (misma
+       especificidad, más abajo en el source): alto natural, ancho completo. */
+    .modalFooterSingle .modalActionBtn {
+        flex: none;
+        width: 100%;
+        max-width: none;
+    }
 }
 
 /* [P2-HIST-AUDIT-2 · 2026-05-09] Tabs del modal del Historial:
