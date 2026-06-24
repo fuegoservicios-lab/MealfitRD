@@ -6,6 +6,12 @@
 
 .top { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .top h1 { margin: 0; font-family: var(--font-heading); font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; color: var(--text-main); }
+/* PC: "Recetario"; móvil (≤880px): "Recetas" — ver [P3-RECIPES-TITLE]. */
+.titleShort { display: none; }
+@media (max-width: 880px) {
+  .titleFull { display: none; }
+  .titleShort { display: inline; }
+}
 .sum { margin-left: auto; font-size: .8rem; color: var(--text-muted); font-weight: 600; }
 .sum b { color: var(--text-main); font-weight: 800; }
 .days { display: inline-flex; gap: 6px; background: var(--bg-muted); border: 1px solid var(--border); border-radius: 12px; padding: 4px; overflow-x: auto; scrollbar-width: none; max-width: 100%; }

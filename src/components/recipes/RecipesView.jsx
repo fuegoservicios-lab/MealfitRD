@@ -46,7 +46,12 @@ export function RecipesView({
   return (
     <section className={styles.app} aria-label="Recetas">
       <header className={styles.top}>
-        <h1>Recetas</h1>
+        {/* [P3-RECIPES-TITLE · 2026-06-24] En PC un título más expresivo
+            ("Recetario"); en móvil el corto ("Recetas") por espacio. */}
+        <h1>
+          <span className={styles.titleFull}>Recetario</span>
+          <span className={styles.titleShort}>Recetas</span>
+        </h1>
         {days.length > 1 && (
           <div className={styles.days} role="tablist">
             {days.map((d) => (
