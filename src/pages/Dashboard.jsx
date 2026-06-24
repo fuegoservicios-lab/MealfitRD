@@ -219,6 +219,11 @@ const Q_DEGRADED_REASON_MAP = {
     // → es justo el subgrupo at-risk el que veía el copy menos accionable.
     clinical_layer_incomplete: 'No pudimos aplicar por completo la capa de seguridad clínica de tu perfil (condición/alergia). El plan es ORIENTATIVO: revísalo con tu profesional de salud antes de seguirlo y, si puedes, regenéralo.',
     composite_dish_unresolved: 'Algunos platos compuestos (ej. sancocho, mangú) no se pudieron desglosar en ingredientes con precisión, así que sus macros y su lista de compras son aproximados. Usa Cambiar Plato si necesitas más exactitud.',
+    // [P1-MARKER-UNRESOLVED-HONESTY · 2026-06-23] (audit inteligencia P1-6) El corrector de
+    // coherencia de slots (self_critique + surgical regen) no pudo resolver algún día tras los
+    // reintentos → puede haber comidas repetidas (almuerzo↔cena) o un slot incoherente. Antes se
+    // entregaba como plan plenamente verificado SIN aviso.
+    slot_coherence_unresolved: 'Algunos días pueden tener comidas repetidas o poco variadas: el ajuste automático no terminó. Usa Cambiar Plato para variar el día que no te cuadre.',
 };
 
 // [P3-NOTIF-CENTER-BACKFILL · 2026-06-16] Reconcilia (crea-o-enriquece) una
