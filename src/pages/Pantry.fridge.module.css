@@ -7,11 +7,20 @@
    query: el sidebar colapsa a chips bajo 760px de ancho del contenedor. */
 
 .page { padding: 12px; padding-bottom: 84px; min-height: 100vh; }
-/* [P3-PANTRY-EDGE-MOBILE · 2026-06-24] En móvil el recuadro va edge-to-edge
-   (full-bleed): sin padding del wrapper para que la tarjeta llene el ancho y el
-   alto. El shell ya quita su padding vía .mainContent.recipesEdge. */
+/* [P3-PANTRY-CARD-FILL-MOBILE · 2026-06-24] En móvil: recuadro redondeado con un
+   margen alrededor (como el diseño), pero que llena el alto. El wrapper es flex
+   column con min-height = viewport menos el header (~48px); el padding-bottom
+   reserva el BottomTabBar (el shell ya quita su propio padding vía
+   .mainContent.recipesEdge). La tarjeta (.app, flex:1) se estira para llenar. */
 @media (max-width: 760px) {
-  .page { padding: 0; min-height: 0; }
+  .page {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    padding: 12px;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    min-height: calc(100dvh - 48px);
+  }
 }
 
 .app { container-type: inline-size; overflow: hidden; background: var(--bg-card); border: 1px solid var(--border); border-radius: 26px; box-shadow: var(--shadow-lg); }
