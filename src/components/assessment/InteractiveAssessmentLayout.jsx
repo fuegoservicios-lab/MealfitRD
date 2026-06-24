@@ -20,8 +20,8 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
             <header className={styles.header}>
                 <div className={styles.headerContent}>
                     {currentStep > 0 ? (
-                        <button onClick={prevStep} className={styles.backBtn}>
-                            <ChevronLeft size={24} />
+                        <button onClick={prevStep} className={styles.backBtn} aria-label="Volver al paso anterior">
+                            <ChevronLeft size={24} aria-hidden="true" />
                         </button>
                     ) : (
                         <div className={styles.backSpacer} />
