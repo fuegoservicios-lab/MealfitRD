@@ -4793,18 +4793,16 @@ const DashboardInner = () => {
                         </div>
 
                         {/* [P2-NEVERA-DELTA-NOTICE · 2026-06-24] Aviso de la Nevera Inteligente,
-                            DEBAJO de los botones. Chip compacto (pastilla, alineado a la izquierda,
-                            una línea) — antes era caja rellena que cubría mucho / texto flotante que
-                            en móvil se partía raro. Solo con plan válido; la deducción es by-design. */}
+                            DEBAJO de los botones. Solo ícono + texto verde (SIN pastilla: ni fondo
+                            ni borde — la pastilla se confundía con un botón). Una línea. Izquierda
+                            en PC / centrado en móvil. Solo con plan válido; la deducción es by-design. */}
                         {shoppingDeltaMeta?.itemsRemoved > 0 && !isPlanExpired && !planFinished && !isPlanCorrupted && (
                             <span className="nevera-notice-chip" style={{
                                 maxWidth: '100%',
                                 display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                                padding: '0.28rem 0.65rem', borderRadius: '99px',
-                                background: isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.10)',
-                                border: `1px solid ${isDark ? 'rgba(16,185,129,0.30)' : 'rgba(16,185,129,0.26)'}`,
+                                padding: '0.1rem 0',
                                 color: isDark ? '#6EE7B7' : '#047857',
-                                fontSize: '0.7rem', fontWeight: 700, lineHeight: 1.2,
+                                fontSize: '0.72rem', fontWeight: 600, lineHeight: 1.25,
                             }}>
                                 <Refrigerator size={12} style={{ flexShrink: 0 }} aria-hidden="true" />
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
