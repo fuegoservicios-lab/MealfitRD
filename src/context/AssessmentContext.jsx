@@ -2330,53 +2330,60 @@ export const AssessmentProvider = ({ children }) => {
                             // 5xx/network — backend escala transient (pool/network) a 503;
                             // este recalc post-swap es no-crítico (swap ya persistió)
                             // pero el retry evita falsos console.error en blips.
+                            // [P5-SWAP-RECALC-RETRY · 2026-06-24] (re-audit P2-5) Espejo de regenerateDay
+                            // (P5-REGEN-DAY-RECALC-RETRY): el swap ya quedó persistido y strippeó las 4
+                            // listas; este recalc las repuebla. Antes era 1 reintento solo-transient +
+                            // catch silencioso (console.error) → si fallaba (4xx/5xx/red), las listas
+                            // quedaban en NULL y el PDF/restock mostraban el falso "tu plan no tiene lista
+                            // de compras" SIN aviso. Ahora: 2 intentos ante CUALQUIER fallo + toast honesto
+                            // si ambos fallan.
                             try {
-                                const recalcBody = JSON.stringify({
-                                    user_id: userId,
-                                    // [P2-NEW-B · 2026-05-11] plan_id explícito: el
-                                    // swap acaba de persistirse contra `planId`,
-                                    // garantizamos que el recalc opere sobre EL
-                                    // MISMO plan (no `get_latest_meal_plan` que
-                                    // bajo race con _chunk_worker podría apuntar
-                                    // a plan B recién creado).
-                                    plan_id: planId,
-                                    householdSize: updatedPlan.calc_household_size || formData.householdSize || 1,
-                                    groceryDuration: updatedPlan.calc_grocery_duration || formData.groceryDuration || 'weekly',
-                                    is_new_plan: false
-                                });
-                                const attemptRecalc = async () => {
-                                    try {
-                                        const r = await fetchWithAuth('/api/plans/recalculate-shopping-list', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: recalcBody
-                                        });
-                                        return { res: r, networkError: null };
-                                    } catch (e) {
-                                        return { res: null, networkError: e };
+                                const _swapRecalcOnce = async () => {
+                                    const r = await fetchWithAuth('/api/plans/recalculate-shopping-list', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            user_id: userId,
+                                            // [P2-NEW-B · 2026-05-11] plan_id explícito: el swap acaba de
+                                            // persistirse contra `planId` → el recalc opera sobre EL MISMO plan.
+                                            plan_id: planId,
+                                            householdSize: updatedPlan.calc_household_size || formData.householdSize || 1,
+                                            groceryDuration: updatedPlan.calc_grocery_duration || formData.groceryDuration || 'weekly',
+                                            is_new_plan: false
+                                        })
+                                    });
+                                    if (!r.ok) return false;
+                                    const rd = await r.json();
+                                    if (rd.success && rd.plan_data) {
+                                        setPlanData(rd.plan_data);
+                                        safeLocalStorageSet('mealfit_plan', rd.plan_data);
+                                        // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir `_coherence_warnings` post-swap-recalc.
+                                        emitCoherenceToast(toast, rd._coherence_warnings);
+                                        return true;
                                     }
+                                    return false;
                                 };
-                                let { res: recalcResponse, networkError } = await attemptRecalc();
-                                const isTransient = networkError || (recalcResponse && recalcResponse.status >= 500);
-                                if (isTransient) {
-                                    await new Promise((r) => setTimeout(r, 500));
-                                    ({ res: recalcResponse, networkError } = await attemptRecalc());
-                                }
-                                if (networkError) throw networkError;
-
-                                if (recalcResponse.ok) {
-                                    const recalcData = await recalcResponse.json();
-                                    if (recalcData.success && recalcData.plan_data) {
-                                        setPlanData(recalcData.plan_data);
-                                        safeLocalStorageSet('mealfit_plan', recalcData.plan_data);
-                                        console.log("✅ [GAP 3] Lista de compras recalculada vía Delta Matemático tras modificar plato.");
-                                        // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir
-                                        // `_coherence_warnings` post-swap-recalc.
-                                        emitCoherenceToast(toast, recalcData._coherence_warnings);
+                                let _swapRecalcOk = false;
+                                for (let _attempt = 0; _attempt < 2 && !_swapRecalcOk; _attempt++) {
+                                    try { _swapRecalcOk = await _swapRecalcOnce(); }
+                                    catch (_recalcErr) { _swapRecalcOk = false; }
+                                    if (!_swapRecalcOk && _attempt === 0) {
+                                        await new Promise((r) => setTimeout(r, 600));
                                     }
+                                }
+                                if (!_swapRecalcOk) {
+                                    // No dejamos al usuario con un PDF/lista potencialmente desincronizada sin aviso.
+                                    toast('Tu lista de compras se está actualizando', {
+                                        description: 'Si el PDF se ve incompleto, recárgalo en unos segundos.',
+                                        duration: 6000,
+                                    });
                                 }
                             } catch (recalcErr) {
-                                console.error("⚠️ Error recalculando lista de compras post-swap (tras retry):", recalcErr);
+                                // Defensa final: cualquier excepción inesperada → aviso honesto, nunca silencio.
+                                toast('Tu lista de compras se está actualizando', {
+                                    description: 'Si el PDF se ve incompleto, recárgalo en unos segundos.',
+                                    duration: 6000,
+                                });
                             }
                         }
                     }
