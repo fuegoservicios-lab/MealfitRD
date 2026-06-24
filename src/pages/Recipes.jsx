@@ -873,7 +873,7 @@ const Recipes = () => {
             <AnimatePresence>
                 {cookingRecipe && <CookingModeOverlay recipe={cookingRecipe} onClose={() => setCookingRecipe(null)} onComplete={handleLogConsumption} />}
             </AnimatePresence>
-            <div style={{ maxWidth: '1080px', margin: '0 auto', paddingBottom: '4rem', overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ maxWidth: '1080px', margin: '0 auto', paddingBottom: isMobile ? 0 : '4rem', overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
 
                 <div ref={contentRef} style={{ position: 'relative', zIndex: 1, paddingBottom: isMobile ? '0' : '2rem', overflow: 'hidden', maxWidth: '100%' }}>
                     <AmbientBackground />

@@ -3,9 +3,18 @@
    con dona arriba y macros en fila. Usa tokens del DS. */
 
 /* [P3-RECIPES-EDGE-MOBILE · 2026-06-24] Edge-to-edge: sin esquinas redondeadas
-   ni bordes laterales para cubrir el ancho completo de la pantalla. El padding
-   horizontal del shell se anula vía .mainContent.recipesEdge (DashboardLayout). */
-.app { background: var(--bg-card); border: 1px solid var(--border); border-left: 0; border-right: 0; border-radius: 0; overflow: hidden; }
+   ni bordes laterales para cubrir el ancho completo. El padding del shell se
+   anula vía .mainContent.recipesEdge (DashboardLayout).
+   [P3-RECIPES-FILL-MOBILE] El recuadro llena el alto disponible (min-height) y
+   reserva por dentro el espacio del BottomTabBar (padding-bottom) — así el fondo
+   del recuadro cubre todo hasta la barra de pestañas, sin franja gris. */
+.app {
+  box-sizing: border-box;
+  background: var(--bg-card);
+  border: 1px solid var(--border); border-left: 0; border-right: 0; border-radius: 0;
+  min-height: calc(100dvh - env(safe-area-inset-top, 0px) - 48px);
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
 
 /* Top fijo */
 .top { position: sticky; top: 0; z-index: 5; background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 16px 12px; }
