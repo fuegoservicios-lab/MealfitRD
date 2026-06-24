@@ -8,7 +8,8 @@
 }
 
 .input,
-.select {
+.select,
+.textarea {
     width: 100%;
     padding: 1rem 1.25rem;
     border: 1px solid var(--border);
@@ -22,8 +23,19 @@
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
 }
 
+/* [P3-FORM-TEXTAREA-STYLE · 2026-06-23] El componente TextArea referenciaba
+   `styles.textarea` pero la regla no existía → resolvía a undefined y el
+   textarea salía sin estilar (browser-default). Comparte el look de .input
+   + extras propios de un área multilínea. */
+.textarea {
+    min-height: 7rem;
+    line-height: 1.5;
+    resize: vertical;
+}
+
 .input:focus,
-.select:focus {
+.select:focus,
+.textarea:focus {
     outline: none;
     background: white;
     border-color: var(--primary);
@@ -172,7 +184,8 @@
 
 /* [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO */
 :global(html[data-theme="dark"]) .input,
-:global(html[data-theme="dark"]) .select {
+:global(html[data-theme="dark"]) .select,
+:global(html[data-theme="dark"]) .textarea {
     background: var(--bg-muted);
     color: var(--text-main);
     border-color: var(--border);
@@ -180,13 +193,15 @@
 }
 
 :global(html[data-theme="dark"]) .input:focus,
-:global(html[data-theme="dark"]) .select:focus {
+:global(html[data-theme="dark"]) .select:focus,
+:global(html[data-theme="dark"]) .textarea:focus {
     background: var(--bg-muted);
     border-color: var(--primary);
     box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.15);
 }
 
-:global(html[data-theme="dark"]) .input::placeholder {
+:global(html[data-theme="dark"]) .input::placeholder,
+:global(html[data-theme="dark"]) .textarea::placeholder {
     color: var(--text-light);
 }
 
