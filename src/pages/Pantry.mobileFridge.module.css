@@ -38,12 +38,15 @@
 .add:hover { filter: brightness(1.06); }
 .clear { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
 
-/* Zonas + temperatura */
-.bar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+/* Zonas + temperatura.
+   [P3-PANTRY-BAR-STACK-MOBILE · 2026-06-24] Apilado (columna): pestañas arriba,
+   badge de temperatura debajo a la izquierda — como el diseño. Antes era fila con
+   `margin-left:auto`, que al ir full-width dejaba el badge pegado a la derecha. */
+.bar { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
 .zones { display: inline-flex; gap: 4px; background: var(--bg-muted); border: 1px solid var(--border); border-radius: 12px; padding: 4px; }
 .zone { appearance: none; border: 0; cursor: pointer; font: inherit; font-size: .8rem; font-weight: 700; padding: 8px 15px; border-radius: 9px; color: var(--text-muted); background: transparent; transition: .16s; display: inline-flex; align-items: center; gap: 7px; }
 .zone[aria-selected="true"] { background: var(--bg-card); color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,.3); }
-.temp { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: .76rem; font-weight: 700; color: #67E8F9; background: color-mix(in srgb, #22D3EE 12%, transparent); border: 1px solid color-mix(in srgb, #22D3EE 30%, transparent); padding: 7px 13px; border-radius: 99px; }
+.temp { display: inline-flex; align-items: center; gap: 8px; font-size: .76rem; font-weight: 700; color: #67E8F9; background: color-mix(in srgb, #22D3EE 12%, transparent); border: 1px solid color-mix(in srgb, #22D3EE 30%, transparent); padding: 7px 13px; border-radius: 99px; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: #34D399; box-shadow: 0 0 8px #34D399; }
 
 /* Chips */
