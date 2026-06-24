@@ -48,6 +48,11 @@ import { getChunkStatusLabel } from '../utils/chunkStatus';
 // [P1-3 · 2026-05-10] Maps es-DO para action_taken + hypothesis del guard
 // recetas↔lista. Renderiza badges/chips humanizados en el tab "Ajustes".
 import { getCoherenceActionLabel, getCoherenceHypothesisLabel } from '../utils/coherenceLabels';
+// [P3-HIST-DESKTOP-REDESIGN · 2026-06-24] Panel de Historial para PC (diseño del
+// owner) injertado sobre los datos/handlers reales. Solo se monta en escritorio;
+// móvil mantiene el render compacto existente. El modal de detalle sigue siendo
+// el real (más abajo en este archivo).
+import HistoryDesktopPanel from '../components/history/HistoryDesktopPanel';
 
 // [P-HISTORY-DAY-LABELS] Nombres de día (mismo SSOT que Recipes.jsx y
 // Dashboard.jsx). Capitalizados para títulos ("Menú — Viernes") y tabs.
@@ -131,6 +136,23 @@ export const _historyLabelStart = (planData, createdAt) => {
     return planData?.grocery_start_date || createdAt;
 };
 
+// [P3-HIST-DESKTOP-REDESIGN · 2026-06-24] matchMedia SSR-safe (mismo patrón que
+// components/common/Modal.jsx). Decide PC (panel nuevo) vs móvil (lista compacta).
+const useMediaQuery = (query) => {
+    const [matches, setMatches] = useState(() =>
+        (typeof window !== 'undefined' ? window.matchMedia(query).matches : false),
+    );
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const media = window.matchMedia(query);
+        setMatches(media.matches);
+        const listener = (e) => setMatches(e.matches);
+        media.addEventListener('change', listener);
+        return () => media.removeEventListener('change', listener);
+    }, [query]);
+    return matches;
+};
+
 const History = () => {
     // [P3-HIST-LIST-CACHE · 2026-05-19] Stale-while-revalidate del listado.
     // Lazy-init lee el singleton del módulo `historyCaches`.
@@ -150,6 +172,8 @@ const History = () => {
     // stale.
     const [plans, setPlans] = useState(() => getCachedHistoryListStale() || []);
     const [searchQuery, setSearchQuery] = useState('');
+    // [P3-HIST-DESKTOP-REDESIGN · 2026-06-24] PC (≥769px) usa HistoryDesktopPanel.
+    const isDesktop = useMediaQuery('(min-width: 769px)');
     const [loading, setLoading] = useState(() => !getCachedHistoryListStale());
     const [selectedPlan, setSelectedPlan] = useState(null);
     // [P3-HIST-FAST-OPEN · 2026-05-18] Flag de carga del plan_data del
@@ -1495,6 +1519,36 @@ const History = () => {
     };
 
     // Meal preview helper
+    // [P3-HIST-DESKTOP-REDESIGN · 2026-06-24] Apertura del modal de detalle —
+    // extraída del onClick inline de la card para reusarla desde el panel de PC.
+    // Misma lógica: optimistic open con el summary + lazy-fetch de plan_data +
+    // ensure de blocked-reasons si hay drift de chunks.
+    const openPlanModal = (plan) => {
+        setSelectedDay(0);
+        setActiveChunkIdx(0);
+        setActiveModalTab('menu');
+        const _hasInlinePlanData = !!(plan.plan_data && typeof plan.plan_data === 'object' && Array.isArray(plan.plan_data.days));
+        setSelectedPlan({ ...plan, plan_data: _hasInlinePlanData ? plan.plan_data : null });
+        const _puac = (typeof plan.chunk_pending_user_action_count === 'number') ? plan.chunk_pending_user_action_count : 0;
+        const _fc = (typeof plan.chunk_failed_count === 'number') ? plan.chunk_failed_count : 0;
+        const _exh = (typeof plan.recovery_exhausted_count === 'number') ? plan.recovery_exhausted_count : 0;
+        const _inFlight = (typeof plan.chunk_in_flight_count === 'number') ? plan.chunk_in_flight_count : 0;
+        if (_puac > 0 || _fc > 0 || _exh > 0 || _inFlight > 0) {
+            _ensureBlockedReasons(plan.id);
+        }
+        if (!_hasInlinePlanData) {
+            setPlanDataLoading(true);
+            _loadPlanDataLazy(plan).then((fullPlanData) => {
+                setPlanDataLoading(false);
+                if (fullPlanData == null) return;
+                setSelectedPlan((prev) => {
+                    if (!prev || prev.id !== plan.id) return prev;
+                    return { ...prev, plan_data: fullPlanData };
+                });
+            }).catch(() => setPlanDataLoading(false));
+        }
+    };
+
     const renderMealPreview = (plan) => {
         // [P1-HIST-AUDIT-4 · 2026-05-09] Summary trae `preview_meals`
         // top-level (max 4, solo {name, meal}). Legacy deriva del
@@ -1645,6 +1699,17 @@ const History = () => {
         [plans],
     );
 
+    // [P3-HIST-DESKTOP-REDESIGN · 2026-06-24] El plan "activo" del panel de PC
+    // (el hero) = el plan actual SOLO si tiene contenido utilizable (≥1 día
+    // generado y no fallido) — mismo criterio que el chip "Activo" de la lista.
+    const activePlanId = useMemo(() => {
+        if (!currentPlanId) return null;
+        const cp = plans.find((p) => p.id === currentPlanId);
+        if (!cp) return null;
+        const info = getStatusInfo(cp);
+        return (info.daysGenerated > 0 && info.bucket !== 'failed') ? currentPlanId : null;
+    }, [currentPlanId, plans]);
+
     return (
         <>
             {loading ? (
@@ -1653,6 +1718,25 @@ const History = () => {
                 <SessionExpiredState />
             ) : plans.length === 0 ? (
                 <EmptyState />
+            ) : isDesktop ? (
+                /* [P3-HIST-DESKTOP-REDESIGN · 2026-06-24] Panel de PC (diseño del
+                   owner). Móvil sigue con la lista compacta de abajo. El modal de
+                   detalle (más abajo) lo abre `openPlanModal`. */
+                <HistoryDesktopPanel
+                    plans={plans}
+                    total={plans.length}
+                    activePlanId={activePlanId}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    onOpen={openPlanModal}
+                    onEdit={(raw) => { setIsEditing(raw.id); setTempName(raw.name || 'Plan Generado'); }}
+                    onDelete={(raw) => setConfirmDelete(raw)}
+                    editingId={isEditing}
+                    tempName={tempName}
+                    setTempName={setTempName}
+                    onEditSave={(raw) => handleEditSave({ stopPropagation: () => {} }, raw)}
+                    onEditCancel={() => { setIsEditing(null); setTempName(''); }}
+                />
             ) : (
                 <motion.div
                     className={styles.cardGrid}
@@ -1731,91 +1815,7 @@ const History = () => {
                                 layout
                                 exit={{ opacity: 0, x: -100, transition: { duration: 0.25 } }}
                                 className={`${styles.card} ${_isActive ? styles.cardActive : ''}`}
-                                onClick={() => {
-                                    if (isEditing !== plan.id) {
-                                        // [P1-HIST-1 · 2026-05-09] Reset a primer día +
-                                        // primer chunk al abrir el modal. El selector
-                                        // muestra ≤4 días del chunk activo; las flechas
-                                        // prev/next permiten navegar al resto del plan
-                                        // (read-only, sin reactivar).
-                                        setSelectedDay(0);
-                                        setActiveChunkIdx(0);
-                                        // [P2-HIST-AUDIT-2 · 2026-05-09] Reset al tab
-                                        // 'menu' al abrir cualquier card — el state
-                                        // del tab persiste entre aperturas, sin reset
-                                        // un usuario que abrió "Lecciones" en el plan A
-                                        // y luego abre el plan B vería "Lecciones" del
-                                        // plan B antes del menú (UX confusa).
-                                        setActiveModalTab('menu');
-
-                                        // [P3-HIST-FAST-OPEN · 2026-05-18]
-                                        // Optimistic open: abrir el modal AL INSTANTE
-                                        // con el summary del listado (calories/macros/
-                                        // name/created_at top-level del /history-list).
-                                        // Si el plan ya trae plan_data adentro (tests
-                                        // legacy / paths que pasan rows completos), lo
-                                        // preservamos. Si no, queda `plan_data: null`
-                                        // y el render del menú muestra skeleton mientras
-                                        // el fetch resuelve.
-                                        //
-                                        // Antes: `await _loadPlanDataLazy(plan)` ANTES
-                                        // de `setSelectedPlan` — el modal no abría hasta
-                                        // resolverse el roundtrip a el backend anterior (200-500ms
-                                        // típico), causando perceived delay del click.
-                                        const _hasInlinePlanData = !!(plan.plan_data
-                                            && typeof plan.plan_data === 'object'
-                                            && Array.isArray(plan.plan_data.days));
-                                        setSelectedPlan({
-                                            ...plan,
-                                            plan_data: _hasInlinePlanData ? plan.plan_data : null,
-                                        });
-
-                                        // [P2-HIST-AUDIT-9 · 2026-05-09] Lazy fetch de
-                                        // reasons per-chunk solo si hay drift (counters
-                                        // embedded del LEFT JOIN o exhausted > 0). Sin
-                                        // drift, el endpoint devolvería `reasons: []` —
-                                        // waste innecesario.
-                                        //
-                                        // [P1-HIST-BLOCKED-STUCK · 2026-05-09] Sumamos
-                                        // `chunk_in_flight_count > 0` para detectar
-                                        // chunks `processing`/`stale` atascados (lag >
-                                        // MEALFIT_BLOCKED_REASONS_STUCK_LAG_HOURS). Trade-off
-                                        // aceptable: pagamos 1 roundtrip extra cuando
-                                        // hay generación en progreso, pero sin este
-                                        // disparo los chunks atascados >3h serían
-                                        // invisibles hasta que el cron los escalara
-                                        // a failed (≥1h más).
-                                        const _puac = (typeof plan.chunk_pending_user_action_count === 'number')
-                                            ? plan.chunk_pending_user_action_count : 0;
-                                        const _fc = (typeof plan.chunk_failed_count === 'number')
-                                            ? plan.chunk_failed_count : 0;
-                                        const _exh = (typeof plan.recovery_exhausted_count === 'number')
-                                            ? plan.recovery_exhausted_count : 0;
-                                        const _inFlight = (typeof plan.chunk_in_flight_count === 'number')
-                                            ? plan.chunk_in_flight_count : 0;
-                                        if (_puac > 0 || _fc > 0 || _exh > 0 || _inFlight > 0) {
-                                            _ensureBlockedReasons(plan.id);
-                                        }
-
-                                        // [P3-HIST-FAST-OPEN · 2026-05-18]
-                                        // Si no teníamos plan_data inline, lo cargamos
-                                        // en paralelo y lo enchufamos en `selectedPlan`
-                                        // cuando llegue. Defensa: si el usuario cerró
-                                        // el modal antes de resolverse o abrió OTRO plan
-                                        // (`prev.id !== plan.id`), no pisamos su state.
-                                        if (!_hasInlinePlanData) {
-                                            setPlanDataLoading(true);
-                                            _loadPlanDataLazy(plan).then((fullPlanData) => {
-                                                setPlanDataLoading(false);
-                                                if (fullPlanData == null) return; // toast + log ya en helper
-                                                setSelectedPlan((prev) => {
-                                                    if (!prev || prev.id !== plan.id) return prev;
-                                                    return { ...prev, plan_data: fullPlanData };
-                                                });
-                                            }).catch(() => setPlanDataLoading(false));
-                                        }
-                                    }
-                                }}
+                                onClick={() => { if (isEditing !== plan.id) openPlanModal(plan); }}
                             >
                                 <div className={styles.cardContent}>
                                     <div className={styles.iconWrapper}>
