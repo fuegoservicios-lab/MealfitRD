@@ -3284,6 +3284,13 @@ const DashboardInner = () => {
                     position: relative;
                     z-index: 50;
                 }
+                /* [P3-NEVERA-NOTICE-NO-DEFORM · 2026-06-24] Cap del ancho de la
+                   columna de controles. El aviso verde de la Nevera (texto largo)
+                   estiraba el dropdown + botones a su ancho de una sola línea; con
+                   el cap, el aviso hace wrap dentro y los controles no se deforman. */
+                .new-plan-wrapper {
+                    max-width: 420px;
+                }
                 .new-plan-btn {
                     padding: 0.85rem 1.75rem;
                     border-radius: 1rem;
@@ -3646,6 +3653,7 @@ const DashboardInner = () => {
                     .new-plan-wrapper {
                         flex: none;
                         width: 100%;
+                        max-width: none;
                     }
                     .new-plan-btn {
                         width: 100%;
