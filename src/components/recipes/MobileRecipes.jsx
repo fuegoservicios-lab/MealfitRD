@@ -100,10 +100,6 @@ export function MobileRecipes({
       {/* Detalle */}
       <div className={styles.detail}>
         <div className={styles.head}>
-          <div className={styles.headTop}>
-            <span className={styles.emblem}><Svg d={t.icon} size={24} /></span>
-            <span className={styles.badge}><Svg d={t.icon} size={12} /> {meal.meal}</span>
-          </div>
           <h2 className={styles.title}>{meal.name}</h2>
           <div className={styles.chips}>
             <span className={`${styles.chip} ${styles.kcal}`}><Svg d={ICONS.flame} size={13} /> {meal.cals} kcal</span>

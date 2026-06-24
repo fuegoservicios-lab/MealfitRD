@@ -43,7 +43,7 @@
 .emblem { flex: none; width: 54px; height: 54px; border-radius: 16px; display: grid; place-items: center; color: #05080f; background: linear-gradient(150deg, color-mix(in srgb, var(--tone) 85%, #fff), var(--tone)); box-shadow: 0 10px 24px -10px var(--tone); }
 .h2body { flex: 1; min-width: 0; position: relative; }
 .badge { display: inline-flex; align-items: center; gap: 6px; font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--tone); background: color-mix(in srgb, var(--tone) 18%, transparent); border: 1px solid color-mix(in srgb, var(--tone) 38%, transparent); padding: 4px 10px; border-radius: 99px; }
-.title { margin: 11px 0 0; font-family: var(--font-heading); font-size: 1.65rem; font-weight: 800; line-height: 1.12; letter-spacing: -.02em; color: var(--text-main); text-wrap: balance; word-break: break-word; overflow-wrap: anywhere; }
+.title { margin: 0; font-family: var(--font-heading); font-size: 1.65rem; font-weight: 800; line-height: 1.12; letter-spacing: -.02em; color: var(--text-main); text-wrap: balance; word-break: break-word; overflow-wrap: anywhere; }
 .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 13px; }
 .chip { display: inline-flex; align-items: center; gap: 5px; font-size: .74rem; font-weight: 700; color: var(--text-main); white-space: nowrap; background: var(--bg-card); border: 1px solid var(--border); padding: 5px 11px; border-radius: 99px; }
 .kcal svg { color: #FB923C; }
@@ -95,9 +95,11 @@
 .step.done .node { background: var(--secondary); border-color: var(--secondary); color: #04221d; }
 .step.done .stepCard { background: color-mix(in srgb, var(--secondary) 8%, var(--bg-page)); border-color: color-mix(in srgb, var(--secondary) 35%, transparent); }
 .step.done .stepTitle { color: var(--secondary); }
-/* [P3-RECIPES-STEPDONE-ALIGN · 2026-06-24] Alinea el banner con las TARJETAS de
-   paso (no con los nodos): margin-left = ancho del nodo (38px) + gap (14px). */
-.stepDone { display: flex; align-items: center; gap: 8px; margin: 6px 0 0 52px; padding: 11px 14px; border-radius: 13px; font-size: .82rem; font-weight: 700; color: #04221d; background: linear-gradient(120deg, var(--secondary-light), var(--secondary)); }
+/* [P3-RECIPES-STEPDONE-ALIGN · 2026-06-24] Alinea con las TARJETAS de paso
+   (margin-left = nodo 38px + gap 14px). [P3-RECIPES-STEPDONE-SUBTLE] Tarjeta
+   verde sutil (no bloque sólido brillante) para no chocar con el tema oscuro. */
+.stepDone { display: flex; align-items: center; gap: 10px; margin: 8px 0 0 52px; padding: 12px 15px; border-radius: 14px; font-size: .84rem; font-weight: 700; color: var(--text-main); background: color-mix(in srgb, var(--secondary) 11%, var(--bg-page)); border: 1px solid color-mix(in srgb, var(--secondary) 32%, transparent); }
+.stepDone svg { flex: none; color: var(--secondary); }
 
 .empty { text-align: center; padding: 3rem 1.5rem; background: var(--bg-page); border: 1px dashed var(--border); border-radius: 16px; color: var(--text-muted); font-size: .9rem; }
 

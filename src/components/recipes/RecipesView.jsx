@@ -132,9 +132,7 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onC
     <div className={styles.detail} style={{ '--tone': t.tone }}>
       {/* Encabezado tipográfico (sin imagen) */}
       <div className={styles.head2}>
-        <span className={styles.emblem}><Svg d={t.icon} size={27} /></span>
         <div className={styles.h2body}>
-          <span className={styles.badge}><Svg d={t.icon} size={12} /> {meal.meal}</span>
           <h2 className={styles.title}>{meal.name}</h2>
           <div className={styles.chips}>
             <span className={`${styles.chip} ${styles.kcal}`}><Svg d={ICONS.flame} size={13} /> {meal.cals} kcal</span>
