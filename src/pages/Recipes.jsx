@@ -41,6 +41,7 @@ import EmptyState from '../components/common/EmptyState';
 // con dona de macros, checklist y timeline). Recipes.jsx conserva toda la lógica
 // (modo cocina, PDF, expandir pasos, registrar, ventana de días) y le pasa datos.
 import { RecipesView } from '../components/recipes/RecipesView';
+import { MobileRecipes } from '../components/recipes/MobileRecipes';
 // [P3-RECIPE-SAFE-LS · 2026-05-30] Helper SSOT no-throw para localStorage.
 import { safeLocalStorageSet } from '../utils/safeLocalStorage';
 // [P3-AJI-MORRON-DISPLAY · 2026-06-22] Terminología RD: pimiento dulce → "ají morrón"
@@ -918,24 +919,27 @@ const Recipes = () => {
                             return { globalIdx, label: diasSemana[dd.getDay()] };
                         });
 
-                        return (
-                            <RecipesView
-                                days={days}
-                                activeDayGlobalIdx={activeDayIndex}
-                                onSelectDay={(g) => { setActiveDayIndex(g); setActiveMealIndex(0); setCheckedIngredients({}); }}
-                                meals={validMeals}
-                                activeMealIndex={currentMealIndex}
-                                onSelectMeal={(i) => { setActiveMealIndex(i); setCheckedIngredients({}); }}
-                                meal={activeMeal}
-                                steps={activeRecipeSteps}
-                                dayKcal={dayKcal}
-                                checkedIngredients={checkedIngredients}
-                                onToggleIngredient={toggleIngredient}
-                                onCook={() => handleCookClick(activeMeal, currentDayIndex, currentMealIndex)}
-                                onPDF={() => handleDownloadPDF(activeMeal)}
-                                isExpanding={isExpanding}
-                            />
-                        );
+                        // [P3-RECIPES-MOBILE-DEDICATED] Mismos datos+handlers para
+                        // ambas vistas; en móvil va la dedicada (MobileRecipes).
+                        const viewProps = {
+                            days,
+                            activeDayGlobalIdx: activeDayIndex,
+                            onSelectDay: (g) => { setActiveDayIndex(g); setActiveMealIndex(0); setCheckedIngredients({}); },
+                            meals: validMeals,
+                            activeMealIndex: currentMealIndex,
+                            onSelectMeal: (i) => { setActiveMealIndex(i); setCheckedIngredients({}); },
+                            meal: activeMeal,
+                            steps: activeRecipeSteps,
+                            dayKcal,
+                            checkedIngredients,
+                            onToggleIngredient: toggleIngredient,
+                            onCook: () => handleCookClick(activeMeal, currentDayIndex, currentMealIndex),
+                            onPDF: () => handleDownloadPDF(activeMeal),
+                            isExpanding,
+                        };
+                        return isMobile
+                            ? <MobileRecipes {...viewProps} />
+                            : <RecipesView {...viewProps} />;
                     })()}
                 </div>
             </div>
