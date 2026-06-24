@@ -37,6 +37,10 @@ import { trackEvent } from '../utils/analytics';
 // Mismo helper SSOT que usa History.jsx en sus mutaciones.
 import { invalidateCachesForPlan } from '../utils/historyCaches';
 import EmptyState from '../components/common/EmptyState';
+// [P3-RECIPES-REDESIGN · 2026-06-24] Vista rediseñada (riel de comidas + detalle
+// con dona de macros, checklist y timeline). Recipes.jsx conserva toda la lógica
+// (modo cocina, PDF, expandir pasos, registrar, ventana de días) y le pasa datos.
+import { RecipesView } from '../components/recipes/RecipesView';
 // [P3-RECIPE-SAFE-LS · 2026-05-30] Helper SSOT no-throw para localStorage.
 import { safeLocalStorageSet } from '../utils/safeLocalStorage';
 // [P3-AJI-MORRON-DISPLAY · 2026-06-22] Terminología RD: pimiento dulce → "ají morrón"
@@ -868,383 +872,65 @@ const Recipes = () => {
             <AnimatePresence>
                 {cookingRecipe && <CookingModeOverlay recipe={cookingRecipe} onClose={() => setCookingRecipe(null)} onComplete={handleLogConsumption} />}
             </AnimatePresence>
-            <div style={{ maxWidth: '850px', margin: '0 auto', paddingBottom: '4rem', overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ maxWidth: '1080px', margin: '0 auto', paddingBottom: '4rem', overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
 
                 <div ref={contentRef} style={{ position: 'relative', zIndex: 1, paddingBottom: isMobile ? '0' : '2rem', overflow: 'hidden', maxWidth: '100%' }}>
                     <AmbientBackground />
 
-                    <div className="recipe-book-wrapper" style={{
-                        padding: isMobile ? '1.25rem 1rem' : '2.5rem 2rem 2.5rem 4.5rem',
-                        marginTop: isMobile ? '0.5rem' : '3.5rem',
-                        minWidth: 0,
-                        maxWidth: '100%',
-                        boxSizing: 'border-box'
-                    }}>
+                    {(() => {
+                        const planDays = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
+                        // [P-RECIPES-CHUNK-WINDOW] Clamp al window del chunk.
+                        const _windowEnd = chunkStart + chunkSize;
+                        const _clampedIdx = Math.max(chunkStart, Math.min(activeDayIndex, _windowEnd - 1));
+                        const currentDayIndex = Math.min(_clampedIdx, planDays.length - 1);
+                        const dayObj = planDays[currentDayIndex];
+                        const validMeals = (dayObj && dayObj.meals) || [];
 
-                        <style>{`
-                            .meal-hover-card {
-                                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-                            }
-                            .meal-hover-card:not(.active):hover {
-                                box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.08) !important;
-                                transform: translateY(-2px) scale(1.02) !important;
-                            }
-                            .meal-hover-card.active:hover {
-                                box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.15) !important;
-                            }
-                        `}</style>
-
-                        {/* DAY SELECTOR — limitado al chunk activo (3 ó 4 días)
-                            según `split_with_absorb`. Sin chunk-aware se mostraban
-                            TODOS los días del plan aunque el usuario solo tenga
-                            recetas válidas para el chunk actual. */}
-                        {chunkDays.length > 1 && (
-                            <div
-                                data-html2canvas-ignore="true"
-                                style={{
-                                    display: 'flex', gap: isMobile ? '0.35rem' : '1rem',
-                                    justifyContent: 'center', background: 'var(--bg-page)',
-                                    padding: isMobile ? '0.35rem' : '0.75rem', borderRadius: '99px',
-                                    border: '1px solid var(--border)',
-                                    position: 'relative', zIndex: 2, margin: '0'
-                                }}>
-                                {chunkDays.map((dayObj, localIdx) => {
-                                    const globalIdx = chunkStart + localIdx;
-                                    const isActive = activeDayIndex === globalIdx;
-                                    return (
-                                        <button
-                                            key={globalIdx}
-                                            onClick={() => { setActiveDayIndex(globalIdx); setActiveMealIndex(0); setCheckedIngredients({}); }}
-                                            style={{
-                                                flex: 1, padding: isMobile ? '0.6rem 0.15rem' : '0.85rem 1rem', width: isMobile ? 'auto' : '120px',
-                                                borderRadius: '99px',
-                                                border: isActive ? 'none' : '1px solid transparent',
-                                                background: isActive ? 'var(--primary)' : 'transparent',
-                                                color: isActive ? 'var(--bg-card)' : 'var(--text-muted)',
-                                                fontWeight: 800, cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                fontSize: isMobile ? '0.8rem' : '1rem',
-                                                boxShadow: isActive ? '0 4px 10px -2px rgba(0, 0, 0, 0.15)' : 'none',
-                                                transform: isActive ? 'translateY(-1px)' : 'translateY(0)',
-                                            }}
-                                        >
-                                            {(() => {
-                                                // Día = grocery_start_date + globalIdx. Antes el código
-                                                // usaba "today + localIdx" lo que producía nombres
-                                                // incorrectos cuando el chunk no empieza en hoy o el
-                                                // plan llevaba días corriendo (P-RECIPES-CHUNK-WINDOW).
-                                                const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-                                                const d = new Date(_startMid.getTime());
-                                                d.setDate(d.getDate() + globalIdx);
-                                                return diasSemana[d.getDay()];
-                                            })()}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-
-                        {(() => {
-                            const planDays = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
-                            // [P-RECIPES-CHUNK-WINDOW] Clamp inline al window
-                            // del chunk antes que el useEffect corra. Sin esto,
-                            // el primer render con `activeDayIndex=0` (default
-                            // useState) podía mostrar día de chunk anterior por
-                            // un tick si chunkStart>0.
-                            const _windowEnd = chunkStart + chunkSize;
-                            const _clampedIdx = Math.max(chunkStart, Math.min(activeDayIndex, _windowEnd - 1));
-                            const currentDayIndex = Math.min(_clampedIdx, planDays.length - 1);
-                            const dayObj = planDays[currentDayIndex];
-                            const validMeals = (dayObj && dayObj.meals) || [];
-
-                            if (!dayObj || validMeals.length === 0) {
-                                return (
-                                    <EmptyState
-                                        icon={ChefHat}
-                                        title="Aún no hay recetas para este día"
-                                        description="Cuando tu plan esté completo, encontrarás aquí las recetas paso a paso."
-                                        cta={{
-                                            label: 'Volver al plan',
-                                            onClick: () => navigate('/dashboard'),
-                                        }}
-                                    />
-                                );
-                            }
-
-                            const currentMealIndex = Math.min(activeMealIndex, validMeals.length - 1);
-                            const activeMeal = validMeals[currentMealIndex];
-                            // [P2-RECIPE-DISCLAIMER-LIST] Pasos coercidos a array
-                            // (defensa contra `recipe` string legacy → `.map` crash).
-                            const activeRecipeSteps = toRecipeSteps(activeMeal.recipe);
-
+                        if (!dayObj || validMeals.length === 0) {
                             return (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '1.25rem' : '2rem', position: 'relative', zIndex: 2, minWidth: 0, width: '100%' }}>
-
-                                    {/* MEAL SELECTOR */}
-                                    <div data-html2canvas-ignore="true">
-                                        {isMobile ? (
-                                            /* MOBILE: 2-column mini-cards grid — all visible, tap to select */
-                                            <div style={{
-                                                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem',
-                                                padding: '0.2rem', maxWidth: '100%'
-                                            }}>
-                                                {validMeals.map((meal, index) => {
-                                                    const isActive = currentMealIndex === index;
-                                                    return (
-                                                        <button
-                                                            key={index}
-                                                            className={`meal-hover-card ${isActive ? 'active' : ''}`}
-                                                            onClick={() => { setActiveMealIndex(index); setCheckedIngredients({}); }}
-                                                            style={{
-                                                                display: 'flex', flexDirection: 'column', gap: '0.3rem',
-                                                                padding: '0.75rem 0.85rem',
-                                                                borderRadius: '1rem',
-                                                                border: isActive ? '1.5px solid var(--text-main)' : '1.5px solid var(--border)',
-                                                                background: 'var(--bg-card)',
-                                                                color: 'var(--text-main)',
-                                                                cursor: 'pointer', textAlign: 'left',
-                                                                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                                boxShadow: isActive
-                                                                    ? '0 8px 20px -6px rgba(0, 0, 0, 0.15)'
-                                                                    : '0 1px 3px rgba(0,0,0,0.04)',
-                                                                transform: isActive ? 'scale(1.02)' : 'scale(1)',
-                                                                minWidth: 0, overflow: 'hidden',
-                                                            }}
-                                                        >
-                                                            <span style={{
-                                                                fontSize: '0.65rem', fontWeight: 800,
-                                                                textTransform: 'uppercase', letterSpacing: '0.06em',
-                                                                color: isActive ? 'var(--text-main)' : 'var(--text-muted)',
-                                                            }}>
-                                                                {meal.meal}
-                                                            </span>
-                                                            <span style={{
-                                                                fontSize: '0.85rem', fontWeight: 800, lineHeight: 1.2,
-                                                                overflow: 'hidden', textOverflow: 'ellipsis',
-                                                                whiteSpace: 'nowrap',
-                                                                color: 'var(--text-main)',
-                                                            }}>
-                                                                {meal.name}
-                                                            </span>
-                                                            <span style={{
-                                                                fontSize: '0.7rem', fontWeight: 600,
-                                                                color: isActive ? 'var(--text-main)' : 'var(--text-muted)',
-                                                                display: 'flex', alignItems: 'center', gap: '0.2rem'
-                                                            }}>
-                                                                <Flame size={10} strokeWidth={2.5} /> {meal.cals} kcal
-                                                            </span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        ) : (
-                                            /* DESKTOP: Large cards layout */
-                                            <div style={{
-                                                display: 'flex', flexWrap: 'wrap',
-                                                gap: '1rem', padding: '0.25rem 0'
-                                            }}>
-                                                {validMeals.map((meal, index) => {
-                                                    const isActive = currentMealIndex === index;
-                                                    return (
-                                                        <div
-                                                            key={index}
-                                                            className={`meal-hover-card ${isActive ? 'active' : ''}`}
-                                                            onClick={() => { setActiveMealIndex(index); setCheckedIngredients({}); }}
-                                                            style={{
-                                                                flex: '1 1 auto', minWidth: '150px',
-                                                                background: isActive ? 'var(--bg-card)' : 'var(--bg-page)',
-                                                                borderRadius: '1.5rem', padding: '1.25rem',
-                                                                border: isActive ? '2px solid var(--text-main)' : '1px solid var(--border)',
-                                                                boxShadow: isActive ? '0 10px 25px -5px rgba(0, 0, 0, 0.1)' : 'none',
-                                                                cursor: 'pointer', transition: 'all 0.3s',
-                                                                transform: isActive ? 'scale(1.02) translateY(-4px)' : 'scale(1)',
-                                                                color: 'var(--text-main)',
-                                                                display: 'flex', flexDirection: 'column', gap: '0.5rem'
-                                                            }}
-                                                        >
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: isActive ? 'var(--text-main)' : 'var(--text-muted)', opacity: isActive ? 1 : 0.8 }}>
-                                                                    {meal.meal}
-                                                                </span>
-                                                                {isActive && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--text-main)' }} />}
-                                                            </div>
-                                                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-main)' }}>
-                                                                {meal.name}
-                                                            </h3>
-                                                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: isActive ? 'var(--text-main)' : 'var(--text-muted)', opacity: isActive ? 1 : 0.8, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                                                <Flame size={14} color={isActive ? 'var(--text-main)' : 'var(--text-muted)'} strokeWidth={isActive ? 2.5 : 2} /> {meal.cals} kcal
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* ACTIVE MEAL FOCUS AREA */}
-                                    <div style={{ padding: '0', minWidth: 0, overflow: 'hidden' }}>
-                                        <AnimatePresence mode="wait">
-                                            <motion.div
-                                                key={'meal-' + currentMealIndex}
-                                                initial={{ opacity: 0, x: 20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                exit={{ opacity: 0, x: -20 }}
-                                                transition={{ type: 'spring', stiffness: 250, damping: 25 }}
-                                                style={{
-                                                    background: 'transparent', borderRadius: '0', padding: isMobile ? '1.5rem 0' : '2rem 0',
-                                                    border: 'none', boxShadow: 'none',
-                                                    position: 'relative', zIndex: 10, width: '100%', boxSizing: 'border-box', minWidth: 0, overflow: 'hidden'
-                                                }}
-                                            >
-
-                                                {/* Header & Badges */}
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center', textAlign: 'center' }}>
-                                                    <h2 style={{ fontSize: isMobile ? '1.4rem' : '2.8rem', fontWeight: 900, color: 'var(--text-main)', margin: 0, lineHeight: 1.15, letterSpacing: '-0.02em', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                                                        {activeMeal.name}
-                                                    </h2>
-
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                                                        {activeMeal.prep_time && (
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.8rem', background: 'var(--bg-page)', borderRadius: '99px', border: '1px solid var(--border)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                                                                <Clock size={14} /> {activeMeal.prep_time}
-                                                            </div>
-                                                        )}
-                                                        {activeMeal.difficulty && (
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.8rem', background: 'var(--bg-page)', borderRadius: '99px', border: '1px solid var(--border)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                                                                <ChefHat size={14} /> {activeMeal.difficulty}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <p style={{ color: 'var(--text-muted)', margin: 0, fontStyle: 'italic', fontSize: isMobile ? '0.95rem' : '1.1rem', lineHeight: 1.6, maxWidth: '600px', wordBreak: 'break-word' }}>
-                                                        "{activeMeal.desc}"
-                                                    </p>
-                                                </div>
-
-                                                {/* Action Bar */}
-                                                <div style={{ display: 'flex', gap: '0.75rem', marginTop: isMobile ? '1rem' : '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                                                    {activeRecipeSteps.length > 0 && (
-                                                        <button
-                                                            data-html2canvas-ignore="true"
-                                                            onClick={() => handleCookClick(activeMeal, currentDayIndex, currentMealIndex)}
-                                                            disabled={isExpanding}
-                                                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.8rem 1.5rem', background: 'var(--text-main)', borderRadius: '99px', border: 'none', fontSize: '0.9rem', fontWeight: 800, color: 'var(--bg-card)', cursor: isExpanding ? 'wait' : 'pointer', transition: 'all 0.2s', boxShadow: '0 8px 16px -4px rgba(15, 23, 42, 0.4)', opacity: isExpanding ? 0.7 : 1 }}
-                                                        >
-                                                            <Play size={18} fill="white" /> {isExpanding ? "Generando..." : "Cocinar"}
-                                                        </button>
-                                                    )}
-                                                    <button
-                                                        data-html2canvas-ignore="true"
-                                                        onClick={() => handleDownloadPDF(activeMeal)}
-                                                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.8rem 1.5rem', background: 'var(--bg-page)', borderRadius: '99px', border: '1px solid var(--border)', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', cursor: 'pointer', transition: 'all 0.2s' }}
-                                                    >
-                                                        <Download size={18} strokeWidth={2.5} /> PDF
-                                                    </button>
-                                                </div>
-
-                                                <hr style={{ border: 'none', borderTop: '1px dashed var(--border)', margin: '2.5rem 0' }} />
-
-                                                {/* Content Split: Macros/Ingredients & Steps */}
-                                                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '2rem' : '3rem', alignItems: 'flex-start', minWidth: 0, width: '100%' }}>
-
-                                                    {/* LEFT/TOP COLUMN: Ingredients & Macros */}
-                                                    <div style={{ flex: isMobile ? '1 1 auto' : '0 0 320px', width: '100%', position: isMobile ? 'static' : 'sticky', top: '2rem', minWidth: 0 }}>
-
-                                                        {/* Sleek Macros Design */}
-                                                        {activeMeal.protein !== undefined && activeMeal.protein > 0 && (
-                                                            <div style={{ background: 'var(--bg-page)', borderRadius: '1.25rem', border: '1px solid var(--border)', padding: '1rem', marginBottom: '2rem', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--secondary)', textTransform: 'uppercase' }}>PROTEÍNAS</div>
-                                                                    <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-main)' }}>{activeMeal.protein}<span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>g</span></div>
-                                                                </div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)' }}>
-                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase' }}>CARBOS</div>
-                                                                    <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-main)' }}>{activeMeal.carbs}<span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>g</span></div>
-                                                                </div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--danger)', textTransform: 'uppercase' }}>GRASAS</div>
-                                                                    <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-main)' }}>{activeMeal.fats}<span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>g</span></div>
-                                                                </div>
-                                                            </div>
-                                                        )}
-
-                                                        {/* Ingredients */}
-                                                        {activeMeal.ingredients && activeMeal.ingredients.length > 0 && (
-                                                            <div>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                                                                    <div style={{ width: '8px', height: '24px', background: 'var(--secondary)', borderRadius: '4px' }} />
-                                                                    <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-main)', margin: 0 }}>Ingredientes</h3>
-                                                                </div>
-                                                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                                                    {activeMeal.ingredients.map((ing, idx) => {
-                                                                        const isChecked = checkedIngredients[idx];
-                                                                        return (
-                                                                            <li key={idx}
-                                                                                onClick={() => toggleIngredient(idx)}
-                                                                                style={{
-                                                                                    display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
-                                                                                    color: isChecked ? 'var(--text-light)' : 'var(--text-main)', fontSize: '0.95rem', fontWeight: 600,
-                                                                                    cursor: 'pointer', transition: 'all 0.2s ease', opacity: isChecked ? 0.6 : 1,
-                                                                                    textDecoration: isChecked ? 'line-through' : 'none',
-                                                                                    padding: '0.5rem 0'
-                                                                                }}>
-                                                                                <div style={{
-                                                                                    width: '24px', height: '24px', borderRadius: '50%',
-                                                                                    background: isChecked ? 'var(--secondary)' : 'var(--bg-page)',
-                                                                                    border: isChecked ? 'none' : '1px solid var(--border)',
-                                                                                    flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                                    transition: 'all 0.2s'
-                                                                                }}>
-                                                                                    {isChecked && <CheckCircle2 size={14} color="#FFFFFF" strokeWidth={3.5} />}
-                                                                                </div>
-                                                                                <span style={{ lineHeight: 1.4 }}>{displayAjiMorron(ing)}</span>
-                                                                            </li>
-                                                                        );
-                                                                    })}
-                                                                </ul>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* RIGHT/BOTTOM COLUMN: Steps */}
-                                                    <div style={{ flex: 1, width: '100%', minWidth: 0 }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                                                            <div style={{ width: '8px', height: '24px', background: 'var(--primary)', borderRadius: '4px' }} />
-                                                            <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-main)', margin: 0 }}>Instrucciones</h3>
-                                                        </div>
-
-                                                        {activeRecipeSteps.length > 0 ? (
-                                                            <div style={{ position: 'relative', paddingLeft: '0.25rem' }}>
-                                                                <div style={{ position: 'absolute', left: '19px', top: '16px', bottom: '24px', width: '2px', background: 'var(--border)', zIndex: 0 }} />
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                                                                    {activeRecipeSteps.map((step, i) => (
-                                                                        <FormattedRecipeStep key={i} step={step} index={i} />
-                                                                    ))}
-                                                                </div>
-                                                                {/* Completion Indicator */}
-                                                                <div style={{ display: 'flex', gap: '1rem', marginTop: '2.5rem', position: 'relative', zIndex: 1, alignItems: 'center' }}>
-                                                                    <div style={{ width: '32px', height: '32px', background: 'var(--secondary)', borderRadius: '50%', color: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 0 15px rgba(16, 185, 129, 0.4)' }}>
-                                                                        <CheckCircle2 size={16} strokeWidth={3} />
-                                                                    </div>
-                                                                    <div style={{ color: 'var(--text-main)', fontWeight: 800, fontSize: '1rem' }}>¡Listo para disfrutar!</div>
-                                                                </div>
-                                                            </div>
-                                                        ) : (
-                                                            <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg-page)', borderRadius: '1.5rem', border: '1px dashed var(--border)' }}>
-                                                                <ChefHat size={40} color="var(--text-light)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
-                                                                <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>No hay pasos detallados. Guíate de la descripción general.</p>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                </div>
-                                            </motion.div>
-                                        </AnimatePresence>
-                                    </div>
-
-                                </div>
+                                <EmptyState
+                                    icon={ChefHat}
+                                    title="Aún no hay recetas para este día"
+                                    description="Cuando tu plan esté completo, encontrarás aquí las recetas paso a paso."
+                                    cta={{ label: 'Volver al plan', onClick: () => navigate('/dashboard') }}
+                                />
                             );
-                        })()}
-                    </div>
+                        }
+
+                        const currentMealIndex = Math.min(activeMealIndex, validMeals.length - 1);
+                        const activeMeal = validMeals[currentMealIndex];
+                        // [P2-RECIPE-DISCLAIMER-LIST] pasos coercidos a array (defensa).
+                        const activeRecipeSteps = toRecipeSteps(activeMeal.recipe);
+                        const dayKcal = validMeals.reduce((s, m) => s + (m.cals || 0), 0);
+
+                        // Días del chunk → pestañas (nombre = grocery_start_date + globalIdx).
+                        const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                        const days = chunkDays.map((_d, localIdx) => {
+                            const globalIdx = chunkStart + localIdx;
+                            const dd = new Date(_startMid.getTime());
+                            dd.setDate(dd.getDate() + globalIdx);
+                            return { globalIdx, label: diasSemana[dd.getDay()] };
+                        });
+
+                        return (
+                            <RecipesView
+                                days={days}
+                                activeDayGlobalIdx={activeDayIndex}
+                                onSelectDay={(g) => { setActiveDayIndex(g); setActiveMealIndex(0); setCheckedIngredients({}); }}
+                                meals={validMeals}
+                                activeMealIndex={currentMealIndex}
+                                onSelectMeal={(i) => { setActiveMealIndex(i); setCheckedIngredients({}); }}
+                                meal={activeMeal}
+                                steps={activeRecipeSteps}
+                                dayKcal={dayKcal}
+                                checkedIngredients={checkedIngredients}
+                                onToggleIngredient={toggleIngredient}
+                                onCook={() => handleCookClick(activeMeal, currentDayIndex, currentMealIndex)}
+                                onPDF={() => handleDownloadPDF(activeMeal)}
+                                isExpanding={isExpanding}
+                            />
+                        );
+                    })()}
                 </div>
             </div>
 
