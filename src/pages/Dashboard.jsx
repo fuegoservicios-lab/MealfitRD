@@ -32,6 +32,10 @@ import RestockNudge from '../components/dashboard/RestockNudge';
 import { requestAgentPrefill } from '../utils/agentPrefill';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
+// [P3-MOTIVO-MODAL-REDESIGN · 2026-06-24] Selector de motivo rediseñado para
+// "actualizar día completo" (plan vigente). El "Nuevo Ciclo" (plan vencido)
+// sigue usando OptionPickerModal (tiene la opción extra "similar").
+import MotivoActualizarModal from '../components/dashboard/MotivoActualizarModal';
 import EmptyState from '../components/common/EmptyState';
 // [P1-NEON-DB-MIGRATION · 2026-06-12] Import de `el cliente anterior` eliminado: los
 // SELECTs/realtime directos a Postgres migraron a endpoints backend
@@ -6667,9 +6671,12 @@ const DashboardInner = () => {
                 )}
             />
 
-            {/* ═══════════ MODAL: ¿Por qué quieres actualizar los platos de hoy? ═══════════ */}
+            {/* ═══════════ MODAL: Nuevo Ciclo de Compras (plan VENCIDO) ═══════════ */}
+            {/* [P3-MOTIVO-MODAL-REDESIGN · 2026-06-24] Solo el caso VENCIDO usa este
+                picker (tiene la opción extra "similar"); el día-completo vigente usa
+                MotivoActualizarModal (más abajo). */}
             <OptionPickerModal
-                isOpen={showUpdatePlanModal}
+                isOpen={showUpdatePlanModal && isPlanExpired}
                 onClose={() => setShowUpdatePlanModal(false)}
                 title={isPlanExpired ? "Nuevo Ciclo de Compras" : "¿Por qué quieres actualizar?"}
                 subtitle={isPlanExpired
@@ -6769,6 +6776,64 @@ const DashboardInner = () => {
                         </div>
                     </div>
                 )}
+            />
+
+            {/* ═══════════ MODAL (rediseño): ¿Por qué quieres actualizar? — día completo (plan VIGENTE) ═══════════ */}
+            <MotivoActualizarModal
+                open={showUpdatePlanModal && !isPlanExpired}
+                onClose={() => setShowUpdatePlanModal(false)}
+                unlimited={isPremium || typeof userPlanLimit !== 'number'}
+                quota={{
+                    left: typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : 0,
+                    total: typeof userPlanLimit === 'number' ? userPlanLimit : 0,
+                }}
+                options={[
+                    { id: 'variety',  label: 'Quiero más variedad',      desc: 'Me apetecen platos distintos hoy',   color: '#818CF8', icon: 'shuffle', recommended: true },
+                    { id: 'time',     label: 'No tengo tiempo hoy',       desc: 'Busco algo más rápido de preparar',  color: '#A78BFA', icon: 'clock' },
+                    { id: 'cravings', label: 'Tengo un antojo distinto',  desc: 'Un capricho que encaja en tu plan',  color: '#FB7185', icon: 'heart' },
+                ]}
+                coming={(() => {
+                    const todayDow = new Date().getDay(); // 0=Dom … 6=Sáb
+                    const isWeekend = todayDow === 0 || todayDow === 6;
+                    const d = 6 - todayDow; // días hasta el sábado
+                    return {
+                        id: 'weekend',
+                        label: 'Fin de semana especial',
+                        desc: isWeekend
+                            ? 'Platos más elaborados y premium · disponible hoy'
+                            : 'Recetas para darte un gusto el finde · se desbloquea el sábado',
+                        color: '#FBBF24',
+                        icon: 'bolt',
+                        unlockLabel: `En ${d} ${d === 1 ? 'día' : 'días'}`,
+                        unlocked: isWeekend,
+                    };
+                })()}
+                pickingId={isNavigatingOption}
+                onPick={async (optionId) => {
+                    if (isLimitReached || isNavigatingOption) return;
+                    if (optionId === 'dislike') {
+                        setShowUpdatePlanModal(false);
+                        setShowDislikeConfirmModal(true);
+                        return;
+                    }
+                    // [P5-DAY-UPDATE-DOUBLECLICK] Candado síncrono contra doble-tap.
+                    if (dayUpdateLock.current) return;
+                    dayUpdateLock.current = true;
+                    // [P5-DAY-LOADING-UX · 2026-06-23] Plan vigente → día en sitio (lento):
+                    // cerramos el modal de inmediato; regenerateDay muestra progreso por toast.
+                    setShowUpdatePlanModal(false);
+                    setIsDayUpdating(true);
+                    try {
+                        if (typeof regenerateDay === 'function') {
+                            await regenerateDay(activeDayIndex, optionId);
+                        } else {
+                            await handleNewPlan(optionId, null, 'dashboard_refresh');
+                        }
+                    } finally {
+                        setIsDayUpdating(false);
+                        dayUpdateLock.current = false;
+                    }
+                }}
             />
             {/* ═══════════ MODAL: Confirmación bloqueo permanente de un plato individual ═══════════ */}
             <OptionPickerModal
