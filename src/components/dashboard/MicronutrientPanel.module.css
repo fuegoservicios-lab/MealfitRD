@@ -1,371 +1,109 @@
-/* [P3-MICRONUTRIENT-PANEL · 2026-06-15 · P3-MICRO-BARS-REDESIGN · 2026-06-23]
-   Panel "Micronutrientes a vigilar". Cada nutriente es una TARJETA con barra de
-   progreso (relleno = cobertura hacia la meta; color = severidad), las cifras
-   valor/meta + cuánto falta, y un botón "Mejorar". Tema-aware vía variables de
-   index.css. La barra es coherente: SOLO mide cobertura hacia el piso (déficit),
-   más relleno = más cerca de la meta. */
+/* [P3-MICRONUTRIENT-PANEL · 2026-06-15 · P3-MICRO-GAPS-DESIGN · 2026-06-24]
+   Panel "Micronutrientes a vigilar" — diseño MicronutrientGaps: cada nutriente
+   es una fila/tarjeta (sobre --bg-page) con barra de progreso con glow, las
+   cifras valor/meta + cuánto falta (cifra en color de severidad) y un botón
+   "Mejorar". Tema-aware vía tokens del DS. */
 
 .panel {
-    position: relative;
-    border-radius: 1.1rem;
-    padding: 1.15rem 1.3rem 1.05rem;
-    margin-bottom: 1.5rem;
-    background:
-        radial-gradient(120% 140% at 0% 0%, rgba(45, 212, 191, 0.10), transparent 55%),
-        var(--bg-card);
-    border: 1px solid var(--border);
-    isolation: isolate;
-    overflow: hidden;
-    box-shadow:
-        0 1px 2px rgba(15, 23, 42, 0.05),
-        0 14px 34px -22px rgba(13, 148, 136, 0.5);
+  background:
+    radial-gradient(135% 90% at -5% -10%, rgba(45, 212, 191, .12), transparent 55%),
+    var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: 18px 16px 16px;
+  margin-bottom: 1.5rem;
 }
 
-/* Borde-gradiente teal sutil (mask: solo el anillo de 1px). */
-.panel::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(135deg, rgba(45, 212, 191, 0.55), transparent 50%);
-    -webkit-mask:
-        linear-gradient(#000 0 0) content-box,
-        linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-            mask-composite: exclude;
-    opacity: 0.8;
-    pointer-events: none;
-}
-
-/* ---- header ---- */
-.head {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    margin-bottom: 0.95rem;
-}
-
+/* Cabecera */
+.head { display: flex; align-items: flex-start; gap: 11px; }
 .badge {
-    flex: none;
-    width: 34px;
-    height: 34px;
-    display: grid;
-    place-items: center;
-    border-radius: 0.7rem;
-    color: #042f2e;
-    background: linear-gradient(135deg, #5EEAD4, #2DD4BF);
-    box-shadow: 0 4px 12px -3px rgba(45, 212, 191, 0.55);
+  flex: none; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center;
+  color: #04221d; background: linear-gradient(150deg, #2DD4BF, #22D3EE);
+  box-shadow: 0 5px 14px -4px rgba(45, 212, 191, .6);
 }
-
-.headText {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    flex: 1;
-    min-width: 0;
-}
-
-.title {
-    margin: 0;
-    font-size: 0.95rem;
-    font-weight: 800;
-    letter-spacing: -0.01em;
-    color: var(--text-main);
-    line-height: 1.15;
-}
-
-.sub {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    letter-spacing: -0.005em;
-}
-
-/* [P3-MICRO-SUBTITLE-ACCURACY · 2026-06-19] El conteo resaltado. */
-.subCount {
-    color: var(--text-main);
-    font-weight: 800;
-}
-
+.headText { flex: 1; min-width: 0; }
+.title { margin: 0; font-family: var(--font-heading); font-size: 1rem; font-weight: 800; letter-spacing: -.015em; line-height: 1.2; color: var(--text-main); }
+.sub { font-size: .74rem; font-weight: 600; color: var(--text-muted); }
+.sub b { color: var(--text-main); font-weight: 800; }
 .close {
-    flex: none;
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-items: center;
-    border-radius: 0.6rem;
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--text-light);
-    cursor: pointer;
-    transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  flex: none; width: 30px; height: 30px; border-radius: 9px; border: 1px solid transparent;
+  background: transparent; color: var(--text-light); cursor: pointer; display: grid; place-items: center; transition: .18s;
 }
+.close:hover { background: var(--bg-muted); color: var(--text-main); border-color: var(--border); }
+.intro { margin: 12px 0 0; font-size: .74rem; line-height: 1.45; color: var(--text-muted); }
 
-.close:hover {
-    color: var(--text-main);
-    background: var(--bg-muted);
-    border-color: var(--border);
-}
-
-/* Línea de contexto: estimado de las comidas del PLAN (P3-MICRO-PLAIN-LANGUAGE). */
-.intro {
-    margin: -0.35rem 0 1rem;
-    font-size: 0.74rem;
-    line-height: 1.45;
-    color: var(--text-muted);
-}
-
-/* ---- medidores: tarjetas con barra ---- */
-.meters {
-    display: flex;
-    flex-direction: column;
-    gap: 0.7rem;
-}
-
+/* Filas de nutrientes */
+.meters { display: flex; flex-direction: column; gap: 9px; margin-top: 15px; }
 .meter {
-    --tone: #2DD4BF;
-    --tone-2: #22D3EE;
-    background: var(--bg-muted);
-    border: 1px solid var(--border);
-    border-radius: 1rem;
-    padding: 1rem 1.1rem 1.05rem;
+  --tone: #2DD4BF;
+  display: block; width: 100%; text-align: left; font: inherit; color: inherit;
+  background: var(--bg-page); border: 1px solid var(--border); border-radius: 15px; padding: 13px 14px;
+  transition: border-color .18s, transform .12s;
+}
+.clickable { cursor: pointer; }
+.clickable:hover { border-color: color-mix(in srgb, var(--tone) 45%, var(--border)); }
+.clickable:active { transform: scale(.992); }
+.clickable:focus-visible { outline: 2px solid var(--tone); outline-offset: 2px; }
+
+/* Tonos por estado */
+.far { --tone: #FB923C; }
+.low { --tone: #FBBF24; }
+.near { --tone: #2DD4BF; }
+.over { --tone: #FB7185; }
+
+.mtop { display: flex; align-items: center; gap: 8px; margin-bottom: 11px; }
+.mname { font-size: .95rem; font-weight: 800; letter-spacing: -.01em; color: var(--text-main); white-space: nowrap; }
+.pill {
+  margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 9px 3px 7px; border-radius: 99px;
+  font-size: .6rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 17%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone) 36%, transparent);
+}
+.pill svg { width: 11px; height: 11px; }
+
+/* Barra de progreso */
+.bar {
+  position: relative; height: 9px; border-radius: 99px; overflow: hidden;
+  background: color-mix(in srgb, var(--text-light) 22%, transparent);
+}
+.bar > i {
+  position: absolute; inset: 0 auto 0 0; border-radius: 99px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 70%, #000), var(--tone));
+  box-shadow: 0 0 12px -2px var(--tone);
+  transition: width .9s cubic-bezier(.16, 1, .3, 1);
 }
 
-.meterTop {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    margin-bottom: 0.7rem;
+.mfoot { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 10px; }
+.vals { font-size: .76rem; color: var(--text-light); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vals b { color: var(--text-main); font-weight: 800; font-size: .88rem; }
+.unit { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+.gap { display: block; font-size: .72rem; color: var(--text-muted); margin-top: 2px; white-space: nowrap; }
+.gap b { color: var(--tone); font-weight: 800; }
+.improve {
+  flex: none; align-self: center; display: inline-flex; align-items: center; gap: 5px;
+  min-height: 34px; padding: 0 13px; border-radius: 99px; white-space: nowrap;
+  font-size: .76rem; font-weight: 700; color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone) 30%, transparent);
 }
+.improve svg { width: 14px; height: 14px; }
 
-.nutrient {
-    font-size: 1rem;
-    font-weight: 800;
-    letter-spacing: -0.01em;
-    color: var(--text-main);
-}
-
-/* Chip de estado: flecha (dirección) + palabra (BAJO/ALTO). Color = severidad. */
-.status {
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    padding: 3px 10px 3px 7px;
-    border-radius: 99px;
-    font-size: 0.64rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    color: var(--tone);
-    background: color-mix(in srgb, var(--tone) 16%, transparent);
-    border: 1px solid color-mix(in srgb, var(--tone) 38%, transparent);
-}
-
-/* Barra: track recesado + relleno tono = % de cobertura hacia la meta. */
-.barTrack {
-    height: 8px;
-    border-radius: 99px;
-    background: color-mix(in srgb, var(--text-main) 12%, transparent);
-    overflow: hidden;
-    margin-bottom: 0.85rem;
-}
-
-.barFill {
-    height: 100%;
-    border-radius: 99px;
-    background: linear-gradient(90deg, var(--tone), var(--tone-2));
-    transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.meterFoot {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-}
-
-.valueBlock {
-    display: flex;
-    flex-direction: column;
-    gap: 0.18rem;
-    min-width: 0;
-}
-
-/* "4.4 / 15 mcg" — valor actual destacado, meta muted. */
-.values {
-    font-size: 0.92rem;
-    font-variant-numeric: tabular-nums;
-    color: var(--text-muted);
-    white-space: nowrap;
-}
-
-.cur {
-    font-weight: 800;
-    color: var(--text-main);
-}
-
-/* "Faltan 10.6 mcg" — etiqueta muted + cifra en color de severidad. */
-.gapLine {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--text-light);
-    white-space: nowrap;
-}
-
-.gapNum {
-    font-weight: 800;
-    color: var(--tone);
-}
-
-/* Botón "Mejorar": pill con color de severidad. */
-.askBtn {
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 0.5rem 0.85rem;
-    border-radius: 99px;
-    font: inherit;
-    font-size: 0.8rem;
-    font-weight: 700;
-    line-height: 1;
-    cursor: pointer;
-    white-space: nowrap;
-    color: var(--tone);
-    background: color-mix(in srgb, var(--tone) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--tone) 34%, transparent);
-    transition: background 0.18s ease, border-color 0.18s ease, transform 0.1s ease;
-}
-
-.askBtn:hover {
-    background: color-mix(in srgb, var(--tone) 22%, transparent);
-    border-color: color-mix(in srgb, var(--tone) 50%, transparent);
-}
-
-.askBtn:active { transform: scale(0.97); }
-
-.askBtn:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 30%, transparent);
-}
-
-/* ---- tonos por severidad ---- */
-.near { --tone: #2DD4BF; --tone-2: #22D3EE; }
-.low  { --tone: #FBBF24; --tone-2: #FB923C; }
-.far  { --tone: #FB923C; --tone-2: #FB7185; }
-.over { --tone: #FB7185; --tone-2: #F43F5E; }
-
-/* ---- sugerencias (suplementos): tarjetas con badge violeta ---- */
-.supps {
-    margin-top: 1.2rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-}
-
-.suppsLabel {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    margin-bottom: 0.1rem;
-    font-size: 0.64rem;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #A78BFA;
-}
-
-.supp {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.7rem;
-    padding: 0.8rem 0.9rem;
-    border-radius: 0.9rem;
-    background: var(--bg-muted);
-    border: 1px solid var(--border);
-}
-
-.suppIcon {
-    flex: none;
-    width: 34px;
-    height: 34px;
-    display: grid;
-    place-items: center;
-    border-radius: 0.65rem;
-    color: #A78BFA;
-    background: color-mix(in srgb, #A78BFA 16%, transparent);
-    border: 1px solid color-mix(in srgb, #A78BFA 30%, transparent);
-}
-
-.suppBody {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-}
-
-.suppName {
-    font-size: 0.9rem;
-    font-weight: 800;
-    color: var(--text-main);
-    letter-spacing: -0.01em;
-}
-
-.suppDose {
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: #A78BFA;
-    line-height: 1.3;
-}
-
-.suppHint {
-    margin: 0.1rem 0 0;
-    font-size: 0.78rem;
-    line-height: 1.5;
-    color: var(--text-light);
-}
-
-.suppForm {
-    font-weight: 700;
-    color: var(--text-muted);
-}
-
-/* ---- móvil: aprieta padding/tipografía sin romper las tarjetas ---- */
-@media (max-width: 420px) {
-    .panel {
-        padding: 1.15rem 0.95rem 1.2rem;
-        border-radius: 1.25rem;
-    }
-    .meter { padding: 0.9rem 0.95rem 0.95rem; }
-    .nutrient { font-size: 0.95rem; }
-    .values { font-size: 0.88rem; }
-    .askBtn { padding: 0.45rem 0.72rem; font-size: 0.76rem; }
-    .supp { padding: 0.75rem 0.8rem; }
-}
-
-/* ---- tema claro: superficie + glow más suaves ---- */
-:global(html[data-theme="light"]) .panel {
-    background:
-        radial-gradient(120% 140% at 0% 0%, rgba(13, 148, 136, 0.08), transparent 55%),
-        linear-gradient(135deg, #F0FDFA 0%, #ECFEFF 100%);
-    border-color: #99F6E4;
-    box-shadow: 0 10px 26px -18px rgba(13, 148, 136, 0.45);
-}
-
-/* En claro, las tarjetas internas en blanco resaltan sobre el panel teal. */
-:global(html[data-theme="light"]) .meter,
-:global(html[data-theme="light"]) .supp {
-    background: #FFFFFF;
-    border-color: var(--border);
-}
+/* Sugerencias */
+.supps { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 11px; }
+.suppsLabel { display: inline-flex; align-items: center; gap: 6px; font-size: .62rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #A78BFA; }
+.suppsLabel svg { width: 12px; height: 12px; }
+.supp { display: flex; gap: 10px; padding: 12px 13px; border-radius: 13px; background: rgba(167, 139, 250, .07); border: 1px solid rgba(167, 139, 250, .18); }
+.suppIco { flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: #C4B5FD; background: rgba(167, 139, 250, .16); }
+.suppIco svg { width: 14px; height: 14px; }
+.suppMain { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.suppName { font-size: .86rem; font-weight: 800; color: var(--text-main); }
+.suppDose { font-size: .74rem; font-weight: 700; color: #C4B5FD; }
+.suppHint { margin: 5px 0 0; font-size: .74rem; line-height: 1.5; color: var(--text-muted); }
+.suppHint b { color: var(--text-main); font-weight: 700; }
 
 @media (prefers-reduced-motion: reduce) {
-    .barFill { transition: none; }
+  .bar > i { transition: none; }
 }

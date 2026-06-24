@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FlaskConical, X, Pill, ArrowDown, ArrowUp, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../../utils/safeLocalStorage';
 // [P3-NOTIF-CENTER · 2026-06-16] Al descartar el panel, en vez de perderlo lo
@@ -231,15 +230,12 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                     aria-label="Micronutrientes a vigilar"
                 >
                     <header className={styles.head}>
-                        <span className={styles.badge} aria-hidden="true">
-                            <FlaskConical size={16} strokeWidth={2.25} />
-                        </span>
+                        <span className={styles.badge} aria-hidden="true"><FlaskIcon /></span>
                         <div className={styles.headText}>
                             <h3 className={styles.title}>Micronutrientes a vigilar</h3>
                             {gaps.length > 0 && (
                                 <span className={styles.sub}>
-                                    <strong className={styles.subCount}>{gaps.length}</strong>{' '}
-                                    {_gapNoun} {_hasCeilGap ? 'fuera de rango' : 'por debajo del objetivo'}
+                                    <b>{gaps.length}</b> {_gapNoun} {_hasCeilGap ? 'fuera de rango' : 'por debajo del objetivo'}
                                 </span>
                             )}
                         </div>
@@ -250,7 +246,7 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                             aria-label="Ocultar este panel"
                             title="Ocultar"
                         >
-                            <X size={16} strokeWidth={2.5} />
+                            <CloseIcon />
                         </button>
                     </header>
 
@@ -268,55 +264,52 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                             {gaps.map((g, i) => {
                                 const s = classify(g);
                                 const ask = onAsk ? () => onAsk(buildQuestion(g), g.nutriente) : undefined;
-                                // "Faltan" para déficit (piso); "Sobran" para exceso (techo).
-                                const gapWord = s.direction === 'high' ? 'Sobran' : 'Faltan';
+                                const Tag = ask ? 'button' : 'div';
+                                // Línea de brecha (cifra en color de severidad). Déficit → "Faltan";
+                                // exceso → "Te pasaste"; en límite → "En tu límite de".
+                                const gapEl = s.direction === 'low'
+                                    ? <>Faltan <b>{_fmtN(s.gap)} {g.unidad}</b></>
+                                    : (s.over
+                                        ? <>Te pasaste <b>{_fmtN(s.gap)} {g.unidad}</b></>
+                                        : <>En tu límite de <b>{_fmtN(s.target)} {g.unidad}</b></>);
                                 return (
-                                    <div
+                                    <Tag
                                         key={`mn-${i}`}
-                                        className={`${styles.meter} ${styles[s.tone]}`}
+                                        type={ask ? 'button' : undefined}
+                                        onClick={ask}
+                                        className={`${styles.meter} ${styles[s.tone]} ${ask ? styles.clickable : ''}`}
+                                        title={ask ? `Preguntarle al coach cómo mejorar tu ${(g.nutriente || '').toLowerCase()}` : undefined}
                                     >
-                                        <div className={styles.meterTop}>
-                                            <span className={styles.nutrient}>{g.nutriente}</span>
-                                            <span className={styles.status}>
-                                                {s.direction === 'high'
-                                                    ? <ArrowUp size={12} strokeWidth={2.75} aria-hidden="true" />
-                                                    : <ArrowDown size={12} strokeWidth={2.75} aria-hidden="true" />}
+                                        <div className={styles.mtop}>
+                                            <span className={styles.mname}>{g.nutriente}</span>
+                                            <span className={styles.pill}>
+                                                {s.direction === 'high' ? <ArrowUp /> : <ArrowDown />}
                                                 {s.statusWord}
                                             </span>
                                         </div>
-                                        {/* Barra: cobertura hacia la meta (relleno = % alcanzado). */}
+
                                         <div
-                                            className={styles.barTrack}
+                                            className={styles.bar}
                                             role="progressbar"
                                             aria-valuenow={Math.round(s.fill)}
                                             aria-valuemin={0}
                                             aria-valuemax={100}
                                             aria-label={`${g.nutriente}: ${g.valor}${g.unidad} de ${_fmtN(s.target)}${g.unidad}`}
                                         >
-                                            <div className={styles.barFill} style={{ width: `${s.fill}%` }} />
+                                            <i style={{ width: `${s.fill}%` }} />
                                         </div>
-                                        <div className={styles.meterFoot}>
-                                            <div className={styles.valueBlock}>
-                                                <span className={styles.values}>
-                                                    <span className={styles.cur}>{g.valor}</span> / {_fmtN(s.target)} {g.unidad}
-                                                </span>
-                                                <span className={styles.gapLine}>
-                                                    {gapWord} <span className={styles.gapNum}>{_fmtN(s.gap)} {g.unidad}</span>
-                                                </span>
-                                            </div>
+
+                                        <div className={styles.mfoot}>
+                                            <span className={styles.vals}>
+                                                <b>{g.valor}</b>
+                                                <span className={styles.unit}> / {_fmtN(s.target)} {g.unidad}</span>
+                                                <span className={styles.gap}>{gapEl}</span>
+                                            </span>
                                             {ask && (
-                                                <button
-                                                    type="button"
-                                                    onClick={ask}
-                                                    className={styles.askBtn}
-                                                    title={`Preguntarle al coach cómo mejorar tu ${(g.nutriente || '').toLowerCase()}`}
-                                                >
-                                                    <MessageCircle size={14} strokeWidth={2.25} aria-hidden="true" />
-                                                    Mejorar
-                                                </button>
+                                                <span className={styles.improve}><ChatIcon /> Mejorar</span>
                                             )}
                                         </div>
-                                    </div>
+                                    </Tag>
                                 );
                             })}
                         </div>
@@ -324,25 +317,20 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
 
                     {supplements.length > 0 && (
                         <div className={styles.supps}>
-                            <span className={styles.suppsLabel}>
-                                <Pill size={12} strokeWidth={2.5} aria-hidden="true" />
-                                Sugerencias
-                            </span>
+                            <span className={styles.suppsLabel}><LinkIcon /> Sugerencias</span>
                             {supplements.map((it, i) => (
                                 <div key={`sup-${i}`} className={styles.supp}>
-                                    <span className={styles.suppIcon}>
-                                        <Pill size={15} strokeWidth={2.25} aria-hidden="true" />
-                                    </span>
-                                    <div className={styles.suppBody}>
-                                        <span className={styles.suppName}>{it.nutriente}</span>
-                                        {it.dosis_sugerida && (
-                                            <span className={styles.suppDose}>{it.dosis_sugerida}</span>
-                                        )}
+                                    <span className={styles.suppIco} aria-hidden="true"><LinkIcon /></span>
+                                    <div>
+                                        <div className={styles.suppMain}>
+                                            <span className={styles.suppName}>{it.nutriente}</span>
+                                            {it.dosis_sugerida && (
+                                                <span className={styles.suppDose}>{it.dosis_sugerida}</span>
+                                            )}
+                                        </div>
                                         {(it.suplemento || it.primero_alimentos) && (
                                             <p className={styles.suppHint}>
-                                                {it.suplemento && (
-                                                    <>Como <span className={styles.suppForm}>{it.suplemento}</span></>
-                                                )}
+                                                {it.suplemento && (<>Como <b>{it.suplemento}</b></>)}
                                                 {it.suplemento && it.primero_alimentos && ', o desde la comida: '}
                                                 {!it.suplemento && it.primero_alimentos && 'Primero, desde la comida: '}
                                                 {it.primero_alimentos}
@@ -359,3 +347,25 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
         </AnimatePresence>
     );
 }
+
+/* — Iconos (línea, currentColor) — */
+const FlaskIcon = () => (
+    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10 2v7.5L4.6 18.2A2 2 0 0 0 6.3 21h11.4a2 2 0 0 0 1.7-2.8L14 9.5V2" /><path d="M8.5 2h7" /><path d="M7 15h10" />
+    </svg>
+);
+const CloseIcon = () => (
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+);
+const ArrowDown = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M6 13l6 6 6-6" /></svg>
+);
+const ArrowUp = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M6 11l6-6 6 6" /></svg>
+);
+const ChatIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-11.9 7.6L3 21l1.9-6.1A8.4 8.4 0 1 1 21 11.5Z" /></svg>
+);
+const LinkIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="m10.5 20.5 10-10a5 5 0 0 0-7-7l-10 10a5 5 0 0 0 7 7Z" /><path d="m8.5 8.5 7 7" /></svg>
+);
