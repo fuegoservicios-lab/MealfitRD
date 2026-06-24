@@ -4782,23 +4782,27 @@ const DashboardInner = () => {
                             </button>
                         </div>
 
-                        {/* [P2-NEVERA-DELTA-NOTICE · 2026-06-24] Aviso sutil de la Nevera
-                            Inteligente, DEBAJO de los botones (decisión del owner). Solo con plan
-                            válido; la deducción es by-design — esto es comunicación. */}
+                        {/* [P2-NEVERA-DELTA-NOTICE · 2026-06-24] Aviso de la Nevera Inteligente,
+                            DEBAJO de los botones. Chip compacto (pastilla, alineado a la izquierda,
+                            una línea) — antes era caja rellena que cubría mucho / texto flotante que
+                            en móvil se partía raro. Solo con plan válido; la deducción es by-design. */}
                         {shoppingDeltaMeta?.itemsRemoved > 0 && !isPlanExpired && !planFinished && !isPlanCorrupted && (
-                            <div style={{
-                                display: 'flex', alignItems: 'center', gap: '0.4rem', width: '100%',
-                                padding: '0.1rem 0.15rem',
+                            <span style={{
+                                alignSelf: 'flex-start', maxWidth: '100%',
+                                display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                                padding: '0.28rem 0.65rem', borderRadius: '99px',
+                                background: isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.10)',
+                                border: `1px solid ${isDark ? 'rgba(16,185,129,0.30)' : 'rgba(16,185,129,0.26)'}`,
                                 color: isDark ? '#6EE7B7' : '#047857',
-                                fontSize: '0.72rem', lineHeight: 1.3, fontWeight: 600,
+                                fontSize: '0.7rem', fontWeight: 700, lineHeight: 1.2,
                             }}>
-                                <Refrigerator size={13} style={{ flexShrink: 0, opacity: 0.85 }} aria-hidden="true" />
-                                <span>
+                                <Refrigerator size={12} style={{ flexShrink: 0 }} aria-hidden="true" />
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {shoppingDeltaMeta.isEmptyDueToPantry
-                                        ? <>Ya tienes todo en tu Nevera para este ciclo ({shoppingDeltaMeta.itemsRemoved} ingrediente{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''}).</>
-                                        : <>{shoppingDeltaMeta.itemsRemoved} ingrediente{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} ya {shoppingDeltaMeta.itemsRemoved > 1 ? 'están' : 'está'} en tu Nevera.</>}
+                                        ? <>Ya tienes todo en tu Nevera ({shoppingDeltaMeta.itemsRemoved} ítem{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''})</>
+                                        : <>{shoppingDeltaMeta.itemsRemoved} ítem{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} ya en tu Nevera</>}
                                 </span>
-                            </div>
+                            </span>
                         )}
                     </div>
                 </div>
