@@ -650,24 +650,37 @@ export default function MotivoActualizarModal({
               )}
             </p>
 
+            {/* [P3-SWAP-MODAL-CONTEXT-LABEL · 2026-06-24] Rótulo de contexto (NO botón):
+                franja de acento + etiqueta "PLATO A CAMBIAR" + nombre. Antes era una
+                caja con borde/fondo redondeada y se confundía con una opción clicable. */}
             {contextLabel && (
               <div
                 style={{
                   display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  marginTop: 14,
-                  padding: "12px 14px",
-                  borderRadius: 14,
-                  background: "color-mix(in srgb, #FB923C 13%, transparent)",
-                  border: "1px solid color-mix(in srgb, #FB923C 38%, transparent)",
+                  alignItems: "flex-start",
+                  marginTop: 16,
+                  paddingLeft: 12,
+                  borderLeft: "3px solid #FB923C",
                 }}
               >
-                <span style={{ flex: "none", color: "#FB923C", display: "grid" }}>
-                  <Icon name="refresh" size={18} />
-                </span>
-                <span style={{ fontSize: ".88rem", fontWeight: 700, lineHeight: 1.3, color: "#FDBA74" }}>
-                  {contextLabel}
+                <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      fontSize: ".62rem",
+                      fontWeight: 800,
+                      letterSpacing: ".07em",
+                      textTransform: "uppercase",
+                      color: "#FB923C",
+                    }}
+                  >
+                    <Icon name="refresh" size={11} /> Plato a cambiar
+                  </span>
+                  <span style={{ fontSize: ".92rem", fontWeight: 700, lineHeight: 1.3, color: "var(--text-main)" }}>
+                    {contextLabel}
+                  </span>
                 </span>
               </div>
             )}
