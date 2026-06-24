@@ -1,6 +1,9 @@
-/* [P3-MICRONUTRIENT-PANEL · 2026-06-15] Panel "Micronutrientes a vigilar"
-   rediseñado como lectura de diagnóstico (medidores de progreso). Tema-aware vía
-   variables de index.css; acentos teal explícitos. Las barras son estáticas. */
+/* [P3-MICRONUTRIENT-PANEL · 2026-06-15 · P3-MICRO-BARS-REDESIGN · 2026-06-23]
+   Panel "Micronutrientes a vigilar". Cada nutriente es una TARJETA con barra de
+   progreso (relleno = cobertura hacia la meta; color = severidad), las cifras
+   valor/meta + cuánto falta, y un botón "Mejorar". Tema-aware vía variables de
+   index.css. La barra es coherente: SOLO mide cobertura hacia el piso (déficit),
+   más relleno = más cerca de la meta. */
 
 .panel {
     position: relative;
@@ -79,8 +82,7 @@
     letter-spacing: -0.005em;
 }
 
-/* [P3-MICRO-SUBTITLE-ACCURACY · 2026-06-19] El conteo resaltado (feel de métrica
-   moderna): el número destaca, el resto queda muted. */
+/* [P3-MICRO-SUBTITLE-ACCURACY · 2026-06-19] El conteo resaltado. */
 .subCount {
     color: var(--text-main);
     font-weight: 800;
@@ -106,69 +108,28 @@
     border-color: var(--border);
 }
 
-/* Línea de contexto: deja claro que es un estimado de las comidas del PLAN,
-   no una medición del usuario ni de suplementos (P3-MICRO-PLAIN-LANGUAGE). */
+/* Línea de contexto: estimado de las comidas del PLAN (P3-MICRO-PLAIN-LANGUAGE). */
 .intro {
-    margin: -0.35rem 0 0.95rem;
+    margin: -0.35rem 0 1rem;
     font-size: 0.74rem;
-    line-height: 1.4;
+    line-height: 1.45;
     color: var(--text-muted);
 }
 
-/* ---- medidores ---- */
+/* ---- medidores: tarjetas con barra ---- */
 .meters {
     display: flex;
     flex-direction: column;
-    gap: 0.85rem;
+    gap: 0.7rem;
 }
 
 .meter {
     --tone: #2DD4BF;
     --tone-2: #22D3EE;
-}
-
-/* Medidor interactivo (tap → preguntarle al coach IA cómo mejorarlo). */
-.clickable {
-    display: block;
-    width: calc(100% + 1.3rem);
-    margin: 0 -0.65rem;
-    padding: 0.5rem 0.65rem;
-    border: 1px solid transparent;
-    border-radius: 0.7rem;
-    background: transparent;
-    font: inherit;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition: background 0.18s ease, border-color 0.18s ease;
-}
-
-.clickable:hover {
-    background: color-mix(in srgb, var(--tone) 9%, transparent);
-    border-color: color-mix(in srgb, var(--tone) 26%, transparent);
-}
-
-.clickable:focus-visible {
-    outline: none;
-    border-color: var(--tone);
-}
-
-.askHint {
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: var(--text-light);
-    opacity: 0.5;
-    transition: opacity 0.18s ease, color 0.18s ease;
-}
-
-.clickable:hover .askHint,
-.clickable:focus-visible .askHint {
-    opacity: 1;
-    color: var(--tone);
+    background: var(--bg-muted);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    padding: 1rem 1.1rem 1.05rem;
 }
 
 .meterTop {
@@ -176,12 +137,12 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.7rem;
 }
 
 .nutrient {
-    font-size: 0.9rem;
-    font-weight: 700;
+    font-size: 1rem;
+    font-weight: 800;
     letter-spacing: -0.01em;
     color: var(--text-main);
 }
@@ -192,7 +153,7 @@
     display: inline-flex;
     align-items: center;
     gap: 3px;
-    padding: 2px 9px 2px 6px;
+    padding: 3px 10px 3px 7px;
     border-radius: 99px;
     font-size: 0.64rem;
     font-weight: 800;
@@ -200,39 +161,96 @@
     text-transform: uppercase;
     white-space: nowrap;
     color: var(--tone);
-    background: color-mix(in srgb, var(--tone) 15%, transparent);
-    border: 1px solid color-mix(in srgb, var(--tone) 34%, transparent);
+    background: color-mix(in srgb, var(--tone) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tone) 38%, transparent);
 }
 
-/* Línea héroe: la explicación en palabras (qué falta/sobra y la meta). */
-.gapText {
-    margin: 0 0 0.35rem;
-    font-size: 0.83rem;
-    font-weight: 500;
-    line-height: 1.35;
-    color: var(--text-main);
+/* Barra: track recesado + relleno tono = % de cobertura hacia la meta. */
+.barTrack {
+    height: 8px;
+    border-radius: 99px;
+    background: color-mix(in srgb, var(--text-main) 12%, transparent);
+    overflow: hidden;
+    margin-bottom: 0.85rem;
+}
+
+.barFill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--tone), var(--tone-2));
+    transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .meterFoot {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
+    gap: 0.75rem;
 }
 
+.valueBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+    min-width: 0;
+}
+
+/* "4.4 / 15 mcg" — valor actual destacado, meta muted. */
 .values {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 4px;
-    font-size: 0.72rem;
+    font-size: 0.92rem;
     font-variant-numeric: tabular-nums;
-    color: var(--text-light);
+    color: var(--text-muted);
     white-space: nowrap;
 }
 
 .cur {
     font-weight: 800;
-    color: var(--text-muted);
+    color: var(--text-main);
+}
+
+/* "Faltan 10.6 mcg" — etiqueta muted + cifra en color de severidad. */
+.gapLine {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-light);
+    white-space: nowrap;
+}
+
+.gapNum {
+    font-weight: 800;
+    color: var(--tone);
+}
+
+/* Botón "Mejorar": pill con color de severidad. */
+.askBtn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0.5rem 0.85rem;
+    border-radius: 99px;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--tone);
+    background: color-mix(in srgb, var(--tone) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tone) 34%, transparent);
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.1s ease;
+}
+
+.askBtn:hover {
+    background: color-mix(in srgb, var(--tone) 22%, transparent);
+    border-color: color-mix(in srgb, var(--tone) 50%, transparent);
+}
+
+.askBtn:active { transform: scale(0.97); }
+
+.askBtn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 30%, transparent);
 }
 
 /* ---- tonos por severidad ---- */
@@ -241,40 +259,48 @@
 .far  { --tone: #FB923C; --tone-2: #FB7185; }
 .over { --tone: #FB7185; --tone-2: #F43F5E; }
 
-/* ---- sugerencias (suplementos) ---- */
+/* ---- sugerencias (suplementos): tarjetas con badge violeta ---- */
 .supps {
-    margin-top: 1rem;
-    padding-top: 0.85rem;
+    margin-top: 1.2rem;
+    padding-top: 1rem;
     border-top: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.6rem;
 }
 
 .suppsLabel {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: 0.62rem;
+    gap: 5px;
+    margin-bottom: 0.1rem;
+    font-size: 0.64rem;
     font-weight: 800;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: #A78BFA;
 }
 
-/* [P3-MICRO-SUGGEST-CLARITY · 2026-06-19] Cada sugerencia = bloque de 2 líneas:
-   nutriente + dosis arriba (jerarquía clara), forma + alimentos abajo (muted).
-   Antes era una sola línea corrida difícil de leer. */
 .supp {
     display: flex;
     align-items: flex-start;
-    gap: 0.55rem;
+    gap: 0.7rem;
+    padding: 0.8rem 0.9rem;
+    border-radius: 0.9rem;
+    background: var(--bg-muted);
+    border: 1px solid var(--border);
 }
 
 .suppIcon {
     flex: none;
-    margin-top: 3px;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 0.65rem;
     color: #A78BFA;
+    background: color-mix(in srgb, #A78BFA 16%, transparent);
+    border: 1px solid color-mix(in srgb, #A78BFA 30%, transparent);
 }
 
 .suppBody {
@@ -282,147 +308,46 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.22rem;
-}
-
-.suppMain {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 0.1rem 0.5rem;
+    gap: 0.2rem;
 }
 
 .suppName {
-    font-size: 0.88rem;
-    font-weight: 700;
+    font-size: 0.9rem;
+    font-weight: 800;
     color: var(--text-main);
     letter-spacing: -0.01em;
 }
 
 .suppDose {
-    font-size: 0.78rem;
-    font-weight: 600;
+    font-size: 0.82rem;
+    font-weight: 700;
     color: #A78BFA;
+    line-height: 1.3;
 }
 
 .suppHint {
-    margin: 0;
-    font-size: 0.76rem;
-    line-height: 1.45;
+    margin: 0.1rem 0 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
     color: var(--text-light);
 }
 
 .suppForm {
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-muted);
 }
 
-/* ---- disclaimer (footnote discreto) ---- */
-.foot {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.4rem;
-    margin: 0.9rem 0 0;
-    font-size: 0.68rem;
-    line-height: 1.45;
-    color: var(--text-light);
-    opacity: 0.85;
-}
-
-.foot svg {
-    flex: none;
-    margin-top: 2px;
-    opacity: 0.8;
-}
-
-/* ---------------------------------------------------------------------------
-   [P3-MICRO-MOBILE-SPACING · 2026-06-23] En escritorio el panel se lee bien,
-   pero en móvil todo quedaba "pegado": filas sin separación, líneas de texto
-   apretadas. Aquí damos aire SOLO en pantallas estrechas — más interlineado,
-   respiros dentro de cada métrica y un divisor sutil para que cada nutriente
-   se lea como su propio bloque. El layout de escritorio queda intacto.
---------------------------------------------------------------------------- */
-@media (max-width: 540px) {
+/* ---- móvil: aprieta padding/tipografía sin romper las tarjetas ---- */
+@media (max-width: 420px) {
     .panel {
-        padding: 1.25rem 1.1rem 1.35rem;
+        padding: 1.15rem 0.95rem 1.2rem;
         border-radius: 1.25rem;
     }
-
-    /* Header con un poco más de presencia en pantalla chica. */
-    .head { margin-bottom: 1rem; }
-    .headText { gap: 3px; }
-    .title { font-size: 1rem; }
-    .sub { line-height: 1.4; }
-
-    .intro {
-        margin: -0.05rem 0 0.55rem;
-        font-size: 0.78rem;
-        line-height: 1.55;
-    }
-
-    /* ===== Diseño minimalista y aireado (exclusivo de móvil) =====
-       Sin tarjetas ni fondos de color: mucho aire, una hairline fina de
-       separación entre nutrientes y tipografía clara. El color vive SÓLO en
-       el chip de estado. */
-    .meters { gap: 0; }
-
-    /* Cada nutriente: respiro generoso arriba + línea fina full-bleed. */
-    .meter {
-        padding: 1.1rem 0 0;
-        margin-top: 1.1rem;
-        border-top: 1px solid var(--border);
-    }
-    .meter:first-child {
-        padding-top: 0.65rem;
-        margin-top: 0;
-        border-top: none;
-    }
-
-    /* La métrica interactiva: misma fila aireada, sin bleed ni recuadro. */
-    .clickable {
-        width: 100%;
-        margin: 1.1rem 0 0;
-        padding: 1.1rem 0 0;
-        border: none;
-        border-top: 1px solid var(--border);
-        border-radius: 0;
-        background: transparent;
-    }
-    .clickable:first-child {
-        margin-top: 0;
-        padding-top: 0.65rem;
-        border-top: none;
-    }
-    .clickable:active { background: transparent; }
-
-    .meterTop { margin-bottom: 0.5rem; }
-    .nutrient { font-size: 0.98rem; }
-
-    .gapText {
-        font-size: 0.9rem;
-        line-height: 1.5;
-        margin-bottom: 0.55rem;
-    }
-
-    .values { font-size: 0.75rem; }
-
-    /* "Mejorar": sin hover en móvil → siempre visible, pero discreto:
-       sólo texto + icono en el color de severidad, sin chip ni fondo. */
-    .askHint {
-        opacity: 1;
-        color: var(--tone);
-        font-size: 0.72rem;
-    }
-
-    /* Sugerencias: más aire entre ítems, sin recuadros. */
-    .supps {
-        margin-top: 1.4rem;
-        padding-top: 1.15rem;
-        gap: 1rem;
-    }
-    .suppBody { gap: 0.32rem; }
-    .suppName { font-size: 0.9rem; }
-    .suppHint { line-height: 1.55; }
+    .meter { padding: 0.9rem 0.95rem 0.95rem; }
+    .nutrient { font-size: 0.95rem; }
+    .values { font-size: 0.88rem; }
+    .askBtn { padding: 0.45rem 0.72rem; font-size: 0.76rem; }
+    .supp { padding: 0.75rem 0.8rem; }
 }
 
 /* ---- tema claro: superficie + glow más suaves ---- */
@@ -434,6 +359,13 @@
     box-shadow: 0 10px 26px -18px rgba(13, 148, 136, 0.45);
 }
 
+/* En claro, las tarjetas internas en blanco resaltan sobre el panel teal. */
+:global(html[data-theme="light"]) .meter,
+:global(html[data-theme="light"]) .supp {
+    background: #FFFFFF;
+    border-color: var(--border);
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .panel { transition: none; }
+    .barFill { transition: none; }
 }

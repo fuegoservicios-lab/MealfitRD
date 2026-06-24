@@ -268,14 +268,12 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                             {gaps.map((g, i) => {
                                 const s = classify(g);
                                 const ask = onAsk ? () => onAsk(buildQuestion(g), g.nutriente) : undefined;
-                                const Tag = ask ? 'button' : 'div';
+                                // "Faltan" para déficit (piso); "Sobran" para exceso (techo).
+                                const gapWord = s.direction === 'high' ? 'Sobran' : 'Faltan';
                                 return (
-                                    <Tag
+                                    <div
                                         key={`mn-${i}`}
-                                        type={ask ? 'button' : undefined}
-                                        onClick={ask}
-                                        className={`${styles.meter} ${styles[s.tone]} ${ask ? styles.clickable : ''}`}
-                                        title={ask ? `Preguntarle al coach cómo mejorar tu ${(g.nutriente || '').toLowerCase()}` : undefined}
+                                        className={`${styles.meter} ${styles[s.tone]}`}
                                     >
                                         <div className={styles.meterTop}>
                                             <span className={styles.nutrient}>{g.nutriente}</span>
@@ -286,19 +284,39 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                                                 {s.statusWord}
                                             </span>
                                         </div>
-                                        <p className={styles.gapText}>{s.gapText}</p>
+                                        {/* Barra: cobertura hacia la meta (relleno = % alcanzado). */}
+                                        <div
+                                            className={styles.barTrack}
+                                            role="progressbar"
+                                            aria-valuenow={Math.round(s.fill)}
+                                            aria-valuemin={0}
+                                            aria-valuemax={100}
+                                            aria-label={`${g.nutriente}: ${g.valor}${g.unidad} de ${_fmtN(s.target)}${g.unidad}`}
+                                        >
+                                            <div className={styles.barFill} style={{ width: `${s.fill}%` }} />
+                                        </div>
                                         <div className={styles.meterFoot}>
-                                            <span className={styles.values}>
-                                                tu plan aporta <span className={styles.cur}>{g.valor}{g.unidad}</span>
-                                            </span>
-                                            {ask && (
-                                                <span className={styles.askHint}>
-                                                    <MessageCircle size={13} strokeWidth={2.25} aria-hidden="true" />
-                                                    Mejorar
+                                            <div className={styles.valueBlock}>
+                                                <span className={styles.values}>
+                                                    <span className={styles.cur}>{g.valor}</span> / {_fmtN(s.target)} {g.unidad}
                                                 </span>
+                                                <span className={styles.gapLine}>
+                                                    {gapWord} <span className={styles.gapNum}>{_fmtN(s.gap)} {g.unidad}</span>
+                                                </span>
+                                            </div>
+                                            {ask && (
+                                                <button
+                                                    type="button"
+                                                    onClick={ask}
+                                                    className={styles.askBtn}
+                                                    title={`Preguntarle al coach cómo mejorar tu ${(g.nutriente || '').toLowerCase()}`}
+                                                >
+                                                    <MessageCircle size={14} strokeWidth={2.25} aria-hidden="true" />
+                                                    Mejorar
+                                                </button>
                                             )}
                                         </div>
-                                    </Tag>
+                                    </div>
                                 );
                             })}
                         </div>
@@ -307,18 +325,19 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                     {supplements.length > 0 && (
                         <div className={styles.supps}>
                             <span className={styles.suppsLabel}>
+                                <Pill size={12} strokeWidth={2.5} aria-hidden="true" />
                                 Sugerencias
                             </span>
                             {supplements.map((it, i) => (
                                 <div key={`sup-${i}`} className={styles.supp}>
-                                    <Pill size={13} strokeWidth={2.25} className={styles.suppIcon} aria-hidden="true" />
+                                    <span className={styles.suppIcon}>
+                                        <Pill size={15} strokeWidth={2.25} aria-hidden="true" />
+                                    </span>
                                     <div className={styles.suppBody}>
-                                        <div className={styles.suppMain}>
-                                            <span className={styles.suppName}>{it.nutriente}</span>
-                                            {it.dosis_sugerida && (
-                                                <span className={styles.suppDose}>{it.dosis_sugerida}</span>
-                                            )}
-                                        </div>
+                                        <span className={styles.suppName}>{it.nutriente}</span>
+                                        {it.dosis_sugerida && (
+                                            <span className={styles.suppDose}>{it.dosis_sugerida}</span>
+                                        )}
                                         {(it.suplemento || it.primero_alimentos) && (
                                             <p className={styles.suppHint}>
                                                 {it.suplemento && (
