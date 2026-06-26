@@ -84,6 +84,9 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStor
 // [P3-NOTIF-CENTER · 2026-06-16] Archivar el banner "plan no óptimo" al cerrarlo
 // + backfill de avisos descartados antes de que existiera el centro.
 import { addNotification, getNotifications, setNotificationData, openNotificationCenter } from '../utils/notifications';
+// [P1-REASONING-DISMISS · 2026-06-26] Restaurar el panel de Razonamiento desde el
+// centro de notificaciones (mismo patrón que el panel de micros).
+import { INSIGHTS_RESTORE_EVENT, insightsDismissKey } from '../utils/insightsPanel';
 // [P2-CUSTOM-MODALS-A11Y · 2026-05-24] Hook SSOT para el restock modal inline
 // (4470-4580): role/aria-modal/focus trap/ESC/restore focus/body overflow.
 // Pre-fix el modal era keyboard-inaccesible (Tab escapaba al fondo, ESC no
@@ -545,6 +548,48 @@ const DashboardInner = () => {
         if (_planMicroSig) safeLocalStorageSet(`mealfit_coherence_dismissed_${_planMicroSig}`, '1');
         // Abre el centro de notificaciones para que el usuario vea dónde quedó.
         openNotificationCenter();
+    };
+
+    // [P1-REASONING-DISMISS · 2026-06-26] El panel "Razonamiento" (Diagnóstico /
+    // Plan de Acción / Tip del Chef) ahora tiene su "X": al cerrarlo se ARCHIVA en
+    // el centro de notificaciones (no se pierde) y se puede volver a mostrar cuando
+    // el usuario quiera (botón "Volver a mostrar" del centro → INSIGHTS_RESTORE_EVENT).
+    // Recordado por plan (firma estable) → se resetea al cambiar de plan.
+    const [reasoningHidden, setReasoningHidden] = useState(false);
+    useEffect(() => {
+        const key = _planMicroSig ? insightsDismissKey(_planMicroSig) : null;
+        setReasoningHidden(!!(key && safeLocalStorageGet(key, '') === '1'));
+    }, [_planMicroSig]);
+    // Re-mostrar al instante cuando el centro pide restaurar ESTE plan (o genérico).
+    useEffect(() => {
+        const onRestore = (e) => {
+            const sig = e?.detail?.sig;
+            if (sig && _planMicroSig && sig !== _planMicroSig) return; // no es para este plan
+            setReasoningHidden(false);
+        };
+        window.addEventListener(INSIGHTS_RESTORE_EVENT, onRestore);
+        return () => window.removeEventListener(INSIGHTS_RESTORE_EVENT, onRestore);
+    }, [_planMicroSig]);
+    const buildInsightsNotification = useCallback(() => {
+        const insights = Array.isArray(planData?.insights) ? planData.insights.filter(Boolean) : [];
+        if (!insights.length) return null;
+        return {
+            id: _planMicroSig ? `insights_${_planMicroSig}` : undefined,
+            kind: 'insights',
+            title: 'Razonamiento de tu plan',
+            message: 'Diagnóstico, plan de acción y tip del chef de tu plan actual.',
+            severity: 'info',
+            data: { insights },
+        };
+    }, [planData?.insights, _planMicroSig]);
+    const dismissReasoning = () => {
+        const notif = buildInsightsNotification();
+        if (notif) addNotification(notif);
+        setReasoningHidden(true);
+        if (_planMicroSig) safeLocalStorageSet(insightsDismissKey(_planMicroSig), '1');
+        toast('Razonamiento guardado', {
+            description: 'Quedó en Notificaciones (campana) — ábrelas para volver a mostrarlo cuando quieras.',
+        });
     };
 
     // [P3-NOTIF-CENTER-BACKFILL · 2026-06-16] Reconciliación para avisos
@@ -6218,6 +6263,10 @@ const DashboardInner = () => {
                     {!isMobileViewport && <WaterTracker userId={session?.user?.id || userProfile?.id || 'guest'} />}
 
                     {/* Insights Card */}
+                    {/* [P1-REASONING-DISMISS · 2026-06-26] Dismissible: la X archiva el
+                        panel en el centro de notificaciones (campana) y se puede volver a
+                        mostrar desde ahí cuando el usuario quiera. Recordado por plan. */}
+                    {!reasoningHidden && (
                     <div style={{
                         background: 'var(--bg-card)',
                         backdropFilter: 'blur(12px)',
@@ -6235,6 +6284,24 @@ const DashboardInner = () => {
                                 <Brain size={22} strokeWidth={2.5} />
                             </div>
                             Razonamiento
+                            {planData?.insights?.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={dismissReasoning}
+                                    aria-label="Ocultar el razonamiento (se guarda en Notificaciones)"
+                                    title="Ocultar — se guarda en Notificaciones"
+                                    style={{
+                                        marginLeft: 'auto', width: '32px', height: '32px', flex: 'none',
+                                        display: 'grid', placeItems: 'center', borderRadius: '10px',
+                                        border: '1px solid var(--border)', background: 'transparent',
+                                        color: 'var(--text-light)', cursor: 'pointer', transition: 'background .16s, color .16s'
+                                    }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-muted)'; e.currentTarget.style.color = 'var(--text-main)'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-light)'; }}
+                                >
+                                    <X size={17} strokeWidth={2.4} />
+                                </button>
+                            )}
                         </h3>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -6312,6 +6379,7 @@ const DashboardInner = () => {
                             })}
                         </div>
                     </div>
+                    )}
 
 
 

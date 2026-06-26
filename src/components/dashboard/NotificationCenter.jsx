@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Bell, BellOff, X, Trash2, CheckCheck, FlaskConical, AlertTriangle, Info,
-    ChevronDown, MessageCircle, Pill, ArrowDown, ArrowUp, ArrowRight, Eye,
+    ChevronDown, MessageCircle, Pill, ArrowDown, ArrowUp, ArrowRight, Eye, Brain,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -25,6 +25,8 @@ import { requestAgentPrefill } from '../../utils/agentPrefill';
 // classify = SSOT del cálculo de las mini-barras (mismo que el panel de micros).
 // restoreMicrosPanel = "desocultar" el panel desde aquí (P3-MICROS-RESTORE).
 import { classify, restoreMicrosPanel } from './MicronutrientPanel';
+// [P1-REASONING-DISMISS · 2026-06-26] "Volver a mostrar" el panel de Razonamiento.
+import { restoreInsightsPanel } from '../../utils/insightsPanel';
 import styles from './NotificationCenter.module.css';
 
 /* [P3-NOTIF-CENTER · 2026-06-16] Centro de notificaciones del dashboard.
@@ -42,6 +44,7 @@ import styles from './NotificationCenter.module.css';
 
 const KIND_META = {
     micros: { Icon: FlaskConical, tone: 'teal' },
+    insights: { Icon: Brain, tone: 'indigo' },
     quality: { Icon: AlertTriangle, tone: 'amber' },
     warning: { Icon: AlertTriangle, tone: 'amber' },
     info: { Icon: Info, tone: 'indigo' },
@@ -149,13 +152,40 @@ function QualityDetail({ data, onAction }) {
     );
 }
 
+/* [P1-REASONING-DISMISS · 2026-06-26] Vista expandida del Razonamiento archivado:
+   muestra el contenido completo (Diagnóstico / Plan de Acción / Tip del Chef). El
+   etiquetado replica la lógica del panel del dashboard (por palabra clave o índice). */
+function _insightTitle(insight, i) {
+    const t = (insight || '').toLowerCase();
+    if (t.includes('diagnóstico') || t.includes('diagnostico') || i === 0) return 'Diagnóstico';
+    if (t.includes('estrategia') || t.includes('acción') || t.includes('accion') || i === 1) return 'Plan de Acción';
+    if (t.includes('chef') || i === 2) return 'Tip del Chef';
+    return 'Nota';
+}
+function _insightClean(insight) {
+    return (insight || '').includes(':') ? insight.split(':').slice(1).join(':').trim() : insight;
+}
+function InsightsDetail({ data }) {
+    const insights = Array.isArray(data?.insights) ? data.insights.filter(Boolean) : [];
+    if (!insights.length) return null;
+    return (
+        <>
+            {insights.map((ins, i) => (
+                <p key={`ins-${i}`} className={styles.exFallback}>
+                    <strong>{_insightTitle(ins, i)}: </strong>{_insightClean(ins)}
+                </p>
+            ))}
+        </>
+    );
+}
+
 /* ----- tarjeta (memoizada: sólo re-renderiza si SU notificación o su estado
    de expansión cambian — clave de rendimiento con muchas notificaciones) ----- */
 
 const NotificationCard = memo(function NotificationCard({ n, expanded, onToggle, onRemove, onAction, onRestore }) {
     const { Icon, tone } = metaFor(n);
     const unread = !n.read;
-    const hasDetail = n.kind === 'micros' || n.kind === 'quality' || !!n.message;
+    const hasDetail = n.kind === 'micros' || n.kind === 'quality' || n.kind === 'insights' || !!n.message;
 
     return (
         <motion.article
@@ -197,9 +227,10 @@ const NotificationCard = memo(function NotificationCard({ n, expanded, onToggle,
                     )}
                 </button>
                 <div className={styles.cardActions}>
-                    {/* [P3-MICROS-RESTORE · 2026-06-19] "Volver a mostrar" — solo micros
-                        (es el único aviso con un panel del dashboard que se puede re-mostrar). */}
-                    {n.kind === 'micros' && (
+                    {/* [P3-MICROS-RESTORE · 2026-06-19 · +P1-REASONING-DISMISS 2026-06-26]
+                        "Volver a mostrar" — avisos con un panel del dashboard re-mostrable
+                        (micros + razonamiento). */}
+                    {(n.kind === 'micros' || n.kind === 'insights') && (
                         <button
                             type="button"
                             className={styles.cardRestore}
@@ -236,6 +267,8 @@ const NotificationCard = memo(function NotificationCard({ n, expanded, onToggle,
                                 <MicrosDetail data={n.data} onAction={() => onAction(n)} />
                             ) : n.kind === 'quality' && n.data ? (
                                 <QualityDetail data={n.data} onAction={() => onAction(n)} />
+                            ) : n.kind === 'insights' && n.data ? (
+                                <InsightsDetail data={n.data} />
                             ) : (
                                 <>
                                     {n.message && <p className={styles.exFallback}>{n.message}</p>}
@@ -318,6 +351,20 @@ export default function NotificationCenter() {
     // el drawer para revelar el resultado. Más control para el usuario: ocultar ya
     // no es definitivo.
     const handleRestore = useCallback((n) => {
+        // [P1-REASONING-DISMISS · 2026-06-26] Restaura el panel correcto según el tipo.
+        if (n.kind === 'insights') {
+            const sig = (typeof n.id === 'string' && n.id.startsWith('insights_'))
+                ? n.id.slice('insights_'.length)
+                : null;
+            restoreInsightsPanel(sig);
+            setExpandedId((cur) => (cur === n.id ? null : cur));
+            removeNotification(n.id);
+            toast('Listo, lo mostramos de nuevo', {
+                description: 'El razonamiento de tu plan vuelve a tu dashboard.',
+            });
+            closeDrawer();
+            return;
+        }
         const sig = (typeof n.id === 'string' && n.id.startsWith('micros_c_'))
             ? n.id.slice('micros_c_'.length)
             : null;
