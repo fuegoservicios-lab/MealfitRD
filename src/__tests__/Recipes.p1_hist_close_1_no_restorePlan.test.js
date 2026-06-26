@@ -87,14 +87,17 @@ describe('[P1-HIST-CLOSE-1] Recipes.jsx no usa restorePlan (server-side SSOT)', 
         );
     });
 
-    it('preserva el localStorage.setItem("mealfit_plan", ...) tras expansión', () => {
-        // El localStorage update sigue dentro de `handleCookClick` para
-        // que la navegación inmediata a /plan vea la receta expandida
-        // sin esperar al refetch del server. Si un revert quita ESTO
-        // junto con el restorePlan, el usuario perdería la consistencia
-        // inmediata — alertar al reviewer con un test específico.
+    it('preserva el guardado de "mealfit_plan" (safeLocalStorageSet) tras expansión', () => {
+        // [P3-RECIPE-SAFE-LS · 2026-05-30] El raw
+        // `localStorage.setItem('mealfit_plan', JSON.stringify(planData))` se
+        // migró al helper SSOT no-throw `safeLocalStorageSet('mealfit_plan',
+        // planData)` (serializa internamente). El localStorage update sigue
+        // dentro de `handleCookClick` para que la navegación inmediata a /plan
+        // vea la receta expandida sin esperar al refetch del server. Si un
+        // revert quita ESTO junto con el restorePlan, el usuario perdería la
+        // consistencia inmediata — alertar al reviewer con un test específico.
         expect(src).toMatch(
-            /localStorage\.setItem\s*\(\s*['"]mealfit_plan['"]\s*,\s*JSON\.stringify\s*\(\s*planData\s*\)/
+            /safeLocalStorageSet\s*\(\s*['"]mealfit_plan['"]\s*,\s*planData\s*\)/
         );
     });
 

@@ -69,19 +69,27 @@ describe('P1-10 — handleAuthChange setea loadingProfile alrededor de los fetch
     });
 
     it('Setea loadingProfile=false en logout path (no session)', () => {
-        // Buscamos `setLoadingProfile(false)` después del removeItem de
+        // Buscamos `setLoadingProfile(false)` después de la remoción de
         // mealfit_user_id (señal estructural del bloque de logout).
+        // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] el raw
+        // `localStorage.removeItem('mealfit_user_id')` se migró al helper SSOT
+        // no-throw `safeLocalStorageRemove('mealfit_user_id')`; aceptamos ambas.
         const logoutMatch = codeOnly.match(
-            /removeItem\(\s*['"]mealfit_user_id['"]\s*\)[\s\S]{0,2000}setLoadingProfile\(\s*false\s*\)/
+            /(?:safeLocalStorageRemove|removeItem)\(\s*['"]mealfit_user_id['"]\s*\)[\s\S]{0,2000}setLoadingProfile\(\s*false\s*\)/
         );
         expect(logoutMatch).toBeTruthy();
     });
 
     it('Setea loadingProfile=false en catch de getSessionWithTimeout (red caída)', () => {
-        // Buscamos `setLoadingProfile(false)` dentro del .catch del Promise.race.
-        const catchMatch = codeOnly.match(/catch\(\(err\)[\s\S]*?setLoadingProfile\(\s*false\s*\)/);
-        // Aceptar variantes con `(err)` o `((err))`
-        expect(catchMatch || codeOnly.match(/\.catch\([^)]*\)\s*=>\s*\{[^}]*setLoadingProfile\(\s*false\s*\)/s)).toBeTruthy();
+        // Buscamos `setLoadingProfile(false)` dentro del .catch de la sesión
+        // inicial. [P1-NEON-AUTH-MIGRATION · 2026-06-13] la firma pasó a
+        // `.catch(async (_err) => {` y su cuerpo tiene un if-block (fallback
+        // first-party) ANTES del setLoadingProfile(false), así que el viejo
+        // `[^}]*` (que no cruza `}`) ya no aplica: usamos `[\s\S]*?`.
+        const catchMatch = codeOnly.match(
+            /\.catch\(\s*async\s*\([^)]*\)\s*=>\s*\{[\s\S]*?setLoadingProfile\(\s*false\s*\)/
+        );
+        expect(catchMatch).toBeTruthy();
     });
 });
 

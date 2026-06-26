@@ -171,5 +171,16 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     setupFiles: './src/setupTests.js',
     css: true,
+    // [P1-VITEST-EXCLUDE-E2E · 2026-06-25] Los specs de `e2e/` son Playwright
+    // (necesitan navegador + servidor levantado) — el glob default de vitest
+    // (`**/*.spec.js`) los recogía y fallaban en el run unitario. Se ejecutan
+    // aparte con `npm run test:e2e` (playwright test). Preservamos los excludes
+    // default de vitest (no se importa configDefaults para no acoplar el build).
+    exclude: [
+      '**/node_modules/**', '**/dist/**', '**/cypress/**',
+      '**/.{idea,git,cache,output,temp}/**',
+      '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
+      'e2e/**',
+    ],
   },
 }))

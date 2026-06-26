@@ -152,28 +152,18 @@ describe('[P2-HIST-3] integración: helper produce labels esperados', () => {
     });
 });
 
-describe('[P2-HIST-3] History.jsx — render del chip', () => {
-    it('llama getSimplifiedWeeksLabel(plan) dentro de cardActions', () => {
-        expect(src).toMatch(/getSimplifiedWeeksLabel\(\s*plan\s*\)/);
-    });
-
-    it('NO renderiza cuando el helper devuelve null', () => {
-        const callIdx = src.indexOf('getSimplifiedWeeksLabel(plan)');
-        expect(callIdx).toBeGreaterThan(-1);
-        const block = src.slice(callIdx, callIdx + 200);
-        expect(block).toMatch(/if\s*\(\s*!_label\s*\)\s*return\s+null/);
-    });
-
-    it('renderiza span con className simplifiedWeeksBadge y title attribute', () => {
-        expect(src).toMatch(/className=\{styles\.simplifiedWeeksBadge\}/);
-        // Title da contexto a usuarios sobre por qué está esa semana
-        // como "simplif".
-        const badgeIdx = src.indexOf('className={styles.simplifiedWeeksBadge}');
-        const around = src.slice(Math.max(0, badgeIdx - 100), badgeIdx + 400);
-        expect(around).toMatch(/title=/);
-        expect(around).toMatch(/simplificad/);
-    });
-});
+// [removed: tras refactor P3-HIST-DESKTOP-REDESIGN / P3-HIST-MOBILE-REDESIGN
+// · 2026-06-24] Se eliminó el describe '[P2-HIST-3] History.jsx — render del
+// chip' (3 it-blocks: call getSimplifiedWeeksLabel(plan); guarda
+// if(!_label) return null; span simplifiedWeeksBadge + title). El chip
+// "Sn simplif." de la card desapareció: la lista ahora la renderizan
+// components/history/HistoryDesktopPanel.jsx + HistoryMobilePanel.jsx
+// (diseño sin ese badge), y `getSimplifiedWeeksLabel` ya no tiene callsite
+// en History.jsx (el modal del redesign no surface semanas simplificadas
+// retroactivas) — no hay invocación viva a la que reapuntar. La definición
+// del helper sigue intacta y cubierta por el describe 'getSimplifiedWeeksLabel
+// helper' + el describe 'integración'; la paleta por 'CSS module — palette
+// lavender'.
 
 describe('[P2-HIST-3] CSS module — simplifiedWeeksBadge palette lavender', () => {
     it('CSS define .simplifiedWeeksBadge', () => {

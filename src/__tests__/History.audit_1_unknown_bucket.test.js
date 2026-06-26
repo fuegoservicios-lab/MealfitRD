@@ -78,30 +78,20 @@ describe('[P2-HIST-AUDIT-1] anchor + bucket unknown', () => {
 });
 
 
-describe('[P2-HIST-AUDIT-1] renderer JSX', () => {
-    it('JSX maneja bucket unknown con styles.statusUnknown', () => {
-        // Buscar el bloque del status chip renderer.
-        expect(src).toMatch(/_info\.bucket\s*===\s*['"]unknown['"]/);
-        expect(src).toMatch(/className=\{styles\.statusUnknown\}/);
-    });
-
-    it('chip unknown muestra texto "Sin datos"', () => {
-        // El texto comunica honestamente vs el falso "Completo" previo.
-        const renderIdx = src.indexOf("_info.bucket === 'unknown'");
-        expect(renderIdx).toBeGreaterThan(-1);
-        const block = src.slice(renderIdx, renderIdx + 800);
-        expect(block).toMatch(/Sin\s+datos/);
-    });
-
-    it('chip unknown tiene title explicativo (a11y / tooltip)', () => {
-        const renderIdx = src.indexOf("_info.bucket === 'unknown'");
-        const block = src.slice(renderIdx, renderIdx + 800);
-        // Title debe explicar el caso edge para que el usuario
-        // entienda por qué su plan aparece "Sin datos".
-        expect(block).toMatch(/title=/);
-        expect(block).toMatch(/legacy|procesable|corrupt/i);
-    });
-});
+// [removed: describe '[P2-HIST-AUDIT-1] renderer JSX' tras refactor
+//  P3-HIST-DESKTOP-REDESIGN / P3-HIST-MOBILE-REDESIGN · 2026-06-24]
+// El render inline de la card (status chip por bucket: `_info.bucket ===
+// 'unknown'` → `className={styles.statusUnknown}` + texto "Sin datos" + title
+// explicativo) se extrajo de History.jsx a HistoryDesktopPanel /
+// HistoryMobilePanel. Esos paneles NO renderizan el chip de estado de
+// generación por card (muestran nombre/fecha/comidas/macros/kcal + badge
+// "Activo"), por lo que `_info.bucket === 'unknown'`, `styles.statusUnknown`
+// y "Sin datos" ya NO aparecen en el JSX de History.jsx (`indexOf` → -1).
+// El helper `getStatusInfo` y su bucket `unknown` siguen VIVOS (se usan para
+// resolver `activePlanId`, cubiertos por el describe de logic arriba) y la
+// regla CSS `.statusUnknown` persiste (cubierta por el describe de CSS abajo).
+// Se eliminan estos 3 it-blocks en vez de debilitarlos vacuamente: el surface
+// JSX que parseaban dejó de existir.
 
 
 describe('[P2-HIST-AUDIT-1] CSS de statusUnknown', () => {

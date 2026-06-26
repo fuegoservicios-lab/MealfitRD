@@ -121,31 +121,23 @@ describe('[P1-HIST-3] History.jsx — fetch + state', () => {
 });
 
 describe('[P1-HIST-3] History.jsx — render del chip', () => {
-    it('lee lessonsCounts[plan.id] con guarda count > 0', () => {
-        // Sin guarda count > 0, planes con 0 lecciones renderizarían
-        // un chip vacío (visualmente confuso).
-        expect(src).toMatch(/lessonsCounts\[\s*plan\.id\s*\]/);
-        expect(src).toMatch(/_lessonsCount\s*<=\s*0/);
+    it('consume lessonsCounts en render (no dead state)', () => {
+        // [removed: tras refactor P3-HIST-DESKTOP-REDESIGN / P3-HIST-MOBILE-
+        // REDESIGN · 2026-06-24] El chip "N lecciones" con icono Sparkles
+        // de la card se eliminó: la lista ahora la renderizan
+        // components/history/HistoryDesktopPanel.jsx + HistoryMobilePanel.jsx
+        // (diseño sin ese badge). El conteo NO es dead state: el modal de
+        // detalle lo consume como `lessonsCounts[selectedPlan.id]` para el
+        // tab "Lecciones (N)" (icono Sparkles size={16}, siempre plural).
+        expect(src).toMatch(/lessonsCounts\[\s*selectedPlan\.id\s*\]/);
     });
 
-    it('renderiza chip lessonsBadge con icono Sparkles', () => {
-        expect(src).toMatch(/className=\{styles\.lessonsBadge\}/);
-        expect(src).toMatch(/<Sparkles\s+size=\{11\}/);
-    });
-
-    it('chip tiene title attribute con label singular/plural', () => {
-        // a11y: tooltip nativo. Singular para count=1, plural para >1.
-        // [P2-HIST-AUDIT-D · 2026-05-09] Slack ampliado a 2500 — el
-        // tooltip ahora se computa en una IIFE arriba (con split por
-        // tier high/partial/low) y luego se pasa via `title={_title}`.
-        // El texto "lección"/"lecciones" vive en la IIFE, no inline.
-        const lessonsIdx = src.indexOf('className={styles.lessonsBadge}');
-        expect(lessonsIdx).toBeGreaterThan(-1);
-        const around = src.slice(Math.max(0, lessonsIdx - 2500), lessonsIdx + 400);
-        expect(around).toMatch(/title=/);
-        expect(around).toMatch(/lecci[oó]n/);
-        expect(around).toMatch(/_lessonsCount\s*===\s*1/);
-    });
+    // [removed: tras refactor] Se eliminaron los 3 it-blocks que
+    // verificaban el render del chip de lecciones en la card (guarda
+    // _lessonsCount<=0; span lessonsBadge con <Sparkles size={11}>; title
+    // singular/plural lección/lecciones). Ese chip ya no existe en
+    // History.jsx. El fetch+state sigue cubierto por el describe
+    // 'fetch + state' y la paleta por 'CSS module — palette indigo'.
 });
 
 describe('[P1-HIST-3] CSS module — palette indigo diferenciada', () => {

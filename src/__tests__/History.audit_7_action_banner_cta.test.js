@@ -90,7 +90,11 @@ describe('[P2-HIST-AUDIT-7] render condicional', () => {
     // el JSX (button + fallback p) viene después. Slice ampliado a
     // 10000 chars en P2-HIST-AUDIT-9 para acomodar la lista de
     // reasons per-chunk añadida antes del CTA.
-    const block = src.slice(bannerIdx, bannerIdx + 10000);
+    // [P3-HIST-ACTIVE-NO-REACTIVATE · 2026-05-18] El copy fallback ahora vive
+    // dentro de un IIFE con comentario load-bearing (el ternario
+    // `_hideRestore`), empujando "Pulsa Reactivar este Plan" a ~delta 10.7k —
+    // fuera de la ventana de 10000. Ampliado a 12000 para volver a alcanzarlo.
+    const block = src.slice(bannerIdx, bannerIdx + 12000);
 
     it('flag _hasCustomCta combina cta + urlSafe', () => {
         expect(block).toMatch(/_hasCustomCta\s*=\s*!!\s*\(\s*_cta\s*&&\s*_urlSafe\s*\)/);

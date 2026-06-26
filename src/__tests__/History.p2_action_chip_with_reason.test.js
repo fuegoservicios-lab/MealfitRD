@@ -50,42 +50,19 @@ describe('[P2-HIST-NEW-1] anchor + import del helper', () => {
 });
 
 
-describe('[P2-HIST-NEW-1] render del chip action_required', () => {
-    it('lee plan.primary_action_reason en la rama action_required', () => {
-        const idx = src.indexOf("_info.bucket === 'action_required'");
-        expect(idx).toBeGreaterThan(-1);
-        const block = src.slice(idx, idx + 2500);
-        expect(block).toMatch(/getActionReasonLabel\(plan\.primary_action_reason\)/);
-    });
-
-    it('label dinámico: "Acción: <label>" cuando hay reason válido', () => {
-        const idx = src.indexOf("_info.bucket === 'action_required'");
-        const block = src.slice(idx, idx + 2500);
-        // Template literal con _reasonLabel.
-        expect(block).toMatch(/Acci[oó]n:\s*\$\{_reasonLabel\}/);
-    });
-
-    it('fallback a "Acción" plano cuando reason_code no está en catálogo', () => {
-        // Si getActionReasonLabel devuelve null (code desconocido),
-        // mejor "Acción" que un code técnico crudo visible al user.
-        // El ternario es:
-        //   _reasonLabel ? `Acción: ${_reasonLabel}` : 'Acción'
-        const idx = src.indexOf("_info.bucket === 'action_required'");
-        const block = src.slice(idx, idx + 2500);
-        // Buscar `_reasonLabel` seguido de `?` y eventualmente
-        // `: 'Acción'` (la rama else del ternario).
-        expect(block).toMatch(/_reasonLabel[\s\S]*?\?[\s\S]*?:\s*['"]Acci[oó]n['"]/);
-    });
-
-    it('tooltip diferenciado: incluye reason si está, sino genérico', () => {
-        const idx = src.indexOf("_info.bucket === 'action_required'");
-        const block = src.slice(idx, idx + 2500);
-        // Tooltip dinámico: con reason copy específica, sin reason copy
-        // genérica. Ambos branches presentes.
-        expect(block).toMatch(/Acci[oó]n requerida\s*—\s*\$\{_reasonLabel\}/);
-        expect(block).toMatch(/Acci[oó]n requerida:\s*hay chunks pendientes/);
-    });
-});
+// [removed: chip "Acción: <reason>" en la card del listado tras refactor
+//  P3-HIST-DESKTOP-REDESIGN · 2026-06-24] La card/lista del Historial se
+//  extrajo a HistoryDesktopPanel/HistoryMobilePanel (diseño aportado por el
+//  owner) que NO renderiza chips de estado de generación. El render
+//  `_info.bucket === 'action_required'` + `getActionReasonLabel(plan.primary_action_reason)`
+//  + `Acción: ${_reasonLabel}` ya no existe en History.jsx — `primary_action_reason`
+//  no se surfacea en la fila. El motivo de la acción SOLO se explica ahora en el
+//  banner del modal (lee `_user_action_required.reason` directo de plan_data,
+//  mecanismo distinto, no usa getActionReasonLabel). El catálogo SSOT
+//  `getActionReasonLabel` + `_ACTION_REASON_LABELS_MAP` sigue cubierto abajo
+//  (describe "helper actionReasons.js") y su import sigue cubierto arriba. Los 4
+//  it-blocks del render (anclados a `_info.bucket === 'action_required'`,
+//  inexistente) se eliminaron porque la feature ya no existe en esa superficie.
 
 
 describe('[P2-HIST-NEW-1] helper actionReasons.js', () => {

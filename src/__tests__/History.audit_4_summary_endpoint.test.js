@@ -10,17 +10,19 @@
 //   - `fetchHistory` ahora llama al endpoint backend
 //     `/api/plans/history-list` con projection mínima vía operadores
 //     jsonb (`->`, `->>`, `jsonb_array_length`).
-//   - El modal carga lazy `plan_data` solo del plan abierto via
-//     `supabase.from('meal_plans').select('plan_data').eq('id', ...)`
-//     en el handler onClick.
+//   - El modal carga lazy `plan_data` solo del plan abierto. [P1-NEON-DB-
+//     MIGRATION · 2026-06-12] El select PostgREST original
+//     (`supabase.from('meal_plans').select('plan_data').eq('id', ...)`) se
+//     migró a `GET /api/plans-data/{plan_id}` (DB en Neon, ownership I2
+//     server-side) — el handler `openPlanModal` lo dispara fire-and-forget.
 //
 // Cobertura (static analysis del source — no runtime):
 //   - Marker `[P1-HIST-AUDIT-4 · 2026-05-09]` presente.
 //   - Import de `getHistoryList` desde `config/api`.
 //   - `fetchHistory` invoca `getHistoryList()` y NO usa
 //     `supabase.from('meal_plans').select('*')`.
-//   - Helper `_loadPlanDataLazy` definido y selecciona solo
-//     `plan_data` (no `*`).
+//   - Helper `_loadPlanDataLazy` definido y carga solo `plan_data` via
+//     `GET /api/plans-data/{id}` (no select(*); ownership server-side I2).
 //   - onClick del card invoca el helper antes de setSelectedPlan.
 //   - Helpers de la card (`getStatusInfo`, `getCoherenceAdjustsCount`,
 //     `getSimplifiedWeeksLabel`, `getSmartTags`, `renderMealPreview`)
@@ -92,23 +94,31 @@ describe('[P1-HIST-AUDIT-4] _loadPlanDataLazy: lazy-load del plan_data', () => {
         expect(src).toMatch(/const\s+_loadPlanDataLazy\s*=\s*async/);
     });
 
-    it('selecciona SOLO la columna plan_data (no *)', () => {
+    it('carga SOLO el plan_data via GET /api/plans-data/{id} (ownership server-side)', () => {
         const helperIdx = src.indexOf('const _loadPlanDataLazy');
         const helperBlock = src.slice(helperIdx, helperIdx + 1500);
-        expect(helperBlock).toMatch(/\.select\(\s*['"]plan_data['"]\s*\)/);
-        // Defensive: el helper filtra por id Y user_id (defense-in-depth
-        // contra leak de plan ajeno via id guessing).
-        // [P6-SPEED-HIST-GETUSER · 2026-06-01] El id autenticado ahora es `uid`
-        // = session?.user?.id (sesión YA hidratada del contexto, lectura
-        // síncrona) en vez de `user.id` de un supabase.auth.getUser() — ese
-        // getUser era un roundtrip de red que bloqueaba ~100-300ms el query en
-        // cada apertura de tarjeta. El filtro user_id se preserva.
-        expect(helperBlock).toMatch(/\.eq\(\s*['"]id['"]\s*,\s*planSummary\.id/);
-        expect(helperBlock).toMatch(/\.eq\(\s*['"]user_id['"]\s*,\s*uid\b/);
+        // [P1-NEON-DB-MIGRATION · 2026-06-12] El select directo de PostgREST
+        // (`.select('plan_data').eq('id', planSummary.id).eq('user_id', uid)`)
+        // fue reemplazado por `GET /api/plans-data/{plan_id}` — la DB vive en
+        // Neon y el SDK PostgREST ya no la ve. El backend proyecta SOLO
+        // `plan_data` (sigue siendo el ahorro de bandwidth del summary) y
+        // ENFORCE ownership server-side (invariante I2: `AND user_id = %s`),
+        // así que el filtro `user_id` ya no vive client-side.
+        // Guard del mecanismo ACTUAL: la llamada al endpoint con el id en path.
+        expect(helperBlock).toMatch(/fetchWithAuth\(\s*`\/api\/plans-data\/\$\{planSummary\.id\}`\s*\)/);
+        // El id del plan viaja en el path (equivalente al `.eq('id', ...)` previo).
+        expect(helperBlock).toMatch(/\/api\/plans-data\/\$\{planSummary\.id\}/);
+        // Ownership client-side restante: pre-check barato que bail-outea sin
+        // sesión (el `.eq('user_id', uid)` previo migró a I2 server-side). El
+        // `uid` se lee de la sesión YA hidratada del contexto (lectura síncrona,
+        // P6-SPEED-HIST-GETUSER · 2026-06-01) — sin roundtrip a auth.getUser().
+        expect(helperBlock).toMatch(/if\s*\(\s*!uid\s*\)\s*return\s+null/);
         // `uid` DEBE derivar de la sesión hidratada del contexto.
         expect(helperBlock).toMatch(/const\s+uid\s*=\s*session\?\.user\?\.id/);
         // Anti-regresión: el waterfall de red NO debe volver al helper.
         expect(helperBlock).not.toMatch(/auth\.getUser\(/);
+        // Anti-regresión: no revertir al select directo de PostgREST.
+        expect(helperBlock).not.toMatch(/\.select\(\s*['"]\*['"]\s*\)/);
     });
 
     it('respeta el cache implícito si plan_data ya está presente', () => {

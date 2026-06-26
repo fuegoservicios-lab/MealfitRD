@@ -45,7 +45,12 @@ const cssSrc = readFileSync(_CSS_PATH, 'utf8');
 
 describe('[P2-HIST-AUDIT-8] anchor + estructura del bloque', () => {
     it('marker presente en History.jsx', () => {
-        expect(src).toMatch(/\[P2-HIST-AUDIT-8\s*·\s*2026-05-09\]/);
+        // [actualizado] El bloque "días pendientes" se desactivó (UX
+        // 2026-05-19) envolviéndolo en `{false && (...)}` y su marker pasó
+        // de [P2-HIST-AUDIT-8] a [P3-HIST-MISSING-DAYS-REMOVED]. El IIFE
+        // se preserva como dead code revivible; este guard sigue anclando
+        // su estructura via el marker actual.
+        expect(src).toMatch(/\[P3-HIST-MISSING-DAYS-REMOVED\s*·\s*2026-05-19\]/);
     });
 
     it('renderiza missingDaysBlock con header + reason', () => {
@@ -64,23 +69,23 @@ describe('[P2-HIST-AUDIT-8] guard de render (gap real)', () => {
         // Buscar el if/return null que cierra el helper cuando
         // no hay gap. Debe checar AMBOS: missingDays === 0 Y
         // _exhaustedCount === 0.
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
         expect(blockIdx).toBeGreaterThan(-1);
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const block = src.slice(blockIdx, blockIdx + 23000);
         expect(block).toMatch(
             /_missingDays\s*===\s*0\s*&&\s*_exhaustedCount\s*===\s*0[^?]*return\s+null/
         );
     });
 
     it('lee total_days_requested top-level (P1-HIST-AUDIT-4 summary)', () => {
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
+        const block = src.slice(blockIdx, blockIdx + 23000);
         expect(block).toMatch(/_plan\.total_days_requested/);
     });
 
     it('fallback a plan_data.total_days_requested (legacy)', () => {
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
+        const block = src.slice(blockIdx, blockIdx + 23000);
         expect(block).toMatch(/_plan\.plan_data\?\.total_days_requested/);
     });
 });
@@ -92,8 +97,8 @@ describe('[P2-HIST-AUDIT-8] range string singular/plural', () => {
         // range plural era "Días N–M" con en-dash que se leía
         // ambiguo junto al chip "4/6". Nuevo formato natural:
         // "el día N" / "del día N al día M".
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
+        const block = src.slice(blockIdx, blockIdx + 23000);
         expect(block).toMatch(
             /_missingDays\s*===\s*1[^]*?el\s+d[ií]a\s*\$\{[^}]+\}/
         );
@@ -102,8 +107,8 @@ describe('[P2-HIST-AUDIT-8] range string singular/plural', () => {
     it('plural: "del día N al día M" cuando missingDays > 1', () => {
         // [P0-HIST-FIX-2 · 2026-05-09] Reemplaza "Días N–M" (en-dash
         // ambiguo) por la frase explícita.
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
+        const block = src.slice(blockIdx, blockIdx + 23000);
         expect(block).toMatch(
             /_missingDays\s*>\s*1[^]*?del\s+d[ií]a\s*\$\{[^}]+\}\s*al\s+d[ií]a\s*\$\{/
         );
@@ -116,18 +121,23 @@ describe('[P2-HIST-AUDIT-8] prioridad de reasons', () => {
         // [P0-HIST-FIX-2 · 2026-05-09] Copy re-escrito apuntando al
         // botón concreto del modal ("Reactivar este Plan") en lugar
         // del verbo abstracto "regenerar".
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
+        const block = src.slice(blockIdx, blockIdx + 23000);
+        // [actualizado · P3-HIST-ACTIVE-NO-REACTIVATE] El copy "Reactivar
+        // este Plan" se extrajo a la variable _ctaRetryWithInfo; el branch
+        // exhausted la interpola en _reason y setea tone 'bad'.
         expect(block).toMatch(
-            /if\s*\(_exhaustedCount\s*>\s*0\)\s*\{[\s\S]*?_reason\s*=[\s\S]*?Reactivar este Plan[\s\S]*?_tone\s*=\s*['"]bad['"]/i
+            /if\s*\(_exhaustedCount\s*>\s*0\)\s*\{[\s\S]*?_reason\s*=[\s\S]*?_ctaRetryWithInfo[\s\S]*?_tone\s*=\s*['"]bad['"]/i
         );
+        // El copy concreto sigue presente, ahora en la def de _ctaRetryWithInfo.
+        expect(block).toMatch(/_ctaRetryWithInfo\s*=[\s\S]*?Reactivar este Plan/);
     });
 
     it('pending_user_action > 0 → tone Warn (esperando actualización)', () => {
         // [P0-HIST-FIX-2 · 2026-05-09] Copy explica QUÉ se espera
         // (nevera/registro/fecha) en vez del genérico "esperando acción".
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
+        const block = src.slice(blockIdx, blockIdx + 23000);
         expect(block).toMatch(
             /_puac\s*>\s*0[^]*?_tone\s*=\s*['"]warn['"]/
         );
@@ -135,8 +145,8 @@ describe('[P2-HIST-AUDIT-8] prioridad de reasons', () => {
     });
 
     it('failed > 0 (sin pending_user_action) → tone Bad', () => {
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
+        const block = src.slice(blockIdx, blockIdx + 23000);
         expect(block).toMatch(
             /_failedC\s*>\s*0[^]*?_tone\s*=\s*['"]bad['"]/
         );
@@ -147,8 +157,8 @@ describe('[P2-HIST-AUDIT-8] prioridad de reasons', () => {
         // Cierra el modal y vuelve a abrirlo en 2 a 5 minutos".
         // Antes "Generación en proceso — vuelve a abrir el plan en
         // unos minutos" era poco accionable (¿cuánto tiempo?).
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
+        const block = src.slice(blockIdx, blockIdx + 23000);
         expect(block).toMatch(
             /_inFlight\s*>\s*0[^]*?_tone\s*=\s*['"]info['"]/
         );
@@ -159,8 +169,8 @@ describe('[P2-HIST-AUDIT-8] prioridad de reasons', () => {
     });
 
     it('fallback general (else) usa tone Info', () => {
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
+        const block = src.slice(blockIdx, blockIdx + 23000);
         // [P0-HIST-FIX-2 · 2026-05-09] El else ahora asigna también
         // _icon (📅) además de _reason y _tone.
         expect(block).toMatch(
@@ -172,24 +182,24 @@ describe('[P2-HIST-AUDIT-8] prioridad de reasons', () => {
 
 describe('[P2-HIST-AUDIT-8] mapeo tone → CSS class', () => {
     it('tone "bad" mapea a styles.missingDaysBad', () => {
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
+        const block = src.slice(blockIdx, blockIdx + 23000);
         expect(block).toMatch(
             /_tone\s*===\s*['"]bad['"][^?]*\?\s*styles\.missingDaysBad/
         );
     });
 
     it('tone "warn" mapea a styles.missingDaysWarn', () => {
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
+        const block = src.slice(blockIdx, blockIdx + 23000);
         expect(block).toMatch(
             /_tone\s*===\s*['"]warn['"][^?]*\?\s*styles\.missingDaysWarn/
         );
     });
 
     it('tone fallback mapea a styles.missingDaysInfo', () => {
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
+        const block = src.slice(blockIdx, blockIdx + 23000);
         expect(block).toMatch(/styles\.missingDaysInfo/);
     });
 });
@@ -197,8 +207,8 @@ describe('[P2-HIST-AUDIT-8] mapeo tone → CSS class', () => {
 
 describe('[P2-HIST-AUDIT-8] precedencia counters (embedded > summary fallback)', () => {
     it('lee chunk_pending_user_action_count embedded primero', () => {
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
+        const block = src.slice(blockIdx, blockIdx + 23000);
         // typeof check defensivo — coherente con getStatusInfo
         // (P1-AUDIT-HIST-4).
         expect(block).toMatch(
@@ -207,8 +217,8 @@ describe('[P2-HIST-AUDIT-8] precedencia counters (embedded > summary fallback)',
     });
 
     it('fallback a summary cuando embedded ausente', () => {
-        const blockIdx = src.indexOf('P2-HIST-AUDIT-8');
-        const block = src.slice(blockIdx, blockIdx + 14000);
+        const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
+        const block = src.slice(blockIdx, blockIdx + 23000);
         expect(block).toMatch(/_summaryEntry/);
         expect(block).toMatch(/chunkStatusSummary\[_plan\.id\]/);
     });
@@ -288,11 +298,16 @@ describe('[P0-HIST-FIX-3] expired days handling (mismatch active vs original)', 
         );
     });
 
-    it('declara _expiredDays = max(0, _displayTotal - _activeTotal)', () => {
+    it('declara _expiredDaysActiveDelta = max(0, _displayTotal - _activeTotal)', () => {
+        // [actualizado · P3-HIST-MISSING-DAYS-EXPIRED-CALENDAR] El cómputo
+        // active-delta se renombró de `_expiredDays` a `_expiredDaysActiveDelta`
+        // cuando se añadió una 2da fuente (calendar) + clamp min/max; el
+        // valor final `_expiredDays` ahora es Math.min(Math.max(activeDelta,
+        // calendar), maxPossible). El guard ancla la fórmula active-delta.
         const idx = src.indexOf('P0-HIST-FIX-3');
-        const block = src.slice(idx, idx + 4000);
+        const block = src.slice(idx, idx + 6800);
         expect(block).toMatch(
-            /_expiredDays\s*=\s*Math\.max\(\s*0\s*,\s*_displayTotal\s*-\s*_activeTotal\s*\)/
+            /_expiredDaysActiveDelta\s*=\s*Math\.max\(\s*0\s*,\s*_displayTotal\s*-\s*_activeTotal\s*\)/
         );
     });
 
@@ -304,7 +319,9 @@ describe('[P0-HIST-FIX-3] expired days handling (mismatch active vs original)', 
         // expirado). Con activeTotal: missing=4 (correcto, esos 4 son
         // los que el cron va a entregar).
         const idx = src.indexOf('P0-HIST-FIX-3');
-        const block = src.slice(idx, idx + 4000);
+        // [actualizado] Slice ampliado a 6800: la lógica calendar-based
+        // insertada antes de la missing-math la empujó a ~offset 6399.
+        const block = src.slice(idx, idx + 6800);
         expect(block).toMatch(
             /_missingDays\s*=\s*_activeTotal\s*>\s*_planDaysLen[\s\S]*?_activeTotal\s*-\s*_planDaysLen/
         );
@@ -364,7 +381,10 @@ describe('[P0-HIST-FIX-2] icon variable por tono', () => {
         const _all = [...src.matchAll(/P0-HIST-FIX-2/g)];
         expect(_all.length).toBeGreaterThanOrEqual(2);
         const idx = _all[1].index;
-        const block = src.slice(idx, idx + 4000);
+        // [actualizado] Slice ampliado a 7400: las ramas scheduled/running
+        // (P3-HIST-CHUNK-SCHEDULED) alargaron el cascade y empujaron el
+        // emoji 📅 del else hasta ~offset 6903.
+        const block = src.slice(idx, idx + 7400);
         // Los 4 emojis canónicos deben aparecer asignados a _icon.
         expect(block).toMatch(/_icon\s*=\s*['"]⚠️['"]/);
         expect(block).toMatch(/_icon\s*=\s*['"]⏸️['"]/);

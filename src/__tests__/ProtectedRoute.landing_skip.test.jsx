@@ -41,9 +41,14 @@ describe('[LANDING-SKIP-NO-PLAN-FLASH] refresh (POP) de la landing no pasa por e
         expect(screen.queryByText('DASHBOARD')).not.toBeInTheDocument();
     });
 
-    it('sin assessment ni plan → se queda en la landing', () => {
+    it('sin assessment ni plan (cuenta nueva) → va al formulario (onboarding), NUNCA al dashboard', () => {
+        // [P1-NEON-AUTH-MIGRATION · 2026-06-13] Un usuario autenticado SIN
+        // assessment ni plan (cuenta recién creada / OAuth-landing) ahora se
+        // ONBOARDEA a /assessment en POP, en vez de quedarse colgado en la
+        // landing. El núcleo del fix (decidir el destino aquí, sin pasar por el
+        // dashboard = sin flash) se mantiene.
         renderLanding({ ...base, planData: null, userProfile: { health_profile: {} } });
-        expect(screen.getByText('LANDING')).toBeInTheDocument();
+        expect(screen.getByText('ASSESSMENT')).toBeInTheDocument();
         expect(screen.queryByText('DASHBOARD')).not.toBeInTheDocument();
     });
 });

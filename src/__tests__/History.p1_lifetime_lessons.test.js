@@ -333,7 +333,12 @@ describe('[P1-HIST-LIFETIME-LESSONS] cleanup en visibilitychange', () => {
         // del lifetime quedaría stale aunque el resto se refresque.
         const useEffectIdx = src.indexOf('_onVisibilityChange');
         expect(useEffectIdx).toBeGreaterThan(-1);
-        const block = src.slice(useEffectIdx, useEffectIdx + 3500);
+        // [P1-VITEST-DEBT · 2026-06-25] Ventana ampliada 3500→6000: el cuerpo del
+        // listener creció (refresh del listado + reconciliación) y el clear de
+        // setLifetimeLessonsCache (limpieza del 5º cache, ~línea 627) quedó pasado
+        // el corte. Sigue dentro del listener; el próximo setLifetimeLessonsCache
+        // está ~9k chars más allá (en _ensureLifetimeLessons) → sin falso match.
+        const block = src.slice(useEffectIdx, useEffectIdx + 6000);
         expect(block).toMatch(/setLifetimeLessonsCache/);
     });
 });

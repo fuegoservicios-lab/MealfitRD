@@ -32,8 +32,14 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const _HISTORY_PATH = join(__dirname, '..', 'pages', 'History.jsx');
+// [P3-HIST-DESKTOP-REDESIGN · 2026-06-24] La card/lista del Historial se
+// extrajo a HistoryDesktopPanel/HistoryMobilePanel (prop-driven, diseño del
+// owner). El render del kcal condicional (antes el `caloriesBadge` de la card)
+// vive ahora en el panel, no en History.jsx.
+const _DESKTOP_PANEL_PATH = join(__dirname, '..', 'components', 'history', 'HistoryDesktopPanel.jsx');
 
 const src = readFileSync(_HISTORY_PATH, 'utf8');
+const desktopPanelSrc = readFileSync(_DESKTOP_PANEL_PATH, 'utf8');
 
 describe('[P2-HIST-1] filter relajado — planes incompletos visibles', () => {
     it('marca el cambio con anchor [P2-HIST-1 · 2026-05-09]', () => {
@@ -64,19 +70,21 @@ describe('[P2-HIST-1] filter relajado — planes incompletos visibles', () => {
     });
 });
 
-describe('[P2-HIST-1] caloriesBadge condicional', () => {
-    it('caloriesBadge envuelto en typeof check + > 0', () => {
-        // Antes el JSX renderizaba `<div>{plan.calories}</div>` sin
-        // guarda → planes incompletos mostraban "0" o NaN. Ahora
-        // hay un wrapper condicional.
-        // Buscar la zona del caloriesBadge.
-        const badgeIdx = src.indexOf('className={styles.caloriesBadge}');
-        expect(badgeIdx).toBeGreaterThan(-1);
-        // El bloque ANTES del badge debe tener un guard
-        // `typeof plan.calories === 'number' && plan.calories > 0`.
-        const before = src.slice(Math.max(0, badgeIdx - 400), badgeIdx);
-        expect(before).toMatch(
-            /typeof\s+plan\.calories\s*===\s*['"]number['"]\s*&&\s*plan\.calories\s*>\s*0/
+describe('[P2-HIST-1] kcal condicional (incompletos no muestran 0/NaN)', () => {
+    // [P3-HIST-DESKTOP-REDESIGN · 2026-06-24] El `caloriesBadge` de la card de
+    // History.jsx se reemplazó por el render de kcal inline en
+    // HistoryDesktopPanel/HistoryMobilePanel. La INTENCIÓN de P2-HIST-1
+    // sobrevive intacta: el valor de kcal solo se renderiza cuando es un número
+    // positivo, así un plan incompleto (calories null/0) NO muestra "0" ni NaN.
+    it('kcal solo se renderiza cuando plan.kcal > 0 (guard condicional)', () => {
+        // Antes: `<div>{plan.calories}</div>` sin guarda en la card →
+        // planes incompletos mostraban "0"/NaN. Ahora el panel envuelve el
+        // render en `{plan.kcal > 0 && ...}` (PlanHero + PlanRow).
+        expect(desktopPanelSrc).toMatch(/plan\.kcal\s*>\s*0\s*&&/);
+        // `kcal` se deriva con el mismo typeof-number check sobre
+        // `raw.calories` (normalizePlan): calories no-numérico ⇒ 0 ⇒ oculto.
+        expect(desktopPanelSrc).toMatch(
+            /kcal:\s*typeof\s+raw\.calories\s*===\s*['"]number['"]/
         );
     });
 });

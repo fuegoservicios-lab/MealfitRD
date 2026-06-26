@@ -78,18 +78,20 @@ describe('[P2-HIST-AUDIT-2] state local del modal', () => {
         expect(src).toMatch(/setCoherenceHistoryCache/);
     });
 
-    it('reset a "menu" en onClick del card', () => {
+    it('reset a "menu" al abrir el plan (openPlanModal)', () => {
         // El reset debe ocurrir junto al setSelectedDay/setActiveChunkIdx
         // — antes del lazy load del plan_data.
-        // [P2-HIST-MODALS-A11Y · 2026-05-30] Anchor actualizado a `() => {`:
-        // P3-HIST-FAST-OPEN (2026-05-18) refactoró el onClick del card de
-        // `async () => { await ... }` a síncrono `() => { ...then() }`
-        // (optimistic open), dejando el anchor `async` stale → este test
-        // fallaba en baseline. El primer `onClick={() => {` del archivo es
-        // el del card (los siguientes son botones de tab dentro del modal).
-        const onClickIdx = src.indexOf('onClick={() => {');
-        expect(onClickIdx).toBeGreaterThan(-1);
-        const block = src.slice(onClickIdx, onClickIdx + 2500);
+        // [P3-HIST-DESKTOP-REDESIGN · 2026-06-24] Anchor actualizado a
+        // `const openPlanModal`: la apertura del modal se EXTRAJO del onClick
+        // inline de la card a la función `openPlanModal`, reusada por
+        // HistoryDesktopPanel / HistoryMobilePanel vía la prop `onOpen`. El
+        // reset del tab (junto a setSelectedDay/setActiveChunkIdx) vive ahora
+        // ahí; el viejo anchor `onClick={() => {` ya no apunta al card (la
+        // lista la renderizan los paneles), por lo que el primer match era
+        // un botón ajeno → este test fallaba en baseline.
+        const openIdx = src.indexOf('const openPlanModal');
+        expect(openIdx).toBeGreaterThan(-1);
+        const block = src.slice(openIdx, openIdx + 2500);
         expect(block).toMatch(/setActiveModalTab\s*\(\s*['"]menu['"]\s*\)/);
     });
 });

@@ -125,38 +125,17 @@ describe('[P0-HIST-LEARN-2] chip en header del lifetime block', () => {
 });
 
 
-describe('[P0-HIST-LEARN-2] chip en card del listado', () => {
-    it('chip lee plan.consecutive_zero_log_chunks y aplica severity tiered', () => {
-        // El chip de la card vive entre pantryDegradedBadge y los
-        // Smart Tags. Severity:
-        //   - <=0 / null: no render
-        //   - 1-2: zeroLogBadgeInfo
-        //   - >=3: zeroLogBadgeAlarm
-        const anchorIdx = src.indexOf('plan.consecutive_zero_log_chunks');
-        expect(anchorIdx).toBeGreaterThan(-1);
-        const block = src.slice(anchorIdx, anchorIdx + 1500);
-        expect(block).toMatch(/_czl\s*<=\s*0/);
-        expect(block).toMatch(/_czl\s*>=\s*3/);
-        expect(block).toMatch(/zeroLogBadgeAlarm/);
-        expect(block).toMatch(/zeroLogBadgeInfo/);
-    });
-
-    it('chip de card NO requiere generation_status (solo está en /lifetime-lessons)', () => {
-        // /history-list no devuelve generation_status (sería bloat
-        // por plan en el listado); la card escala por counter solo.
-        // El chip alarming del MODAL (header) sí considera generation_status
-        // como segunda señal, redundancia defense-in-depth.
-        const anchorIdx = src.indexOf('plan.consecutive_zero_log_chunks');
-        const block = src.slice(anchorIdx, anchorIdx + 1500);
-        expect(block).not.toMatch(/plan\.generation_status/);
-    });
-
-    it('label es-DO breve para no inflar la fila de chips', () => {
-        const anchorIdx = src.indexOf('plan.consecutive_zero_log_chunks');
-        const block = src.slice(anchorIdx, anchorIdx + 1500);
-        expect(block).toMatch(/Sin feedback:/);
-    });
-});
+// [removed: chip "Sin feedback: N" en la card del listado tras refactor
+//  P3-HIST-DESKTOP-REDESIGN · 2026-06-24] La card/lista del Historial se
+//  extrajo a HistoryDesktopPanel/HistoryMobilePanel (diseño aportado por el
+//  owner) que NO renderiza chips de estado de generación —
+//  `plan.consecutive_zero_log_chunks` ya no se surfacea en la fila. El chip
+//  "Sin feedback" SOLO vive ahora en el header del modal (describe "chip en
+//  header del lifetime block", arriba, anclado a `_zeroLogAlarming`/
+//  `_zeroLogInfo` + `zeroLogBadgeAlarm`/`zeroLogBadgeInfo`), que sigue cubierto.
+//  Los 3 it-blocks de la card (anclados a `plan.consecutive_zero_log_chunks`,
+//  inexistente en el render actual) se eliminaron porque la feature ya no
+//  existe en esa superficie.
 
 
 describe('[P0-HIST-LEARN-2] CSS del chip', () => {

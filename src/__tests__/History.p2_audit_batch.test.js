@@ -47,21 +47,13 @@ describe('[P2-HIST-AUDIT-B] expected_preemption + reservation_status render', ()
 
 
 describe('[P2-HIST-AUDIT-C] shift_days_accumulated chip', () => {
-    it('marker presente', () => {
-        expect(src).toMatch(/\[P2-HIST-AUDIT-C\s*·\s*2026-05-09\]/);
-    });
-
-    it('chip aparece cuando shift_days_accumulated != 0', () => {
-        const idx = src.indexOf('plan.shift_days_accumulated');
-        expect(idx).toBeGreaterThan(-1);
-        const block = src.slice(Math.max(0, idx - 200), idx + 1500);
-        expect(block).toMatch(/_shift\s*===\s*0[\s\S]{0,80}return\s+null/);
-        // Direccionalidad: `+` para forward, `−` (minus signo unicode) para backward.
-        expect(block).toMatch(/['"]\+['"]/);
-        // Buscamos el unicode minus o ASCII minus (depende de cómo se rendere).
-        expect(block).toMatch(/['"][−-]['"]/);
-    });
-
+    // [removed: it('marker presente') + it('chip aparece cuando
+    //  shift_days_accumulated != 0') tras refactor UI — el chip de días
+    //  acumulados por shift_plan ya NO se renderiza en la card de History.jsx.
+    //  Confirmado por grep whole-file: ni el marker [P2-HIST-AUDIT-C] ni
+    //  `plan.shift_days_accumulated`/`shiftDaysBadge` aparecen en History.jsx.
+    //  La clase CSS .shiftDaysBadge quedó huérfana pero presente — su paleta
+    //  slate se sigue verificando abajo.]
     it('CSS shiftDaysBadge palette slate (neutral, no warn)', () => {
         const blockMatch = cssSrc.match(/\.shiftDaysBadge\s*\{[\s\S]*?\}/);
         expect(blockMatch).toBeTruthy();
@@ -89,16 +81,14 @@ describe('[P2-HIST-AUDIT-D] lessons quality split en tooltip', () => {
         expect(block).toMatch(/setLessonsCountsByQuality/);
     });
 
-    it('tooltip enriquecido cuando hay split por tier', () => {
-        // El render del chip de lecciones consume `_quality` del state
-        // y construye un tooltip "X lecciones (Y alta, Z parcial, W baja)".
-        const idx = src.indexOf('lessonsCountsByQuality[plan.id]');
-        expect(idx).toBeGreaterThan(-1);
-        const block = src.slice(idx, idx + 1500);
-        expect(block).toMatch(/alta calidad/i);
-        expect(block).toMatch(/parcial/i);
-        expect(block).toMatch(/baja confianza/i);
-    });
+    // [removed: it('tooltip enriquecido cuando hay split por tier') tras refactor
+    //  UI — el chip "X lecciones" con tooltip de split por calidad ya NO se
+    //  renderiza en la card de History.jsx (grep whole-file: `lessonsBadge` y
+    //  `lessonsCountsByQuality[plan.id]` ausentes). El state lessonsCountsByQuality
+    //  y su hidratación desde body.counts_by_quality SIGUEN presentes (tests
+    //  arriba) — el dato se sigue trayendo del backend; el detalle de lecciones
+    //  por plan vive ahora en el tab "Lecciones" del modal, no en un tooltip de
+    //  la card.]
 });
 
 

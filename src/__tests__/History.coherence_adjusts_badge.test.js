@@ -219,33 +219,25 @@ describe('[P2-HIST-4] integración: helper produce conteos esperados', () => {
 });
 
 describe('[P2-HIST-4] History.jsx — render del chip', () => {
-    it('llama getCoherenceAdjustsCount(plan) dentro de cardActions', () => {
-        expect(src).toMatch(/getCoherenceAdjustsCount\(\s*plan\s*\)/);
+    it('mantiene getCoherenceAdjustsCount invocado en render (no dead code)', () => {
+        // [removed: tras refactor P3-HIST-DESKTOP-REDESIGN / P3-HIST-MOBILE-
+        // REDESIGN · 2026-06-24] El chip "X ajustes" de la card se eliminó:
+        // la lista ahora la renderizan
+        // components/history/HistoryDesktopPanel.jsx + HistoryMobilePanel.jsx
+        // (diseño sin ese badge). El helper NO es dead code: el modal de
+        // detalle lo invoca como `getCoherenceAdjustsCount(selectedPlan)`
+        // para el tab "Ajustes (N)".
+        expect(src).toMatch(/getCoherenceAdjustsCount\(\s*selectedPlan\s*\)/);
     });
 
-    it('NO renderiza cuando count <= 0', () => {
-        const callIdx = src.indexOf('getCoherenceAdjustsCount(plan)');
-        expect(callIdx).toBeGreaterThan(-1);
-        const block = src.slice(callIdx, callIdx + 200);
-        expect(block).toMatch(/_count\s*<=\s*0/);
-        expect(block).toMatch(/return\s+null/);
-    });
-
-    it('renderiza span coherenceAdjustsBadge con title attribute', () => {
-        expect(src).toMatch(/className=\{styles\.coherenceAdjustsBadge\}/);
-        const badgeIdx = src.indexOf('className={styles.coherenceAdjustsBadge}');
-        const around = src.slice(Math.max(0, badgeIdx - 200), badgeIdx + 400);
-        expect(around).toMatch(/title=/);
-        expect(around).toMatch(/coherencia/);
-    });
-
-    it('label usa singular para count=1, plural para >=2', () => {
-        const callIdx = src.indexOf('getCoherenceAdjustsCount(plan)');
-        const block = src.slice(callIdx, callIdx + 800);
-        expect(block).toMatch(/_count\s*===\s*1/);
-        expect(block).toMatch(/['"]ajuste['"]/);
-        expect(block).toMatch(/['"]ajustes['"]/);
-    });
+    // [removed: tras refactor] Se eliminaron los 3 it-blocks que
+    // verificaban el render del chip de ajustes en la card (guarda
+    // _count<=0 → return null; span coherenceAdjustsBadge con title; label
+    // singular/plural 'ajuste'/'ajustes'). Ese chip ya no existe en
+    // History.jsx — el modal muestra el conteo como tab "Ajustes (N)"
+    // (siempre plural, sin badge). El helper sigue cubierto por los
+    // describes 'getCoherenceAdjustsCount helper' + 'integración', y la
+    // paleta por 'CSS module — coherenceAdjustsBadge palette cyan/teal'.
 });
 
 describe('[P2-HIST-4] CSS module — coherenceAdjustsBadge palette cyan/teal', () => {

@@ -1,6 +1,7 @@
 // [P0-HIST-2 · 2026-05-09] Tests estáticos del legacy `restorePlan` en
 // AssessmentContext.jsx — debe derivar `name/calories/macros` desde
-// `pastPlanData` y mandarlas al UPDATE de Supabase, no solo `plan_data`.
+// `pastPlanData` y mandarlas al request body del endpoint `/restore-local`
+// (P1-OPEN-1 · migración Neon), no solo `plan_data`.
 //
 // Bug original (audit historial 2026-05-08):
 //   La función legacy hacía `update({ plan_data: pastPlanData })` y nada
@@ -12,7 +13,7 @@
 //   eran del plan anterior → drift visible.
 //
 // Fix:
-//   El UPDATE coalesce `name/calories/macros` desde `pastPlanData`
+//   El request body coalesce `name/calories/macros` desde `pastPlanData`
 //   cuando son derivables de forma segura (string no-vacío / number
 //   finite / object no-array). El flujo desde Historial usa el
 //   endpoint atómico (P0-HIST-1) que cubre las 6 columnas + cancel
@@ -21,7 +22,7 @@
 //   pendientes a cancelar.
 //
 // Cobertura (regex sobre el source):
-//   - El UPDATE construye un `updates` object (no literal directo).
+//   - El write (POST /restore-local) construye un `restoreBody` object (no literal directo).
 //   - Cada una de las 3 columnas se incluye condicionalmente.
 //   - `calories` cae a `totalCalories` si la primera no existe.
 //   - Validación de tipos (no-Array para macros, finite para calories).
@@ -43,7 +44,11 @@ const src = readFileSync(_CONTEXT_PATH, 'utf8');
 // para que los tests no matcheen accidentalmente fragments de la
 // variante atómica.
 function _extractLegacyRestoreBody() {
-    const startIdx = src.indexOf('const restorePlan = async (pastPlanData)');
+    // [signature drift · migración Neon] La firma pasó a
+    // `const restorePlan = async (pastPlanData, expectedUserId = null)` (guard
+    // de ownership P1-NEW-4), así que buscamos el prefijo sin el paréntesis de
+    // cierre para no acoplarnos a la lista de parámetros.
+    const startIdx = src.indexOf('const restorePlan = async (pastPlanData');
     expect(startIdx).toBeGreaterThan(-1);
     // El body legacy termina antes del comentario del nuevo helper.
     const endMarker = '// [P0-HIST-1 · 2026-05-09] Restauración atómica desde Historial';
@@ -61,13 +66,17 @@ describe('[P0-HIST-2] legacy restorePlan — top-level columns derivadas', () =>
         expect(body).toMatch(/\[P0-HIST-2\s*·\s*2026-05-09\]/);
     });
 
-    it('construye un objeto `updates` (no literal {plan_data: ...})', () => {
+    it('construye un objeto `restoreBody` mutable (no body literal {plan_data: ...})', () => {
         // El bug original era literal `update({ plan_data: pastPlanData })`.
-        // El fix construye un objeto mutable que recolecta columnas
-        // top-level. Si alguien revierte al patrón literal, este test falla.
-        expect(body).toMatch(/const\s+updates\s*=\s*\{\s*plan_data\s*:\s*pastPlanData\s*\}/);
-        expect(body).not.toMatch(/\.update\(\s*\{\s*plan_data\s*:\s*pastPlanData\s*\}\s*\)/);
-        expect(body).toMatch(/\.update\(\s*updates\s*\)/);
+        // Post P1-OPEN-1 (+migración Neon) el write es el endpoint backend
+        // `/api/plans/{plan_id}/restore-local`; el fix construye un objeto
+        // mutable `restoreBody` (init `{ plan_data: pastPlanData }`) que
+        // recolecta columnas top-level y se envía como `JSON.stringify(restoreBody)`.
+        // Si alguien revierte al patrón literal (solo plan_data), este test falla.
+        expect(body).toMatch(/const\s+restoreBody\s*=\s*\{\s*plan_data\s*:\s*pastPlanData\s*\}/);
+        expect(body).not.toMatch(/JSON\.stringify\s*\(\s*\{\s*plan_data\s*:\s*pastPlanData\s*\}\s*\)/);
+        expect(body).toMatch(/restore-local/);
+        expect(body).toMatch(/body:\s*JSON\.stringify\s*\(\s*restoreBody\s*\)/);
     });
 
     it('agrega `name` solo si pastPlanData.name es string no-vacío', () => {
@@ -75,7 +84,7 @@ describe('[P0-HIST-2] legacy restorePlan — top-level columns derivadas', () =>
             /typeof\s+pastPlanData\?\.name\s*===\s*['"]string['"]/
         );
         expect(body).toMatch(/pastPlanData\.name\.trim\(\)/);
-        expect(body).toMatch(/updates\.name\s*=\s*pastPlanData\.name/);
+        expect(body).toMatch(/restoreBody\.name\s*=\s*pastPlanData\.name/);
     });
 
     it('deriva `calories` con fallback a totalCalories y validación finita', () => {
@@ -87,7 +96,7 @@ describe('[P0-HIST-2] legacy restorePlan — top-level columns derivadas', () =>
         // Number.isFinite descarta NaN/Infinity (un cron mal-implementado
         // podría haber persistido valores no-finitos).
         expect(body).toMatch(/Number\.isFinite\(\s*_calories\s*\)/);
-        expect(body).toMatch(/updates\.calories\s*=\s*_calories/);
+        expect(body).toMatch(/restoreBody\.calories\s*=\s*_calories/);
     });
 
     it('agrega `macros` solo si es objeto plain (no array, no null)', () => {
@@ -96,7 +105,7 @@ describe('[P0-HIST-2] legacy restorePlan — top-level columns derivadas', () =>
         expect(body).toMatch(/pastPlanData\?\.macros\s*&&/);
         expect(body).toMatch(/typeof\s+pastPlanData\.macros\s*===\s*['"]object['"]/);
         expect(body).toMatch(/!\s*Array\.isArray\(\s*pastPlanData\.macros\s*\)/);
-        expect(body).toMatch(/updates\.macros\s*=\s*pastPlanData\.macros/);
+        expect(body).toMatch(/restoreBody\.macros\s*=\s*pastPlanData\.macros/);
     });
 
     it('NO toca meal_names/ingredients/techniques (server-derived)', () => {
@@ -106,9 +115,9 @@ describe('[P0-HIST-2] legacy restorePlan — top-level columns derivadas', () =>
         // las omite intencionalmente y deja que el próximo save las
         // converja. Si un futuro contributor agrega `updates.meal_names`
         // este test alerta para que justifique la decisión.
-        expect(body).not.toMatch(/updates\.meal_names\s*=/);
-        expect(body).not.toMatch(/updates\.ingredients\s*=/);
-        expect(body).not.toMatch(/updates\.techniques\s*=/);
+        expect(body).not.toMatch(/restoreBody\.meal_names\s*=/);
+        expect(body).not.toMatch(/restoreBody\.ingredients\s*=/);
+        expect(body).not.toMatch(/restoreBody\.techniques\s*=/);
     });
 
     it('comenta que el flujo Historial debe usar restorePlanFromHistory', () => {

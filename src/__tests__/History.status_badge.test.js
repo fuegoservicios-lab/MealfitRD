@@ -99,46 +99,27 @@ describe('[P1-HIST-2] History.jsx — getStatusInfo helper', () => {
 });
 
 describe('[P1-HIST-2] History.jsx — render del chip por card', () => {
-    it('llama getStatusInfo(plan) dentro de cardActions', () => {
-        // Ubicación esperada: el IIFE entre caloriesBadge y tagsContainer
-        // (ver bloque [P1-HIST-2] inline).
+    it('mantiene getStatusInfo(plan) invocado en render (no dead code)', () => {
+        // [removed: tras refactor P3-HIST-DESKTOP-REDESIGN / P3-HIST-MOBILE-
+        // REDESIGN · 2026-06-24] Los chips de status de la card
+        // (statusPartial / statusFailed / statusActionRequired) se
+        // eliminaron: la lista ahora la renderizan
+        // components/history/HistoryDesktopPanel.jsx + HistoryMobilePanel.jsx
+        // con un diseño sin esos badges. getStatusInfo NO es dead code:
+        // sigue invocado como `getStatusInfo(plan)` dentro de
+        // getTemporalStatus, que alimenta el cómputo de activePlanId.
         expect(src).toMatch(/getStatusInfo\(\s*plan\s*\)/);
     });
 
-    it("retorna null cuando bucket === 'complete' (no agrega ruido visual)", () => {
-        // Decisión deliberada: el happy path no muestra chip.
-        expect(src).toMatch(
-            /_info\.bucket\s*===\s*['"]complete['"]/
-        );
-        // El branch debe terminar en `return null`.
-        const completeIdx = src.indexOf("_info.bucket === 'complete'");
-        expect(completeIdx).toBeGreaterThan(-1);
-        const around = src.slice(completeIdx, completeIdx + 100);
-        expect(around).toMatch(/return\s+null/);
-    });
-
-    it('renderiza chip statusFailed con texto "Falló X/Y"', () => {
-        expect(src).toMatch(/className=\{styles\.statusFailed\}/);
-        expect(src).toMatch(/Fall[oó]\s+\{_info\.daysGenerated\}/);
-    });
-
-    it('renderiza chip statusActionRequired con label "Acción"', () => {
-        expect(src).toMatch(/className=\{styles\.statusActionRequired\}/);
-        expect(src).toMatch(/>\s*Acci[oó]n\s*</);
-    });
-
-    it('renderiza chip statusPartial con texto "Parcial X/Y" (default partial)', () => {
-        expect(src).toMatch(/className=\{styles\.statusPartial\}/);
-        expect(src).toMatch(/Parcial\s+\{_info\.daysGenerated\}/);
-    });
-
-    it('cada chip tiene title attribute con descripción accesible', () => {
-        // Tooltip nativo: useful para usuarios que hacen hover. Mismo
-        // patrón que .planName title en la card.
-        const failedIdx = src.indexOf('className={styles.statusFailed}');
-        const around = src.slice(failedIdx, failedIdx + 300);
-        expect(around).toMatch(/title=/);
-    });
+    // [removed: tras refactor] Se eliminaron los 5 it-blocks que
+    // verificaban el render del chip de status en la card
+    // (bucket==='complete' → return null; statusFailed "Falló X/Y";
+    // statusActionRequired "Acción"; statusPartial "Parcial X/Y"; title
+    // attribute accesible). Ese chip ya no existe en History.jsx — el
+    // rendering se movió a los paneles del redesign, que no muestran
+    // badges de estado de generación. La lógica de buckets sigue cubierta
+    // por el describe 'getStatusInfo helper' y las paletas por el describe
+    // 'CSS module' (ambos vigentes).
 });
 
 describe('[P1-HIST-2] CSS module — clases definidas y consistentes', () => {

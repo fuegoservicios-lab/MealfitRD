@@ -61,7 +61,11 @@ describe('[P1-HIST-LM-WHITELIST] anchor + estructura del catálogo', () => {
     });
 
     it('los 4 grupos están definidos con id + title + keys', () => {
-        const groupsIdx = src.indexOf('_LM_DISPLAY_GROUPS');
+        // [anchor actualizado tras refactor: ahora hay un comentario del tab
+        //  Métricas que menciona `_LM_DISPLAY_GROUPS` ANTES de la declaración
+        //  (~L3340), así que anclamos en `const _LM_DISPLAY_GROUPS` para caer
+        //  en la declaración real, no en el comentario.]
+        const groupsIdx = src.indexOf('const _LM_DISPLAY_GROUPS');
         const block = src.slice(groupsIdx, groupsIdx + 6000);
         // Los 4 ids canónicos.
         for (const id of ['synthesis', 'repetition', 'violations', 'pantry']) {
@@ -113,15 +117,23 @@ describe('[P1-HIST-LM-WHITELIST] catálogo cubre keys conocidas del writer', () 
         'learning_confidence',
         'pipeline_failed',
         // Síntesis legacy (pre-P1-HIST-LM-WHITELIST):
-        'synth_quality_score',
-        'synthesized_count',
-        'queue_count',
+        // [removed: 'synth_quality_score' / 'synthesized_count' / 'queue_count'
+        //  tras refactor — G8-LM-CATALOG-HONESTY (2026-05-29) los sacó de
+        //  _LM_DISPLAY_GROUPS porque NO tienen productor en
+        //  plan_chunk_queue.learning_metrics: synthesized_count/queue_count
+        //  viven en chunk_lesson_telemetry (ya renderizado en el tab) y
+        //  synth_quality_score no se computa en ningún lado. Ya no son keys
+        //  del catálogo, así que dejan de ser drift-detectables aquí.]
         'recovery_attempts',
         'escalation_reason',
     ];
 
     it.each(_BACKEND_KEYS)('declara key "%s" en algún grupo de _LM_DISPLAY_GROUPS', (key) => {
-        const groupsIdx = src.indexOf('_LM_DISPLAY_GROUPS');
+        // [anchor actualizado tras refactor: ahora hay un comentario del tab
+        //  Métricas que menciona `_LM_DISPLAY_GROUPS` ANTES de la declaración
+        //  (~L3340), así que anclamos en `const _LM_DISPLAY_GROUPS` para caer
+        //  en la declaración real, no en el comentario.]
+        const groupsIdx = src.indexOf('const _LM_DISPLAY_GROUPS');
         const block = src.slice(groupsIdx, groupsIdx + 6000);
         // Cada key aparece como literal `'key_name'` (primer elem
         // de la tuple) en alguno de los grupos.
@@ -129,7 +141,11 @@ describe('[P1-HIST-LM-WHITELIST] catálogo cubre keys conocidas del writer', () 
     });
 
     it('NO incluye internals que envenenarían la UI', () => {
-        const groupsIdx = src.indexOf('_LM_DISPLAY_GROUPS');
+        // [anchor actualizado tras refactor: ahora hay un comentario del tab
+        //  Métricas que menciona `_LM_DISPLAY_GROUPS` ANTES de la declaración
+        //  (~L3340), así que anclamos en `const _LM_DISPLAY_GROUPS` para caer
+        //  en la declaración real, no en el comentario.]
+        const groupsIdx = src.indexOf('const _LM_DISPLAY_GROUPS');
         const block = src.slice(groupsIdx, groupsIdx + 6000);
         // pipeline_snapshot puede ser MB de jsonb. preflight es
         // flag mecánico sin valor diagnóstico para el usuario final.
@@ -140,7 +156,11 @@ describe('[P1-HIST-LM-WHITELIST] catálogo cubre keys conocidas del writer', () 
 
 describe('[P1-HIST-LM-WHITELIST] tipos declarados en cada tuple', () => {
     it('cada tuple tiene shape [key, label, type]', () => {
-        const groupsIdx = src.indexOf('_LM_DISPLAY_GROUPS');
+        // [anchor actualizado tras refactor: ahora hay un comentario del tab
+        //  Métricas que menciona `_LM_DISPLAY_GROUPS` ANTES de la declaración
+        //  (~L3340), así que anclamos en `const _LM_DISPLAY_GROUPS` para caer
+        //  en la declaración real, no en el comentario.]
+        const groupsIdx = src.indexOf('const _LM_DISPLAY_GROUPS');
         const block = src.slice(groupsIdx, groupsIdx + 6000);
         // Tipos válidos según _fmtLmValue switch.
         const _VALID_TYPES = [

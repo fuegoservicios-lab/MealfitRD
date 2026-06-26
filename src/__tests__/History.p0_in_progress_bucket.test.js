@@ -115,9 +115,15 @@ describe('[P0-HIST-IN-PROGRESS] reconciliación interactúa correctamente', () =
         // sano sin PUAC/failed sobrevive.
         const reconcileIdx = src.indexOf('_embeddedPuac');
         expect(reconcileIdx).toBeGreaterThan(-1);
+        // [P0-HIST-NEW-1] La reconciliación ganó comentarios (cascada
+        // embedded→summary, unreplaced/total) que separan el anchor del
+        // `bucket = 'action_required'` final (~2950 chars). Ventana ampliada
+        // de +1500 a +3200 para seguir capturando el cuerpo completo del guard
+        // (el `bucket = 'action_required'` del else-if temprano queda ANTES del
+        // anchor, fuera del slice, así que no contamina el match).
         const block = src.slice(
             Math.max(0, reconcileIdx - 800),
-            reconcileIdx + 1500
+            reconcileIdx + 3200
         );
         // Guard previene degradación de failed/action_required.
         expect(block).toMatch(/bucket\s*!==\s*['"]failed['"]/);
@@ -128,28 +134,18 @@ describe('[P0-HIST-IN-PROGRESS] reconciliación interactúa correctamente', () =
 });
 
 
-describe('[P0-HIST-IN-PROGRESS] renderer JSX', () => {
-    it('JSX maneja bucket in_progress con styles.statusInProgress', () => {
-        expect(src).toMatch(/_info\.bucket\s*===\s*['"]in_progress['"]/);
-        expect(src).toMatch(/className=\{styles\.statusInProgress\}/);
-    });
-
-    it('chip in_progress muestra "Generando X/Y"', () => {
-        const renderIdx = src.indexOf("_info.bucket === 'in_progress'");
-        expect(renderIdx).toBeGreaterThan(-1);
-        const block = src.slice(renderIdx, renderIdx + 800);
-        // Texto + counters daysGenerated/totalDays interpolados.
-        expect(block).toMatch(/Generando\s*\{_info\.daysGenerated\}\/\{_info\.totalDays\}/);
-    });
-
-    it('chip in_progress tiene title explicativo', () => {
-        const renderIdx = src.indexOf("_info.bucket === 'in_progress'");
-        const block = src.slice(renderIdx, renderIdx + 800);
-        expect(block).toMatch(/title=/);
-        // Title debe aclarar que no es problema, solo background.
-        expect(block).toMatch(/cron|procesando|background|generando/i);
-    });
-});
+// [removed: chip "Generando X/Y" en la card del listado tras refactor
+//  P3-HIST-DESKTOP-REDESIGN · 2026-06-24] La card/lista se extrajo a
+//  HistoryDesktopPanel/HistoryMobilePanel (diseño aportado por el owner) que NO
+//  renderiza chips de estado de generación. El render `_info.bucket ===
+//  'in_progress'` + `styles.statusInProgress` + "Generando X/Y" ya no existe en
+//  History.jsx (ni en los paneles). La LÓGICA del bucket sobrevive intacta y
+//  sigue cubierta arriba (describe "anchor + getStatusInfo logic": detección
+//  de generating/generating_next/rolling, in_flight, orden ANTES de partial) y
+//  el CSS `.statusInProgress` sigue cubierto abajo (describe "CSS de
+//  statusInProgress"). Los 3 it-blocks del render (anclados a
+//  `_info.bucket === 'in_progress'`, inexistente) se eliminaron porque la
+//  feature ya no se surfacea en esa superficie.
 
 
 describe('[P0-HIST-IN-PROGRESS] CSS de statusInProgress', () => {

@@ -37,70 +37,26 @@ const cssSrc = readFileSync(_CSS_PATH, 'utf8');
 
 
 describe('[P1-HIST-PANTRY-DEGRADED] anchor', () => {
-    it('marker presente en History.jsx', () => {
-        expect(src).toMatch(/\[P1-HIST-PANTRY-DEGRADED\s*·\s*2026-05-09\]/);
-    });
-
+    // [removed: it('marker presente en History.jsx') tras refactor UI — el chip
+    //  "Pantry degradada" de la card del Historial se eliminó de History.jsx
+    //  (junto con su marker y la lectura de chunk_pantry_degraded_count/_reasons).
+    //  La clase CSS .pantryDegradedBadge quedó huérfana pero PRESENTE en
+    //  History.module.css (con su marker), por lo que el marker CSS + la paleta
+    //  siguen verificándose abajo.]
     it('marker presente en History.module.css', () => {
         expect(cssSrc).toMatch(/\[P1-HIST-PANTRY-DEGRADED\s*·\s*2026-05-09\]/);
     });
 });
 
 
-describe('[P1-HIST-PANTRY-DEGRADED] chip render', () => {
-    it('lee chunk_pantry_degraded_count embedded del summary', () => {
-        // Shape esperado del backend: número int. Si plan no tiene
-        // la key (response legacy), tratado como 0 → no chip.
-        const chipIdx = src.indexOf('pantryDegradedBadge');
-        expect(chipIdx).toBeGreaterThan(-1);
-        // Buscamos hacia atrás desde el className para encontrar la
-        // condición de render.
-        const block = src.slice(Math.max(0, chipIdx - 1500), chipIdx + 300);
-        expect(block).toMatch(
-            /typeof\s+plan\.chunk_pantry_degraded_count\s*===\s*['"]number['"]/
-        );
-        expect(block).toMatch(/_count\s*<=\s*0[\s\S]{0,100}return\s+null/);
-    });
-
-    it('lee chunk_pantry_degraded_reasons como array para el tooltip', () => {
-        const chipIdx = src.indexOf('pantryDegradedBadge');
-        const block = src.slice(Math.max(0, chipIdx - 1500), chipIdx + 300);
-        expect(block).toMatch(
-            /Array\.isArray\(plan\.chunk_pantry_degraded_reasons\)/
-        );
-    });
-
-    it('tooltip incluye reasons separadas por coma', () => {
-        const chipIdx = src.indexOf('pantryDegradedBadge');
-        const block = src.slice(Math.max(0, chipIdx - 1500), chipIdx + 600);
-        // El tooltip detallado usa _reasons.join(', ').
-        expect(block).toMatch(/_reasons\.join\(\s*['"],\s*['"]\s*\)/);
-        // Y palabra "Causa(s)" (estándar es-DO).
-        expect(block).toMatch(/Causa\(s\)/);
-    });
-
-    it('texto del chip dice "Pantry degradada"', () => {
-        const chipIdx = src.indexOf('pantryDegradedBadge');
-        const block = src.slice(chipIdx, chipIdx + 600);
-        expect(block).toMatch(/>\s*Pantry degradada\s*</);
-    });
-
-    it('label del tooltip pluraliza chunk vs chunks correctamente', () => {
-        const chipIdx = src.indexOf('pantryDegradedBadge');
-        const block = src.slice(Math.max(0, chipIdx - 1500), chipIdx + 600);
-        // Tooltip diferencia singular ("1 chunk") de plural ("2 chunks").
-        expect(block).toMatch(/_count\s*===\s*1\s*\?\s*['"]chunk['"]\s*:\s*['"]chunks['"]/);
-    });
-
-    it('NO render cuando chunk_pantry_degraded_count = 0 (plan healthy)', () => {
-        // Guard explícito: count <= 0 → return null. Sin esto, planes
-        // sin la key en plan_data verían un chip "Pantry degradada"
-        // por accidente.
-        const chipIdx = src.indexOf('pantryDegradedBadge');
-        const block = src.slice(Math.max(0, chipIdx - 1500), chipIdx + 300);
-        expect(block).toMatch(/if\s*\(\s*_count\s*<=\s*0\s*\)\s*return\s+null/);
-    });
-});
+// [removed: describe('[P1-HIST-PANTRY-DEGRADED] chip render') completo tras
+//  refactor UI del Historial — el chip "Pantry degradada" ya NO se renderiza en
+//  la card de History.jsx. Confirmado por grep whole-file: `pantryDegradedBadge`,
+//  `chunk_pantry_degraded_count` y `chunk_pantry_degraded_reasons` NO aparecen en
+//  History.jsx (la única mención superviviente es la key 'pantry_degraded_reason'
+//  del catálogo _LM_DISPLAY_GROUPS del tab Métricas, que es otra feature). La
+//  app está viva y correcta; el chip de la card se quitó deliberadamente. La CSS
+//  .pantryDegradedBadge quedó huérfana pero presente (ver describe de paleta).]
 
 
 describe('[P1-HIST-PANTRY-DEGRADED] CSS palette ámbar', () => {

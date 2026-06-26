@@ -144,7 +144,13 @@ describe('[P1-HIST-NEW-4] render del notice', () => {
 });
 
 
-describe('[P0-HIST-FIX-7] filter de chunks fuera del alcance del plan', () => {
+describe('[P0-HIST-FIX-7/FIX-10] filter de chunks fuera del alcance del plan', () => {
+    // [refactor: el FILTRO de chunks fantasma pasó a [P0-HIST-FIX-10 · 2026-05-09]
+    //  — ahora valida por rango de días (`days_offset + days_count <= total`) con
+    //  el `_maxValidWeek` por-semana como fallback legacy. El marker [P0-HIST-FIX-7]
+    //  quedó SOLO etiquetando el cómputo de `_adjustedTotal` del notice. Por eso
+    //  los tests del filtro anclan en `_maxValidWeek` (código estable) y el del
+    //  notice en `[P0-HIST-FIX-7`.]
     it('marker presente en History.jsx', () => {
         expect(src).toMatch(/\[P0-HIST-FIX-7\s*·\s*2026-05-09\]/);
     });
@@ -152,13 +158,13 @@ describe('[P0-HIST-FIX-7] filter de chunks fuera del alcance del plan', () => {
     it('declara _maxValidWeek = ceil(displayTotal / 7)', () => {
         // Plan healthy de 7 días: max week 1.
         // Plan de 8-14 días: max 2. Etc.
-        const idx = src.indexOf('[P0-HIST-FIX-7');
+        const idx = src.indexOf('_maxValidWeek');  // [re-anclado al filtro FIX-10; el marker se renombró]
         const block = src.slice(idx, idx + 4000);
         expect(block).toMatch(/_maxValidWeek\s*=\s*[\s\S]*?Math\.ceil\([\s\S]*?\/\s*7\s*\)/);
     });
 
     it('filtra chunks con week_number > _maxValidWeek', () => {
-        const idx = src.indexOf('[P0-HIST-FIX-7');
+        const idx = src.indexOf('_maxValidWeek');  // [re-anclado al filtro FIX-10; el marker se renombró]
         const block = src.slice(idx, idx + 4000);
         expect(block).toMatch(/c\.week_number\s*<=\s*_maxValidWeek/);
     });
@@ -166,7 +172,7 @@ describe('[P0-HIST-FIX-7] filter de chunks fuera del alcance del plan', () => {
     it('preserva chunks sin week_number numérico (legacy/edge)', () => {
         // Defensivo: row legacy sin week_number debe pasar el filter
         // para no perder data inadvertidamente.
-        const idx = src.indexOf('[P0-HIST-FIX-7');
+        const idx = src.indexOf('_maxValidWeek');  // [re-anclado al filtro FIX-10; el marker se renombró]
         const block = src.slice(idx, idx + 4000);
         expect(block).toMatch(/typeof\s+c\.week_number\s*!==\s*['"]number['"]\s*\)\s*return\s+true/);
     });
@@ -175,7 +181,7 @@ describe('[P0-HIST-FIX-7] filter de chunks fuera del alcance del plan', () => {
         // Si _filteredOutCount > 0 pero _list.length === 0, el modal
         // dice "tiene N chunks pero ninguno corresponde al alcance"
         // — el operator entiende que hay data residual no relevante.
-        const idx = src.indexOf('[P0-HIST-FIX-7');
+        const idx = src.indexOf('_maxValidWeek');  // [re-anclado al filtro FIX-10; el marker se renombró]
         const block = src.slice(idx, idx + 4500);
         expect(block).toMatch(/_filteredOutCount\s*>\s*0/);
         expect(block).toMatch(/ninguno corresponde al alcance/);
@@ -184,12 +190,12 @@ describe('[P0-HIST-FIX-7] filter de chunks fuera del alcance del plan', () => {
     it('truncated notice usa _adjustedTotal (totalCount - filteredOutCount)', () => {
         // Sin esto, el notice diría "Mostrando 2 de 3" cuando en
         // realidad son 2 de 2 válidos + 1 fantasma — confuso.
-        // El cómputo de _adjustedTotal vive en el SEGUNDO marker
-        // P0-HIST-FIX-7 (el render del notice), no el primero (el
-        // filter).
-        const _allMatches = [...src.matchAll(/\[P0-HIST-FIX-7/g)];
-        expect(_allMatches.length).toBeGreaterThanOrEqual(2);
-        const idx = _allMatches[1].index;
+        // [refactor: antes había 2 markers [P0-HIST-FIX-7] (filtro + notice).
+        //  El del filtro se renombró a [P0-HIST-FIX-10]; queda 1 solo marker
+        //  [P0-HIST-FIX-7] (el del notice), justo encima del cómputo de
+        //  _adjustedTotal — anclamos en él directamente.]
+        const idx = src.indexOf('[P0-HIST-FIX-7');
+        expect(idx).toBeGreaterThan(-1);
         const block = src.slice(idx, idx + 2000);
         expect(block).toMatch(
             /_adjustedTotal\s*=\s*_totalCount\s*!==\s*null[\s\S]{0,200}_totalCount\s*-\s*_filteredOutCount/

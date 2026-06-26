@@ -51,10 +51,13 @@ describe('Dashboard Plan Update & Navigation', () => {
         const btn = screen.getByText('Límite');
         expect(btn).toBeInTheDocument();
         const parentBtn = btn.closest('button');
-        expect(parentBtn).toBeDisabled();
+        // El botón ya NO usa el atributo nativo `disabled`; expresa el estado
+        // bloqueado vía `aria-disabled={isLimitReached || isDayUpdating}`
+        // (interceptando el click en el handler). Aserción equivalente.
+        expect(parentBtn).toHaveAttribute('aria-disabled', 'true');
     });
 
-    it('should show "Nuevo Plan" when plan is expired', () => {
+    it('should show "Reiniciar plan" when plan cycle is finished', () => {
         const pastDate = new Date();
         pastDate.setDate(pastDate.getDate() - 10);
 
@@ -70,10 +73,15 @@ describe('Dashboard Plan Update & Navigation', () => {
             }
         });
 
-        const btn = screen.getByText('Nuevo Plan');
+        // [computeCycleStatus] Plan semanal creado hace 10 días con 0 días
+        // generados → daysLeft=0 → planFinished=true → el botón primario
+        // muestra "Reiniciar plan" (antes "Nuevo Plan"). Clickearlo navega a
+        // /assessment para rehacer el ciclo.
+        const btn = screen.getByText('Reiniciar plan');
         expect(btn).toBeInTheDocument();
         const parentBtn = btn.closest('button');
-        expect(parentBtn).not.toBeDisabled();
+        // No está bloqueado: aria-disabled = isLimitReached || isDayUpdating = false.
+        expect(parentBtn).toHaveAttribute('aria-disabled', 'false');
     });
 
     it('should open modal and call regeneratePlan with correct payload when updating active plan (Variety)', async () => {
@@ -92,8 +100,10 @@ describe('Dashboard Plan Update & Navigation', () => {
             }
         });
 
-        // Click on Refrescar btn
-        const btn = screen.getByText(/Refrescar/i);
+        // Click on the primary "Actualizar platos" btn (antes "Refrescar"):
+        // abre el modal de motivos (showUpdatePlanModal && !isPlanExpired →
+        // MotivoActualizarModal).
+        const btn = screen.getByText(/Actualizar platos/i);
         await user.click(btn.closest('button'));
 
         // Click on the variety option

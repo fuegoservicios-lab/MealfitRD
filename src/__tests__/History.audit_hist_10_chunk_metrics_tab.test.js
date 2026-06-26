@@ -248,10 +248,12 @@ describe('[P2-HIST-AUDIT-10] render del tab "metrics"', () => {
         // [P0-HIST-FIX-6 · 2026-05-09] Re-ampliado a 39000.
         // [P0-HIST-FIX-7 · 2026-05-09] Re-ampliado a 43000 tras filter
         // de chunks fantasma.
+        // [actualizado] Re-ampliado a 48000: el render del tab Métricas
+        // creció y el chip dead_letter_reason quedó en offset ~43609.
         const _allMatches = [...src.matchAll(/activeModalTab === 'metrics'/g)];
         expect(_allMatches.length).toBeGreaterThanOrEqual(2);
         const tabIdx = _allMatches[1].index;
-        const block = src.slice(tabIdx, tabIdx + 43000);
+        const block = src.slice(tabIdx, tabIdx + 48000);
         // Render condicional del dead_letter_reason con clase Bad.
         expect(block).toMatch(/c\.dead_letter_reason/);
         expect(block).toMatch(/styles\.tierBadgeBad/);
