@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import styles from './MicronutrientMeter.module.css';
 
 /* [P1-MICRO-FOCO-PANEL · 2026-06-26] Rediseño "Foco" del panel de micronutrientes.
@@ -111,6 +111,45 @@ function AttentionCard({ e, adviceItem, onAsk }) {
     );
 }
 
+// — Chip "Al día": colapsado muestra solo el nombre + ✓; al tocarlo se expande y
+//   revela la cantidad EXACTA (valor / objetivo + %). Transparencia total. —
+function ReachedChip({ e }) {
+    const [open, setOpen] = useState(false);
+    const s = classifyRow(e);
+    return (
+        <button
+            type="button"
+            className={`${styles.q} ${open ? styles.qOpen : ''}`}
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            title={`${e.nutriente}: ${_fmtN(s.valor)} de ${_fmtN(s.target)} ${e.unidad}`}
+        >
+            <span className={styles.qRow}>
+                <span className={styles.chk}><CheckIcon /></span>
+                <span className={styles.qName}>{e.nutriente}</span>
+                <span className={styles.qPct}>{s.pct}%</span>
+                <ChevronIcon className={`${styles.qChev} ${open ? styles.qChevOpen : ''}`} />
+            </span>
+            <AnimatePresence initial={false}>
+                {open && (
+                    <motion.span
+                        className={styles.qVals}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                        <span className={styles.qValsInner}>
+                            <b>{_fmtN(s.valor)}</b> / {_fmtN(s.target)} {e.unidad}
+                            {s.estimado && <span className={styles.qEst}> · ≈ estimado</span>}
+                        </span>
+                    </motion.span>
+                )}
+            </AnimatePresence>
+        </button>
+    );
+}
+
 export default function MicronutrientMeter({ report, advice, onAsk }) {
     const panel = report?.panel;
     const adviceItems = advice?.items || [];
@@ -202,12 +241,7 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
                 <>
                     <div className={styles.eye}>Al día <span className={styles.ct}>· {nReached}</span><span className={styles.ln} /></div>
                     <div className={styles.grid2}>
-                        {reached.map((e, i) => (
-                            <div key={`r-${e.key || i}`} className={styles.q}>
-                                <span className={styles.chk}><CheckIcon /></span>
-                                <span className={styles.qName}>{e.nutriente}</span>
-                            </div>
-                        ))}
+                        {reached.map((e, i) => <ReachedChip key={`r-${e.key || i}`} e={e} />)}
                     </div>
                 </>
             )}
@@ -274,4 +308,7 @@ const ShieldIcon = () => (
 );
 const ChatIcon = () => (
     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-11.9 7.6L3 21l1.9-6.1A8.4 8.4 0 1 1 21 11.5Z" /></svg>
+);
+const ChevronIcon = ({ className }) => (
+    <svg className={className} viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
 );
