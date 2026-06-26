@@ -184,12 +184,12 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             role="region"
-            aria-label="Tu panel de micronutrientes"
+            aria-label="Micronutrientes"
         >
             <header className={styles.head}>
                 <span className={styles.badge} aria-hidden="true"><FlaskIcon /></span>
                 <div className={styles.headText}>
-                    <h3 className={styles.title}>Tu panel de micronutrientes</h3>
+                    <h3 className={styles.title}>Micronutrientes</h3>
                     <span className={styles.sub}>
                         <b>{nReached}</b> de {nFloors} metas al día
                         {nAtt > 0 && <> · <span className={styles.warn}><b>{nAtt}</b> por mejorar</span></>}
