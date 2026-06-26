@@ -74,6 +74,8 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
             const err = new Error(msg);
             err.code = (parsedDetail && parsedDetail.code) || 'pipeline_already_running';
             err.startedAt = startedAt;
+            // [P1-DEDUP-RECENT-PLAN · 2026-06-25] plan_id del plan reciente a adoptar (caso reintento tras corte).
+            err.planId = (parsedDetail && typeof parsedDetail === 'object' && parsedDetail.plan_id) || null;
             throw err;
         }
         // [P1-QUOTA-402-UX · 2026-05-30] 402 = paywall del backend
@@ -136,6 +138,8 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
         if (err.code === 'rate_limited') throw err;
         // [P3-409-PIPELINE-RUNNING] No reintentar 409 — guardrail no se resuelve con backoff.
         if (err.code === 'pipeline_already_running') throw err;
+        // [P1-DEDUP-RECENT-PLAN · 2026-06-25] Tampoco reintentar: el plan ya existe (lo adoptamos).
+        if (err.code === 'plan_recently_created') throw err;
         // [P1-QUOTA-402-UX · 2026-05-30] No reintentar 402 — el cap mensual no
         // se resuelve con backoff; reintentar solo desperdicia round-trips.
         if (err.code === 'quota_exceeded') throw err;
@@ -415,6 +419,15 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                 // cuando termine.
                 console.warn("🟡 Pipeline ya activo — propagando para recovery via dashboard.");
                 throw error;
+            } else if (error.code === 'plan_recently_created') {
+                // [P1-SSE-DEDUP-PROPAGATE · 2026-06-25] El backend detectó un plan creado hace < N min
+                // (reintento tras caerse la conexión). El fallback síncrono recibiría el MISMO 409 del
+                // dedup y terminaría masked como `offline_unavailable` ("Sin conexión con la IA") → el
+                // user reintentaba y quemaba créditos. Propagar para que el caller adopte el plan ya
+                // creado (no reintentar, no fallback) — sin esto el handler de plan_recently_created en
+                // processPlan era INALCANZABLE vía el path SSE.
+                console.warn("🔁 Plan reciente (dedup) — propagando para adoptar sin reintentar.");
+                throw error;
             } else if (error.code === 'critical_restriction') {
                 // [P2-CRITICAL-REJECTION-CODE · 2026-06-18] Rechazo crítico (alergia/condición
                 // declarada que la IA no logró satisfacer). Reintentar NO ayuda (restricción fija) →
@@ -650,6 +663,27 @@ const Plan = () => {
         }
 
         const processPlan = async () => {
+            // [P1-SSE-ADOPT-RECOVERY · 2026-06-25] Trae el plan ya creado (por id) del backend y lo
+            // adopta en estado — igual que el success path (saveGeneratedPlan) — para que el user LO VEA
+            // en el dashboard en vez de su plan VIEJO de localStorage. Antes el handler de
+            // `plan_recently_created` solo navegaba sin cargar el plan → parecía que la renovación falló
+            // → el user re-renovaba. Estricto (el id debe coincidir + plan_data entregable con días) y
+            // fail-closed: cualquier fallo retorna false y cae al comportamiento previo (navegar +
+            // history-dirty refresca el dashboard).
+            const tryAdoptDedupedPlan = async (planId) => {
+                if (!planId || ignore) return false;
+                try {
+                    const res = await fetchWithAuth('/api/plans-data/latest');
+                    if (!res.ok) return false;
+                    const body = await res.json();
+                    const plan = (body && body.plan) || body;
+                    if (!plan || String(plan.id) !== String(planId)) return false;
+                    const pd = plan.plan_data;
+                    if (!pd || typeof pd !== 'object' || !Array.isArray(pd.days) || pd.days.length < 1) return false;
+                    saveGeneratedPlan(pd);
+                    return true;
+                } catch { return false; }
+            };
             try {
                 if (ignore) return;
 
@@ -949,6 +983,24 @@ const Plan = () => {
                         import('sonner').then(({ toast }) => {
                             toast.info("Tu plan se está generando", {
                                 description: "Ya tienes uno en curso. Te avisamos cuando esté listo.",
+                                duration: 6000,
+                            });
+                        });
+                        navigate('/dashboard', { replace: true });
+                        return;
+                    }
+                    // [P1-DEDUP-RECENT-PLAN · 2026-06-25] El backend detectó que ya creaste un plan hace
+                    // < N min (típico: se cayó la conexión TRAS generarlo y reintentaste). NO se generó
+                    // otro (evita duplicado + doble costo LLM). Mostramos el plan que ya existe.
+                    if (error.code === 'plan_recently_created') {
+                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                        try { localStorage.setItem('mealfit_history_dirty_at', String(Date.now())); } catch { /* noop */ }
+                        // [P1-SSE-ADOPT-RECOVERY · 2026-06-25] Carga el plan ya creado en estado para que
+                        // el user lo VEA de inmediato (no solo navegar al dashboard con el plan viejo).
+                        await tryAdoptDedupedPlan(error.planId);
+                        import('sonner').then(({ toast }) => {
+                            toast.info("Tu plan ya estaba listo", {
+                                description: error.message || "Te lo mostramos en vez de crear otro, para no duplicarlo.",
                                 duration: 6000,
                             });
                         });

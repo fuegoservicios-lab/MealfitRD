@@ -1,0 +1,87 @@
+/* [P1-FOOD-DB-EXTENDED-MICROS · 2026-06-25] Medidor de micronutrientes (panel de estado, no
+   dismissible). Grid de barras por nutriente (2 col en desktop, 1 en móvil), tono por estado,
+   con glow. Tokens del DS (tema-aware). Separa "metas" (pisos) de "límites" (techos). */
+
+.panel {
+  background:
+    radial-gradient(135% 90% at -5% -10%, rgba(45, 212, 191, .12), transparent 55%),
+    var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: 18px 16px 14px;
+  margin-bottom: 1.5rem;
+}
+
+/* Cabecera */
+.head { display: flex; align-items: center; gap: 11px; margin-bottom: 6px; }
+.badge {
+  flex: none; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center;
+  color: #04221d; background: linear-gradient(150deg, #34D399, #2DD4BF);
+  box-shadow: 0 5px 14px -4px rgba(52, 211, 153, .6);
+}
+.headText { flex: 1; min-width: 0; }
+.title { margin: 0; font-family: var(--font-heading); font-size: 1rem; font-weight: 800; letter-spacing: -.015em; line-height: 1.2; color: var(--text-main); }
+.sub { font-size: .76rem; font-weight: 600; color: var(--text-muted); }
+.sub b { color: var(--text-main); font-weight: 800; }
+
+.groupLabel {
+  margin: 16px 2px 9px; font-size: .62rem; font-weight: 800; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--text-light);
+}
+
+/* Grid de nutrientes */
+.grid {
+  display: grid; gap: 9px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 560px) {
+  .grid { grid-template-columns: 1fr; }
+}
+
+.row {
+  --tone: #2DD4BF;
+  background: var(--bg-page); border: 1px solid var(--border); border-radius: 13px; padding: 11px 12px;
+}
+
+/* Tonos por estado */
+.ok   { --tone: #10B981; }
+.near { --tone: #2DD4BF; }
+.low  { --tone: #FBBF24; }
+.far  { --tone: #FB923C; }
+.over { --tone: #FB7185; }
+
+.rowHead { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.name { font-size: .82rem; font-weight: 800; letter-spacing: -.01em; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pct {
+  margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 3px;
+  font-size: .72rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--tone); white-space: nowrap;
+}
+.pct svg { width: 12px; height: 12px; }
+
+/* Barra de progreso */
+.bar {
+  position: relative; height: 8px; border-radius: 99px; overflow: hidden;
+  background: color-mix(in srgb, var(--text-light) 22%, transparent);
+}
+.bar > i {
+  position: absolute; inset: 0 auto 0 0; border-radius: 99px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 70%, #000), var(--tone));
+  box-shadow: 0 0 12px -2px var(--tone);
+  transition: width .9s cubic-bezier(.16, 1, .3, 1);
+}
+/* Estimado: relleno rayado (dato parcial del catálogo). */
+.estim {
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255, 255, 255, .35) 4px, rgba(255, 255, 255, .35) 8px);
+}
+
+.vals { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px; margin-top: 8px; font-size: .72rem; color: var(--text-light); font-variant-numeric: tabular-nums; }
+.vals b { color: var(--text-main); font-weight: 800; font-size: .8rem; }
+.unit { color: var(--text-muted); font-weight: 600; }
+.est { margin-left: auto; font-size: .64rem; font-weight: 700; color: var(--text-light); opacity: .85; }
+
+.foot { margin: 14px 2px 2px; font-size: .7rem; line-height: 1.45; color: var(--text-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .bar > i { transition: none; }
+}

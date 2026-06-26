@@ -24,6 +24,8 @@ import CreditsMeter from '../components/dashboard/CreditsMeter';
 // [P3-NOTIF-CENTER · 2026-06-16] buildMicrosNotification = SSOT del resumen archivado;
 // microsContentSig = firma estable por contenido (clave de dismissal/backfill).
 import MicronutrientPanel, { buildMicrosNotification, microsContentSig } from '../components/dashboard/MicronutrientPanel';
+// [P1-FOOD-DB-EXTENDED-MICROS · 2026-06-25] Medidor con TODOS los micros (no solo gaps).
+import MicronutrientMeter from '../components/dashboard/MicronutrientMeter';
 // [P3-RESTOCK-NUDGE · 2026-06-23] Nudge para que el usuario llene la Nevera tras
 // comprar (banner + prompt + auto-fill + recordatorio). Cierra el olvido de tocar
 // "Ya compré la lista". Lógica de decisión en utils/restockNudge.js.
@@ -5077,6 +5079,12 @@ const DashboardInner = () => {
                 techos de sodio/azúcar/satfat vs DRI/WHO) y `micronutrient_supplement_advice` (FS8), pero
                 ningún surface los leía → trabajo clínico invisible. Solo se muestra si hay gaps/suplementos
                 accionables (no ruido en el happy path). Cierra P2-6 del audit. */}
+            {/* [P1-FOOD-DB-EXTENDED-MICROS · 2026-06-25] Medidor PROFESIONAL con TODOS los
+                micronutrientes (avance hacia cada meta), arriba del panel accionable de gaps.
+                Lee report.panel[] (17 nutrientes). No dismissible (panel de estado). */}
+            {microReport?.panel?.length > 0 && (
+                <MicronutrientMeter report={microReport} />
+            )}
             {/* [P3-MICRONUTRIENT-PANEL · 2026-06-15] Rediseñado como medidores de
                 progreso + dismissible (X). Ver components/dashboard/MicronutrientPanel. */}
             {(microReport?.gaps?.length > 0
