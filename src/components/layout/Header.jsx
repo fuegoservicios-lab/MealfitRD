@@ -140,6 +140,7 @@ const Header = () => {
                                 className={styles.accountTrigger}
                                 onClick={() => setIsAccountMenuOpen((p) => !p)}
                                 aria-haspopup="menu"
+                                aria-controls="account-dropdown-menu"
                                 aria-expanded={isAccountMenuOpen}
                                 aria-label="Abrir menú de cuenta"
                             >
@@ -151,7 +152,7 @@ const Header = () => {
                                 />
                             </button>
                             {isAccountMenuOpen && (
-                                <div className={styles.accountDropdown} role="menu">
+                                <div id="account-dropdown-menu" className={styles.accountDropdown} role="menu">
                                     <div className={styles.accountIdentity}>
                                         <span className={styles.accountName}>{accountName}</span>
                                         {accountEmail && <span className={styles.accountEmailLine}>{accountEmail}</span>}
@@ -197,16 +198,17 @@ const Header = () => {
                         className={styles.mobileToggle}
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                         aria-label={isMenuOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
+                        aria-controls="mobile-nav-menu"
                         aria-expanded={isMenuOpen}
                     >
-                        {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                        {isMenuOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
                     </button>
                 )}
                 </div>
 
                 {/* Navegación Móvil */}
                 {isMenuOpen && hasMobileMenuItems && (
-                    <nav className={styles.navMobile}>
+                    <nav id="mobile-nav-menu" className={styles.navMobile}>
 
 
                         {planData && !isPlanLoading ? (
