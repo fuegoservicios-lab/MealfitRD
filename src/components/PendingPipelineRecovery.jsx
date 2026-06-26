@@ -16,7 +16,7 @@
 //
 // Kill switch: VITE_DEEP_SEARCH_RECOVERY=false en .env.local (default true).
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../config/api';
 
@@ -52,6 +52,21 @@ function clearPendingFlag() {
     try { localStorage.removeItem(LS_KEY); } catch { /* noop */ }
 }
 
+// [P1-RECOVERY-BACKEND-TRUTH · 2026-06-26] Escribe el flag local sintetizándolo desde la
+// verdad del backend (KV). Se usa cuando el user vuelve SIN flag local (otro dispositivo,
+// móvil, storage limpiado) pero el backend SÍ tiene un pipeline 'generating' → al escribir
+// el flag, el flujo de polling existente (flag-gated) toma el control normalmente.
+function writePendingFlag(startedAtIso) {
+    try {
+        let uid = null;
+        try { uid = localStorage.getItem('mealfit_user_id') || null; } catch { /* noop */ }
+        localStorage.setItem(LS_KEY, JSON.stringify({
+            user_id: uid,
+            started_at: startedAtIso || new Date().toISOString(),
+        }));
+    } catch { /* noop */ }
+}
+
 function isStale(startedAtIso) {
     try {
         const ageMin = (Date.now() - new Date(startedAtIso).getTime()) / 60_000;
@@ -85,6 +100,13 @@ export default function PendingPipelineRecovery() {
     // [P3-RECOVERY-BACKEND-DOWN-EXIT · 2026-05-16] Counter de fallos
     // consecutivos del polling. Reset a 0 cuando una poll succeeds.
     const consecutiveFailuresRef = useRef(0);
+    // [P1-RECOVERY-BACKEND-TRUTH · 2026-06-26] Guard para correr el check
+    // INCONDICIONAL al backend (sin flag local) UNA sola vez por sesión, y un
+    // tick de state que re-dispara el effect cuando sintetizamos el flag para
+    // que el flujo de polling existente arranque (cubre el caso 'ya estoy en
+    // /plan' donde el navigate sería no-op y no re-dispararía el effect).
+    const bootCheckedRef = useRef(false);
+    const [bootKick, setBootKick] = useState(0);
 
     useEffect(() => {
         // Kill switch
@@ -99,16 +121,70 @@ export default function PendingPipelineRecovery() {
         // pre-chequear aquí, lo cual evita una llamada redundante a
         // `auth.getUser()` en cada navegación.
 
+        let cancelled = false;
+
         const flag = readPendingFlag();
-        if (!flag) return undefined;
+
+        // [P1-RECOVERY-BACKEND-TRUTH · 2026-06-26] Sin flag local NO significa
+        // "no hay nada que recuperar": el user pudo iniciar la generación en
+        // OTRO dispositivo / navegador / móvil, o limpiar el storage. El KV del
+        // backend (`pending_pipeline:<user>`) es la FUENTE DE VERDAD. Consulta
+        // /pending-status UNA vez por sesión: si hay pipeline 'generating',
+        // sintetiza el flag (→ el polling flag-gated de abajo toma el control y
+        // muestra la pantalla de carga) + redirige a /plan; si 'complete' y el
+        // user nunca lo vio (no acked), redirige al dashboard. Esto cierra el
+        // objetivo del usuario: "aunque cierre la pestaña y vuelva (o entre desde
+        // el móvil), si sigue cargando → pantalla de carga; si terminó → dashboard".
+        // Es SEGURO contra redirects espurios porque un plan ya VISTO deja el KV
+        // en 'none' (el flujo normal lo ackea al completar). Bounded a 1 query.
+        if (!flag) {
+            if (!bootCheckedRef.current) {
+                bootCheckedRef.current = true;
+                (async () => {
+                    const status = await fetchPendingStatus();
+                    if (cancelled || handledRef.current) return;
+                    if (!status) return;
+                    if (status.status === 'generating' && !isStale(status.started_at)) {
+                        // Sintetiza el flag → re-dispara el effect (bootKick) → el
+                        // polling de abajo arranca, aunque ya estemos en /plan.
+                        writePendingFlag(status.started_at);
+                        setBootKick((k) => k + 1);
+                        if (location.pathname !== '/plan') {
+                            if (!generatingToastShownRef.current) {
+                                generatingToastShownRef.current = true;
+                                try {
+                                    const { toast } = await import('sonner');
+                                    toast.info('Retomando tu plan en curso', {
+                                        description: 'Te llevamos a la pantalla de carga.',
+                                        duration: 4000,
+                                    });
+                                } catch { /* noop */ }
+                            }
+                            navigate('/plan', { replace: true });
+                        }
+                    } else if (status.status === 'complete' && status.plan_id_final) {
+                        handledRef.current = true;
+                        await ackPendingStatus();
+                        try {
+                            const { toast } = await import('sonner');
+                            toast.success('Tu plan está listo 🎉', {
+                                description: 'Te llevamos al dashboard.',
+                                duration: 3500,
+                            });
+                        } catch { /* noop */ }
+                        navigate('/dashboard', { replace: true });
+                    }
+                    // 'none' / 'failed' → no auto-redirect (el user no estaba esperando).
+                })();
+            }
+            return () => { cancelled = true; };
+        }
 
         // Si el flag local es viejo (> MAX_AGE_MIN = 6h), limpiar y salir.
         if (isStale(flag.started_at)) {
             clearPendingFlag();
             return undefined;
         }
-
-        let cancelled = false;
 
         async function checkOnce() {
             if (cancelled || handledRef.current) return;
@@ -287,7 +363,7 @@ export default function PendingPipelineRecovery() {
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [location.pathname]);
+    }, [location.pathname, bootKick]);
 
     return null; // headless component
 }
