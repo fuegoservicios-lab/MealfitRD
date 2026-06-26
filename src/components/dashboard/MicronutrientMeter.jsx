@@ -68,6 +68,9 @@ function AttentionCard({ e, adviceItem, onAsk }) {
     const s = classifyRow(e);
     const food = adviceItem?.primero_alimentos || e.nota || '';
     const dose = adviceItem?.dosis_sugerida || '';
+    // [P1-SUPPLEMENT-CAUTION-UI · 2026-06-26] precaución del backend (UL / interacción / renal) — antes
+    // se mostraba la dosis SIN ningún caveat de seguridad en un producto clínico-adyacente.
+    const caution = adviceItem?.precaucion || '';
     const Tag = onAsk ? 'button' : 'div';
     return (
         <Tag
@@ -104,6 +107,12 @@ function AttentionCard({ e, adviceItem, onAsk }) {
                         {food}
                         {dose && <span className={styles.dose}>Suplir: {dose}</span>}
                     </span>
+                </div>
+            )}
+            {dose && caution && (
+                <div className={styles.caution}>
+                    <span className={styles.cautionIco} aria-hidden="true"><WarnIcon /></span>
+                    <span>{caution}</span>
                 </div>
             )}
             {onAsk && <span className={styles.improve}><ChatIcon /> Cómo subirlo</span>}
@@ -278,6 +287,10 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
                     </div>
                 </>
             )}
+            {/* [P1-SUPPLEMENT-DISCLAIMER-UI · 2026-06-26] disclaimer médico global cuando se muestran dosis */}
+            {advice?.disclaimer && adviceItems.length > 0 && (
+                <p className={styles.disclaimer}>{advice.disclaimer}</p>
+            )}
         </motion.section>
     );
 }
@@ -305,6 +318,9 @@ const BoltIcon = () => (
 );
 const ShieldIcon = () => (
     <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6z" /><path d="M9 12l2 2 4-4" /></svg>
+);
+const WarnIcon = () => (
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
 );
 const ChatIcon = () => (
     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-11.9 7.6L3 21l1.9-6.1A8.4 8.4 0 1 1 21 11.5Z" /></svg>

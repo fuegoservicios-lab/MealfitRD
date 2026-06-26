@@ -121,10 +121,25 @@ function MicrosDetail({ data, onAction }) {
                                 {it.primero_alimentos && (
                                     <span className={styles.exHint}> — primero alimentos: {it.primero_alimentos}</span>
                                 )}
+                                {/* [P1-SUPPLEMENT-CAUTION-UI · 2026-06-26] precaución (UL / interacción / renal) */}
+                                {it.precaucion && (
+                                    <span className={styles.exCaution}>
+                                        <AlertTriangle size={11} strokeWidth={2.25} aria-hidden="true" />
+                                        <span>{it.precaucion}</span>
+                                    </span>
+                                )}
                             </span>
                         </div>
                     ))}
                 </div>
+            )}
+
+            {/* [P1-SUPPLEMENT-DISCLAIMER-UI · 2026-06-26] disclaimer médico global (no es prescripción) */}
+            {data?.disclaimer && (
+                <p className={styles.exDisclaimer}>
+                    <Info size={12} strokeWidth={2.25} aria-hidden="true" />
+                    <span>{data.disclaimer}</span>
+                </p>
             )}
 
             <button type="button" className={styles.exAction} onClick={onAction}>

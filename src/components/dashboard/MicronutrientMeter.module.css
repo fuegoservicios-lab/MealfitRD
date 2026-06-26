@@ -120,6 +120,13 @@
 }
 .dose { display: block; margin-top: 5px; font-size: .71rem; font-weight: 700; color: var(--tone); }
 
+/* [P1-SUPPLEMENT-CAUTION-UI · 2026-06-26] Precaución por suplemento (UL / interacción / renal). */
+.caution {
+  display: flex; align-items: flex-start; gap: 7px; margin-top: 8px;
+  font-size: .69rem; line-height: 1.4; color: var(--text-light); opacity: .92;
+}
+.cautionIco { flex: none; margin-top: 1px; opacity: .8; }
+
 .improve {
   display: inline-flex; align-items: center; gap: 5px; margin-top: 11px;
   font-size: .72rem; font-weight: 800; color: var(--tone); opacity: .9;

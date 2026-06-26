@@ -582,6 +582,18 @@
 .exSupp strong { color: var(--text-main); }
 .exHint { opacity: 0.8; }
 
+/* [P1-SUPPLEMENT-CAUTION-UI · 2026-06-26] Precaución por suplemento (UL / interacción / renal). */
+.exCaution {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.3rem;
+    margin-top: 0.25rem;
+    font-size: 0.66rem;
+    line-height: 1.35;
+    color: color-mix(in srgb, var(--text-light) 80%, transparent);
+}
+.exCaution svg { flex: none; margin-top: 1px; opacity: 0.85; }
+
 .exDisclaimer {
     display: flex;
     align-items: flex-start;
