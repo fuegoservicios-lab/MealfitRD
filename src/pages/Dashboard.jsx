@@ -23,7 +23,10 @@ import CreditsMeter from '../components/dashboard/CreditsMeter';
 // [P3-MICRONUTRIENT-PANEL · 2026-06-15] Panel de micros como medidores + dismissible.
 // [P3-NOTIF-CENTER · 2026-06-16] buildMicrosNotification = SSOT del resumen archivado;
 // microsContentSig = firma estable por contenido (clave de dismissal/backfill).
-import MicronutrientPanel, { buildMicrosNotification, microsContentSig } from '../components/dashboard/MicronutrientPanel';
+// [P1-MICRO-FOCO-PANEL · 2026-06-26] El render visible del panel de gaps lo absorbe
+// MicronutrientMeter (diseño Foco); aquí solo importamos los helpers SSOT que sigue
+// usando el backfill de la notificación de micros (archivado de descartes legacy).
+import { buildMicrosNotification, microsContentSig } from '../components/dashboard/MicronutrientPanel';
 // [P1-FOOD-DB-EXTENDED-MICROS · 2026-06-25] Medidor con TODOS los micros (no solo gaps).
 import MicronutrientMeter from '../components/dashboard/MicronutrientMeter';
 // [P3-RESTOCK-NUDGE · 2026-06-23] Nudge para que el usuario llene la Nevera tras
@@ -5079,20 +5082,17 @@ const DashboardInner = () => {
                 techos de sodio/azúcar/satfat vs DRI/WHO) y `micronutrient_supplement_advice` (FS8), pero
                 ningún surface los leía → trabajo clínico invisible. Solo se muestra si hay gaps/suplementos
                 accionables (no ruido en el happy path). Cierra P2-6 del audit. */}
-            {/* [P1-FOOD-DB-EXTENDED-MICROS · 2026-06-25] Medidor PROFESIONAL con TODOS los
-                micronutrientes (avance hacia cada meta), arriba del panel accionable de gaps.
+            {/* [P1-MICRO-FOCO-PANEL · 2026-06-26] Panel "Foco" unificado: jerarquía
+                (lo que falta primero, con sugerencia accionable inline), lo cumplido
+                como chips, y los límites aparte. Consolida el antiguo medidor (todos
+                los micros) + el panel de gaps/suplementos en uno solo — la sugerencia
+                clínica (advice.items: alimentos + dosis) va dentro de cada tarjeta
+                "por mejorar". Tocar una tarjeta → preguntarle al coach cómo subirla.
                 Lee report.panel[] (17 nutrientes). No dismissible (panel de estado). */}
             {microReport?.panel?.length > 0 && (
-                <MicronutrientMeter report={microReport} />
-            )}
-            {/* [P3-MICRONUTRIENT-PANEL · 2026-06-15] Rediseñado como medidores de
-                progreso + dismissible (X). Ver components/dashboard/MicronutrientPanel. */}
-            {(microReport?.gaps?.length > 0
-                || microAdvice?.count > 0) && (
-                <MicronutrientPanel
+                <MicronutrientMeter
                     report={microReport}
                     advice={microAdvice}
-                    planId={_microPlanId}
                     onAsk={(question) => {
                         // [P3-AGENT-PREFILL · 2026-06-15] El chat es solo para
                         // cuentas (el invitado no accede a /dashboard/agent). Para
