@@ -221,7 +221,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
 
                 <div className={styles.accountSection} ref={accountMenuRef}>
                     {isAccountMenuOpen && (
-                        <div className={styles.accountPopover} role="menu">
+                        <div id="dashboard-account-menu" className={styles.accountPopover} role="menu">
                             {/* [P3-UPGRADE-FUSION · 2026-05-26] Mini-sección
                                 del plan tier fusionada con el popover. Antes
                                 el chip ULTRA/PLUS/etc. vivía en el header del
@@ -346,6 +346,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         className={`${styles.accountBtn} ${isGuest ? styles.accountBtnGuest : ''}`}
                         onClick={() => setIsAccountMenuOpen(prev => !prev)}
                         aria-haspopup="menu"
+                        aria-controls="dashboard-account-menu"
                         aria-expanded={isAccountMenuOpen}
                         aria-label="Abrir menú de cuenta"
                     >
@@ -386,8 +387,10 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         className={styles.menuBtn}
                         onClick={() => setIsMobileMoreMenuOpen(true)}
                         aria-label="Abrir menú"
+                        aria-controls="mobile-more-menu"
+                        aria-expanded={isMobileMoreMenuOpen}
                     >
-                        <Menu size={22} />
+                        <Menu size={22} aria-hidden="true" />
                     </button>
                 </header>
                 )}
@@ -423,7 +426,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         className={styles.mobileMoreOverlay}
                         onClick={closeMoreMenu}
                     />
-                    <div className={styles.mobileMoreMenu} role="menu" ref={moreMenuRef} tabIndex={-1}>
+                    <div id="mobile-more-menu" className={styles.mobileMoreMenu} role="menu" ref={moreMenuRef} tabIndex={-1}>
                         {/* [P1-GUEST-APPEARANCE · 2026-06-15] Invitado → apariencia
                             (tema) en vez de Ajustes (gateado + fetches auth). */}
                         {isGuest ? (
