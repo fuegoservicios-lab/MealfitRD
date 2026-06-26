@@ -137,8 +137,6 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
 
     if (!panel || !panel.length) return null;
     const nFloors = nReached + nAtt;
-    const coverage = typeof report?.coverage === 'number' ? Math.round(report.coverage * 100) : null;
-    const hasSuggestion = attention.some((e) => findAdvice(e, adviceItems) || e.nota);
 
     return (
         <motion.section
@@ -192,9 +190,6 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
                             onAsk={onAsk ? () => onAsk(buildQuestion(e), e.nutriente) : undefined}
                         />
                     ))}
-                    {hasSuggestion && (advice?.disclaimer || report?.disclaimer) && (
-                        <p className={styles.disclaimer}>{advice?.disclaimer || report?.disclaimer}</p>
-                    )}
                 </>
             ) : (
                 <div className={`${styles.eye} ${styles.allgood}`}>
@@ -249,11 +244,6 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
                     </div>
                 </>
             )}
-
-            <p className={styles.foot}>
-                Estimado de lo que aportan las comidas de tu plan al día vs. lo recomendado
-                {coverage !== null && <> · cobertura del catálogo {coverage}%</>}. No mide lo que comes por fuera ni suplementos.
-            </p>
         </motion.section>
     );
 }
