@@ -232,13 +232,34 @@ export const FIELD_LABELS = {
  * `formData = null` retorna el primer campo (`gender`) — sirve como guard
  * defensivo cuando el contexto aún no se hidrató.
  */
+// [P2-FORM-FREETEXT-SATISFIES · 2026-06-27] Campos array required que se satisfacen TAMBIÉN con su texto
+// libre companion (el usuario escribió "cirugía bariátrica" en "Otra condición médica" sin marcar un chip).
+// El gate del NextButton de cada step ya lo aceptaba (InteractiveQuestions: medicalConditions||otherConditions),
+// pero este validador global (usado al submit / navegación a campo faltante) miraba solo el array → rebotaba
+// al usuario al step ya completado, en bucle. El backend lo mergea downstream (espejo: _FREE_TEXT_COMPANION_FIELDS
+// en routers/plans.py). tooltip-anchor: P2-FORM-FREETEXT-SATISFIES
+const FREE_TEXT_COMPANION = {
+    allergies: 'otherAllergies',
+    dislikes: 'otherDislikes',
+    medicalConditions: 'otherConditions',
+    struggles: 'otherStruggles',
+};
+
 export const findFirstIncompleteField = (formData) => {
     if (!formData) return REQUIRED_FORM_FIELDS[0];
     for (const field of REQUIRED_FORM_FIELDS) {
         const v = formData[field];
-        if (v === undefined || v === null) return field;
+        const comp = FREE_TEXT_COMPANION[field];
+        const compFilled = comp && String(formData[comp] || '').trim() !== '';
+        if (v === undefined || v === null) {
+            if (compFilled) continue;
+            return field;
+        }
         if (typeof v === 'string' && v.trim() === '') return field;
-        if (Array.isArray(v) && v.length === 0) return field;
+        if (Array.isArray(v) && v.length === 0) {
+            if (compFilled) continue;
+            return field;
+        }
     }
     return null;
 };
