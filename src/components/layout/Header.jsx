@@ -141,6 +141,7 @@ const Header = () => {
                                 onClick={() => setIsAccountMenuOpen((p) => !p)}
                                 aria-haspopup="menu"
                                 aria-expanded={isAccountMenuOpen}
+                                aria-controls="header-account-menu"
                                 aria-label="Abrir menú de cuenta"
                             >
                                 <span className={styles.accountAvatar} aria-hidden="true">{accountInitial}</span>
@@ -151,7 +152,7 @@ const Header = () => {
                                 />
                             </button>
                             {isAccountMenuOpen && (
-                                <div className={styles.accountDropdown} role="menu">
+                                <div id="header-account-menu" className={styles.accountDropdown} role="menu">
                                     <div className={styles.accountIdentity}>
                                         <span className={styles.accountName}>{accountName}</span>
                                         {accountEmail && <span className={styles.accountEmailLine}>{accountEmail}</span>}
@@ -198,6 +199,7 @@ const Header = () => {
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                         aria-label={isMenuOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
                         aria-expanded={isMenuOpen}
+                        aria-controls="header-mobile-menu"
                     >
                         {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
@@ -206,7 +208,7 @@ const Header = () => {
 
                 {/* Navegación Móvil */}
                 {isMenuOpen && hasMobileMenuItems && (
-                    <nav className={styles.navMobile}>
+                    <nav id="header-mobile-menu" className={styles.navMobile}>
 
 
                         {planData && !isPlanLoading ? (
