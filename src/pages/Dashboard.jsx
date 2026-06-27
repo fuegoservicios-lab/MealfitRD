@@ -481,6 +481,20 @@ const DashboardInner = () => {
         const key = _planMicroSig ? `mealfit_qdeg_dismissed_${_planMicroSig}` : null;
         setQDegradedHidden(!!(key && safeLocalStorageGet(key, '') === '1'));
     }, [_planMicroSig]);
+
+    // [P2-PRO-REVIEW-DISMISS · 2026-06-27] El banner de revisión profesional (FS9, "Declaraste una condición
+    // de salud…") ahora es dismissible con una X y se recuerda por plan (misma firma estable que micros/
+    // qDegraded). Reaparece al cambiar de plan (firma distinta) → no se pierde el disclaimer en planes nuevos.
+    const [proReviewHidden, setProReviewHidden] = useState(false);
+    useEffect(() => {
+        const key = _planMicroSig ? `mealfit_proreview_dismissed_${_planMicroSig}` : null;
+        setProReviewHidden(!!(key && safeLocalStorageGet(key, '') === '1'));
+    }, [_planMicroSig]);
+    const dismissProReview = useCallback(() => {
+        setProReviewHidden(true);
+        const key = _planMicroSig ? `mealfit_proreview_dismissed_${_planMicroSig}` : null;
+        if (key) safeLocalStorageSet(key, '1');
+    }, [_planMicroSig]);
     // [P3-NOTIF-CENTER · 2026-06-16] SSOT del payload de notificación del banner
     // "plan no óptimo" (título + motivo, mismo copy que el banner). Compartido
     // entre el descarte (X) y el backfill. null si el plan no está degradado.
@@ -5075,7 +5089,7 @@ const DashboardInner = () => {
                 leía → el paciente (especialmente renal) nunca veía la advertencia de consultar a su
                 profesional. Aquí se muestra prominente; estilo rojo si es gate renal (mayor riesgo
                 iatrogénico), azul para el resto de condiciones. Cierra P2-7/P2-15 del audit. */}
-            {planData?.requires_professional_review?.flag && planData?.requires_professional_review?.note && (
+            {planData?.requires_professional_review?.flag && planData?.requires_professional_review?.note && !proReviewHidden && (
                 <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -5083,15 +5097,19 @@ const DashboardInner = () => {
                         display: 'flex',
                         alignItems: 'flex-start',
                         gap: '0.75rem',
+                        // [P2-PRO-REVIEW-DARKMODE · 2026-06-27] Tints rgba (no gradientes claros hardcodeados) +
+                        // texto var(--text-*) → legible en claro Y oscuro. El acento semántico (azul/rojo) lo da
+                        // el ícono + borde + tint, no el color del texto (que antes quedaba ilegible en oscuro).
                         background: planData.requires_professional_review.renal_gate
-                            ? 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)'
-                            : 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
+                            ? 'rgba(239, 68, 68, 0.12)'
+                            : 'rgba(59, 130, 246, 0.12)',
                         border: planData.requires_professional_review.renal_gate
-                            ? '1.5px solid #FCA5A5' : '1.5px solid #93C5FD',
+                            ? '1.5px solid rgba(239, 68, 68, 0.45)'
+                            : '1.5px solid rgba(59, 130, 246, 0.45)',
                         borderRadius: '1rem',
                         padding: '1rem 1.25rem',
                         marginBottom: '1.5rem',
-                        boxShadow: '0 4px 12px -2px rgba(0,0,0,0.10)',
+                        boxShadow: '0 4px 12px -2px rgba(0,0,0,0.12)',
                         flexWrap: 'wrap'
                     }}
                     role="alert"
@@ -5099,13 +5117,13 @@ const DashboardInner = () => {
                 >
                     <AlertCircle
                         size={22}
-                        color={planData.requires_professional_review.renal_gate ? '#DC2626' : '#2563EB'}
+                        color={planData.requires_professional_review.renal_gate ? '#EF4444' : '#3B82F6'}
                         style={{ flexShrink: 0, marginTop: '2px' }}
                     />
                     <div style={{ flex: 1, minWidth: '200px' }}>
                         <span style={{
                             fontWeight: 700,
-                            color: planData.requires_professional_review.renal_gate ? '#991B1B' : '#1E40AF',
+                            color: 'var(--text-main)',
                             fontSize: '0.95rem', display: 'block', marginBottom: '0.25rem'
                         }}>
                             {planData.requires_professional_review.renal_gate
@@ -5113,12 +5131,26 @@ const DashboardInner = () => {
                                 : '⚕️ Declaraste una condición de salud — consulta a tu profesional'}
                         </span>
                         <span style={{
-                            color: planData.requires_professional_review.renal_gate ? '#B91C1C' : '#1D4ED8',
+                            color: 'var(--text-main)', opacity: 0.85,
                             fontSize: '0.85rem', whiteSpace: 'pre-line'
                         }}>
                             {planData.requires_professional_review.note}
                         </span>
                     </div>
+                    {/* [P2-PRO-REVIEW-DISMISS · 2026-06-27] X para ocultar el aviso (persistido por plan). */}
+                    <button
+                        type="button"
+                        onClick={dismissProReview}
+                        aria-label="Ocultar aviso de revisión profesional"
+                        title="Ocultar"
+                        style={{
+                            flexShrink: 0, background: 'transparent', border: 'none', cursor: 'pointer',
+                            padding: '4px', margin: '-2px -4px 0 0', borderRadius: '8px',
+                            color: 'var(--text-muted)', lineHeight: 0
+                        }}
+                    >
+                        <X size={18} strokeWidth={2.4} aria-hidden="true" />
+                    </button>
                 </motion.div>
             )}
 
