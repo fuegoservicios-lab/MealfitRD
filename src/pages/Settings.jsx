@@ -1738,7 +1738,7 @@ const Settings = () => {
 
                 <div className={`${styles.pageHeader} ${activeSection ? styles.pageHeaderInSection : ''}`}>
                     {/* Default (desktop siempre, móvil cuando NO hay sección activa). */}
-                    <h1 className={`${styles.pageTitle} ${styles.titleDesktop}`}>Ajustes</h1>
+                    <h1 className={`${styles.pageTitle} ${styles.titleDesktop}`}>Configuración</h1>
                     <p className={`${styles.pageSubtitle} ${styles.subtitleDesktop}`}>Gestiona tu cuenta, plan y preferencias.</p>
                     {/* Móvil cuando hay sección activa: refleja la sección. */}
                     {activeSection && activeSectionMeta && (

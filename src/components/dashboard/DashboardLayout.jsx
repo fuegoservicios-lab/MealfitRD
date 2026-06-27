@@ -318,7 +318,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                     role="menuitem"
                                 >
                                     <Settings size={16} strokeWidth={2.25} />
-                                    <span>Ajustes</span>
+                                    <span>Configuración</span>
                                 </Link>
                             )}
                             <Link
@@ -437,7 +437,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 role="menuitem"
                             >
                                 <Settings size={18} strokeWidth={2.5} />
-                                <span>Ajustes</span>
+                                <span>Configuración</span>
                             </Link>
                         )}
                         <Link

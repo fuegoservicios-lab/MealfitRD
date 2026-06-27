@@ -2752,7 +2752,7 @@ const AgentPage = () => {
                                         { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' },
                                         { icon: Refrigerator, label: 'Nevera', path: '/dashboard/pantry' },
                                         { icon: Clock, label: 'Historial', path: '/history' },
-                                        { icon: Settings, label: 'Ajustes', path: '/dashboard/settings' },
+                                        { icon: Settings, label: 'Configuración', path: '/dashboard/settings' },
                                         { icon: Home, label: 'Inicio', path: '/' }
                                     ].map((item) => (
                                         <button
