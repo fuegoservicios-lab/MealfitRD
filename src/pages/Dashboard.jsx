@@ -5127,14 +5127,16 @@ const DashboardInner = () => {
                             fontSize: '0.95rem', display: 'block', marginBottom: '0.25rem'
                         }}>
                             {planData.requires_professional_review.renal_gate
-                                ? '🫘 Condición renal — este plan requiere supervisión de tu nefrólogo'
-                                : '⚕️ Declaraste una condición de salud — consulta a tu profesional'}
+                                ? 'Condición renal — este plan requiere supervisión de tu nefrólogo'
+                                : 'Declaraste una condición de salud — consulta a tu profesional'}
                         </span>
                         <span style={{
                             color: 'var(--text-main)', opacity: 0.85,
                             fontSize: '0.85rem', whiteSpace: 'pre-line'
                         }}>
-                            {planData.requires_professional_review.note}
+                            {/* [P2-PRO-REVIEW-ICON-CLEANUP · 2026-06-27] El AlertCircle ya es el ícono del banner;
+                                quitamos el emoji ⚕️/🫘 redundante del inicio de la nota (strip de no-letras inicial). */}
+                            {String(planData.requires_professional_review.note || '').replace(/^[^\p{L}]+/u, '')}
                         </span>
                     </div>
                     {/* [P2-PRO-REVIEW-DISMISS · 2026-06-27] X para ocultar el aviso (persistido por plan). */}
