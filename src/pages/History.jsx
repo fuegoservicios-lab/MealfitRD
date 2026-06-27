@@ -10,6 +10,8 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './History.module.css';
+// [P1-CLINICAL-MEAL-COUNT · 2026-06-27] Emoji por SLOT (no por índice) — planes de 3/5/6 comidas.
+import { mealEmojiFor } from '../utils/mealEmoji';
 // [P2-HIST-MODALS-A11Y · 2026-05-30] Hook SSOT (P2-CUSTOM-MODALS-A11Y) con
 // role=dialog + aria-modal + ESC + focus-trap + restore-focus + body overflow
 // lock para los 3 modales custom del Historial (detalle + reactivar + eliminar).
@@ -1580,18 +1582,17 @@ const History = () => {
             || plan.plan_data?.meals
             || plan.plan_data?.perfectDay
             || [];
-        const emojis = ['🍳', '🍲', '🥗', '🍎'];
         // [P4-HIST-ARRAY-GUARD] Array.isArray: un plan_data.meals/perfectDay no-array (legacy)
         // lanzaba TypeError en .filter y tumbaba el render del listado.
         const activeMeals = (Array.isArray(meals) ? meals : []).filter(m => m.name && !m.isSkipped);
-        
+
         return (
             <div className={styles.mealPreviewContainer}>
                 {activeMeals.slice(0, 3).map((m, i) => {
                     const shortName = m.name.length > 20 ? m.name.substring(0, 18) + '…' : m.name;
                     return (
                         <div key={i} className={styles.mealPreviewBadge}>
-                            <span>{emojis[i] || '🍽️'}</span>
+                            <span>{mealEmojiFor(m.meal)}</span>
                             <span className={styles.mealPreviewText}>{shortName}</span>
                         </div>
                     );

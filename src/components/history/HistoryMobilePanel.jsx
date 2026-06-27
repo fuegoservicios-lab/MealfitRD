@@ -5,9 +5,8 @@ import React, { useMemo, useState } from "react";
 // NO los glyphs propios del prototipo. El detalle lo abre el modal REAL
 // (History.jsx vía onOpen); aquí solo está la LISTA. Solo se monta en móvil.
 import { CalendarDays, Flame, Search, Pencil, Trash2, Clock, X, Check } from "lucide-react";
-
-// Emojis de comida por orden (mismo SSOT que HistoryDesktopPanel / el modal real).
-const MEAL_EMOJIS = ["🍳", "🍲", "🥗", "🍎"];
+// [P1-CLINICAL-MEAL-COUNT · 2026-06-27] Emoji por SLOT (no por índice) — planes de 3/5/6 comidas.
+import { mealEmojiFor } from "../../utils/mealEmoji";
 
 /* --------------------------------------------------------- helpers */
 const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
@@ -25,7 +24,7 @@ function normalizePlan(raw, activePlanId) {
     : (raw.plan_data?.days?.[0]?.meals || raw.plan_data?.meals || raw.plan_data?.perfectDay || []);
   const meals = (Array.isArray(rawMeals) ? rawMeals : [])
     .filter((m) => m && m.name && !m.isSkipped)
-    .map((m, i) => ({ name: m.name, emoji: MEAL_EMOJIS[i] || "🍽️" }));
+    .map((m) => ({ name: m.name, emoji: mealEmojiFor(m.meal) }));
   return {
     raw,
     id: String(raw.id),

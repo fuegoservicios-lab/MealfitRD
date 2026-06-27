@@ -3,9 +3,8 @@ import React, { useMemo, useState } from "react";
 // Historial: emojis de comida en los chips + el calendario lucide. No usar los
 // glyphs propios (sol/pez/taza/luna) para las comidas.
 import { CalendarDays } from "lucide-react";
-
-// Emojis de comida por orden (mismo SSOT que renderMealPreview / el modal real).
-const MEAL_EMOJIS = ["🍳", "🍲", "🥗", "🍎"];
+// [P1-CLINICAL-MEAL-COUNT · 2026-06-27] Emoji por SLOT (no por índice) — planes de 3/5/6 comidas.
+import { mealEmojiFor } from "../../utils/mealEmoji";
 
 /**
  * HistoryDesktopPanel — vista "Historial" de escritorio (MealfitRD).
@@ -59,15 +58,6 @@ function Icon({ name, size = 20 }) {
   );
 }
 
-/* --------------------------------------------------------- constantes */
-const MEAL_TYPES = {
-  Desayuno: { tone: "#FBBF24", icon: "sun" },
-  Almuerzo: { tone: "#34D399", icon: "fish" },
-  Merienda: { tone: "#38BDF8", icon: "cup" },
-  Cena:     { tone: "#A78BFA", icon: "moon" },
-};
-const TYPE_ORDER = ["Desayuno", "Almuerzo", "Merienda", "Cena"];
-
 /* --------------------------------------------------------- helpers */
 const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -84,7 +74,7 @@ function normalizePlan(raw, activePlanId) {
     : (raw.plan_data?.days?.[0]?.meals || raw.plan_data?.meals || raw.plan_data?.perfectDay || []);
   const meals = (Array.isArray(rawMeals) ? rawMeals : [])
     .filter((m) => m && m.name && !m.isSkipped)
-    .map((m, i) => ({ name: m.name, emoji: MEAL_EMOJIS[i] || "🍽️" }));
+    .map((m) => ({ name: m.name, emoji: mealEmojiFor(m.meal) }));
   return {
     raw,
     id: String(raw.id),
