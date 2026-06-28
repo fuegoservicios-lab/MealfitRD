@@ -1413,7 +1413,6 @@ const Settings = () => {
                     open={showEvaluateModal}
                     busy={isNavigatingOption === 'renovar' || isResetting}
                     onClose={() => { if (isNavigatingRef.current || isResetting) return; setShowEvaluateModal(false); }}
-                    onCancel={() => { if (isNavigatingRef.current || isResetting) return; setShowEvaluateModal(false); }}
                     onConfirm={async (choiceId) => {
                         if (choiceId === 'renovar') {
                             if (isNavigatingRef.current) return;

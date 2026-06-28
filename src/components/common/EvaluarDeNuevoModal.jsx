@@ -110,18 +110,17 @@ function Tag({ tag }) {
   );
 }
 
-/* --------------------------------------------------------- fila seleccionable */
-function ChoiceRow({ choice, checked, disabled, onSelect }) {
+/* ----------------------------------------------------- fila = acción directa */
+function ChoiceRow({ choice, active, disabled, busyLabel, onClick }) {
   const [hover, setHover] = useState(false);
   const accent = choice.destructive ? "var(--danger)" : "var(--primary)";
+  const confirming = active && choice.destructive;
 
   return (
     <button
       type="button"
-      role="radio"
-      aria-checked={checked}
       disabled={disabled}
-      onClick={() => onSelect(choice.id)}
+      onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onFocus={() => setHover(true)}
@@ -138,9 +137,9 @@ function ChoiceRow({ choice, checked, disabled, onSelect }) {
         alignItems: "flex-start",
         padding: 14,
         borderRadius: 16,
-        background: checked ? `color-mix(in srgb, ${accent} 8%, transparent)` : "var(--bg-card)",
+        background: active ? `color-mix(in srgb, ${accent} 8%, transparent)` : "var(--bg-card)",
         border: `1.5px solid ${
-          checked ? accent : hover && !disabled ? "color-mix(in srgb, var(--text-muted) 40%, transparent)" : "var(--border)"
+          active ? accent : hover && !disabled ? "color-mix(in srgb, var(--text-muted) 40%, transparent)" : "var(--border)"
         }`,
         transition: "border-color .15s, background .15s",
       }}
@@ -155,11 +154,11 @@ function ChoiceRow({ choice, checked, disabled, onSelect }) {
           borderRadius: "50%",
           display: "grid",
           placeItems: "center",
-          border: `2px solid ${checked ? accent : "var(--border)"}`,
+          border: `2px solid ${active ? accent : "var(--border)"}`,
           transition: "border-color .15s",
         }}
       >
-        {checked && <span style={{ width: 10, height: 10, borderRadius: "50%", background: accent }} />}
+        {active && <span style={{ width: 10, height: 10, borderRadius: "50%", background: accent }} />}
       </span>
 
       {/* cuerpo */}
@@ -170,55 +169,11 @@ function ChoiceRow({ choice, checked, disabled, onSelect }) {
           </span>
           <Tag tag={choice.tag} />
         </span>
-        <span style={{ fontSize: ".78rem", lineHeight: 1.4, fontWeight: 500, color: "var(--text-muted)" }}>
-          {choice.desc}
+        <span style={{ fontSize: ".78rem", lineHeight: 1.4, fontWeight: confirming || busyLabel ? 700 : 500, color: confirming ? "var(--danger-text)" : "var(--text-muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          {confirming && !busyLabel && <Icon name="alert" size={13} stroke={2.4} />}
+          {busyLabel || (confirming ? "Toca de nuevo para borrar todo y volver al formulario." : choice.desc)}
         </span>
       </span>
-    </button>
-  );
-}
-
-/* ------------------------------------------------------------- botón confirmar */
-function ConfirmButton({ destructive, label, busy, busyLabel, onClick }) {
-  const [hover, setHover] = useState(false);
-  const accent = destructive ? "var(--danger)" : "var(--primary)";
-  const accentHover = destructive ? "var(--danger)" : "var(--primary-dark)";
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={busy}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      onFocus={() => setHover(true)}
-      onBlur={() => setHover(false)}
-      style={{
-        flex: 1,
-        appearance: "none",
-        font: "inherit",
-        cursor: busy ? "wait" : "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 13,
-        borderRadius: 14,
-        border: "none",
-        fontFamily: "var(--font-heading)",
-        fontWeight: 700,
-        fontSize: ".94rem",
-        // Texto sobre relleno de acento: usar la superficie como color contrasta
-        // en ambos temas (oscuro → texto oscuro, claro → texto blanco).
-        color: "var(--bg-card)",
-        background: busy ? accent : hover ? accentHover : accent,
-        opacity: busy ? 0.85 : 1,
-        filter: destructive && hover && !busy ? "brightness(.96)" : "none",
-        transform: hover && !busy ? "translateY(-1px)" : "none",
-        boxShadow: hover && !busy ? `0 14px 26px -14px ${accent}` : "none",
-        transition: "background .16s, transform .16s, box-shadow .16s, filter .16s",
-      }}
-    >
-      {busy ? busyLabel : label}
     </button>
   );
 }
@@ -227,15 +182,16 @@ function ConfirmButton({ destructive, label, busy, busyLabel, onClick }) {
 export default function EvaluarDeNuevoModal({
   open = true,
   title = "Evaluar de Nuevo",
-  subtitle = "Elige cómo generar tu nuevo plan, luego confirma.",
+  subtitle = "Elige cómo generar tu nuevo plan.",
   choices = DEFAULT_CHOICES,
-  defaultChoice = "renovar",
   busy = false,
   onConfirm = () => {},
-  onCancel = () => {},
   onClose = () => {},
 }) {
-  const [selected, setSelected] = useState(defaultChoice);
+  // `armed` = id de la opción destructiva a la espera del 2º toque; `actingId` =
+  // opción cuya acción está corriendo (para mostrar su loading).
+  const [armed, setArmed] = useState(null);
+  const [actingId, setActingId] = useState(null);
 
   // ESC para cerrar + bloqueo del scroll del body mientras está abierto.
   useEffect(() => {
@@ -250,10 +206,25 @@ export default function EvaluarDeNuevoModal({
     };
   }, [open, busy, onClose]);
 
+  // Resetea el estado "armado" al cerrar (el componente no se desmonta entre usos).
+  useEffect(() => {
+    if (!open) { setArmed(null); setActingId(null); }
+  }, [open]);
+
   if (!open) return null;
 
-  const current = choices.find((c) => c.id === selected) || choices[0];
-  const destructive = !!current.destructive;
+  const activate = (choice) => {
+    if (busy) return;
+    // Destructivo: el 1er toque ARMA la confirmación; el 2º ejecuta. El resto
+    // (renovar) actúa al instante. La X de arriba reemplaza a "Cancelar".
+    if (choice.destructive && armed !== choice.id) {
+      setArmed(choice.id);
+      return;
+    }
+    setArmed(null);
+    setActingId(choice.id);
+    onConfirm(choice.id);
+  };
 
   // Portal a <body>: garantiza que el overlay fixed cubra el viewport aunque algún
   // ancestro de la página tenga transform/filter (que romperían position:fixed).
@@ -353,55 +324,18 @@ export default function EvaluarDeNuevoModal({
           {subtitle}
         </p>
 
-        {/* opciones */}
-        <div role="radiogroup" aria-label={title} style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 18 }}>
+        {/* opciones = acciones directas (un toque). El destructivo pide un 2º toque. */}
+        <div role="group" aria-label={title} style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 18 }}>
           {choices.map((c) => (
-            <ChoiceRow key={c.id} choice={c} checked={c.id === selected} disabled={busy} onSelect={setSelected} />
+            <ChoiceRow
+              key={c.id}
+              choice={c}
+              active={armed === c.id}
+              disabled={busy}
+              busyLabel={busy && actingId === c.id ? (c.destructive ? "Borrando…" : "Generando tu plan…") : null}
+              onClick={() => activate(c)}
+            />
           ))}
-        </div>
-
-        {/* meta — SOLO el aviso de la vía destructiva. Los chips de "renovar"
-            (~30s / 1 regeneración / mantiene alergias) se quitaron por innecesarios. */}
-        {destructive && (
-          <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginTop: 16, minHeight: 30 }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: ".8rem", fontWeight: 700, color: "var(--danger-text)" }}>
-              <Icon name="alert" size={15} stroke={2.2} />
-              Borra todo tu progreso
-            </span>
-            <span style={{ fontSize: ".78rem", fontWeight: 500, color: "var(--text-muted)" }}>· Volverás al formulario inicial</span>
-          </div>
-        )}
-
-        {/* acciones */}
-        <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-          <button
-            type="button"
-            onClick={() => { if (!busy) onCancel(); }}
-            disabled={busy}
-            style={{
-              appearance: "none",
-              font: "inherit",
-              cursor: busy ? "default" : "pointer",
-              padding: "13px 16px",
-              borderRadius: 14,
-              fontFamily: "var(--font-heading)",
-              fontWeight: 600,
-              fontSize: ".9rem",
-              color: "var(--text-muted)",
-              background: "transparent",
-              border: "1px solid var(--border)",
-              opacity: busy ? 0.6 : 1,
-            }}
-          >
-            Cancelar
-          </button>
-          <ConfirmButton
-            destructive={destructive}
-            label={destructive ? "Empezar desde cero" : "Generar plan"}
-            busy={busy}
-            busyLabel={destructive ? "Borrando…" : "Generando…"}
-            onClick={() => { if (!busy) onConfirm(selected); }}
-          />
         </div>
       </div>
     </div>,
