@@ -1,0 +1,3 @@
+## 2024-06-28 - Explicit Menu Targeting for Accessibility
+**Learning:** When implementing toggleable menus or dropdowns (such as navigation or account menus) in the header, they should always include an `aria-controls` attribute on the trigger button that matches the explicit `id` of the target menu container to ensure programmatic accessibility and proper linking for screen readers.
+**Action:** Always verify that trigger buttons for expandable areas (like dropdowns or sidebars) contain `aria-controls` alongside `aria-expanded`, and that the targeted element explicitly declares the matching `id`.
