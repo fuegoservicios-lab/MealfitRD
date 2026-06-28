@@ -75,7 +75,7 @@ const DEFAULT_CHOICES = [
     id: "cero",
     title: "Empezar desde cero",
     desc: "Te lleva al formulario inicial y elimina tu plan actual.",
-    tag: { type: "danger", label: "Borra tu progreso" },
+    tag: { type: "danger", label: "Borra todo" },
     destructive: true,
   },
 ];
