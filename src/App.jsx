@@ -68,6 +68,31 @@ const MedicalDisclaimer = lazy(() => import('./pages/legal/LegalPages').then(m =
 // Anthropic (anthropic.com vs claude.ai) / OpenAI (openai.com vs chatgpt.com).
 const IS_APP_HOST = typeof window !== 'undefined' && /^app\./i.test(window.location.hostname);
 
+// [P3-APP-SUBDOMAIN-ROUTING · 2026-06-28] En el APEX (mealfitrd.com / www) solo
+// vive el MARKETING (landing + páginas legales). CUALQUIER ruta de la app
+// (login/dashboard/onboarding/etc.) se redirige a app.mealfitrd.com — el login +
+// dashboard viven SOLO en el subdominio (estilo claude.ai / chatgpt.com). Cubre a
+// la vez la navegación directa y los clicks de CTA de la landing (client-side), sin
+// tener que tocar cada CTA. El subdominio app.* NO redirige (sirve la app). La
+// sesión es per-origen (localStorage): un usuario logueado en el apex re-loguea en
+// app.* — fricción mínima y aceptada para cerrar el split.
+const IS_APEX_HOST = typeof window !== 'undefined'
+  && /^(www\.)?mealfitrd\.com$/i.test(window.location.hostname);
+const APP_ROUTE_PREFIXES = ['/login', '/register', '/reset-password', '/assessment', '/plan', '/configuracion', '/dashboard', '/history'];
+
+const ApexAppRedirect = () => {
+  const location = useLocation();
+  useEffect(() => {
+    if (!IS_APEX_HOST) return;
+    const p = location.pathname;
+    const isAppRoute = APP_ROUTE_PREFIXES.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
+    if (isAppRoute) {
+      window.location.replace(`https://app.mealfitrd.com${p}${location.search}`);
+    }
+  }, [location]);
+  return null;
+};
+
 // --- Minimal loading fallback (Empty to prevent double loading screens) ---
 const PageLoader = () => <div className="min-h-screen bg-slate-50/50" />;
 
@@ -188,6 +213,8 @@ function App() {
     <AssessmentProvider>
       <Router>
         <ScrollRestoration />
+        {/* [P3-APP-SUBDOMAIN-ROUTING · 2026-06-28] Apex → app.* para rutas de app. */}
+        <ApexAppRedirect />
         <IOSInstallPrompt />
         {/* [P1-TOASTER-MISSING · 2026-05-30] <Toaster/> de sonner. SIN este
             componente montado, sonner NO renderiza NINGÚN toast (no auto-monta).
