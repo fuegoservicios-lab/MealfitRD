@@ -63,8 +63,9 @@
 .headerLeft {
     display: flex;
     align-items: center;
-    /* [P3-SEO-MARKETING-NAV] Separación logo↔nav: 2rem se veía pegado al logo. */
-    gap: 3.5rem;
+    /* [P3-SEO-MARKETING-NAV] Separación logo↔nav responsiva: ~48px en laptop,
+       hasta ~96px en pantallas anchas. Antes 2rem/3.5rem se veía pegado al logo. */
+    gap: clamp(3rem, 4vw, 6rem);
     min-width: 0;
 }
 
