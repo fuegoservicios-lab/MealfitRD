@@ -4,8 +4,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet }
 // renderiza ningún toast (sonner no auto-monta). Ver el render abajo.
 import { Toaster } from 'sonner';
 import Layout from './components/layout/Layout';
-import DashboardLayout from './components/dashboard/DashboardLayout';
-import Login from './pages/Login';
 // [P1-EMAIL-OTP · 2026-06-21] /register quedó retirado: el login por código crea
 // la cuenta en el primer acceso (un solo flujo). La ruta redirige a /login para
 // no romper los CTA "crear cuenta" repartidos por la app (Upgrade/Pricing/etc.).
@@ -35,6 +33,13 @@ import { initTheme } from './utils/theme';
 // landing). Renderiza dentro del <Suspense> de AnimatedLayout (mismo patrón que las
 // páginas legales, que ya usan <Layout><X/></Layout> lazy y funcionan).
 const Home = lazy(() => import('./pages/Home'));
+// [P3-APP-SUBDOMAIN-BUILD-SEP · 2026-06-28] Login y DashboardLayout son código
+// EXCLUSIVO del app (app.mealfitrd.com); antes eran imports eager → engordaban el
+// chunk de entrada que la landing de marketing (apex) descarga sin usarlos. Lazy
+// los saca del entry → marketing más liviano. Suspense ya provisto por
+// AnimatedLayout/DashboardAnimatedLayout.
+const Login = lazy(() => import('./pages/Login'));
+const DashboardLayout = lazy(() => import('./components/dashboard/DashboardLayout'));
 const Assessment = lazy(() => import('./pages/Assessment'));
 const Plan = lazy(() => import('./pages/Plan'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
