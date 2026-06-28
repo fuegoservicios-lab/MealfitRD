@@ -89,6 +89,7 @@ function Tag({ tag }) {
     <span
       style={{
         display: "inline-flex",
+        flex: "none",
         alignItems: "center",
         gap: 5,
         padding: "4px 9px",
@@ -163,8 +164,8 @@ function ChoiceRow({ choice, checked, disabled, onSelect }) {
 
       {/* cuerpo */}
       <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 }}>
-        <span style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: ".98rem", color: "var(--text-main)" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "nowrap", minWidth: 0 }}>
+          <span style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: ".98rem", color: "var(--text-main)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
             {choice.title}
           </span>
           <Tag tag={choice.tag} />
