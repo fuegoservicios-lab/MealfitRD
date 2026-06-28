@@ -126,7 +126,13 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     // Reusa la misma lógica guest/tier del popover previo: invitado → 'Invitado'
     // + sub-label "Plan de muestra"; free registrado → 'Gratuito'; premium → tier.
     const realEmail = session?.user?.email || '';
-    const accountName = isGuest ? 'Invitado' : (realEmail ? realEmail.split('@')[0] : 'Cuenta');
+    // [P3-ACCOUNT-MENU-NAME · 2026-06-27] Nombre real del perfil ("Nombre Completo"
+    // de Settings = userProfile.full_name); fallback al local del email si aún no
+    // se ha guardado un nombre.
+    const profileName = (userProfile?.full_name || '').trim();
+    const accountName = isGuest
+        ? 'Invitado'
+        : (profileName || (realEmail ? realEmail.split('@')[0] : 'Cuenta'));
     const accountEmail = isGuest ? null : (realEmail || null);
     const accountSubLabel = isGuest ? 'Plan de muestra' : null;
     const planLabel = isGuest
