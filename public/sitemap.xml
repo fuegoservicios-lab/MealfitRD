@@ -1,40 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- [P3-SEO-SITEMAP · 2026-05-31] Rutas públicas reales del SPA. El landing (/)
-     es el home; /login y /register son el funnel; las 4 páginas legales son
-     públicas (fuera de ProtectedRoute en App.jsx). -->
+<!-- [P3-SEO-SITEMAP · 2026-05-31 · act. 2026-06-28] Rutas públicas reales del SPA.
+     El landing (/) es el home; /login es el funnel; las 4 páginas legales son
+     públicas (fuera de ProtectedRoute en App.jsx). /register se removió: App.jsx
+     lo redirige a /login (P1-EMAIL-OTP), un sitemap no debe listar redirects. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://mealfitrd.com/</loc>
+    <lastmod>2026-06-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://mealfitrd.com/register</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://mealfitrd.com/login</loc>
+    <lastmod>2026-06-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://mealfitrd.com/privacy</loc>
+    <lastmod>2026-05-31</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://mealfitrd.com/terms</loc>
+    <lastmod>2026-05-31</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://mealfitrd.com/cookies</loc>
+    <lastmod>2026-05-31</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://mealfitrd.com/medical</loc>
+    <lastmod>2026-05-31</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

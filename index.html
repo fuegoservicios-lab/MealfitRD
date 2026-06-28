@@ -50,6 +50,7 @@
   <title>MealfitRD | Nutrición Personalizada con IA</title>
   <meta name="description" content="Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis." />
   <meta name="theme-color" content="#4F46E5" />
+  <meta name="application-name" content="MealfitRD" />
   <meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
   <link rel="canonical" href="https://mealfitrd.com/" />
 
@@ -58,8 +59,8 @@
        Slack, Telegram, Facebook, X) que hace GET a cualquier ruta recibe este
        index.html estático. Sin OG la preview cae a URL cruda sin imagen, lo que
        reduce el CTR de un producto cuyo crecimiento depende de compartir el
-       enlace. La imagen física vive en /public/og-image.png (1200×630). La CSP
-       de vercel.json (img-src 'self' data: blob: https:) ya la permite. -->
+       enlace. La imagen física vive en /public/og-image.png (1200×1200, cuadrada;
+       coincide con og:image:width/height). La CSP de nginx ya la permite. -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="MealfitRD" />
   <meta property="og:title" content="MealfitRD | Nutrición Personalizada con IA" />
@@ -90,7 +91,28 @@
       "areaServed": {
         "@type": "Country",
         "name": "República Dominicana"
-      }
+      },
+      "sameAs": [
+        "https://www.instagram.com/mealfit_rd",
+        "https://www.facebook.com/share/1HkwoX8zHF/",
+        "https://www.tiktok.com/@mealfitrd",
+        "https://www.youtube.com/@MealfitRD"
+      ]
+    }
+  </script>
+
+  <!-- [P3-SEO-WEBSITE-JSONLD · 2026-06-28] Structured data WebSite — señal
+       primaria que Google usa para el NOMBRE DEL SITIO en negrita en los
+       resultados (junto a og:site_name + <title>). Sin potentialAction/
+       SearchAction: no hay endpoint de búsqueda público indexable. -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "MealfitRD",
+      "alternateName": "Mealfit RD",
+      "url": "https://mealfitrd.com/",
+      "inLanguage": "es-DO"
     }
   </script>
 

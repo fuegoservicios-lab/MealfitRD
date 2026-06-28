@@ -83,10 +83,27 @@ const Header = () => {
             <div className={`container ${styles.container}`}>
                 {/* [P3-HEADER-LOGO-LINK · 2026-05-31] El logo ahora es Link a "/"
                     (convención universal: el logo lleva al inicio). Antes era un
-                    <div> inerte. */}
-                <Link to="/" className={styles.logo} aria-label="MealfitRD — Inicio">
-                    Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
-                </Link>
+                    <div> inerte.
+                    [P3-SEO-MARKETING-NAV · 2026-06-28] Cluster izquierdo: logo +
+                    nav de secciones del landing. Da a Google enlaces internos con
+                    anchor-text descriptivo (base para sitelinks/jump-links) y al
+                    usuario navegación. Solo en isHome. Visible en desktop; en móvil
+                    queda display:none PERO presente en el DOM (mobile-first indexing
+                    lo lee). Anchors nativos (#id) — los <a href="#"> no los intercepta
+                    react-router; las secciones ya tienen los id correspondientes. */}
+                <div className={styles.headerLeft}>
+                    <Link to="/" className={styles.logo} aria-label="MealfitRD — Inicio">
+                        Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
+                    </Link>
+                    {isHome && (
+                        <nav className={styles.navMarketing} aria-label="Secciones de la página">
+                            <a href="#how-it-works" className={styles.navMarketingLink}>Cómo funciona</a>
+                            <a href="#dashboard" className={styles.navMarketingLink}>Funciones</a>
+                            <a href="#benchmarks" className={styles.navMarketingLink}>Precisión</a>
+                            <a href="#pricing" className={styles.navMarketingLink}>Precios</a>
+                        </nav>
+                    )}
+                </div>
 
                 {/* [HEADER-STICKY-CTA · 2026-05-31] Cluster derecho: agrupa CTA sticky
                     + nav + toggle, alineados juntos a la derecha. El navMobile

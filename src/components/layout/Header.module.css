@@ -56,6 +56,40 @@
     border-radius: 50%;
 }
 
+/* [P3-SEO-MARKETING-NAV · 2026-06-28] Cluster izquierdo (logo + nav de secciones)
+   y enlaces de marketing del landing. El nav vive en el DOM siempre que isHome
+   (mobile-first indexing lo lee); display:none <768px lo oculta visualmente sin
+   sacarlo del HTML. Desktop: fila de enlaces junto al logo (patrón SaaS). */
+.headerLeft {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    min-width: 0;
+}
+
+.navMarketing {
+    display: none;
+}
+
+.navMarketingLink {
+    color: #475569;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    transition: color 0.2s ease;
+}
+
+.navMarketingLink:hover {
+    color: var(--primary);
+}
+
+.navMarketingLink:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
 .navDesktop {
     display: none;
     align-items: center;
@@ -279,6 +313,12 @@
         display: flex;
     }
 
+    .navMarketing {
+        display: flex;
+        align-items: center;
+        gap: 1.75rem;
+    }
+
     .mobileToggle {
         display: none;
     }
@@ -323,6 +363,12 @@
 :global(html[data-theme="dark"]) .navLink:hover {
     color: var(--text-main);
     background: var(--bg-muted);
+}
+:global(html[data-theme="dark"]) .navMarketingLink {
+    color: var(--text-muted);
+}
+:global(html[data-theme="dark"]) .navMarketingLink:hover {
+    color: var(--text-main);
 }
 :global(html[data-theme="dark"]) .ctaButton,
 :global(html[data-theme="dark"]) .ctaButtonMobile {
