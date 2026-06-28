@@ -1,0 +1,156 @@
+/* [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Card del menú de cuenta del sidebar.
+   Diseño aportado por el owner: encabezado de plan con gradiente, items con
+   icon-chips redondeados, "Cerrar sesión" en danger, y pie de cuenta con avatar.
+   Todos los colores vienen de los tokens de index.css → hereda tema claro/oscuro
+   gratis. El ancho lo controla el wrapper del popover (.accountMenuPopover en
+   DashboardLayout.module.css), por eso .card es width:100% en vez de 288px fijo. */
+.card {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  font-family: var(--font-body);
+}
+
+/* — Encabezado de plan — */
+.planHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid var(--border);
+  background: radial-gradient(130% 120% at 100% 0%,
+              color-mix(in srgb, var(--primary) 18%, transparent), transparent 55%);
+}
+.planInfo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.kicker {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.planNameRow { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.planName {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.planAccessory { display: inline-flex; flex: none; color: var(--primary); }
+
+.verBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 9px 13px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.16s, transform 0.16s;
+}
+.verBtn:hover { background: var(--primary-dark); transform: translateY(-1px); }
+.verChevron { width: 14px; height: 14px; }
+/* En oscuro el primary es claro → texto oscuro para contraste (idéntico al DS) */
+:global(html[data-theme='dark']) .verBtn { color: #0b1120; }
+:global(html[data-theme='dark']) .verBtn:hover { background: var(--primary-light); }
+
+/* — Lista de acciones — */
+.menu { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; }
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.14s;
+}
+.item:hover { background: var(--bg-muted); }
+.itemLabel { font-size: 14px; font-weight: 600; color: var(--text-main); }
+
+.iconChip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 9px;
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  transition: color 0.14s;
+}
+.icon { width: 16px; height: 16px; }
+.item:hover .iconChip { color: var(--text-main); }
+
+/* Cerrar sesión */
+.logout:hover { background: var(--danger-bg); }
+.logout .itemLabel { color: var(--danger); }
+.logoutChip {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+.logout:hover .logoutChip { color: var(--danger); }
+
+/* Slot de invitado (selector de tema en vez de "Configuración") */
+.settingsSlot { padding: 4px 6px 2px; }
+
+/* — Pie de cuenta — */
+.footer { border-top: 1px solid var(--border); padding: 10px; }
+.account {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.16s;
+}
+.account:hover { background: var(--bg-muted); }
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 14px;
+}
+.accountText { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.name { font-family: var(--font-heading); font-weight: 600; font-size: 13.5px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.email {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.accountChevron { width: 15px; height: 15px; flex: none; color: var(--text-light); }
+.account:hover .accountChevron { color: var(--text-main); }

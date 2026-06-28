@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, User, Menu, X, Clock, Refrigerator, Home, ChevronUp, ChevronRight, Crown, Lock } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, User, Menu, X, Clock, Refrigerator, Home, ChevronUp, Crown, Lock } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -15,6 +15,8 @@ import LogoutConfirmModal from './LogoutConfirmModal';
 // [P1-GUEST-APPEARANCE · 2026-06-15] Selector de tema inline para invitados.
 import GuestAppearanceToggle from './GuestAppearanceToggle';
 import BottomTabBar from './BottomTabBar';
+// [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Card del menú de cuenta (rediseño owner).
+import AccountMenu from './AccountMenu';
 // [P1-APP-VERSION · 2026-06-19] Versión visible bajo el wordmark (SSOT en config).
 import { APP_VERSION } from '../../config/appVersion';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatar minimalista elegido en Ajustes, reflejado
@@ -119,6 +121,25 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const userEmail = isGuest ? 'Invitado' : (session?.user?.email || 'Cuenta');
     const logoutLabel = isGuest ? 'Salir del modo invitado' : 'Cerrar sesión';
 
+    // [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Datos para la card del menú de cuenta.
+    // Reusa la misma lógica guest/tier del popover previo: invitado → 'Invitado'
+    // + sub-label "Plan de muestra"; free registrado → 'Gratuito'; premium → tier.
+    const realEmail = session?.user?.email || '';
+    const accountName = isGuest ? 'Invitado' : (realEmail ? realEmail.split('@')[0] : 'Cuenta');
+    const accountEmail = isGuest ? null : (realEmail || null);
+    const accountSubLabel = isGuest ? 'Plan de muestra' : null;
+    const planLabel = isGuest
+        ? 'Invitado'
+        : !isPremium
+        ? 'Gratuito'
+        : userProfile?.plan_tier === 'ultra' ? 'Ultra'
+        : userProfile?.plan_tier === 'plus' ? 'Plus'
+        : 'Básico';
+    const isUltraTier = isPremium && userProfile?.plan_tier === 'ultra';
+    const accountAvatarNode = avatarId
+        ? <MinimalAvatar id={avatarId} size={34} style={{ borderRadius: '50%', width: '100%', height: '100%' }} />
+        : null;
+
     return (
         <div className={`${styles.container} ${isSettings ? styles.standalonePage : ''}`}>
 
@@ -220,131 +241,39 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 </nav>
 
                 <div className={styles.accountSection} ref={accountMenuRef}>
+                    {/* [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Card del menú de cuenta
+                        (rediseño aportado por el owner). El popover se ancla a `bottom:0`
+                        para que su pie de cuenta caiga exactamente sobre el botón
+                        disparador (oculto vía visibility mientras está abierto) → la card
+                        "reemplaza" al disparador sin duplicar la fila de cuenta. Conserva:
+                        modo invitado (selector de tema en vez de Configuración + sub-label),
+                        tiers premium (Crown en Ultra), avatar minimalista y el modal de
+                        confirmación de logout. */}
                     {isAccountMenuOpen && (
-                        <div className={styles.accountPopover} role="menu">
-                            {/* [P3-UPGRADE-FUSION · 2026-05-26] Mini-sección
-                                del plan tier fusionada con el popover. Antes
-                                el chip ULTRA/PLUS/etc. vivía en el header del
-                                Dashboard (clickeable → /dashboard/upgrade).
-                                Movido aquí para consolidar todas las acciones
-                                de cuenta en un único surface. */}
-                            {/* [P3-CHIP-TIER-COLORS-DESKTOP · 2026-05-27] El tinte
-                                dorado del header se aplica SOLO cuando el tier
-                                es Ultra (max premium). Basic/Plus tienen su
-                                color en el badge pero NO tiñen todo el popover
-                                — evita "ruido visual" en el surface compartido
-                                con los items Ajustes/Inicio/Cerrar. */}
-                            <div className={`${styles.accountPlanHeader} ${userProfile?.plan_tier === 'ultra' ? styles.accountPlanHeaderPremium : ''}`}>
-                                <div className={styles.accountPlanLabel}>Tu plan</div>
-                                {/* [P3-UPGRADE-FUSION-V3 · 2026-05-26] Badge
-                                    ULTRA/PLUS/etc. desacoplado del Link. El
-                                    badge es un `<span>` inerte (cursor default,
-                                    no clickeable, sin role) que solo muestra
-                                    el tier. El CTA "Ver Planes" sigue siendo
-                                    el único elemento clickeable que navega a
-                                    /dashboard/upgrade. Diseño claro: badge =
-                                    estado, link = acción.
-
-                                    [P3-CHIP-TIER-COLORS-DESKTOP · 2026-05-27]
-                                    Paleta diferenciada por tier (paridad con
-                                    mobile): free=slate, basic=emerald,
-                                    plus=indigo, ultra=amber+shimmer+Crown. */}
-                                {(() => {
-                                    // [P1-GUEST-BADGE · 2026-06-21] Invitado real → 'Invitado'
-                                    // (no 'GRATUITO', que es el free REGISTRADO). isGuest gana primero.
-                                    const tierVariant = !isPremium
-                                        ? 'free'
-                                        : userProfile?.plan_tier === 'ultra' ? 'ultra'
-                                        : userProfile?.plan_tier === 'plus' ? 'plus'
-                                        : 'basic';
-                                    const tierLabel = isGuest
-                                        ? 'Invitado'
-                                        : !isPremium
-                                        ? 'GRATUITO'
-                                        : userProfile?.plan_tier === 'ultra' ? 'ULTRA'
-                                        : userProfile?.plan_tier === 'plus' ? 'PLUS'
-                                        : 'BÁSICO';
-                                    const badgeClass = [
-                                        styles.accountPlanBadge,
-                                        styles[`accountPlanBadge${tierVariant.charAt(0).toUpperCase() + tierVariant.slice(1)}`],
-                                    ].filter(Boolean).join(' ');
-                                    return (
-                                        <div className={styles.accountPlanRow}>
-                                            <span
-                                                className={badgeClass}
-                                                aria-label={`Plan actual: ${tierLabel}`}
-                                            >
-                                                {tierVariant === 'ultra' && (
-                                                    <Crown
-                                                        size={11}
-                                                        strokeWidth={2.5}
-                                                        className={styles.accountPlanBadgeIcon}
-                                                        aria-hidden="true"
-                                                    />
-                                                )}
-                                                {tierLabel}
-                                            </span>
-                                            <Link
-                                                to="/dashboard/upgrade"
-                                                className={styles.accountPlanCta}
-                                                onClick={() => { setIsAccountMenuOpen(false); closeMenu(); }}
-                                                onMouseEnter={() => prefetchRoute('/dashboard/upgrade')}
-                                                onFocus={() => prefetchRoute('/dashboard/upgrade')}
-                                                onTouchStart={() => prefetchRoute('/dashboard/upgrade')}
-                                                role="menuitem"
-                                                aria-label="Comparar planes"
-                                            >
-                                                Ver Planes
-                                                <ChevronRight size={13} strokeWidth={2.5} />
-                                            </Link>
-                                        </div>
-                                    );
-                                })()}
-                            </div>
-                            {/* [P1-GUEST-APPEARANCE · 2026-06-15] Para invitados,
-                                "Ajustes" (página completa, gateada + fetches auth)
-                                se sustituye por el único ajuste que aplica sin
-                                cuenta: la apariencia (tema). Cuenta real → Ajustes. */}
-                            {isGuest ? (
-                                <GuestAppearanceToggle />
-                            ) : (
-                                <Link
-                                    to="/dashboard/settings"
-                                    className={styles.accountItem}
-                                    onClick={() => { setIsAccountMenuOpen(false); closeMenu(); }}
-                                    onMouseEnter={() => prefetchRoute('/dashboard/settings')}
-                                    onFocus={() => prefetchRoute('/dashboard/settings')}
-                                    onTouchStart={() => prefetchRoute('/dashboard/settings')}
-                                    role="menuitem"
-                                >
-                                    <Settings size={16} strokeWidth={2.25} />
-                                    <span>Configuración</span>
-                                </Link>
-                            )}
-                            <Link
-                                to="/"
-                                className={styles.accountItem}
-                                onClick={() => { setIsAccountMenuOpen(false); closeMenu(); }}
-                                role="menuitem"
-                            >
-                                <Home size={16} strokeWidth={2.25} />
-                                <span>Inicio</span>
-                            </Link>
-                            <button
-                                type="button"
-                                className={`${styles.accountItem} ${styles.accountItemDanger}`}
-                                onClick={() => { setIsAccountMenuOpen(false); setShowLogoutModal(true); }}
-                                role="menuitem"
-                            >
-                                <LogOut size={16} strokeWidth={2.25} />
-                                <span>{logoutLabel}</span>
-                            </button>
+                        <div className={styles.accountMenuPopover}>
+                            <AccountMenu
+                                user={{ name: accountName, email: accountEmail }}
+                                plan={planLabel}
+                                planAccessory={isUltraTier ? <Crown size={15} strokeWidth={2.5} /> : null}
+                                avatar={accountAvatarNode}
+                                subLabel={accountSubLabel}
+                                settingsSlot={isGuest ? <GuestAppearanceToggle /> : null}
+                                logoutLabel={logoutLabel}
+                                onViewPlans={() => { setIsAccountMenuOpen(false); closeMenu(); navigate('/dashboard/upgrade'); }}
+                                onViewPlansHover={() => prefetchRoute('/dashboard/upgrade')}
+                                onSettings={() => { setIsAccountMenuOpen(false); closeMenu(); navigate('/dashboard/settings'); }}
+                                onSettingsHover={() => prefetchRoute('/dashboard/settings')}
+                                onHome={() => { setIsAccountMenuOpen(false); closeMenu(); navigate('/'); }}
+                                onLogout={() => { setIsAccountMenuOpen(false); setShowLogoutModal(true); }}
+                                onAccount={() => setIsAccountMenuOpen(false)}
+                            />
                         </div>
                     )}
                     <button
                         type="button"
                         className={`${styles.accountBtn} ${isGuest ? styles.accountBtnGuest : ''}`}
                         onClick={() => setIsAccountMenuOpen(prev => !prev)}
+                        style={{ visibility: isAccountMenuOpen ? 'hidden' : 'visible' }}
                         aria-haspopup="menu"
                         aria-expanded={isAccountMenuOpen}
                         aria-label="Abrir menú de cuenta"

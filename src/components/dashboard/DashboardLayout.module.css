@@ -259,6 +259,20 @@
     position: relative;
 }
 
+/* [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Wrapper del popover de la nueva card de
+   cuenta (AccountMenu). Se ancla a bottom:0 — su pie de cuenta queda encima del
+   botón disparador (oculto con visibility mientras está abierto), así la card
+   "reemplaza" al disparador en vez de duplicar la fila de cuenta. La card crece
+   hacia arriba sobre el nav. Reusa la entrada del popover anterior. */
+.accountMenuPopover {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    animation: accountPopoverIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .accountBtn {
     width: 100%;
     display: flex;
