@@ -543,28 +543,34 @@
 /* [P1-LEGAL-ACK · 2026-06-21] Nota de privacidad al pie del login (var-based →
    se adapta al tema; en el login el card es oscuro). */
 .legalNote {
-    margin: 1.5rem auto 0;
-    max-width: 25rem;
+    /* [LOGIN-LEGAL-NOTE-TYPO] El contenido de la tarjeta mide 25rem; con
+       max-width 25rem el aviso iba BORDE A BORDE en una sola línea larga → se
+       sentía "pegado/raro". Se baja el ancho para que respire y caiga en 2 líneas
+       equilibradas (text-wrap: balance), y se quita el letter-spacing (en texto de
+       0.75rem el tracking extra es justo lo que se sentía "suelto/raro"). */
+    margin: 1.75rem auto 0;
+    max-width: 18rem;
     text-align: center;
+    text-wrap: balance;
     font-size: 0.75rem;
-    line-height: 1.7;          /* más aire entre líneas */
-    letter-spacing: 0.015em;   /* descongestiona el kerning a tamaño pequeño */
-    color: var(--text-muted);  /* legible sin gritar (antes --text-light se perdía en oscuro) */
+    line-height: 1.55;
+    color: var(--text-muted);
 }
 
 .legalLink {
-    color: var(--text-main);   /* resalta como la parte accionable del aviso */
+    color: var(--text-muted);                  /* menos claridad (parte sutil del aviso) */
     font-weight: 600;
-    text-decoration: none;            /* sin subrayado por defecto; solo en hover */
-    text-underline-offset: 3px;       /* el subrayado no pegado al texto (cuando aparece) */
+    text-decoration: underline;                /* subrayado SIEMPRE visible… */
+    text-decoration-color: var(--text-light);  /* …pero tenue por defecto */
+    text-underline-offset: 3px;
     text-decoration-thickness: 1px;
-    white-space: nowrap;              /* "Política de Privacidad" no se parte a media frase */
-    transition: color 0.18s ease;
+    white-space: nowrap;                       /* "Política de Privacidad" no se parte a media frase */
+    transition: color 0.18s ease, text-decoration-color 0.18s ease;
 }
 
 .legalLink:hover {
-    color: #5EEAD4;
-    text-decoration: underline;       /* subrayado solo al pasar el mouse */
+    color: var(--text-main);                   /* al pasar el mouse el texto se aclara… */
+    text-decoration-color: var(--text-main);   /* …y el subrayado se aclara (se vuelve nítido) */
 }
 
 /* --- Footer Utilities --- */
