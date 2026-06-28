@@ -254,7 +254,7 @@ export const useRegeneratePlan = () => {
             }
 
             if (toastId) toast.dismiss(toastId);
-            navigate('/plan', { state: { previous_meals: previousMeals, current_pantry_ingredients: typeof currentIngredients !== 'undefined' ? currentIngredients : [], update_reason: reason, _renewal_pantry_aware: renewalPantryAware, durable_pantry_ingredients: durablePantryIngredients, is_plan_expired: actualIsPlanExpired, entry_point, disliked_meals: Object.keys(dislikedMeals || {}) } });
+            navigate('/plan', { state: { previous_meals: previousMeals, current_pantry_ingredients: typeof currentIngredients !== 'undefined' ? currentIngredients : [], update_reason: reason, renewal_pantry_aware: renewalPantryAware, durable_pantry_ingredients: durablePantryIngredients, is_plan_expired: actualIsPlanExpired, entry_point, disliked_meals: Object.keys(dislikedMeals || {}) } });
         } else {
             // [P1-B6] Falta algún campo requerido. Toast informativo + redirect
             // a /assessment (antes el redirect era silencioso y el usuario no
