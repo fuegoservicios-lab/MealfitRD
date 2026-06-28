@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Home, Crown, Lock } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Crown, Lock } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -270,7 +270,6 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 onViewPlansHover={() => prefetchRoute('/dashboard/upgrade')}
                                 onSettings={() => { setIsAccountMenuOpen(false); closeMenu(); navigate('/dashboard/settings'); }}
                                 onSettingsHover={() => prefetchRoute('/dashboard/settings')}
-                                onHome={() => { setIsAccountMenuOpen(false); closeMenu(); navigate('/'); }}
                                 onLogout={() => { setIsAccountMenuOpen(false); setShowLogoutModal(true); }}
                                 onAccount={() => setIsAccountMenuOpen(false)}
                             />
@@ -338,7 +337,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
             {location.pathname.replace(/\/$/, '') === '/dashboard' && <NotificationCenter />}
 
 
-            {/* Mobile More Menu (Ajustes + Inicio + Cerrar Sesión) — rendered at container root to escape stacking contexts */}
+            {/* Mobile More Menu (Configuración + Cerrar Sesión) — rendered at container root to escape stacking contexts */}
             {isMobileMoreMenuOpen && (
                 <>
                     <div
@@ -362,15 +361,6 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 <span>Configuración</span>
                             </Link>
                         )}
-                        <Link
-                            to="/"
-                            className={styles.mobileMoreItem}
-                            onClick={closeMoreMenu}
-                            role="menuitem"
-                        >
-                            <Home size={18} strokeWidth={2.5} />
-                            <span>Inicio</span>
-                        </Link>
                         <button
                             className={`${styles.mobileMoreItem} ${styles.mobileMoreItemDanger}`}
                             onClick={() => {

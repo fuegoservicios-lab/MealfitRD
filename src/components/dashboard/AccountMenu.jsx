@@ -21,15 +21,6 @@ const GearIcon = (p) => (
   </svg>
 );
 
-const HomeIcon = (p) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
-       strokeLinecap="round" strokeLinejoin="round" {...p}>
-    <path d="M3 10.5 12 3l9 7.5" />
-    <path d="M5 9.5V21h14V9.5" />
-    <path d="M9.5 21v-6h5v6" />
-  </svg>
-);
-
 const LogoutIcon = (p) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
        strokeLinecap="round" strokeLinejoin="round" {...p}>
@@ -129,7 +120,6 @@ export default function AccountMenu({
   onViewPlansHover,
   onSettings,
   onSettingsHover,
-  onHome,
   onLogout,
   onAccount,
 }) {
@@ -177,11 +167,6 @@ export default function AccountMenu({
           </button>
         )}
 
-        <button type="button" className={styles.item} role="menuitem" onClick={onHome}>
-          <span className={styles.iconChip}><HomeIcon className={styles.icon} /></span>
-          <span className={styles.itemLabel}>Inicio</span>
-        </button>
-
         <button
           type="button"
           className={`${styles.item} ${styles.logout}`}
@@ -225,7 +210,6 @@ AccountMenu.propTypes = {
   onViewPlansHover: PropTypes.func,
   onSettings: PropTypes.func,
   onSettingsHover: PropTypes.func,
-  onHome: PropTypes.func,
   onLogout: PropTypes.func,
   onAccount: PropTypes.func,
 };
