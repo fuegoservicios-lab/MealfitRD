@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, User, Menu, X, Clock, Refrigerator, Home, ChevronUp, Crown, Lock } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Home, Crown, Lock } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -16,7 +16,9 @@ import LogoutConfirmModal from './LogoutConfirmModal';
 import GuestAppearanceToggle from './GuestAppearanceToggle';
 import BottomTabBar from './BottomTabBar';
 // [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Card del menú de cuenta (rediseño owner).
-import AccountMenu from './AccountMenu';
+// AccountIdentityButton = la fila de cuenta compartida: pie de la card (abierto)
+// Y disparador del sidebar (cerrado) → ambos estados idénticos por construcción.
+import AccountMenu, { AccountIdentityButton } from './AccountMenu';
 // [P1-APP-VERSION · 2026-06-19] Versión visible bajo el wordmark (SSOT en config).
 import { APP_VERSION } from '../../config/appVersion';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatar minimalista elegido en Ajustes, reflejado
@@ -118,7 +120,6 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     ];
 
     // [P1-GUEST-LOGOUT · 2026-06-15] Un invitado no tiene email: mostrar "Invitado".
-    const userEmail = isGuest ? 'Invitado' : (session?.user?.email || 'Cuenta');
     const logoutLabel = isGuest ? 'Salir del modo invitado' : 'Cerrar sesión';
 
     // [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Datos para la card del menú de cuenta.
@@ -269,36 +270,22 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                             />
                         </div>
                     )}
-                    <button
-                        type="button"
-                        className={`${styles.accountBtn} ${isGuest ? styles.accountBtnGuest : ''}`}
+                    {/* [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Disparador (estado
+                        cerrado) = la MISMA fila de cuenta que el pie de la card abierta,
+                        vía AccountIdentityButton. Se oculta con visibility mientras la
+                        card está abierta (la card lo cubre, anclada a bottom:0). */}
+                    <AccountIdentityButton
+                        avatar={accountAvatarNode}
+                        name={accountName}
+                        email={accountEmail}
+                        subLabel={accountSubLabel}
+                        chevron="up"
                         onClick={() => setIsAccountMenuOpen(prev => !prev)}
                         style={{ visibility: isAccountMenuOpen ? 'hidden' : 'visible' }}
-                        aria-haspopup="menu"
-                        aria-expanded={isAccountMenuOpen}
-                        aria-label="Abrir menú de cuenta"
-                    >
-                        <span className={styles.accountAvatar} aria-hidden="true">
-                            {avatarId
-                                ? <MinimalAvatar id={avatarId} size={28} style={{ borderRadius: '50%', width: '100%', height: '100%' }} />
-                                : <User size={16} strokeWidth={2.25} />}
-                        </span>
-                        {/* [P1-GUEST-ACCOUNT-DARK · 2026-06-16] Identidad propia del
-                            invitado: nombre + sub-label "Plan de muestra". El wrapper
-                            de columna NO cambia el layout de la cuenta real (un solo
-                            hijo cuando no es guest). */}
-                        <span className={styles.accountIdentity}>
-                            <span className={styles.accountEmail}>{userEmail}</span>
-                            {isGuest && (
-                                <span className={styles.accountSublabel}>Plan de muestra</span>
-                            )}
-                        </span>
-                        <ChevronUp
-                            size={16}
-                            className={`${styles.accountChevron} ${isAccountMenuOpen ? styles.accountChevronOpen : ''}`}
-                            aria-hidden="true"
-                        />
-                    </button>
+                        ariaLabel="Abrir menú de cuenta"
+                        ariaHasPopup="menu"
+                        ariaExpanded={isAccountMenuOpen}
+                    />
                 </div>
             </aside>
 

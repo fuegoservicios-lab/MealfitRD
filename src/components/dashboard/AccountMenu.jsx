@@ -53,6 +53,68 @@ const ChevronDown = (p) => (
   </svg>
 );
 
+const ChevronUp = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+       strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <polyline points="6 15 12 9 18 15" />
+  </svg>
+);
+
+/* [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Fila de identidad reutilizable: avatar
+   + nombre + email + chevron. Es a la vez el PIE de la card (estado abierto) y el
+   botón DISPARADOR del sidebar (estado cerrado) → así ambos estados se ven
+   idénticos por construcción (mismo markup + mismos estilos), no por copiar CSS.
+   `chevron='up'` para el disparador (abre hacia arriba), `'down'` para el pie. */
+export function AccountIdentityButton({
+  avatar = null,
+  name,
+  email = null,
+  subLabel = null,
+  chevron = 'down',
+  onClick,
+  className = '',
+  style,
+  ariaLabel,
+  ariaHasPopup,
+  ariaExpanded,
+}) {
+  const initial = name?.[0]?.toUpperCase() ?? '?';
+  const Chevron = chevron === 'up' ? ChevronUp : ChevronDown;
+  return (
+    <button
+      type="button"
+      className={`${styles.account} ${className}`.trim()}
+      style={style}
+      onClick={onClick}
+      aria-label={ariaLabel}
+      aria-haspopup={ariaHasPopup}
+      aria-expanded={ariaExpanded}
+    >
+      <span className={styles.avatar} aria-hidden="true">{avatar ?? initial}</span>
+      <span className={styles.accountText}>
+        <span className={styles.name}>{name}</span>
+        {email && <span className={styles.email}>{email}</span>}
+        {subLabel && <span className={styles.email}>{subLabel}</span>}
+      </span>
+      <Chevron className={styles.accountChevron} />
+    </button>
+  );
+}
+
+AccountIdentityButton.propTypes = {
+  avatar: PropTypes.node,
+  name: PropTypes.string,
+  email: PropTypes.string,
+  subLabel: PropTypes.node,
+  chevron: PropTypes.oneOf(['up', 'down']),
+  onClick: PropTypes.func,
+  className: PropTypes.string,
+  style: PropTypes.object,
+  ariaLabel: PropTypes.string,
+  ariaHasPopup: PropTypes.string,
+  ariaExpanded: PropTypes.bool,
+};
+
 export default function AccountMenu({
   user = { name: 'angelobrito915', email: 'angelobrito915@gmail.com' },
   plan = 'Gratuito',
@@ -71,8 +133,6 @@ export default function AccountMenu({
   onLogout,
   onAccount,
 }) {
-  const initial = user?.name?.[0]?.toUpperCase() ?? '?';
-
   return (
     <div className={styles.card} role="menu">
       {/* Encabezado de plan */}
@@ -135,17 +195,17 @@ export default function AccountMenu({
         </button>
       </div>
 
-      {/* Pie de cuenta */}
+      {/* Pie de cuenta — mismo sub-componente que el disparador del sidebar */}
       <footer className={styles.footer}>
-        <button type="button" className={styles.account} onClick={onAccount} aria-label="Cerrar menú de cuenta">
-          <span className={styles.avatar} aria-hidden="true">{avatar ?? initial}</span>
-          <span className={styles.accountText}>
-            <span className={styles.name}>{user?.name}</span>
-            {user?.email && <span className={styles.email}>{user.email}</span>}
-            {subLabel && <span className={styles.email}>{subLabel}</span>}
-          </span>
-          <ChevronDown className={styles.accountChevron} />
-        </button>
+        <AccountIdentityButton
+          avatar={avatar}
+          name={user?.name}
+          email={user?.email}
+          subLabel={subLabel}
+          chevron="down"
+          onClick={onAccount}
+          ariaLabel="Cerrar menú de cuenta"
+        />
       </footer>
     </div>
   );
