@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import {
     User, Shield, ChevronRight, ArrowLeft,
-    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, ChefHat, GlassWater, Cog, Fingerprint,
+    LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, GlassWater, Cog, Fingerprint,
     Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon
 } from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAssessment } from '../context/AssessmentContext';
 import { useNavigate } from 'react-router-dom';
@@ -27,7 +26,7 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStor
 // [APPEARANCE-THEME · 2026-05-28] Aplicar el tema en vivo al elegir en el toggle.
 import { applyThemePref, isDarkActive } from '../utils/theme';
 import Modal from '../components/common/Modal';
-import OptionPickerModal from '../components/common/OptionPickerModal';
+import EvaluarDeNuevoModal from '../components/common/EvaluarDeNuevoModal';
 // [P1-FORM-9] Helper para construir el payload de health_profile sin filtrar
 // flags `_*` y con guard contra race de hidratación cifrada. Ver
 // `secureFormStorage.js` para el rationale completo.
@@ -543,7 +542,6 @@ const Settings = () => {
 
     // --- ESTADOS DE EVALUACIÓN ---
     const [showEvaluateModal, setShowEvaluateModal] = useState(false);
-    const [showResetConfirm, setShowResetConfirm] = useState(false);
 
     // [P3-AVATAR-CYCLE · 2026-06-20] Avatar del perfil: id del avatar minimalista
     // elegido (o null = inicial). Cada clic CICLA directo al siguiente, sin panel:
@@ -1404,337 +1402,60 @@ const Settings = () => {
                                 </div>
                 </Modal>
 
-                {/* MODAL Evaluar de Nuevo */}
-            <AnimatePresence>
-                {showEvaluateModal && (
-                    showResetConfirm ? (
-                        <Modal
-                            isOpen={true}
-                            onClose={() => { setShowEvaluateModal(false); setShowResetConfirm(false); }}
-                            titleId="reset-confirm-modal"
-                            maxWidth="440px"
-                            isBottomSheetOnMobile={true}
-                            disableClose={isNavigatingRef.current}
-                        >
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '1.75rem' }}>
-                                <div style={{
-                                    background: 'var(--danger-bg)',
-                                    color: 'var(--danger)',
-                                    width: '60px',
-                                    height: '60px',
-                                    borderRadius: '50%',
-                                    flexShrink: 0,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    marginBottom: '1.25rem',
-                                    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)'
-                                }}>
-                                    <AlertTriangle size={28} strokeWidth={2.5} style={{ transform: 'translateY(0.5px)' }} />
-                                </div>
-                                <h3 id="reset-confirm-modal" style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-                                    ¿Empezar desde cero?
-                                </h3>
-                                <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.5 }}>
-                                    Esta acción borrará <strong style={{ color: 'var(--text-main)' }}>todo tu progreso</strong>.
-                                </p>
-                            </div>
 
-                            <div style={{
-                                background: 'var(--bg-muted)',
-                                border: '1px solid var(--border)',
-                                borderRadius: '0.875rem',
-                                padding: '1.125rem 1.25rem',
-                                marginBottom: '1.25rem'
-                            }}>
-                                <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    Se borrará:
-                                </p>
-                                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-                                    {[
-                                        'Perfil de salud y objetivos',
-                                        'Alergias y condiciones médicas',
-                                        'Inventario de tu nevera',
-                                        'Platos que te gustan / no te gustan',
-                                        'Memoria que el sistema aprendió sobre ti',
-                                    ].map((item, idx) => (
-                                        <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: 1.4 }}>
-                                            <span style={{ color: 'var(--danger)', fontWeight: 700, flexShrink: 0, marginTop: '0.05rem' }}>•</span>
-                                            <span>{item}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                            <div style={{
-                                background: 'var(--warning-bg)',
-                                border: '1px solid var(--warning-border)',
-                                borderRadius: '0.75rem',
-                                padding: '1rem 1.125rem',
-                                marginBottom: '1.75rem'
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.625rem' }}>
-                                    <span style={{ fontSize: '1rem', lineHeight: 1 }}>⚠️</span>
-                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--warning-text)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                        Antes de continuar
-                                    </span>
-                                </div>
-                                <ul style={{ margin: 0, paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    <li style={{ fontSize: '0.875rem', color: 'var(--warning-text)', lineHeight: 1.55 }}>
-                                        Volverás a llenar el formulario inicial.
-                                    </li>
-                                    <li style={{ fontSize: '0.875rem', color: 'var(--warning-text)', lineHeight: 1.55 }}>
-                                        Esta acción es <strong>irreversible</strong>.
-                                    </li>
-                                    <li style={{ fontSize: '0.875rem', color: 'var(--warning-text)', lineHeight: 1.55 }}>
-                                        Generar el nuevo plan consumirá
-                                        <span style={{ display: 'inline-block', whiteSpace: 'nowrap', marginLeft: '0.4em' }}>
-                                            <strong style={{ marginRight: '0.35em' }}>1</strong>
-                                            <strong>crédito</strong>.
-                                        </span>
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                <button
-                                    disabled={isResetting}
-                                    onClick={async (_e) => {
-                                        if (isNavigatingRef.current || isResetting) return;
-                                        isNavigatingRef.current = true;
-                                        // [P3-RESET-BUTTON-LOADING-STATE · 2026-05-16]
-                                        // Feedback visual INMEDIATO. El backend hace 7
-                                        // DELETEs + 1 UPDATE en el free tier — 1-8s
-                                        // depending on pool. Sin esto el user clickeaba
-                                        // 2-3 veces porque el botón no respondía.
-                                        setIsResetting(true);
-
-                                        const toastId = toast.loading('Borrando preferencias...', { description: 'Preparando tu cuenta para un nuevo inicio.' });
-
-                                        try {
-                                            // [P1-EVALUATE-SCRATCH-RESET · 2026-06-17] Borra el
-                                            // plan ACTIVO en la DB. `reset-preferences` vacía el
-                                            // health_profile + preferencias + inventario, pero NO
-                                            // borra `meal_plans` → sin esto, al recargar la app el
-                                            // plan viejo se re-hidrataba desde la DB y el dashboard
-                                            // volvía a ser accesible. Best-effort: si falla, el
-                                            // soft-reset en memoria igual fuerza el formulario.
-                                            const _planIdToDelete = planData?.id;
-                                            if (_planIdToDelete) {
-                                                await fetchWithAuth(`/api/plans/${_planIdToDelete}`, { method: 'DELETE' }).catch(() => {});
-                                            }
-
-                                            // GAP 6: Invocar el endpoint para resetear preferencias en el backend
-                                            await fetchWithAuth('/api/account/reset-preferences', {
-                                                method: 'POST'
-                                            });
-
-                                            // [P1-EVALUATE-SCRATCH-RESET · 2026-06-17] Soft-reset
-                                            // del estado EN MEMORIA + localStorage (plan, formulario,
-                                            // health_profile, likes/dislikes, step, editedFieldsRef).
-                                            // Sin esto, planData + userProfile.health_profile
-                                            // sobrevivían en memoria → ProtectedRoute
-                                            // (hasCompletedAssessment = health_profile || planData)
-                                            // dejaba volver al /dashboard con el plan viejo en vez de
-                                            // obligar a re-llenar el formulario.
-                                            resetForNewAssessment();
-
-                                            toast.dismiss(toastId);
-                                            toast.success('Cuenta reseteada', { description: 'Empecemos de nuevo.' });
-
-                                            // GAP 13: Analítica explícita para la intención de empezar de cero
-                                            trackEvent('plan_regeneration_triggered', {
-                                                reason: 'account_reset',
-                                                source: 'settings_reset',
-                                                is_expired: false,
-                                                has_pantry: false,
-                                                type: 'full_reset'
-                                            });
-
-                                            setShowEvaluateModal(false);
-                                            setShowResetConfirm(false);
-
-                                            // Ir al form desde cero
-                                            setCurrentStep(0);
-                                            navigate('/assessment');
-                                        } catch (error) {
-                                            console.error("Error reseteando preferencias:", error);
-                                            toast.dismiss(toastId);
-                                            toast.error('Error', { description: 'Hubo un problema al borrar tus preferencias.' });
-                                            // [P3-RESET-BUTTON-LOADING-STATE] Reset del loading
-                                            // SOLO en error path — happy path navega y el
-                                            // componente se desmonta naturalmente.
-                                            setIsResetting(false);
-                                        } finally {
-                                            setTimeout(() => { isNavigatingRef.current = false; }, 1000);
-                                        }
-                                    }}
-                                    style={{
-                                        padding: '1rem 1.25rem', borderRadius: '0.875rem', border: 'none',
-                                        background: isResetting ? '#FCA5A5' : '#EF4444',
-                                        color: 'white',
-                                        cursor: isResetting ? 'wait' : 'pointer',
-                                        transition: 'none',
-                                        fontWeight: 700, fontSize: '1rem', textAlign: 'center',
-                                        boxShadow: isResetting ? '0 2px 6px rgba(239, 68, 68, 0.15)' : '0 4px 14px rgba(239, 68, 68, 0.28)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.625rem'
-                                    }}
-                                    onMouseOver={(e) => { if (!isResetting) { e.currentTarget.style.background = '#DC2626'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.45), 0 0 12px rgba(239, 68, 68, 0.25)'; } }}
-                                    onMouseOut={(e) => { if (!isResetting) { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(239, 68, 68, 0.28)'; } }}
-                                >
-                                    {/* [P3-RESET-BUTTON-LOADING-STATE · 2026-05-16]
-                                        Sin spinner: el keyframe `mfSpin` vive en
-                                        Plan.jsx (scope local) y no aplica aquí.
-                                        El cambio de texto + color desaturado
-                                        (#FCA5A5 vs #EF4444) + cursor:wait +
-                                        sombra reducida + `disabled` HTML attr
-                                        dan feedback visual fuerte e inmediato
-                                        sin depender de animaciones globales. */}
-                                    {isResetting ? 'Borrando…' : 'Sí, empezar desde cero'}
-                                </button>
-                            </div>
-                        </Modal>
-                    ) : (
-                        <OptionPickerModal
-                            isOpen={true}
-                            onClose={() => setShowEvaluateModal(false)}
-                            title="Evaluar de Nuevo"
-                            subtitle="Elige cómo quieres generar tu nuevo plan. ¿Quieres mantener tus datos actuales o empezar desde cero?"
-                            headerIcon={{ icon: <ChefHat size={24} strokeWidth={2.5} />, bg: _settingsDark ? 'rgba(22, 163, 74, 0.18)' : '#DCFCE7', color: _settingsDark ? '#4ADE80' : '#16A34A' }}
-                            options={[
-                                {
-                                    id: 'renovar',
-                                    label: 'Renovar Plan Actual',
-                                    desc: 'Genera un plan totalmente nuevo para variar los alimentos, tomando en cuenta los datos que ya configuraste.',
-                                    // [P3-EVALUATE-MODAL-DARK · 2026-05-30] `color` tiñe la
-                                    // tarjeta en oscuro (azul translúcido vs slate genérico).
-                                    // `labelColor` theme-aware: azul-300 legible en oscuro,
-                                    // azul-900 en claro (antes #1E3A8A oscuro era ilegible
-                                    // sobre la tarjeta oscura).
-                                    color: '#3B82F6',
-                                    hoverBg: '#EFF6FF',
-                                    hoverBorder: '#3B82F6',
-                                    labelColor: _settingsDark ? '#93C5FD' : '#1E3A8A'
-                                },
-                                {
-                                    id: 'cero',
-                                    label: 'Empezar Desde Cero',
-                                    desc: 'Elimina todo tu progreso y te lleva al formulario inicial.',
-                                    color: '#10B981',
-                                    hoverBg: '#F0FDF4',
-                                    hoverBorder: '#10B981',
-                                    labelColor: _settingsDark ? '#6EE7B7' : '#065F46'
+                {/* MODAL Evaluar de Nuevo — [P3-EVALUATE-MODAL-REDESIGN · 2026-06-28]
+                    Rediseño "elige y confirma" del owner (un solo paso). El CTA danger
+                    de "Empezar desde cero" ES la confirmación: ya NO hay sub-modal de
+                    advertencia previo (showResetConfirm eliminado). La lógica real
+                    (renovar → regeneratePlan; cero → DELETE plan + reset-preferences +
+                    resetForNewAssessment + navigate) se conserva intacta. */}
+                <EvaluarDeNuevoModal
+                    open={showEvaluateModal}
+                    busy={isNavigatingOption === 'renovar' || isResetting}
+                    onClose={() => { if (isNavigatingRef.current || isResetting) return; setShowEvaluateModal(false); }}
+                    onCancel={() => { if (isNavigatingRef.current || isResetting) return; setShowEvaluateModal(false); }}
+                    onConfirm={async (choiceId) => {
+                        if (choiceId === 'renovar') {
+                            if (isNavigatingRef.current) return;
+                            setIsNavigatingOption('renovar');
+                            await regeneratePlan({ reason: 'variety', isPlanExpired: false, entry_point: 'settings_renovar' });
+                            setIsNavigatingOption(null);
+                            setShowEvaluateModal(false);
+                        } else if (choiceId === 'cero') {
+                            if (isNavigatingRef.current || isResetting) return;
+                            isNavigatingRef.current = true;
+                            setIsResetting(true);
+                            const toastId = toast.loading('Borrando preferencias...', { description: 'Preparando tu cuenta para un nuevo inicio.' });
+                            try {
+                                const _planIdToDelete = planData?.id;
+                                if (_planIdToDelete) {
+                                    await fetchWithAuth(`/api/plans/${_planIdToDelete}`, { method: 'DELETE' }).catch(() => {});
                                 }
-                            ]}
-                            isNavigatingOption={isNavigatingOption}
-                            onOptionClick={async (optionId) => {
-                                if (optionId === 'renovar') {
-                                    // [P3-RESET-CONFIRM-NO-DOUBLE-CONFIRM · 2026-05-16]
-                                    // Pre-fix: confirmToast bloqueante cuando planCount/limit > 70%
-                                    // → toast renderizaba DETRÁS del OptionPickerModal (z-index)
-                                    // → user no lo veía → botón parecía "no responder".
-                                    // Post-fix: la info "Consume 1 regeneración" + tiempo
-                                    // estimado YA están en el `infoBandRenderer` del modal
-                                    // (visible cuando hover sobre la card). Si necesitas ver
-                                    // créditos restantes, están en /settings → Suscripción.
-                                    if (isNavigatingRef.current) return;
-                                    setIsNavigatingOption('renovar');
-                                    // [TOAST-NOISE-CLEANUP · 2026-06-22] Sin toast.loading aquí:
-                                    // el botón ya muestra spinner (setIsNavigatingOption) y enseguida
-                                    // navega a /plan (que tiene su propia pantalla de carga). El toast
-                                    // flasheaba ~1s de forma redundante (pedido del owner: quitarlo).
-                                    await regeneratePlan({ reason: 'variety', isPlanExpired: false, entry_point: 'settings_renovar' });
-                                    setIsNavigatingOption(null);
-                                    setShowEvaluateModal(false);
-                                } else if (optionId === 'cero') {
-                                    // [P3-RESET-CONFIRM-NO-DOUBLE-CONFIRM · 2026-05-16]
-                                    // Pre-fix: confirmToast bloqueante cuando planCount/limit > 70%
-                                    // → el toast aparece DETRÁS del OptionPickerModal (z-index conflict)
-                                    // → user no lo ve → parece que el botón "no responde".
-                                    // Post-fix: el modal `showResetConfirm` que aparece
-                                    // INMEDIATAMENTE después YA advierte sobre el reset + consumo
-                                    // de créditos. Doble confirmación es fricción innecesaria.
-                                    // Saltar directo al modal de confirmación.
-                                    setShowResetConfirm(true);
-                                }
-                            }}
-                            infoBandRenderer={(hoveredOption) => {
-                                const remaining = typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : null;
-                                {/* [P3-EVALUATE-MODAL-DARK · 2026-05-30] infoBand con
-                                   variables de tema (antes hex claros #F8FAFC/#FFFFFF/
-                                   #334155 → tarjeta blanca brillante en modo oscuro). */}
-                                const renderOption = (title, desc, meta) => (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-                                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                                            <strong style={{ color: 'var(--text-main)', fontWeight: 700 }}>{title}:</strong>
-                                            <span style={{ marginLeft: '0.4em' }}>{desc}</span>
-                                        </div>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                                            {meta.map((m, i) => (
-                                                <span key={i} style={{
-                                                    display: 'inline-flex', alignItems: 'center', gap: '0.35em',
-                                                    padding: '0.25rem 0.625rem',
-                                                    background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '999px',
-                                                    fontWeight: 500
-                                                }}>
-                                                    {m}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                                return (
-                                    <div style={{
-                                        marginTop: '1.25rem', padding: '1rem 1.125rem',
-                                        background: 'var(--bg-muted)', borderRadius: '0.875rem',
-                                        border: '1px solid var(--border)',
-                                        display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
-                                        // [FIX 2026-05-07] Altura mínima estable para evitar flicker en
-                                        // hover. Antes el infoBand crecía/encogía entre estados (hover vs
-                                        // default) → modal recentraba verticalmente → botón se desplazaba
-                                        // → cursor salía de la zona hover → re-entraba → loop. Reservar
-                                        // la altura del estado "hover" hace que cambiar de variante no
-                                        // mueva el resto de elementos.
-                                        minHeight: '96px',
-                                        boxSizing: 'border-box',
-                                    }}>
-                                        <AlertCircle size={18} style={{ marginTop: '1px', flexShrink: 0, color: '#3B82F6' }} />
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            {hoveredOption === 'cero' ? (
-                                                renderOption(
-                                                    'Empezar de cero',
-                                                    'Borra todo tu progreso y te lleva al formulario inicial.',
-                                                    [
-                                                        <>⏱️ ~3–5&nbsp;min llenando el formulario</>,
-                                                        <>🔁 Consume<span style={{ display: 'inline-block', whiteSpace: 'nowrap', marginLeft: '0.4em' }}><strong style={{ color: 'var(--text-main)', marginRight: '0.35em' }}>1</strong><strong style={{ color: 'var(--text-main)' }}>regeneración</strong></span></>,
-                                                    ]
-                                                )
-                                            ) : hoveredOption === 'renovar' ? (
-                                                renderOption(
-                                                    'Renovar',
-                                                    'Mantendrá tus alergias y generará nuevos platos.',
-                                                    [
-                                                        <>⏱️ ~30&nbsp;s</>,
-                                                        <>🔁 Consume<span style={{ display: 'inline-block', whiteSpace: 'nowrap', marginLeft: '0.4em' }}><strong style={{ color: 'var(--text-main)', marginRight: '0.35em' }}>1</strong><strong style={{ color: 'var(--text-main)' }}>regeneración</strong></span></>,
-                                                    ]
-                                                )
-                                            ) : (
-                                                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                                                    Te quedan{' '}
-                                                    <strong style={{ color: 'var(--text-main)' }}>
-                                                        {remaining !== null ? remaining : 'ilimitadas'}
-                                                    </strong>
-                                                    {' '}regeneraciones de planes este mes.
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            }}
-                        />
-                    )
-                )}
-            </AnimatePresence>
+                                await fetchWithAuth('/api/account/reset-preferences', { method: 'POST' });
+                                resetForNewAssessment();
+                                toast.dismiss(toastId);
+                                toast.success('Cuenta reseteada', { description: 'Empecemos de nuevo.' });
+                                trackEvent('plan_regeneration_triggered', {
+                                    reason: 'account_reset',
+                                    source: 'settings_reset',
+                                    is_expired: false,
+                                    has_pantry: false,
+                                    type: 'full_reset'
+                                });
+                                setShowEvaluateModal(false);
+                                setCurrentStep(0);
+                                navigate('/assessment');
+                            } catch (error) {
+                                console.error("Error reseteando preferencias:", error);
+                                toast.dismiss(toastId);
+                                toast.error('Error', { description: 'Hubo un problema al borrar tus preferencias.' });
+                                setIsResetting(false);
+                            } finally {
+                                setTimeout(() => { isNavigatingRef.current = false; }, 1000);
+                            }
+                        }
+                    }}
+                />
 
                 <div className={`${styles.pageHeader} ${activeSection ? styles.pageHeaderInSection : ''}`}>
                     {/* Default (desktop siempre, móvil cuando NO hay sección activa). */}
