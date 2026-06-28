@@ -51,22 +51,6 @@ function Icon({ name, size = 20, stroke = 2 }) {
           <path d="M12 17h.01" />
         </svg>
       );
-    case "clock":
-      return (
-        <svg {...base}>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 8v4l2.5 1.5" />
-        </svg>
-      );
-    case "refresh":
-      return (
-        <svg {...base}>
-          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-          <path d="M21 3v5h-5" />
-          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-          <path d="M8 16H3v5" />
-        </svg>
-      );
     case "close":
       return (
         <svg {...base}>
@@ -96,8 +80,6 @@ const DEFAULT_CHOICES = [
   },
 ];
 
-const DEFAULT_META = { time: "~30 s", cost: "1 regeneración", keep: "Mantiene tus alergias" };
-
 /* ----------------------------------------------------------------- etiqueta */
 function Tag({ tag }) {
   if (!tag) return null;
@@ -123,32 +105,6 @@ function Tag({ tag }) {
     >
       <Icon name={danger ? "alert" : "check"} size={11} stroke={danger ? 2.2 : 3} />
       {tag.label}
-    </span>
-  );
-}
-
-/* -------------------------------------------------------------------- chip */
-function Chip({ icon, children }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "5px 10px",
-        borderRadius: 999,
-        fontSize: ".74rem",
-        fontWeight: 600,
-        whiteSpace: "nowrap",
-        color: "var(--text-muted)",
-        background: "var(--bg-muted)",
-        border: "1px solid var(--border)",
-      }}
-    >
-      <span style={{ display: "grid", color: "var(--text-light)" }}>
-        <Icon name={icon} size={13} stroke={2} />
-      </span>
-      {children}
     </span>
   );
 }
@@ -272,7 +228,6 @@ export default function EvaluarDeNuevoModal({
   title = "Evaluar de Nuevo",
   subtitle = "Elige cómo generar tu nuevo plan, luego confirma.",
   choices = DEFAULT_CHOICES,
-  meta = DEFAULT_META,
   defaultChoice = "renovar",
   busy = false,
   onConfirm = () => {},
@@ -404,29 +359,17 @@ export default function EvaluarDeNuevoModal({
           ))}
         </div>
 
-        {/* meta — refleja la opción elegida */}
-        <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginTop: 16, minHeight: 30 }}>
-          {destructive ? (
-            <>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: ".8rem", fontWeight: 700, color: "var(--danger-text)" }}>
-                <Icon name="alert" size={15} stroke={2.2} />
-                Borra todo tu progreso
-              </span>
-              <span style={{ fontSize: ".78rem", fontWeight: 500, color: "var(--text-muted)" }}>· Volverás al formulario inicial</span>
-            </>
-          ) : (
-            <>
-              <Chip icon="clock">{meta.time}</Chip>
-              <Chip icon="refresh">{meta.cost}</Chip>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: ".76rem", fontWeight: 600, color: "var(--text-muted)" }}>
-                <span style={{ display: "grid", color: "var(--secondary)" }}>
-                  <Icon name="check" size={14} stroke={2.6} />
-                </span>
-                {meta.keep}
-              </span>
-            </>
-          )}
-        </div>
+        {/* meta — SOLO el aviso de la vía destructiva. Los chips de "renovar"
+            (~30s / 1 regeneración / mantiene alergias) se quitaron por innecesarios. */}
+        {destructive && (
+          <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginTop: 16, minHeight: 30 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: ".8rem", fontWeight: 700, color: "var(--danger-text)" }}>
+              <Icon name="alert" size={15} stroke={2.2} />
+              Borra todo tu progreso
+            </span>
+            <span style={{ fontSize: ".78rem", fontWeight: 500, color: "var(--text-muted)" }}>· Volverás al formulario inicial</span>
+          </div>
+        )}
 
         {/* acciones */}
         <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
