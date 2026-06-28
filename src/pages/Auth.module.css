@@ -555,8 +555,8 @@
 .legalLink {
     color: var(--text-muted);
     font-weight: 600;
-    text-decoration: underline;
-    text-underline-offset: 3px;       /* el subrayado no pegado al texto */
+    text-decoration: none;            /* sin subrayado por defecto; solo en hover */
+    text-underline-offset: 3px;       /* el subrayado no pegado al texto (cuando aparece) */
     text-decoration-thickness: 1px;
     white-space: nowrap;              /* "Política de Privacidad" no se parte a media frase */
     transition: color 0.18s ease;
@@ -564,6 +564,7 @@
 
 .legalLink:hover {
     color: #5EEAD4;
+    text-decoration: underline;       /* subrayado solo al pasar el mouse */
 }
 
 /* --- Footer Utilities --- */
