@@ -2,7 +2,7 @@
 import { Navigate, useLocation, useNavigationType } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, landing = false }) => {
     const { session, loadingAuth, loadingData, userProfile, planData, isGuest } = useAssessment();
     const location = useLocation();
     const navigationType = useNavigationType();
@@ -17,6 +17,14 @@ const ProtectedRoute = ({ children }) => {
     // Un invitado (flag activado por "Probar sin cuenta") SÍ pasa, pero acotado
     // al funnel del plan gratuito abajo.
     if (!session && !isGuest) {
+        // [P3-APP-SUBDOMAIN-ROOT · 2026-06-28] La landing de marketing del apex
+        // (mealfitrd.com/) es PÚBLICA: un visitante anónimo VE la landing — NO se
+        // le redirige a /login. Esencial para el split (apex = marketing) y para
+        // SEO (Google indexa la landing, no el formulario de login). El login +
+        // dashboard viven en app.mealfitrd.com. El resto de rutas siguen gateadas.
+        if (landing) {
+            return children;
+        }
         return <Navigate to="/login" replace />;
     }
 

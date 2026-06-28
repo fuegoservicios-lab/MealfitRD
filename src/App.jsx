@@ -233,7 +233,7 @@ function App() {
               IS_APP_HOST
                 ? <Navigate to="/dashboard" replace />
                 : (
-                  <ProtectedRoute>
+                  <ProtectedRoute landing>
                     <Layout><Home /></Layout>
                   </ProtectedRoute>
                 )
