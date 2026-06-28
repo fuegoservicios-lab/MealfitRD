@@ -63,7 +63,8 @@
 .headerLeft {
     display: flex;
     align-items: center;
-    gap: 2rem;
+    /* [P3-SEO-MARKETING-NAV] Separación logo↔nav: 2rem se veía pegado al logo. */
+    gap: 3.5rem;
     min-width: 0;
 }
 
