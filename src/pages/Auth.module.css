@@ -549,11 +549,11 @@
     font-size: 0.75rem;
     line-height: 1.7;          /* más aire entre líneas */
     letter-spacing: 0.015em;   /* descongestiona el kerning a tamaño pequeño */
-    color: var(--text-light);
+    color: var(--text-muted);  /* legible sin gritar (antes --text-light se perdía en oscuro) */
 }
 
 .legalLink {
-    color: var(--text-muted);
+    color: var(--text-main);   /* resalta como la parte accionable del aviso */
     font-weight: 600;
     text-decoration: none;            /* sin subrayado por defecto; solo en hover */
     text-underline-offset: 3px;       /* el subrayado no pegado al texto (cuando aparece) */
