@@ -4871,8 +4871,8 @@ const DashboardInner = () => {
                                 <Refrigerator size={12} style={{ flexShrink: 0 }} aria-hidden="true" />
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {shoppingDeltaMeta.isEmptyDueToPantry
-                                        ? <>Ya tienes todo en tu Nevera ({shoppingDeltaMeta.itemsRemoved} ítem{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''})</>
-                                        : <>{shoppingDeltaMeta.itemsRemoved} ítem{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} ya en tu Nevera</>}
+                                        ? <>Tu Nevera ya cubre la lista ({shoppingDeltaMeta.itemsRemoved} ítem{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} de la compra)</>
+                                        : <>{shoppingDeltaMeta.itemsRemoved} ítem{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} de la lista ya en tu Nevera</>}
                                 </span>
                             </span>
                         )}
