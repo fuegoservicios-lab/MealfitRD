@@ -59,6 +59,15 @@ const Terms = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default
 const Cookies = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Cookies })));
 const MedicalDisclaimer = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.MedicalDisclaimer })));
 
+// [P3-APP-SUBDOMAIN-ROOT · 2026-06-28] En el subdominio de la app
+// (app.mealfitrd.com) el root `/` entra DIRECTO a la app — redirige a `/dashboard`
+// y deja que ProtectedRoute decida (sin sesión → /login; con sesión sin plan →
+// /assessment; con plan → dashboard). La landing de marketing vive SOLO en el apex
+// (mealfitrd.com), que NO cambia. Detección estática por hostname (`app.*`); en
+// localhost/apex es false → comportamiento idéntico al previo. Split estilo
+// Anthropic (anthropic.com vs claude.ai) / OpenAI (openai.com vs chatgpt.com).
+const IS_APP_HOST = typeof window !== 'undefined' && /^app\./i.test(window.location.hostname);
+
 // --- Minimal loading fallback (Empty to prevent double loading screens) ---
 const PageLoader = () => <div className="min-h-screen bg-slate-50/50" />;
 
@@ -217,10 +226,17 @@ function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Rutas Protegidas */}
+            {/* [P3-APP-SUBDOMAIN-ROOT · 2026-06-28] En app.mealfitrd.com el root
+                entra directo a la app (→ /dashboard, ProtectedRoute decide el
+                destino real). En el apex se muestra la landing de marketing. */}
             <Route path="/" element={
-              <ProtectedRoute>
-                <Layout><Home /></Layout>
-              </ProtectedRoute>
+              IS_APP_HOST
+                ? <Navigate to="/dashboard" replace />
+                : (
+                  <ProtectedRoute>
+                    <Layout><Home /></Layout>
+                  </ProtectedRoute>
+                )
             } />
 
             <Route path="/assessment" element={
