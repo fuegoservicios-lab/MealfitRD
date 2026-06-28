@@ -77,6 +77,19 @@ const Header = () => {
         };
     }, [isAccountMenuOpen]);
 
+    // [P3-SEO-MARKETING-NAV · 2026-06-28] Scroll suave a la sección SIN ensuciar la
+    // URL con #hash. preventDefault evita que el navegador añada el fragmento
+    // (la URL se queda limpia en mealfitrd.com/). El href="#..." se conserva para
+    // SEO (anchor crawlable) y como fallback sin JS. Offset por el header fijo.
+    const handleSectionNav = (e, id) => {
+        if (typeof document === 'undefined') return;
+        const el = document.getElementById(id);
+        if (!el) return;
+        e.preventDefault();
+        const top = el.getBoundingClientRect().top + window.scrollY - 80;
+        window.scrollTo({ top, behavior: 'smooth' });
+    };
+
     return (
         <>
         <header className={styles.header}>
@@ -97,10 +110,10 @@ const Header = () => {
                     </Link>
                     {isHome && (
                         <nav className={styles.navMarketing} aria-label="Secciones de la página">
-                            <a href="#how-it-works" className={styles.navMarketingLink}>Cómo funciona</a>
-                            <a href="#dashboard" className={styles.navMarketingLink}>Funciones</a>
-                            <a href="#benchmarks" className={styles.navMarketingLink}>Precisión</a>
-                            <a href="#pricing" className={styles.navMarketingLink}>Precios</a>
+                            <a href="#how-it-works" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'how-it-works')}>Cómo funciona</a>
+                            <a href="#dashboard" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'dashboard')}>Funciones</a>
+                            <a href="#benchmarks" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'benchmarks')}>Precisión</a>
+                            <a href="#pricing" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'pricing')}>Precios</a>
                         </nav>
                     )}
                 </div>
