@@ -604,6 +604,11 @@ const Plan = () => {
     const previousMeals = location.state?.previous_meals || location.state?.previousMeals || [];
     const currentIngredients = location.state?.current_pantry_ingredients || location.state?.currentIngredients || [];
     const updateReason = location.state?.update_reason || null;
+    // [P1-RENEWAL-PANTRY-AWARE · 2026-06-28] Modo "completar nevera": señal + items de
+    // la nevera como candidatos a reuso (el backend filtra perecederos y solo SUGIERE
+    // los duraderos, advisory). Solo surte efecto si el knob backend está ON; inofensivo OFF.
+    const renewalPantryAware = location.state?._renewal_pantry_aware || false;
+    const durablePantryIngredients = location.state?.durable_pantry_ingredients || [];
 
     // 2. USEEFFECT
     useEffect(() => {
@@ -793,6 +798,8 @@ const Plan = () => {
                     previous_meals: previousMeals,
                     current_pantry_ingredients: currentIngredients,
                     update_reason: updateReason,
+                    _renewal_pantry_aware: renewalPantryAware,
+                    durable_pantry_ingredients: durablePantryIngredients,
                     totalDays,
                     tzOffset: new Date().getTimezoneOffset(),
                     is_plan_expired: location.state?.is_plan_expired || location.state?.isPlanExpired || false,

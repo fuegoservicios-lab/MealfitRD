@@ -104,6 +104,12 @@ export const useRegeneratePlan = () => {
 
             let previousMeals = [];
             let currentIngredients = [];
+            // [P1-RENEWAL-PANTRY-AWARE · 2026-06-28] Modo "completar nevera": cuando hay
+            // inventario real, mandamos los items de la nevera como CANDIDATOS a reuso
+            // (el backend filtra perecederos y solo SUGIERE los duraderos, advisory). Solo
+            // surte efecto si el knob backend está ON; inofensivo si OFF.
+            let durablePantryIngredients = [];
+            let renewalPantryAware = false;
 
             // Si no nos pasan el inventario, lo buscamos (caso desde Settings)
             let currentLiveInventory = liveInventory;
@@ -208,6 +214,11 @@ export const useRegeneratePlan = () => {
                     currentIngredients = currentAllPlanIngredients
                         .filter(ingObj => !currentDisabledIngredients.includes(ingObj.name.toLowerCase().trim()))
                         .map(ingObj => ingObj.id_string);
+                    // Items de la nevera como candidatos a reuso (el backend filtra perecederos).
+                    renewalPantryAware = true;
+                    durablePantryIngredients = currentLiveInventory
+                        .map(item => item.ingredient_name || item.master_ingredients?.name)
+                        .filter(Boolean);
                 }
             }
 
@@ -243,7 +254,7 @@ export const useRegeneratePlan = () => {
             }
 
             if (toastId) toast.dismiss(toastId);
-            navigate('/plan', { state: { previous_meals: previousMeals, current_pantry_ingredients: typeof currentIngredients !== 'undefined' ? currentIngredients : [], update_reason: reason, is_plan_expired: actualIsPlanExpired, entry_point, disliked_meals: Object.keys(dislikedMeals || {}) } });
+            navigate('/plan', { state: { previous_meals: previousMeals, current_pantry_ingredients: typeof currentIngredients !== 'undefined' ? currentIngredients : [], update_reason: reason, _renewal_pantry_aware: renewalPantryAware, durable_pantry_ingredients: durablePantryIngredients, is_plan_expired: actualIsPlanExpired, entry_point, disliked_meals: Object.keys(dislikedMeals || {}) } });
         } else {
             // [P1-B6] Falta algún campo requerido. Toast informativo + redirect
             // a /assessment (antes el redirect era silencioso y el usuario no
