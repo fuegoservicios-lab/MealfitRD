@@ -333,8 +333,16 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
 
             {/* [P3-NOTIF-CENTER · 2026-06-16] Tirador + drawer de notificaciones —
                 SOLO en la página "Plan" (/dashboard), que es de donde salen los
-                avisos (micros, calidad). En Agente/Nevera/Recetas/etc. no aparece. */}
-            {location.pathname.replace(/\/$/, '') === '/dashboard' && <NotificationCenter />}
+                avisos (micros, calidad). En Agente/Nevera/Recetas/etc. no aparece.
+                [P3-NOTIF-HIDE-ON-MENU · 2026-06-29] En móvil, con el menú de las 3
+                rayas abierto la campanita chocaba visualmente con el dropdown → se
+                oculta mientras el menú está abierto. display:none (no desmonta) →
+                preserva el estado/notificaciones del NotificationCenter. */}
+            {location.pathname.replace(/\/$/, '') === '/dashboard' && (
+                <div style={isMobileMoreMenuOpen ? { display: 'none' } : undefined}>
+                    <NotificationCenter />
+                </div>
+            )}
 
 
             {/* Mobile More Menu (Configuración + Cerrar Sesión) — rendered at container root to escape stacking contexts */}
