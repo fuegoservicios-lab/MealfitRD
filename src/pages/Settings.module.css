@@ -245,9 +245,14 @@
    usa la pantalla inmersiva PlanObjetivo, que exige un fondo UNIFORME. Se neutraliza
    todo el "premium surface" del .grid (degradado, borde, radius, sombra, blur + la
    barra indigo ::before y los glows ::after) → el contenido queda sobre el fondo de
-   página uniforme. Solo afecta móvil; en desktop el panel premium se conserva. */
+   página uniforme. Solo afecta móvil; en desktop el panel premium se conserva.
+   [P3-PLANOBJETIVO-MOBILE-FIX · 2026-06-29] Especificidad: el override de dark theme
+   `html[data-theme="dark"] .grid` (0-2-1) le ganaba a `.gridFlush` (0-1-0) → el panel
+   oscuro persistía. Se usa `.grid.gridFlush` (el elemento tiene ambas clases) + la
+   variante dark para ganar sin depender del orden de cascada. */
 @media (max-width: 768px) {
-    .gridFlush {
+    .grid.gridFlush,
+    :global(html[data-theme="dark"]) .grid.gridFlush {
         background: transparent;
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
@@ -256,8 +261,10 @@
         box-shadow: none;
         overflow: visible;
     }
-    .gridFlush::before,
-    .gridFlush::after {
+    .grid.gridFlush::before,
+    .grid.gridFlush::after,
+    :global(html[data-theme="dark"]) .grid.gridFlush::before,
+    :global(html[data-theme="dark"]) .grid.gridFlush::after {
         display: none;
     }
 }
