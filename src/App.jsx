@@ -4,6 +4,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet }
 // renderiza ningún toast (sonner no auto-monta). Ver el render abajo.
 import { Toaster } from 'sonner';
 import Layout from './components/layout/Layout';
+// [P3-ROUTE-TITLE · 2026-06-29] Título de pestaña por ruta (minimalista + coherente).
+import RouteTitle from './components/layout/RouteTitle';
 // [P1-EMAIL-OTP · 2026-06-21] /register quedó retirado: el login por código crea
 // la cuenta en el primer acceso (un solo flujo). La ruta redirige a /login para
 // no romper los CTA "crear cuenta" repartidos por la app (Upgrade/Pricing/etc.).
@@ -257,6 +259,8 @@ function App() {
         <ScrollRestoration />
         {/* [P3-LANDING-DARK-ONLY · 2026-06-29] Fuerza oscuro en rutas de marketing. */}
         <PublicThemeLock />
+        {/* [P3-ROUTE-TITLE · 2026-06-29] Título de pestaña coherente por ruta. */}
+        <RouteTitle />
         {/* [P3-APP-SUBDOMAIN-ROUTING · 2026-06-28] Apex → app.* para rutas de app. */}
         <ApexAppRedirect />
         <IOSInstallPrompt />
