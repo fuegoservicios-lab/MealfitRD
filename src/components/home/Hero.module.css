@@ -67,11 +67,15 @@
     }
 }
 
-/* [P3-HERO-TOP-SPACING · 2026-06-29] En MÓVIL el contenido es alto y se acomoda
-   distinto (el min-height de desktop no basta): el título se metía bajo la barra
-   flotante. Más padding-top arriba lo baja claramente bajo el header. */
+/* [P3-HERO-TOP-SPACING · 2026-06-29] En MÓVIL el contenido es alto y casi llena la
+   pantalla; con `center` + min-height el título se metía bajo la barra flotante.
+   Solución confiable: alineación ARRIBA (flex-start) → el padding-top controla la
+   posición de forma DIRECTA (no se reparte). min-height vuelve a 100dvh (el +80 de
+   desktop no aplica aquí). Así el texto SIEMPRE queda debajo del header. */
 @media (max-width: 767px) {
     .hero {
+        align-items: flex-start;
+        min-height: 100dvh;
         padding-top: calc(6rem + max(env(safe-area-inset-top), 24px));
     }
 }
