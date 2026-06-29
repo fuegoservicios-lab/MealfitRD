@@ -1534,12 +1534,11 @@ const Settings = () => {
                     </aside>
 
                     <main className={styles.contentPanel}>
-                        {/* [P3-PLANOBJETIVO-MOBILE · 2026-06-29] En 'plan' el panel
-                            premium (.grid: degradado + borde + barra/glows indigo) se
-                            aplana en móvil → fondo uniforme para la pantalla inmersiva.
-                            [P3-SUBSCRIPTION-FLUSH · 2026-06-29] Mismo aplanado para
-                            'subscription' (pedido owner: fondo uniforme también ahí). */}
-                        <div className={`${styles.grid} ${(activeSection === 'plan' || activeSection === 'subscription') ? styles.gridFlush : ''}`}>
+                        {/* [P3-PLANOBJETIVO-MOBILE · 2026-06-29] El panel premium (.grid:
+                            degradado + borde + barra/glows indigo) se aplana en móvil →
+                            fondo uniforme. Aplica a las secciones listadas (pedido owner:
+                            fondo uniforme en plan, suscripción y superpersonalización). */}
+                        <div className={`${styles.grid} ${['plan', 'subscription', 'superpers'].includes(activeSection) ? styles.gridFlush : ''}`}>
 
                     {/* SECCIÓN 1: PERFIL + APARIENCIA */}
                     {activeSection === 'profile' && (
