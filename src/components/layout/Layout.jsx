@@ -13,12 +13,15 @@ const Layout = ({ children }) => {
                 <Header />
                 <main className="main-content" style={{ flex: 1 }}>
                     <style>{`
+                        /* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El header es una barra
+                           flotante (wrapper con padding + pastilla). Subimos el offset
+                           para que el contenido arranque con aire bajo la barra. */
                         .main-content {
-                            padding-top: calc(60px + max(env(safe-area-inset-top), 24px));
+                            padding-top: calc(72px + max(env(safe-area-inset-top), 18px));
                         }
                         @media (min-width: 768px) {
                             .main-content {
-                                padding-top: 70px;
+                                padding-top: 88px;
                             }
                         }
                     `}</style>

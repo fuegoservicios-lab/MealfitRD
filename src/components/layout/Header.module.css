@@ -1,33 +1,40 @@
+/* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Header rediseñado a "barra flotante":
+   el <header> es solo un wrapper fijo y TRANSPARENTE con padding; la pastilla glass
+   (.container) flota dentro con bordes redondeados, borde y sombra. */
 .header {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: calc(60px + max(env(safe-area-inset-top), 24px));
-    padding-top: max(env(safe-area-inset-top), 24px);
-    background: rgba(255, 255, 255, 0.65);
-    /* More transparent */
-    backdrop-filter: blur(24px);
-    /* Heavier blur */
-    -webkit-backdrop-filter: blur(24px);
-    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
     z-index: 1000;
-    display: flex;
-    align-items: center;
-    transition: all 0.3s ease;
+    padding-top: max(14px, env(safe-area-inset-top));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: 0;
+    background: transparent;
 }
 
-/* Scrolled state could be added via JS class later if needed, but this default is good */
-
+/* La PASTILLA flotante (glass). max-width + margin auto la centran; el padding del
+   .header da el aire respecto a los bordes de la pantalla. */
 .container {
+    max-width: 1200px;
+    margin: 0 auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1.25rem;
+    padding: 0.6rem 0.75rem 0.6rem 1.35rem;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 24px 50px -28px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
 }
 
 .logo {
     font-family: var(--font-heading);
-    font-size: 1.75rem;
+    font-size: 1.6rem;
     font-weight: 800;
     color: var(--text-main);
     text-decoration: none;
@@ -35,7 +42,7 @@
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    transform: translateY(3px);
+    flex: none;
 }
 
 .highlight {
@@ -69,27 +76,37 @@
     min-width: 0;
 }
 
+/* [P3-HEADER-FLOAT-REDESIGN] Nav SEGMENTADA centrada: pista (track) con borde +
+   items tipo pastilla; el activo (scrollspy) lleva fondo. display:flex en desktop. */
 .navMarketing {
     display: none;
 }
 
 .navMarketingLink {
-    color: #475569;
+    font-family: var(--font-body);
+    color: var(--text-muted);
     text-decoration: none;
     font-weight: 500;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     white-space: nowrap;
-    transition: color 0.2s ease;
+    padding: 0.5rem 0.85rem;
+    border-radius: 8px;
+    transition: color 0.16s ease, background 0.16s ease;
 }
 
 .navMarketingLink:hover {
-    color: var(--primary);
+    color: var(--text-main);
+}
+
+.navMarketingLinkActive {
+    color: var(--text-main);
+    background: #FFFFFF;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
 .navMarketingLink:focus-visible {
-    outline: 3px solid var(--primary);
-    outline-offset: 3px;
-    border-radius: 4px;
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .navDesktop {
@@ -306,19 +323,19 @@
 }
 
 @media (min-width: 768px) {
-    .header {
-        height: 70px;
-        padding-top: 0;
-    }
-
     .navDesktop {
         display: flex;
     }
 
+    /* Pista segmentada visible solo en desktop (en el DOM en móvil para SEO). */
     .navMarketing {
         display: flex;
         align-items: center;
-        gap: 1.75rem;
+        gap: 4px;
+        padding: 4px;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.05);
+        border: 1px solid rgba(15, 23, 42, 0.06);
     }
 
     .mobileToggle {
@@ -355,9 +372,25 @@
  * [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — header público (landing).
  * El CTA dark-slate (#0f172a) sobre fondo oscuro desaparece → se vuelve indigo.
  * ==========================================================================*/
+/* [P3-HEADER-FLOAT-REDESIGN] En oscuro el wrapper sigue transparente; la pastilla
+   glass + la pista segmentada + el item activo toman tonos oscuros del mockup. */
 :global(html[data-theme="dark"]) .header {
-    background: rgba(11, 17, 32, 0.65);
-    border-bottom: 1px solid var(--border);
+    background: transparent;
+    border-bottom: none;
+}
+:global(html[data-theme="dark"]) .container {
+    background: rgba(17, 24, 39, 0.82);
+    border-color: rgba(255, 255, 255, 0.07);
+    box-shadow: 0 24px 50px -28px rgba(0, 0, 0, 0.8);
+}
+:global(html[data-theme="dark"]) .navMarketing {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+:global(html[data-theme="dark"]) .navMarketingLinkActive {
+    color: var(--text-main);
+    background: #1E293B;
+    box-shadow: none;
 }
 :global(html[data-theme="dark"]) .navLink {
     color: var(--text-muted);

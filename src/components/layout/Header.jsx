@@ -8,12 +8,24 @@ import LogoutConfirmModal from '../dashboard/LogoutConfirmModal';
 // [P1-GUEST-APPEARANCE · 2026-06-15] Selector de tema inline para invitados.
 import GuestAppearanceToggle from '../dashboard/GuestAppearanceToggle';
 
+// [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Secciones del landing para la nav segmentada.
+// El `id` debe coincidir con el id de cada <section> del Home (how-it-works, dashboard,
+// benchmarks, pricing) — usados por el scroll suave Y el scrollspy del item activo.
+const NAV_SECTIONS = [
+    { id: 'how-it-works', label: 'Cómo funciona' },
+    { id: 'dashboard', label: 'Funciones' },
+    { id: 'benchmarks', label: 'Precisión' },
+    { id: 'pricing', label: 'Precios' },
+];
+
 const Header = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     // [ACCOUNT-MENU · 2026-06-01] Estado del menú de cuenta desplegable (desktop).
     const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
     const accountMenuRef = useRef(null);
+    // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Sección activa del nav segmentado (scrollspy).
+    const [activeSection, setActiveSection] = useState('how-it-works');
 
     // Obtenemos planData para saber si el usuario ya tiene un plan activo
     // Obtener session y resetApp para el logout
@@ -30,10 +42,11 @@ const Header = () => {
     const isHome = location.pathname === '/';
     const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
 
-    // [HEADER-STICKY-CTA · 2026-05-31] En el landing el header NO muestra CTA (el
-    // Hero ya tiene el suyo). Cuando el del Hero sale de vista al scrollear, este
-    // CTA equivalente aparece; al volver arriba (Hero CTA visible de nuevo) se va.
-    const showStickyCta = isHome && !heroCtaVisible && !hideStartNow && !isLegalPage;
+    // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El CTA del header SIEMPRE visible en el
+    // landing (antes solo aparecía al scrollear, gateado por `!heroCtaVisible`). El
+    // owner lo quiere visible también arriba. `heroCtaVisible` sigue en el provider
+    // pero ya no oculta este CTA.
+    const showStickyCta = isHome && !hideStartNow && !isLegalPage;
 
     // [ACCOUNT-MENU · 2026-06-01] Identidad para el avatar (inicial) + la cabecera
     // del menú (nombre + correo). Fallbacks: nombre del perfil → parte local del
@@ -77,6 +90,27 @@ const Header = () => {
         };
     }, [isAccountMenuOpen]);
 
+    // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Scrollspy del nav segmentado: marca el
+    // item según la sección visible. Banda fina al centro del viewport (rootMargin
+    // -45%/-45%) → la sección que la cruza es la activa. Si ninguna la cruza (hero o
+    // entre secciones) se conserva la última (no parpadea). Solo en isHome.
+    useEffect(() => {
+        if (!isHome || typeof IntersectionObserver === 'undefined') return undefined;
+        const els = NAV_SECTIONS.map((s) => document.getElementById(s.id)).filter(Boolean);
+        if (!els.length) return undefined;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const inBand = entries.filter((e) => e.isIntersecting).map((e) => e.target.id);
+                if (!inBand.length) return;
+                const ordered = NAV_SECTIONS.map((s) => s.id).filter((id) => inBand.includes(id));
+                if (ordered.length) setActiveSection(ordered[0]);
+            },
+            { rootMargin: '-45% 0px -45% 0px', threshold: 0 }
+        );
+        els.forEach((el) => observer.observe(el));
+        return () => observer.disconnect();
+    }, [isHome]);
+
     // [P3-SEO-MARKETING-NAV · 2026-06-28] Scroll suave a la sección SIN ensuciar la
     // URL con #hash. preventDefault evita que el navegador añada el fragmento
     // (la URL se queda limpia en mealfitrd.com/). El href="#..." se conserva para
@@ -86,44 +120,42 @@ const Header = () => {
         const el = document.getElementById(id);
         if (!el) return;
         e.preventDefault();
-        const top = el.getBoundingClientRect().top + window.scrollY - 80;
+        const top = el.getBoundingClientRect().top + window.scrollY - 96;
         window.scrollTo({ top, behavior: 'smooth' });
     };
 
     return (
         <>
         <header className={styles.header}>
-            <div className={`container ${styles.container}`}>
-                {/* [P3-HEADER-LOGO-LINK · 2026-05-31] El logo ahora es Link a "/"
-                    (convención universal: el logo lleva al inicio). Antes era un
-                    <div> inerte.
-                    [P3-SEO-MARKETING-NAV · 2026-06-28] Cluster izquierdo: logo +
-                    nav de secciones del landing. Da a Google enlaces internos con
-                    anchor-text descriptivo (base para sitelinks/jump-links) y al
-                    usuario navegación. Solo en isHome. Visible en desktop; en móvil
-                    queda display:none PERO presente en el DOM (mobile-first indexing
-                    lo lee). Anchors nativos (#id) — los <a href="#"> no los intercepta
-                    react-router; las secciones ya tienen los id correspondientes. */}
+            <div className={styles.container}>
+                {/* [P3-HEADER-LOGO-LINK · 2026-05-31] El logo es Link a "/" (lleva al inicio). */}
                 <Link to="/" className={styles.logo} aria-label="MealfitRD — Inicio">
                     Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
                 </Link>
 
-                {/* [HEADER-STICKY-CTA · 2026-05-31] Cluster derecho: agrupa CTA sticky
-                    + nav + toggle, alineados juntos a la derecha. El navMobile
-                    (absolute) queda fuera, como hermano. */}
-                <div className={styles.headerRight}>
-                {/* [P3-SEO-MARKETING-NAV · 2026-06-28] Nav de secciones del landing,
-                    ahora en el cluster DERECHO (pegado al CTA), no junto al logo.
-                    Solo isHome; en el DOM también en móvil (mobile-first indexing),
-                    visible en desktop. */}
+                {/* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Nav SEGMENTADA CENTRADA
+                    (entre logo y CTA, via justify-content:space-between del .container).
+                    Solo isHome; en el DOM también en móvil para mobile-first indexing
+                    (display:none <768px). El item activo lo marca el scrollspy. Anchors
+                    nativos (#id): el click hace scroll suave SIN ensuciar la URL. */}
                 {isHome && (
                     <nav className={styles.navMarketing} aria-label="Secciones de la página">
-                        <a href="#how-it-works" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'how-it-works')}>Cómo funciona</a>
-                        <a href="#dashboard" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'dashboard')}>Funciones</a>
-                        <a href="#benchmarks" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'benchmarks')}>Precisión</a>
-                        <a href="#pricing" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'pricing')}>Precios</a>
+                        {NAV_SECTIONS.map((s) => (
+                            <a
+                                key={s.id}
+                                href={`#${s.id}`}
+                                className={`${styles.navMarketingLink} ${activeSection === s.id ? styles.navMarketingLinkActive : ''}`}
+                                aria-current={activeSection === s.id ? 'true' : undefined}
+                                onClick={(e) => { handleSectionNav(e, s.id); setActiveSection(s.id); }}
+                            >
+                                {s.label}
+                            </a>
+                        ))}
                     </nav>
                 )}
+
+                {/* [HEADER-STICKY-CTA · 2026-05-31] Cluster derecho: CTA + cuenta + toggle. */}
+                <div className={styles.headerRight}>
                 {/* [HEADER-STICKY-CTA · 2026-05-31] CTA sticky del landing — PRIMERO en
                     el cluster (queda a la IZQUIERDA) para que "Cerrar Sesión" (dentro de
                     navDesktop) quede a la DERECHA. Aparece al scrollear cuando el CTA del
