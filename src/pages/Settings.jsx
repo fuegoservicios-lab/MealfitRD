@@ -2122,9 +2122,12 @@ const Settings = () => {
                                             height: '30px',
                                             borderRadius: '999px',
                                             border: 'none',
-                                            background: ltmEnabled ? '#10B981' : '#CBD5E1',
+                                            background: ltmEnabled ? '#10B981' : 'var(--toggle-track-off)',
+                                            boxShadow: ltmEnabled
+                                                ? '0 0 12px rgba(16, 185, 129, 0.5)'
+                                                : 'inset 0 0 0 1px rgba(255, 255, 255, 0.18), inset 0 1px 2px rgba(0, 0, 0, 0.25)',
                                             cursor: isLtmToggling ? 'wait' : 'pointer',
-                                            transition: 'background 0.2s ease',
+                                            transition: 'background 0.2s ease, box-shadow 0.2s ease',
                                             flexShrink: 0,
                                             padding: 0,
                                             opacity: isLtmToggling ? 0.6 : 1,
@@ -2139,7 +2142,7 @@ const Settings = () => {
                                                 height: '24px',
                                                 borderRadius: '50%',
                                                 background: '#FFFFFF',
-                                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
+                                                boxShadow: '0 1px 4px rgba(0, 0, 0, 0.45)',
                                                 transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                             }}
                                         />
@@ -2221,9 +2224,12 @@ const Settings = () => {
                                                 height: '30px',
                                                 borderRadius: '999px',
                                                 border: 'none',
-                                                background: waterTrackerEnabled ? '#10B981' : '#CBD5E1',
+                                                background: waterTrackerEnabled ? '#10B981' : 'var(--toggle-track-off)',
+                                                boxShadow: waterTrackerEnabled
+                                                    ? '0 0 12px rgba(16, 185, 129, 0.5)'
+                                                    : 'inset 0 0 0 1px rgba(255, 255, 255, 0.18), inset 0 1px 2px rgba(0, 0, 0, 0.25)',
                                                 cursor: isWaterTrackerToggling ? 'wait' : 'pointer',
-                                                transition: 'background 0.2s ease',
+                                                transition: 'background 0.2s ease, box-shadow 0.2s ease',
                                                 flexShrink: 0,
                                                 padding: 0,
                                                 opacity: isWaterTrackerToggling ? 0.6 : 1,
@@ -2238,7 +2244,7 @@ const Settings = () => {
                                                     height: '24px',
                                                     borderRadius: '50%',
                                                     background: '#FFFFFF',
-                                                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
+                                                    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.45)',
                                                     transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                                 }}
                                             />
