@@ -1,26 +1,23 @@
 /* ============================================================
-   DashboardShowcase — "Tu Dashboard" · [P3-DASHBOARD-BENTO · 2026-06-29]
-   Bento grid: mosaico de tiles de distintos tamaños con mini-demos.
-   Theme-aware vía variables del DS (claro/oscuro automático).
+   DashboardShowcase — section "Tu Dashboard"
+   Layout: lista de features (left) + mockup grande (right).
+   Mobile: stack vertical, lista arriba, mockup abajo.
    ============================================================ */
 
 .section {
     position: relative;
     padding: 6rem 0 7rem;
     overflow: hidden;
-    background: var(--bg-page);
+    background: linear-gradient(180deg, #FAFAFA 0%, #FFFFFF 100%);
 }
 
 .bgGlow {
     position: absolute;
-    top: 6%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 70%;
-    max-width: 900px;
-    height: 50%;
-    background: radial-gradient(ellipse at center, rgba(99, 102, 241, 0.12), transparent 70%);
-    filter: blur(40px);
+    top: 10%;
+    right: -10%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(79, 70, 229, 0.08) 0%, transparent 70%);
     pointer-events: none;
     z-index: 0;
 }
@@ -29,7 +26,7 @@
     position: relative;
     z-index: 1;
     width: 100%;
-    max-width: 1120px;
+    max-width: 1280px;
     margin: 0 auto;
     padding: 0 1.5rem;
 }
@@ -37,34 +34,31 @@
 /* ---------- Header ---------- */
 .header {
     text-align: center;
-    margin-bottom: 3.5rem;
-    max-width: 640px;
-    margin-left: auto;
-    margin-right: auto;
+    margin-bottom: 4rem;
 }
+
 .badge {
     display: inline-block;
-    padding: 0.4rem 0.95rem;
-    background: color-mix(in srgb, var(--primary) 12%, transparent);
-    border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+    padding: 0.4rem 1rem;
+    background: rgba(79, 70, 229, 0.1);
     color: var(--primary);
     border-radius: 99px;
-    font-family: var(--font-heading);
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     font-weight: 700;
-    letter-spacing: 0.16em;
-    margin-bottom: 1.2rem;
+    letter-spacing: 0.04em;
+    margin-bottom: 1.25rem;
     text-transform: uppercase;
 }
+
 .title {
-    font-family: var(--font-heading);
-    font-size: clamp(1.9rem, 4.5vw, 3rem);
+    font-size: 2.5rem;
     font-weight: 800;
     color: var(--text-main);
-    line-height: 1.1;
-    letter-spacing: -0.03em;
-    margin: 0 0 1.1rem;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin: 0 0 1.25rem;
 }
+
 .gradientText {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 50%, var(--accent) 100%);
     -webkit-background-clip: text;
@@ -72,169 +66,1046 @@
     background-clip: text;
     display: inline-block;
 }
+
 .subtitle {
-    font-size: 1.02rem;
+    font-size: 1.1rem;
     color: var(--text-muted);
-    line-height: 1.55;
-    margin: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
 }
 
-/* ---------- Bento grid ---------- */
-.bento {
+/* ---------- Grid principal ----------
+   Mobile: 3 filas (tabs → mockup → caption). Desktop: 2 columnas
+   (list a la izq, mockup a la der; caption hidden). */
+.grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    grid-template-areas:
-        "plan plan chat chat"
-        "plan plan nevera nevera"
-        "lista lista recetas recetas";
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    align-items: start;
 }
-.tilePlan { grid-area: plan; }
-.tileChat { grid-area: chat; }
-.tileNevera { grid-area: nevera; }
-.tileLista { grid-area: lista; }
-.tileRecetas { grid-area: recetas; }
 
-.tile {
+/* ---------- Feature list ----------
+   MOBILE: tabs horizontales scrolleables (icon + shortLabel).
+   La descripción larga vive en .featureCaption debajo del mockup.
+   DESKTOP: override a columna vertical con descripción inline.
+
+   Nota: el padding lateral del container (1.5rem) ya da el respiro
+   visual al primer/último tab. Pre-fix usábamos `margin: 0 -1.5rem`
+   como bleed-out al viewport — quedaba pegado al borde y se veía mal.
+   El padding vertical 0.5rem + horizontal 0.25rem deja aire para el
+   focus ring (outline-offset: 2px) sin desalinear del contenido. */
+.featureList {
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem 0.25rem;
+    display: flex;
+    flex-direction: row;
+    gap: 0.55rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.featureList::-webkit-scrollbar {
+    display: none;
+}
+
+/* Fade-mask en los bordes para señalizar scroll horizontal.
+   Solo aparece en el lado donde HAY más contenido oculto.
+   El estado lo controla useEffect del componente vía data-attrs.
+   En desktop el @media block más abajo limpia el mask-image. */
+.featureList[data-fade-right]:not([data-fade-left]) {
+    -webkit-mask-image: linear-gradient(to right,
+        #000 0%,
+        #000 calc(100% - 40px),
+        transparent 100%);
+    mask-image: linear-gradient(to right,
+        #000 0%,
+        #000 calc(100% - 40px),
+        transparent 100%);
+}
+
+.featureList[data-fade-left]:not([data-fade-right]) {
+    -webkit-mask-image: linear-gradient(to right,
+        transparent 0%,
+        #000 40px,
+        #000 100%);
+    mask-image: linear-gradient(to right,
+        transparent 0%,
+        #000 40px,
+        #000 100%);
+}
+
+.featureList[data-fade-left][data-fade-right] {
+    -webkit-mask-image: linear-gradient(to right,
+        transparent 0%,
+        #000 40px,
+        #000 calc(100% - 40px),
+        transparent 100%);
+    mask-image: linear-gradient(to right,
+        transparent 0%,
+        #000 40px,
+        #000 calc(100% - 40px),
+        transparent 100%);
+}
+
+.featureList > li {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+}
+
+.featureItem {
+    /* Mobile: pill compacto. Desktop override re-expande a card vertical. */
+    width: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.95rem 0.55rem 0.55rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: #FFFFFF;
+    border-radius: 99px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: inherit;
     position: relative;
     overflow: hidden;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 1.35rem;
+    white-space: nowrap;
+}
+
+.featureItem:hover {
+    border-color: rgba(79, 70, 229, 0.25);
+    box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.08);
+}
+
+.featureItem:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.featureActive {
+    border-color: var(--feature-color, var(--primary));
+    background: var(--feature-color, var(--primary));
+    box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--feature-color, var(--primary)) 60%, transparent);
+}
+
+.featureActive:hover {
+    transform: none;
+}
+
+.featureIcon {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--feature-color, var(--primary)) 12%, transparent);
+    color: var(--feature-color, var(--primary));
+    transition: all 0.25s;
+}
+
+.featureActive .featureIcon {
+    background: rgba(255, 255, 255, 0.25);
+    color: #FFFFFF;
+    box-shadow: none;
+}
+
+.featureText {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.featureText > strong {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.2;
+}
+
+.featureActive .featureText > strong {
+    color: #FFFFFF;
+}
+
+/* Dual label: full visible en desktop, short visible en mobile */
+.labelFull {
+    display: none;
+}
+
+.labelShort {
+    display: inline;
+}
+
+/* Descripción: oculta en mobile (vive en caption), visible en desktop */
+.featureDesc {
+    display: none;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+    font-weight: 400;
+}
+
+/* ---------- Caption mobile-only ----------
+   Renderiza título completo + descripción de la feature activa
+   debajo del mockup. Reemplaza la descripción inline que existe
+   en desktop. Hidden en desktop. */
+.featureCaption {
+    text-align: center;
+    padding: 0.5rem 0.75rem 0;
+    min-height: 4.5rem;
+}
+
+.featureCaption strong {
+    display: block;
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 0.4rem;
+    letter-spacing: -0.01em;
+}
+
+.featureCaption p {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin: 0;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* ---------- Mockup container (right) ---------- */
+.mockupContainer {
+    position: relative;
+    width: 100%;
+    min-height: 460px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mockupWrapper {
+    width: 100%;
+    max-width: 540px;
+}
+
+/* ============================================================
+   Mockup frame (shared shell de los 5 mockups)
+   ============================================================ */
+.mockFrame {
+    background: #FFFFFF;
+    border-radius: 1.5rem;
+    padding: 1.25rem 1.4rem;
+    box-shadow:
+        0 30px 60px -20px rgba(15, 23, 42, 0.25),
+        0 0 0 1px rgba(15, 23, 42, 0.04);
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    min-height: 160px;
-    transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
-}
-.tile::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
-    opacity: 0.85;
-}
-.tile:hover {
-    transform: translateY(-4px);
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-    box-shadow: 0 26px 50px -28px color-mix(in srgb, var(--accent) 60%, rgba(0, 0, 0, 0.55));
 }
 
-.tileHead {
+.mockHeader {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 0.75rem;
-    align-items: flex-start;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
 }
-.tileIcon {
-    flex: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 11px;
-    display: grid;
-    place-items: center;
-    color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 15%, transparent);
-}
-.tileHeadText h3 {
-    font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 1.04rem;
+
+.mockHeader strong {
+    display: block;
+    font-size: 1rem;
+    font-weight: 800;
     color: var(--text-main);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+}
+
+.mockHeaderSub {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+.mockBadgePrimary,
+.mockBadgeAccent,
+.mockBadgeSuccess,
+.mockBadgeNeutral {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.3rem 0.6rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: default;
+    font-family: inherit;
+}
+
+.mockBadgePrimary {
+    color: var(--primary);
+    background: rgba(79, 70, 229, 0.1);
+}
+
+.mockBadgeAccent {
+    color: #8B5CF6;
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.mockBadgeSuccess {
+    color: #FFFFFF;
+    background: #10B981;
+    cursor: pointer;
+}
+
+.mockBadgeNeutral {
+    color: var(--text-main);
+    background: #F1F5F9;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    cursor: pointer;
+}
+
+/* ============================================================
+   Mockup 1: Plan Diario
+   ============================================================ */
+.planMeals {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.planMeal {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    background: #F8FAFC;
+    border: 1px solid rgba(15, 23, 42, 0.05);
+    border-radius: 0.75rem;
+}
+
+.planMealLeft {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.planMealTag {
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--primary);
+}
+
+.planMealName {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.25;
+}
+
+.planMealTime {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #2563EB;
+    margin-top: 2px;
+}
+
+.planMealKcal {
+    text-align: right;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.planMealKcal strong {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+}
+
+.planMealKcal small {
+    display: block;
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.planFooter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    padding-top: 0.5rem;
+}
+
+.planFooter svg {
+    color: #F97316;
+    flex-shrink: 0;
+}
+
+.planFooter strong {
+    color: var(--text-main);
+    font-weight: 800;
+}
+
+.planProgress {
+    flex: 1;
+    height: 6px;
+    background: rgba(15, 23, 42, 0.06);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-left: 0.4rem;
+}
+
+.planProgress span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #F97316 0%, #10B981 100%);
+    border-radius: 99px;
+}
+
+/* ============================================================
+   Mockup 2: Recetas
+   ============================================================ */
+.recipeBody {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+}
+
+.recipeIngredients h5,
+.recipeSteps h5 {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin: 0 0 0.5rem;
+}
+
+.recipeIngredients ul {
+    list-style: none;
     margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.recipeIngredients li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--text-main);
+    font-weight: 500;
+}
+
+.recipeQty {
+    flex-shrink: 0;
+    min-width: 2.6rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #8B5CF6;
+    background: rgba(139, 92, 246, 0.1);
+    padding: 0.2rem 0.45rem;
+    border-radius: 0.4rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.recipeSteps ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.recipeSteps li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    font-size: 0.78rem;
+    color: var(--text-main);
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+.recipeStepNum {
+    flex-shrink: 0;
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #FFFFFF;
+    font-size: 0.7rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+}
+
+/* ============================================================
+   Mockup 3: Shopping list
+   ============================================================ */
+.shopBody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.shopGroup h5 {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #10B981;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin: 0 0 0.45rem;
+}
+
+.shopGroup ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.shopGroup li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.shopGroup li span {
+    flex: 1;
+}
+
+.shopGroup li small {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.shopItemDone {
+    color: var(--text-muted) !important;
+}
+
+.shopItemDone span {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+.shopItemDone svg {
+    color: #10B981;
+    flex-shrink: 0;
+}
+
+.shopBullet {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(15, 23, 42, 0.2);
+    flex-shrink: 0;
+    display: inline-block;
+}
+
+/* Leyenda al final de la lista que explica el código visual:
+   check verde = ya en nevera, círculo vacío = por comprar.
+   Cierra el gap UX del usuario nuevo que ve items tachados con
+   ✓ y no sabe si significa "comprado" o "ya lo tienes". */
+.shopLegend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    padding-top: 0.65rem;
+    margin-top: 0.25rem;
+    border-top: 1px solid rgba(15, 23, 42, 0.06);
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.shopLegendItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.shopLegendItem svg {
+    color: #10B981;
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   Mockup 4: Chat IA
+   ============================================================ */
+.chatHeaderRow {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.chatAvatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px -2px rgba(79, 70, 229, 0.4);
+}
+
+.chatStatusDot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10B981;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    margin-right: 0.3rem;
+    vertical-align: middle;
+}
+
+.chatSparkle {
+    color: #F97316;
+    flex-shrink: 0;
+}
+
+.chatBody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.chatBubbleUser,
+.chatBubbleBot {
+    max-width: 82%;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+.chatBubbleUser {
+    align-self: flex-end;
+    color: #FFFFFF;
+    background: var(--primary);
+    border-radius: 1rem 1rem 0.3rem 1rem;
+}
+
+.chatBubbleBot {
+    align-self: flex-start;
+    color: var(--text-main);
+    background: #F1F5F9;
+    border-radius: 1rem 1rem 1rem 0.3rem;
+}
+
+.chatBubbleBot strong {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+/* Input bar fake al final del chat — señaliza visualmente que el
+   usuario puede escribir. Sin esto el mockup parece imagen estática. */
+.chatInputBar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.55rem 0.7rem 0.55rem 0.95rem;
+    background: #F8FAFC;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 99px;
+}
+
+.chatInputPlaceholder {
+    flex: 1;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.chatInputSend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #FFFFFF;
+    flex-shrink: 0;
+    box-shadow: 0 4px 8px -2px rgba(79, 70, 229, 0.4);
+}
+
+/* ============================================================
+   Mockup 5: Pantry
+   ============================================================ */
+.pantrySearch {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.85rem;
+    background: #F8FAFC;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 0.65rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.pantrySearch svg {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.pantryGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.55rem;
+}
+
+.pantryItem {
+    padding: 0.65rem 0.7rem;
+    background: #F8FAFC;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    border-radius: 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    position: relative;
+}
+
+.pantryItem strong {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-main);
     line-height: 1.2;
 }
-.tileHeadText p {
-    font-size: 0.84rem;
+
+.pantryItem small {
+    font-size: 0.68rem;
     color: var(--text-muted);
-    line-height: 1.45;
-    margin: 0.3rem 0 0;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
 }
 
-/* ── PLAN preview ── */
-.planPreview { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
-.planRow {
-    display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
-    padding: 0.6rem 0.7rem; border-radius: 12px;
-    background: color-mix(in srgb, var(--text-main) 4%, transparent);
-    border: 1px solid var(--border);
-}
-.planRowLeft { display: flex; flex-direction: column; gap: 0.12rem; min-width: 0; }
-.planTag { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; color: var(--accent); }
-.planName { font-size: 0.85rem; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.planKcal { flex: none; font-weight: 800; font-size: 0.95rem; color: var(--text-main); display: inline-flex; align-items: baseline; gap: 0.15rem; }
-.planKcal small { font-size: 0.6rem; font-weight: 500; color: var(--text-muted); }
-.planBar {
-    display: flex; align-items: center; gap: 0.5rem; margin-top: auto; padding-top: 0.3rem;
-    font-size: 0.78rem; color: var(--text-muted); font-weight: 600;
-}
-.planBar svg { color: var(--accent); flex: none; }
-.planBar > span { white-space: nowrap; }
-.planBarTrack {
-    flex: 1; height: 6px; border-radius: 999px;
-    background: color-mix(in srgb, var(--text-main) 9%, transparent); overflow: hidden;
-}
-.planBarTrack > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #FB923C, #34D399); }
-
-/* ── CHAT preview ── */
-.chatPreview { display: flex; flex-direction: column; gap: 0.45rem; flex: 1; justify-content: flex-end; }
-.bubbleUser, .bubbleBot { font-size: 0.82rem; line-height: 1.4; padding: 0.5rem 0.7rem; border-radius: 12px; max-width: 88%; }
-.bubbleUser {
-    align-self: flex-end; background: var(--accent); color: #2a1605; font-weight: 600;
-    border-bottom-right-radius: 4px;
-}
-.bubbleBot {
-    align-self: flex-start; color: var(--text-main);
-    background: color-mix(in srgb, var(--text-main) 6%, transparent);
-    border: 1px solid var(--border); border-bottom-left-radius: 4px;
+.pantryItem[data-state="soon"] {
+    border-color: rgba(249, 115, 22, 0.3);
+    background: rgba(249, 115, 22, 0.04);
 }
 
-/* ── NEVERA preview ── */
-.pantryPreview { display: flex; flex-wrap: wrap; gap: 0.45rem; align-content: flex-start; flex: 1; }
-.pantryChip {
-    display: inline-flex; align-items: center; gap: 0.3rem;
-    font-size: 0.76rem; font-weight: 600; color: var(--text-main);
-    background: color-mix(in srgb, var(--text-main) 5%, transparent);
-    border: 1px solid var(--border); padding: 0.32rem 0.55rem; border-radius: 8px;
-    height: fit-content;
-}
-.pantryChip small { color: var(--text-muted); font-weight: 500; }
-.pantryChipWarn {
-    color: var(--accent);
-    border-color: color-mix(in srgb, var(--accent) 42%, transparent);
-    background: color-mix(in srgb, var(--accent) 10%, transparent);
-}
-.pantryChipWarn small { color: color-mix(in srgb, var(--accent) 75%, var(--text-muted)); }
-
-/* ── LISTA preview ── */
-.listPreview { display: flex; flex-direction: column; gap: 0.45rem; flex: 1; }
-.listItem { display: flex; align-items: center; gap: 0.5rem; font-size: 0.84rem; color: var(--text-main); }
-.listCheck { color: var(--accent); flex: none; }
-.listBullet { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--text-muted); flex: none; opacity: 0.7; }
-.listItem > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.listItem[data-done] > span { color: var(--text-muted); text-decoration: line-through; }
-.listItem small { margin-left: auto; color: var(--text-muted); font-weight: 600; font-size: 0.76rem; flex: none; }
-
-/* ── RECETAS preview ── */
-.recipePreview { display: flex; flex-direction: column; gap: 0.45rem; flex: 1; }
-.recipeRow { display: flex; align-items: center; gap: 0.6rem; font-size: 0.84rem; color: var(--text-main); }
-.recipeQty {
-    flex: none; min-width: 2.7rem; text-align: center;
-    font-weight: 700; font-size: 0.74rem; color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
-    border-radius: 6px; padding: 0.2rem 0.35rem;
+.pantryWarn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.3rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #C2410C;
+    background: rgba(249, 115, 22, 0.15);
+    padding: 0.18rem 0.45rem;
+    border-radius: 0.3rem;
+    align-self: flex-start;
+    line-height: 1;
 }
 
-/* ---------- Responsive ---------- */
-@media (max-width: 860px) {
-    .section { padding: 4.5rem 0 5rem; }
-    .bento {
-        grid-template-columns: 1fr;
-        grid-template-areas: "plan" "chat" "nevera" "lista" "recetas";
+.pantryWarn svg {
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   Responsive (Desktop)
+   ============================================================ */
+@media (min-width: 1024px) {
+    .section {
+        padding: 8rem 0 9rem;
+    }
+
+    .title {
+        font-size: 3.5rem;
+    }
+
+    .subtitle {
+        font-size: 1.2rem;
+    }
+
+    .header {
+        margin-bottom: 5rem;
+    }
+
+    .grid {
+        grid-template-columns: 0.85fr 1.15fr;
+        gap: 4rem;
+        align-items: center;
+    }
+
+    /* Lista vuelve a columna vertical sticky (override mobile horizontal) */
+    .featureList,
+    .featureList[data-fade-left],
+    .featureList[data-fade-right],
+    .featureList[data-fade-left][data-fade-right] {
+        margin: 0;
+        padding: 0;
+        flex-direction: column;
+        gap: 0.75rem;
+        overflow: visible;
+        scroll-snap-type: none;
+        position: sticky;
+        top: 6rem;
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+
+    .featureList > li {
+        flex-shrink: initial;
+        scroll-snap-align: none;
+        width: 100%;
+    }
+
+    /* Item vuelve a card vertical con descripción inline (override pill) */
+    .featureItem {
+        width: 100%;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        border-radius: 1rem;
+        white-space: normal;
+    }
+
+    .featureItem:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 16px -8px rgba(15, 23, 42, 0.08);
+    }
+
+    .featureActive {
+        background: linear-gradient(135deg, rgba(79, 70, 229, 0.04) 0%, rgba(255, 255, 255, 1) 100%);
+        box-shadow:
+            0 12px 24px -12px rgba(79, 70, 229, 0.2),
+            inset 4px 0 0 0 var(--feature-color, var(--primary));
+    }
+
+    .featureActive:hover {
+        transform: translateY(-1px);
+    }
+
+    .featureIcon {
+        width: 42px;
+        height: 42px;
+        border-radius: 0.7rem;
+    }
+
+    .featureActive .featureIcon {
+        background: var(--feature-color, var(--primary));
+        color: #FFFFFF;
+        box-shadow: 0 6px 12px -4px color-mix(in srgb, var(--feature-color, var(--primary)) 50%, transparent);
+    }
+
+    /* Labels: full visible, short hidden */
+    .labelFull {
+        display: inline;
+    }
+
+    .labelShort {
+        display: none;
+    }
+
+    /* Texto del item: vuelve a colores normales (no white sobre primary) */
+    .featureText > strong {
+        font-size: 1.05rem;
+        color: var(--text-main);
+    }
+
+    .featureActive .featureText > strong {
+        color: var(--text-main);
+    }
+
+    /* Descripción visible inline en desktop */
+    .featureDesc {
+        display: block;
+        font-size: 0.88rem;
+    }
+
+    /* Caption hidden en desktop (la descripción ya está en la lista lateral) */
+    .featureCaption {
+        display: none;
+    }
+
+    .mockupContainer {
+        min-height: 540px;
+    }
+
+    .recipeBody {
+        grid-template-columns: 1fr 1.2fr;
+        gap: 1.5rem;
     }
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .tile { transition: none; }
+/* ============================================================
+   [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — DashboardShowcase
+   Aditivo: solo propiedades de color hardcodeadas en claro.
+   ============================================================ */
+
+/* section: gradiente #FAFAFA→#FFFFFF (fondo muy claro) → bg-page oscuro */
+:global(html[data-theme="dark"]) .section {
+    background: var(--bg-page);
+}
+
+/* featureItem (mobile pill / desktop card base):
+   background:#FFFFFF, border rgba(15,23,42,0.08) claros → bg-card + border oscuro */
+:global(html[data-theme="dark"]) .featureItem {
+    background: var(--bg-card);
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .featureItem:hover {
+    border-color: rgba(129, 140, 248, 0.3);
+    box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.3);
+}
+
+/* featureActive desktop: gradiente termina en #FFFFFF hardcodeado → bg-card.
+   La línea izquierda de acento (inset 4px) se conserva. */
+@media (min-width: 1024px) {
+    :global(html[data-theme="dark"]) .featureActive {
+        background: linear-gradient(135deg, rgba(129, 140, 248, 0.08) 0%, var(--bg-card) 100%);
+        box-shadow:
+            0 12px 24px -12px rgba(0, 0, 0, 0.4),
+            inset 4px 0 0 0 var(--feature-color, var(--primary));
+    }
+}
+
+/* mockFrame: superficie principal del mockup — #FFFFFF → bg-card */
+:global(html[data-theme="dark"]) .mockFrame {
+    background: var(--bg-card);
+    box-shadow:
+        0 30px 60px -20px rgba(0, 0, 0, 0.55),
+        0 0 0 1px var(--border);
+}
+
+/* mockHeader border-bottom: rgba(15,23,42,0.06) apenas visible en claro →
+   usar la variable de borde oscuro para que sea legible */
+:global(html[data-theme="dark"]) .mockHeader {
+    border-bottom-color: var(--border);
+}
+
+/* mockBadgeNeutral: #F1F5F9 (color claro) → bg-muted oscuro */
+:global(html[data-theme="dark"]) .mockBadgeNeutral {
+    background: var(--bg-muted);
+    border-color: var(--border);
+    color: var(--text-main);
+}
+
+/* Mockup 1 — Plan Diario
+   planMeal: bg:#F8FAFC (muy claro) → bg-muted oscuro */
+:global(html[data-theme="dark"]) .planMeal {
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+
+/* planProgress track: rgba(15,23,42,0.06) invisible en oscuro → sutil */
+:global(html[data-theme="dark"]) .planProgress {
+    background: rgba(241, 245, 249, 0.08);
+}
+
+/* Mockup 2 — Recetas (recipeQty chip morado: ya lee bien en oscuro, no tocar) */
+
+/* Mockup 3 — Shopping list
+   shopBullet: borde rgba(15,23,42,0.2) → usar border var */
+:global(html[data-theme="dark"]) .shopBullet {
+    border-color: var(--border);
+}
+
+/* shopLegend separator: rgba(15,23,42,0.06) invisible en oscuro */
+:global(html[data-theme="dark"]) .shopLegend {
+    border-top-color: var(--border);
+}
+
+/* Mockup 4 — Chat IA
+   chatBubbleBot: bg:#F1F5F9 (claro) → bg-muted oscuro */
+:global(html[data-theme="dark"]) .chatBubbleBot {
+    background: var(--bg-muted);
+    color: var(--text-main);
+}
+
+/* chatInputBar: bg:#F8FAFC, border rgba(15,23,42,0.08) → bg-muted + border */
+:global(html[data-theme="dark"]) .chatInputBar {
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+
+/* Mockup 5 — Pantry
+   pantrySearch: bg:#F8FAFC → bg-muted */
+:global(html[data-theme="dark"]) .pantrySearch {
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+
+/* pantryItem base: bg:#F8FAFC → bg-muted */
+:global(html[data-theme="dark"]) .pantryItem {
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+
+/* pantryItem[data-state="soon"]: tinte naranja sobre muted oscuro.
+   El borde naranja ya se conserva (es color semántico, no hardcoded claro). */
+:global(html[data-theme="dark"]) .pantryItem[data-state="soon"] {
+    background: rgba(249, 115, 22, 0.07);
+    border-color: rgba(249, 115, 22, 0.35);
+}
+
+/* [P2-DARK-PANTRYWARN · 2026-05-31] pantryWarn era naranja-700 #C2410C (luminancia
+   muy baja) sobre tinte naranja sobre slate oscuro → contraste <3:1, ilegible. El
+   padre soon se oscurece arriba, agravándolo. Subimos a orange-300 (legible). */
+:global(html[data-theme="dark"]) .pantryWarn {
+    color: #FDBA74;
+    background: rgba(249, 115, 22, 0.18);
+}
+
+/* [P3-DARK-ACCENTS · 2026-05-31] Acentos de marca hardcodeados en claro que en
+   dark pierden jerarquía (siguen legibles, es polish de cohesión: aclaramos el
+   brand color como en el resto del tema oscuro). */
+:global(html[data-theme="dark"]) .mockBadgeAccent,
+:global(html[data-theme="dark"]) .recipeQty {
+    color: #C4B5FD;
+    background: rgba(139, 92, 246, 0.18);
+}
+
+:global(html[data-theme="dark"]) .planMealTime {
+    color: #60A5FA;
+}
+
+:global(html[data-theme="dark"]) .planFooter svg,
+:global(html[data-theme="dark"]) .chatSparkle {
+    color: #FB923C;
 }
