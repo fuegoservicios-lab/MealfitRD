@@ -30,18 +30,19 @@
 
 .hero {
     position: relative;
-    min-height: 100dvh;
+    /* [P3-HERO-TOP-SPACING · 2026-06-28] +140px al alto: el hero se sube con margin-top
+       para que el fondo (gradiente+spotlight) llene detrás de la barra flotante; eso
+       movía el contenido CENTRADO hacia arriba (pegado al header). Este alto extra hace
+       que el centro vertical caiga más abajo → el contenido queda bien debajo de la barra. */
+    min-height: calc(100dvh + 140px);
     display: flex;
-    /* [P3-HERO-TOP-SPACING · 2026-06-28] flex-start (antes center): centrado vertical +
-       barra flotante dejaba el contenido pegado al header y el padding-top apenas movía
-       (se reparte). Alineado arriba, el padding-top baja TODO el grid de forma directa. */
-    align-items: flex-start;
+    align-items: center;
     overflow: hidden;
     overflow-x: clip;
     /* [P3-HERO-TOP-SPACING · 2026-06-28] Más aire arriba: tras subir el hero bajo la
        barra flotante, el contenido centrado quedaba pegado al header. Este padding-top
        lo baja para que el título "respire" debajo de la barra. */
-    padding: calc(6.5rem + max(env(safe-area-inset-top), 24px)) 0 4rem;
+    padding: calc(2rem + max(env(safe-area-inset-top), 24px)) 0 4rem;
     /* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El header es una barra FLOTANTE fija y
        transparente alrededor. Subimos el hero para que su fondo (gradiente + spotlight)
        llene DETRÁS de la barra y NO quede una franja plana arriba que no calza con la
