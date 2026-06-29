@@ -36,14 +36,14 @@ const STAGES = [
     {
         Icon: Cpu, color: '#A78BFA',
         title: '2 · Motor de inferencia',
-        sub: 'DeepSeek V4 · en segundos',
+        sub: 'DeepSeek V4 · en minutos',
         text: 'El modelo resuelve tu plan día por día contra un catálogo de 200+ alimentos verificados, optimizando macronutrientes, coste y adherencia. Clave: el motor solo usa alimentos que existen en el catálogo — nunca inventa comida.',
         bullets: [
             ['Generación por chunks', 'el plan se arma por bloques para entregarte resultado rápido y robusto.'],
             ['Solo alimentos verificados', 'cada ingrediente tiene datos nutricionales reales (curados desde USDA).'],
             ['Optimización multi-objetivo', 'equilibra tus macros, tu presupuesto y la variedad a la vez.'],
         ],
-        tags: ['DeepSeek V4', 'Catálogo verificado', 'Segundos'],
+        tags: ['DeepSeek V4', 'Catálogo verificado', 'Minutos'],
     },
     {
         Icon: Salad, color: '#34D399',
@@ -95,7 +95,7 @@ const ADAPT = [
 ];
 
 const FAQ = [
-    { q: '¿Cuánto tarda en generarse mi plan?', a: 'Segundos a un par de minutos. El motor genera por bloques y te entrega el plan completo con su lista de compras.' },
+    { q: '¿Cuánto tarda en generarse mi plan?', a: 'Normalmente un par de minutos. El motor genera por bloques y te entrega el plan completo con su lista de compras.' },
     { q: '¿Puedo cambiar comidas que no me gustan?', a: 'Sí. Desde el coach IA puedes pedir cambiar un plato, regenerar un día completo o ajustar porciones — respetando tus macros y tu condición.' },
     { q: '¿Se adapta a mi condición de salud?', a: 'Sí. Diabetes, enfermedad renal, hipertensión, dislipidemia, embarazo, cirugía bariátrica y alergias IgE activan reglas específicas sobre cada comida.' },
     { q: '¿Necesito tarjeta para empezar?', a: 'No. El plan Gratis te deja descubrir el motor sin tarjeta. Puedes escalar cuando quieras.' },

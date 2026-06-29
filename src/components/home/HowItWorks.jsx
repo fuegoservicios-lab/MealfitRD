@@ -23,8 +23,8 @@ const STEPS = [
     {
         icon: Cpu,
         title: 'Motor de inferencia',
-        desc: 'DeepSeek V4 resuelve tu plan contra el catálogo verificado, optimizando macronutrientes, coste y adherencia — en segundos, no a ojo.',
-        tag: 'DeepSeek V4 · segundos',
+        desc: 'DeepSeek V4 resuelve tu plan contra el catálogo verificado, optimizando macronutrientes, coste y adherencia — en minutos, no a ojo.',
+        tag: 'DeepSeek V4 · minutos',
         color: '#A78BFA',
     },
     {
