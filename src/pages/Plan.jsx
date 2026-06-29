@@ -2000,7 +2000,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
 
     return (
         <div className="mf-loading-bg" style={{
-            minHeight: 'calc(100dvh - 70px)',
+            minHeight: '100dvh',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             padding: '3rem 1.5rem',
             // [P3-LOADING-PALETTE-ALIGN · 2026-05-16] El fondo se define en el bloque
@@ -2040,6 +2040,30 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                     background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
                 }
             `}</style>
+
+            {/* [P3-PLAN-LOADING-LOGO · 2026-06-29] Logo MealfitRD pequeño y centrado
+                arriba (sin la barra completa). El loading es oscuro en ambos temas, así
+                que los colores van fijos (light/indigo/coral). Solo decorativo. */}
+            <div style={{
+                position: 'absolute',
+                top: 'max(1.75rem, env(safe-area-inset-top))',
+                left: 0, right: 0,
+                display: 'flex', justifyContent: 'center',
+                zIndex: 3, pointerEvents: 'none',
+            }}>
+                <span style={{
+                    fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
+                    fontWeight: 800, fontSize: '1.3rem', letterSpacing: '-0.03em',
+                    color: '#F1F5F9', display: 'inline-flex', alignItems: 'baseline',
+                }}>
+                    Mealfit
+                    <span style={{ color: '#818CF8', position: 'relative', display: 'inline-block' }}>
+                        R
+                        <span style={{ position: 'absolute', bottom: '4px', right: '-5px', width: '4px', height: '4px', borderRadius: '50%', background: '#FB7185' }} />
+                    </span>
+                    <span style={{ color: '#FB7185', marginLeft: '0.16em' }}>D</span>
+                </span>
+            </div>
 
             <motion.div
                 initial={{ opacity: 0, y: 16 }}
