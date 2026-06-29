@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     CalendarDays, ChefHat, ShoppingCart, Bot, Refrigerator,
@@ -7,54 +7,53 @@ import {
 } from 'lucide-react';
 import styles from './DashboardShowcase.module.css';
 
-// --- Datos de las 5 features que se muestran a la izquierda ---
+// --- Las 5 funciones (callouts flotantes). Copy más científico pero honesto. ---
 const FEATURES = [
     {
         id: 'plan',
         icon: CalendarDays,
-        title: 'Plan Diario Personalizado',
-        shortLabel: 'Plan Diario',
-        desc: 'Cada día con desayuno, almuerzo, cena y meriendas calibrados a tus macros exactos.',
-        color: '#4F46E5',
+        title: 'Plan diario calibrado',
+        shortLabel: 'Plan',
+        desc: 'Cada comida ajustada a tu objetivo de macronutrientes y calorías — sin ojo, con número.',
+        color: '#6366F1',
     },
     {
         id: 'recipes',
         icon: ChefHat,
-        title: 'Recetas Paso a Paso',
+        title: 'Recetas con gramaje exacto',
         shortLabel: 'Recetas',
-        desc: 'Cada plato con ingredientes en cantidades dominicanas y pasos claros para cocinarlo.',
-        color: '#8B5CF6',
+        desc: 'Cantidades dominicanas cuantificadas y pasos claros. Porciones medidas, no «al gusto».',
+        color: '#A78BFA',
     },
     {
         id: 'shopping',
         icon: ShoppingCart,
-        title: 'Lista de Compras Inteligente',
+        title: 'Lista deducida y costeada',
         shortLabel: 'Lista',
-        desc: 'Generada automáticamente, agrupada por categorías y exportable a PDF para llevarla donde quieras comprar.',
-        color: '#10B981',
+        desc: 'Derivada del plan, agrupada por categoría y costeada con precios reales de supermercado RD$.',
+        color: '#34D399',
     },
     {
         id: 'chat',
         icon: Bot,
-        title: 'Nutricionista IA 24/7',
+        title: 'Asistente IA en contexto',
         shortLabel: 'Chat IA',
-        desc: 'Pregunta, cambia comidas, registra lo que comiste — la IA responde al instante.',
-        color: '#F97316',
+        desc: 'Consulta, ajusta comidas y registra. La IA razona con tu perfil clínico en contexto, 24/7.',
+        color: '#FB923C',
     },
     {
         id: 'pantry',
         icon: Refrigerator,
-        title: 'Nevera Virtual',
+        title: 'Inventario anti-desperdicio',
         shortLabel: 'Nevera',
-        desc: 'La IA sabe qué tienes en casa y evita que compres lo que ya está en tu nevera.',
-        color: '#0EA5E9',
+        desc: 'Sabe qué tienes en casa y reusa los sobrantes para optimizar tu próxima compra.',
+        color: '#38BDF8',
     },
 ];
 
 // ============================================================
-//  Sub-componentes: un mockup por feature.
-//  Replican visualmente las pantallas reales del Dashboard,
-//  pero compactos para encajar en el container del showcase.
+//  Sub-componentes: un mockup por feature (replican las pantallas
+//  reales del Dashboard, compactos para el showcase).
 // ============================================================
 
 const PlanMockup = () => (
@@ -274,32 +273,21 @@ const MOCKUPS = {
     pantry: <PantryMockup />,
 };
 
-// [P2-A11Y-TABS · 2026-05-31] Un único tabpanel cuyo contenido se intercambia.
-// Antes cada tab apuntaba aria-controls a `mockup-${f.id}`, pero solo existía
-// el panel del feature activo → 4 de 5 tabs referenciaban ids inexistentes
-// (axe: aria-valid-attr-value). Todos los tabs apuntan a este id estable.
 const PANEL_ID = 'dashboard-showcase-panel';
 
 // ============================================================
-//  Componente principal
+//  Componente principal — [P3-DASHBOARD-CALLOUTS · 2026-06-29]
+//  Rediseño: mockup central que cambia + callouts flotantes
+//  clicables alrededor (los callouts SON los tabs; el mockup el
+//  tabpanel). Se preserva el patrón ARIA tablist/tab + navegación
+//  por teclado (roving tabindex).
 // ============================================================
 
 const DashboardShowcase = () => {
     const [activeFeature, setActiveFeature] = useState('plan');
     const currentFeature = FEATURES.find((f) => f.id === activeFeature) || FEATURES[0];
-
-    // Estado del scroll horizontal de los tabs (mobile). Habilita
-    // fade-mask en los bordes solo cuando hay contenido oculto en esa
-    // dirección — patrón estilo iOS App Store. Inactivo en desktop:
-    // el @media de la lista override quita el mask-image.
-    const listRef = useRef(null);
     const tabRefs = useRef([]);
-    const [scrollHints, setScrollHints] = useState({ left: false, right: false });
 
-    // [P2-A11Y-TABS · 2026-05-31] Navegación por flechas + roving tabindex para
-    // cumplir el patrón ARIA Tabs que role=tablist/tab le promete al lector de
-    // pantalla. Soporta ambos ejes (la lista es vertical en desktop, horizontal
-    // en mobile) + Home/End. Mueve el feature activo y enfoca el tab destino.
     const handleTabKeyDown = (e, index) => {
         const count = FEATURES.length;
         let next = null;
@@ -313,29 +301,6 @@ const DashboardShowcase = () => {
         tabRefs.current[next]?.focus();
     };
 
-    useEffect(() => {
-        const el = listRef.current;
-        if (!el) return undefined;
-
-        const update = () => {
-            const overflowing = el.scrollWidth > el.clientWidth + 1;
-            const atStart = el.scrollLeft <= 4;
-            const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
-            setScrollHints({
-                left: overflowing && !atStart,
-                right: overflowing && !atEnd,
-            });
-        };
-
-        update();
-        el.addEventListener('scroll', update, { passive: true });
-        window.addEventListener('resize', update);
-        return () => {
-            el.removeEventListener('scroll', update);
-            window.removeEventListener('resize', update);
-        };
-    }, []);
-
     return (
         <section className={styles.section} id="dashboard">
             <div className={styles.bgGlow} aria-hidden="true" />
@@ -348,104 +313,64 @@ const DashboardShowcase = () => {
                         <span className={styles.gradientText}>en un solo lugar</span>
                     </h2>
                     <p className={styles.subtitle}>
-                        Más que un plan: una herramienta diaria que aprende contigo, te organiza las compras y te ahorra tiempo en la cocina.
+                        Más que un plan: una herramienta diaria que aprende contigo, organiza tus compras y te ahorra tiempo en la cocina.
                     </p>
                 </div>
 
-                <div className={styles.grid}>
-                    {/* Lista de features. Desktop: columna vertical con descripción
-                        inline. Mobile: tabs horizontales scrolleables (solo icon +
-                        shortLabel), con la descripción de la feature activa
-                        renderizada como caption debajo del mockup. */}
-                    <ul
-                        ref={listRef}
-                        className={styles.featureList}
-                        data-fade-left={scrollHints.left ? '' : undefined}
-                        data-fade-right={scrollHints.right ? '' : undefined}
-                        role="tablist"
-                        aria-label="Features del Dashboard"
-                    >
+                <div className={styles.stage}>
+                    {/* callouts flotantes (tabs) que controlan el mockup central */}
+                    <div className={styles.callouts} role="tablist" aria-label="Funciones del Dashboard">
                         {FEATURES.map((f, idx) => {
                             const Icon = f.icon;
                             const isActive = activeFeature === f.id;
                             return (
-                                <li key={f.id}>
-                                    <button
-                                        type="button"
-                                        role="tab"
-                                        ref={(el) => { tabRefs.current[idx] = el; }}
-                                        aria-selected={isActive}
-                                        aria-controls={PANEL_ID}
-                                        tabIndex={isActive ? 0 : -1}
-                                        className={`${styles.featureItem} ${isActive ? styles.featureActive : ''}`}
-                                        onClick={() => setActiveFeature(f.id)}
-                                        onKeyDown={(e) => handleTabKeyDown(e, idx)}
-                                        style={isActive ? { '--feature-color': f.color } : undefined}
-                                    >
-                                        <span
-                                            className={styles.featureIcon}
-                                            style={{ '--feature-color': f.color }}
-                                        >
-                                            <Icon size={20} strokeWidth={2} />
-                                        </span>
-                                        <span className={styles.featureText}>
-                                            {/* Dual label: full (desktop) + short (mobile).
-                                                CSS oculta uno u otro según breakpoint. */}
-                                            <strong>
-                                                <span className={styles.labelFull}>{f.title}</span>
-                                                <span className={styles.labelShort}>{f.shortLabel}</span>
-                                            </strong>
-                                            <span className={styles.featureDesc}>{f.desc}</span>
-                                        </span>
-                                    </button>
-                                </li>
+                                <button
+                                    key={f.id}
+                                    type="button"
+                                    role="tab"
+                                    ref={(el) => { tabRefs.current[idx] = el; }}
+                                    aria-selected={isActive}
+                                    aria-controls={PANEL_ID}
+                                    tabIndex={isActive ? 0 : -1}
+                                    className={`${styles.callout} ${styles['callout' + (idx + 1)]} ${isActive ? styles.calloutActive : ''}`}
+                                    style={{ '--feature-color': f.color }}
+                                    onClick={() => setActiveFeature(f.id)}
+                                    onMouseEnter={() => setActiveFeature(f.id)}
+                                    onKeyDown={(e) => handleTabKeyDown(e, idx)}
+                                >
+                                    <span className={styles.calloutIcon}>
+                                        <Icon size={18} strokeWidth={2} />
+                                    </span>
+                                    <span className={styles.calloutText}>
+                                        <strong>{f.title}</strong>
+                                        <small>{f.desc}</small>
+                                    </span>
+                                </button>
                             );
                         })}
-                    </ul>
+                    </div>
 
-                    {/* Mockup grande (derecha en desktop, centro en mobile) */}
+                    {/* mockup central (tabpanel) que cambia según el callout activo */}
                     <div
-                        className={styles.mockupContainer}
+                        className={styles.mockCenter}
                         id={PANEL_ID}
                         role="tabpanel"
                         tabIndex={0}
                         aria-label={`Vista previa: ${currentFeature.title}`}
                         aria-live="polite"
+                        style={{ '--feature-color': currentFeature.color }}
                     >
+                        <div className={styles.mockGlow} aria-hidden="true" />
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={activeFeature}
-                                initial={{ opacity: 0, y: 16 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.35, ease: 'easeOut' }}
+                                initial={{ opacity: 0, y: 14, scale: 0.985 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -10, scale: 0.99 }}
+                                transition={{ duration: 0.32, ease: 'easeOut' }}
                                 className={styles.mockupWrapper}
                             >
                                 {MOCKUPS[activeFeature]}
-                            </motion.div>
-                        </AnimatePresence>
-                    </div>
-
-                    {/* Caption mobile-only: título completo + descripción de la
-                        feature activa, debajo del mockup. En desktop esta caption
-                        está oculta vía CSS (display:none → fuera del a11y tree; la
-                        descripción ya vive en la lista lateral). [P2-A11Y · 2026-05-31]
-                        Se quitó aria-hidden: en mobile .featureDesc inline está
-                        display:none, así que esta caption es la ÚNICA fuente de la
-                        descripción para un lector de pantalla. */}
-                    <div className={styles.featureCaption}>
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={activeFeature}
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ duration: 0.25, ease: 'easeOut' }}
-                            >
-                                <strong style={{ color: currentFeature.color }}>
-                                    {currentFeature.title}
-                                </strong>
-                                <p>{currentFeature.desc}</p>
                             </motion.div>
                         </AnimatePresence>
                     </div>

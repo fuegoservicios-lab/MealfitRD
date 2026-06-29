@@ -280,6 +280,134 @@
     margin-right: auto;
 }
 
+/* ════════════════════════════════════════════════════════════════════
+   [P3-DASHBOARD-CALLOUTS · 2026-06-29] Mockup CENTRAL + callouts flotantes
+   alrededor. Reemplaza el layout grid/featureList (clases legacy quedan
+   sin uso). Theme-aware vía variables del DS (claro/oscuro). El mockup
+   central usa los estilos existentes (.mockFrame, .mockupWrapper...).
+   ════════════════════════════════════════════════════════════════════ */
+.stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: 700px;
+    margin-top: 1rem;
+}
+.mockCenter {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 360px;
+}
+.mockGlow {
+    position: absolute;
+    inset: -10% -14%;
+    z-index: -1;
+    background: radial-gradient(62% 60% at 50% 28%, color-mix(in srgb, var(--feature-color, var(--primary)) 32%, transparent), transparent 70%);
+    filter: blur(34px);
+    transition: background 0.4s ease;
+    pointer-events: none;
+}
+
+.callouts {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+}
+.callout {
+    position: absolute;
+    pointer-events: auto;
+    cursor: pointer;
+    appearance: none;
+    font-family: inherit;
+    text-align: left;
+    width: 234px;
+    display: flex;
+    gap: 0.7rem;
+    align-items: flex-start;
+    padding: 0.85rem 0.95rem;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--bg-card) 86%, transparent);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 18px 38px -24px rgba(0, 0, 0, 0.5);
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.callout:hover {
+    transform: translateY(-3px);
+}
+.calloutActive {
+    border-color: color-mix(in srgb, var(--feature-color, var(--primary)) 65%, transparent);
+    background: color-mix(in srgb, var(--feature-color, var(--primary)) 9%, var(--bg-card));
+    box-shadow: 0 24px 46px -22px color-mix(in srgb, var(--feature-color, var(--primary)) 75%, transparent);
+}
+.calloutIcon {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    color: var(--feature-color, var(--primary));
+    background: color-mix(in srgb, var(--feature-color, var(--primary)) 15%, transparent);
+}
+.calloutText {
+    display: flex;
+    flex-direction: column;
+    gap: 0.22rem;
+    min-width: 0;
+}
+.calloutText strong {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.22;
+}
+.calloutText small {
+    font-size: 0.76rem;
+    line-height: 1.42;
+    color: var(--text-muted);
+}
+.callout:focus-visible {
+    outline: 2px solid var(--feature-color, var(--primary));
+    outline-offset: 3px;
+}
+
+/* posiciones desktop: 2 arriba (esquinas), 2 a los lados, 1 abajo-centro */
+.callout1 { top: 3%; left: 0; }
+.callout2 { top: 3%; right: 0; }
+.callout3 { top: 40%; left: -2%; }
+.callout4 { top: 40%; right: -2%; }
+.callout5 { bottom: 2%; left: 50%; transform: translateX(-50%); width: 290px; }
+.callout5:hover { transform: translateX(-50%) translateY(-3px); }
+
+/* móvil: apila — mockup arriba, callouts en lista debajo */
+@media (max-width: 920px) {
+    .stage { display: block; min-height: 0; }
+    .mockCenter { margin: 0 auto; }
+    .callouts {
+        position: static;
+        pointer-events: auto;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.6rem;
+        margin-top: 1.75rem;
+    }
+    .callout,
+    .callout1, .callout2, .callout3, .callout4, .callout5 {
+        position: static;
+        width: 100%;
+        transform: none;
+    }
+    .callout:hover,
+    .callout5:hover { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .callout, .callout5 { transition: none; }
+}
+
 /* ---------- Mockup container (right) ---------- */
 .mockupContainer {
     position: relative;
