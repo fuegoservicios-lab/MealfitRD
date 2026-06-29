@@ -82,7 +82,10 @@ const Header = () => {
     // abría la nada (confunde, p.ej. al entrar a la Política desde el link del login).
     // Ocultamos el botón cuando no hay nada que mostrar.
     const _mobileCtaShows = !isLandingLike && !isLegalPage && (Boolean(planData) || !hideStartNow);
-    const hasMobileMenuItems = (session || isGuest) || _mobileCtaShows;
+    // [P3-HEADER-MOBILE-HAMBURGER · 2026-06-29] En móvil las páginas de marketing
+    // (landing-like) muestran la hamburguesa con el nav + el CTA (el CTA sticky se
+    // oculta en móvil vía CSS), así que el menú siempre tiene contenido ahí.
+    const hasMobileMenuItems = (session || isGuest) || _mobileCtaShows || isLandingLike;
 
     // [ACCOUNT-MENU · 2026-06-01] Cerrar el menú con click-outside o Escape — mismo
     // patrón que el menú de cuenta del DashboardLayout (accountMenuRef + mousedown).
@@ -307,25 +310,38 @@ const Header = () => {
                 {/* Navegación Móvil */}
                 {isMenuOpen && hasMobileMenuItems && (
                     <nav className={styles.navMobile}>
-
+                        {/* [P3-HEADER-MOBILE-HAMBURGER · 2026-06-29] Opciones del nav de
+                            marketing dentro del menú móvil (landing-like): Cómo funciona,
+                            Funciones, Precisión, Precios. */}
+                        {isLandingLike && NAV_SECTIONS.map((s) => (
+                            <Link
+                                key={s.id}
+                                to={s.to}
+                                className={styles.navLinkMobile}
+                                aria-current={s.to === location.pathname ? 'page' : undefined}
+                                onClick={() => setIsMenuOpen(false)}
+                            >
+                                {s.label}
+                            </Link>
+                        ))}
 
                         {planData && !isPlanLoading ? (
-                            !isHome && !isLegalPage && (
+                            !isLegalPage && (
                                 <Link
                                     to="/dashboard"
                                     className={styles.ctaButtonMobile}
                                     onClick={() => setIsMenuOpen(false)}
                                 >
-                                    <LayoutDashboard size={18} /> Panel
+                                    <LayoutDashboard size={18} /> Ver mi Plan
                                 </Link>
                             )
-                        ) : !hideStartNow && !isHome && !isLegalPage && (
+                        ) : !hideStartNow && !isLegalPage && (
                             <Link
                                 to="/assessment"
                                 className={styles.ctaButtonMobile}
                                 onClick={() => setIsMenuOpen(false)}
                             >
-                                Empezar Ahora
+                                Crear mi Plan
                             </Link>
                         )}
 

@@ -388,14 +388,10 @@
    (flex-shrink:0), achica un punto el logo para liberar ancho y aprieta el gap.
    Solo <768px; el header de escritorio queda intacto. */
 @media (max-width: 767px) {
+    /* [P3-HEADER-MOBILE-HAMBURGER · 2026-06-29] En móvil el CTA sticky se OCULTA; su
+       acción (Crear/Ver plan) vive dentro del menú hamburguesa — mejor UX en móvil. */
     .ctaButton.stickyCtaEnter {
-        padding: 0.4rem 0.8rem;
-        font-size: 0.82rem;
-        flex-shrink: 0;
-    }
-    .ctaButton.stickyCtaEnter svg {
-        width: 15px;
-        height: 15px;
+        display: none;
     }
     .logo {
         font-size: 1.55rem;
