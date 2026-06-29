@@ -1,0 +1,97 @@
+/* [P3-PRICING-SEPARATE-PAGE · 2026-06-29] Banda CTA en el landing que reemplaza la
+   sección de precios inline; el detalle de planes vive en /precios (estilo
+   Anthropic/OpenAI). Theme-aware. */
+.section {
+    position: relative;
+    padding: 5rem 0 6rem;
+    overflow: hidden;
+    background: var(--bg-page);
+}
+.glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 70%;
+    max-width: 760px;
+    height: 70%;
+    background: radial-gradient(ellipse at center, rgba(99, 102, 241, 0.16), transparent 70%);
+    filter: blur(50px);
+    pointer-events: none;
+    z-index: 0;
+}
+.inner {
+    position: relative;
+    z-index: 1;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 3rem 1.75rem 3.25rem;
+    text-align: center;
+    border-radius: 28px;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--primary) 12%, var(--bg-card)), var(--bg-card));
+    border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+    box-shadow: 0 40px 80px -44px rgba(0, 0, 0, 0.55);
+}
+.badge {
+    display: inline-block;
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+    padding: 0.4rem 0.95rem;
+    border-radius: 999px;
+}
+.title {
+    font-family: var(--font-heading);
+    font-size: clamp(1.9rem, 4.5vw, 2.9rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+    margin: 1.1rem 0 0;
+    color: var(--text-main);
+}
+.titleAccent {
+    background: linear-gradient(120deg, var(--primary), var(--primary-light));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.subtitle {
+    margin: 1rem auto 0;
+    max-width: 460px;
+    font-size: 1.02rem;
+    line-height: 1.55;
+    color: var(--text-muted);
+}
+.cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-top: 1.9rem;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: #fff;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1.05rem;
+    padding: 1rem 2rem;
+    border-radius: 999px;
+    text-decoration: none;
+    box-shadow: 0 18px 34px -16px var(--primary);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 24px 44px -16px var(--primary);
+}
+.note {
+    margin: 1.1rem 0 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+    .cta { transition: none; }
+}

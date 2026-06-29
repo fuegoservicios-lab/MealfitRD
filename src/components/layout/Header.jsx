@@ -15,7 +15,9 @@ const NAV_SECTIONS = [
     { id: 'how-it-works', label: 'Cómo funciona' },
     { id: 'dashboard', label: 'Funciones' },
     { id: 'benchmarks', label: 'Precisión' },
-    { id: 'pricing', label: 'Precios' },
+    // [P3-PRICING-SEPARATE-PAGE · 2026-06-29] "Precios" ahora es una RUTA (/precios),
+    // no un anchor in-page — el detalle de planes vive en su propia página.
+    { id: 'pricing', label: 'Precios', to: '/precios' },
 ];
 
 const Header = () => {
@@ -96,13 +98,13 @@ const Header = () => {
     // entre secciones) se conserva la última (no parpadea). Solo en isHome.
     useEffect(() => {
         if (!isHome || typeof IntersectionObserver === 'undefined') return undefined;
-        const els = NAV_SECTIONS.map((s) => document.getElementById(s.id)).filter(Boolean);
+        const els = NAV_SECTIONS.filter((s) => !s.to).map((s) => document.getElementById(s.id)).filter(Boolean);
         if (!els.length) return undefined;
         const observer = new IntersectionObserver(
             (entries) => {
                 const inBand = entries.filter((e) => e.isIntersecting).map((e) => e.target.id);
                 if (!inBand.length) return;
-                const ordered = NAV_SECTIONS.map((s) => s.id).filter((id) => inBand.includes(id));
+                const ordered = NAV_SECTIONS.filter((s) => !s.to).map((s) => s.id).filter((id) => inBand.includes(id));
                 if (ordered.length) setActiveSection(ordered[0]);
             },
             { rootMargin: '-45% 0px -45% 0px', threshold: 0 }
@@ -141,15 +143,21 @@ const Header = () => {
                 {isHome && (
                     <nav className={styles.navMarketing} aria-label="Secciones de la página">
                         {NAV_SECTIONS.map((s) => (
-                            <a
-                                key={s.id}
-                                href={`#${s.id}`}
-                                className={`${styles.navMarketingLink} ${activeSection === s.id ? styles.navMarketingLinkActive : ''}`}
-                                aria-current={activeSection === s.id ? 'true' : undefined}
-                                onClick={(e) => { handleSectionNav(e, s.id); setActiveSection(s.id); }}
-                            >
-                                {s.label}
-                            </a>
+                            s.to ? (
+                                <Link key={s.id} to={s.to} className={styles.navMarketingLink}>
+                                    {s.label}
+                                </Link>
+                            ) : (
+                                <a
+                                    key={s.id}
+                                    href={`#${s.id}`}
+                                    className={`${styles.navMarketingLink} ${activeSection === s.id ? styles.navMarketingLinkActive : ''}`}
+                                    aria-current={activeSection === s.id ? 'true' : undefined}
+                                    onClick={(e) => { handleSectionNav(e, s.id); setActiveSection(s.id); }}
+                                >
+                                    {s.label}
+                                </a>
+                            )
                         ))}
                     </nav>
                 )}
