@@ -35,7 +35,10 @@
     align-items: center;
     overflow: hidden;
     overflow-x: clip;
-    padding: calc(2rem + max(env(safe-area-inset-top), 24px)) 0 4rem;
+    /* [P3-HERO-TOP-SPACING · 2026-06-28] Más aire arriba: tras subir el hero bajo la
+       barra flotante, el contenido centrado quedaba pegado al header. Este padding-top
+       lo baja para que el título "respire" debajo de la barra. */
+    padding: calc(4.5rem + max(env(safe-area-inset-top), 24px)) 0 4rem;
     /* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El header es una barra FLOTANTE fija y
        transparente alrededor. Subimos el hero para que su fondo (gradiente + spotlight)
        llene DETRÁS de la barra y NO quede una franja plana arriba que no calza con la
