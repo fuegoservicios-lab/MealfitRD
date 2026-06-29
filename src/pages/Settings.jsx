@@ -27,6 +27,8 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStor
 import { applyThemePref, isDarkActive } from '../utils/theme';
 import Modal from '../components/common/Modal';
 import EvaluarDeNuevoModal from '../components/common/EvaluarDeNuevoModal';
+// [P3-PLANOBJETIVO-MOBILE · 2026-06-29] Pantalla móvil inmersiva de Plan & Objetivo.
+import PlanObjetivo from '../components/settings/PlanObjetivo';
 // [P1-FORM-9] Helper para construir el payload de health_profile sin filtrar
 // flags `_*` y con guard contra race de hidratación cifrada. Ver
 // `secureFormStorage.js` para el rationale completo.
@@ -2504,8 +2506,50 @@ const Settings = () => {
                                     background: var(--bg-muted);
                                     color: var(--text-light);
                                 }
+                                /* [P3-PLANOBJETIVO-MOBILE · 2026-06-29] Swap responsivo:
+                                   ≤768px → pantalla inmersiva PlanObjetivo; >768px → card. */
+                                .plan-objetivo-mobile { display: none; }
+                                @media (max-width: 768px) {
+                                    .plan-objetivo-mobile { display: block; }
+                                    .plan-objetivo-desktop { display: none; }
+                                }
                             `}</style>
 
+                            {/* [P3-PLANOBJETIVO-MOBILE · 2026-06-29] MÓVIL (≤768px):
+                                pantalla inmersiva. Reusa el chrome del dashboard (logo +
+                                menú) y el "Volver" de Ajustes → topBar/backButton off para
+                                no duplicarlos. Datos reales: meta es-DO, kcal y macros del
+                                plan vigente. */}
+                            <div className="plan-objetivo-mobile">
+                                <PlanObjetivo
+                                    topBar={false}
+                                    backButton={false}
+                                    goal={_goalMeta.label}
+                                    kcal={Math.round(planData?.calories || 2000)}
+                                    macros={{
+                                        protein: planData?.macros?.protein,
+                                        carbs: planData?.macros?.carbs,
+                                        fat: planData?.macros?.fats,
+                                    }}
+                                    onEvaluate={() => { if (!isLimitReached) setShowEvaluateModal(true); }}
+                                    evaluateDisabled={isLimitReached}
+                                    evaluateLabel={isLimitReached ? 'Límite de plan alcanzado' : 'Evaluar de nuevo'}
+                                />
+                                {isLimitReached && (
+                                    <div style={{ textAlign: 'center', marginTop: '0.75rem' }}>
+                                        <a
+                                            href="#subscription"
+                                            style={{ color: 'var(--primary)', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
+                                            onClick={(e) => { e.preventDefault(); navigateToSection('subscription'); }}
+                                        >
+                                            Actualiza tu suscripción para continuar
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* DESKTOP (>768px): card existente, intacta. */}
+                            <div className="plan-objetivo-desktop">
                             <h2 className={`${styles.sectionTitle} plan-goal-title-mobile`}>
                                 Tu Objetivo Actual
                             </h2>
@@ -2577,6 +2621,7 @@ const Settings = () => {
                                         </a>
                                     </div>
                                 )}
+                            </div>
                             </div>
                         </section>
                     )}

@@ -1,0 +1,233 @@
+/* [P3-PLANOBJETIVO-MOBILE · 2026-06-29] Pantalla móvil inmersiva "Plan & Objetivo".
+   Theme-aware (usa los tokens globales --text-main / --text-muted / --primary…),
+   así calza en claro y oscuro; el mockup de referencia es oscuro. */
+
+.screen {
+    display: flex;
+    flex-direction: column;
+    min-height: 70dvh;
+    color: var(--text-main);
+}
+
+/* ── Barra superior opcional (logo + menú) ──────────────────────────────── */
+.topBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+}
+.logo {
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+}
+.menuBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.menuBtn:hover {
+    background: color-mix(in srgb, var(--text-main) 7%, transparent);
+}
+
+/* ── Volver opcional ─────────────────────────────────────────────────────── */
+.backBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: none;
+    padding: 0;
+    margin-bottom: 1.5rem;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    align-self: flex-start;
+}
+.backBtn:hover { color: var(--text-main); }
+
+/* ── Encabezado ──────────────────────────────────────────────────────────── */
+.title {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    margin: 0;
+    color: var(--text-main);
+}
+.subtitle {
+    margin: 0.35rem 0 0;
+    color: var(--text-muted);
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+/* ── Objetivo ────────────────────────────────────────────────────────────── */
+.sectionLabel {
+    margin-top: 2rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.metaLabel {
+    margin-top: 1.25rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--primary-light);
+}
+.goal {
+    margin: 0.4rem 0 0;
+    font-size: 2.35rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 1.05;
+    color: var(--text-main);
+    word-break: break-word;
+}
+
+/* ── Calorías ────────────────────────────────────────────────────────────── */
+.kcalValue {
+    margin-top: 1.75rem;
+    font-size: 3rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--text-main);
+}
+.kcalUnit {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-left: 0.45rem;
+    letter-spacing: 0;
+}
+.kcalCaption {
+    margin-top: 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+/* ── Barra de macros ─────────────────────────────────────────────────────── */
+.macroBar {
+    display: flex;
+    gap: 3px;
+    margin-top: 1.75rem;
+    height: 10px;
+}
+.macroSeg {
+    height: 100%;
+    border-radius: 6px;
+    min-width: 4px;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.macroCols {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+.macroCol {
+    flex: 1;
+    min-width: 0;
+}
+.macroColTop {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+.macroDot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.macroColLabel {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.macroColValue {
+    margin-top: 0.35rem;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.01em;
+}
+
+/* Empuja el CTA hacia abajo para el efecto "pantalla completa". */
+.spacer {
+    flex: 1 1 auto;
+    min-height: 2rem;
+}
+
+/* ── CTA: periwinkle de la bola (mismo lenguaje que el CTA del header) ────── */
+.cta {
+    width: 100%;
+    padding: 1.125rem 1rem;
+    margin-top: 1rem;
+    border: 1px solid transparent;
+    border-radius: 1rem;
+    background: linear-gradient(158deg, var(--primary-light) 0%, var(--primary-light) 35%, var(--primary) 100%);
+    color: #1E1B4B;
+    font-weight: 700;
+    font-size: 1.05rem;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    box-shadow:
+        inset 0 -8px 16px rgba(55, 48, 163, 0.35),
+        0 12px 26px -12px rgba(79, 70, 229, 0.55);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.cta:hover {
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 -8px 16px rgba(55, 48, 163, 0.4),
+        0 16px 32px -12px rgba(79, 70, 229, 0.65);
+}
+.cta:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 3px;
+}
+.cta:disabled {
+    background: var(--bg-muted);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+.ctaArrow {
+    transition: transform 0.18s ease;
+}
+.cta:hover .ctaArrow {
+    transform: translateX(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .macroSeg,
+    .cta,
+    .ctaArrow {
+        transition: none;
+    }
+    .cta:hover { transform: none; }
+    .cta:hover .ctaArrow { transform: none; }
+}
