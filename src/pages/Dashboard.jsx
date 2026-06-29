@@ -94,6 +94,7 @@ import { INSIGHTS_RESTORE_EVENT, insightsDismissKey } from '../utils/insightsPan
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import { getActiveShoppingList, getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
+import { getMealAdvisories } from '../utils/mealAdvisories';
 // [P1-FORM-9] Helper que filtra flags internos `_*` y bloquea cuando la
 // hidratación cifrada del formData (post-login) parece estar en curso —
 // evita que el spread `{...formData}` envíe campos sensibles vacíos a DB,
@@ -6071,6 +6072,33 @@ const DashboardInner = () => {
                                                     )}
                                                 </div>
                                             )}
+
+                                            {/* [P2-DISHQUAL-SURFACE-UPDATES · 2026-06-29] (re-audit objetivo · P2)
+                                                Advisories NO-bloqueantes per-comida que el backend setea en el
+                                                finalizer y persiste (receta básica / horario inusual / combo inusual
+                                                / macro fuera de banda). Espejo del banner de coherencia: informa, no
+                                                bloquea. Amber (≠ rojo del pantry-urgent). */}
+                                            {(() => {
+                                                const _advisories = getMealAdvisories(meal);
+                                                if (!_advisories.length) return null;
+                                                return (
+                                                    <div style={{
+                                                        display: 'flex', flexDirection: 'column', gap: '0.2rem',
+                                                        fontSize: '0.72rem', color: isDark ? '#FCD34D' : '#B45309',
+                                                        background: isDark ? 'rgba(245, 158, 11, 0.14)' : 'rgba(245, 158, 11, 0.1)',
+                                                        padding: '0.4rem 0.6rem', borderRadius: '0.5rem', marginBottom: '0.5rem',
+                                                        fontWeight: 600,
+                                                        border: isDark ? '1px solid rgba(252, 211, 77, 0.3)' : '1px solid rgba(245, 158, 11, 0.25)'
+                                                    }}>
+                                                        {_advisories.map((a) => (
+                                                            <div key={a.key} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                                <AlertCircle size={13} strokeWidth={2.5} />
+                                                                <span>{a.label}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })()}
 
                                             {/* TIEMPO DE PREPARACIÓN */}
                                             {meal.prep_time && (
