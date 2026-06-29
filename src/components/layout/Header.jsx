@@ -43,12 +43,18 @@ const Header = () => {
     const isPlanLoading = location.pathname.startsWith('/plan');
     const isHome = location.pathname === '/';
     const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
+    // [P3-PRICING-HEADER-PARITY · 2026-06-29] /precios es una página de marketing → su
+    // header debe ser idéntico al del landing (misma nav segmentada + mismo CTA sticky),
+    // no la versión recortada que mostraba solo "Empezar Ahora". `isLandingLike` agrupa
+    // ambas rutas para los gates del header.
+    const isPricing = location.pathname === '/precios';
+    const isLandingLike = isHome || isPricing;
 
     // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El CTA del header SIEMPRE visible en el
     // landing (antes solo aparecía al scrollear, gateado por `!heroCtaVisible`). El
     // owner lo quiere visible también arriba. `heroCtaVisible` sigue en el provider
     // pero ya no oculta este CTA.
-    const showStickyCta = isHome && !hideStartNow && !isLegalPage;
+    const showStickyCta = isLandingLike && !hideStartNow && !isLegalPage;
 
     // [ACCOUNT-MENU · 2026-06-01] Identidad para el avatar (inicial) + la cabecera
     // del menú (nombre + correo). Fallbacks: nombre del perfil → parte local del
@@ -69,7 +75,7 @@ const Header = () => {
     // gatean (session/isGuest/!isLegalPage) → el menú salía VACÍO y la hamburguesa
     // abría la nada (confunde, p.ej. al entrar a la Política desde el link del login).
     // Ocultamos el botón cuando no hay nada que mostrar.
-    const _mobileCtaShows = !isHome && !isLegalPage && (Boolean(planData) || !hideStartNow);
+    const _mobileCtaShows = !isLandingLike && !isLegalPage && (Boolean(planData) || !hideStartNow);
     const hasMobileMenuItems = (session || isGuest) || _mobileCtaShows;
 
     // [ACCOUNT-MENU · 2026-06-01] Cerrar el menú con click-outside o Escape — mismo
@@ -140,14 +146,19 @@ const Header = () => {
                     Solo isHome; en el DOM también en móvil para mobile-first indexing
                     (display:none <768px). El item activo lo marca el scrollspy. Anchors
                     nativos (#id): el click hace scroll suave SIN ensuciar la URL. */}
-                {isHome && (
+                {isLandingLike && (
                     <nav className={styles.navMarketing} aria-label="Secciones de la página">
                         {NAV_SECTIONS.map((s) => (
                             s.to ? (
-                                <Link key={s.id} to={s.to} className={styles.navMarketingLink}>
+                                <Link
+                                    key={s.id}
+                                    to={s.to}
+                                    className={`${styles.navMarketingLink} ${(isPricing && s.id === 'pricing') ? styles.navMarketingLinkActive : ''}`}
+                                    aria-current={(isPricing && s.id === 'pricing') ? 'true' : undefined}
+                                >
                                     {s.label}
                                 </Link>
-                            ) : (
+                            ) : isHome ? (
                                 <a
                                     key={s.id}
                                     href={`#${s.id}`}
@@ -155,6 +166,13 @@ const Header = () => {
                                     aria-current={activeSection === s.id ? 'true' : undefined}
                                     onClick={(e) => { handleSectionNav(e, s.id); setActiveSection(s.id); }}
                                 >
+                                    {s.label}
+                                </a>
+                            ) : (
+                                /* [P3-PRICING-HEADER-PARITY · 2026-06-29] Fuera del home
+                                   (p.ej. /precios) las secciones in-page no existen → link
+                                   nativo a la home + hash, que ancla de forma nativa. */
+                                <a key={s.id} href={`/#${s.id}`} className={styles.navMarketingLink}>
                                     {s.label}
                                 </a>
                             )
@@ -191,7 +209,7 @@ const Header = () => {
 
                     {/* Lógica condicional: Si hay plan, muestra Dashboard; si no y no estamos en evaluación/plan, Evaluación */}
                     {planData && !isPlanLoading ? (
-                        !isHome && !isLegalPage && (
+                        !isLandingLike && !isLegalPage && (
                             <Link
                                 to="/dashboard"
                                 className={styles.ctaButton}
@@ -199,7 +217,7 @@ const Header = () => {
                                 <LayoutDashboard size={18} /> Panel
                             </Link>
                         )
-                    ) : !hideStartNow && !isHome && !isLegalPage && (
+                    ) : !hideStartNow && !isLandingLike && !isLegalPage && (
                         <Link to="/assessment" className={styles.ctaButton}>
                             Empezar Ahora
                         </Link>
