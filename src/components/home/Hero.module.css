@@ -67,6 +67,15 @@
     }
 }
 
+/* [P3-HERO-TOP-SPACING · 2026-06-29] En MÓVIL el contenido es alto y se acomoda
+   distinto (el min-height de desktop no basta): el título se metía bajo la barra
+   flotante. Más padding-top arriba lo baja claramente bajo el header. */
+@media (max-width: 767px) {
+    .hero {
+        padding-top: calc(6rem + max(env(safe-area-inset-top), 24px));
+    }
+}
+
 /* ── ESCENARIO (capas decorativas de fondo) ─────────────────────────────── */
 .stage {
     position: absolute;
