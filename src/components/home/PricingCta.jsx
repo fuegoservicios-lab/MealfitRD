@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Sparkles, Check } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import styles from './PricingCta.module.css';
 
 /* [P3-PRICING-CTA-REDESIGN · 2026-06-29] El detalle de planes vive en /precios
@@ -19,9 +19,7 @@ const PricingCta = () => (
         </div>
 
         <div className={styles.panel}>
-            <span className={styles.badge}>
-                <Sparkles size={13} strokeWidth={2.5} /> Planes flexibles
-            </span>
+            <span className={styles.badge}>Planes flexibles</span>
             <h2 className={styles.title}>
                 Invierte en tu <span className={styles.accent}>salud</span>
             </h2>
