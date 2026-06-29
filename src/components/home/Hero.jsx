@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, ChevronRight, Utensils, Activity, TrendingUp, BookOpen, Stethoscope, HeartPulse, ClipboardCheck, Wallet, Cpu } from 'lucide-react';
 import styles from './Hero.module.css';
-import { useAssessment } from '../../context/AssessmentContext';
 import { useHeroCta } from '../../context/HeroCtaContext';
 
 // [HERO-KEYNOTE-STAGE · 2026-06-18] Rediseño "Premium spotlight + tipografía
@@ -69,7 +68,6 @@ const makeVariants = (reduce) => ({
 });
 
 const Hero = () => {
-    const { planData } = useAssessment();
     const { setHeroCtaVisible } = useHeroCta();
     const ctaRef = useRef(null);
     const reduce = useReducedMotion();

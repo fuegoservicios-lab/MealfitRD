@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect, useLayoutEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 // [P1-TOASTER-MISSING · 2026-05-30] sonner <Toaster/> — sin él la app NO
 // renderiza ningún toast (sonner no auto-monta). Ver el render abajo.
@@ -22,7 +22,9 @@ import ScrollRestoration from './components/ScrollRestoration';
 // persistida en runtime + escucha cambios de prefers-color-scheme cuando la
 // preferencia es 'system'. El boot script inline en index.html ya evitó el
 // flash inicial; esto mantiene el tema vivo y reactivo.
-import { initTheme } from './utils/theme';
+import { initTheme, applyThemePref, getStoredThemePref } from './utils/theme';
+// [P3-LANDING-DARK-ONLY · 2026-06-29] Rutas de marketing → tema oscuro forzado.
+import { isMarketingRoute } from './utils/marketingRoutes';
 
 // --- Lazy-loaded pages (code-split into separate chunks) ---
 // [P1-PERF-LAZY-HOME · 2026-05-31] Home (landing) era el ÚNICO import estático
@@ -216,17 +218,45 @@ const DashboardAnimatedLayout = () => {
   );
 };
 
+// [P3-LANDING-DARK-ONLY · 2026-06-29] El landing/marketing es SIEMPRE oscuro (no tiene
+// configuración de apariencia; su único modo por defecto es oscuro). Mientras la ruta
+// activa sea de marketing forzamos html[data-theme]="dark"; al salir a cualquier otra
+// ruta (app, login, legal) restauramos la preferencia del usuario — la app sí respeta
+// el tema elegido. useLayoutEffect → se aplica antes del paint en navegación SPA, sin
+// parpadeo. El boot script de index.html cubre la carga directa/refresh.
+function PublicThemeLock() {
+  const { pathname } = useLocation();
+  useLayoutEffect(() => {
+    if (isMarketingRoute(pathname)) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      window.dispatchEvent(new Event('mealfit-theme-change'));
+    } else {
+      applyThemePref(getStoredThemePref());
+    }
+  }, [pathname]);
+  return null;
+}
+
 function App() {
   // [APPEARANCE-THEME · 2026-05-28] Una sola vez al montar: re-aplica la pref
   // guardada (idempotente con el boot script) y engancha el listener del SO.
   useEffect(() => {
     initTheme();
+    // [P3-LANDING-DARK-ONLY · 2026-06-29] Si la carga inicial cae en una ruta de
+    // marketing, initTheme() acaba de aplicar la pref guardada (que podría ser 'light');
+    // re-forzamos oscuro para no pisar el boot script ni el PublicThemeLock.
+    if (isMarketingRoute(window.location.pathname)) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      window.dispatchEvent(new Event('mealfit-theme-change'));
+    }
   }, []);
 
   return (
     <AssessmentProvider>
       <Router>
         <ScrollRestoration />
+        {/* [P3-LANDING-DARK-ONLY · 2026-06-29] Fuerza oscuro en rutas de marketing. */}
+        <PublicThemeLock />
         {/* [P3-APP-SUBDOMAIN-ROUTING · 2026-06-28] Apex → app.* para rutas de app. */}
         <ApexAppRedirect />
         <IOSInstallPrompt />

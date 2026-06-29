@@ -39,6 +39,11 @@
         var dark = pref === 'dark' ? true
           : pref === 'light' ? false
           : !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        // [P3-LANDING-DARK-ONLY · 2026-06-29] El landing/marketing es SIEMPRE oscuro
+        // (no tiene config de apariencia). Forzar síncrono en carga directa/refresh
+        // evita el flash claro→oscuro. Sync con src/utils/marketingRoutes.js.
+        var MK = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor'];
+        if (MK.indexOf(location.pathname) !== -1) dark = true;
         document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
       } catch (e) {
         document.documentElement.setAttribute('data-theme', 'dark');

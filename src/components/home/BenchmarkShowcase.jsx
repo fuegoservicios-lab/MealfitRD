@@ -44,13 +44,15 @@ const HIGHLIGHTS = [
    requestAnimationFrame, sin dependencias). easeOutCubic. */
 function CountUp({ to, decimals = 1, suffix = '%', duration = 1600 }) {
     const ref = useRef(null);
-    const [text, setText] = useState((0).toFixed(decimals));
+    // Init perezoso: sin IntersectionObserver (SSR / browsers viejos) muestra el valor
+    // final directo; en el navegador arranca en 0 y el effect anima. Evita setState
+    // síncrono dentro del effect (react-hooks/set-state-in-effect).
+    const [text, setText] = useState(() => (
+        typeof IntersectionObserver === 'undefined' ? to.toFixed(decimals) : (0).toFixed(decimals)
+    ));
     useEffect(() => {
         const el = ref.current;
-        if (!el || typeof IntersectionObserver === 'undefined') {
-            setText(to.toFixed(decimals));
-            return undefined;
-        }
+        if (!el || typeof IntersectionObserver === 'undefined') return undefined;
         let raf;
         let started = false;
         const obs = new IntersectionObserver((entries) => {

@@ -3,10 +3,15 @@ import styles from './Header.module.css';
 import { Menu, X, LayoutDashboard, LogOut, ChevronRight, ChevronDown, Settings as SettingsIcon } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAssessment } from '../../context/AssessmentContext';
-import { useHeroCta } from '../../context/HeroCtaContext';
 import LogoutConfirmModal from '../dashboard/LogoutConfirmModal';
 // [P1-GUEST-APPEARANCE · 2026-06-15] Selector de tema inline para invitados.
 import GuestAppearanceToggle from '../dashboard/GuestAppearanceToggle';
+// [P3-HEADER-FLOAT-REDESIGN] El consumo de heroCtaVisible se eliminó (el CTA del header
+// es siempre visible); por eso ya NO se importa useHeroCta aquí. Hero sigue siendo el
+// productor del valor vía su provider.
+// [P3-LANDING-DARK-ONLY · 2026-06-29] SSOT de rutas de marketing (header completo +
+// tema oscuro forzado + sin config de apariencia).
+import { isMarketingRoute } from '../../utils/marketingRoutes';
 
 // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Secciones del landing para la nav segmentada.
 // El `id` debe coincidir con el id de cada <section> del Home (how-it-works, dashboard,
@@ -22,10 +27,6 @@ const NAV_SECTIONS = [
     { id: 'pricing', label: 'Precios', to: '/precios' },
 ];
 
-// [P3-DETAIL-PAGES-HEADER-PARITY · 2026-06-29] Rutas de marketing que comparten el
-// header COMPLETO del landing (nav segmentada + CTA sticky), no la versión recortada.
-// Mantener en sync con las rutas públicas de App.jsx.
-const MARKETING_PATHS = new Set(['/precios', '/como-funciona', '/funciones', '/precision', '/motor']);
 
 const Header = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -33,13 +34,10 @@ const Header = () => {
     // [ACCOUNT-MENU · 2026-06-01] Estado del menú de cuenta desplegable (desktop).
     const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
     const accountMenuRef = useRef(null);
-    // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Sección activa del nav segmentado (scrollspy).
-    const [activeSection, setActiveSection] = useState('how-it-works');
 
     // Obtenemos planData para saber si el usuario ya tiene un plan activo
     // Obtener session y resetApp para el logout
     const { planData, session, resetApp, userProfile, isGuest, exitGuestSession } = useAssessment();
-    const { heroCtaVisible } = useHeroCta();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -48,18 +46,16 @@ const Header = () => {
     
     // Ocultar elementos del panel cuando estamos explícitamente en modo de carga (ruta /plan)
     const isPlanLoading = location.pathname.startsWith('/plan');
-    const isHome = location.pathname === '/';
     const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
     // [P3-PRICING-HEADER-PARITY · 2026-06-29 · ext P3-DETAIL-PAGES 2026-06-29] Todas las
-    // páginas de marketing (precios + las 3 de detalle + motor) deben tener el header
-    // IDÉNTICO al del landing (nav segmentada + CTA sticky), no la versión recortada que
-    // mostraba solo "Empezar Ahora". MARKETING_PATHS (módulo) las agrupa para los gates.
-    const isLandingLike = isHome || MARKETING_PATHS.has(location.pathname);
+    // páginas de marketing (landing + precios + las 3 de detalle + motor) deben tener el
+    // header IDÉNTICO al del landing (nav segmentada + CTA sticky), no la versión recortada
+    // que mostraba solo "Empezar Ahora". isMarketingRoute (SSOT en utils) las agrupa.
+    const isLandingLike = isMarketingRoute(location.pathname);
 
-    // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El CTA del header SIEMPRE visible en el
-    // landing (antes solo aparecía al scrollear, gateado por `!heroCtaVisible`). El
-    // owner lo quiere visible también arriba. `heroCtaVisible` sigue en el provider
-    // pero ya no oculta este CTA.
+    // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El CTA del header SIEMPRE visible en
+    // landing/marketing (decisión del owner). Ya no se gatea por scroll, así que Header
+    // dejó de consumir heroCtaVisible.
     const showStickyCta = isLandingLike && !hideStartNow && !isLegalPage;
 
     // [ACCOUNT-MENU · 2026-06-01] Identidad para el avatar (inicial) + la cabecera
@@ -107,39 +103,10 @@ const Header = () => {
         };
     }, [isAccountMenuOpen]);
 
-    // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Scrollspy del nav segmentado: marca el
-    // item según la sección visible. Banda fina al centro del viewport (rootMargin
-    // -45%/-45%) → la sección que la cruza es la activa. Si ninguna la cruza (hero o
-    // entre secciones) se conserva la última (no parpadea). Solo en isHome.
-    useEffect(() => {
-        if (!isHome || typeof IntersectionObserver === 'undefined') return undefined;
-        const els = NAV_SECTIONS.filter((s) => !s.to).map((s) => document.getElementById(s.id)).filter(Boolean);
-        if (!els.length) return undefined;
-        const observer = new IntersectionObserver(
-            (entries) => {
-                const inBand = entries.filter((e) => e.isIntersecting).map((e) => e.target.id);
-                if (!inBand.length) return;
-                const ordered = NAV_SECTIONS.filter((s) => !s.to).map((s) => s.id).filter((id) => inBand.includes(id));
-                if (ordered.length) setActiveSection(ordered[0]);
-            },
-            { rootMargin: '-45% 0px -45% 0px', threshold: 0 }
-        );
-        els.forEach((el) => observer.observe(el));
-        return () => observer.disconnect();
-    }, [isHome]);
-
-    // [P3-SEO-MARKETING-NAV · 2026-06-28] Scroll suave a la sección SIN ensuciar la
-    // URL con #hash. preventDefault evita que el navegador añada el fragmento
-    // (la URL se queda limpia en mealfitrd.com/). El href="#..." se conserva para
-    // SEO (anchor crawlable) y como fallback sin JS. Offset por el header fijo.
-    const handleSectionNav = (e, id) => {
-        if (typeof document === 'undefined') return;
-        const el = document.getElementById(id);
-        if (!el) return;
-        e.preventDefault();
-        const top = el.getBoundingClientRect().top + window.scrollY - 96;
-        window.scrollTo({ top, behavior: 'smooth' });
-    };
+    // [P3-DETAIL-PAGES · 2026-06-29] El nav segmentado dejó de ser scrollspy in-page:
+    // todos sus ítems son RUTAS a páginas de detalle (ver NAV_SECTIONS). Se eliminaron
+    // como código muerto el IntersectionObserver, `activeSection` y el scroll-suave
+    // `handleSectionNav` — ya no existían secciones #id que observar/anclar.
 
     return (
         <>
@@ -150,41 +117,21 @@ const Header = () => {
                     Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
                 </Link>
 
-                {/* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Nav SEGMENTADA CENTRADA
-                    (entre logo y CTA, via justify-content:space-between del .container).
-                    Solo isHome; en el DOM también en móvil para mobile-first indexing
-                    (display:none <768px). El item activo lo marca el scrollspy. Anchors
-                    nativos (#id): el click hace scroll suave SIN ensuciar la URL. */}
+                {/* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28 · rutas P3-DETAIL-PAGES] Nav
+                    SEGMENTADA CENTRADA (entre logo y CTA). En el DOM también en móvil para
+                    mobile-first indexing (display:none <768px en CSS). Cada ítem es un
+                    enlace de RUTA a su página de detalle; el activo se marca por pathname. */}
                 {isLandingLike && (
-                    <nav className={styles.navMarketing} aria-label="Secciones de la página">
+                    <nav className={styles.navMarketing} aria-label="Páginas">
                         {NAV_SECTIONS.map((s) => (
-                            s.to ? (
-                                <Link
-                                    key={s.id}
-                                    to={s.to}
-                                    className={`${styles.navMarketingLink} ${s.to === location.pathname ? styles.navMarketingLinkActive : ''}`}
-                                    aria-current={s.to === location.pathname ? 'true' : undefined}
-                                >
-                                    {s.label}
-                                </Link>
-                            ) : isHome ? (
-                                <a
-                                    key={s.id}
-                                    href={`#${s.id}`}
-                                    className={`${styles.navMarketingLink} ${activeSection === s.id ? styles.navMarketingLinkActive : ''}`}
-                                    aria-current={activeSection === s.id ? 'true' : undefined}
-                                    onClick={(e) => { handleSectionNav(e, s.id); setActiveSection(s.id); }}
-                                >
-                                    {s.label}
-                                </a>
-                            ) : (
-                                /* [P3-PRICING-HEADER-PARITY · 2026-06-29] Fuera del home
-                                   (p.ej. /precios) las secciones in-page no existen → link
-                                   nativo a la home + hash, que ancla de forma nativa. */
-                                <a key={s.id} href={`/#${s.id}`} className={styles.navMarketingLink}>
-                                    {s.label}
-                                </a>
-                            )
+                            <Link
+                                key={s.id}
+                                to={s.to}
+                                className={`${styles.navMarketingLink} ${s.to === location.pathname ? styles.navMarketingLinkActive : ''}`}
+                                aria-current={s.to === location.pathname ? 'true' : undefined}
+                            >
+                                {s.label}
+                            </Link>
                         ))}
                     </nav>
                 )}
@@ -264,7 +211,10 @@ const Header = () => {
                                         [P1-GUEST-APPEARANCE · 2026-06-15] El invitado recibe
                                         el único ajuste sin cuenta: la apariencia (tema). */}
                                     {isGuest ? (
-                                        <GuestAppearanceToggle />
+                                        /* [P3-LANDING-DARK-ONLY · 2026-06-29] El landing/marketing
+                                           es oscuro fijo (sin config de apariencia ahí) → no se
+                                           muestra el selector de tema en esas rutas. En la app sí. */
+                                        !isLandingLike && <GuestAppearanceToggle />
                                     ) : (
                                         <Link
                                             to="/configuracion"
@@ -359,7 +309,7 @@ const Header = () => {
 
                         {/* [P1-GUEST-APPEARANCE · 2026-06-15] Apariencia (tema) para
                             invitados — el único ajuste sin cuenta. */}
-                        {isGuest && !isPlanLoading && <GuestAppearanceToggle />}
+                        {isGuest && !isPlanLoading && !isLandingLike && <GuestAppearanceToggle />}
 
                         {/* Botón Logout Móvil — [P1-GUEST-LOGOUT] también para invitados. */}
                         {showAccountMenu && (
