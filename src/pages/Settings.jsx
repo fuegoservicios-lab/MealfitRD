@@ -2547,7 +2547,16 @@ const Settings = () => {
                                    ≤768px → pantalla inmersiva PlanObjetivo; >768px → card. */
                                 .plan-objetivo-mobile { display: none; }
                                 @media (max-width: 768px) {
-                                    .plan-objetivo-mobile { display: block; }
+                                    /* [P3-PLANOBJETIVO-EXPAND · 2026-06-29] Márgenes negativos
+                                       que cancelan parte del padding de .section (1.25rem) →
+                                       el contenido se ensancha (borde ~1rem en vez de ~2rem),
+                                       así el texto/barra/botón llegan más a lo ancho como el
+                                       diseño. Sin overflow: el padding del .wrapper lo absorbe. */
+                                    .plan-objetivo-mobile {
+                                        display: block;
+                                        margin-left: -1rem;
+                                        margin-right: -1rem;
+                                    }
                                     .plan-objetivo-desktop { display: none; }
                                 }
                             `}</style>
