@@ -306,7 +306,7 @@ const NotificationCard = memo(function NotificationCard({ n, expanded, onToggle,
     );
 });
 
-export default function NotificationCenter() {
+export default function NotificationCenter({ hidden = false }) {
     const [items, setItems] = useState(() => getNotifications());
     const [open, setOpen] = useState(false);
     const [expandedId, setExpandedId] = useState(null);
@@ -558,6 +558,12 @@ export default function NotificationCenter() {
         </AnimatePresence>
     );
 
+    // [P3-NOTIF-HIDE-ON-MENU · 2026-06-29] El bell se renderiza via createPortal a
+    // document.body → escapa de cualquier wrapper con display:none. Cuando el menú móvil
+    // (3 rayas) está abierto el padre pasa `hidden` y aquí NO pintamos el portal (chocaban
+    // visualmente). El componente sigue montado → preserva estado/notificaciones; reaparece
+    // al cerrar el menú.
+    if (hidden) return null;
     if (typeof document === 'undefined') return null;
     return createPortal(
         <>

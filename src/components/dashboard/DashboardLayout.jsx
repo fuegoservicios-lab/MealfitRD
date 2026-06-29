@@ -339,9 +339,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 oculta mientras el menú está abierto. display:none (no desmonta) →
                 preserva el estado/notificaciones del NotificationCenter. */}
             {location.pathname.replace(/\/$/, '') === '/dashboard' && (
-                <div style={isMobileMoreMenuOpen ? { display: 'none' } : undefined}>
-                    <NotificationCenter />
-                </div>
+                <NotificationCenter hidden={isMobileMoreMenuOpen} />
             )}
 
 
