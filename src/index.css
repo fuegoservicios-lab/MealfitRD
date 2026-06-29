@@ -373,9 +373,10 @@ html[data-theme="dark"] {
   --border: #1F2937;           /* slate-800 sutil */
   --border-light: rgba(148, 163, 184, 0.14);
 
-  /* Toggle track apagado: slate-600 — visible sobre slate-900 sin el bloque
-     blanquecino que producía #CBD5E1 (slate-300) hardcodeado. */
-  --toggle-track-off: #475569;
+  /* [P3-TOGGLE-DARK-CONTRAST · 2026-06-29] Toggle track apagado: gray-500 neutro
+     (#6B7280) — más nítido bajo la bola blanca que el slate-600 azulado anterior;
+     alineado con el switch de Ajustes (.toggleSlider). */
+  --toggle-track-off: #6B7280;
 
   /* Acento "Suplementos" aclarado: violet-400/300 para contraste AA sobre oscuro
      + tints con más presencia (el 0.02/0.10 sobre claro casi desaparece en oscuro). */
