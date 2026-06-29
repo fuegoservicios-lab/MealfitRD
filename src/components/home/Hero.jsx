@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, ChevronRight, Utensils, Activity, TrendingUp, BookOpen, Stethoscope, HeartPulse, ClipboardCheck, Wallet } from 'lucide-react';
+import { ArrowRight, ChevronRight, Utensils, Activity, TrendingUp, BookOpen, Stethoscope, HeartPulse, ClipboardCheck, Wallet, Cpu } from 'lucide-react';
 import styles from './Hero.module.css';
 import { useAssessment } from '../../context/AssessmentContext';
 import { useHeroCta } from '../../context/HeroCtaContext';
@@ -140,16 +140,23 @@ const Hero = () => {
                         Planes personalizados a tu perfil de salud, con <strong>precisión de macronutrientes</strong> y criterios clínicos fundamentados en evidencia. Con revisión profesional cuando tu condición lo amerita.
                     </motion.p>
 
+                    {/* [P3-HERO-CTA-REFINE · 2026-06-28] Par de botones refinado (el CTA
+                        "grande" se reemplaza): primario crear plan + secundario ghost que
+                        lleva a la página del motor (/motor). El crear-plan también vive
+                        siempre en el header. */}
                     <motion.div className={styles.actions} ref={ctaRef} variants={V.rise}>
                         {planData ? (
-                            <Link to="/dashboard" className={styles.activePlanBtn}>
-                                <span className={styles.btnLabel}>Ver mi Plan <ArrowRight size={20} /></span>
+                            <Link to="/dashboard" className={styles.primaryBtn}>
+                                <span className={styles.btnLabel}>Ver mi Plan <ArrowRight size={18} /></span>
                             </Link>
                         ) : (
                             <Link to="/assessment" className={styles.primaryBtn}>
-                                <span className={styles.btnLabel}>Crear mi Plan Ahora <ChevronRight size={20} /></span>
+                                <span className={styles.btnLabel}>Crear mi Plan <ChevronRight size={18} /></span>
                             </Link>
                         )}
+                        <Link to="/motor" className={styles.secondaryBtn}>
+                            <span className={styles.btnLabel}><Cpu size={18} strokeWidth={2.25} /> Conoce el motor</span>
+                        </Link>
                     </motion.div>
 
                     <motion.div className={styles.trust} variants={V.rise}>

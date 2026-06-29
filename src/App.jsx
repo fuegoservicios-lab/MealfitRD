@@ -63,6 +63,8 @@ const Privacy = lazy(() => import('./pages/legal/LegalPages').then(m => ({ defau
 const Terms = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Terms })));
 const Cookies = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Cookies })));
 const MedicalDisclaimer = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.MedicalDisclaimer })));
+// [P3-ENGINE-INFO-PAGE · 2026-06-28] Página pública informativa del motor v1.0.0.
+const Engine = lazy(() => import('./pages/Engine'));
 
 // [P3-APP-SUBDOMAIN-ROOT · 2026-06-28] En el subdominio de la app
 // (app.mealfitrd.com) el root `/` entra DIRECTO a la app — redirige a `/dashboard`
@@ -328,6 +330,9 @@ function App() {
             <Route path="/terms" element={<Layout><Terms /></Layout>} />
             <Route path="/cookies" element={<Layout><Cookies /></Layout>} />
             <Route path="/medical" element={<Layout><MedicalDisclaimer /></Layout>} />
+
+            {/* [P3-ENGINE-INFO-PAGE · 2026-06-28] Motor v1.0.0 (pública, indexable, en el apex). */}
+            <Route path="/motor" element={<Layout><Engine /></Layout>} />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
