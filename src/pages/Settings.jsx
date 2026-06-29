@@ -1538,7 +1538,7 @@ const Settings = () => {
                             degradado + borde + barra/glows indigo) se aplana en móvil →
                             fondo uniforme. Aplica a las secciones listadas (pedido owner:
                             fondo uniforme en plan, suscripción y superpersonalización). */}
-                        <div className={`${styles.grid} ${['plan', 'subscription', 'superpers'].includes(activeSection) ? styles.gridFlush : ''}`}>
+                        <div className={`${styles.grid} ${['plan', 'subscription', 'superpers', 'preferences'].includes(activeSection) ? styles.gridFlush : ''}`}>
 
                     {/* SECCIÓN 1: PERFIL + APARIENCIA */}
                     {activeSection === 'profile' && (
