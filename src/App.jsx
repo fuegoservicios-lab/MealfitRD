@@ -65,8 +65,9 @@ const Cookies = lazy(() => import('./pages/legal/LegalPages').then(m => ({ defau
 const MedicalDisclaimer = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.MedicalDisclaimer })));
 // [P3-ENGINE-INFO-PAGE · 2026-06-28] Página pública informativa del motor v1.0.0.
 const Engine = lazy(() => import('./pages/Engine'));
-// [P3-PRICING-SEPARATE-PAGE · 2026-06-29] Página de precios (reusa el componente del home).
-const PricingPage = lazy(() => import('./components/home/Pricing'));
+// [P3-PRICING-SEPARATE-PAGE · 2026-06-29] Página de precios (wrapper que reusa el
+// componente del home + arregla la costura del fondo bajo el header). Ver PricingPage.
+const PricingPage = lazy(() => import('./pages/PricingPage'));
 
 // [P3-APP-SUBDOMAIN-ROOT · 2026-06-28] En el subdominio de la app
 // (app.mealfitrd.com) el root `/` entra DIRECTO a la app — redirige a `/dashboard`

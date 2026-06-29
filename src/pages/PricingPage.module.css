@@ -1,0 +1,21 @@
+/* [P3-PRICING-PAGE-BG-SEAM · 2026-06-29] Página /precios. El header es una barra
+   flotante (fixed) y el Layout añade padding-top al <main>. En el landing el Hero se
+   sube con margin-top negativo para que su fondo (gradiente+glows) llene DETRÁS de la
+   barra — por eso ahí no hay costura. Aquí replicamos ese truco para la sección de
+   precios: la subimos bajo la barra (su fondo + radiales superiores llenan detrás) y
+   restauramos el offset del contenido con padding-top para que el badge quede bien
+   debajo de la barra. `.wrap > section` (0,1,1) gana a `.pricing` (0,1,0). */
+.wrap {
+    margin-top: calc(-72px - max(env(safe-area-inset-top), 18px));
+}
+.wrap > section {
+    padding-top: calc(72px + max(env(safe-area-inset-top), 18px) + 6rem);
+}
+@media (min-width: 768px) {
+    .wrap {
+        margin-top: -88px;
+    }
+    .wrap > section {
+        padding-top: calc(88px + 6rem);
+    }
+}
