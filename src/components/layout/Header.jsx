@@ -104,24 +104,26 @@ const Header = () => {
                     queda display:none PERO presente en el DOM (mobile-first indexing
                     lo lee). Anchors nativos (#id) — los <a href="#"> no los intercepta
                     react-router; las secciones ya tienen los id correspondientes. */}
-                <div className={styles.headerLeft}>
-                    <Link to="/" className={styles.logo} aria-label="MealfitRD — Inicio">
-                        Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
-                    </Link>
-                    {isHome && (
-                        <nav className={styles.navMarketing} aria-label="Secciones de la página">
-                            <a href="#how-it-works" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'how-it-works')}>Cómo funciona</a>
-                            <a href="#dashboard" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'dashboard')}>Funciones</a>
-                            <a href="#benchmarks" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'benchmarks')}>Precisión</a>
-                            <a href="#pricing" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'pricing')}>Precios</a>
-                        </nav>
-                    )}
-                </div>
+                <Link to="/" className={styles.logo} aria-label="MealfitRD — Inicio">
+                    Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
+                </Link>
 
                 {/* [HEADER-STICKY-CTA · 2026-05-31] Cluster derecho: agrupa CTA sticky
                     + nav + toggle, alineados juntos a la derecha. El navMobile
                     (absolute) queda fuera, como hermano. */}
                 <div className={styles.headerRight}>
+                {/* [P3-SEO-MARKETING-NAV · 2026-06-28] Nav de secciones del landing,
+                    ahora en el cluster DERECHO (pegado al CTA), no junto al logo.
+                    Solo isHome; en el DOM también en móvil (mobile-first indexing),
+                    visible en desktop. */}
+                {isHome && (
+                    <nav className={styles.navMarketing} aria-label="Secciones de la página">
+                        <a href="#how-it-works" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'how-it-works')}>Cómo funciona</a>
+                        <a href="#dashboard" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'dashboard')}>Funciones</a>
+                        <a href="#benchmarks" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'benchmarks')}>Precisión</a>
+                        <a href="#pricing" className={styles.navMarketingLink} onClick={(e) => handleSectionNav(e, 'pricing')}>Precios</a>
+                    </nav>
+                )}
                 {/* [HEADER-STICKY-CTA · 2026-05-31] CTA sticky del landing — PRIMERO en
                     el cluster (queda a la IZQUIERDA) para que "Cerrar Sesión" (dentro de
                     navDesktop) quede a la DERECHA. Aparece al scrollear cuando el CTA del
