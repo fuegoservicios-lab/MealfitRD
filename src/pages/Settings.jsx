@@ -52,21 +52,18 @@ const THEME_OPTIONS = [
     {
         value: 'system',
         label: 'Sistema',
-        desc: 'Sigue la apariencia configurada en tu dispositivo.',
         Icon: Monitor,
         iconBg: 'linear-gradient(135deg, #64748B 0%, #475569 100%)',
     },
     {
         value: 'light',
-        label: 'Básico',
-        desc: 'Tema claro, el de siempre.',
+        label: 'Claro',
         Icon: Sun,
         iconBg: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)',
     },
     {
         value: 'dark',
         label: 'Oscuro',
-        desc: 'Tonos oscuros para ambientes con poca luz.',
         Icon: Moon,
         iconBg: 'linear-gradient(135deg, #4F46E5 0%, #1E293B 100%)',
     },
@@ -1884,7 +1881,7 @@ const Settings = () => {
                             aria-label="Tema de la aplicación"
                         >
                             {THEME_OPTIONS.map((opt) => {
-                                const { value, label, desc, iconBg } = opt;
+                                const { value, label, iconBg } = opt;
                                 const Icon = opt.Icon;
                                 const selected = themePreference === value;
                                 return (
@@ -1901,7 +1898,6 @@ const Settings = () => {
                                         </span>
                                         <span className={styles.themeOptionText}>
                                             <span className={styles.themeOptionTitle}>{label}</span>
-                                            <span className={styles.themeOptionDesc}>{desc}</span>
                                         </span>
                                         {selected && (
                                             <span className={styles.themeCheck} aria-hidden="true">

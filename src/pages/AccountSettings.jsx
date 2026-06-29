@@ -27,9 +27,9 @@ import { safeLocalStorageSet } from '../utils/safeLocalStorage';
 import DeleteAccountSection from '../components/account/DeleteAccountSection';
 
 const THEME_OPTIONS = [
-    { value: 'system', label: 'Sistema', desc: 'Sigue tu dispositivo', Icon: Monitor },
-    { value: 'light', label: 'Básico', desc: 'Tema claro', Icon: Sun },
-    { value: 'dark', label: 'Oscuro', desc: 'Tonos oscuros', Icon: Moon },
+    { value: 'system', label: 'Sistema', Icon: Monitor },
+    { value: 'light', label: 'Claro', Icon: Sun },
+    { value: 'dark', label: 'Oscuro', Icon: Moon },
 ];
 
 const AccountSettings = () => {
@@ -324,7 +324,7 @@ const AccountSettings = () => {
                     </div>
                 </div>
                 <div className="acct-theme-grid" role="radiogroup" aria-label="Apariencia">
-                    {THEME_OPTIONS.map(({ value, label, desc, Icon }) => {
+                    {THEME_OPTIONS.map(({ value, label, Icon }) => {
                         const active = themePref === value;
                         return (
                             <button
@@ -338,7 +338,6 @@ const AccountSettings = () => {
                                 {active && <Check size={15} className="acct-theme-check" />}
                                 <Icon size={22} />
                                 <span className="acct-theme-label">{label}</span>
-                                <span className="acct-theme-desc">{desc}</span>
                             </button>
                         );
                     })}
