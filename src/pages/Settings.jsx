@@ -1262,6 +1262,37 @@ const Settings = () => {
         tint: '#E0E7FF',
     };
 
+    // [P3-PLANOBJETIVO-MOBILE · 2026-06-29] Macros diarias para la pantalla móvil.
+    // `planData` ES el plan_data JSONB (trae .calories) pero NO la columna .macros
+    // del row (se descarta al hidratar). Se computan sumando los meals del primer
+    // día (cada meal carga protein/carbs/fats). Fallback a un objeto .macros si el
+    // plan lo trajera embebido (o como string JSON).
+    const _dailyMacros = (() => {
+        let m = planData?.macros;
+        if (typeof m === 'string') { try { m = JSON.parse(m); } catch { m = null; } }
+        if (m && (Number(m.protein) || Number(m.carbs) || Number(m.fats ?? m.fat))) {
+            return {
+                protein: Math.round(Number(m.protein) || 0),
+                carbs: Math.round(Number(m.carbs) || 0),
+                fat: Math.round(Number(m.fats ?? m.fat) || 0),
+            };
+        }
+        const days = Array.isArray(planData?.days)
+            ? planData.days
+            : [{ meals: planData?.meals || planData?.perfectDay || [] }];
+        const meals = Array.isArray(days?.[0]?.meals) ? days[0].meals : [];
+        const sum = meals.reduce((a, meal) => ({
+            protein: a.protein + (Number(meal?.protein) || 0),
+            carbs: a.carbs + (Number(meal?.carbs) || 0),
+            fat: a.fat + (Number(meal?.fats ?? meal?.fat) || 0),
+        }), { protein: 0, carbs: 0, fat: 0 });
+        return {
+            protein: Math.round(sum.protein),
+            carbs: Math.round(sum.carbs),
+            fat: Math.round(sum.fat),
+        };
+    })();
+
     return (
         <>
             <div className={styles.wrapper}>
@@ -1462,8 +1493,11 @@ const Settings = () => {
                     {/* Default (desktop siempre, móvil cuando NO hay sección activa). */}
                     <h1 className={`${styles.pageTitle} ${styles.titleDesktop}`}>Configuración</h1>
                     <p className={`${styles.pageSubtitle} ${styles.subtitleDesktop}`}>Gestiona tu cuenta, plan y preferencias.</p>
-                    {/* Móvil cuando hay sección activa: refleja la sección. */}
-                    {activeSection && activeSectionMeta && (
+                    {/* Móvil cuando hay sección activa: refleja la sección.
+                        [P3-PLANOBJETIVO-MOBILE · 2026-06-29] 'plan' se excluye: su
+                        pantalla inmersiva (PlanObjetivo) ya renderiza su propio título
+                        "Plan & Objetivo" → este header centrado lo duplicaba. */}
+                    {activeSection && activeSection !== 'plan' && activeSectionMeta && (
                         <>
                             <h1 className={`${styles.pageTitle} ${styles.titleMobile}`}>{activeSectionMeta.label}</h1>
                             <p className={`${styles.pageSubtitle} ${styles.subtitleMobile}`}>{activeSectionMeta.description}</p>
@@ -1500,7 +1534,10 @@ const Settings = () => {
                     </aside>
 
                     <main className={styles.contentPanel}>
-                        <div className={styles.grid}>
+                        {/* [P3-PLANOBJETIVO-MOBILE · 2026-06-29] En 'plan' el panel
+                            premium (.grid: degradado + borde + barra/glows indigo) se
+                            aplana en móvil → fondo uniforme para la pantalla inmersiva. */}
+                        <div className={`${styles.grid} ${activeSection === 'plan' ? styles.gridFlush : ''}`}>
 
                     {/* SECCIÓN 1: PERFIL + APARIENCIA */}
                     {activeSection === 'profile' && (
@@ -2526,11 +2563,7 @@ const Settings = () => {
                                     backButton={false}
                                     goal={_goalMeta.label}
                                     kcal={Math.round(planData?.calories || 2000)}
-                                    macros={{
-                                        protein: planData?.macros?.protein,
-                                        carbs: planData?.macros?.carbs,
-                                        fat: planData?.macros?.fats,
-                                    }}
+                                    macros={_dailyMacros}
                                     onEvaluate={() => { if (!isLimitReached) setShowEvaluateModal(true); }}
                                     evaluateDisabled={isLimitReached}
                                     evaluateLabel={isLimitReached ? 'Límite de plan alcanzado' : 'Evaluar de nuevo'}

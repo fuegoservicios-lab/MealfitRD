@@ -241,6 +241,27 @@
     z-index: 0;
 }
 
+/* [P3-PLANOBJETIVO-MOBILE · 2026-06-29] Panel aplanado: en móvil la sección 'plan'
+   usa la pantalla inmersiva PlanObjetivo, que exige un fondo UNIFORME. Se neutraliza
+   todo el "premium surface" del .grid (degradado, borde, radius, sombra, blur + la
+   barra indigo ::before y los glows ::after) → el contenido queda sobre el fondo de
+   página uniforme. Solo afecta móvil; en desktop el panel premium se conserva. */
+@media (max-width: 768px) {
+    .gridFlush {
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        overflow: visible;
+    }
+    .gridFlush::before,
+    .gridFlush::after {
+        display: none;
+    }
+}
+
 .section {
     background: transparent;
     border: none;
