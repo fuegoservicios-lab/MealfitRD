@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import styles from './Header.module.css';
 import { Menu, X, LayoutDashboard, LogOut, ChevronRight, ChevronDown, Settings as SettingsIcon } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
@@ -257,8 +258,14 @@ const Header = () => {
                 )}
                 </div>
 
-                {/* Navegación Móvil */}
-                {isMenuOpen && hasMobileMenuItems && (
+                {/* Navegación Móvil — [P3-HEADER-MOBILE-FULLSCREEN-PORTAL · 2026-06-29]
+                    Se renderiza con createPortal a document.body. El overlay es
+                    position:fixed inset:0, pero .container tiene backdrop-filter (y el
+                    layout animado usa transform) → un ancestro filtrado/transformado hace
+                    que `fixed` se posicione RELATIVO a ese ancestro, no al viewport, y el
+                    menú quedaba atrapado dentro de la pastilla del header. El portal lo
+                    saca a body → fixed real, pantalla completa de verdad. */}
+                {isMenuOpen && hasMobileMenuItems && typeof document !== 'undefined' && createPortal(
                     <nav className={styles.navMobile}>
                         {/* [P3-HEADER-MOBILE-FULLSCREEN · 2026-06-29] Menú full-screen:
                             barra superior propia (logo + cerrar) porque el overlay cubre
@@ -339,7 +346,8 @@ const Header = () => {
                                 <LogOut size={18} /> {logoutLabel}
                             </button>
                         )}
-                    </nav>
+                    </nav>,
+                    document.body
                 )}
             </div>
         </header>
