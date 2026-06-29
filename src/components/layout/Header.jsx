@@ -166,13 +166,14 @@ const Header = () => {
                         compacto (avatar + chevron) para no ocupar tanto espacio.
                         El menú móvil (hamburguesa) ya agrupaba ambos. */}
                     {showAccountMenu && (
-                        <div className={styles.accountMenu} ref={accountMenuRef}>
+                        <div className={styles.accountMenu} ref={accountMenuRef} id="account-dropdown-menu">
                             <button
                                 type="button"
                                 className={styles.accountTrigger}
                                 onClick={() => setIsAccountMenuOpen((p) => !p)}
                                 aria-haspopup="menu"
                                 aria-expanded={isAccountMenuOpen}
+                                aria-controls="account-dropdown-menu"
                                 aria-label="Abrir menú de cuenta"
                             >
                                 <span className={styles.accountAvatar} aria-hidden="true">{accountInitial}</span>
@@ -230,6 +231,7 @@ const Header = () => {
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                         aria-label={isMenuOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
                         aria-expanded={isMenuOpen}
+                        aria-controls="mobile-nav-menu"
                     >
                         {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
@@ -238,7 +240,7 @@ const Header = () => {
 
                 {/* Navegación Móvil */}
                 {isMenuOpen && hasMobileMenuItems && (
-                    <nav className={styles.navMobile}>
+                    <nav className={styles.navMobile} id="mobile-nav-menu">
 
 
                         {planData && !isPlanLoading ? (

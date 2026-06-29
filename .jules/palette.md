@@ -1,0 +1,3 @@
+## 2024-05-24 - Accessibility Enhancements for Toggle Menus
+**Learning:** Adding `aria-controls` to toggle buttons (like FABs and navigation toggles) and explicitly linking them to the `id` of their respective content containers is a critical accessibility pattern for screen reader context. This ensures that when a user interacts with a toggle button, the screen reader can accurately announce the controlled area.
+**Action:** When creating new toggleable UI elements (e.g., dropdowns, sidebars, FAB widgets), always pair `aria-expanded` and `aria-controls` on the trigger, matching the explicit `id` on the target container.
