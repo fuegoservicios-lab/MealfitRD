@@ -223,6 +223,48 @@ function ConfirmButton({ destructive, label, busy, busyLabel, onClick }) {
   );
 }
 
+/* ----------------------------------------------- responsive (bottom sheet móvil)
+ * Los estilos del modal son inline (no soportan @media), así que inyectamos este
+ * <style>. En ≤600px el overlay ancla el panel ABAJO (place-items:end stretch),
+ * el panel ocupa el ancho completo, redondea SOLO las esquinas superiores, sube
+ * desde abajo (ednSheetUp), respeta el safe-area de iOS y muestra un "grabber". */
+const EDN_CSS = `
+@keyframes ednSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes ednFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 600px) {
+  .edn-overlay {
+    place-items: end stretch !important;
+    padding: 0 !important;
+    animation: ednFadeIn .2s ease !important;
+  }
+  .edn-panel {
+    max-width: 100% !important;
+    width: 100% !important;
+    border-radius: 22px 22px 0 0 !important;
+    border-bottom: none !important;
+    padding-top: 26px !important;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+    max-height: 92vh !important;
+    overflow-y: auto !important;
+    animation: ednSheetUp .28s cubic-bezier(.16,1,.3,1) !important;
+  }
+  .edn-panel::before {
+    content: "";
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 42px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--border);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .edn-overlay, .edn-panel { animation: none !important; }
+}
+`;
+
 /* ============================================================ componente raíz */
 export default function EvaluarDeNuevoModal({
   open = true,
@@ -257,7 +299,10 @@ export default function EvaluarDeNuevoModal({
   // Portal a <body>: garantiza que el overlay fixed cubra el viewport aunque algún
   // ancestro de la página tenga transform/filter (que romperían position:fixed).
   return createPortal(
+    <>
+    <style>{EDN_CSS}</style>
     <div
+      className="edn-overlay"
       onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
       style={{
         position: "fixed",
@@ -276,6 +321,7 @@ export default function EvaluarDeNuevoModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="evaluar-title"
+        className="edn-panel"
         style={{
           position: "relative",
           width: "100%",
@@ -370,7 +416,8 @@ export default function EvaluarDeNuevoModal({
           />
         </div>
       </div>
-    </div>,
+    </div>
+    </>,
     document.body
   );
 }
