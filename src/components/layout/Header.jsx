@@ -260,6 +260,22 @@ const Header = () => {
                 {/* Navegación Móvil */}
                 {isMenuOpen && hasMobileMenuItems && (
                     <nav className={styles.navMobile}>
+                        {/* [P3-HEADER-MOBILE-FULLSCREEN · 2026-06-29] Menú full-screen:
+                            barra superior propia (logo + cerrar) porque el overlay cubre
+                            el header, así que el toggle original queda tapado. */}
+                        <div className={styles.navMobileTop}>
+                            <span className={styles.navMobileLogo} aria-hidden="true">
+                                Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
+                            </span>
+                            <button
+                                type="button"
+                                className={styles.navMobileClose}
+                                onClick={() => setIsMenuOpen(false)}
+                                aria-label="Cerrar menú"
+                            >
+                                <X size={26} />
+                            </button>
+                        </div>
                         {/* [P3-HEADER-MOBILE-HAMBURGER · 2026-06-29] Opciones del nav de
                             marketing dentro del menú móvil (landing-like): Cómo funciona,
                             Funciones, Precisión, Precios. */}

@@ -259,42 +259,76 @@
     outline-offset: 3px;
 }
 
+/* [P3-HEADER-MOBILE-FULLSCREEN · 2026-06-29] Menú móvil a PANTALLA COMPLETA (antes
+   un dropdown pequeño). Overlay fijo que cubre todo el viewport con fondo sólido y
+   uniforme; trae su propia barra (logo + X) porque tapa el header. z-index 1001 >
+   .header (1000). */
 .navMobile {
-    position: absolute;
-    top: calc(60px + max(env(safe-area-inset-top), 24px));
-    left: 1rem;
-    right: 1rem;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0,0,0,0.02);
-    padding: 0.75rem;
+    position: fixed;
+    inset: 0;
+    z-index: 1001;
+    background: #FFFFFF;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    border-radius: 1.25rem;
-    animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    transform-origin: top center;
-    z-index: 1002;
+    gap: 0.35rem;
+    padding:
+        max(14px, env(safe-area-inset-top))
+        max(20px, env(safe-area-inset-right))
+        calc(env(safe-area-inset-bottom) + 1.75rem)
+        max(20px, env(safe-area-inset-left));
+    overflow-y: auto;
+    animation: navMobileIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px) scale(0.98);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+@keyframes navMobileIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.navMobileTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 46px;
+    margin-bottom: 1.5rem;
+}
+
+.navMobileLogo {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.03em;
+}
+
+.navMobileClose {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    border: none;
+    background: transparent;
+    color: var(--text-main);
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+.navMobileClose:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--primary);
+}
+.navMobileClose:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 3px;
 }
 
 .navLinkMobile {
-    padding: 0.875rem 1rem;
+    padding: 1.05rem 0.75rem;
     color: #475569;
     text-decoration: none;
-    font-weight: 500;
-    font-size: 0.95rem;
+    font-weight: 600;
+    font-size: 1.2rem;
     border-radius: 0.75rem;
     background: transparent;
     border: none;
@@ -343,11 +377,14 @@
         radial-gradient(85% 85% at 28% 18%, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 42%),
         linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 58%, var(--primary-dark) 100%);
     color: #fff;
-    padding: 0.875rem;
+    padding: 1.05rem;
     border-radius: 0.875rem;
     text-decoration: none;
-    font-weight: 600;
-    margin-top: 0.25rem;
+    font-weight: 700;
+    font-size: 1.05rem;
+    /* [P3-HEADER-MOBILE-FULLSCREEN · 2026-06-29] Empuja el CTA (y config/logout que le
+       siguen) al fondo del overlay full-screen; los links quedan arriba. */
+    margin-top: auto;
     transition: all 0.2s ease;
     border: 1px solid transparent;
     box-shadow: 0 12px 26px -10px rgba(79, 70, 229, 0.5);
@@ -462,8 +499,12 @@
     background: var(--bg-muted);
 }
 :global(html[data-theme="dark"]) .navMobile {
-    background: rgba(17, 24, 39, 0.96);
-    box-shadow: var(--shadow-xl), 0 0 0 1px var(--border);
+    /* Overlay full-screen sólido y uniforme en oscuro (sin sombra de tarjeta). */
+    background: #0B1120;
+    box-shadow: none;
+}
+:global(html[data-theme="dark"]) .navMobileClose:hover {
+    background: var(--bg-muted);
 }
 :global(html[data-theme="dark"]) .navLinkMobile {
     color: var(--text-muted);
