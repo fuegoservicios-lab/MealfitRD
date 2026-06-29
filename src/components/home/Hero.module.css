@@ -36,6 +36,13 @@
     overflow: hidden;
     overflow-x: clip;
     padding: calc(2rem + max(env(safe-area-inset-top), 24px)) 0 4rem;
+    /* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El header es una barra FLOTANTE fija y
+       transparente alrededor. Subimos el hero para que su fondo (gradiente + spotlight)
+       llene DETRÁS de la barra y NO quede una franja plana arriba que no calza con la
+       página. El margin-top cancela EXACTAMENTE el padding-top del <main> (Layout.jsx),
+       así el hero arranca en y=0 (bajo el header). El contenido sigue centrado (align-
+       items:center) y libre del header. Solo aplica al .hero (home). */
+    margin-top: calc(-72px - max(env(safe-area-inset-top), 18px));
     isolation: isolate;
     /* Base del escenario (tema claro por defecto): gradiente vertical limpísimo
        page → blanco que el spotlight reforzará. El tema oscuro se re-mapea abajo
@@ -43,6 +50,14 @@
     background:
         radial-gradient(125% 90% at 50% -12%, #FFFFFF 0%, var(--bg-page) 56%, #EBF0FB 100%);
     color: var(--text-main);
+}
+
+/* [P3-HEADER-FLOAT-REDESIGN] En desktop el offset del <main> es 88px fijo (sin
+   safe-area) → el margin-top del hero lo cancela con el mismo valor. */
+@media (min-width: 768px) {
+    .hero {
+        margin-top: -88px;
+    }
 }
 
 /* ── ESCENARIO (capas decorativas de fondo) ─────────────────────────────── */
