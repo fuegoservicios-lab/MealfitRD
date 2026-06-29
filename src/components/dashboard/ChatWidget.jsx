@@ -459,7 +459,7 @@ const ChatWidget = () => {
             alignItems: 'flex-end',
         }}>
             {/* Ventana de Chat */}
-            <div style={{
+            <div id="mealfit-ai-chat-widget" style={{
                 width: '380px',
                 height: '500px',
                 background: 'var(--bg-card)',
@@ -708,6 +708,7 @@ const ChatWidget = () => {
                 onClick={() => setIsOpen(!isOpen)}
                 aria-label={isOpen ? "Cerrar asistente Mealfit AI" : "Abrir asistente Mealfit AI"}
                 aria-expanded={isOpen}
+                aria-controls="mealfit-ai-chat-widget"
                 style={{
                     width: '3.5rem',
                     height: '3.5rem',
