@@ -297,3 +297,51 @@
 @media (prefers-reduced-motion: reduce) {
     .card, .ctaPrimary { transition: none; }
 }
+
+/* ============================================================
+   [P3-DETAIL-PAGES · 2026-06-29] Extras compartidos por las
+   páginas de detalle (/como-funciona, /funciones, /precision).
+   Reusan el patrón de Engine para consistencia visual.
+   ============================================================ */
+
+/* listas de viñetas con check */
+.bullets { list-style: none; padding: 0; margin: 1.1rem 0 0; display: grid; gap: 0.6rem; }
+.bullet { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.95rem; line-height: 1.5; color: var(--text-muted); }
+.bulletIcon { color: var(--primary); flex: none; margin-top: 2px; }
+.bullet strong { color: var(--text-main); font-weight: 650; }
+
+/* bloque de función (deep-dive de cada feature) */
+.feature { margin-top: 1.4rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 1.6rem 1.7rem; transition: border-color 0.18s ease; }
+.feature:hover { border-color: color-mix(in srgb, var(--primary) 36%, var(--border)); }
+.featureHead { display: flex; align-items: center; gap: 0.9rem; }
+.featureIcon { width: 50px; height: 50px; border-radius: 14px; display: grid; place-items: center; color: #fff; flex: none; box-shadow: 0 10px 22px -12px currentColor; }
+.featureTitle { font-family: var(--font-heading); font-weight: 800; font-size: 1.2rem; letter-spacing: -0.02em; }
+.featureSub { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.1rem; }
+.featureText { color: var(--text-muted); font-size: 0.97rem; line-height: 1.56; margin-top: 0.95rem; }
+
+/* tags / pills */
+.tagRow { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 1.1rem; }
+.tag { font-size: 0.73rem; font-weight: 600; color: var(--text-muted); background: color-mix(in srgb, var(--text-main) 6%, transparent); border: 1px solid var(--border); border-radius: 999px; padding: 0.3rem 0.7rem; }
+
+/* tabla comparativa */
+.cmpTableWrap { margin-top: 1.9rem; overflow-x: auto; border: 1px solid var(--border); border-radius: 16px; background: var(--bg-card); }
+.cmpTable { width: 100%; border-collapse: collapse; min-width: 480px; }
+.cmpTable th, .cmpTable td { padding: 0.85rem 1.1rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.93rem; }
+.cmpTable thead th { font-family: var(--font-heading); font-weight: 700; font-size: 0.82rem; letter-spacing: 0.02em; color: var(--text-main); }
+.cmpTable tbody tr:last-child td { border-bottom: none; }
+.cmpTable td:first-child, .cmpTable th:first-child { color: var(--text-main); }
+.cmpGood { color: var(--primary); font-weight: 800; font-variant-numeric: tabular-nums; }
+.cmpBad { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.cmpColHi { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+
+/* FAQ */
+.faq { margin-top: 1.9rem; display: grid; gap: 0.7rem; }
+.faqItem { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.25rem; }
+.faqQ { font-weight: 700; font-size: 1rem; }
+.faqA { color: var(--text-muted); font-size: 0.93rem; line-height: 1.55; margin-top: 0.4rem; }
+
+@media (max-width: 760px) {
+    .feature { padding: 1.3rem 1.25rem; }
+    .featureIcon { width: 44px; height: 44px; }
+    .cmpTable { min-width: 420px; }
+}

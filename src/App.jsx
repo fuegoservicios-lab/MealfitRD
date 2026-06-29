@@ -68,6 +68,10 @@ const Engine = lazy(() => import('./pages/Engine'));
 // [P3-PRICING-SEPARATE-PAGE · 2026-06-29] Página de precios (wrapper que reusa el
 // componente del home + arregla la costura del fondo bajo el header). Ver PricingPage.
 const PricingPage = lazy(() => import('./pages/PricingPage'));
+// [P3-DETAIL-PAGES · 2026-06-29] Páginas de detalle de las 3 secciones del landing.
+const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
+const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
+const PrecisionPage = lazy(() => import('./pages/PrecisionPage'));
 
 // [P3-APP-SUBDOMAIN-ROOT · 2026-06-28] En el subdominio de la app
 // (app.mealfitrd.com) el root `/` entra DIRECTO a la app — redirige a `/dashboard`
@@ -339,6 +343,11 @@ function App() {
 
             {/* [P3-PRICING-SEPARATE-PAGE · 2026-06-29] Precios (pública, indexable, en el apex). */}
             <Route path="/precios" element={<Layout><PricingPage /></Layout>} />
+
+            {/* [P3-DETAIL-PAGES · 2026-06-29] Detalle de las 3 secciones (públicas, indexables, apex). */}
+            <Route path="/como-funciona" element={<Layout><HowItWorksPage /></Layout>} />
+            <Route path="/funciones" element={<Layout><FeaturesPage /></Layout>} />
+            <Route path="/precision" element={<Layout><PrecisionPage /></Layout>} />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

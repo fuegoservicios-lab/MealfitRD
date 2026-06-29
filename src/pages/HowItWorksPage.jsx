@@ -1,0 +1,263 @@
+import { useEffect, useLayoutEffect } from 'react';
+import { Link } from 'react-router-dom';
+import {
+    ClipboardList, Cpu, Salad, LineChart, ChevronRight, ArrowRight, Check,
+    ShieldCheck, Gauge, ListChecks, Repeat, Soup, CalendarClock, Info,
+} from 'lucide-react';
+import styles from './Engine.module.css';
+
+/* [P3-DETAIL-PAGES · 2026-06-29] Página de detalle de "Cómo funciona" (el método
+   end-to-end). Amplía la sección del landing con todos los detalles del proceso, las
+   guardas de calidad y la adaptación longitudinal. Contenido real basado en el motor;
+   honesto (sin prometer resultados). Pública, indexable, bajo <Layout>. */
+
+const STATS = [
+    { num: '20+', label: 'Variables de entrada' },
+    { num: 'V4', label: 'Motor DeepSeek' },
+    { num: '17', label: 'Micronutrientes vs DRI' },
+    { num: 'Semanal', label: 'Recálculo del plan' },
+];
+
+const STAGES = [
+    {
+        Icon: ClipboardList, color: '#60A5FA',
+        title: '1 · Perfil clínico-metabólico',
+        sub: 'El sustrato de cada decisión',
+        text: 'No partimos solo de tu peso. Construimos un perfil con más de 20 variables que el motor usa en cada cálculo:',
+        bullets: [
+            ['Composición y gasto energético', 'edad, sexo, estatura, peso, nivel de actividad → tu requerimiento calórico y de macros.'],
+            ['Condiciones de salud', 'diabetes, enfermedad renal, hipertensión, dislipidemia, embarazo, cirugía bariátrica…'],
+            ['Alergias IgE', 'se eliminan por completo, incluidos derivados.'],
+            ['Presupuesto y estilo de vida', 'cuánto puedes gastar y cuánto tiempo tienes para cocinar.'],
+            ['Gustos y rechazos', 'lo que te encanta y lo que no quieres ver en tu plan.'],
+        ],
+        tags: ['Datos biométricos', 'Condiciones', 'Alergias', 'Presupuesto'],
+    },
+    {
+        Icon: Cpu, color: '#A78BFA',
+        title: '2 · Motor de inferencia',
+        sub: 'DeepSeek V4 · en segundos',
+        text: 'El modelo resuelve tu plan día por día contra un catálogo de 200+ alimentos verificados, optimizando macronutrientes, coste y adherencia. Clave: el motor solo usa alimentos que existen en el catálogo — nunca inventa comida.',
+        bullets: [
+            ['Generación por chunks', 'el plan se arma por bloques para entregarte resultado rápido y robusto.'],
+            ['Solo alimentos verificados', 'cada ingrediente tiene datos nutricionales reales (curados desde USDA).'],
+            ['Optimización multi-objetivo', 'equilibra tus macros, tu presupuesto y la variedad a la vez.'],
+        ],
+        tags: ['DeepSeek V4', 'Catálogo verificado', 'Segundos'],
+    },
+    {
+        Icon: Salad, color: '#34D399',
+        title: '3 · Calibración nutricional',
+        sub: '17 micronutrientes · DRI',
+        text: 'Cada plato se ajusta a tus macronutrientes objetivo y se compara contra 17 micronutrientes (vs las referencias diarias, DRI), con un medidor de cobertura. Aquí entra el motor determinista que cuadra los números.',
+        bullets: [
+            ['Banda de macros', 'proteína, carbohidratos, grasas y calorías dentro de un rango objetivo.'],
+            ['Piso de proteína', 'una guarda garantiza que nunca quedes por debajo de tu mínimo.'],
+            ['Coherencia receta ↔ lista', 'si la receta pide 200 g de pollo, la lista tiene ≈200 g × tu hogar.'],
+        ],
+        tags: ['Macros en banda', 'Piso de proteína', '17 micros'],
+    },
+    {
+        Icon: LineChart, color: '#FB923C',
+        title: '4 · Adaptación longitudinal',
+        sub: 'Recálculo semana a semana',
+        text: 'Tu plan no es estático. Se recalcula con tu progreso para sortear la meseta metabólica y mantener el ritmo, ajustando porciones y objetivos a medida que cambias.',
+        bullets: [
+            ['Avance del ciclo', 'la ventana del plan rueda hacia adelante sin generar todo de nuevo.'],
+            ['Renovación con tu nevera', 'al renovar, reusa lo que te sobró y pide solo lo que falta.'],
+            ['Cambios con el coach', 'pídele a la IA cambiar una comida o registrar lo que comiste.'],
+        ],
+        tags: ['Recálculo semanal', 'Anti-meseta', 'Pantry-aware'],
+    },
+];
+
+const PIPELINE = [
+    { title: 'Tu perfil', text: 'Objetivo, datos biométricos, condiciones, alergias, presupuesto y preferencias entran al motor.' },
+    { title: 'Cálculo de objetivos', text: 'Estimamos tus calorías diarias y tus macros — proteína, carbohidratos y grasas — según tu meta.' },
+    { title: 'Generación con IA', text: 'DeepSeek V4 arma los platos día por día usando solo alimentos del catálogo verificado.' },
+    { title: 'Validación', text: 'Cada comida pasa por guardas: piso de proteína, banda de macros, variedad, coherencia y la capa clínica.' },
+    { title: 'Entrega', text: 'Plan completo + lista de compras costeada con precios reales de supermercado dominicano (RD$).' },
+];
+
+const GUARDS = [
+    { Icon: Gauge, title: 'Banda de macros', text: 'Calorías 95–105% del objetivo; proteína, carbos y grasas dentro del 90–112%. Medido, no a ojo.' },
+    { Icon: ShieldCheck, title: 'Piso de proteína', text: 'Un cierre determinista re-apunta las porciones para que nunca quedes por debajo de tu mínimo.' },
+    { Icon: Soup, title: 'Variedad y coherencia de plato', text: 'Evita repetir la misma proteína el mismo día y que un plato tenga sentido (nombre honesto, formas que combinan).' },
+    { Icon: ListChecks, title: 'Coherencia receta ↔ lista', text: 'La cantidad de cada ingrediente en la receta cuadra con la lista de compras. Sin ingredientes fantasma.' },
+    { Icon: Cpu, title: 'Capa clínica', text: 'Si declaras una condición, se ejecutan reglas deterministas sobre cada comida — no es solo un prompt.' },
+    { Icon: Salad, title: 'Seguridad alimentaria', text: 'Sin huevo crudo ni mariscos crudos de riesgo; vísceras y leguminosas siempre con cocción segura.' },
+];
+
+const ADAPT = [
+    { Icon: CalendarClock, title: 'Avanza tu ciclo', text: 'Mueve la ventana del plan hacia adelante (mantenimiento) sin volver a generar todo desde cero.' },
+    { Icon: Repeat, title: 'Renueva con tu Nevera', text: 'Marca «ya compré» y, al renovar, el motor reusa lo duradero que te quedó y te pide solo lo que falta.' },
+    { Icon: Cpu, title: 'Ajusta con el Coach', text: 'Pídele a la IA cambiar una comida, regenerar un día, o registrar lo que comiste — y el plan se recalcula.' },
+];
+
+const FAQ = [
+    { q: '¿Cuánto tarda en generarse mi plan?', a: 'Segundos a un par de minutos. El motor genera por bloques y te entrega el plan completo con su lista de compras.' },
+    { q: '¿Puedo cambiar comidas que no me gustan?', a: 'Sí. Desde el coach IA puedes pedir cambiar un plato, regenerar un día completo o ajustar porciones — respetando tus macros y tu condición.' },
+    { q: '¿Se adapta a mi condición de salud?', a: 'Sí. Diabetes, enfermedad renal, hipertensión, dislipidemia, embarazo, cirugía bariátrica y alergias IgE activan reglas específicas sobre cada comida.' },
+    { q: '¿Necesito tarjeta para empezar?', a: 'No. El plan Gratis te deja descubrir el motor sin tarjeta. Puedes escalar cuando quieras.' },
+];
+
+const HowItWorksPage = () => {
+    useLayoutEffect(() => { window.scrollTo(0, 0); }, []);
+    useEffect(() => {
+        const prev = document.title;
+        document.title = 'Cómo funciona MealfitRD — el método, paso a paso';
+        return () => { document.title = prev; };
+    }, []);
+
+    return (
+        <div className={styles.page}>
+            <section className={styles.intro}>
+                <span className={styles.eyebrow}><ClipboardList size={14} strokeWidth={2.5} /> El método</span>
+                <h1 className={styles.title}>
+                    Del dato a tu plato,<br /><span className={styles.accent}>con método</span>.
+                </h1>
+                <p className={styles.lead}>
+                    Simple por fuera, riguroso por dentro. Esto es todo lo que ocurre entre que
+                    respondes unas preguntas y recibes un plan calculado a tu medida.
+                </p>
+                <div className={styles.stats}>
+                    {STATS.map((s) => (
+                        <div key={s.label} className={styles.stat}>
+                            <div className={styles.statNum}>{s.num}</div>
+                            <div className={styles.statLabel}>{s.label}</div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* Las 4 etapas */}
+            <section className={styles.section}>
+                <h2 className={styles.sectionTitle}>Las 4 etapas del método</h2>
+                <p className={styles.sectionLead}>
+                    Cada plan recorre estas cuatro etapas. Lo que ves es un plato; lo que pasa
+                    debajo es un pipeline con control de calidad en cada paso.
+                </p>
+                {STAGES.map((s) => (
+                    <div key={s.title} className={styles.feature}>
+                        <div className={styles.featureHead}>
+                            <span className={styles.featureIcon} style={{ background: s.color }}>
+                                <s.Icon size={24} strokeWidth={2} />
+                            </span>
+                            <div>
+                                <div className={styles.featureTitle}>{s.title}</div>
+                                <div className={styles.featureSub}>{s.sub}</div>
+                            </div>
+                        </div>
+                        <p className={styles.featureText}>{s.text}</p>
+                        <ul className={styles.bullets}>
+                            {s.bullets.map(([b, rest]) => (
+                                <li key={b} className={styles.bullet}>
+                                    <Check size={16} strokeWidth={3} className={styles.bulletIcon} />
+                                    <span><strong>{b}:</strong> {rest}</span>
+                                </li>
+                            ))}
+                        </ul>
+                        <div className={styles.tagRow}>
+                            {s.tags.map((t) => <span key={t} className={styles.tag}>{t}</span>)}
+                        </div>
+                    </div>
+                ))}
+            </section>
+
+            {/* Pipeline técnico */}
+            <section className={styles.section}>
+                <h2 className={styles.sectionTitle}>Qué ocurre cuando pulsas «Crear mi plan»</h2>
+                <p className={styles.sectionLead}>
+                    Del formulario a tu lista de compras, en cinco pasos.
+                </p>
+                <div className={styles.steps}>
+                    {PIPELINE.map((step, i) => (
+                        <div key={step.title} className={styles.step}>
+                            <div className={styles.stepRail}>
+                                <div className={styles.stepNum}>{i + 1}</div>
+                                <div className={styles.stepLine} />
+                            </div>
+                            <div className={styles.stepBody}>
+                                <div className={styles.stepTitle}>{step.title}</div>
+                                <div className={styles.stepText}>{step.text}</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* Guardas de calidad */}
+            <section className={styles.section}>
+                <h2 className={styles.sectionTitle}>Las guardas de calidad</h2>
+                <p className={styles.sectionLead}>
+                    Antes de entregarte un plan, el motor lo somete a una batería de guardas
+                    deterministas. Si algo no cuadra, lo corrige o lo regenera.
+                </p>
+                <div className={styles.cards}>
+                    {GUARDS.map(({ Icon, title, text }) => (
+                        <div key={title} className={styles.card}>
+                            <div className={styles.cardIcon}><Icon size={24} strokeWidth={2} /></div>
+                            <div className={styles.cardTitle}>{title}</div>
+                            <div className={styles.cardText}>{text}</div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* Adaptación */}
+            <section className={styles.section}>
+                <h2 className={styles.sectionTitle}>Se adapta contigo</h2>
+                <p className={styles.sectionLead}>
+                    Tu metabolismo cambia; tu plan también. Tres formas en que evoluciona sin que empieces de cero.
+                </p>
+                <div className={styles.cards}>
+                    {ADAPT.map(({ Icon, title, text }) => (
+                        <div key={title} className={styles.card}>
+                            <div className={styles.cardIcon}><Icon size={24} strokeWidth={2} /></div>
+                            <div className={styles.cardTitle}>{title}</div>
+                            <div className={styles.cardText}>{text}</div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* FAQ */}
+            <section className={styles.section}>
+                <h2 className={styles.sectionTitle}>Preguntas frecuentes</h2>
+                <div className={styles.faq}>
+                    {FAQ.map((f) => (
+                        <div key={f.q} className={styles.faqItem}>
+                            <div className={styles.faqQ}>{f.q}</div>
+                            <div className={styles.faqA}>{f.a}</div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* Cross-links + disclaimer */}
+            <section className={styles.section}>
+                <div className={styles.disclaimer}>
+                    <Info size={22} strokeWidth={2.25} className={styles.disclaimerIcon} />
+                    <div className={styles.disclaimerText}>
+                        <strong>¿Quieres más?</strong> Mira <Link to="/funciones">todas las funciones</Link> de la
+                        app, la <Link to="/precision">precisión que medimos</Link> o <Link to="/motor">el motor por
+                        dentro</Link>. MealfitRD es una herramienta de apoyo nutricional, no un sustituto de un
+                        profesional de la salud.
+                    </div>
+                </div>
+            </section>
+
+            {/* CTA */}
+            <section className={styles.finalCta}>
+                <h2 className={styles.finalTitle}>¿List@ para tu plan calculado?</h2>
+                <p className={styles.finalText}>Responde unas preguntas y deja que el motor haga el resto.</p>
+                <div className={styles.ctaRow}>
+                    <Link to="/assessment" className={styles.ctaPrimary}>Crear mi Plan <ChevronRight size={19} strokeWidth={2.5} /></Link>
+                    <Link to="/precios" className={styles.ctaGhost}>Ver planes <ArrowRight size={18} strokeWidth={2.25} /></Link>
+                </div>
+            </section>
+        </div>
+    );
+};
+
+export default HowItWorksPage;

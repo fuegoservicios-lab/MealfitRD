@@ -5,6 +5,7 @@ import {
     Clock, CheckCircle2, FileDown, Flame, Search, Plus,
     Sparkles, Send, AlertTriangle, ChevronLeft, ChevronRight,
 } from 'lucide-react';
+import SeeMoreLink from './SeeMoreLink';
 import styles from './DashboardShowcase.module.css';
 
 /* [P3-DASHBOARD-3D · 2026-06-29] Rediseño RADICAL: coverflow 3D. Las 5 pantallas
@@ -341,6 +342,8 @@ const DashboardShowcase = () => {
                     })}
                 </div>
                 </div>
+
+                <SeeMoreLink to="/funciones">Explorar todas las funciones</SeeMoreLink>
             </div>
         </section>
     );

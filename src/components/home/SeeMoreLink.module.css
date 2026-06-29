@@ -1,0 +1,29 @@
+/* [P3-DETAIL-PAGES · 2026-06-29] Botón "Ver más" que enlaza cada sección del landing
+   con su página de detalle. Theme-aware. */
+.wrap { display: flex; justify-content: center; margin-top: 2.75rem; }
+.link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--primary);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.98rem;
+    text-decoration: none;
+    padding: 0.72rem 1.5rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
+    background: color-mix(in srgb, var(--primary) 8%, transparent);
+    transition: background 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+}
+.link:hover {
+    background: color-mix(in srgb, var(--primary) 16%, transparent);
+    border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+    transform: translateY(-2px);
+}
+.link svg { transition: transform 0.18s ease; }
+.link:hover svg { transform: translateX(3px); }
+
+@media (prefers-reduced-motion: reduce) {
+    .link, .link svg { transition: none; }
+}

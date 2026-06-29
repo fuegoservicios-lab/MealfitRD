@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Gauge, Cpu, Target, Layers, Check, X, Minus, TrendingUp, Activity, Radio } from 'lucide-react';
 import { APP_VERSION } from '../../config/appVersion';
+import SeeMoreLink from './SeeMoreLink';
 import styles from './BenchmarkShowcase.module.css';
 
 /* [P3-BENCHMARK-3D · 2026-06-29] Rediseño RADICAL: PANEL DE TELEMETRÍA 3D. Una consola
@@ -235,6 +236,8 @@ const BenchmarkShowcase = () => {
                     cerca queda el plan de tus números—, no de corrección clínica, y no constituyen consejo médico.
                     Medición continua sobre planes reales.
                 </p>
+
+                <SeeMoreLink to="/precision">Ver la metodología completa</SeeMoreLink>
             </div>
         </section>
     );

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ClipboardList, Cpu, Salad, LineChart } from 'lucide-react';
+import SeeMoreLink from './SeeMoreLink';
 import styles from './HowItWorks.module.css';
 
 /* [P3-HOWITWORKS-AUTOCYCLE · 2026-06-29] Cadencia del auto-avance del paso activo. */
@@ -231,6 +232,8 @@ const HowItWorks = () => {
                         })}
                     </div>
                 </motion.div>
+
+                <SeeMoreLink to="/como-funciona">Ver el proceso completo</SeeMoreLink>
             </div>
         </section>
     );

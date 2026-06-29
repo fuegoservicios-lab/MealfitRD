@@ -11,12 +11,14 @@ import GuestAppearanceToggle from '../dashboard/GuestAppearanceToggle';
 // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Secciones del landing para la nav segmentada.
 // El `id` debe coincidir con el id de cada <section> del Home (how-it-works, dashboard,
 // benchmarks, pricing) — usados por el scroll suave Y el scrollspy del item activo.
+// [P3-DETAIL-PAGES · 2026-06-29] Los 4 ítems del nav son RUTAS a páginas de detalle
+// (no anchors in-page). Los showcases siguen en el landing + botón "Ver más"; el nav
+// lleva directo a la página completa de cada tema. La scrollspy queda inactiva (filtra
+// `!s.to` → 0 secciones), preservada por si se reintroduce algún anchor.
 const NAV_SECTIONS = [
-    { id: 'how-it-works', label: 'Cómo funciona' },
-    { id: 'dashboard', label: 'Funciones' },
-    { id: 'benchmarks', label: 'Precisión' },
-    // [P3-PRICING-SEPARATE-PAGE · 2026-06-29] "Precios" ahora es una RUTA (/precios),
-    // no un anchor in-page — el detalle de planes vive en su propia página.
+    { id: 'how-it-works', label: 'Cómo funciona', to: '/como-funciona' },
+    { id: 'dashboard', label: 'Funciones', to: '/funciones' },
+    { id: 'benchmarks', label: 'Precisión', to: '/precision' },
     { id: 'pricing', label: 'Precios', to: '/precios' },
 ];
 
