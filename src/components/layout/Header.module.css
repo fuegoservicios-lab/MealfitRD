@@ -143,24 +143,25 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    /* [HERO-CTA-ORB-COLOR · 2026-06-29] El CTA toma el color de la "bola"
-       brillosa del Hero: sheen blanco arriba-izq + cuerpo lavanda
-       (#C7D2FE → var(--primary-light)) + oclusión inferior indigo, espejando
-       el radial-gradient + inset shadows del orbe (.orb en Hero.module.css). */
+    /* [HERO-CTA-ORB-COLOR · 2026-06-29] El CTA toma el color de la "bola" del Hero.
+       [HERO-CTA-ORB-SATURATE · 2026-06-29] El cuerpo es el periwinkle SATURADO
+       var(--primary) (= el color dominante del orbe), NO el lavanda pálido — antes
+       arrancaba en #EEF1FE/#C7D2FE y se veía lavado. El blanco queda como reflejo
+       especular pequeño arriba-izq (como .orbSheen) + oclusión inferior indigo. */
     background:
-        radial-gradient(135% 120% at 27% 16%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.18) 30%, rgba(255, 255, 255, 0) 48%),
-        linear-gradient(158deg, #EEF1FE 0%, #C7D2FE 40%, var(--primary-light) 100%);
-    color: #1E1B4B;
+        radial-gradient(95% 95% at 26% 16%, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 36%),
+        linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 58%, var(--primary-dark) 100%);
+    color: #fff;
     padding: 0.6rem 1.25rem;
     border-radius: 9999px;
     text-decoration: none;
     font-weight: 600;
     transition: all 0.2s ease;
-    border: 1px solid rgba(199, 210, 254, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.85),
-        inset 0 -7px 14px rgba(55, 48, 163, 0.28),
-        0 10px 24px -10px rgba(79, 70, 229, 0.5);
+        inset 0 1px 1px rgba(255, 255, 255, 0.55),
+        inset 0 -8px 16px rgba(55, 48, 163, 0.4),
+        0 12px 26px -10px rgba(79, 70, 229, 0.55);
     font-size: 0.95rem;
     /* [P3-HEADER-CTA-MOBILE · 2026-06-01] Un CTA nunca debe partirse en 2 líneas.
        En el header móvil estrecho (logo + CTA sticky + hamburguesa) el flex
@@ -171,13 +172,13 @@
 
 .ctaButton:hover {
     background:
-        radial-gradient(135% 120% at 27% 16%, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.22) 30%, rgba(255, 255, 255, 0) 50%),
-        linear-gradient(158deg, #F5F7FF 0%, #D6DEFE 40%, var(--primary-light) 100%);
+        radial-gradient(95% 95% at 26% 16%, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0) 38%),
+        linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 70%, var(--primary-dark) 100%);
     transform: translateY(-1px);
     box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.9),
-        inset 0 -7px 14px rgba(55, 48, 163, 0.3),
-        0 14px 30px -10px rgba(79, 70, 229, 0.6);
+        inset 0 1px 1px rgba(255, 255, 255, 0.6),
+        inset 0 -8px 16px rgba(55, 48, 163, 0.42),
+        0 16px 32px -10px rgba(79, 70, 229, 0.65);
 }
 
 /* [P3-HEADER-CTA-MOBILE-SHORT · 2026-06-29] CTA del header más corto en móvil:
@@ -335,33 +336,33 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    /* [HERO-CTA-ORB-COLOR · 2026-06-29] Mismo look "bola brillosa" que .ctaButton. */
+    /* [HERO-CTA-ORB-SATURATE · 2026-06-29] Mismo look "bola" saturada que .ctaButton. */
     background:
-        radial-gradient(135% 120% at 27% 16%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.18) 30%, rgba(255, 255, 255, 0) 48%),
-        linear-gradient(158deg, #EEF1FE 0%, #C7D2FE 40%, var(--primary-light) 100%);
-    color: #1E1B4B;
+        radial-gradient(95% 95% at 26% 16%, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 36%),
+        linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 58%, var(--primary-dark) 100%);
+    color: #fff;
     padding: 0.875rem;
     border-radius: 0.875rem;
     text-decoration: none;
     font-weight: 600;
     margin-top: 0.25rem;
     transition: all 0.2s ease;
-    border: 1px solid rgba(199, 210, 254, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.85),
-        inset 0 -7px 14px rgba(55, 48, 163, 0.28),
-        0 10px 24px -10px rgba(79, 70, 229, 0.5);
+        inset 0 1px 1px rgba(255, 255, 255, 0.55),
+        inset 0 -8px 16px rgba(55, 48, 163, 0.4),
+        0 12px 26px -10px rgba(79, 70, 229, 0.55);
 }
 
 .ctaButtonMobile:hover {
     background:
-        radial-gradient(135% 120% at 27% 16%, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.22) 30%, rgba(255, 255, 255, 0) 50%),
-        linear-gradient(158deg, #F5F7FF 0%, #D6DEFE 40%, var(--primary-light) 100%);
+        radial-gradient(95% 95% at 26% 16%, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0) 38%),
+        linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 70%, var(--primary-dark) 100%);
     transform: translateY(-1px);
     box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.9),
-        inset 0 -7px 14px rgba(55, 48, 163, 0.3),
-        0 14px 30px -10px rgba(79, 70, 229, 0.6);
+        inset 0 1px 1px rgba(255, 255, 255, 0.6),
+        inset 0 -8px 16px rgba(55, 48, 163, 0.42),
+        0 16px 32px -10px rgba(79, 70, 229, 0.65);
 }
 
 @media (min-width: 768px) {
@@ -447,23 +448,23 @@
 :global(html[data-theme="dark"]) .navMarketingLink:hover {
     color: var(--text-main);
 }
-/* [HERO-CTA-ORB-COLOR · 2026-06-29] En dark theme el CTA conserva el look "bola
-   brillosa": var(--primary-light) sube a #A5B4FC, así que el cuerpo lavanda queda
-   más claro y destaca sobre el fondo oscuro, igual que el orbe del Hero. Texto
-   indigo oscuro para contraste sobre el lavanda. */
+/* [HERO-CTA-ORB-SATURATE · 2026-06-29] En dark theme var(--primary) = #818CF8, que
+   es el periwinkle EXACTO del orbe; var(--primary-light) = #A5B4FC. El cuerpo del
+   CTA usa ese periwinkle saturado (no el lavanda pálido), con reflejo blanco
+   pequeño arriba-izq. Cuerpo claro → texto indigo oscuro para contraste. */
 :global(html[data-theme="dark"]) .ctaButton,
 :global(html[data-theme="dark"]) .ctaButtonMobile {
     background:
-        radial-gradient(135% 120% at 27% 16%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.2) 30%, rgba(255, 255, 255, 0) 48%),
-        linear-gradient(158deg, #EEF1FE 0%, #C7D2FE 42%, var(--primary-light) 100%);
+        radial-gradient(95% 95% at 26% 16%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 38%),
+        linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 62%, var(--primary-dark) 100%);
     color: #1E1B4B;
-    border: 1px solid rgba(199, 210, 254, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.22);
 }
 :global(html[data-theme="dark"]) .ctaButton:hover,
 :global(html[data-theme="dark"]) .ctaButtonMobile:hover {
     background:
-        radial-gradient(135% 120% at 27% 16%, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.24) 30%, rgba(255, 255, 255, 0) 50%),
-        linear-gradient(158deg, #F5F7FF 0%, #D6DEFE 42%, var(--primary-light) 100%);
+        radial-gradient(95% 95% at 26% 16%, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0) 40%),
+        linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 75%, var(--primary-dark) 100%);
 }
 :global(html[data-theme="dark"]) .mobileToggle:hover {
     background: var(--bg-muted);
