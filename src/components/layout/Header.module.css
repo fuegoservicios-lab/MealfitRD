@@ -166,6 +166,23 @@
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
 }
 
+/* [P3-HEADER-CTA-MOBILE-SHORT · 2026-06-29] CTA del header más corto en móvil:
+   "Crear plan" <768px, "Crear mi Plan Ahora" en desktop. */
+.ctaTextFull {
+    display: none;
+}
+.ctaTextShort {
+    display: inline;
+}
+@media (min-width: 768px) {
+    .ctaTextFull {
+        display: inline;
+    }
+    .ctaTextShort {
+        display: none;
+    }
+}
+
 /* [HEADER-STICKY-CTA · 2026-05-31] Cluster derecho del header (nav + CTA sticky +
    toggle móvil). Los agrupa para alinearlos juntos a la derecha vía el
    space-between del .container; el navMobile (absolute) queda fuera. */

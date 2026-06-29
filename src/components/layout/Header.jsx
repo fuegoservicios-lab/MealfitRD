@@ -169,7 +169,11 @@ const Header = () => {
                         </Link>
                     ) : (
                         <Link to="/assessment" className={`${styles.ctaButton} ${styles.stickyCtaEnter}`}>
-                            Crear mi Plan Ahora <ChevronRight size={16} />
+                            {/* [P3-HEADER-CTA-MOBILE-SHORT · 2026-06-29] Texto corto solo
+                                en móvil ("Crear plan"); completo en desktop. */}
+                            <span className={styles.ctaTextFull}>Crear mi Plan Ahora</span>
+                            <span className={styles.ctaTextShort}>Crear plan</span>
+                            <ChevronRight size={16} />
                         </Link>
                     )
                 )}
