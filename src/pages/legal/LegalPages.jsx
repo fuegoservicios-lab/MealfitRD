@@ -164,12 +164,11 @@ export const Privacy = () => (
         <h3>8. Proveedores Subcontratados (Encargados de Tratamiento)</h3>
         <p>Para operar la plataforma compartimos datos estrictamente necesarios con los siguientes proveedores. Todos están bajo contratos de procesamiento de datos:</p>
         <ul>
-            <li><strong>el backend anterior Inc.</strong> — almacenamiento de base de datos y autenticación.</li>
+            <li><strong>Neon, Inc.</strong> — almacenamiento de base de datos y autenticación.</li>
             <li><strong>DeepSeek (Hangzhou DeepSeek Artificial Intelligence Basic Technology Research Co., Ltd.)</strong> — inferencia con modelos DeepSeek V4 (perfil de salud, conversaciones y, cuando esté habilitado, imágenes).</li>
             <li><strong>PayPal Holdings, Inc.</strong> — procesamiento de pagos y suscripciones.</li>
             <li><strong>Functional Software, Inc. (Sentry)</strong> — monitoreo de errores técnicos.</li>
-            <li><strong>Amazon Web Services</strong> — infraestructura subyacente de el backend anterior y backend.</li>
-            <li><strong>Vercel Inc.</strong> y <strong>EasyPanel</strong> — hosting del frontend y backend respectivamente.</li>
+            <li><strong>Oracle Corporation (Oracle Cloud Infrastructure)</strong> — infraestructura de hosting (VPS con nginx) del frontend y backend.</li>
         </ul>
 
         <h3>9. Retención de Datos</h3>

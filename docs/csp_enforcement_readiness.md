@@ -1,5 +1,12 @@
 # CSP Enforcement Readiness — listo para activar tras probar PayPal
 
+> **⚠️ SUPERSEDED (2026-06): los security headers + CSP se migraron de `vercel.json`
+> a nginx** (`/etc/nginx/snippets/mealfit-security.conf` en el VPS Oracle — ver CLAUDE.md
+> §"Security headers en nginx"). Las instrucciones de abajo que editan `vercel.json` o
+> hacen "redeploy de Vercel" están OBSOLETAS; promover Report-Only → enforced ahora se
+> hace en el bloque `add_header` de nginx, y el test `test_p1_vercel_security_headers.py`
+> ya no existe. El resto (checklist de rollout, riesgo PayPal, observación 1 semana) sigue válido.
+
 > **Estado actual: CSP en `Content-Security-Policy-Report-Only` (NO enforced).**
 > Este doc contiene TODO lo necesario para promover a enforced de forma segura.
 > **NO actives nada de esto sin antes hacer el smoke-test de PayPal en staging**

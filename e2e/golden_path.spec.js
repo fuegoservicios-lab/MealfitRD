@@ -7,10 +7,10 @@ import { test, expect } from '@playwright/test';
  * Scope INTENCIONALMENTE mínimo — cubre los modos de fallo que escapan a
  * Vitest unit + parser-based tests pero NO requiere Supabase test fixtures:
  *   1. La home pública carga y renderiza sin crash de hydration.
- *   2. La navegación SPA funciona (rewrite Vercel → /index.html).
+ *   2. La navegación SPA funciona (fallback SPA de nginx → /index.html).
  *   3. El splash screen `#pwa-splash` se desmonta tras hydration.
  *   4. Las fuentes self-hosted P3-SELF-HOST-FONTS cargan (no FOUT eterno).
- *   5. Los headers Vercel P1-VERCEL-SECURITY-HEADERS llegan al browser
+ *   5. Los headers de seguridad P1-VERCEL-SECURITY-HEADERS (ahora en nginx) llegan al browser
  *      (no se pueden verificar 1:1 desde preview, pero los meta del
  *      bundle se chequean).
  *
@@ -77,8 +77,8 @@ test.describe('Golden path smoke', () => {
   });
 
   test('SPA rewrite — /dashboard (sin auth) no devuelve 404', async ({ page }) => {
-    // Vercel rewrite `/(.*) → /index.html` permite que el router cliente
-    // tome cualquier ruta. Sin el rewrite, la URL directa devuelve 404.
+    // El fallback SPA de nginx (`try_files ... /index.html`) permite que el
+    // router cliente tome cualquier ruta. Sin el rewrite, la URL directa devuelve 404.
     const res = await page.goto('/dashboard');
     expect(res?.status(), 'rewrite SPA roto').toBeLessThan(500);
     // ProtectedRoute redirigirá a /auth — pero NO debe ser 404.

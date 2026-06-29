@@ -390,7 +390,7 @@ export const calculateAllPlanIngredients = (planData, isPlanExpired, liveInvento
 // PDF download, restock) pasaban literal `2000` ms al helper. Si
 // el backend anterior entra en degradación tail-latency (incidente regional,
 // pool exhausted, network blip), no había forma de subir el timeout
-// sin redeploy del frontend (Vercel build). El cron P2-SHOPPING-3
+// sin redeploy del frontend (rebuild). El cron P2-SHOPPING-3
 // (`_alert_pdf_stale_inventory_fallback_burst`) detectaría el burst
 // pero la mitigación requería rebuild.
 //

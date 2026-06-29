@@ -8,16 +8,16 @@ import { safeLocalStorageGet } from '../utils/safeLocalStorage';
 // [P2-API-BASE-CONTRACT · 2026-05-30] Contrato de `VITE_API_BASE_URL`:
 //   - VACÍO/ausente  → API_BASE='' → llamadas same-origin (`/api/...`).
 //     Correcto SOLO si el SPA y FastAPI comparten origen (reverse-proxy,
-//     EasyPanel/Nixpacks sirviendo ambos).
-//   - URL del backend → deploy cross-origin (Vercel sirve el SPA en
+//     nginx en el VPS Oracle sirviendo ambos).
+//   - URL del backend → deploy cross-origin (un host estático sirve el SPA en
 //     mealfitrd.com, FastAPI vive en otro host). En este caso DEBE estar
-//     seteada en el dashboard de Vercel (build-time inlining de Vite).
+//     seteada al build (build-time inlining de Vite).
 //
-//   Modo de fallo que cierra el cambio de vercel.json (P2-API-BASE-CONTRACT):
-//   si en un build de Vercel falta la var, API_BASE='' → `/api/...` sería
-//   servido como el HTML shell por el rewrite SPA (200-HTML → crash silente
-//   en `.json()`). El rewrite ahora excluye `/api/` (negative-lookahead) para
-//   que ese misconfig falle ALTO (404) en vez de degradar a HTML silencioso.
+//   Modo de fallo (P2-API-BASE-CONTRACT): si en un build cross-origin falta
+//   la var, API_BASE='' → `/api/...` sería servido como el HTML shell por el
+//   fallback SPA (200-HTML → crash silente en `.json()`). La config de nginx
+//   enruta `/api/` al backend (no lo captura el fallback SPA) para que ese
+//   misconfig falle ALTO (404) en vez de degradar a HTML silencioso.
 //   Está documentada en `.env.example`; no la hard-throweamos porque '' es
 //   una config legítima para deploys same-origin.
 export const API_BASE = import.meta.env.DEV ? 'http://127.0.0.1:3001' : (import.meta.env.VITE_API_BASE_URL || '');

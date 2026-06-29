@@ -80,7 +80,7 @@ const PaymentModal = ({
 
     // [P3-NEW-PAYPAL-FALLBACK · 2026-05-15] Anti-pattern eliminado: el
     // fallback hardcoded a un client_id de PayPal real (no placeholder)
-    // ocultaba misconfig — si Vercel perdía `VITE_PAYPAL_CLIENT_ID` por
+    // ocultaba misconfig — si el deploy perdía `VITE_PAYPAL_CLIENT_ID` por
     // typo o deploy parcial, el SDK seguía usando el ID hardcoded del
     // commit, posiblemente apuntando al merchant equivocado o a un client
     // viejo deshabilitado. Fail-loud: tirar Error visible que para el
@@ -92,7 +92,7 @@ const PaymentModal = ({
     if (!_paypalClientId) {
         throw new Error(
             "[P3-NEW-PAYPAL-FALLBACK] VITE_PAYPAL_CLIENT_ID missing in env. " +
-            "Configure Vercel env vars before deploying PaymentModal."
+            "Configure the deploy env vars before deploying PaymentModal."
         );
     }
     // PayPal

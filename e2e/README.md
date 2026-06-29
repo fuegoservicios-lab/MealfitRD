@@ -28,7 +28,7 @@ Lo que SÍ chequea:
 2. Splash `#pwa-splash` se desmonta tras hydration.
 3. Self-hosted fonts cargan desde `/fonts/*.woff2` y NO hay request a
    `fonts.gstatic.com` (cierre P3-SELF-HOST-FONTS).
-4. Rewrite SPA de Vercel funciona — `/dashboard` no devuelve 404.
+4. Rewrite/fallback SPA (nginx) funciona — `/dashboard` no devuelve 404.
 
 Lo que NO chequea (requiere staging Supabase aislado):
 - Signup → assessment → plan generation → dashboard.

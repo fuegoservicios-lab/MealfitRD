@@ -767,7 +767,7 @@ const Recipes = () => {
             // import section. Chunk html2pdf-*.js solo se fetch al click.
             //
             // [P3-RECIPES-CHUNK-LOAD-FAIL · 2026-05-15] Wrap dedicado para
-            // `ChunkLoadError` (Vercel/CDN dropea el chunk en red intermitente,
+            // `ChunkLoadError` (el CDN dropea el chunk en red intermitente,
             // o rotación de build invalida el hash mientras la pestaña vive).
             // Sin esto el outer try/catch muestra "Error al descargar PDF" —
             // mensaje genérico que confunde al usuario. Mensaje específico
