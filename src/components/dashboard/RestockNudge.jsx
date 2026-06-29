@@ -39,6 +39,10 @@ export default function RestockNudge({
     const promptDismissedSession = useRef(false);
     const autoFillFired = useRef(false);
     const reminderFired = useRef(false);
+    // [P2-RESTOCK-PROMPT-ONCE · 2026-06-29] El prompt se auto-abre A LO SUMO UNA VEZ por sesión. Antes el
+    // useEffect re-evaluaba shouldShowPrompt en CADA cambio de deps (planData/hasPendingItems/restocked), así
+    // que un swap o un recalc — que cambian hasPendingItems/is_restocked — re-abrían el modal a media edición.
+    const promptAutoShownSession = useRef(false);
 
     // #4 recordatorio (campana) + #3 auto-fill de respaldo. Ambos one-shot por plan.
     useEffect(() => {
@@ -94,7 +98,17 @@ export default function RestockNudge({
             setPromptOpen(false);
             return;
         }
-        setPromptOpen(shouldShowPrompt(ctx));
+        // [P2-RESTOCK-PROMPT-ONCE · 2026-06-29] Si el plan dejó de ser elegible (ya restocked / sin pendientes),
+        // ciérralo. Si ES elegible, AUTO-ÁBRELO SOLO la primera vez de la sesión — NO en cada swap/recalc que
+        // cambió las deps. El banner persistente (#1) sigue nudgeando; el usuario reabre el prompt cuando quiera.
+        if (!shouldShowPrompt(ctx)) {
+            setPromptOpen(false);
+            return;
+        }
+        if (!promptAutoShownSession.current) {
+            promptAutoShownSession.current = true;
+            setPromptOpen(true);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planData, restocked, hasPendingItems, daysSinceGroceryStart, k]);
 

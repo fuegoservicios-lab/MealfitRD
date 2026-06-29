@@ -343,9 +343,13 @@ function RotatingGreeting({ firstName }) {
                 <AnimatePresence mode="wait" initial={false}>
                     <motion.span
                         key={g.salutation}
-                        initial={{ opacity: 0, y: 14, filter: 'blur(7px)' }}
-                        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                        exit={{ opacity: 0, y: -14, filter: 'blur(7px)' }}
+                        /* [P2-GREETING-BLUR-CLIP-FIX · 2026-06-29] SIN `filter: blur` aquí: aplicar un filter
+                           al span padre rompe el `-webkit-background-clip: text` del nombre con gradiente
+                           anidado ("angelo") en WebKit/Safari → el nombre se renderiza deforme/sólido durante
+                           la animación. Mantenemos el fade + slide (opacity/y), que no tienen ese conflicto. */
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -14 }}
                         transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
                         style={{ display: 'inline-block' }}
                     >
@@ -6867,7 +6871,12 @@ const DashboardInner = () => {
                             type: 'single_meal',
                         });
                         toast.dismiss(toastId);
-                        toast.success('¡Menú Actualizado!', { description: `Cambiado por: ${newName}`, icon: '👨‍🍳' });
+                        // [P2-SWAP-TOAST-FIX · 2026-06-29] Solo "¡Menú Actualizado!" si HUBO cambio real.
+                        // En soft-fail (422 / swap_failed) regenerateSingleMeal devuelve null y YA mostró su
+                        // toast.error específico → no dupliques con un success engañoso ("Cambiado por: <original>").
+                        if (newName) {
+                            toast.success('¡Menú Actualizado!', { description: `Cambiado por: ${newName}`, icon: '👨‍🍳' });
+                        }
                     } catch (error) {
                         console.error('Error al regenerar:', error);
                         toast.dismiss(toastId);
@@ -7100,7 +7109,12 @@ const DashboardInner = () => {
                         });
 
                         toast.dismiss(toastId);
-                        toast.success('¡Menú Actualizado!', { description: `Cambiado por: ${newName}`, icon: '👨‍🍳' });
+                        // [P2-SWAP-TOAST-FIX · 2026-06-29] Solo "¡Menú Actualizado!" si HUBO cambio real.
+                        // En soft-fail (422 / swap_failed) regenerateSingleMeal devuelve null y YA mostró su
+                        // toast.error específico → no dupliques con un success engañoso ("Cambiado por: <original>").
+                        if (newName) {
+                            toast.success('¡Menú Actualizado!', { description: `Cambiado por: ${newName}`, icon: '👨‍🍳' });
+                        }
                     } catch (error) {
                         console.error('Error al regenerar:', error);
                         toast.dismiss(toastId);

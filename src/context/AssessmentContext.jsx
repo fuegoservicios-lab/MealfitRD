@@ -2157,7 +2157,10 @@ export const AssessmentProvider = ({ children }) => {
                 } else {
                     toast.error('No se pudo cambiar el plato', { description: errMsg });
                 }
-                return currentName;  // preserva plato original (NO setPlanData)
+                // [P2-SWAP-TOAST-FIX · 2026-06-29] soft-fail: ya mostramos el toast.error específico arriba.
+                // Devolver `null` (NO `currentName`) para que el caller (Dashboard) NO dispare el toast.success
+                // "¡Menú Actualizado!" — antes ambos toasts salían a la vez (verde engañoso + rojo correcto).
+                return null;  // preserva plato original (NO setPlanData); señal de "no hubo cambio"
             }
 
 
@@ -2414,7 +2417,7 @@ export const AssessmentProvider = ({ children }) => {
             // Mostrar toast con el copy específico y preservar el plato actual.
             if (error?.status === 422 && error?.code === 'swap_strict_pantry_no_inventory') {
                 toast.error('Nevera vacía', { description: error.detailMessage });
-                return currentName;
+                return null;  // [P2-SWAP-TOAST-FIX] soft-fail → null para suprimir el success toast del caller
             }
 
             // [P3-SWAP-LLM-RETRIES-422 · 2026-05-23] El backend ya NO emite
@@ -2424,7 +2427,7 @@ export const AssessmentProvider = ({ children }) => {
             // amigable con el copy del backend.
             if (error?.status === 422 && error?.code === 'swap_llm_retries_exhausted') {
                 toast.error('Chef IA sin alternativa', { description: error.detailMessage });
-                return currentName;
+                return null;  // [P2-SWAP-TOAST-FIX] soft-fail → null para suprimir el success toast del caller
             }
 
             // CORRECCIÓN DEL ERROR DE LINTER: Usamos la variable 'error'
