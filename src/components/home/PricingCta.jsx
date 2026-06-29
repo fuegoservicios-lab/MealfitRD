@@ -12,12 +12,6 @@ const TRUST = ['Gratis para empezar', 'Sin tarjeta', 'Cancela cuando quieras'];
 
 const PricingCta = () => (
     <section className={styles.section} id="pricing">
-        <div className={styles.aurora} aria-hidden="true">
-            <span className={styles.blob1} />
-            <span className={styles.blob2} />
-            <span className={styles.blob3} />
-        </div>
-
         <div className={styles.panel}>
             <span className={styles.badge}>Planes flexibles</span>
             <h2 className={styles.title}>
