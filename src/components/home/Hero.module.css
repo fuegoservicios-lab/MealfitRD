@@ -34,7 +34,7 @@
        para que el fondo (gradiente+spotlight) llene detrás de la barra flotante; eso
        movía el contenido CENTRADO hacia arriba (pegado al header). Este alto extra hace
        que el centro vertical caiga más abajo → el contenido queda bien debajo de la barra. */
-    min-height: calc(100dvh + 140px);
+    min-height: calc(100dvh + 80px);
     display: flex;
     align-items: center;
     overflow: hidden;
