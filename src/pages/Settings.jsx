@@ -1536,9 +1536,9 @@ const Settings = () => {
                     <main className={styles.contentPanel}>
                         {/* [P3-PLANOBJETIVO-MOBILE · 2026-06-29] El panel premium (.grid:
                             degradado + borde + barra/glows indigo) se aplana en móvil →
-                            fondo uniforme. Aplica a las secciones listadas (pedido owner:
-                            fondo uniforme en plan, suscripción y superpersonalización). */}
-                        <div className={`${styles.grid} ${['plan', 'subscription', 'superpers', 'preferences'].includes(activeSection) ? styles.gridFlush : ''}`}>
+                            fondo uniforme. Pedido owner: aplicarlo a TODAS las secciones de
+                            Ajustes (general, capacidades, súper-pers, plan, suscripción). */}
+                        <div className={`${styles.grid} ${['profile', 'preferences', 'superpers', 'plan', 'subscription'].includes(activeSection) ? styles.gridFlush : ''}`}>
 
                     {/* SECCIÓN 1: PERFIL + APARIENCIA */}
                     {activeSection === 'profile' && (
