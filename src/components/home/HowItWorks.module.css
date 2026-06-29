@@ -1,250 +1,336 @@
+/* [P3-HOWITWORKS-REDESIGN · 2026-06-29] Panel interactivo (acordeón): visual que
+   cambia según el paso activo + lista de pasos. Theme-aware vía variables del DS. */
+
 .section {
-    padding: 8rem 0;
     position: relative;
+    padding: 6rem 0;
     background: var(--bg-page);
     overflow: hidden;
 }
 
 .bgGlow {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: 
-        linear-gradient(rgba(79, 70, 229, 0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(79, 70, 229, 0.04) 1px, transparent 1px);
-    background-size: 40px 40px;
-    /* [P6-SPEED-PANGRID · 2026-06-01] animación panGrid REMOVIDA: animaba
-       background-position (NO compositor-accelerated) → repaint continuo de la
-       grilla a ~1px/seg (movimiento imperceptible) mientras el landing esté
-       abierto. Grilla ahora estática, cero paint-waste. */
+    top: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 70%;
+    max-width: 900px;
+    height: 55%;
+    background: radial-gradient(ellipse at center, rgba(99, 102, 241, 0.13), transparent 70%);
+    filter: blur(40px);
     pointer-events: none;
     z-index: 0;
 }
 
 .container {
-    width: 100%;
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 0 1.5rem;
     position: relative;
     z-index: 1;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
 }
 
+/* ───────────────────────────── header ─────────────────────────── */
 .header {
     text-align: center;
-    max-width: 800px;
-    margin: 0 auto 5rem;
+    max-width: 640px;
+    margin: 0 auto 3.25rem;
+}
+.badge {
+    display: inline-block;
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+    padding: 0.4rem 0.95rem;
+    border-radius: 999px;
+}
+.title {
+    font-family: var(--font-heading);
+    font-size: clamp(1.9rem, 4.5vw, 3rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+    margin: 1.1rem 0 0;
+    color: var(--text-main);
+}
+.subtitle {
+    margin: 1rem auto 0;
+    font-size: 1.02rem;
+    line-height: 1.55;
+    color: var(--text-muted);
+}
+
+/* ───────────────────────────── panel ──────────────────────────── */
+.panel {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 1.5rem;
+    align-items: stretch;
+}
+
+/* ── visual (izquierda) ── */
+.visualCol {
+    position: relative;
+    border-radius: 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    min-height: 400px;
     display: flex;
     flex-direction: column;
     align-items: center;
-}
-
-.badge {
-    background: rgba(79, 70, 229, 0.1);
-    color: var(--primary);
-    padding: 0.5rem 1rem;
-    border-radius: 2rem;
-    font-size: 0.875rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 1.5rem;
-    border: 1px solid rgba(79, 70, 229, 0.2);
-}
-
-.title {
-    font-size: clamp(2.5rem, 5vw, 3.5rem);
-    font-weight: 800;
-    margin-bottom: 1.5rem;
-    background: linear-gradient(135deg, var(--text-main) 0%, var(--primary-dark) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
-}
-
-.subtitle {
-    font-size: 1.25rem;
-    color: var(--text-muted);
-    line-height: 1.7;
-    max-width: 600px;
-    margin: 0 auto;
-    font-weight: 500;
-}
-
-.gridContainer {
-    position: relative;
-}
-
-.grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 2rem;
-    position: relative;
-    z-index: 2;
-}
-
-.gridLine {
-    display: none;
-}
-
-.card {
-    background: var(--bg-card);
-    padding: 3rem 2.5rem;
-    border-radius: 1.5rem;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-xl);
-    position: relative;
+    justify-content: center;
+    padding: 2.25rem;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
-
-/* [APPEARANCE-THEME · 2026-05-29] Cards estáticas en hover (sin lift ni sombra). */
-.card:hover {
-    transform: none;
-}
-
-.cardGlow {
+.visualCol::before {
+    content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 6px;
-    background: var(--glow-color);
-    opacity: 1;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.9;
 }
-
-.stepNumber {
+.visualGlow {
     position: absolute;
-    top: -1.5rem;
-    right: -1rem;
-    font-size: 10rem;
-    font-weight: 900;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(15, 23, 42, 0.03);
-    font-family: var(--font-heading);
-    z-index: 0;
+    inset: 0;
+    background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 62%);
+    transition: background 0.4s ease;
     pointer-events: none;
-    line-height: 1;
 }
-
-.contentWrapper {
+.visualInner {
     position: relative;
     z-index: 1;
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-}
-
-.iconWrapper {
-    width: 72px;
-    height: 72px;
-    border-radius: 20px;
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg-icon);
-    color: var(--color-icon);
-    margin-bottom: 2rem;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5),
-        0 4px 15px -3px rgba(0, 0, 0, 0.05);
+    min-height: 200px;
 }
-
-.cardTitle {
-    font-size: 1.5rem;
-    font-weight: 800;
+.visualTag {
+    position: relative;
+    z-index: 1;
+    margin-top: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    font-weight: 600;
     color: var(--text-main);
-    margin-bottom: 1rem;
-    line-height: 1.3;
-    letter-spacing: -0.01em;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    padding: 0.42rem 0.9rem;
+    border-radius: 999px;
+}
+.visualDot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
 }
 
-.cardDesc {
-    font-size: 1.05rem;
+/* ── acordeón (derecha) ── */
+.steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+.step {
+    appearance: none;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    display: flex;
+    gap: 0.85rem;
+    align-items: flex-start;
+    padding: 1rem 1.1rem;
+    border-radius: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+.step:hover {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+.stepActive {
+    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+    background: color-mix(in srgb, var(--accent) 7%, var(--bg-card));
+    box-shadow: 0 18px 36px -22px var(--accent);
+}
+.stepNum {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 0.82rem;
     color: var(--text-muted);
-    line-height: 1.6;
+    padding-top: 0.55rem;
+    min-width: 1.3rem;
+}
+.stepActive .stepNum { color: var(--accent); }
+.stepIcon {
+    flex: none;
+    width: 38px; height: 38px;
+    border-radius: 11px;
+    display: grid;
+    place-items: center;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    transition: transform 0.2s;
+}
+.stepActive .stepIcon { transform: scale(1.06); }
+.stepMain {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding-top: 0.35rem;
+}
+.stepTitle {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--text-main);
+}
+.stepDescWrap {
+    overflow: hidden;
+    display: block;
+}
+.stepDesc {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.92rem;
+    line-height: 1.52;
+    color: var(--text-muted);
+}
+
+/* ─────────────────────── visuales por paso ─────────────────────── */
+
+/* (1) Perfil — barras de variables */
+.vProfile {
+    width: 100%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.95rem;
+}
+.vRow { display: flex; flex-direction: column; gap: 0.4rem; }
+.vRowLabel { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
+.vRowTrack {
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.18);
+    overflow: hidden;
+}
+.vRowFill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #ffffff));
+}
+
+/* (2) Motor — chip + anillos + tokens */
+.vEngine {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    display: grid;
+    place-items: center;
+}
+.vEngineCore {
+    width: 78px;
+    height: 78px;
+    border-radius: 20px;
+    display: grid;
+    place-items: center;
+    color: #ffffff;
+    background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #000000));
+    box-shadow: 0 14px 32px -10px var(--accent);
+    z-index: 2;
+}
+.vEngineRing, .vEngineRing2 {
+    position: absolute;
+    top: 50%; left: 50%;
+    border-radius: 50%;
+    border: 1.5px solid color-mix(in srgb, var(--accent) 38%, transparent);
+}
+.vEngineRing { width: 128px; height: 128px; animation: hiwRingPulse 2.6s ease-in-out infinite; }
+.vEngineRing2 { width: 180px; height: 180px; animation: hiwRingPulse 2.6s ease-in-out infinite 0.6s; }
+.vToken {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    transform: translate(-50%, -50%) rotate(calc(var(--i) * 60deg)) translateX(74px);
+    animation: hiwTokenPulse 2.4s ease-in-out infinite;
+    animation-delay: calc(var(--i) * 0.2s);
+}
+
+/* (3) Calibración — anillos de macros */
+.vMacros {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+.vRingItem {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+}
+.vRingPct {
+    position: absolute;
+    top: 39px; left: 0; right: 0;
+    transform: translateY(-50%);
+    text-align: center;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 0.92rem;
+    color: var(--text-main);
+}
+.vRingLabel {
+    font-size: 0.78rem;
+    color: var(--text-muted);
     font-weight: 500;
 }
 
-@media (min-width: 640px) {
-    .grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
+/* (4) Adaptación — gráfico de línea */
+.vChart {
+    width: 100%;
+    max-width: 320px;
+}
+.vChart svg { display: block; overflow: visible; }
+.vChartAxis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.75rem;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 600;
 }
 
-@media (min-width: 1024px) {
-    .grid {
-        grid-template-columns: repeat(4, 1fr);
-        gap: 2rem;
-    }
-
-    /* Animated connecting line */
-    .gridLine {
-        display: block;
-        position: absolute;
-        top: 84px;
-        left: 5%;
-        right: 5%;
-        height: 2px;
-        background: linear-gradient(90deg,
-                transparent 0%,
-                var(--border) 5%,
-                var(--border) 95%,
-                transparent 100%);
-        z-index: 1;
-        overflow: hidden;
-    }
-
-    .gridLineActive {
-        position: absolute;
-        top: 0;
-        left: 0;
-        height: 100%;
-        width: 150px;
-        background: linear-gradient(90deg,
-                transparent,
-                var(--primary),
-                transparent);
-        opacity: 0.6;
-        animation: slide 3s ease-in-out infinite;
-        will-change: transform;
-    }
+/* ─────────────────────── keyframes ─────────────────────── */
+@keyframes hiwRingPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.5; }
+    50% { transform: translate(-50%, -50%) scale(1.05); opacity: 1; }
+}
+@keyframes hiwTokenPulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
 }
 
-@keyframes slide {
-    0% {
-        transform: translateX(-150px);
-    }
-
-    100% {
-        transform: translateX(100vw);
-    }
+/* ─────────────────────── responsive ─────────────────────── */
+@media (max-width: 820px) {
+    .section { padding: 4.5rem 0; }
+    .panel { grid-template-columns: 1fr; }
+    .visualCol { min-height: 320px; order: -1; }
 }
 
-/* ============================================================
-   [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — HowItWorks
-   Aditivo: solo propiedades de color hardcodeadas en claro.
-   ============================================================ */
-
-/* [APPEARANCE-THEME · 2026-05-29] Sin sombra en hover (cards estáticas). */
-
-/* stepNumber: usa -webkit-text-stroke con rgba(15,23,42,0.03) — casi invisible.
-   En oscuro el contraste invertido lo hace aparecer como mancha clara. Subimos
-   muy sutilmente con el color del borde oscuro para mantener decorativo. */
-:global(html[data-theme="dark"]) .stepNumber {
-    -webkit-text-stroke: 2px rgba(241, 245, 249, 0.04);
-}
-
-/* iconWrapper: inset blanco brillante se vería raro en oscuro.
-   Cambiamos el inset a borde sutil oscuro. */
-:global(html[data-theme="dark"]) .iconWrapper {
-    box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-        0 4px 15px -3px rgba(0, 0, 0, 0.2);
+@media (prefers-reduced-motion: reduce) {
+    .vEngineRing, .vEngineRing2, .vToken { animation: none; }
 }
