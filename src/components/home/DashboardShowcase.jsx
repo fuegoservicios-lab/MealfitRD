@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     CalendarDays, ChefHat, ShoppingCart, Bot, Refrigerator,
@@ -195,6 +195,9 @@ const MOCKUPS = {
 
 const PANEL_ID = 'dashboard-showcase-panel';
 
+// [P3-DASHBOARD-3D-AUTOCYCLE · 2026-06-29] Cadencia del auto-rotado del coverflow.
+const AUTO_MS = 3800;
+
 // ============================================================
 //  Componente principal — coverflow 3D
 // ============================================================
@@ -204,6 +207,19 @@ const DashboardShowcase = () => {
     const tabRefs = useRef([]);
     const count = FEATURES.length;
     const current = FEATURES[active];
+    const [paused, setPaused] = useState(false);
+
+    // [P3-DASHBOARD-3D-AUTOCYCLE · 2026-06-29] Auto-rota el coverflow para estética. Se
+    // pausa al interactuar (hover/focus) y se desactiva con prefers-reduced-motion (a11y).
+    // Depende de [active] → cada selección manual reinicia el contador (no salta justo
+    // después de elegir).
+    useEffect(() => {
+        if (paused) return undefined;
+        if (typeof window !== 'undefined' &&
+            window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+        const id = setInterval(() => setActive((a) => (a + 1) % count), AUTO_MS);
+        return () => clearInterval(id);
+    }, [paused, active, count]);
 
     const go = (i) => setActive(((i % count) + count) % count);
 
@@ -235,6 +251,15 @@ const DashboardShowcase = () => {
                     </p>
                 </div>
 
+                {/* [P3-DASHBOARD-3D-AUTOCYCLE] Wrapper que pausa el auto-rotado mientras
+                    el usuario interactúa (hover o foco de teclado). */}
+                <div
+                    className={styles.carousel}
+                    onMouseEnter={() => setPaused(true)}
+                    onMouseLeave={() => setPaused(false)}
+                    onFocusCapture={() => setPaused(true)}
+                    onBlurCapture={() => setPaused(false)}
+                >
                 {/* ── Coverflow 3D (visual; controlado por las pills de abajo) ── */}
                 <div className={styles.stage3d}>
                     <button type="button" className={`${styles.navArrow} ${styles.navPrev}`} aria-label="Anterior" onClick={() => go(active - 1)}>
@@ -314,6 +339,7 @@ const DashboardShowcase = () => {
                             </button>
                         );
                     })}
+                </div>
                 </div>
             </div>
         </section>
