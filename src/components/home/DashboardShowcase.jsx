@@ -1,60 +1,28 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     CalendarDays, ChefHat, ShoppingCart, Bot, Refrigerator,
     Clock, CheckCircle2, FileDown, Flame, Search, Plus,
-    Sparkles, Send, AlertTriangle
+    Sparkles, Send, AlertTriangle, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import styles from './DashboardShowcase.module.css';
 
-// --- Datos de las 5 features que se muestran a la izquierda ---
+/* [P3-DASHBOARD-3D · 2026-06-29] Rediseño RADICAL: coverflow 3D. Las 5 pantallas
+   de la app en un carrusel con perspectiva — la activa al frente, las demás
+   giradas/recibidas a los lados (rotateY + translateZ). Reusa los 5 mockups.
+   Navegación: clic en una tarjeta lateral, flechas, o pills. Mobile-adaptive
+   (offsets y profundidad reducidos por breakpoint) + accesible (pills = tablist). */
+
 const FEATURES = [
-    {
-        id: 'plan',
-        icon: CalendarDays,
-        title: 'Plan Diario Personalizado',
-        shortLabel: 'Plan Diario',
-        desc: 'Cada día con desayuno, almuerzo, cena y meriendas calibrados a tus macros exactos.',
-        color: '#4F46E5',
-    },
-    {
-        id: 'recipes',
-        icon: ChefHat,
-        title: 'Recetas Paso a Paso',
-        shortLabel: 'Recetas',
-        desc: 'Cada plato con ingredientes en cantidades dominicanas y pasos claros para cocinarlo.',
-        color: '#8B5CF6',
-    },
-    {
-        id: 'shopping',
-        icon: ShoppingCart,
-        title: 'Lista de Compras Inteligente',
-        shortLabel: 'Lista',
-        desc: 'Generada automáticamente, agrupada por categorías y exportable a PDF para llevarla donde quieras comprar.',
-        color: '#10B981',
-    },
-    {
-        id: 'chat',
-        icon: Bot,
-        title: 'Nutricionista IA 24/7',
-        shortLabel: 'Chat IA',
-        desc: 'Pregunta, cambia comidas, registra lo que comiste — la IA responde al instante.',
-        color: '#F97316',
-    },
-    {
-        id: 'pantry',
-        icon: Refrigerator,
-        title: 'Nevera Virtual',
-        shortLabel: 'Nevera',
-        desc: 'La IA sabe qué tienes en casa y evita que compres lo que ya está en tu nevera.',
-        color: '#0EA5E9',
-    },
+    { id: 'plan', icon: CalendarDays, title: 'Plan Diario Personalizado', shortLabel: 'Plan', desc: 'Cada día con desayuno, almuerzo, cena y meriendas calibrados a tus macros exactos.', color: '#6366F1' },
+    { id: 'recipes', icon: ChefHat, title: 'Recetas Paso a Paso', shortLabel: 'Recetas', desc: 'Cada plato con ingredientes en cantidades dominicanas y pasos claros para cocinarlo.', color: '#A78BFA' },
+    { id: 'shopping', icon: ShoppingCart, title: 'Lista de Compras Inteligente', shortLabel: 'Lista', desc: 'Generada automáticamente, agrupada por categorías y exportable a PDF.', color: '#34D399' },
+    { id: 'chat', icon: Bot, title: 'Nutricionista IA 24/7', shortLabel: 'Chat IA', desc: 'Pregunta, cambia comidas, registra lo que comiste — la IA responde al instante.', color: '#FB923C' },
+    { id: 'pantry', icon: Refrigerator, title: 'Nevera Virtual', shortLabel: 'Nevera', desc: 'La IA sabe qué tienes en casa y evita que compres lo que ya está en tu nevera.', color: '#38BDF8' },
 ];
 
 // ============================================================
-//  Sub-componentes: un mockup por feature.
-//  Replican visualmente las pantallas reales del Dashboard,
-//  pero compactos para encajar en el container del showcase.
+//  Sub-componentes: un mockup por feature (compactos).
 // ============================================================
 
 const PlanMockup = () => (
@@ -77,23 +45,16 @@ const PlanMockup = () => (
                     <div className={styles.planMealLeft}>
                         <span className={styles.planMealTag}>{m.tag}</span>
                         <strong className={styles.planMealName}>{m.name}</strong>
-                        <span className={styles.planMealTime}>
-                            <Clock size={11} strokeWidth={2.5} /> {m.time}
-                        </span>
+                        <span className={styles.planMealTime}><Clock size={11} strokeWidth={2.5} /> {m.time}</span>
                     </div>
-                    <div className={styles.planMealKcal}>
-                        <strong>{m.kcal}</strong>
-                        <small>kcal</small>
-                    </div>
+                    <div className={styles.planMealKcal}><strong>{m.kcal}</strong><small>kcal</small></div>
                 </div>
             ))}
         </div>
         <div className={styles.planFooter}>
             <Flame size={14} strokeWidth={2.5} />
             <span>Total: <strong>1,860 / 2,000 kcal</strong></span>
-            <div className={styles.planProgress}>
-                <span style={{ width: '93%' }} />
-            </div>
+            <div className={styles.planProgress}><span style={{ width: '93%' }} /></div>
         </div>
     </div>
 );
@@ -137,39 +98,19 @@ const ShoppingMockup = () => (
                 <strong>Tu lista de compras</strong>
                 <span className={styles.mockHeaderSub}>Para 7 días · 28 ingredientes</span>
             </div>
-            <button className={styles.mockBadgeSuccess} type="button" aria-label="Descargar PDF">
-                <FileDown size={12} strokeWidth={2.5} /> PDF
-            </button>
+            <span className={styles.mockBadgeSuccess}><FileDown size={12} strokeWidth={2.5} /> PDF</span>
         </div>
         <div className={styles.shopBody}>
             {[
-                {
-                    cat: 'Proteínas',
-                    items: [
-                        { name: 'Pechuga de pollo', qty: '2 lb', done: true },
-                        { name: 'Huevos', qty: '12 und', done: true },
-                        { name: 'Pescado fresco', qty: '1 lb', done: false },
-                    ],
-                },
-                {
-                    cat: 'Vegetales',
-                    items: [
-                        { name: 'Plátano maduro', qty: '3 und', done: true },
-                        { name: 'Cebolla', qty: '2 und', done: false },
-                        { name: 'Cilantro fresco', qty: '1 atado', done: false },
-                    ],
-                },
+                { cat: 'Proteínas', items: [{ name: 'Pechuga de pollo', qty: '2 lb', done: true }, { name: 'Huevos', qty: '12 und', done: true }, { name: 'Pescado fresco', qty: '1 lb', done: false }] },
+                { cat: 'Vegetales', items: [{ name: 'Plátano maduro', qty: '3 und', done: true }, { name: 'Cebolla', qty: '2 und', done: false }, { name: 'Cilantro fresco', qty: '1 atado', done: false }] },
             ].map((group) => (
                 <div key={group.cat} className={styles.shopGroup}>
                     <h5>{group.cat}</h5>
                     <ul>
                         {group.items.map((item) => (
                             <li key={item.name} className={item.done ? styles.shopItemDone : styles.shopItemPending}>
-                                {item.done ? (
-                                    <CheckCircle2 size={13} strokeWidth={2.5} />
-                                ) : (
-                                    <span className={styles.shopBullet} aria-hidden="true" />
-                                )}
+                                {item.done ? <CheckCircle2 size={13} strokeWidth={2.5} /> : <span className={styles.shopBullet} aria-hidden="true" />}
                                 <span>{item.name}</span>
                                 <small>{item.qty}</small>
                             </li>
@@ -179,12 +120,8 @@ const ShoppingMockup = () => (
             ))}
         </div>
         <div className={styles.shopLegend}>
-            <span className={styles.shopLegendItem}>
-                <CheckCircle2 size={12} strokeWidth={2.5} /> Ya está en tu nevera
-            </span>
-            <span className={styles.shopLegendItem}>
-                <span className={styles.shopBullet} aria-hidden="true" /> Por comprar
-            </span>
+            <span className={styles.shopLegendItem}><CheckCircle2 size={12} strokeWidth={2.5} /> Ya está en tu nevera</span>
+            <span className={styles.shopLegendItem}><span className={styles.shopBullet} aria-hidden="true" /> Por comprar</span>
         </div>
     </div>
 );
@@ -193,37 +130,23 @@ const ChatMockup = () => (
     <div className={styles.mockFrame}>
         <div className={styles.mockHeader}>
             <div className={styles.chatHeaderRow}>
-                <div className={styles.chatAvatar} aria-hidden="true">
-                    <Bot size={16} strokeWidth={2.5} />
-                </div>
+                <div className={styles.chatAvatar} aria-hidden="true"><Bot size={16} strokeWidth={2.5} /></div>
                 <div>
                     <strong>Nutricionista IA</strong>
-                    <span className={styles.mockHeaderSub}>
-                        <span className={styles.chatStatusDot} aria-hidden="true" /> En línea
-                    </span>
+                    <span className={styles.mockHeaderSub}><span className={styles.chatStatusDot} aria-hidden="true" /> En línea</span>
                 </div>
             </div>
             <Sparkles size={16} className={styles.chatSparkle} strokeWidth={2.5} />
         </div>
         <div className={styles.chatBody}>
-            <div className={styles.chatBubbleUser}>
-                ¿Puedo cambiar el almuerzo de mañana? Hoy almorcé pollo.
-            </div>
-            <div className={styles.chatBubbleBot}>
-                Claro — te sugiero pescado al horno con vegetales. Mantiene tus macros y rompe la rutina.
-            </div>
-            <div className={styles.chatBubbleUser}>
-                Hazlo, gracias.
-            </div>
-            <div className={styles.chatBubbleBot}>
-                Listo. Actualicé tu plan y la lista de compras. <strong>Pescado fresco · 1 lb</strong> añadido.
-            </div>
+            <div className={styles.chatBubbleUser}>¿Puedo cambiar el almuerzo de mañana? Hoy almorcé pollo.</div>
+            <div className={styles.chatBubbleBot}>Claro — te sugiero pescado al horno con vegetales. Mantiene tus macros y rompe la rutina.</div>
+            <div className={styles.chatBubbleUser}>Hazlo, gracias.</div>
+            <div className={styles.chatBubbleBot}>Listo. Actualicé tu plan y la lista de compras. <strong>Pescado fresco · 1 lb</strong> añadido.</div>
         </div>
         <div className={styles.chatInputBar} aria-hidden="true">
             <span className={styles.chatInputPlaceholder}>Escribe lo que necesites…</span>
-            <span className={styles.chatInputSend}>
-                <Send size={14} strokeWidth={2.5} />
-            </span>
+            <span className={styles.chatInputSend}><Send size={14} strokeWidth={2.5} /></span>
         </div>
     </div>
 );
@@ -235,9 +158,7 @@ const PantryMockup = () => (
                 <strong>Lo que tienes en casa</strong>
                 <span className={styles.mockHeaderSub}>18 ingredientes guardados</span>
             </div>
-            <button className={styles.mockBadgeNeutral} type="button" aria-label="Añadir item">
-                <Plus size={12} strokeWidth={3} /> Añadir
-            </button>
+            <span className={styles.mockBadgeNeutral}><Plus size={12} strokeWidth={3} /> Añadir</span>
         </div>
         <div className={styles.pantrySearch}>
             <Search size={13} strokeWidth={2.5} />
@@ -256,9 +177,7 @@ const PantryMockup = () => (
                     <strong>{item.name}</strong>
                     <small>{item.qty}</small>
                     {item.state === 'soon' && (
-                        <span className={styles.pantryWarn}>
-                            <AlertTriangle size={10} strokeWidth={2.5} /> {item.warn}
-                        </span>
+                        <span className={styles.pantryWarn}><AlertTriangle size={10} strokeWidth={2.5} /> {item.warn}</span>
                     )}
                 </div>
             ))}
@@ -274,34 +193,21 @@ const MOCKUPS = {
     pantry: <PantryMockup />,
 };
 
-// [P2-A11Y-TABS · 2026-05-31] Un único tabpanel cuyo contenido se intercambia.
-// Antes cada tab apuntaba aria-controls a `mockup-${f.id}`, pero solo existía
-// el panel del feature activo → 4 de 5 tabs referenciaban ids inexistentes
-// (axe: aria-valid-attr-value). Todos los tabs apuntan a este id estable.
 const PANEL_ID = 'dashboard-showcase-panel';
 
 // ============================================================
-//  Componente principal
+//  Componente principal — coverflow 3D
 // ============================================================
 
 const DashboardShowcase = () => {
-    const [activeFeature, setActiveFeature] = useState('plan');
-    const currentFeature = FEATURES.find((f) => f.id === activeFeature) || FEATURES[0];
-
-    // Estado del scroll horizontal de los tabs (mobile). Habilita
-    // fade-mask en los bordes solo cuando hay contenido oculto en esa
-    // dirección — patrón estilo iOS App Store. Inactivo en desktop:
-    // el @media de la lista override quita el mask-image.
-    const listRef = useRef(null);
+    const [active, setActive] = useState(0);
     const tabRefs = useRef([]);
-    const [scrollHints, setScrollHints] = useState({ left: false, right: false });
+    const count = FEATURES.length;
+    const current = FEATURES[active];
 
-    // [P2-A11Y-TABS · 2026-05-31] Navegación por flechas + roving tabindex para
-    // cumplir el patrón ARIA Tabs que role=tablist/tab le promete al lector de
-    // pantalla. Soporta ambos ejes (la lista es vertical en desktop, horizontal
-    // en mobile) + Home/End. Mueve el feature activo y enfoca el tab destino.
-    const handleTabKeyDown = (e, index) => {
-        const count = FEATURES.length;
+    const go = (i) => setActive(((i % count) + count) % count);
+
+    const handleKeyDown = (e, index) => {
         let next = null;
         if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (index + 1) % count;
         else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (index - 1 + count) % count;
@@ -309,32 +215,9 @@ const DashboardShowcase = () => {
         else if (e.key === 'End') next = count - 1;
         if (next === null) return;
         e.preventDefault();
-        setActiveFeature(FEATURES[next].id);
+        setActive(next);
         tabRefs.current[next]?.focus();
     };
-
-    useEffect(() => {
-        const el = listRef.current;
-        if (!el) return undefined;
-
-        const update = () => {
-            const overflowing = el.scrollWidth > el.clientWidth + 1;
-            const atStart = el.scrollLeft <= 4;
-            const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
-            setScrollHints({
-                left: overflowing && !atStart,
-                right: overflowing && !atEnd,
-            });
-        };
-
-        update();
-        el.addEventListener('scroll', update, { passive: true });
-        window.addEventListener('resize', update);
-        return () => {
-            el.removeEventListener('scroll', update);
-            window.removeEventListener('resize', update);
-        };
-    }, []);
 
     return (
         <section className={styles.section} id="dashboard">
@@ -348,107 +231,89 @@ const DashboardShowcase = () => {
                         <span className={styles.gradientText}>en un solo lugar</span>
                     </h2>
                     <p className={styles.subtitle}>
-                        Más que un plan: una herramienta diaria que aprende contigo, te organiza las compras y te ahorra tiempo en la cocina.
+                        Más que un plan: una herramienta diaria que aprende contigo, organiza tus compras y te ahorra tiempo en la cocina.
                     </p>
                 </div>
 
-                <div className={styles.grid}>
-                    {/* Lista de features. Desktop: columna vertical con descripción
-                        inline. Mobile: tabs horizontales scrolleables (solo icon +
-                        shortLabel), con la descripción de la feature activa
-                        renderizada como caption debajo del mockup. */}
-                    <ul
-                        ref={listRef}
-                        className={styles.featureList}
-                        data-fade-left={scrollHints.left ? '' : undefined}
-                        data-fade-right={scrollHints.right ? '' : undefined}
-                        role="tablist"
-                        aria-label="Features del Dashboard"
-                    >
-                        {FEATURES.map((f, idx) => {
-                            const Icon = f.icon;
-                            const isActive = activeFeature === f.id;
+                {/* ── Coverflow 3D (visual; controlado por las pills de abajo) ── */}
+                <div className={styles.stage3d}>
+                    <button type="button" className={`${styles.navArrow} ${styles.navPrev}`} aria-label="Anterior" onClick={() => go(active - 1)}>
+                        <ChevronLeft size={22} strokeWidth={2.5} />
+                    </button>
+
+                    <div className={styles.deck} aria-hidden="true">
+                        {FEATURES.map((f, i) => {
+                            let offset = i - active;
+                            if (offset > count / 2) offset -= count;
+                            if (offset < -count / 2) offset += count;
+                            const abs = Math.abs(offset);
+                            const isActive = i === active;
                             return (
-                                <li key={f.id}>
-                                    <button
-                                        type="button"
-                                        role="tab"
-                                        ref={(el) => { tabRefs.current[idx] = el; }}
-                                        aria-selected={isActive}
-                                        aria-controls={PANEL_ID}
-                                        tabIndex={isActive ? 0 : -1}
-                                        className={`${styles.featureItem} ${isActive ? styles.featureActive : ''}`}
-                                        onClick={() => setActiveFeature(f.id)}
-                                        onKeyDown={(e) => handleTabKeyDown(e, idx)}
-                                        style={isActive ? { '--feature-color': f.color } : undefined}
-                                    >
-                                        <span
-                                            className={styles.featureIcon}
-                                            style={{ '--feature-color': f.color }}
-                                        >
-                                            <Icon size={20} strokeWidth={2} />
-                                        </span>
-                                        <span className={styles.featureText}>
-                                            {/* Dual label: full (desktop) + short (mobile).
-                                                CSS oculta uno u otro según breakpoint. */}
-                                            <strong>
-                                                <span className={styles.labelFull}>{f.title}</span>
-                                                <span className={styles.labelShort}>{f.shortLabel}</span>
-                                            </strong>
-                                            <span className={styles.featureDesc}>{f.desc}</span>
-                                        </span>
-                                    </button>
-                                </li>
+                                <div
+                                    key={f.id}
+                                    className={`${styles.card} ${isActive ? styles.cardActive : ''}`}
+                                    style={{
+                                        '--accent': f.color,
+                                        '--offset': offset,
+                                        '--abs': abs,
+                                        '--sign': Math.sign(offset),
+                                        opacity: abs === 0 ? 1 : abs === 1 ? 0.82 : 0.5,
+                                        zIndex: 10 - abs,
+                                        pointerEvents: isActive ? 'none' : 'auto',
+                                    }}
+                                    onClick={() => setActive(i)}
+                                >
+                                    {MOCKUPS[f.id]}
+                                </div>
                             );
                         })}
-                    </ul>
-
-                    {/* Mockup grande (derecha en desktop, centro en mobile) */}
-                    <div
-                        className={styles.mockupContainer}
-                        id={PANEL_ID}
-                        role="tabpanel"
-                        tabIndex={0}
-                        aria-label={`Vista previa: ${currentFeature.title}`}
-                        aria-live="polite"
-                    >
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={activeFeature}
-                                initial={{ opacity: 0, y: 16 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.35, ease: 'easeOut' }}
-                                className={styles.mockupWrapper}
-                            >
-                                {MOCKUPS[activeFeature]}
-                            </motion.div>
-                        </AnimatePresence>
                     </div>
 
-                    {/* Caption mobile-only: título completo + descripción de la
-                        feature activa, debajo del mockup. En desktop esta caption
-                        está oculta vía CSS (display:none → fuera del a11y tree; la
-                        descripción ya vive en la lista lateral). [P2-A11Y · 2026-05-31]
-                        Se quitó aria-hidden: en mobile .featureDesc inline está
-                        display:none, así que esta caption es la ÚNICA fuente de la
-                        descripción para un lector de pantalla. */}
-                    <div className={styles.featureCaption}>
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={activeFeature}
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ duration: 0.25, ease: 'easeOut' }}
+                    <button type="button" className={`${styles.navArrow} ${styles.navNext}`} aria-label="Siguiente" onClick={() => go(active + 1)}>
+                        <ChevronRight size={22} strokeWidth={2.5} />
+                    </button>
+                </div>
+
+                {/* ── Info de la feature activa (panel accesible) ── */}
+                <div className={styles.activeInfo} id={PANEL_ID} role="tabpanel" aria-live="polite">
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={active}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.25 }}
+                        >
+                            <h3 style={{ color: current.color }}>{current.title}</h3>
+                            <p>{current.desc}</p>
+                        </motion.div>
+                    </AnimatePresence>
+                </div>
+
+                {/* ── Pills de navegación (control accesible: tablist) ── */}
+                <div className={styles.nav} role="tablist" aria-label="Funciones del Dashboard">
+                    {FEATURES.map((f, i) => {
+                        const Icon = f.icon;
+                        const isActive = i === active;
+                        return (
+                            <button
+                                key={f.id}
+                                type="button"
+                                role="tab"
+                                ref={(el) => { tabRefs.current[i] = el; }}
+                                aria-selected={isActive}
+                                aria-controls={PANEL_ID}
+                                tabIndex={isActive ? 0 : -1}
+                                className={`${styles.navPill} ${isActive ? styles.navPillActive : ''}`}
+                                style={{ '--accent': f.color }}
+                                onClick={() => setActive(i)}
+                                onKeyDown={(e) => handleKeyDown(e, i)}
                             >
-                                <strong style={{ color: currentFeature.color }}>
-                                    {currentFeature.title}
-                                </strong>
-                                <p>{currentFeature.desc}</p>
-                            </motion.div>
-                        </AnimatePresence>
-                    </div>
+                                <Icon size={15} strokeWidth={2.4} />
+                                <span>{f.shortLabel}</span>
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
         </section>
