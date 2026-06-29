@@ -22,6 +22,11 @@ const NAV_SECTIONS = [
     { id: 'pricing', label: 'Precios', to: '/precios' },
 ];
 
+// [P3-DETAIL-PAGES-HEADER-PARITY · 2026-06-29] Rutas de marketing que comparten el
+// header COMPLETO del landing (nav segmentada + CTA sticky), no la versión recortada.
+// Mantener en sync con las rutas públicas de App.jsx.
+const MARKETING_PATHS = new Set(['/precios', '/como-funciona', '/funciones', '/precision', '/motor']);
+
 const Header = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -45,12 +50,11 @@ const Header = () => {
     const isPlanLoading = location.pathname.startsWith('/plan');
     const isHome = location.pathname === '/';
     const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
-    // [P3-PRICING-HEADER-PARITY · 2026-06-29] /precios es una página de marketing → su
-    // header debe ser idéntico al del landing (misma nav segmentada + mismo CTA sticky),
-    // no la versión recortada que mostraba solo "Empezar Ahora". `isLandingLike` agrupa
-    // ambas rutas para los gates del header.
-    const isPricing = location.pathname === '/precios';
-    const isLandingLike = isHome || isPricing;
+    // [P3-PRICING-HEADER-PARITY · 2026-06-29 · ext P3-DETAIL-PAGES 2026-06-29] Todas las
+    // páginas de marketing (precios + las 3 de detalle + motor) deben tener el header
+    // IDÉNTICO al del landing (nav segmentada + CTA sticky), no la versión recortada que
+    // mostraba solo "Empezar Ahora". MARKETING_PATHS (módulo) las agrupa para los gates.
+    const isLandingLike = isHome || MARKETING_PATHS.has(location.pathname);
 
     // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El CTA del header SIEMPRE visible en el
     // landing (antes solo aparecía al scrollear, gateado por `!heroCtaVisible`). El
@@ -155,8 +159,8 @@ const Header = () => {
                                 <Link
                                     key={s.id}
                                     to={s.to}
-                                    className={`${styles.navMarketingLink} ${(isPricing && s.id === 'pricing') ? styles.navMarketingLinkActive : ''}`}
-                                    aria-current={(isPricing && s.id === 'pricing') ? 'true' : undefined}
+                                    className={`${styles.navMarketingLink} ${s.to === location.pathname ? styles.navMarketingLinkActive : ''}`}
+                                    aria-current={s.to === location.pathname ? 'true' : undefined}
                                 >
                                     {s.label}
                                 </Link>
