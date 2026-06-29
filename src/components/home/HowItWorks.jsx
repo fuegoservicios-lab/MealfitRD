@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ClipboardList, Cpu, Salad, LineChart } from 'lucide-react';
 import styles from './HowItWorks.module.css';
+
+/* [P3-HOWITWORKS-AUTOCYCLE · 2026-06-29] Cadencia del auto-avance del paso activo. */
+const AUTO_ADVANCE_MS = 4500;
 
 /* [P3-HOWITWORKS-REDESIGN · 2026-06-29] Panel interactivo (acordeón): a la izquierda
    un visual que cambia según el paso activo; a la derecha la lista de pasos (el activo
@@ -136,8 +139,24 @@ const VISUALS = [ProfileVisual, EngineVisual, MacroVisual, ChartVisual];
 
 const HowItWorks = () => {
     const [active, setActive] = useState(0);
+    const [paused, setPaused] = useState(false);
     const step = STEPS[active];
     const Visual = VISUALS[active];
+
+    /* [P3-HOWITWORKS-AUTOCYCLE · 2026-06-29] Rota el paso activo cada AUTO_ADVANCE_MS
+       para un loop estético. Se pausa al interactuar (hover/focus en la lista) y se
+       desactiva con prefers-reduced-motion (a11y: no auto-animar a quien no lo quiere).
+       Depende de [active] → cada selección manual re-arma el timer desde cero, así no
+       salta justo después de que el usuario elige un paso. */
+    useEffect(() => {
+        if (paused) return undefined;
+        if (typeof window !== 'undefined' &&
+            window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+        const id = setInterval(() => {
+            setActive((a) => (a + 1) % STEPS.length);
+        }, AUTO_ADVANCE_MS);
+        return () => clearInterval(id);
+    }, [paused, active]);
 
     return (
         <section className={styles.section} id="how-it-works">
@@ -174,8 +193,13 @@ const HowItWorks = () => {
                         </div>
                     </div>
 
-                    {/* acordeón de pasos */}
-                    <div className={styles.steps}>
+                    {/* acordeón de pasos. Hover/focus dentro pausa el auto-avance
+                        (onFocus/onBlur de React burbujean → cubre teclado). */}
+                    <div className={styles.steps}
+                        onMouseEnter={() => setPaused(true)}
+                        onMouseLeave={() => setPaused(false)}
+                        onFocus={() => setPaused(true)}
+                        onBlur={() => setPaused(false)}>
                         {STEPS.map((s, i) => {
                             const Icon = s.icon;
                             const isActive = i === active;
