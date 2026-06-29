@@ -2439,10 +2439,23 @@ const Settings = () => {
                                 .plan-goal-cta[disabled] .plan-goal-arrow {
                                     display: none;
                                 }
+                                @media (max-width: 600px) {
+                                    /* [P3-PLAN-GOAL-MOBILE-FULLWIDTH · 2026-06-28] En móvil el card
+                                       bordeado se veía chiquito flotando en la sección plana. Lo
+                                       llevamos a ancho casi completo contrarrestando el padding
+                                       lateral de .section (≤480=1rem, 481-600≈1.25rem). Seguro: solo
+                                       neutraliza el padding propio de la sección → sin scroll horizontal. */
+                                    .plan-goal-card {
+                                        padding: 1.5rem 1.25rem;
+                                        gap: 1.375rem;
+                                        margin-left: -1.25rem;
+                                        margin-right: -1.25rem;
+                                    }
+                                }
                                 @media (max-width: 480px) {
                                     .plan-goal-card {
-                                        padding: 1.375rem 1.25rem;
-                                        gap: 1.375rem;
+                                        margin-left: -1rem;
+                                        margin-right: -1rem;
                                     }
                                     .plan-goal-icon { width: 60px; height: 60px; }
                                     .plan-goal-name { font-size: 1.5rem; }
