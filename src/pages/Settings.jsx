@@ -2440,26 +2440,34 @@ const Settings = () => {
                                     display: none;
                                 }
                                 @media (max-width: 600px) {
-                                    /* [P3-PLAN-GOAL-MOBILE-FULLWIDTH · 2026-06-28] En móvil el card
-                                       bordeado se veía chiquito flotando en la sección plana. Lo
-                                       llevamos a ancho casi completo contrarrestando el padding
-                                       lateral de .section (≤480=1rem, 481-600≈1.25rem). Seguro: solo
-                                       neutraliza el padding propio de la sección → sin scroll horizontal. */
-                                    .plan-goal-card {
-                                        padding: 1.5rem 1.25rem;
-                                        gap: 1.375rem;
+                                    /* [P3-PLAN-GOAL-MOBILE-ALIGN · 2026-06-28] Alineado + compacto:
+                                       el título Y la tarjeta llevan el MISMO margen negativo (que
+                                       neutraliza el padding lateral de .section), así quedan al mismo
+                                       borde y más anchos. Seguro: solo neutraliza el padding propio de
+                                       la sección → sin scroll horizontal. + interior más compacto. */
+                                    .plan-goal-card,
+                                    .plan-goal-title-mobile {
                                         margin-left: -1.25rem;
                                         margin-right: -1.25rem;
                                     }
+                                    .plan-goal-card {
+                                        padding: 1.25rem;
+                                        gap: 1.05rem;
+                                    }
                                 }
                                 @media (max-width: 480px) {
-                                    .plan-goal-card {
+                                    .plan-goal-card,
+                                    .plan-goal-title-mobile {
                                         margin-left: -1rem;
                                         margin-right: -1rem;
                                     }
-                                    .plan-goal-icon { width: 60px; height: 60px; }
-                                    .plan-goal-name { font-size: 1.5rem; }
-                                    .plan-goal-kcal-value { font-size: 1.875rem; }
+                                    .plan-goal-card {
+                                        padding: 1.15rem;
+                                        gap: 1rem;
+                                    }
+                                    .plan-goal-icon { width: 54px; height: 54px; }
+                                    .plan-goal-name { font-size: 1.45rem; }
+                                    .plan-goal-kcal-value { font-size: 1.8rem; }
                                 }
                                 @media (prefers-reduced-motion: reduce) {
                                     .plan-goal-arrow { transition: none; }
@@ -2498,7 +2506,7 @@ const Settings = () => {
                                 }
                             `}</style>
 
-                            <h2 className={styles.sectionTitle}>
+                            <h2 className={`${styles.sectionTitle} plan-goal-title-mobile`}>
                                 Tu Objetivo Actual
                             </h2>
 
