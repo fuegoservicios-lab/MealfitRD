@@ -149,7 +149,7 @@
        arrancaba en #EEF1FE/#C7D2FE y se veía lavado. El blanco queda como reflejo
        especular pequeño arriba-izq (como .orbSheen) + oclusión inferior indigo. */
     background:
-        radial-gradient(95% 95% at 26% 16%, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 36%),
+        radial-gradient(85% 85% at 28% 18%, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 42%),
         linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 58%, var(--primary-dark) 100%);
     color: #fff;
     padding: 0.6rem 1.25rem;
@@ -157,12 +157,14 @@
     text-decoration: none;
     font-weight: 600;
     transition: all 0.2s ease;
-    /* [HERO-CTA-NO-WHITE-RIM · 2026-06-29] Sin borde blanco (se leía como contorno
-       raro sobre el fondo oscuro). El brillo glossy vive solo en el reflejo interno
-       superior; el borde es transparente para no dibujar perímetro. */
+    /* [HERO-CTA-NO-WHITE-RIM · 2026-06-29] Sin borde blanco.
+       [HERO-CTA-NO-WHITE-RIM-2 · 2026-06-29] Quitado también el reflejo blanco
+       interno superior (inset 0 1px 1px white): seguía dibujando una línea clara
+       que seguía la curva y se leía como contorno blanco. El volumen queda solo
+       con la oclusión inferior indigo + glow externo; el gloss, en un blob suave
+       arriba-izq (sin tocar los bordes). */
     border: 1px solid transparent;
     box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.45),
         inset 0 -8px 16px rgba(55, 48, 163, 0.4),
         0 12px 26px -10px rgba(79, 70, 229, 0.55);
     font-size: 0.95rem;
@@ -175,11 +177,10 @@
 
 .ctaButton:hover {
     background:
-        radial-gradient(95% 95% at 26% 16%, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0) 38%),
+        radial-gradient(85% 85% at 28% 18%, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 44%),
         linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 70%, var(--primary-dark) 100%);
     transform: translateY(-1px);
     box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.6),
         inset 0 -8px 16px rgba(55, 48, 163, 0.42),
         0 16px 32px -10px rgba(79, 70, 229, 0.65);
 }
@@ -339,9 +340,10 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    /* [HERO-CTA-ORB-SATURATE · 2026-06-29] Mismo look "bola" saturada que .ctaButton. */
+    /* [HERO-CTA-ORB-SATURATE · 2026-06-29] Mismo look "bola" saturada que .ctaButton.
+       [HERO-CTA-NO-WHITE-RIM-2 · 2026-06-29] Sin reflejo blanco interno superior. */
     background:
-        radial-gradient(95% 95% at 26% 16%, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 36%),
+        radial-gradient(85% 85% at 28% 18%, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 42%),
         linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 58%, var(--primary-dark) 100%);
     color: #fff;
     padding: 0.875rem;
@@ -352,18 +354,16 @@
     transition: all 0.2s ease;
     border: 1px solid transparent;
     box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.45),
         inset 0 -8px 16px rgba(55, 48, 163, 0.4),
         0 12px 26px -10px rgba(79, 70, 229, 0.55);
 }
 
 .ctaButtonMobile:hover {
     background:
-        radial-gradient(95% 95% at 26% 16%, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0) 38%),
+        radial-gradient(85% 85% at 28% 18%, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 44%),
         linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 70%, var(--primary-dark) 100%);
     transform: translateY(-1px);
     box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.6),
         inset 0 -8px 16px rgba(55, 48, 163, 0.42),
         0 16px 32px -10px rgba(79, 70, 229, 0.65);
 }
@@ -458,7 +458,7 @@
 :global(html[data-theme="dark"]) .ctaButton,
 :global(html[data-theme="dark"]) .ctaButtonMobile {
     background:
-        radial-gradient(95% 95% at 26% 16%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 38%),
+        radial-gradient(85% 85% at 28% 18%, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0) 44%),
         linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 62%, var(--primary-dark) 100%);
     color: #1E1B4B;
     border: 1px solid transparent;
@@ -466,7 +466,7 @@
 :global(html[data-theme="dark"]) .ctaButton:hover,
 :global(html[data-theme="dark"]) .ctaButtonMobile:hover {
     background:
-        radial-gradient(95% 95% at 26% 16%, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0) 40%),
+        radial-gradient(85% 85% at 28% 18%, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0) 46%),
         linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 75%, var(--primary-dark) 100%);
 }
 :global(html[data-theme="dark"]) .mobileToggle:hover {
