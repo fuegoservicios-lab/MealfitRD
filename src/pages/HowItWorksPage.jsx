@@ -80,11 +80,11 @@ const PIPELINE = [
 ];
 
 const GUARDS = [
-    { Icon: Gauge, title: 'Banda de macros', text: 'Calorías 95–105% del objetivo; proteína, carbos y grasas dentro del 90–112%. Medido, no a ojo.' },
-    { Icon: ShieldCheck, title: 'Piso de proteína', text: 'Un cierre determinista re-apunta las porciones para que nunca quedes por debajo de tu mínimo.' },
+    { Icon: Gauge, title: 'Banda de macros', text: 'Calorías en 95–105% del objetivo y cada macro —proteína, carbos y grasas— dentro del 90–112%. No es a ojo: se mide celda por celda (cada día contra cada macro), y un plan con demasiadas celdas fuera de banda se corrige o se regenera.' },
+    { Icon: ShieldCheck, title: 'Piso de proteína', text: 'Tu proteína mínima se fija en gramos por kilo de peso —el rango que preserva masa muscular, sobre todo cuando estás en déficit—. Si un día queda corto, un cierre determinista re-apunta las porciones hasta alcanzarlo.' },
     { Icon: Soup, title: 'Variedad y coherencia del plato', text: 'Reglas deterministas evitan repetir la misma fuente de proteína —y su perfil de aminoácidos— dentro de un mismo día, y verifican que cada plato sea coherente: su nombre refleja los ingredientes reales (sin proteínas fantasma) y sus componentes combinan entre sí.' },
-    { Icon: Cpu, title: 'Capa clínica', text: 'Si declaras una condición, se ejecutan reglas deterministas sobre cada comida — no es solo un prompt.' },
-    { Icon: Salad, title: 'Seguridad alimentaria', text: 'Sin huevo crudo ni mariscos crudos de riesgo; vísceras y leguminosas siempre con cocción segura.' },
+    { Icon: Cpu, title: 'Capa clínica', text: 'Diabetes, enfermedad renal, hipertensión, dislipidemia, embarazo o cirugía bariátrica activan reglas deterministas sobre cada comida —tope de proteína renal (KDIGO), sodio, carga glucémica, mercurio en el embarazo—. Es código que se ejecuta, no solo un prompt.' },
+    { Icon: Salad, title: 'Seguridad alimentaria', text: 'Nada de huevo ni mariscos crudos de riesgo (Salmonella, Vibrio); vísceras, leguminosas y víveres siempre con cocción segura —las legumbres crudas contienen fitohemaglutinina y la yuca, compuestos cianogénicos—.' },
 ];
 
 const ADAPT = [
