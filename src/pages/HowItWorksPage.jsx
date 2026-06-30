@@ -88,9 +88,9 @@ const GUARDS = [
 ];
 
 const ADAPT = [
-    { Icon: CalendarClock, title: 'Avanza tu ciclo', text: 'Mueve la ventana del plan hacia adelante (mantenimiento) sin volver a generar todo desde cero.' },
-    { Icon: Repeat, title: 'Renueva con tu Nevera', text: 'Marca «ya compré» y, al renovar, el motor reusa lo duradero que te quedó y te pide solo lo que falta.' },
-    { Icon: Cpu, title: 'Ajusta con el Coach', text: 'Pídele a la IA cambiar una comida, regenerar un día, o registrar lo que comiste — y el plan se recalcula.' },
+    { Icon: CalendarClock, title: 'Avanza tu ciclo', text: 'Tu plan funciona como una ventana que rueda hacia adelante: conserva los días que aún no comes y solo extiende lo necesario. Mantenimiento, sin regenerar todo desde cero.' },
+    { Icon: Repeat, title: 'Renueva con tu Nevera', text: 'Al renovar, recalcula tus calorías y macros con tu peso actual —el ajuste clave para sortear la meseta— y reaprovecha lo duradero de tu nevera, pidiéndote solo lo que falta.' },
+    { Icon: Cpu, title: 'Ajusta con el Coach', text: 'Pídele al coach IA cambiar una comida, regenerar un día o registrar lo que comiste: recalcula al instante los macros del día y la lista de compras, sin rehacer el plan entero.' },
 ];
 
 const FAQ = [
@@ -207,7 +207,9 @@ const HowItWorksPage = () => {
             <section className={styles.section}>
                 <h2 className={styles.sectionTitle}>Se adapta contigo</h2>
                 <p className={styles.sectionLead}>
-                    Tu metabolismo cambia; tu plan también. Tres formas en que evoluciona sin que empieces de cero.
+                    Tu metabolismo se adapta: a medida que cambias, tu cuerpo ajusta cuánta energía gasta
+                    —la termogénesis adaptativa que suele provocar las mesetas—. Por eso tu plan no es fijo:
+                    se recalcula con tus datos actuales. Tres formas en que evoluciona contigo, sin empezar de cero.
                 </p>
                 <div className={styles.cards}>
                     {ADAPT.map(({ Icon, title, text }) => (
