@@ -483,7 +483,9 @@
 .mf-seg__fill--done { width: 100%; }
 .mf-democard__titlerow { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; min-width: 0; }
 .mf-democard__brand { font-family: var(--font-heading, 'Outfit', sans-serif); font-weight: 800; font-size: 0.95rem; color: var(--mf-text); }
-.mf-democard__brand b { color: var(--mf-primary); font-weight: 800; }
+.mf-democard__brand b { font-weight: 800; }
+.mf-democard__brand .mf-r { color: var(--mf-primary); }
+.mf-democard__brand .mf-d { color: var(--mf-accent); }
 .mf-democard__label { font-size: 0.85rem; color: var(--mf-text-dim); font-weight: 600; white-space: nowrap; }
 
 .mf-democard__body { position: relative; min-height: 344px; }
