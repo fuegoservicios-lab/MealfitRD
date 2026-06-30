@@ -13,7 +13,7 @@ import styles from './Engine.module.css';
 const STATS = [
     { num: '3-6', label: 'Comidas calibradas a tu condición' },
     { num: '200+', label: 'Alimentos verificados' },
-    { num: 'RD$', label: 'Precios reales in-store' },
+    { num: '100%', label: 'Precios reales en RD$, no estimados' },
     { num: '24/7', label: 'Coach nutricional IA' },
 ];
 
