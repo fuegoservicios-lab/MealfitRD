@@ -22,6 +22,8 @@ export const LEGAL_PATHS = [
     '/acceptable-use',
     // [P3-ABOUT-PAGE · 2026-06-30] Acerca de MealfitRD (categoría Empresas; mismo chrome/back-link).
     '/about',
+    // [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] Política de divulgación responsable (seguridad).
+    '/responsible-disclosure',
 ];
 
 export const isLegalRoute = (pathname) => LEGAL_PATHS.includes(pathname);

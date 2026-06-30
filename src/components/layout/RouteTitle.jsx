@@ -52,6 +52,7 @@ const TITLES = {
     '/refunds': `Reembolsos y Cancelaciones · ${BRAND}`,
     '/acceptable-use': `Política de Uso · ${BRAND}`,
     '/about': `Acerca de ${BRAND}`,
+    '/responsible-disclosure': `Divulgación Responsable · ${BRAND}`,
 };
 
 // [P3-ROUTE-META] Description por ruta para el snippet de buscadores. ≤ ~160 chars,
@@ -76,6 +77,7 @@ const DESCRIPTIONS = {
     '/refunds': 'Reembolsos y cancelaciones de MealfitRD: cómo cancelar tu suscripción, la ventana de reembolso de 7 días y cómo solicitarlo. Conforme a la Ley 358-05.',
     '/acceptable-use': 'Política de Uso de MealfitRD: reglas para un uso responsable, conductas prohibidas, uso justo de la IA y consecuencias del incumplimiento.',
     '/about': 'Acerca de MealfitRD: nutrición de precisión con IA para la mesa dominicana. Nuestra misión, cómo funciona el motor y los principios que nos guían.',
+    '/responsible-disclosure': 'Política de Divulgación Responsable de MealfitRD: cómo reportar vulnerabilidades de seguridad, nuestro compromiso de puerto seguro y el alcance del programa.',
 };
 
 const SELF_MANAGED = new Set(['/motor', '/como-funciona', '/funciones', '/precision']);

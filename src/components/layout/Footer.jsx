@@ -81,6 +81,7 @@ const Footer = () => {
                     <h4>Privacidad y datos</h4>
                     <Link to="/privacy" state={{ from: fromPath }}>Política de Privacidad</Link>
                     <Link to="/data-protection" state={{ from: fromPath }}>Protección de Datos</Link>
+                    <Link to="/responsible-disclosure" state={{ from: fromPath }}>Divulgación Responsable</Link>
                 </div>
 
                 {/* [P3-ABOUT-PAGE · 2026-06-30] Columna "Empresas": página corporativa

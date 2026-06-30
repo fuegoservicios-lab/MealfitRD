@@ -648,3 +648,63 @@ export const About = () => (
         <p>¿Tienes preguntas, ideas o quieres colaborar con nosotros? Escríbenos a <strong>fuego.servicios@gmail.com</strong>. Respondemos en menos de 24 horas.</p>
     </LegalLayout>
 );
+
+/* ============================================================================
+   POLÍTICA DE DIVULGACIÓN RESPONSABLE (SEGURIDAD)
+   [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] Política de reporte coordinado de
+   vulnerabilidades. Companion: /.well-known/security.txt (RFC 9116) la referencia.
+   ============================================================================ */
+export const ResponsibleDisclosure = () => (
+    <LegalLayout title="Política de Divulgación Responsable" lastUpdated="30 de Junio, 2026">
+        <p>En MealfitRD la seguridad de tus datos —especialmente tu información de salud— es una prioridad. Agradecemos a la comunidad de investigadores de seguridad que nos ayuda a proteger a nuestros usuarios. Esta Política explica cómo reportarnos una vulnerabilidad de forma responsable y qué puedes esperar de nosotros a cambio.</p>
+
+        <h3>1. Cómo Reportar una Vulnerabilidad</h3>
+        <p>Si descubres una vulnerabilidad de seguridad, escríbenos a <strong>fuego.servicios@gmail.com</strong> con el asunto <em>«Reporte de seguridad»</em>. Para ayudarnos a reproducir y corregir el problema rápido, incluye en lo posible:</p>
+        <ul>
+            <li>Una descripción clara de la vulnerabilidad y su posible impacto.</li>
+            <li>Los pasos detallados para reproducirla (URL, parámetros, capturas o un video corto).</li>
+            <li>El navegador, sistema operativo o herramienta que usaste.</li>
+            <li>Cualquier sugerencia de mitigación, si la tienes.</li>
+        </ul>
+        <p>Puedes escribirnos en español o en inglés. Confirmaremos la recepción de tu reporte normalmente dentro de <strong>3 días hábiles</strong>.</p>
+
+        <h3>2. Nuestro Compromiso Contigo</h3>
+        <p>Cuando reportas de buena fe siguiendo esta Política, nos comprometemos a:</p>
+        <ul>
+            <li><strong>Acusar recibo</strong> de tu reporte y mantener una comunicación honesta sobre su estado.</li>
+            <li><strong>Investigar y corregir</strong> las vulnerabilidades válidas en un plazo razonable según su severidad.</li>
+            <li><strong>No emprender acciones legales</strong> en tu contra por una investigación de seguridad realizada de buena fe y conforme a esta Política (puerto seguro).</li>
+            <li><strong>Darte crédito públicamente</strong> —si así lo deseas— una vez resuelto el problema.</li>
+        </ul>
+
+        <h3>3. Lo que te Pedimos (Reglas de Buena Fe)</h3>
+        <ul>
+            <li>Danos un tiempo razonable para corregir el problema <strong>antes de divulgarlo públicamente</strong> o a terceros.</li>
+            <li><strong>No accedas, modifiques ni elimines datos de otros usuarios.</strong> Si una prueba requiere una cuenta, usa únicamente cuentas propias o de prueba.</li>
+            <li>No degrades nuestro servicio: nada de ataques de denegación de servicio (DoS/DDoS), fuerza bruta masiva ni spam.</li>
+            <li>No uses ingeniería social contra nuestro equipo, usuarios o proveedores, ni accesos físicos.</li>
+            <li>No exfiltres más datos de los estrictamente necesarios para demostrar la vulnerabilidad, y elimina cualquier dato obtenido tras reportarla.</li>
+            <li>No condiciones el reporte a una recompensa económica ni a cualquier forma de extorsión.</li>
+        </ul>
+
+        <h3>4. Alcance</h3>
+        <p><strong>Dentro de alcance:</strong> el sitio y la aplicación web en <code>mealfitrd.com</code> (incluido el subdominio de la app) y nuestra API pública.</p>
+        <p><strong>Fuera de alcance:</strong> los sistemas de nuestros proveedores subcontratados (PayPal, DeepSeek, Neon, Sentry, Oracle Cloud, entre otros) — repórtales directamente a ellos según sus propios programas. También quedan fuera los hallazgos sin impacto demostrable de seguridad, como:</p>
+        <ul>
+            <li>Reportes de escáneres automáticos sin una prueba de explotación real.</li>
+            <li>Ausencia de cabeceras de seguridad «recomendadas» sin un vector de ataque concreto.</li>
+            <li>Problemas que requieren un dispositivo del usuario ya comprometido, físicamente o con malware.</li>
+            <li>Vulnerabilidades en versiones de navegador obsoletas o sin soporte.</li>
+            <li>Reportes de buenas prácticas (p. ej. política de contraseñas, SPF/DMARC) sin impacto explotable.</li>
+        </ul>
+
+        <h3>5. Recompensas</h3>
+        <p>Actualmente <strong>no contamos con un programa de recompensas económicas (bug bounty)</strong>. Reconocemos y agradecemos públicamente —con tu permiso— a quienes nos ayudan a mejorar la seguridad de la plataforma. Si en el futuro habilitamos recompensas, lo anunciaremos aquí.</p>
+
+        <h3>6. Cómo nos Encuentras</h3>
+        <p>Mantenemos un archivo <code>security.txt</code> conforme al estándar <a href="https://www.rfc-editor.org/rfc/rfc9116" target="_blank" rel="noopener noreferrer" className={styles.link}>RFC 9116</a> en <code>https://mealfitrd.com/.well-known/security.txt</code> con nuestro contacto de seguridad y el enlace a esta Política.</p>
+
+        <h3>7. Cambios en esta Política</h3>
+        <p>Podremos actualizar esta Política para reflejar cambios en nuestros sistemas o procesos. La versión vigente siempre se publica aquí con su fecha de «Última actualización».</p>
+    </LegalLayout>
+);

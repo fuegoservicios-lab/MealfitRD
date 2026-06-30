@@ -1,0 +1,7 @@
+# [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] security.txt (RFC 9116).
+# Companion de la Política de Divulgación Responsable (/responsible-disclosure).
+Contact: mailto:fuego.servicios@gmail.com
+Policy: https://mealfitrd.com/responsible-disclosure
+Preferred-Languages: es, en
+Canonical: https://mealfitrd.com/.well-known/security.txt
+Expires: 2027-06-30T00:00:00.000Z

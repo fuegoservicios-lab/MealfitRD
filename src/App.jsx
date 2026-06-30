@@ -75,6 +75,8 @@ const Refunds = lazy(() => import('./pages/legal/LegalPages').then(m => ({ defau
 const AcceptableUse = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.AcceptableUse })));
 // [P3-ABOUT-PAGE · 2026-06-30] Página "Acerca de MealfitRD" (categoría Empresas en el footer).
 const About = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.About })));
+// [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] Política de divulgación responsable (seguridad).
+const ResponsibleDisclosure = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.ResponsibleDisclosure })));
 // [P3-ENGINE-INFO-PAGE · 2026-06-28] Página pública informativa del motor v1.0.0.
 const Engine = lazy(() => import('./pages/Engine'));
 // [P3-PRICING-SEPARATE-PAGE · 2026-06-29] Página de precios (wrapper que reusa el
@@ -391,6 +393,8 @@ function App() {
             <Route path="/acceptable-use" element={<Layout><AcceptableUse /></Layout>} />
             {/* [P3-ABOUT-PAGE · 2026-06-30] Acerca de MealfitRD (categoría Empresas). */}
             <Route path="/about" element={<Layout><About /></Layout>} />
+            {/* [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] Política de divulgación responsable (seguridad). */}
+            <Route path="/responsible-disclosure" element={<Layout><ResponsibleDisclosure /></Layout>} />
 
             {/* [P3-ENGINE-INFO-PAGE · 2026-06-28] Motor v1.0.0 (pública, indexable, en el apex). */}
             <Route path="/motor" element={<Layout><Engine /></Layout>} />
