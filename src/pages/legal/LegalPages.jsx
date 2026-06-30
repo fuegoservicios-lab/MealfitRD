@@ -108,8 +108,8 @@ const LegalLayout = ({ title, lastUpdated, children }) => {
    POLÍTICA DE PRIVACIDAD
    ============================================================================ */
 export const Privacy = () => (
-    <LegalLayout title="Política de Privacidad" lastUpdated="26 de Mayo, 2026">
-        <p>En MealfitRD nos tomamos en serio la protección de sus datos. Esta Política describe con precisión técnica qué información recopilamos, cómo la procesamos, dónde la almacenamos, con quién la compartimos y qué derechos tiene usted sobre ella. La transparencia es nuestro principio fundamental.</p>
+    <LegalLayout title="Política de Privacidad" lastUpdated="30 de Junio, 2026">
+        <p>En MealfitRD nos tomamos en serio la protección de sus datos. Esta Política describe con precisión técnica qué información recopilamos, cómo la procesamos, dónde la almacenamos, con quién la compartimos, qué cookies y almacenamiento local usamos, y qué derechos tiene usted sobre ella. La transparencia es nuestro principio fundamental.</p>
 
         <h3>1. Identidad del Responsable del Tratamiento</h3>
         <p>El responsable del tratamiento de sus datos es <strong>MealfitRD</strong>, plataforma operada desde República Dominicana. Para cualquier consulta sobre privacidad puede contactarnos en <strong>fuego.servicios@gmail.com</strong>.</p>
@@ -195,7 +195,18 @@ export const Privacy = () => (
         <h3>12. Transferencias Internacionales</h3>
         <p>Dado que nuestros proveedores (el backend anterior, Google, PayPal, Sentry, AWS) operan globalmente, sus datos pueden procesarse fuera de República Dominicana, principalmente en Estados Unidos. Estos proveedores están adheridos a marcos de privacidad reconocidos (Cláusulas Contractuales Estándar y/o Data Privacy Framework UE-EEUU).</p>
 
-        <h3>13. Cambios en esta Política</h3>
+        <h3>13. Cookies y Almacenamiento Local</h3>
+        <p>Aplicamos un principio de minimalismo: solo usamos los almacenamientos estrictamente necesarios para que el servicio funcione y para recordar sus preferencias entre visitas. <strong>No utilizamos cookies de publicidad, marketing ni rastreadores de terceros</strong> — sin Google Analytics, Meta/TikTok Pixel, retargeting, identificadores publicitarios (IDFA, GAID) ni fingerprinting del navegador.</p>
+        <ul>
+            <li><strong>Cookies de sesión (autenticación):</strong> establecen y renuevan su sesión tras iniciar sesión. Son <code>HttpOnly</code> y <code>Secure</code>; sin ellas no podría usar funciones que requieran cuenta. Caducan según la duración de su sesión.</li>
+            <li><strong>Cookies técnicas de PayPal:</strong> durante el flujo de pago, PayPal puede establecer cookies en su propio dominio para detección de fraude y para mantener su sesión de pago. No controlamos su contenido; PayPal las describe en su <a href="https://www.paypal.com/us/legalhub/privacy-full" target="_blank" rel="noopener noreferrer" className={styles.link}>política de privacidad</a>.</li>
+            <li><strong>Almacenamiento local (<code>localStorage</code>):</strong> guarda en SU dispositivo preferencias y caché operacional (su plan actual, el borrador del formulario de evaluación, el tracker de hidratación, la caché de despensa y del diario nutricional, preferencias de notificaciones y banderitas de UI). Nunca se envía automáticamente a nuestros servidores y persiste hasta que usted lo borre o cierre sesión.</li>
+            <li><strong>Service Worker (PWA):</strong> como Aplicación Web Progresiva, registramos un Service Worker que cachea recursos estáticos (imágenes, fuentes, JavaScript) para uso offline e instalación como app. No envía información personal a nuestros servidores.</li>
+            <li><strong>Sentry (telemetría técnica):</strong> inserta un identificador anónimo de sesión técnica para correlacionar errores de una misma visita — sin cookies de rastreo publicitario y con filtrado de datos personales (ver Sección 7).</li>
+        </ul>
+        <p>Usted tiene control total: puede bloquear o eliminar cookies desde la configuración de su navegador, borrar el <code>localStorage</code> y desinstalar el Service Worker desde las DevTools (Application → Storage), o usar el modo incógnito para no persistir nada entre sesiones. Tenga en cuenta que bloquear las cookies estrictamente necesarias (sesión) impedirá iniciar sesión o usar funciones que requieran autenticación.</p>
+
+        <h3>14. Cambios en esta Política</h3>
         <p>Podremos actualizar esta Política para reflejar cambios técnicos o legales. Cualquier modificación se publicará aquí con la nueva fecha de "Última actualización". Si los cambios son materiales, le notificaremos por correo electrónico antes de su entrada en vigor.</p>
     </LegalLayout>
 );
@@ -275,71 +286,9 @@ export const Terms = () => (
     </LegalLayout>
 );
 
-/* ============================================================================
-   POLÍTICA DE COOKIES
-   ============================================================================ */
-export const Cookies = () => (
-    <LegalLayout title="Política de Cookies" lastUpdated="26 de Mayo, 2026">
-        <p>Esta política explica con detalle qué cookies y mecanismos de almacenamiento local usamos en MealfitRD, para qué sirven y cómo controlarlos. Nuestro principio es minimalismo: solo usamos los almacenamientos estrictamente necesarios para que el servicio funcione y para recordar sus preferencias entre visitas. <strong>No utilizamos cookies de publicidad, marketing, ni de terceros para tracking comportamental.</strong></p>
-
-        <h3>1. ¿Qué son las cookies y el almacenamiento local?</h3>
-        <p>Las <strong>cookies</strong> son pequeños archivos que el navegador almacena cuando visita un sitio web. Pueden tener distintos atributos de seguridad (<code>HttpOnly</code>, <code>Secure</code>, <code>SameSite</code>) que limitan cómo pueden ser leídas. El <strong>almacenamiento local (<code>localStorage</code>)</strong> es un mecanismo similar pero más amplio, gestionado directamente por la aplicación, que persiste hasta que el usuario lo borra desde la configuración del navegador.</p>
-        <p>MealfitRD usa ambos mecanismos para distintos propósitos. Lo describimos en detalle a continuación.</p>
-
-        <h3>2. Cookies que utilizamos</h3>
-        <p>Estas cookies son creadas y leídas exclusivamente por nosotros y nuestros proveedores autorizados:</p>
-        <ul>
-            <li><strong>Token de sesión el backend anterior (<code>sb-*-auth-token</code>):</strong> establece su sesión autenticada tras iniciar sesión. Es HttpOnly y Secure. Sin esta cookie no podría usar funciones que requieran cuenta. Caduca según la duración de su sesión.</li>
-            <li><strong>Refresh token el backend anterior:</strong> permite renovar el token de sesión sin pedirle iniciar sesión nuevamente. Bajo el mismo nivel de protección.</li>
-            <li><strong>Cookies técnicas de PayPal:</strong> durante el flujo de pago, PayPal puede establecer sus propias cookies en su dominio para detectar fraude y mantener su sesión de pago. No controlamos su contenido; PayPal las describe en su <a href="https://www.paypal.com/us/legalhub/privacy-full" target="_blank" rel="noopener noreferrer" className={styles.link}>política de privacidad</a>.</li>
-        </ul>
-
-        <h3>3. Almacenamiento Local (<code>localStorage</code>)</h3>
-        <p>Usamos <code>localStorage</code> del navegador para recordar preferencias y caché operacional. Estos datos viven SOLO en su dispositivo — nunca se envían automáticamente a nuestros servidores. Las claves específicas que almacenamos son:</p>
-        <ul>
-            <li><code>mealfit_plan</code> — caché local de su plan actual para carga instantánea.</li>
-            <li><code>mealfit_assessment</code> — borrador del formulario de evaluación inicial (en caso de que cierre la pestaña a la mitad).</li>
-            <li><code>mealfit_guest_session_id</code> — identificador anónimo si está probando la plataforma sin registrarse.</li>
-            <li><code>mealfit_water_tracker</code> — caché local de su tracker de hidratación diaria.</li>
-            <li><code>mealfit_pantry_cache</code> — caché local del inventario de despensa para reducir consultas.</li>
-            <li><code>mealfit_consumed_meals_cache</code> — caché local del diario nutricional.</li>
-            <li><code>mealfit_notifications</code> — preferencias de notificaciones push.</li>
-            <li><code>mealfit_history_dirty_at</code> — marca temporal para invalidación de caché del historial.</li>
-            <li><code>mealfit_depleted_items</code> — caché local de ítems marcados como agotados.</li>
-            <li><code>dismissed_ios_prompt</code> — banderita para no volver a mostrar el prompt de "Instalar en iOS".</li>
-        </ul>
-        <p>Estos datos persisten hasta que usted los borre manualmente o cierre sesión.</p>
-
-        <h3>4. Service Worker (PWA)</h3>
-        <p>MealfitRD es una Aplicación Web Progresiva (PWA). Esto significa que registramos un Service Worker en su navegador para permitir uso offline, instalación como app y notificaciones push (si usted las acepta). El Service Worker cachea recursos estáticos (imágenes, fuentes, código JavaScript) y NO envía información personal a nuestros servidores. Puede desinstalar el Service Worker desde las opciones de su navegador en la sección de almacenamiento del sitio.</p>
-
-        <h3>5. Telemetría Técnica (Sentry)</h3>
-        <p>Como parte de nuestra operación, integramos Sentry para detectar errores técnicos. Sentry NO usa cookies de rastreo publicitario. Inserta un identificador anónimo de sesión técnica únicamente para correlacionar errores producidos en la misma visita. Aplicamos filtros automáticos (PII scrubbing) que eliminan datos personales antes de que abandonen su navegador.</p>
-
-        <h3>6. Lo que NO usamos</h3>
-        <p>Para ser explícitos, MealfitRD <strong>NO utiliza</strong>:</p>
-        <ul>
-            <li>Google Analytics, Mixpanel, Amplitude ni similares.</li>
-            <li>Facebook Pixel, TikTok Pixel, ni rastreadores de redes sociales.</li>
-            <li>Cookies de retargeting publicitario.</li>
-            <li>Identificadores publicitarios (IDFA, GAID).</li>
-            <li>Fingerprinting del navegador.</li>
-        </ul>
-
-        <h3>7. Cómo controlar y eliminar cookies</h3>
-        <p>Usted tiene control total. Puede:</p>
-        <ul>
-            <li>Bloquear o eliminar cookies desde la configuración de su navegador (Chrome: Configuración → Privacidad y seguridad → Cookies; Safari: Preferencias → Privacidad; Firefox: similar).</li>
-            <li>Borrar el <code>localStorage</code> abriendo las DevTools del navegador (F12) → Application → Local Storage → clic derecho → Clear.</li>
-            <li>Eliminar el Service Worker desde DevTools → Application → Service Workers → Unregister.</li>
-            <li>Usar el navegador en modo incógnito/privado para no persistir nada entre sesiones.</li>
-        </ul>
-        <p>Tenga en cuenta que bloquear cookies estrictamente necesarias (sesión el backend anterior) impedirá iniciar sesión o usar funciones que requieran autenticación.</p>
-
-        <h3>8. Cambios en esta política</h3>
-        <p>Si añadimos nuevos almacenamientos o cookies, actualizaremos esta lista. La versión vigente siempre incluye la fecha de "Última actualización" arriba.</p>
-    </LegalLayout>
-);
+/* [P3-COOKIES-MERGE · 2026-06-30] La "Política de Cookies" se fusionó dentro de la
+   Política de Privacidad (sección 13). El componente Cookies se eliminó; la ruta
+   /cookies redirige a /privacy (App.jsx) para no romper enlaces ya indexados. */
 
 /* ============================================================================
    AVISO MÉDICO
@@ -595,5 +544,63 @@ export const Refunds = () => (
 
         <h3>8. Contacto</h3>
         <p>Para cualquier asunto de facturación, cancelaciones o reembolsos: <strong>fuego.servicios@gmail.com</strong>. Respondemos en menos de 24 horas.</p>
+    </LegalLayout>
+);
+
+/* ============================================================================
+   POLÍTICA DE USO ACEPTABLE
+   ============================================================================ */
+export const AcceptableUse = () => (
+    <LegalLayout title="Política de Uso Aceptable" lastUpdated="30 de Junio, 2026">
+        <p>Esta Política de Uso establece las reglas para utilizar MealfitRD de forma responsable, segura y justa para todos. Complementa nuestros <strong>Términos de Servicio</strong> (donde se detalla la relación contractual completa) y se aplica a cualquier persona que acceda a la plataforma, ya sea con plan gratuito, de pago o en modo invitado. Al usar MealfitRD, usted acepta cumplir estas reglas.</p>
+
+        <h3>1. Quién Puede Usar la Plataforma</h3>
+        <p>MealfitRD está destinada a personas <strong>mayores de 18 años</strong>, para su uso personal y no comercial. Usted es responsable de la confidencialidad de sus credenciales y de toda la actividad realizada bajo su cuenta. Si detecta un acceso no autorizado, notifíquenos de inmediato a <strong>fuego.servicios@gmail.com</strong>.</p>
+
+        <h3>2. Uso Permitido</h3>
+        <p>Puede usar MealfitRD para:</p>
+        <ul>
+            <li>Generar y ajustar planes de comidas personalizados para usted.</li>
+            <li>Consultar al asistente conversacional sobre su nutrición, cambiar comidas y registrar su consumo.</li>
+            <li>Analizar fotos de comida que usted decida compartir (cuando la función esté disponible).</li>
+            <li>Gestionar su nevera, su lista de compras y su historial de planes.</li>
+            <li>Compartir capturas o resúmenes de su plan para uso personal.</li>
+        </ul>
+
+        <h3>3. Conductas Prohibidas</h3>
+        <p>Para proteger el servicio, la seguridad de los demás usuarios y la integridad de la plataforma, usted se compromete a <strong>NO</strong>:</p>
+        <ul>
+            <li><strong>Acceder a datos ajenos:</strong> intentar leer, modificar o eliminar información de otros usuarios, o sortear los controles de aislamiento por cuenta.</li>
+            <li><strong>Atacar la infraestructura:</strong> realizar ataques de denegación de servicio, abuso de los límites de uso (rate limits), evasión de cuotas, o sondeos de partes no públicas de la API.</li>
+            <li><strong>Extraer datos de forma masiva:</strong> usar scraping, bots, scrapers o cualquier técnica automatizada no autorizada para recolectar contenido de la plataforma.</li>
+            <li><strong>Ingeniería inversa:</strong> descompilar, desensamblar o intentar derivar el código fuente, los modelos, los prompts o los algoritmos de validación.</li>
+            <li><strong>Manipular la IA (prompt injection):</strong> inyectar instrucciones maliciosas para inducir al asistente a actuar fuera de estos términos, revelar información de otros usuarios o eludir nuestras guardas de seguridad.</li>
+            <li><strong>Compartir o revender el acceso:</strong> ceder, prestar, revender o sublicenciar su cuenta o el servicio a terceros.</li>
+            <li><strong>Subir contenido prohibido</strong> a través del módulo de visión o del chat: material ilegal, que infrinja derechos de autor, contenido sexual explícito, violento o de odio.</li>
+            <li><strong>Usar el servicio con fines ilícitos o fraudulentos</strong>, o que infrinjan derechos de terceros o la legislación dominicana aplicable.</li>
+            <li><strong>Usar los planes generados para entrenar modelos competidores</strong> o para redistribuirlos masivamente.</li>
+            <li><strong>Suplantar identidad</strong> o proporcionar información falsa en el registro o en su perfil de salud (esto último, además, degrada la calidad y seguridad de su plan).</li>
+        </ul>
+
+        <h3>4. Uso Justo de la Inteligencia Artificial</h3>
+        <p>La generación de planes y el asistente consumen recursos de cómputo y de nuestro proveedor de IA. Por eso aplicamos cuotas mensuales por plan (el plan gratuito incluye 15 créditos) y límites de frecuencia para prevenir abuso. Estos límites buscan un uso razonable y personal; el uso automatizado, comercial no autorizado o que degrade el servicio para otros está prohibido y puede dar lugar a restricciones.</p>
+
+        <h3>5. Contenido que Usted Aporta</h3>
+        <p>Usted es responsable del contenido que introduce: texto libre en el formulario y el chat, y fotos de comida. Al subirlo, declara que tiene derecho a hacerlo y que no infringe la ley ni derechos de terceros. Procesamos ese contenido únicamente para prestarle el servicio, según se describe en la <strong>Política de Privacidad</strong> y la <strong>Política de Uso de Inteligencia Artificial</strong>.</p>
+
+        <h3>6. Seguridad e Informe de Vulnerabilidades</h3>
+        <p>No intente vulnerar la seguridad de la plataforma. Si descubre una vulnerabilidad o un comportamiento que considere inseguro, le pedimos reportarlo de forma responsable a <strong>fuego.servicios@gmail.com</strong> antes de divulgarlo públicamente. Agradecemos y tomamos en serio estos reportes.</p>
+
+        <h3>7. Consecuencias del Incumplimiento</h3>
+        <p>El incumplimiento de esta Política puede dar lugar, según su gravedad, a: advertencias, limitación temporal de funciones, suspensión o terminación de la cuenta —<strong>sin derecho a reembolso</strong>— y, cuando corresponda, a las acciones legales pertinentes. Nos reservamos el derecho de actuar de inmediato ante conductas que pongan en riesgo a otros usuarios o a la infraestructura.</p>
+
+        <h3>8. No Es Consejo Médico</h3>
+        <p>El uso del servicio no sustituye la consulta con un profesional de la salud. Las recomendaciones son informativas y educativas. Lea el <strong>Aviso Médico</strong> para el detalle completo.</p>
+
+        <h3>9. Relación con Otras Políticas</h3>
+        <p>Esta Política de Uso se interpreta junto con los <strong>Términos de Servicio</strong>, la <strong>Política de Privacidad</strong>, la <strong>Política de Protección de Datos</strong>, la <strong>Política de Uso de Inteligencia Artificial</strong> y el <strong>Aviso Médico</strong>. En caso de conflicto entre documentos sobre un mismo asunto, prevalecen los Términos de Servicio.</p>
+
+        <h3>10. Cambios y Contacto</h3>
+        <p>Podremos actualizar esta Política para reflejar cambios en el servicio o en la normativa. La versión vigente se publica siempre en esta página con su fecha de "Última actualización". Para cualquier duda sobre el uso aceptable de la plataforma, escríbanos a <strong>fuego.servicios@gmail.com</strong>.</p>
     </LegalLayout>
 );

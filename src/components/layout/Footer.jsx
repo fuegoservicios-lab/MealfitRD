@@ -63,13 +63,15 @@ const Footer = () => {
 
 
 
-                {/* [P3-LEGAL-EXPANSION · 2026-06-30] Dos columnas legales: "Términos y
-                    servicios" (uso/pago/IA/médico) y "Privacidad y datos" (privacidad/datos/
-                    cookies/investigación). `state.from` preserva el origen real para el
+                {/* [P3-LEGAL-EXPANSION · 2026-06-30 · cookies merge 2026-06-30] Dos columnas
+                    legales: "Términos y servicios" (uso/pago/IA/médico) y "Privacidad y datos"
+                    (privacidad/datos/investigación). La Política de Cookies se fusionó en
+                    Privacidad (sección 13). `state.from` preserva el origen real para el
                     back-link inteligente de LegalLayout (ver P3-LEGAL-BACK-LINK). */}
                 <div className={styles.col}>
                     <h4>Términos y servicios</h4>
                     <Link to="/terms" state={{ from: fromPath }}>Términos de Servicio</Link>
+                    <Link to="/acceptable-use" state={{ from: fromPath }}>Política de Uso</Link>
                     <Link to="/refunds" state={{ from: fromPath }}>Reembolsos y Cancelaciones</Link>
                     <Link to="/ai-policy" state={{ from: fromPath }}>Uso de Inteligencia Artificial</Link>
                     <Link to="/medical" state={{ from: fromPath }}>Aviso Médico</Link>
@@ -79,7 +81,6 @@ const Footer = () => {
                     <h4>Privacidad y datos</h4>
                     <Link to="/privacy" state={{ from: fromPath }}>Política de Privacidad</Link>
                     <Link to="/data-protection" state={{ from: fromPath }}>Protección de Datos</Link>
-                    <Link to="/cookies" state={{ from: fromPath }}>Política de Cookies</Link>
                     <Link to="/research" state={{ from: fromPath }}>Investigación</Link>
                 </div>
 

@@ -10,14 +10,16 @@
 // App.jsx + link en el Footer), añadir también su path AQUÍ. No hacerlo fue exactamente
 // el bug que dejó las 4 políticas nuevas con el header recortado (drift Header vs Footer).
 export const LEGAL_PATHS = [
+    // [P3-COOKIES-MERGE · 2026-06-30] /cookies eliminado: fusionado en /privacy (redirige).
     '/privacy',
     '/terms',
-    '/cookies',
     '/medical',
     '/data-protection',
     '/ai-policy',
     '/research',
     '/refunds',
+    // [P3-ACCEPTABLE-USE-PAGE · 2026-06-30] Política de Uso Aceptable.
+    '/acceptable-use',
 ];
 
 export const isLegalRoute = (pathname) => LEGAL_PATHS.includes(pathname);

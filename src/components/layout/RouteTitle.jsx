@@ -45,12 +45,12 @@ const TITLES = {
     '/precios': `Precios · ${BRAND}`,
     '/privacy': `Política de Privacidad · ${BRAND}`,
     '/terms': `Términos de Servicio · ${BRAND}`,
-    '/cookies': `Política de Cookies · ${BRAND}`,
     '/medical': `Aviso Médico · ${BRAND}`,
     '/data-protection': `Protección de Datos · ${BRAND}`,
     '/ai-policy': `Uso de Inteligencia Artificial · ${BRAND}`,
     '/research': `Política de Investigación · ${BRAND}`,
     '/refunds': `Reembolsos y Cancelaciones · ${BRAND}`,
+    '/acceptable-use': `Política de Uso Aceptable · ${BRAND}`,
 };
 
 // [P3-ROUTE-META] Description por ruta para el snippet de buscadores. ≤ ~160 chars,
@@ -66,14 +66,14 @@ const DESCRIPTIONS = {
     '/precision': 'La precisión que medimos en MealfitRD: banda de macros, piso de proteína, 17 micronutrientes vs DRI y guardas clínicas por condición.',
     '/motor': 'El motor de MealfitRD por dentro: orquestación por grafos, validación nutricional y un catálogo verificado de alimentos dominicanos.',
     // Legales
-    '/privacy': 'Política de Privacidad de MealfitRD: qué datos recopilamos, cómo los ciframos y protegemos, con quién los compartimos y tus derechos. Transparencia total.',
+    '/privacy': 'Política de Privacidad de MealfitRD: qué datos recopilamos, cómo los ciframos y protegemos, qué cookies usamos, con quién los compartimos y tus derechos.',
     '/terms': 'Términos de Servicio de MealfitRD: planes, suscripciones y pagos, uso aceptable, propiedad intelectual y limitación de responsabilidad.',
-    '/cookies': 'Política de Cookies de MealfitRD: qué cookies y almacenamiento local usamos y cómo controlarlos. Sin rastreadores publicitarios ni de terceros.',
     '/medical': 'Aviso Médico de MealfitRD: nuestras recomendaciones nutricionales son informativas y no sustituyen el consejo de un profesional de la salud.',
     '/data-protection': 'Protección de datos en MealfitRD bajo la Ley 172-13: tus derechos de acceso, rectificación, cancelación y oposición, y cómo ejercerlos.',
     '/ai-policy': 'Cómo usa MealfitRD la inteligencia artificial: qué datos viajan al proveedor, límites del modelo, supervisión humana y que no entrenamos con tus datos.',
     '/research': 'Política de Investigación de MealfitRD: cómo usamos datos anonimizados para mejorar el producto, con exención de datos sensibles de salud y opt-out.',
     '/refunds': 'Reembolsos y cancelaciones de MealfitRD: cómo cancelar tu suscripción, la ventana de reembolso de 7 días y cómo solicitarlo. Conforme a la Ley 358-05.',
+    '/acceptable-use': 'Política de Uso Aceptable de MealfitRD: reglas para un uso responsable, conductas prohibidas, uso justo de la IA y consecuencias del incumplimiento.',
 };
 
 const SELF_MANAGED = new Set(['/motor', '/como-funciona', '/funciones', '/precision']);
