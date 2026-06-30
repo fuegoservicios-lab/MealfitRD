@@ -2,26 +2,135 @@ import { useEffect, useLayoutEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
-    ClipboardList, Cpu, Salad, LineChart, ChevronRight, ArrowRight, Check,
-    ShieldCheck, Gauge, Repeat, Soup, CalendarClock, Info, Plus,
+    ClipboardList, ChevronRight, ArrowRight, Check, ShieldCheck, Gauge,
+    Repeat, Soup, CalendarClock, Info, Plus, Cpu, Salad,
 } from 'lucide-react';
 import styles from './HowItWorksPage.module.css';
 
-/* [P3-HOWITWORKS-PAGE-EDITORIAL · 2026-06-30] Página de detalle de "Cómo funciona"
-   rediseñada en clave editorial premium: índice lateral fijo con scroll-spy, secciones
-   numeradas, tipografía con aire y reveals sutiles on-scroll. Contenido real basado en
-   el motor; honesto (sin prometer resultados). Pública, indexable, bajo <Layout>. */
+/* [P3-HOWITWORKS-PAGE-SCIENTIFIC · 2026-06-30] Página de detalle de "Cómo funciona"
+   en clave minimalista-científica: figuras abstractas en SVG (line-art monocromo sobre
+   cuadrícula), un esquema del método en el hero, una figura por etapa (campo de datos,
+   red de inferencia, radar de cobertura, recálculo), pies de figura tipo paper, índice
+   lateral con scroll-spy y reveals sutiles. Una sola gama (indigo + neutros). Contenido
+   real y honesto. Pública, indexable, bajo <Layout>. */
+
+/* ─────────────────────── figuras abstractas (SVG line-art) ─────────────────────
+   Todas usan clases del módulo (stroke/fill vía tokens) → theme-aware. Geometría
+   determinista; sin dependencias. */
+
+function HeroDiagram() {
+    const nodes = [[120, 118], [280, 90], [440, 112], [600, 58]];
+    const curve = [[40, 142], ...nodes].map((p) => p.join(',')).join(' ');
+    const scatter = [[92, 70], [205, 142], [360, 64], [520, 128]];
+    return (
+        <svg viewBox="0 0 680 200" className={styles.heroSvg} role="img" aria-label="Esquema abstracto del método: del dato al plato">
+            <line x1="30" y1="168" x2="650" y2="168" className={styles.figLine} />
+            {nodes.map(([x]) => <line key={`t${x}`} x1={x} y1="168" x2={x} y2="175" className={styles.figLine} />)}
+            {nodes.map(([x, y]) => <line key={`d${x}`} x1={x} y1={y} x2={x} y2="168" className={styles.figDash} />)}
+            {scatter.map(([x, y]) => <circle key={`s${x}`} cx={x} cy={y} r="2" className={styles.figDot} />)}
+            <polyline points={curve} className={styles.figAccent} />
+            {nodes.map(([x, y]) => <circle key={`n${x}`} cx={x} cy={y} r="4.5" className={styles.figDotAccent} />)}
+            <circle cx="600" cy="58" r="13" className={styles.figAccent} />
+            <line x1="582" y1="58" x2="618" y2="58" className={styles.figAccent} />
+            <line x1="600" y1="40" x2="600" y2="76" className={styles.figAccent} />
+        </svg>
+    );
+}
+
+function FigProfile() {
+    const xs = [40, 76, 112, 148, 184];
+    const ys = [40, 76, 112, 148, 184];
+    const hi = new Set(['76-76', '148-40', '112-148', '184-112']);
+    return (
+        <svg viewBox="0 0 220 220" className={styles.figSvg} role="img" aria-label="Campo de datos: captura de variables del perfil">
+            <line x1="22" y1="28" x2="22" y2="196" className={styles.figLine} />
+            <line x1="22" y1="196" x2="198" y2="196" className={styles.figLine} />
+            {ys.map((y) => xs.map((x) => {
+                const key = `${x}-${y}`;
+                return hi.has(key) ? (
+                    <g key={key}>
+                        <circle cx={x} cy={y} r="9" className={styles.figAccent} />
+                        <circle cx={x} cy={y} r="4" className={styles.figDotAccent} />
+                    </g>
+                ) : (
+                    <circle key={key} cx={x} cy={y} r="2.2" className={styles.figDot} />
+                );
+            }))}
+        </svg>
+    );
+}
+
+function FigEngine() {
+    const cx = 110;
+    const cy = 110;
+    const R = 76;
+    const outer = [0, 1, 2, 3, 4, 5].map((i) => {
+        const a = (Math.PI / 3) * i - Math.PI / 2;
+        return [cx + R * Math.cos(a), cy + R * Math.sin(a)];
+    });
+    return (
+        <svg viewBox="0 0 220 220" className={styles.figSvg} role="img" aria-label="Red de inferencia del motor">
+            {outer.map(([x, y], i) => <line key={`e${i}`} x1={cx} y1={cy} x2={x} y2={y} className={styles.figMuted} />)}
+            {outer.map(([x, y], i) => {
+                const [nx, ny] = outer[(i + 1) % outer.length];
+                return <line key={`p${i}`} x1={x} y1={y} x2={nx} y2={ny} className={styles.figDash} />;
+            })}
+            {outer.map(([x, y], i) => <circle key={`o${i}`} cx={x} cy={y} r="5" className={styles.figDot} />)}
+            <circle cx={cx} cy={cy} r="22" className={styles.figAccent} />
+            <circle cx={cx} cy={cy} r="8.5" className={styles.figDotAccent} />
+        </svg>
+    );
+}
+
+function FigCalibration() {
+    const cx = 110;
+    const cy = 110;
+    const N = 6;
+    const ang = (i) => (2 * Math.PI / N) * i - Math.PI / 2;
+    const ringPts = (r) => Array.from({ length: N }, (_, i) => `${cx + r * Math.cos(ang(i))},${cy + r * Math.sin(ang(i))}`).join(' ');
+    const cover = [80, 62, 74, 56, 72, 66];
+    const coverPts = cover.map((r, i) => `${cx + r * Math.cos(ang(i))},${cy + r * Math.sin(ang(i))}`).join(' ');
+    return (
+        <svg viewBox="0 0 220 220" className={styles.figSvg} role="img" aria-label="Radar de cobertura nutricional contra las referencias diarias">
+            {[28, 54, 82].map((r) => <polygon key={r} points={ringPts(r)} className={styles.figLine} />)}
+            {Array.from({ length: N }, (_, i) => (
+                <line key={i} x1={cx} y1={cy} x2={cx + 82 * Math.cos(ang(i))} y2={cy + 82 * Math.sin(ang(i))} className={styles.figLine} />
+            ))}
+            <polygon points={coverPts} className={styles.figFill} />
+            {cover.map((r, i) => (
+                <circle key={i} cx={cx + r * Math.cos(ang(i))} cy={cy + r * Math.sin(ang(i))} r="3.2" className={styles.figDotAccent} />
+            ))}
+        </svg>
+    );
+}
+
+function FigAdaptation() {
+    const pts = [[34, 68], [64, 106], [96, 90], [128, 124], [160, 132], [190, 130]];
+    const poly = pts.map((p) => p.join(',')).join(' ');
+    return (
+        <svg viewBox="0 0 220 220" className={styles.figSvg} role="img" aria-label="Recálculo del plan a lo largo del ciclo">
+            {[64, 102, 140].map((y) => <line key={y} x1="30" y1={y} x2="196" y2={y} className={styles.figDash} />)}
+            <line x1="30" y1="38" x2="30" y2="172" className={styles.figLine} />
+            <line x1="30" y1="172" x2="196" y2="172" className={styles.figLine} />
+            <line x1="30" y1="128" x2="196" y2="128" className={styles.figMuted} />
+            <polyline points={poly} className={styles.figAccent} />
+            {pts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="3.4" className={styles.figDotAccent} />)}
+        </svg>
+    );
+}
+
+/* ──────────────────────────────── datos ──────────────────────────────── */
 
 const STATS = [
     { num: '20+', label: 'Variables de entrada' },
     { num: 'V4', label: 'Motor DeepSeek' },
     { num: '17', label: 'Micronutrientes vs DRI' },
-    { num: '7/15/30', label: 'días · recálculo del plan' },
+    { num: '7/15/30', label: 'días · recálculo' },
 ];
 
 const STAGES = [
     {
-        Icon: ClipboardList, color: '#60A5FA',
+        Fig: FigProfile, figLabel: 'Captura de variables',
         title: 'Perfil clínico-metabólico',
         sub: 'El sustrato de cada decisión',
         text: 'No partimos solo de tu peso. Construimos un perfil con más de 20 variables que el motor usa en cada cálculo:',
@@ -35,7 +144,7 @@ const STAGES = [
         tags: ['Datos biométricos', 'Condiciones', 'Alergias', 'Presupuesto'],
     },
     {
-        Icon: Cpu, color: '#A78BFA',
+        Fig: FigEngine, figLabel: 'Red de inferencia',
         title: 'Motor de inferencia',
         sub: 'DeepSeek V4 · en minutos',
         text: 'El modelo resuelve tu plan día por día contra un catálogo de 200+ alimentos verificados, optimizando macronutrientes, coste y adherencia. Clave: el motor solo usa alimentos que existen en el catálogo — nunca inventa comida.',
@@ -47,7 +156,7 @@ const STAGES = [
         tags: ['DeepSeek V4', 'Catálogo verificado', 'Minutos'],
     },
     {
-        Icon: Salad, color: '#34D399',
+        Fig: FigCalibration, figLabel: 'Cobertura vs DRI',
         title: 'Calibración nutricional',
         sub: '17 micronutrientes · DRI',
         text: 'Cada plato se ajusta a tus macronutrientes objetivo y se compara contra 17 micronutrientes (vs las referencias diarias, DRI), con un medidor de cobertura. Aquí entra el motor determinista que cuadra los números.',
@@ -59,7 +168,7 @@ const STAGES = [
         tags: ['Macros en banda', 'Piso de proteína', '17 micros'],
     },
     {
-        Icon: LineChart, color: '#FB923C',
+        Fig: FigAdaptation, figLabel: 'Recálculo por ciclo',
         title: 'Adaptación longitudinal',
         sub: 'Recálculo por ciclo (7/15/30 días)',
         text: 'Tu plan no es estático. Al cerrar tu ciclo —de 7, 15 o 30 días, según elijas en el formulario— se recalcula con tu progreso para sortear la meseta metabólica y mantener el ritmo, ajustando porciones y objetivos a medida que cambias.',
@@ -101,7 +210,6 @@ const FAQ = [
     { q: '¿Necesito tarjeta para empezar?', a: 'No. El plan Gratis te deja descubrir el motor sin tarjeta. Puedes escalar cuando quieras.' },
 ];
 
-/* secciones del índice lateral (orden = orden en la página) */
 const SECTIONS = [
     { id: 'etapas', label: 'Las 4 etapas' },
     { id: 'pipeline', label: 'El pipeline' },
@@ -113,8 +221,6 @@ const SECTION_IDS = SECTIONS.map((s) => s.id);
 
 /* ─────────────────────────── helpers de animación ─────────────────────────── */
 
-/* Reveal sutil on-scroll. Respeta prefers-reduced-motion (devuelve el contenido
-   sin transformar para quien no quiere animación). */
 function Reveal({ children, className, delay = 0 }) {
     const reduce = useReducedMotion();
     if (reduce) return <div className={className}>{children}</div>;
@@ -131,15 +237,11 @@ function Reveal({ children, className, delay = 0 }) {
     );
 }
 
-/* Scroll-spy: marca la sección activa según cuál cruza la banda superior del viewport.
-   rootMargin recorta una "zona activa" justo bajo el header flotante. */
 function useScrollSpy(ids) {
     const [activeId, setActiveId] = useState(ids[0]);
     useEffect(() => {
         if (typeof IntersectionObserver === 'undefined') return undefined;
-        const targets = ids
-            .map((id) => document.getElementById(id))
-            .filter(Boolean);
+        const targets = ids.map((id) => document.getElementById(id)).filter(Boolean);
         if (!targets.length) return undefined;
         const observer = new IntersectionObserver(
             (entries) => {
@@ -178,8 +280,6 @@ const HowItWorksPage = () => {
 
     return (
         <div className={styles.page}>
-            <div className={styles.bgGlow} aria-hidden="true" />
-
             {/* ───────────────── hero ───────────────── */}
             <header className={styles.hero}>
                 <span className={styles.eyebrow}><ClipboardList size={14} strokeWidth={2.5} /> El método</span>
@@ -190,6 +290,17 @@ const HowItWorksPage = () => {
                     Simple por fuera, riguroso por dentro. Esto es todo lo que ocurre entre que
                     respondes unas preguntas y recibes un plan calculado a tu medida.
                 </p>
+
+                <Reveal className={styles.heroFigure} delay={0.1}>
+                    <div className={`${styles.heroCanvas} ${styles.grid}`}>
+                        <HeroDiagram />
+                    </div>
+                    <div className={styles.heroCaption}>
+                        <span>Fig. 00 — del dato al plato</span>
+                        <span>perfil → inferencia → calibración → adaptación</span>
+                    </div>
+                </Reveal>
+
                 <div className={styles.stats}>
                     {STATS.map((s) => (
                         <div key={s.label} className={styles.stat}>
@@ -199,11 +310,9 @@ const HowItWorksPage = () => {
                     ))}
                 </div>
             </header>
-            <div className={styles.heroRule} aria-hidden="true" />
 
             {/* ───────────────── layout: índice + contenido ───────────────── */}
             <div className={styles.layout}>
-                {/* índice lateral fijo */}
                 <aside className={styles.toc} aria-label="En esta página">
                     <span className={styles.tocLabel}>En esta página</span>
                     <nav className={styles.tocNav}>
@@ -225,12 +334,11 @@ const HowItWorksPage = () => {
                     </Link>
                 </aside>
 
-                {/* contenido */}
                 <div className={styles.content}>
                     {/* (01) las 4 etapas */}
                     <section id="etapas" className={styles.block}>
                         <Reveal>
-                            <span className={styles.secKicker}>El método</span>
+                            <span className={styles.secKicker}>01 — El método</span>
                             <h2 className={styles.secTitle}>Las 4 etapas, de principio a fin</h2>
                             <p className={styles.secLead}>
                                 Cada plan recorre estas cuatro etapas. Lo que ves es un plato; lo que pasa
@@ -240,22 +348,15 @@ const HowItWorksPage = () => {
                         <div className={styles.stages}>
                             {STAGES.map((s, i) => (
                                 <Reveal key={s.title} className={styles.stage}>
-                                    <div className={styles.stageNum}>{String(i + 1).padStart(2, '0')}</div>
-                                    <div>
-                                        <div className={styles.stageHead}>
-                                            <span className={styles.stageIcon} style={{ background: s.color, boxShadow: `0 10px 22px -12px ${s.color}` }}>
-                                                <s.Icon size={22} strokeWidth={2} />
-                                            </span>
-                                            <div>
-                                                <div className={styles.stageTitle}>{s.title}</div>
-                                                <div className={styles.stageSub}>{s.sub}</div>
-                                            </div>
-                                        </div>
+                                    <div className={styles.stageBody}>
+                                        <span className={styles.stageKicker}>Etapa {String(i + 1).padStart(2, '0')}</span>
+                                        <h3 className={styles.stageTitle}>{s.title}</h3>
+                                        <div className={styles.stageSub}>{s.sub}</div>
                                         <p className={styles.stageText}>{s.text}</p>
                                         <ul className={styles.bullets}>
                                             {s.bullets.map(([b, rest]) => (
                                                 <li key={b} className={styles.bullet}>
-                                                    <Check size={16} strokeWidth={3} className={styles.bulletIcon} />
+                                                    <Check size={15} strokeWidth={3} className={styles.bulletIcon} />
                                                     <span><strong>{b}:</strong> {rest}</span>
                                                 </li>
                                             ))}
@@ -264,6 +365,14 @@ const HowItWorksPage = () => {
                                             {s.tags.map((t) => <span key={t} className={styles.tag}>{t}</span>)}
                                         </div>
                                     </div>
+                                    <figure className={styles.figure}>
+                                        <div className={`${styles.figCanvas} ${styles.grid}`}>
+                                            <s.Fig />
+                                        </div>
+                                        <figcaption className={styles.figCaption}>
+                                            Fig. {String(i + 1).padStart(2, '0')} — {s.figLabel}
+                                        </figcaption>
+                                    </figure>
                                 </Reveal>
                             ))}
                         </div>
@@ -272,7 +381,7 @@ const HowItWorksPage = () => {
                     {/* (02) pipeline técnico */}
                     <section id="pipeline" className={styles.block}>
                         <Reveal>
-                            <span className={styles.secKicker}>El proceso</span>
+                            <span className={styles.secKicker}>02 — El proceso</span>
                             <h2 className={styles.secTitle}>Qué ocurre cuando pulsas «Crear mi plan»</h2>
                             <p className={styles.secLead}>Del formulario a tu lista de compras, en cinco pasos.</p>
                         </Reveal>
@@ -295,7 +404,7 @@ const HowItWorksPage = () => {
                     {/* (03) guardas de calidad */}
                     <section id="guardas" className={styles.block}>
                         <Reveal>
-                            <span className={styles.secKicker}>Control de calidad</span>
+                            <span className={styles.secKicker}>03 — Control de calidad</span>
                             <h2 className={styles.secTitle}>Las guardas que cuidan tu plan</h2>
                             <p className={styles.secLead}>
                                 Antes de entregarte un plan, el motor lo somete a una batería de guardas
@@ -305,8 +414,10 @@ const HowItWorksPage = () => {
                         <Reveal className={`${styles.cards} ${styles.cardsTwo}`}>
                             {GUARDS.map(({ Icon, title, text }) => (
                                 <div key={title} className={styles.card}>
-                                    <div className={styles.cardIcon}><Icon size={22} strokeWidth={2} /></div>
-                                    <div className={styles.cardTitle}>{title}</div>
+                                    <div className={styles.cardHead}>
+                                        <Icon size={19} strokeWidth={2} className={styles.cardIcon} />
+                                        <div className={styles.cardTitle}>{title}</div>
+                                    </div>
                                     <div className={styles.cardText}>{text}</div>
                                 </div>
                             ))}
@@ -316,7 +427,7 @@ const HowItWorksPage = () => {
                     {/* (04) adaptación */}
                     <section id="adaptacion" className={styles.block}>
                         <Reveal>
-                            <span className={styles.secKicker}>Longitudinal</span>
+                            <span className={styles.secKicker}>04 — Longitudinal</span>
                             <h2 className={styles.secTitle}>Se adapta contigo</h2>
                             <p className={styles.secLead}>
                                 Tu metabolismo se adapta: a medida que cambias, tu cuerpo ajusta cuánta energía
@@ -328,8 +439,10 @@ const HowItWorksPage = () => {
                         <Reveal className={`${styles.cards} ${styles.cardsThree}`}>
                             {ADAPT.map(({ Icon, title, text }) => (
                                 <div key={title} className={styles.card}>
-                                    <div className={styles.cardIcon}><Icon size={22} strokeWidth={2} /></div>
-                                    <div className={styles.cardTitle}>{title}</div>
+                                    <div className={styles.cardHead}>
+                                        <Icon size={19} strokeWidth={2} className={styles.cardIcon} />
+                                        <div className={styles.cardTitle}>{title}</div>
+                                    </div>
                                     <div className={styles.cardText}>{text}</div>
                                 </div>
                             ))}
@@ -339,7 +452,7 @@ const HowItWorksPage = () => {
                     {/* (05) FAQ */}
                     <section id="faq" className={styles.block}>
                         <Reveal>
-                            <span className={styles.secKicker}>Dudas</span>
+                            <span className={styles.secKicker}>05 — Dudas</span>
                             <h2 className={styles.secTitle}>Preguntas frecuentes</h2>
                         </Reveal>
                         <Reveal className={styles.faq}>
@@ -384,7 +497,7 @@ const HowItWorksPage = () => {
             {/* ───────────────── cierre: disclaimer + CTA ───────────────── */}
             <div className={styles.closing}>
                 <Reveal className={styles.disclaimer}>
-                    <Info size={22} strokeWidth={2.25} className={styles.disclaimerIcon} />
+                    <Info size={20} strokeWidth={2.25} className={styles.disclaimerIcon} />
                     <div className={styles.disclaimerText}>
                         <strong>¿Quieres más?</strong> Mira <Link to="/funciones">todas las funciones</Link> de la
                         app, la <Link to="/precision">precisión que medimos</Link> o <Link to="/motor">el motor por
