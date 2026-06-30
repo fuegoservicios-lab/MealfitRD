@@ -412,3 +412,188 @@ export const MedicalDisclaimer = () => (
         <p>Si detecta un error específico en un cálculo, una combinación de alimentos potencialmente peligrosa, o cualquier recomendación que considere inadecuada, le pedimos reportarla a <strong>fuego.servicios@gmail.com</strong>. Tomamos en serio cada reporte y los usamos para mejorar la calibración de nuestros sistemas de validación.</p>
     </LegalLayout>
 );
+
+/* ============================================================================
+   POLÍTICA DE PROTECCIÓN DE DATOS (Ley 172-13)
+   ============================================================================ */
+export const DataProtection = () => (
+    <LegalLayout title="Política de Protección de Datos" lastUpdated="30 de Junio, 2026">
+        <p>Esta Política desarrolla los derechos que la legislación de protección de datos le reconoce sobre su información personal y le explica, paso a paso, cómo ejercerlos en MealfitRD. Complementa nuestra <strong>Política de Privacidad</strong> (qué datos tratamos) centrándose en <strong>sus derechos como titular</strong> de esos datos.</p>
+
+        <h3>1. Marco Legal Aplicable</h3>
+        <p>MealfitRD opera desde República Dominicana y trata sus datos conforme a la <strong>Ley No. 172-13 sobre Protección Integral de los Datos Personales</strong>, así como, en lo pertinente, la Ley No. 358-05 de Protección al Consumidor y la Ley No. 126-02 sobre Comercio Electrónico, Documentos y Firmas Digitales.</p>
+        <p>A medida que ampliemos el servicio a otros países de Latinoamérica, respetaremos adicionalmente la normativa local de protección de datos que resulte aplicable a los residentes de cada jurisdicción (por ejemplo, la LFPDPPP en México, la Ley 1581 en Colombia, la LGPD en Brasil o la Ley 25.326 en Argentina), reconociéndole en cada caso los derechos equivalentes a los descritos aquí.</p>
+
+        <h3>2. Responsable del Tratamiento</h3>
+        <p>El responsable es <strong>MealfitRD</strong>, plataforma operada desde República Dominicana. Punto de contacto para cualquier asunto de datos personales: <strong>fuego.servicios@gmail.com</strong>.</p>
+
+        <h3>3. Sus Derechos como Titular</h3>
+        <p>Usted, como titular de los datos, tiene en todo momento derecho a:</p>
+        <ul>
+            <li><strong>Acceso:</strong> conocer qué datos personales tenemos sobre usted, su origen y las finalidades de su tratamiento.</li>
+            <li><strong>Rectificación:</strong> corregir datos inexactos, incompletos o desactualizados.</li>
+            <li><strong>Cancelación / Supresión:</strong> solicitar la eliminación de sus datos cuando ya no sean necesarios, retire su consentimiento o considere que se tratan indebidamente.</li>
+            <li><strong>Oposición:</strong> oponerse al tratamiento de sus datos para finalidades distintas a la ejecución del contrato (por ejemplo, mejora del producto o investigación).</li>
+            <li><strong>Revocación del consentimiento:</strong> retirar, sin efecto retroactivo, cualquier consentimiento que nos haya otorgado.</li>
+            <li><strong>Portabilidad:</strong> obtener una copia de sus datos en un formato estructurado y legible por máquina (JSON).</li>
+            <li><strong>No quedar sujeto a decisiones únicamente automatizadas:</strong> los planes los genera un sistema automatizado, pero son una herramienta de apoyo que usted revisa y decide seguir o no; puede solicitar intervención humana escribiéndonos.</li>
+        </ul>
+
+        <h3>4. Cómo Ejercer sus Derechos</h3>
+        <p>Ofrecemos vías directas, gratuitas y sin formalismos excesivos:</p>
+        <ul>
+            <li><strong>Acceso y rectificación inmediatos:</strong> edite su perfil, peso, objetivos, condiciones y preferencias directamente desde <strong>Ajustes</strong> en la aplicación.</li>
+            <li><strong>Eliminación autoservicio:</strong> puede borrar su cuenta y todos los datos asociados desde la propia app; la eliminación dispara un borrado en cascada sobre todas las tablas vinculadas a su identificador.</li>
+            <li><strong>Solicitudes por correo:</strong> para acceso detallado, portabilidad (exportación JSON), oposición o cualquier otro derecho, escriba a <strong>fuego.servicios@gmail.com</strong> desde el correo asociado a su cuenta. Respondemos en un plazo máximo de <strong>treinta (30) días</strong>.</li>
+        </ul>
+        <p>No le cobramos por ejercer estos derechos. Podremos pedirle verificar su identidad para proteger su cuenta frente a solicitudes fraudulentas.</p>
+
+        <h3>5. Datos Sensibles de Salud</h3>
+        <p>Su perfil incluye datos de salud (peso, condiciones declaradas como diabetes o enfermedad renal, alergias) que la Ley 172-13 considera <strong>datos sensibles</strong>. Los tratamos <strong>exclusivamente</strong> para generar y ajustar su plan nutricional, con la finalidad limitada que usted consiente al completar el formulario, y nunca para publicidad. No los compartimos con terceros salvo el proveedor de inferencia estrictamente necesario para producir su plan (ver Política de Privacidad y Política de Uso de IA).</p>
+
+        <h3>6. Transferencias Internacionales</h3>
+        <p>Para generar su plan, parte de su perfil se procesa en servidores de nuestro proveedor de inteligencia artificial (DeepSeek), que pueden ubicarse fuera de República Dominicana, incluida la República Popular China. Esto constituye una transferencia internacional de datos. Nunca enviamos su nombre completo, correo ni datos de pago. El detalle está en la <strong>Política de Uso de Inteligencia Artificial</strong>.</p>
+
+        <h3>7. Medidas de Seguridad</h3>
+        <p>Aplicamos cifrado en tránsito (TLS) y en reposo, aislamiento estricto por identificador de usuario en cada consulta a la base de datos (con tests automatizados que enforzan que ninguna consulta acceda a datos de otro usuario), autenticación con tokens firmados criptográficamente, y verificación de contraseñas filtradas (HaveIBeenPwned) al registrarse. El detalle técnico está en la Política de Privacidad.</p>
+
+        <h3>8. Reclamaciones</h3>
+        <p>Si considera que el tratamiento de sus datos no se ajusta a la normativa, le pedimos contactarnos primero a <strong>fuego.servicios@gmail.com</strong> para resolverlo. Sin perjuicio de ello, usted conserva el derecho de presentar una reclamación ante la autoridad de control competente en materia de protección de datos de su jurisdicción.</p>
+
+        <h3>9. Cambios en esta Política</h3>
+        <p>Publicaremos cualquier actualización en esta página con su nueva fecha de "Última actualización". Si los cambios son materiales, se lo notificaremos por correo electrónico.</p>
+    </LegalLayout>
+);
+
+/* ============================================================================
+   POLÍTICA DE USO DE INTELIGENCIA ARTIFICIAL
+   ============================================================================ */
+export const AIUse = () => (
+    <LegalLayout title="Política de Uso de Inteligencia Artificial" lastUpdated="30 de Junio, 2026">
+        <p>MealfitRD usa inteligencia artificial de forma central en su producto. Creemos que debe saber, con transparencia, dónde interviene la IA, qué datos suyos utiliza, cuáles son sus límites y qué control conserva usted sobre las decisiones. Esta política lo explica.</p>
+
+        <h3>1. Dónde Usamos IA</h3>
+        <ul>
+            <li><strong>Generación de tu plan:</strong> un sistema de orquestación coordina varios pasos —generación, cálculo determinista de macronutrientes, validación y guardas clínicas— para producir tu plan diario, recetas y lista de compras.</li>
+            <li><strong>Coach conversacional:</strong> el asistente responde preguntas, cambia comidas, regenera días y registra tu consumo, recalculando con el motor determinista.</li>
+            <li><strong>Análisis de fotos de comida:</strong> cuando esta función esté disponible, podrás subir una foto para estimar sus macros; revisas y confirmas antes de guardar.</li>
+        </ul>
+
+        <h3>2. Qué Modelo Usamos y Qué Datos Viajan</h3>
+        <p>Como modelo generativo base utilizamos la familia <strong>DeepSeek V4</strong> (<code>deepseek-v4-flash</code> en el plan gratuito; <code>deepseek-v4-pro</code> en los planes de pago), operada por DeepSeek. Para producir tu plan enviamos al proveedor únicamente lo necesario:</p>
+        <ul>
+            <li>Tu perfil de salud (peso, estatura, edad, género, nivel de actividad, condiciones y restricciones declaradas).</li>
+            <li>Tus preferencias y los alimentos que te gustan o no.</li>
+            <li>El historial reciente de tu conversación con el asistente.</li>
+            <li>Las fotos de comida que decidas compartir (cuando el análisis visual esté habilitado).</li>
+        </ul>
+        <p><strong>NUNCA</strong> enviamos al proveedor tu nombre completo, tu correo electrónico ni tus datos de pago. DeepSeek trata estos datos bajo sus propios términos y sus servidores pueden estar fuera de República Dominicana (ver «Transferencias Internacionales» en la Política de Protección de Datos).</p>
+
+        <h3>3. No Entrenamos Modelos con tus Datos</h3>
+        <p>No usamos tus datos personales para entrenar modelos de IA propios ni de terceros, ni los vendemos. La «memoria a largo plazo» del coach se basa en información privada de TU cuenta y no se cruza ni se agrega con la de otros usuarios.</p>
+
+        <h3>4. Límites de la IA</h3>
+        <p>La IA es potente pero no infalible. Debes conocer sus límites:</p>
+        <ul>
+            <li>Los modelos generativos pueden, en raras ocasiones, producir datos incorrectos o «alucinar». Para mitigarlo, sobre la generación corre un <strong>motor determinista</strong> que calcula y cuadra los macronutrientes (no los estima a ojo) y valida la coherencia entre recetas y lista de compras — pero ningún sistema elimina el riesgo al 100%.</li>
+            <li>La calidad de las recomendaciones depende de la veracidad de los datos que nos proporcionas.</li>
+            <li>La IA no realiza diagnóstico médico ni reemplaza a un profesional de la salud.</li>
+        </ul>
+
+        <h3>5. Supervisión Humana y Decisiones Automatizadas</h3>
+        <p>El plan se genera de forma automatizada, pero es una <strong>herramienta de apoyo</strong>: tú decides si lo sigues, lo ajustas o lo descartas, y revisas las estimaciones (por ejemplo, al escanear una comida) antes de guardarlas. Conforme a la Ley 172-13, tienes derecho a no quedar sujeto a decisiones basadas únicamente en tratamiento automatizado que produzcan efectos significativos: puedes solicitar intervención humana o aclaraciones escribiéndonos a <strong>fuego.servicios@gmail.com</strong>.</p>
+
+        <h3>6. No Es Consejo Médico</h3>
+        <p>Las recomendaciones generadas por IA son informativas y educativas, <strong>no constituyen consejo médico</strong> ni establecen una relación médico-paciente. Si tienes una condición de salud, consulta a un profesional. Lee el <strong>Aviso Médico</strong> para el detalle completo.</p>
+
+        <h3>7. Mejora Continua</h3>
+        <p>Trabajamos constantemente en mejorar la precisión y seguridad de nuestros sistemas. El uso de datos para mejorar el producto y para investigación se rige por la <strong>Política de Investigación</strong>, con las salvaguardas allí descritas.</p>
+
+        <h3>8. Contacto</h3>
+        <p>¿Dudas sobre cómo usamos la IA? Escríbenos a <strong>fuego.servicios@gmail.com</strong>.</p>
+    </LegalLayout>
+);
+
+/* ============================================================================
+   POLÍTICA DE INVESTIGACIÓN
+   ============================================================================ */
+export const Research = () => (
+    <LegalLayout title="Política de Investigación" lastUpdated="30 de Junio, 2026">
+        <p>Para que MealfitRD sea cada vez más preciso y útil, analizamos cómo funciona el sistema sobre el uso real. Esta Política explica qué entendemos por «investigación», qué datos usamos para ello, cómo los protegemos, y —sobre todo— qué control conservas tú. Nuestro principio es claro: <strong>mejorar el producto sin comprometer tu privacidad ni tus datos sensibles de salud.</strong></p>
+
+        <h3>1. Qué Entendemos por Investigación</h3>
+        <p>Bajo «investigación» incluimos:</p>
+        <ul>
+            <li><strong>Mejora del motor:</strong> medir la precisión de los planes (qué tan cerca quedan de los objetivos de macronutrientes), la tasa de éxito de la generación y los errores, para corregir y calibrar nuestros sistemas.</li>
+            <li><strong>Investigación nutricional agregada:</strong> entender patrones generales (por ejemplo, qué tan bien se cubren ciertos micronutrientes en una población de planes) para mejorar nuestras reglas y catálogos.</li>
+            <li><strong>Calidad y seguridad:</strong> detectar combinaciones problemáticas, sesgos o fallos para hacer el servicio más seguro.</li>
+        </ul>
+
+        <h3>2. Qué Datos Usamos y Cómo los Protegemos</h3>
+        <p>Para investigación trabajamos preferentemente con datos <strong>agregados, anonimizados o seudonimizados</strong> — es decir, métricas y estadísticas que no te identifican (por ejemplo, «el X% de los planes quedó dentro de la banda de proteína»). Aplicamos minimización de datos: usamos lo mínimo necesario para la finalidad de mejora.</p>
+
+        <h3>3. Datos Sensibles de Salud — Exención y Consentimiento</h3>
+        <p>Tu perfil de salud (condiciones, alergias, peso) es <strong>dato sensible</strong> bajo la Ley 172-13. Por defecto, <strong>NO usamos tus datos sensibles de salud de forma identificable para investigación sin tu consentimiento expreso</strong>. Cualquier uso para mejora del producto se hace sobre datos disociados de tu identidad. Si en el futuro propusiéramos un estudio que requiera datos identificables, te lo pediríamos de forma separada, específica e informada, y podrías negarte sin afectar tu servicio.</p>
+
+        <h3>4. Lo que NO Hacemos</h3>
+        <ul>
+            <li>No vendemos tus datos ni los cedemos a terceros con fines comerciales o publicitarios.</li>
+            <li>No usamos tus datos para entrenar modelos de IA propios ni de terceros.</li>
+            <li>No publicamos información que permita identificarte. Cualquier hallazgo que difundamos será agregado y anónimo.</li>
+        </ul>
+
+        <h3>5. La Memoria del Coach es Tuya</h3>
+        <p>La «memoria a largo plazo» del asistente (lo que recuerda de tus gustos y progreso) es una función de <strong>personalización privada de TU cuenta</strong>, no un mecanismo de investigación entre usuarios. No se cruza ni se agrega con datos de otras personas.</p>
+
+        <h3>6. Tu Control (Oposición y Opt-out)</h3>
+        <p>Puedes oponerte a que tus datos —incluso de forma anonimizada— se usen para mejora del producto e investigación, escribiéndonos a <strong>fuego.servicios@gmail.com</strong>. Oponerte no afecta tu capacidad de usar el servicio. También puedes ejercer el resto de tus derechos según la <strong>Política de Protección de Datos</strong>.</p>
+
+        <h3>7. Base Legal</h3>
+        <p>El tratamiento para mejora del producto se ampara en nuestro interés legítimo de ofrecer un servicio preciso y seguro, ponderado con tus derechos y limitado a datos no sensibles o disociados. Para cualquier investigación con datos sensibles identificables, la base será tu <strong>consentimiento expreso</strong>.</p>
+
+        <h3>8. Cambios y Contacto</h3>
+        <p>Publicaremos cualquier actualización en esta página con su nueva fecha. Para preguntas sobre cómo investigamos y mejoramos, escríbenos a <strong>fuego.servicios@gmail.com</strong>.</p>
+    </LegalLayout>
+);
+
+/* ============================================================================
+   POLÍTICA DE REEMBOLSOS Y CANCELACIONES
+   ============================================================================ */
+export const Refunds = () => (
+    <LegalLayout title="Política de Reembolsos y Cancelaciones" lastUpdated="30 de Junio, 2026">
+        <p>Esta Política detalla cómo funcionan las cancelaciones y los reembolsos de tu suscripción a MealfitRD. Queremos que sea clara y justa, conforme a la Ley No. 358-05 de Protección al Consumidor de República Dominicana.</p>
+
+        <h3>1. Plan Gratis</h3>
+        <p>El Plan Gratis no tiene costo ni requiere tarjeta. Puedes dejar de usarlo cuando quieras, sin cargos ni compromisos.</p>
+
+        <h3>2. Cómo Cancelar tu Suscripción</h3>
+        <p>Puedes cancelar en cualquier momento desde <strong>Ajustes</strong> en la app o directamente desde tu cuenta de <strong>PayPal</strong>. La cancelación:</p>
+        <ul>
+            <li>Detiene las futuras renovaciones automáticas.</li>
+            <li>Surte efecto <strong>al final del período ya facturado</strong> (mensual o anual): conservas el acceso de pago hasta esa fecha.</li>
+            <li>No genera prorrateo ni devolución por los días no usados del período en curso (salvo lo previsto en la ventana de reembolso del punto 3).</li>
+        </ul>
+
+        <h3>3. Ventana de Reembolso</h3>
+        <p>Ofrecemos <strong>siete (7) días desde tu primera compra</strong> para solicitar un reembolso completo si el servicio no cumple tus expectativas. Importante:</p>
+        <ul>
+            <li>La ventana aplica únicamente a la <strong>primera compra inicial</strong> de un plan de pago.</li>
+            <li>Las <strong>renovaciones automáticas</strong> (períodos posteriores) <strong>no califican</strong> para reembolso — por eso te recomendamos cancelar antes de la fecha de renovación si no deseas continuar.</li>
+        </ul>
+
+        <h3>4. Cómo Solicitar un Reembolso</h3>
+        <p>Escribe a <strong>fuego.servicios@gmail.com</strong> desde el correo asociado a tu cuenta, indicando el plan contratado y la fecha de compra. Procesamos las solicitudes válidas a la brevedad; el reembolso se acredita por la misma vía de pago (PayPal).</p>
+
+        <h3>5. Renovación Automática</h3>
+        <p>Las suscripciones se renuevan automáticamente al final de cada período hasta que las canceles. Te recomendamos revisar tu fecha de renovación en Ajustes o en PayPal. Si modificamos los precios, te avisaremos con al menos <strong>treinta (30) días</strong> de anticipación antes de que el nuevo precio aplique a tu renovación.</p>
+
+        <h3>6. Pagos por PayPal</h3>
+        <p>Todos los pagos se procesan a través de PayPal. MealfitRD no almacena tu número de tarjeta ni datos financieros. Validamos del lado del servidor que el plan reportado por PayPal coincida con el que seleccionaste.</p>
+
+        <h3>7. Disputas</h3>
+        <p>Si tienes un problema con un cobro, contáctanos primero a <strong>fuego.servicios@gmail.com</strong> — la mayoría se resuelve rápido. Conservas tus derechos como consumidor bajo la Ley 358-05 y la posibilidad de acudir a las instancias de protección al consumidor que correspondan.</p>
+
+        <h3>8. Contacto</h3>
+        <p>Para cualquier asunto de facturación, cancelaciones o reembolsos: <strong>fuego.servicios@gmail.com</strong>. Respondemos en menos de 24 horas.</p>
+    </LegalLayout>
+);

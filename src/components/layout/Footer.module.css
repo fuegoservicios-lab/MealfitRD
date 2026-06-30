@@ -27,8 +27,8 @@
     position: relative;
     z-index: 1;
     display: grid;
-    grid-template-columns: 1.5fr 1fr 1fr;
-    gap: 4rem;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+    gap: 2.5rem;
     padding: 0 1.5rem;
     max-width: 1280px;
     margin: 0 auto;
@@ -192,6 +192,15 @@
     color: var(--text-light);
     font-size: 0.875rem;
     font-weight: 500;
+}
+
+/* [P3-LEGAL-EXPANSION · 2026-06-30] 4 columnas (marca + 2 legales + soporte) →
+   2×2 en tablet, 1 columna en móvil. */
+@media (max-width: 1024px) {
+    .container {
+        grid-template-columns: 1fr 1fr;
+        gap: 2.5rem 3rem;
+    }
 }
 
 @media (max-width: 768px) {

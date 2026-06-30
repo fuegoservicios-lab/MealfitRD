@@ -67,6 +67,11 @@ const Privacy = lazy(() => import('./pages/legal/LegalPages').then(m => ({ defau
 const Terms = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Terms })));
 const Cookies = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Cookies })));
 const MedicalDisclaimer = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.MedicalDisclaimer })));
+// [P3-LEGAL-EXPANSION · 2026-06-30] Políticas nuevas para compliance RD (+LatAm próximamente).
+const DataProtection = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.DataProtection })));
+const AIUse = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.AIUse })));
+const Research = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Research })));
+const Refunds = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Refunds })));
 // [P3-ENGINE-INFO-PAGE · 2026-06-28] Página pública informativa del motor v1.0.0.
 const Engine = lazy(() => import('./pages/Engine'));
 // [P3-PRICING-SEPARATE-PAGE · 2026-06-29] Página de precios (wrapper que reusa el
@@ -371,6 +376,11 @@ function App() {
             <Route path="/terms" element={<Layout><Terms /></Layout>} />
             <Route path="/cookies" element={<Layout><Cookies /></Layout>} />
             <Route path="/medical" element={<Layout><MedicalDisclaimer /></Layout>} />
+            {/* [P3-LEGAL-EXPANSION · 2026-06-30] Políticas nuevas (compliance RD + LatAm). */}
+            <Route path="/data-protection" element={<Layout><DataProtection /></Layout>} />
+            <Route path="/ai-policy" element={<Layout><AIUse /></Layout>} />
+            <Route path="/research" element={<Layout><Research /></Layout>} />
+            <Route path="/refunds" element={<Layout><Refunds /></Layout>} />
 
             {/* [P3-ENGINE-INFO-PAGE · 2026-06-28] Motor v1.0.0 (pública, indexable, en el apex). */}
             <Route path="/motor" element={<Layout><Engine /></Layout>} />

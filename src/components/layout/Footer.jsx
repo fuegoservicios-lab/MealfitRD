@@ -7,7 +7,7 @@ import styles from './Footer.module.css';
 // que "Volver" regrese de Términos→Privacidad→Términos...). Mejor preservar
 // el `state.from` heredado de cuando el user entró por primera vez a las
 // legales — su origen real (landing, dashboard, etc).
-const LEGAL_PATHS = ['/privacy', '/terms', '/cookies', '/medical'];
+const LEGAL_PATHS = ['/privacy', '/terms', '/cookies', '/medical', '/data-protection', '/ai-policy', '/research', '/refunds'];
 
 const Footer = () => {
     const location = useLocation();
@@ -62,16 +62,24 @@ const Footer = () => {
 
 
 
+                {/* [P3-LEGAL-EXPANSION · 2026-06-30] Dos columnas legales: "Términos y
+                    servicios" (uso/pago/IA/médico) y "Privacidad y datos" (privacidad/datos/
+                    cookies/investigación). `state.from` preserva el origen real para el
+                    back-link inteligente de LegalLayout (ver P3-LEGAL-BACK-LINK). */}
                 <div className={styles.col}>
-                    <h4>Legal</h4>
-                    {/* [P3-LEGAL-BACK-LINK · 2026-05-26 · 4ª iter] Pasamos
-                        `state.from` con el path origen (landing, dashboard,
-                        etc.) para que el back-link en LegalLayout sepa a
-                        dónde volver con precisión. */}
-                    <Link to="/privacy" state={{ from: fromPath }}>Política de Privacidad</Link>
+                    <h4>Términos y servicios</h4>
                     <Link to="/terms" state={{ from: fromPath }}>Términos de Servicio</Link>
-                    <Link to="/cookies" state={{ from: fromPath }}>Política de Cookies</Link>
+                    <Link to="/refunds" state={{ from: fromPath }}>Reembolsos y Cancelaciones</Link>
+                    <Link to="/ai-policy" state={{ from: fromPath }}>Uso de Inteligencia Artificial</Link>
                     <Link to="/medical" state={{ from: fromPath }}>Aviso Médico</Link>
+                </div>
+
+                <div className={styles.col}>
+                    <h4>Privacidad y datos</h4>
+                    <Link to="/privacy" state={{ from: fromPath }}>Política de Privacidad</Link>
+                    <Link to="/data-protection" state={{ from: fromPath }}>Protección de Datos</Link>
+                    <Link to="/cookies" state={{ from: fromPath }}>Política de Cookies</Link>
+                    <Link to="/research" state={{ from: fromPath }}>Política de Investigación</Link>
                 </div>
 
                 {/* [P3-FOOTER-SUPPORT · 2026-05-31] Contacto directo de soporte
