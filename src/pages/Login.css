@@ -547,14 +547,15 @@
 }
 .mf-summary__val small { font-size: 0.7rem; font-weight: 500; color: var(--mf-text-dim); }
 .mf-delta { font-size: 0.74rem; font-weight: 800; color: var(--mf-secondary); background: rgba(52, 211, 153, 0.16); padding: 0.2rem 0.45rem; border-radius: 6px; flex-shrink: 0; }
-.mf-meals--adjust { margin-top: 0; gap: 0.5rem; }
+.mf-meals--adjust { margin-top: 0; gap: 0.4rem; }
 .mf-meal.is-target { padding: 0.55rem; margin: -0.55rem; border-radius: 0.8rem; background: rgba(129, 140, 248, 0.08); border: 1px solid rgba(129, 140, 248, 0.22); }
 .mf-swap { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(129, 140, 248, 0.16); color: var(--mf-primary); flex-shrink: 0; }
 /* toast flotante compacto (pastilla centrada con sombra, no una barra a todo el ancho) */
 .mf-toast {
-  /* margin-top:auto lo empuja hacia abajo (más aire arriba, no choca con la Cena) y el
-     margen inferior lo mantiene dentro de la tarjeta. Robusto: nunca se desborda. */
-  margin: auto auto 0.4rem;
+  /* margin-top:auto manda TODO el espacio libre arriba del toast (aire vs la Cena); el
+     toast se apoya en el padding inferior de la tarjeta (queda dentro). Robusto: nunca
+     se desborda porque auto se reduce a 0 si el contenido crece. */
+  margin: auto auto 0;
   align-self: center;
   display: inline-flex; align-items: center; gap: 0.5rem;
   padding: 0.7rem 1.4rem; border-radius: 99px;
