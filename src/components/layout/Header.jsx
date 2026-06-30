@@ -47,17 +47,20 @@ const Header = () => {
     
     // Ocultar elementos del panel cuando estamos explícitamente en modo de carga (ruta /plan)
     const isPlanLoading = location.pathname.startsWith('/plan');
-    const isLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
-    // [P3-PRICING-HEADER-PARITY · 2026-06-29 · ext P3-DETAIL-PAGES 2026-06-29] Todas las
-    // páginas de marketing (landing + precios + las 3 de detalle + motor) deben tener el
-    // header IDÉNTICO al del landing (nav segmentada + CTA sticky), no la versión recortada
-    // que mostraba solo "Empezar Ahora". isMarketingRoute (SSOT en utils) las agrupa.
-    const isLandingLike = isMarketingRoute(location.pathname);
+    const isLegalPage = ['/privacy', '/terms', '/cookies', '/medical'].includes(location.pathname);
+    // [P3-PRICING-HEADER-PARITY · 2026-06-29 · ext P3-DETAIL-PAGES 2026-06-29 · ext
+    // P3-LEGAL-HEADER-PARITY 2026-06-30] Todas las páginas de marketing (landing + precios
+    // + las 3 de detalle + motor) Y las páginas legales (privacy/terms/cookies/medical)
+    // deben tener el header IDÉNTICO al del landing (nav segmentada + CTA sticky), no la
+    // versión recortada. isMarketingRoute (SSOT) agrupa las de marketing; las legales se
+    // suman vía isLegalPage. (El tema NO se toca aquí — las legales respetan su propio
+    // light/dark, a diferencia de las de marketing que sí fuerzan oscuro.)
+    const isLandingLike = isMarketingRoute(location.pathname) || isLegalPage;
 
     // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El CTA del header SIEMPRE visible en
     // landing/marketing (decisión del owner). Ya no se gatea por scroll, así que Header
     // dejó de consumir heroCtaVisible.
-    const showStickyCta = isLandingLike && !hideStartNow && !isLegalPage;
+    const showStickyCta = isLandingLike && !hideStartNow;
 
     // [ACCOUNT-MENU · 2026-06-01] Identidad para el avatar (inicial) + la cabecera
     // del menú (nombre + correo). Fallbacks: nombre del perfil → parte local del
@@ -299,16 +302,14 @@ const Header = () => {
                         ))}
 
                         {planData && !isPlanLoading ? (
-                            !isLegalPage && (
-                                <Link
-                                    to="/dashboard"
-                                    className={styles.ctaButtonMobile}
-                                    onClick={() => setIsMenuOpen(false)}
-                                >
-                                    <LayoutDashboard size={18} /> Ver mi Plan
-                                </Link>
-                            )
-                        ) : !hideStartNow && !isLegalPage && (
+                            <Link
+                                to="/dashboard"
+                                className={styles.ctaButtonMobile}
+                                onClick={() => setIsMenuOpen(false)}
+                            >
+                                <LayoutDashboard size={18} /> Ver mi Plan
+                            </Link>
+                        ) : !hideStartNow && (
                             <Link
                                 to="/assessment"
                                 className={styles.ctaButtonMobile}
