@@ -48,7 +48,7 @@
 }
 
 .desc {
-    color: var(--text-light);
+    color: rgba(255, 255, 255, 0.46);
     max-width: 300px;
     line-height: 1.6;
 }
@@ -69,6 +69,15 @@
     transition: all 0.2s;
     font-size: 0.95rem;
     font-weight: 500;
+}
+
+/* [P3-FOOTER-TEXT-HIERARCHY · 2026-06-30] Los enlaces (políticas) van MÁS brillantes que
+   la prosa descriptiva (.desc / .supportIntro), para que no se confundan entre sí. Antes
+   ambos compartían var(--text-light) → la descripción parecía clicable. White-alpha porque
+   el footer es oscuro en ambos temas; :not() excluye los íconos sociales y el correo, que
+   conservan su propio color. (Va ANTES del :hover para no pisar el color de hover.) */
+.col a:not(.socialIcon):not(.supportLink) {
+    color: rgba(255, 255, 255, 0.78);
 }
 
 /* [APPEARANCE-THEME · 2026-05-29] `:not(.socialIcon)` excluye los iconos
@@ -131,7 +140,7 @@
 /* [P3-FOOTER-SUPPORT · 2026-05-31] Columna Soporte — presentación pulida:
    intro + correo con badge de icono + nota de tiempo de respuesta. */
 .supportIntro {
-    color: var(--text-light);
+    color: rgba(255, 255, 255, 0.46);
     font-size: 0.9rem;
     line-height: 1.5;
     margin: 0 0 1.1rem;
