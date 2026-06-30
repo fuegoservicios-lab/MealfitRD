@@ -352,7 +352,6 @@ export default function PlanShowcase() {
                             ))}
                         </div>
                         <div className="mf-democard__titlerow">
-                            <span className="mf-democard__brand">Mealfit<b className="mf-r">R</b><b className="mf-d">D</b></span>
                             <AnimatePresence mode="wait">
                                 <motion.span className="mf-democard__label" key={scene.key}
                                     initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
