@@ -1,0 +1,168 @@
+/* [P3-PRECISION-PAGE-SCIENTIFIC · 2026-06-30] Estilos específicos de /precision que
+   complementan el módulo científico compartido (HowItWorksPage.module.css): tabla
+   comparativa minimalista pulida (Mealfit vs LLM solo) con micro-barras + desglose por
+   macro con barras. Una sola gama (indigo + neutros). Theme-aware vía tokens. */
+
+/* ───────────────── tabla comparativa (benchmark) ───────────────── */
+.cmpWrap {
+    margin-top: 2rem;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+}
+.cmpTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+.cmpTable th,
+.cmpTable td {
+    padding: 1rem 1.15rem;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border);
+}
+.cmpTable tbody tr:last-child td {
+    border-bottom: none;
+}
+.headCell {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-light);
+}
+/* columna Mealfit resaltada con un tinte muy sutil */
+.colHi {
+    background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+.headHi {
+    color: var(--primary);
+}
+.metric {
+    color: var(--text-main);
+    font-weight: 650;
+    font-size: 0.95rem;
+    line-height: 1.3;
+}
+.metricSub {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 400;
+    margin-top: 0.18rem;
+}
+
+/* celda numérica: valor + micro-barra */
+.numCell {
+    min-width: 120px;
+}
+.numVal {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 1.06rem;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+}
+.numHi {
+    color: var(--primary);
+}
+.numLo {
+    color: var(--text-muted);
+}
+.bar {
+    margin-top: 0.45rem;
+    height: 5px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-main) 8%, transparent);
+    overflow: hidden;
+}
+.barFill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+}
+.barHi {
+    background: var(--primary);
+}
+.barLo {
+    background: color-mix(in srgb, var(--text-muted) 55%, transparent);
+}
+
+/* celda de capacidad (check / x / parcial) */
+.capCell {
+    line-height: 0;
+}
+.capCheck {
+    color: var(--primary);
+}
+.capNo,
+.capPartial {
+    color: var(--text-muted);
+}
+
+/* ───────────────── desglose por macro (barras) ───────────────── */
+.macros {
+    margin-top: 2rem;
+    display: grid;
+    gap: 1.15rem;
+    max-width: 640px;
+}
+.macroRow {
+    display: grid;
+    grid-template-columns: 118px 1fr auto;
+    gap: 1rem;
+    align-items: center;
+}
+.macroLabel {
+    font-size: 0.92rem;
+    color: var(--text-main);
+    font-weight: 600;
+}
+.macroTrack {
+    height: 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-main) 8%, transparent);
+    overflow: hidden;
+}
+.macroFill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--primary);
+}
+.macroMeta {
+    text-align: right;
+    white-space: nowrap;
+}
+.macroPct {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+}
+.macroErr {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    margin-left: 0.45rem;
+}
+
+@media (max-width: 600px) {
+    .cmpTable th,
+    .cmpTable td {
+        padding: 0.8rem 0.75rem;
+    }
+    .numCell {
+        min-width: 78px;
+    }
+    .macroRow {
+        grid-template-columns: 86px 1fr auto;
+        gap: 0.7rem;
+    }
+    .macroErr {
+        display: block;
+        margin-left: 0;
+        margin-top: 0.1rem;
+    }
+}

@@ -24,7 +24,7 @@ const MACROS = [
 const VERSUS = [
     { label: 'Precisión de proteína', mealfit: 98.5, llm: 84 },
     { label: 'Planes con los 4 macros en banda', mealfit: 91.7, llm: 24 },
-    { label: 'Cálculo determinista', mealfit: 100, llm: 55 },
+    { label: 'Macros que cuadran al recalcular', mealfit: 100, llm: 55 },
 ];
 
 // Capacidades (✓ / ✗ / parcial) — sin asignar precisión que no medimos.
@@ -36,7 +36,7 @@ const CAPS = [
 
 const HIGHLIGHTS = [
     { icon: Cpu, value: '100%', label: 'planes con macros calculados, no a ojo' },
-    { icon: Target, value: '±3.2%', label: 'error máximo en cualquier macro' },
+    { icon: Target, value: '±3.2%', label: 'error medio en el peor macro' },
     { icon: Layers, value: '4', label: 'macros calibrados a la vez en cada comida' },
 ];
 
