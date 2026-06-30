@@ -502,12 +502,13 @@
 }
 .mf-chip.is-on { color: #fff; background: linear-gradient(158deg, var(--mf-primary), var(--mf-primary-dark)); border-color: transparent; }
 
-/* datos del perfil */
-.mf-facts { display: flex; flex-direction: column; gap: 0.5rem; }
-.mf-fact { display: flex; justify-content: space-between; font-size: 0.88rem; padding: 0.6rem 0.85rem; border-radius: 0.6rem; background: rgba(255, 255, 255, 0.025); border: 1px solid var(--mf-border); }
-.mf-fact__k { color: var(--mf-text-dim); }
-.mf-fact__v { color: var(--mf-text); font-weight: 600; }
-.mf-demo-cta { margin-top: auto; }
+/* datos del perfil como pills compactas (en vez de filas que no caben) */
+.mf-perfil-label { font-size: 0.74rem; color: var(--mf-text-faint); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.6rem; }
+.mf-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.mf-pill { font-size: 0.82rem; color: var(--mf-text-dim); background: rgba(255, 255, 255, 0.03); border: 1px solid var(--mf-border); padding: 0.42rem 0.8rem; border-radius: 99px; white-space: nowrap; }
+.mf-demo-cta { margin-top: 1.6rem; }
+/* escena con contenido escaso → centrada vertical para que no quede pegada arriba */
+.mf-scene--center { justify-content: center; padding-top: 0; }
 
 /* checklist (estilo "la IA trabaja") */
 .mf-checklist { gap: 0.9rem; justify-content: center; }

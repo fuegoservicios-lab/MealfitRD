@@ -8,11 +8,7 @@ import { Check, Loader2, Dumbbell, RefreshCw } from 'lucide-react';
    vía AnimatePresence). Orquestado con framer-motion. Respeta prefers-reduced-motion. */
 
 const GOALS = ['Ganar músculo', 'Perder grasa', 'Mantenimiento'];
-const FACTS = [
-    { k: 'Peso', v: '78 kg' },
-    { k: 'Entreno', v: '5 días/sem' },
-    { k: 'Presupuesto', v: 'Medio' },
-];
+const PERFIL = ['78 kg', '5 días/sem', 'Presupuesto medio'];
 const STEPS = [
     'Analizando tu perfil clínico',
     'Calculando macronutrientes',
@@ -66,7 +62,7 @@ function SceneObjetivo() {
         return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
     }, []);
     return (
-        <motion.div className="mf-scene" {...fade}>
+        <motion.div className="mf-scene mf-scene--center" {...fade}>
             <div className="mf-q">¿Cuál es tu objetivo?</div>
             <div className="mf-chips">
                 {GOALS.map((g, i) => (
@@ -75,12 +71,10 @@ function SceneObjetivo() {
                     </div>
                 ))}
             </div>
-            <div className="mf-facts">
-                {FACTS.map((f) => (
-                    <div className="mf-fact" key={f.k}>
-                        <span className="mf-fact__k">{f.k}</span>
-                        <span className="mf-fact__v">{f.v}</span>
-                    </div>
+            <div className="mf-perfil-label">Tu perfil</div>
+            <div className="mf-pills">
+                {PERFIL.map((t) => (
+                    <span className="mf-pill" key={t}>{t}</span>
                 ))}
             </div>
             <motion.button type="button" className="mf-btn mf-btn--primary mf-demo-cta" tabIndex={-1} aria-hidden="true"
