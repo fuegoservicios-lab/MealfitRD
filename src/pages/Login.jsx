@@ -28,6 +28,37 @@ function GoogleIcon() {
     );
 }
 
+/* ---- Ilustración hero (solo móvil) — bol con brote + constelación de macros en la
+   paleta MealfitRD. Estilo line-art tipo el login de Claude, pero temática nutrición. ---- */
+function HeroIllustration() {
+    return (
+        <svg viewBox="0 0 260 196" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            {/* constelación: líneas finas que conectan los nodos */}
+            <g stroke="var(--mf-text-faint)" strokeWidth="1.4" strokeLinecap="round" opacity="0.55">
+                <path d="M132 150 L70 72" />
+                <path d="M132 150 L198 64" />
+                <path d="M70 72 L198 64" />
+                <path d="M198 64 L218 122" />
+                <path d="M70 72 L46 124" />
+            </g>
+            {/* bol (línea continua) */}
+            <g stroke="var(--mf-text)" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" opacity="0.92">
+                <path d="M84 150 Q132 196 180 150" />
+                <path d="M76 149 H188" />
+            </g>
+            {/* brote: tallo + hoja */}
+            <path d="M132 148 C132 122 132 106 132 88" stroke="var(--mf-secondary)" strokeWidth="2.6" strokeLinecap="round" />
+            <path d="M132 108 C116 104 108 90 113 76 C129 80 138 98 132 108 Z" fill="var(--mf-secondary)" opacity="0.9" />
+            {/* nodos de macros */}
+            <circle cx="70" cy="72" r="10" fill="var(--mf-primary)" />
+            <circle cx="198" cy="64" r="12.5" fill="var(--mf-accent)" />
+            <circle cx="218" cy="122" r="8" fill="var(--mf-fat)" />
+            <circle cx="46" cy="124" r="7" fill="var(--mf-secondary)" />
+            <circle cx="132" cy="150" r="5" fill="var(--mf-text)" />
+        </svg>
+    );
+}
+
 const Login = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -174,6 +205,7 @@ const Login = () => {
                 <div className="mf-brandmark">Mealfit<span className="mf-r">R</span><span className="mf-d">D</span></div>
 
                 <div className="mf-form__inner">
+                    <div className="mf-hero-illu" aria-hidden="true"><HeroIllustration /></div>
                     <h1 className="mf-headline">
                         <span>Tu mejor versión,</span>
                         <span>un plato a la vez.</span>

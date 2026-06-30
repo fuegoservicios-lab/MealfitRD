@@ -90,6 +90,9 @@
 .mf-brandmark .mf-r { color: var(--mf-primary); }
 .mf-brandmark .mf-d { color: var(--mf-accent); }
 
+/* Ilustración hero: solo móvil (oculta en el layout de dos paneles del desktop). */
+.mf-hero-illu { display: none; }
+
 .mf-form__inner {
   margin: auto 0;
   max-width: 440px;
@@ -447,13 +450,68 @@
 @keyframes mfShimmer { 0% { background-position: 150% 0; } 100% { background-position: -150% 0; } }
 @keyframes mfRippleOnce { from { transform: scale(0); opacity: 0.7; } to { transform: scale(2.8); opacity: 0; } }
 
-/* ── Responsive: móvil — oculta el preview, form a ancho completo ─────────── */
+/* ── Responsive: móvil — rediseño columna centrada estilo onboarding ──────────
+ * Logo arriba → ilustración hero → titular serif → auth apilada abajo → términos.
+ * (El layout editorial de dos paneles es solo desktop.) */
 @media (max-width: 880px) {
   .mf-login { grid-template-columns: 1fr; }
   .mf-showcase { display: none; }
-  .mf-form { padding: 1.75rem 1.25rem 2.5rem; }
-  .mf-form__inner { margin: 1.5rem auto; }
-  .mf-headline { font-size: clamp(2.2rem, 9vw, 3rem); }
+
+  .mf-form {
+    padding: 1.6rem 1.4rem 1.5rem;
+    height: 100%;
+    align-items: center;
+  }
+  .mf-brandmark {
+    align-self: center;
+    text-align: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+
+  .mf-form__inner {
+    margin: 0;
+    flex: 1;
+    width: 100%;
+    max-width: 430px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ilustración hero (centrada en el espacio superior) */
+  .mf-hero-illu {
+    display: block;
+    width: 70%;
+    max-width: 260px;
+    margin: auto auto 0;   /* margin-top:auto → reparte espacio libre arriba */
+  }
+  .mf-hero-illu svg { width: 100%; height: auto; display: block; }
+
+  .mf-headline {
+    text-align: center;
+    font-size: clamp(2rem, 8.5vw, 2.8rem);
+    line-height: 1.08;
+    margin: 1.3rem 0 0;
+  }
+  .mf-sub { display: none; }   /* look limpio de onboarding */
+
+  /* bloque de auth pegado abajo, sin tarjeta (botones directos sobre el fondo) */
+  .mf-card {
+    margin-top: auto;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    gap: 0.7rem;
+  }
+  .mf-divider { display: none; }          /* apilado limpio, sin "o" */
+  .mf-btn { padding: 1.05rem 1.25rem; border-radius: 0.95rem; }
+  .mf-btn--ghost { margin-top: 0.7rem; }
+  .mf-input { padding: 1.05rem 1.1rem; border-radius: 0.95rem; }
+  .mf-privacy { margin-top: 0.9rem; }
+  .mf-guest-sub { margin-top: 0.45rem; }
+  .mf-error { text-align: left; }
 }
 
 /* ── Sin movimiento ───────────────────────────────────────────────────────── */
