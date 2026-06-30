@@ -162,12 +162,12 @@
   color: #fff;
   /* degradado vertical limpio y uniforme (sin reflejo blanco ni costado más claro) */
   background: linear-gradient(180deg, #8E97F8 0%, var(--mf-primary-dark) 100%);
-  box-shadow: 0 12px 28px -12px rgba(79, 70, 229, 0.55);
+  box-shadow: 0 6px 16px -8px rgba(79, 70, 229, 0.5);
 }
 .mf-btn--primary:hover:not(:disabled) {
   transform: translateY(-1px);
   background: linear-gradient(180deg, #99A1FA 0%, #574FE6 100%);
-  box-shadow: 0 16px 34px -12px rgba(79, 70, 229, 0.65);
+  box-shadow: 0 10px 22px -10px rgba(79, 70, 229, 0.6);
 }
 
 .mf-btn--ghost {
