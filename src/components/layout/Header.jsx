@@ -192,6 +192,7 @@ const Header = () => {
                                 onClick={() => setIsAccountMenuOpen((p) => !p)}
                                 aria-haspopup="menu"
                                 aria-expanded={isAccountMenuOpen}
+                                aria-controls="header-account-menu"
                                 aria-label="Abrir menú de cuenta"
                             >
                                 <span className={styles.accountAvatar} aria-hidden="true">{accountInitial}</span>
@@ -202,7 +203,7 @@ const Header = () => {
                                 />
                             </button>
                             {isAccountMenuOpen && (
-                                <div className={styles.accountDropdown} role="menu">
+                                <div id="header-account-menu" className={styles.accountDropdown} role="menu">
                                     <div className={styles.accountIdentity}>
                                         <span className={styles.accountName}>{accountName}</span>
                                         {accountEmail && <span className={styles.accountEmailLine}>{accountEmail}</span>}
@@ -250,6 +251,7 @@ const Header = () => {
                     <button
                         className={styles.mobileToggle}
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        aria-controls="header-mobile-menu"
                         aria-label={isMenuOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
                         aria-expanded={isMenuOpen}
                     >
@@ -266,7 +268,7 @@ const Header = () => {
                     menú quedaba atrapado dentro de la pastilla del header. El portal lo
                     saca a body → fixed real, pantalla completa de verdad. */}
                 {isMenuOpen && hasMobileMenuItems && typeof document !== 'undefined' && createPortal(
-                    <nav className={styles.navMobile}>
+                    <nav id="header-mobile-menu" className={styles.navMobile}>
                         {/* [P3-HEADER-MOBILE-FULLSCREEN · 2026-06-29] Menú full-screen:
                             barra superior propia (logo + cerrar) porque el overlay cubre
                             el header, así que el toggle original queda tapado. */}
