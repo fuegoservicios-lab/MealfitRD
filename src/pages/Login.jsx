@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { authClient, sendEmailOtp, signInWithEmailOtp } from '../authClient';
-import { useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAssessment } from '../context/AssessmentContext';
@@ -15,6 +15,20 @@ import './Login.css';
 // invitado, redirect de sesión) se conserva intacta del diseño original — solo cambia la
 // presentación. El SVG de Google y el flujo de login son los originales a propósito.
 const RESEND_COOLDOWN_S = 30;
+
+// [P3-LOGIN-LEGAL-LANDING · 2026-06-30] Las políticas "oficiales" viven en el LANDING de
+// marketing (apex mealfitrd.com), no en el app (app.mealfitrd.com). Desde el login
+// enlazamos al apex para que se vean en su contexto de marketing (header/footer del
+// landing), no con el chrome del app. En dev/preview (no *.mealfitrd.com) usamos la ruta
+// in-app para que siga funcionando localmente.
+const landingLegalUrl = (path) => {
+    if (typeof window === 'undefined') return path;
+    const { protocol, hostname } = window.location;
+    if (/(^|\.)mealfitrd\.com$/i.test(hostname)) {
+        return `${protocol}//${hostname.replace(/^app\./i, '')}${path}`;
+    }
+    return path; // dev / preview → ruta in-app
+};
 
 /* ---- SVG de Google ORIGINAL (los 4 colores) — a propósito, es mejor que el placeholder ---- */
 function GoogleIcon() {
@@ -253,7 +267,7 @@ const Login = () => {
 
                                 <p className="mf-privacy">
                                     Al continuar, reconoces nuestra{' '}
-                                    <Link to="/privacy" state={{ from: '/login' }}>Política de Privacidad</Link>.
+                                    <a href={landingLegalUrl('/privacy')} target="_blank" rel="noopener noreferrer">Política de Privacidad</a>.
                                 </p>
                             </form>
 
