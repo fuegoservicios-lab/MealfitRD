@@ -92,15 +92,32 @@
 }
 
 .meta {
-    font-size: 0.9rem;
-    color: #64748B;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    background: rgba(100, 116, 139, 0.1);
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    padding: 0.4rem 0.9rem 0.4rem 0.7rem;
     border-radius: 99px;
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(67, 56, 202, 0.05));
+    border: 1px solid rgba(79, 70, 229, 0.18);
+    margin: 0;
+}
+
+.metaIcon {
+    color: #6366F1;
+    flex-shrink: 0;
+}
+
+.metaLabel {
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-weight: 600;
+    color: #64748B;
+}
+
+.metaDate {
+    font-weight: 700;
+    color: #4338CA;
 }
 
 /* Content Typography */
@@ -250,8 +267,20 @@
 }
 
 :global(html[data-theme="dark"]) .meta {
-    background: rgba(148, 163, 184, 0.1);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(99, 102, 241, 0.08));
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+:global(html[data-theme="dark"]) .metaIcon {
+    color: var(--primary-light);
+}
+
+:global(html[data-theme="dark"]) .metaLabel {
     color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .metaDate {
+    color: var(--primary-light);
 }
 
 /* --- TYPOGRAPHY --- */

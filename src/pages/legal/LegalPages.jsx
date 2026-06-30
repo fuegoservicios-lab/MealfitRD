@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
 import styles from './LegalPages.module.css';
-import { AlertTriangle, ArrowLeft } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CalendarDays } from 'lucide-react';
 
 const LegalLayout = ({ title, lastUpdated, children }) => {
     const navigate = useNavigate();
@@ -90,7 +90,11 @@ const LegalLayout = ({ title, lastUpdated, children }) => {
                 </button>
                 <header className={styles.header}>
                     <h1 className={styles.title}>{title}</h1>
-                    <p className={styles.meta}>Última actualización: {lastUpdated}</p>
+                    <p className={styles.meta}>
+                        <CalendarDays size={14} strokeWidth={2.5} className={styles.metaIcon} />
+                        <span className={styles.metaLabel}>Última actualización</span>
+                        <span className={styles.metaDate}>{lastUpdated}</span>
+                    </p>
                 </header>
                 <div className={styles.content}>
                     {children}
