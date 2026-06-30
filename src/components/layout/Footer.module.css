@@ -80,14 +80,14 @@
    vs gris), no por brillo. :not() excluye los íconos sociales y el correo (color propio).
    Va ANTES del :hover para no pisar el color de hover. */
 .col a:not(.socialIcon):not(.supportLink) {
-    color: var(--primary-light);
+    color: color-mix(in srgb, var(--primary-light) 60%, #ffffff);
 }
 
 /* [APPEARANCE-THEME · 2026-05-29] `:not(.socialIcon)` excluye los iconos
    sociales de este desplazamiento (translateX) — antes ganaba por especificidad
    sobre `.socialIcon:hover` y los movía. */
 .col a:not(.socialIcon):hover {
-    color: var(--primary-light);
+    color: color-mix(in srgb, var(--primary-light) 32%, #ffffff);
     transform: translateX(4px);
 }
 
