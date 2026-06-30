@@ -94,7 +94,7 @@ const ADAPT = [
 ];
 
 const FAQ = [
-    { q: '¿Cuánto tarda en generarse mi plan?', a: 'Normalmente un par de minutos. El motor genera por bloques y te entrega el plan completo con su lista de compras.' },
+    { q: '¿Cuánto tarda en generarse mi plan?', a: 'Normalmente de 4 a 5 minutos. El motor genera por bloques y te entrega el plan completo con su lista de compras.' },
     { q: '¿Puedo cambiar comidas que no me gustan?', a: 'Sí. Desde el coach IA puedes pedir cambiar un plato, regenerar un día completo o ajustar porciones — respetando tus macros y tu condición.' },
     { q: '¿Se adapta a mi condición de salud?', a: 'Sí. Diabetes, enfermedad renal, hipertensión, dislipidemia, embarazo, cirugía bariátrica y alergias IgE activan reglas específicas sobre cada comida.' },
     { q: '¿Necesito tarjeta para empezar?', a: 'No. El plan Gratis te deja descubrir el motor sin tarjeta. Puedes escalar cuando quieras.' },
