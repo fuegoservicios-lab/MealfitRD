@@ -9,6 +9,7 @@
 .mf-login {
   --mf-primary: #818CF8;
   --mf-primary-dark: #4F46E5;
+  --mf-accent: #FB7185;
   --mf-protein: #818CF8;
   --mf-carbs: #34D399;
   --mf-fat: #FBBF24;
@@ -78,13 +79,9 @@
   letter-spacing: -0.02em;
   color: var(--mf-text);
 }
-.mf-brandmark span {
-  background: linear-gradient(90deg, var(--mf-primary) 0%, #F472B6 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
+/* Mismo esquema que el logo del landing: R indigo (--primary), D rosa (--accent). */
+.mf-brandmark .mf-r { color: var(--mf-primary); }
+.mf-brandmark .mf-d { color: var(--mf-accent); }
 
 .mf-form__inner {
   margin: auto 0;

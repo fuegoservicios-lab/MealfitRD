@@ -300,7 +300,7 @@ const Login = () => {
 
             {/* Formulario (auth real) */}
             <section className="mf-form">
-                <div className="mf-brandmark">Mealfit<span>RD</span></div>
+                <div className="mf-brandmark">Mealfit<span className="mf-r">R</span><span className="mf-d">D</span></div>
 
                 <div className="mf-form__inner">
                     <h1 className="mf-headline">
