@@ -20,10 +20,11 @@ const IOSInstallPrompt = () => {
         const hasDismissed = safeLocalStorageGet('dismissed_ios_prompt', null);
 
         if (isIOSDevice && !isStandaloneMode && !hasDismissed) {
-            // Show after a small delay
+            // [LOGIN-INSTALL-DISCRETO · 2026-06-30] Aparece tras una espera más larga
+            // (12s) para no interrumpir al entrar; antes saltaba a los 3s.
             const timer = setTimeout(() => {
                 setShowPrompt(true);
-            }, 3000);
+            }, 12000);
             return () => clearTimeout(timer);
         }
     }, []);
@@ -38,50 +39,46 @@ const IOSInstallPrompt = () => {
     return (
         <div style={{
             position: 'fixed',
-            bottom: 'max(env(safe-area-inset-bottom, 20px), 20px)',
+            bottom: 'max(env(safe-area-inset-bottom, 14px), 14px)',
             left: '50%',
             transform: 'translateX(-50%)',
-            width: '90%',
-            maxWidth: '400px',
+            width: '92%',
+            maxWidth: '340px',
             backgroundColor: 'var(--bg-card)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            padding: '1rem',
-            borderRadius: '16px',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            padding: '0.7rem 0.85rem',
+            borderRadius: '14px',
+            boxShadow: '0 12px 30px -12px rgba(0,0,0,0.45)',
             zIndex: 9999,
             display: 'flex',
-            flexDirection: 'column',
-            gap: '0.5rem',
+            alignItems: 'center',
+            gap: '0.65rem',
             border: '1px solid var(--border)',
-            transition: 'transform 0.3s ease-out, opacity 0.3s ease-out'
+            animation: 'slidePrompt 0.35s ease-out'
         }}>
-            {/* [P2-A11Y-LOGGING · 2026-05-13] aria-label requerido: icon-only
-                button (X) sin texto visible necesita label para lectores de
-                pantalla. */}
+            <img src="/favicon.png" alt="Mealfit" style={{ width: 34, height: 34, borderRadius: '9px', flexShrink: 0 }} />
+            <div style={{ minWidth: 0, flex: 1 }}>
+                <p style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.25 }}>
+                    Instala MealfitRD
+                </p>
+                <p style={{ margin: '2px 0 0', fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.3, display: 'flex', alignItems: 'center', gap: '0.28rem', flexWrap: 'wrap' }}>
+                    Toca <Share size={14} color="#007aff" style={{ flexShrink: 0 }} /> y
+                    <strong style={{ color: 'var(--text-main)', fontWeight: 600 }}>«Agregar a inicio»</strong>
+                </p>
+            </div>
+            {/* [P2-A11Y-LOGGING · 2026-05-13] aria-label requerido: icon-only button (X)
+                sin texto visible necesita label para lectores de pantalla. */}
             <button onClick={dismissPrompt} aria-label="Cerrar aviso de instalación" style={{
-                position: 'absolute', top: '8px', right: '8px',
                 background: 'none', border: 'none', color: 'var(--text-muted)',
-                padding: '4px', cursor: 'pointer', zIndex: 10
+                padding: '4px', margin: '-4px -2px -4px 0', cursor: 'pointer', flexShrink: 0,
+                alignSelf: 'flex-start'
             }}>
-                <X size={18} />
+                <X size={16} />
             </button>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <img src="/favicon.png" alt="Mealfit" style={{ width: 44, height: 44, borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }} />
-                <div>
-                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>Instalar App</h4>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.2 }}>Acceso directo a tus planes y chat IA.</p>
-                </div>
-            </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', color: 'var(--text-main)', background: 'var(--bg-muted)', padding: '0.75rem', borderRadius: '8px', marginTop: '0.25rem', border: '1px solid var(--border)' }}>
-                <span>1. Toca</span> <Share size={18} color="#007aff" />
-                <span>y luego <strong>"Agregar a inicio"</strong></span>
-            </div>
             <style>{`
                 @keyframes slidePrompt {
-                    from { transform: translate(-50%, 100%); opacity: 0; }
+                    from { transform: translate(-50%, calc(100% + 14px)); opacity: 0; }
                     to { transform: translate(-50%, 0); opacity: 1; }
                 }
             `}</style>
