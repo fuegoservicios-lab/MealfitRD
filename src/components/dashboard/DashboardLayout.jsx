@@ -262,6 +262,9 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 user={{ name: accountName, email: accountEmail }}
                                 plan={planLabel}
                                 planAccessory={isUltraTier ? <Crown size={15} strokeWidth={2.5} /> : null}
+                                /* [P3-CTA-MEJORAR-PLAN · 2026-06-30] "Mejorar plan" invita a subir
+                                   de tier (Gratuito/Básico/Plus); Ultra ya está en el tope → "Ver planes". */
+                                viewPlansLabel={isUltraTier ? 'Ver planes' : 'Mejorar plan'}
                                 avatar={accountAvatarNode}
                                 subLabel={accountSubLabel}
                                 settingsSlot={isGuest ? <GuestAppearanceToggle /> : null}
