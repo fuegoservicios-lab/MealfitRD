@@ -15,7 +15,7 @@ const STATS = [
     { num: '20+', label: 'Variables de entrada' },
     { num: 'V4', label: 'Motor DeepSeek' },
     { num: '17', label: 'Micronutrientes vs DRI' },
-    { num: 'Semanal', label: 'Recálculo del plan' },
+    { num: '7/15/30', label: 'días · recálculo del plan' },
 ];
 
 const STAGES = [
@@ -60,14 +60,14 @@ const STAGES = [
     {
         Icon: LineChart, color: '#FB923C',
         title: '4 · Adaptación longitudinal',
-        sub: 'Recálculo semana a semana',
-        text: 'Tu plan no es estático. Se recalcula con tu progreso para sortear la meseta metabólica y mantener el ritmo, ajustando porciones y objetivos a medida que cambias.',
+        sub: 'Recálculo por ciclo (7/15/30 días)',
+        text: 'Tu plan no es estático. Al cerrar tu ciclo —de 7, 15 o 30 días, según elijas en el formulario— se recalcula con tu progreso para sortear la meseta metabólica y mantener el ritmo, ajustando porciones y objetivos a medida que cambias.',
         bullets: [
             ['Avance del ciclo', 'la ventana del plan rueda hacia adelante sin generar todo de nuevo.'],
             ['Renovación con tu nevera', 'al renovar, reusa lo que te sobró y pide solo lo que falta.'],
             ['Cambios con el coach', 'pídele a la IA cambiar una comida o registrar lo que comiste.'],
         ],
-        tags: ['Recálculo semanal', 'Anti-meseta', 'Pantry-aware'],
+        tags: ['Recálculo por ciclo', 'Anti-meseta', 'Pantry-aware'],
     },
 ];
 
