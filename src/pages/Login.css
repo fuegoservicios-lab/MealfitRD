@@ -552,7 +552,9 @@
 .mf-swap { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(129, 140, 248, 0.16); color: var(--mf-primary); flex-shrink: 0; }
 /* toast flotante compacto (pastilla centrada con sombra, no una barra a todo el ancho) */
 .mf-toast {
-  margin: 0.5rem auto 0;
+  /* margin-top:auto lo empuja hacia abajo (más aire arriba, no choca con la Cena) y el
+     margen inferior lo mantiene dentro de la tarjeta. Robusto: nunca se desborda. */
+  margin: auto auto 0.4rem;
   align-self: center;
   display: inline-flex; align-items: center; gap: 0.5rem;
   padding: 0.7rem 1.4rem; border-radius: 99px;
