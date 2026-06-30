@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
@@ -210,15 +210,6 @@ const FAQ = [
     { q: '¿Necesito tarjeta para empezar?', a: 'No. El plan Gratis te deja descubrir el motor sin tarjeta. Puedes escalar cuando quieras.' },
 ];
 
-const SECTIONS = [
-    { id: 'etapas', label: 'Las 4 etapas' },
-    { id: 'pipeline', label: 'El pipeline' },
-    { id: 'guardas', label: 'Guardas de calidad' },
-    { id: 'adaptacion', label: 'Se adapta contigo' },
-    { id: 'faq', label: 'Preguntas frecuentes' },
-];
-const SECTION_IDS = SECTIONS.map((s) => s.id);
-
 /* ─────────────────────────── helpers de animación ─────────────────────────── */
 
 function Reveal({ children, className, delay = 0 }) {
@@ -237,32 +228,10 @@ function Reveal({ children, className, delay = 0 }) {
     );
 }
 
-function useScrollSpy(ids) {
-    const [activeId, setActiveId] = useState(ids[0]);
-    useEffect(() => {
-        if (typeof IntersectionObserver === 'undefined') return undefined;
-        const targets = ids.map((id) => document.getElementById(id)).filter(Boolean);
-        if (!targets.length) return undefined;
-        const observer = new IntersectionObserver(
-            (entries) => {
-                const visible = entries
-                    .filter((e) => e.isIntersecting)
-                    .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-                if (visible.length) setActiveId(visible[0].target.id);
-            },
-            { rootMargin: '-110px 0px -55% 0px', threshold: 0 },
-        );
-        targets.forEach((t) => observer.observe(t));
-        return () => observer.disconnect();
-    }, [ids]);
-    return activeId;
-}
-
 /* ─────────────────────────────── página ──────────────────────────────────── */
 
 const HowItWorksPage = () => {
     const reduce = useReducedMotion();
-    const activeId = useScrollSpy(SECTION_IDS);
     const [openFaq, setOpenFaq] = useState(0);
 
     useLayoutEffect(() => { window.scrollTo(0, 0); }, []);
@@ -271,12 +240,6 @@ const HowItWorksPage = () => {
         document.title = 'Cómo funciona MealfitRD — el método, paso a paso';
         return () => { document.title = prev; };
     }, []);
-
-    const handleTocClick = useCallback((e, id) => {
-        e.preventDefault();
-        const el = document.getElementById(id);
-        if (el) el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-    }, [reduce]);
 
     return (
         <div className={styles.page}>
@@ -313,27 +276,6 @@ const HowItWorksPage = () => {
 
             {/* ───────────────── layout: índice + contenido ───────────────── */}
             <div className={styles.layout}>
-                <aside className={styles.toc} aria-label="En esta página">
-                    <span className={styles.tocLabel}>En esta página</span>
-                    <nav className={styles.tocNav}>
-                        {SECTIONS.map((s, i) => (
-                            <a
-                                key={s.id}
-                                href={`#${s.id}`}
-                                onClick={(e) => handleTocClick(e, s.id)}
-                                className={`${styles.tocItem} ${activeId === s.id ? styles.tocActive : ''}`}
-                                aria-current={activeId === s.id ? 'true' : undefined}
-                            >
-                                <span className={styles.tocNum}>{String(i + 1).padStart(2, '0')}</span>
-                                {s.label}
-                            </a>
-                        ))}
-                    </nav>
-                    <Link to="/assessment" className={styles.tocCta}>
-                        Crear mi plan <ChevronRight size={15} strokeWidth={2.5} />
-                    </Link>
-                </aside>
-
                 <div className={styles.content}>
                     {/* (01) las 4 etapas */}
                     <section id="etapas" className={styles.block}>

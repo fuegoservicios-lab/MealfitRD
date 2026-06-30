@@ -127,84 +127,8 @@
 
 /* ----------------------------------------------------------------- layout */
 .layout {
-    position: relative;
-    display: grid;
-    grid-template-columns: 212px 1fr;
-    gap: 3.5rem;
-    align-items: start;
-    margin-top: 3.5rem;
-}
-
-/* índice lateral (sticky + scroll-spy) */
-.toc {
-    position: sticky;
-    top: 104px;
-    align-self: start;
-}
-.tocLabel {
-    font-family: var(--font-heading);
-    font-size: 0.66rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--text-light);
-}
-.tocNav {
-    display: flex;
-    flex-direction: column;
-    border-left: 1px solid var(--border);
-    margin-top: 1rem;
-}
-.tocItem {
-    display: flex;
-    align-items: baseline;
-    gap: 0.65rem;
-    margin-left: -1px;
-    border-left: 2px solid transparent;
-    padding: 0.5rem 0 0.5rem 1rem;
-    font-size: 0.9rem;
-    line-height: 1.35;
-    color: var(--text-muted);
-    text-decoration: none;
-    transition: color 0.18s ease, border-color 0.18s ease;
-}
-.tocItem:hover {
-    color: var(--text-main);
-}
-.tocNum {
-    font-family: var(--font-heading);
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: var(--text-light);
-    font-variant-numeric: tabular-nums;
-    flex: none;
-}
-.tocActive {
-    color: var(--text-main);
-    border-left-color: var(--primary);
-    font-weight: 600;
-}
-.tocActive .tocNum {
-    color: var(--primary);
-}
-.tocCta {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-top: 1.75rem;
-    font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 0.86rem;
-    color: var(--primary);
-    text-decoration: none;
-    padding: 0.6rem 1rem;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--primary) 34%, transparent);
-    transition: background 0.18s ease, transform 0.18s ease;
-}
-.tocCta:hover {
-    background: color-mix(in srgb, var(--primary) 12%, transparent);
-    transform: translateY(-1px);
+    max-width: 880px;
+    margin: 3.5rem auto 0;
 }
 
 /* contenido */
@@ -524,8 +448,8 @@
 
 /* ----------------------------------------------------------------- cierre */
 .closing {
-    position: relative;
-    margin-top: 5rem;
+    max-width: 880px;
+    margin: 5rem auto 0;
 }
 .disclaimer {
     display: flex;
@@ -623,16 +547,6 @@
 }
 
 /* ------------------------------------------------------------- responsive */
-@media (max-width: 960px) {
-    .layout {
-        grid-template-columns: 1fr;
-        gap: 0;
-        margin-top: 2.75rem;
-    }
-    .toc {
-        display: none;
-    }
-}
 @media (max-width: 760px) {
     .stage {
         grid-template-columns: 1fr;
