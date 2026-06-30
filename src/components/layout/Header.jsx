@@ -13,6 +13,9 @@ import GuestAppearanceToggle from '../dashboard/GuestAppearanceToggle';
 // [P3-LANDING-DARK-ONLY · 2026-06-29] SSOT de rutas de marketing (header completo +
 // tema oscuro forzado + sin config de apariencia).
 import { isMarketingRoute } from '../../utils/marketingRoutes';
+// [P3-LEGAL-HEADER-PARITY · 2026-06-30] SSOT de rutas legales (compartido con Footer) —
+// estas rutas usan el header completo del landing. Evita el drift de listas hardcodeadas.
+import { isLegalRoute } from '../../utils/legalRoutes';
 
 // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Secciones del landing para la nav segmentada.
 // El `id` debe coincidir con el id de cada <section> del Home (how-it-works, dashboard,
@@ -47,7 +50,7 @@ const Header = () => {
     
     // Ocultar elementos del panel cuando estamos explícitamente en modo de carga (ruta /plan)
     const isPlanLoading = location.pathname.startsWith('/plan');
-    const isLegalPage = ['/privacy', '/terms', '/cookies', '/medical'].includes(location.pathname);
+    const isLegalPage = isLegalRoute(location.pathname);
     // [P3-PRICING-HEADER-PARITY · 2026-06-29 · ext P3-DETAIL-PAGES 2026-06-29 · ext
     // P3-LEGAL-HEADER-PARITY 2026-06-30] Todas las páginas de marketing (landing + precios
     // + las 3 de detalle + motor) Y las páginas legales (privacy/terms/cookies/medical)

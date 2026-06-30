@@ -1,13 +1,14 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Instagram, Youtube, Facebook, Mail, Clock } from 'lucide-react';
 import styles from './Footer.module.css';
+// [P3-LEGAL-HEADER-PARITY · 2026-06-30] LEGAL_PATHS desde SSOT compartido con Header.
+import { LEGAL_PATHS } from '../../utils/legalRoutes';
 
-// [P3-LEGAL-BACK-LINK · 2026-05-26 · 4ª iter] Si el path actual es una
-// página legal, NO usar ese path como `from` del próximo Link (eso haría
-// que "Volver" regrese de Términos→Privacidad→Términos...). Mejor preservar
-// el `state.from` heredado de cuando el user entró por primera vez a las
-// legales — su origen real (landing, dashboard, etc).
-const LEGAL_PATHS = ['/privacy', '/terms', '/cookies', '/medical', '/data-protection', '/ai-policy', '/research', '/refunds'];
+// [P3-LEGAL-BACK-LINK · 2026-05-26 · 4ª iter] Si el path actual es una página legal,
+// NO usar ese path como `from` del próximo Link (eso haría que "Volver" regrese de
+// Términos→Privacidad→Términos...). Mejor preservar el `state.from` heredado de cuando
+// el user entró por primera vez a las legales — su origen real (landing, dashboard, etc).
+// La lista de rutas legales vive en utils/legalRoutes.js (SSOT, ver arriba).
 
 const Footer = () => {
     const location = useLocation();
