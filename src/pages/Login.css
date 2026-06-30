@@ -360,8 +360,8 @@
   display: flex;
   align-items: center;
   gap: 1.1rem;
-  margin: 1.25rem 0;
-  padding: 1.1rem 0;
+  margin: 0.85rem 0;
+  padding: 0.95rem 0;
   border-top: 1px solid var(--mf-border);
   border-bottom: 1px solid var(--mf-border);
 }
@@ -400,8 +400,8 @@
 .mf-macro__fill { height: 100%; border-radius: 99px; }
 
 /* comidas (skeleton shimmer mientras la IA piensa) */
-.mf-meals { display: flex; flex-direction: column; gap: 0.6rem; }
-.mf-meal { position: relative; min-height: 40px; }
+.mf-meals { display: flex; flex-direction: column; gap: 0.5rem; }
+.mf-meal { position: relative; min-height: 38px; }
 .mf-meal__skel {
   position: absolute; inset: 0;
   border-radius: 0.7rem;
@@ -410,7 +410,7 @@
   animation: mfShimmer 1.3s ease-in-out infinite;
 }
 .mf-meal__real { display: flex; align-items: center; gap: 0.8rem; }
-.mf-meal__thumb { width: 40px; height: 40px; border-radius: 0.7rem; flex-shrink: 0; }
+.mf-meal__thumb { width: 38px; height: 38px; border-radius: 0.65rem; flex-shrink: 0; }
 .mf-meal__body { flex: 1; min-width: 0; }
 .mf-meal__type { font-size: 0.72rem; color: var(--mf-text-dim); }
 .mf-meal__name { font-size: 0.92rem; font-weight: 700; color: var(--mf-text); }

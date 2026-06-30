@@ -134,7 +134,7 @@ function ScenePlan() {
         return () => cancelAnimationFrame(raf);
     }, []);
     return (
-        <motion.div className="mf-scene" {...fade}>
+        <motion.div className="mf-scene mf-scene--center" {...fade}>
             <div className="mf-hero">
                 <div className="mf-ring">
                     <svg width="96" height="96" viewBox="0 0 96 96" className="mf-ring__svg">
