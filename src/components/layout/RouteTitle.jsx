@@ -50,7 +50,7 @@ const TITLES = {
     '/ai-policy': `Uso de Inteligencia Artificial · ${BRAND}`,
     '/research': `Política de Investigación · ${BRAND}`,
     '/refunds': `Reembolsos y Cancelaciones · ${BRAND}`,
-    '/acceptable-use': `Política de Uso Aceptable · ${BRAND}`,
+    '/acceptable-use': `Política de Uso · ${BRAND}`,
 };
 
 // [P3-ROUTE-META] Description por ruta para el snippet de buscadores. ≤ ~160 chars,
@@ -73,7 +73,7 @@ const DESCRIPTIONS = {
     '/ai-policy': 'Cómo usa MealfitRD la inteligencia artificial: qué datos viajan al proveedor, límites del modelo, supervisión humana y que no entrenamos con tus datos.',
     '/research': 'Política de Investigación de MealfitRD: cómo usamos datos anonimizados para mejorar el producto, con exención de datos sensibles de salud y opt-out.',
     '/refunds': 'Reembolsos y cancelaciones de MealfitRD: cómo cancelar tu suscripción, la ventana de reembolso de 7 días y cómo solicitarlo. Conforme a la Ley 358-05.',
-    '/acceptable-use': 'Política de Uso Aceptable de MealfitRD: reglas para un uso responsable, conductas prohibidas, uso justo de la IA y consecuencias del incumplimiento.',
+    '/acceptable-use': 'Política de Uso de MealfitRD: reglas para un uso responsable, conductas prohibidas, uso justo de la IA y consecuencias del incumplimiento.',
 };
 
 const SELF_MANAGED = new Set(['/motor', '/como-funciona', '/funciones', '/precision']);

@@ -467,7 +467,7 @@ export const AIUse = () => (
    POLÍTICA DE INVESTIGACIÓN
    ============================================================================ */
 export const Research = () => (
-    <LegalLayout title="Política de Investigación" lastUpdated="30 de Junio, 2026">
+    <LegalLayout title="Investigación" lastUpdated="30 de Junio, 2026">
         <p>Para que MealfitRD sea cada vez más preciso y útil, analizamos cómo funciona el sistema sobre el uso real. Esta Política explica qué entendemos por «investigación», qué datos usamos para ello, cómo los protegemos, y —sobre todo— qué control conservas tú. Nuestro principio es claro: <strong>mejorar el producto sin comprometer tu privacidad ni tus datos sensibles de salud.</strong></p>
 
         <h3>1. Qué Entendemos por Investigación</h3>
@@ -551,7 +551,7 @@ export const Refunds = () => (
    POLÍTICA DE USO ACEPTABLE
    ============================================================================ */
 export const AcceptableUse = () => (
-    <LegalLayout title="Política de Uso Aceptable" lastUpdated="30 de Junio, 2026">
+    <LegalLayout title="Política de Uso" lastUpdated="30 de Junio, 2026">
         <p>Esta Política de Uso establece las reglas para utilizar MealfitRD de forma responsable, segura y justa para todos. Complementa nuestros <strong>Términos de Servicio</strong> (donde se detalla la relación contractual completa) y se aplica a cualquier persona que acceda a la plataforma, ya sea con plan gratuito, de pago o en modo invitado. Al usar MealfitRD, usted acepta cumplir estas reglas.</p>
 
         <h3>1. Quién Puede Usar la Plataforma</h3>
