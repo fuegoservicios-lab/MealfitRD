@@ -48,7 +48,7 @@ const TITLES = {
     '/medical': `Aviso Médico · ${BRAND}`,
     '/data-protection': `Protección de Datos · ${BRAND}`,
     '/ai-policy': `Uso de Inteligencia Artificial · ${BRAND}`,
-    '/research': `Política de Investigación · ${BRAND}`,
+    '/research': `Investigación · ${BRAND}`,
     '/refunds': `Reembolsos y Cancelaciones · ${BRAND}`,
     '/acceptable-use': `Política de Uso · ${BRAND}`,
 };
