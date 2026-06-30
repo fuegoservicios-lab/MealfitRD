@@ -100,10 +100,10 @@
 .mf-headline {
   font-family: var(--mf-serif);
   font-weight: 500;
-  font-size: clamp(2.6rem, 5vw, 3.75rem);
-  line-height: 1.04;
+  font-size: clamp(2.4rem, 4.4vw, 3.35rem);
+  line-height: 1.05;
   letter-spacing: -0.01em;
-  margin: 0 0 1.1rem;
+  margin: 0 0 1rem;
   color: var(--mf-text);
 }
 .mf-headline span { display: block; }
@@ -117,10 +117,10 @@
 }
 
 .mf-sub {
-  margin: 0 0 1.75rem;
+  margin: 0 0 1.2rem;
   color: var(--mf-text-dim);
   font-size: 1.02rem;
-  line-height: 1.55;
+  line-height: 1.5;
   max-width: 30rem;
 }
 
