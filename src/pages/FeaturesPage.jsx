@@ -11,7 +11,7 @@ import styles from './Engine.module.css';
    función de la app, ampliando el showcase del landing. Contenido real. Pública. */
 
 const STATS = [
-    { num: '4+', label: 'Comidas calibradas/día' },
+    { num: '3-6', label: 'Comidas calibradas a tu condición' },
     { num: '200+', label: 'Alimentos verificados' },
     { num: 'RD$', label: 'Precios reales in-store' },
     { num: '24/7', label: 'Coach nutricional IA' },
