@@ -495,7 +495,7 @@
 .mf-scene { position: absolute; inset: 0; display: flex; flex-direction: column; padding-top: 1.1rem; }
 
 .mf-q { font-family: var(--font-heading, 'Outfit', sans-serif); font-weight: 700; font-size: 1.1rem; color: var(--mf-text); margin: 0 0 1.1rem; }
-.mf-q--sm { font-family: var(--font-body); font-weight: 500; font-size: 0.9rem; color: var(--mf-text-dim); line-height: 1.5; }
+.mf-q--sm { font-family: var(--font-body); font-weight: 500; font-size: 0.9rem; color: var(--mf-text-dim); line-height: 1.45; margin-bottom: 0.5rem; }
 
 /* chips de objetivo */
 .mf-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
@@ -531,8 +531,8 @@
 
 /* ajuste de plato */
 .mf-summary {
-  display: flex; flex-direction: column; gap: 0.6rem;
-  margin-bottom: 1rem; padding: 0.75rem 0.95rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+  margin-bottom: 0.6rem; padding: 0.6rem 0.95rem;
   border-radius: 0.7rem; background: rgba(255, 255, 255, 0.025); border: 1px solid var(--mf-border);
 }
 .mf-summary__row { display: flex; align-items: baseline; gap: 0.6rem; }
@@ -547,17 +547,17 @@
 }
 .mf-summary__val small { font-size: 0.7rem; font-weight: 500; color: var(--mf-text-dim); }
 .mf-delta { font-size: 0.74rem; font-weight: 800; color: var(--mf-secondary); background: rgba(52, 211, 153, 0.16); padding: 0.2rem 0.45rem; border-radius: 6px; flex-shrink: 0; }
-.mf-meals--adjust { margin-top: 0; gap: 0.7rem; }
+.mf-meals--adjust { margin-top: 0; gap: 0.5rem; }
 .mf-meal.is-target { padding: 0.55rem; margin: -0.55rem; border-radius: 0.8rem; background: rgba(129, 140, 248, 0.08); border: 1px solid rgba(129, 140, 248, 0.22); }
 .mf-swap { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(129, 140, 248, 0.16); color: var(--mf-primary); flex-shrink: 0; }
 /* toast flotante compacto (pastilla centrada con sombra, no una barra a todo el ancho) */
 .mf-toast {
-  margin: 1rem auto 0;
+  margin: 0.5rem auto 0;
   align-self: center;
-  display: inline-flex; align-items: center; gap: 0.6rem;
-  padding: 1.15rem 2rem; border-radius: 99px;
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.7rem 1.4rem; border-radius: 99px;
   background: rgba(15, 21, 34, 0.95); border: 1px solid rgba(255, 255, 255, 0.09);
   box-shadow: 0 14px 30px -10px rgba(0, 0, 0, 0.75);
-  color: var(--mf-text); font-size: 0.9rem; font-weight: 600; line-height: 1; white-space: nowrap;
+  color: var(--mf-text); font-size: 0.82rem; font-weight: 600; line-height: 1; white-space: nowrap;
 }
 .mf-toast svg { color: var(--mf-secondary); flex-shrink: 0; }
