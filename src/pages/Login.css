@@ -486,7 +486,7 @@
 .mf-democard__brand b { color: var(--mf-primary); font-weight: 800; }
 .mf-democard__label { font-size: 0.85rem; color: var(--mf-text-dim); font-weight: 600; white-space: nowrap; }
 
-.mf-democard__body { position: relative; min-height: 326px; }
+.mf-democard__body { position: relative; min-height: 344px; }
 /* escenas en absoluto → cross-fade (se solapan en la transición sin saltar el layout) */
 .mf-scene { position: absolute; inset: 0; display: flex; flex-direction: column; padding-top: 1.1rem; }
 
@@ -546,9 +546,9 @@
 .mf-meal.is-target { padding: 0.55rem; margin: -0.55rem; border-radius: 0.8rem; background: rgba(129, 140, 248, 0.08); border: 1px solid rgba(129, 140, 248, 0.22); }
 .mf-swap { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(129, 140, 248, 0.16); color: var(--mf-primary); flex-shrink: 0; }
 .mf-toast {
-  position: absolute; left: 0; right: 0; bottom: 2px;
-  display: inline-flex; align-items: center; gap: 0.5rem; justify-content: center;
-  padding: 0.6rem 1rem; border-radius: 0.7rem;
+  margin-top: auto;
+  display: flex; align-items: center; gap: 0.5rem; justify-content: center;
+  padding: 0.65rem 1rem; border-radius: 0.7rem;
   background: rgba(52, 211, 153, 0.14); border: 1px solid rgba(52, 211, 153, 0.32);
-  color: var(--mf-secondary); font-size: 0.82rem; font-weight: 600;
+  color: var(--mf-secondary); font-size: 0.82rem; font-weight: 600; text-align: center;
 }
