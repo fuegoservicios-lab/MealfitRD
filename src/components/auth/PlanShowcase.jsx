@@ -24,6 +24,7 @@ const MACROS = [
     { label: 'Carbohidratos', grams: 210, pct: 66, color: 'var(--mf-carbs)' },
     { label: 'Grasa', grams: 58, pct: 46, color: 'var(--mf-fat)' },
 ];
+const MLABEL = [['P', 'var(--mf-protein)'], ['C', 'var(--mf-carbs)'], ['G', 'var(--mf-fat)']];
 const THUMB_HL = 'radial-gradient(120% 120% at 26% 20%, rgba(255,255,255,0.26), transparent 55%)';
 const MEALS = [
     { type: 'Desayuno', name: 'Avena & proteína', kcal: 520, thumb: 'linear-gradient(140deg,#E8C07E 0%,#C0832F 100%)' },
@@ -48,10 +49,10 @@ const prefersReduced = () =>
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const fade = {
-    initial: { opacity: 0, y: 14 },
+    initial: { opacity: 0, y: 16 },
     animate: { opacity: 1, y: 0 },
     exit: { opacity: 0, y: -14 },
-    transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] },
+    transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
 };
 
 /* ── Escena 1: objetivo ───────────────────────────────────────────────────── */
@@ -216,26 +217,36 @@ function SceneAjuste() {
     }, []);
     const cena = swapped ? CENA_SWAP : MEALS[2];
     const total = swapped ? 1900 : 1940;
+    const macros = swapped ? [178, 206, 56] : [184, 210, 58];
     const rows = [MEALS[0], MEALS[1], { type: 'Cena', ...cena }];
 
     return (
         <motion.div className="mf-scene" {...fade}>
             <div className="mf-q mf-q--sm">Cambia cualquier plato y todo se recalcula al instante.</div>
 
-            {/* Resumen que se recalcula en vivo */}
+            {/* Resumen que se recalcula en vivo (kcal + macros) */}
             <div className="mf-summary">
-                <span className="mf-summary__label">Calorías de hoy</span>
-                <span className="mf-summary__val">
-                    <NumFlip>{total.toLocaleString('es-DO')}</NumFlip><small> / 2,100</small>
-                </span>
-                <AnimatePresence>
-                    {swapped && (
-                        <motion.span className="mf-delta" initial={{ opacity: 0, scale: 0.8, x: -4 }}
-                            animate={{ opacity: 1, scale: 1, x: 0 }} transition={{ duration: 0.28, ease: 'backOut' }}>
-                            −40
-                        </motion.span>
-                    )}
-                </AnimatePresence>
+                <div className="mf-summary__row">
+                    <span className="mf-summary__label">Calorías de hoy</span>
+                    <span className="mf-summary__val">
+                        <NumFlip>{total.toLocaleString('es-DO')}</NumFlip><small> / 2,100</small>
+                    </span>
+                    <AnimatePresence>
+                        {swapped && (
+                            <motion.span className="mf-delta" initial={{ opacity: 0, scale: 0.8, x: -4 }}
+                                animate={{ opacity: 1, scale: 1, x: 0 }} transition={{ duration: 0.28, ease: 'backOut' }}>
+                                −40
+                            </motion.span>
+                        )}
+                    </AnimatePresence>
+                </div>
+                <div className="mf-macrochips">
+                    {MLABEL.map(([l, c], i) => (
+                        <span className="mf-mc" key={l}>
+                            <i style={{ background: c }} />{l} <b><NumFlip>{macros[i]}</NumFlip>g</b>
+                        </span>
+                    ))}
+                </div>
             </div>
 
             {/* Comidas */}
@@ -326,9 +337,21 @@ export default function PlanShowcase() {
                 animate={reduced.current ? {} : { y: [0, -10, 0] }}
                 transition={{ duration: 7, ease: 'easeInOut', repeat: Infinity }}>
                 <div className="mf-democard">
-                    {/* Header estable */}
+                    {/* Header: progreso segmentado (tipo "stories") + marca/etiqueta */}
                     <div className="mf-democard__head">
-                        <div className="mf-democard__title">
+                        <div className="mf-segs">
+                            {SCENES.map((s, i) => (
+                                <div className="mf-seg" key={s.key}>
+                                    {i < idx && <div className="mf-seg__fill mf-seg__fill--done" />}
+                                    {i === idx && (
+                                        <motion.div className="mf-seg__fill" key={idx}
+                                            initial={{ width: '0%' }} animate={{ width: '100%' }}
+                                            transition={{ duration: reduced.current ? 0 : s.ms / 1000, ease: 'linear' }} />
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mf-democard__titlerow">
                             <span className="mf-democard__brand">Mealfit<b>RD</b></span>
                             <AnimatePresence mode="wait">
                                 <motion.span className="mf-democard__label" key={scene.key}
@@ -338,14 +361,11 @@ export default function PlanShowcase() {
                                 </motion.span>
                             </AnimatePresence>
                         </div>
-                        <div className="mf-dots">
-                            {SCENES.map((s, i) => <span key={s.key} className={`mf-dot${i === idx ? ' is-on' : ''}`} />)}
-                        </div>
                     </div>
 
-                    {/* Cuerpo que cambia por escena */}
+                    {/* Cuerpo que cambia por escena (cross-fade) */}
                     <div className="mf-democard__body">
-                        <AnimatePresence mode="wait">
+                        <AnimatePresence>
                             <Body key={scene.key} />
                         </AnimatePresence>
                     </div>

@@ -474,19 +474,21 @@
   box-shadow: 0 50px 90px -40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 .mf-democard__head {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; flex-direction: column; gap: 0.85rem;
   padding-bottom: 1rem; border-bottom: 1px solid var(--mf-border);
 }
-.mf-democard__title { display: flex; align-items: baseline; gap: 0.6rem; min-width: 0; }
+.mf-segs { display: flex; gap: 5px; }
+.mf-seg { flex: 1; height: 3px; border-radius: 99px; background: var(--mf-border); overflow: hidden; }
+.mf-seg__fill { height: 100%; background: var(--mf-primary); border-radius: 99px; }
+.mf-seg__fill--done { width: 100%; }
+.mf-democard__titlerow { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; min-width: 0; }
 .mf-democard__brand { font-family: var(--font-heading, 'Outfit', sans-serif); font-weight: 800; font-size: 0.95rem; color: var(--mf-text); }
 .mf-democard__brand b { color: var(--mf-primary); font-weight: 800; }
 .mf-democard__label { font-size: 0.85rem; color: var(--mf-text-dim); font-weight: 600; white-space: nowrap; }
-.mf-dots { display: flex; gap: 6px; }
-.mf-dot { width: 6px; height: 6px; border-radius: 99px; background: var(--mf-border); transition: background 0.3s ease, width 0.3s ease; }
-.mf-dot.is-on { width: 18px; background: var(--mf-primary); }
 
 .mf-democard__body { position: relative; min-height: 326px; }
-.mf-scene { position: relative; min-height: 326px; display: flex; flex-direction: column; padding-top: 1.1rem; }
+/* escenas en absoluto → cross-fade (se solapan en la transición sin saltar el layout) */
+.mf-scene { position: absolute; inset: 0; display: flex; flex-direction: column; padding-top: 1.1rem; }
 
 .mf-q { font-family: var(--font-heading, 'Outfit', sans-serif); font-weight: 700; font-size: 1.1rem; color: var(--mf-text); margin: 0 0 1.1rem; }
 .mf-q--sm { font-family: var(--font-body); font-weight: 500; font-size: 0.9rem; color: var(--mf-text-dim); line-height: 1.5; }
@@ -524,10 +526,15 @@
 
 /* ajuste de plato */
 .mf-summary {
-  display: flex; align-items: baseline; gap: 0.6rem;
-  margin-bottom: 1rem; padding: 0.7rem 0.95rem;
+  display: flex; flex-direction: column; gap: 0.6rem;
+  margin-bottom: 1rem; padding: 0.75rem 0.95rem;
   border-radius: 0.7rem; background: rgba(255, 255, 255, 0.025); border: 1px solid var(--mf-border);
 }
+.mf-summary__row { display: flex; align-items: baseline; gap: 0.6rem; }
+.mf-macrochips { display: flex; gap: 0.7rem; }
+.mf-mc { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; color: var(--mf-text-dim); }
+.mf-mc i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.mf-mc b { color: var(--mf-text); font-weight: 700; }
 .mf-summary__label { font-size: 0.82rem; color: var(--mf-text-dim); }
 .mf-summary__val {
   margin-left: auto; display: inline-flex; align-items: baseline; gap: 0.25rem;
