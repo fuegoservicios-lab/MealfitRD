@@ -551,6 +551,7 @@
   margin-top: auto;
   display: flex; align-items: center; gap: 0.5rem; justify-content: center;
   padding: 0.65rem 1rem; border-radius: 0.7rem;
-  background: rgba(52, 211, 153, 0.14); border: 1px solid rgba(52, 211, 153, 0.32);
-  color: var(--mf-secondary); font-size: 0.82rem; font-weight: 600; text-align: center;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--mf-border);
+  color: var(--mf-text-dim); font-size: 0.82rem; font-weight: 600; text-align: center;
 }
+.mf-toast svg { color: var(--mf-secondary); flex-shrink: 0; }
