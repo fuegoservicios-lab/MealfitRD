@@ -48,7 +48,7 @@
 }
 
 .desc {
-    color: rgba(255, 255, 255, 0.46);
+    color: rgba(255, 255, 255, 0.5);
     max-width: 300px;
     line-height: 1.6;
 }
@@ -77,7 +77,7 @@
    el footer es oscuro en ambos temas; :not() excluye los íconos sociales y el correo, que
    conservan su propio color. (Va ANTES del :hover para no pisar el color de hover.) */
 .col a:not(.socialIcon):not(.supportLink) {
-    color: rgba(255, 255, 255, 0.78);
+    color: rgba(255, 255, 255, 0.64);
 }
 
 /* [APPEARANCE-THEME · 2026-05-29] `:not(.socialIcon)` excluye los iconos
@@ -140,7 +140,7 @@
 /* [P3-FOOTER-SUPPORT · 2026-05-31] Columna Soporte — presentación pulida:
    intro + correo con badge de icono + nota de tiempo de respuesta. */
 .supportIntro {
-    color: rgba(255, 255, 255, 0.46);
+    color: rgba(255, 255, 255, 0.5);
     font-size: 0.9rem;
     line-height: 1.5;
     margin: 0 0 1.1rem;
