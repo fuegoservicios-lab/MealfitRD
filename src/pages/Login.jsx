@@ -179,7 +179,7 @@ const Login = () => {
                         <span>un plato a la vez.</span>
                     </h1>
                     <p className="mf-sub">
-                        Planes de comida personalizados a tu objetivo, calculados a tu perfil y listos en segundos.
+                        Planes de comida personalizados a tu objetivo, calculados a tu perfil y listos en minutos.
                     </p>
 
                     {error && (

@@ -554,8 +554,8 @@
 .mf-toast {
   margin: 1rem auto 0;
   align-self: center;
-  display: inline-flex; align-items: center; gap: 0.5rem;
-  padding: 0.85rem 1.5rem; border-radius: 99px;
+  display: inline-flex; align-items: center; gap: 0.55rem;
+  padding: 1.05rem 1.85rem; border-radius: 99px;
   background: rgba(15, 21, 34, 0.95); border: 1px solid rgba(255, 255, 255, 0.09);
   box-shadow: 0 14px 30px -10px rgba(0, 0, 0, 0.75);
   color: var(--mf-text); font-size: 0.8rem; font-weight: 600; line-height: 1; white-space: nowrap;
