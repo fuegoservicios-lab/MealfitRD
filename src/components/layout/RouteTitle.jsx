@@ -51,6 +51,7 @@ const TITLES = {
     '/research': `Investigación · ${BRAND}`,
     '/refunds': `Reembolsos y Cancelaciones · ${BRAND}`,
     '/acceptable-use': `Política de Uso · ${BRAND}`,
+    '/about': `Acerca de ${BRAND}`,
 };
 
 // [P3-ROUTE-META] Description por ruta para el snippet de buscadores. ≤ ~160 chars,
@@ -74,6 +75,7 @@ const DESCRIPTIONS = {
     '/research': 'Política de Investigación de MealfitRD: cómo usamos datos anonimizados para mejorar el producto, con exención de datos sensibles de salud y opt-out.',
     '/refunds': 'Reembolsos y cancelaciones de MealfitRD: cómo cancelar tu suscripción, la ventana de reembolso de 7 días y cómo solicitarlo. Conforme a la Ley 358-05.',
     '/acceptable-use': 'Política de Uso de MealfitRD: reglas para un uso responsable, conductas prohibidas, uso justo de la IA y consecuencias del incumplimiento.',
+    '/about': 'Acerca de MealfitRD: nutrición de precisión con IA para la mesa dominicana. Nuestra misión, cómo funciona el motor y los principios que nos guían.',
 };
 
 const SELF_MANAGED = new Set(['/motor', '/como-funciona', '/funciones', '/precision']);

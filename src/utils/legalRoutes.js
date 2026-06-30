@@ -20,6 +20,8 @@ export const LEGAL_PATHS = [
     '/refunds',
     // [P3-ACCEPTABLE-USE-PAGE · 2026-06-30] Política de Uso Aceptable.
     '/acceptable-use',
+    // [P3-ABOUT-PAGE · 2026-06-30] Acerca de MealfitRD (categoría Empresas; mismo chrome/back-link).
+    '/about',
 ];
 
 export const isLegalRoute = (pathname) => LEGAL_PATHS.includes(pathname);
