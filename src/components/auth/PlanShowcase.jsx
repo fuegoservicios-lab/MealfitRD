@@ -279,7 +279,7 @@ function SceneAjuste() {
                 {swapped && (
                     <motion.div className="mf-toast" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                         transition={{ duration: 0.3 }}>
-                        <Check size={14} strokeWidth={3} /> Cena cambiada · macros y lista de compras al día
+                        <Check size={14} strokeWidth={3} /> Recalculado al instante
                     </motion.div>
                 )}
             </AnimatePresence>

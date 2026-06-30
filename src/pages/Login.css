@@ -547,11 +547,14 @@
 .mf-meals--adjust { margin-top: 0; gap: 0.7rem; }
 .mf-meal.is-target { padding: 0.55rem; margin: -0.55rem; border-radius: 0.8rem; background: rgba(129, 140, 248, 0.08); border: 1px solid rgba(129, 140, 248, 0.22); }
 .mf-swap { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(129, 140, 248, 0.16); color: var(--mf-primary); flex-shrink: 0; }
+/* toast flotante compacto (pastilla centrada con sombra, no una barra a todo el ancho) */
 .mf-toast {
-  margin-top: auto;
-  display: flex; align-items: center; gap: 0.5rem; justify-content: center;
-  padding: 0.65rem 1rem; border-radius: 0.7rem;
-  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--mf-border);
-  color: var(--mf-text-dim); font-size: 0.82rem; font-weight: 600; text-align: center;
+  margin: 1rem auto 0;
+  align-self: center;
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.5rem 0.95rem; border-radius: 99px;
+  background: rgba(15, 21, 34, 0.95); border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 14px 30px -10px rgba(0, 0, 0, 0.75);
+  color: var(--mf-text); font-size: 0.8rem; font-weight: 600; white-space: nowrap;
 }
 .mf-toast svg { color: var(--mf-secondary); flex-shrink: 0; }
