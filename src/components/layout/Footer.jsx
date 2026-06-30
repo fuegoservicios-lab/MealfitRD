@@ -87,7 +87,7 @@ const Footer = () => {
                     (Acerca de MealfitRD) + Investigación (movida desde "Privacidad y datos"). */}
                 <div className={styles.col}>
                     <h4>Empresas</h4>
-                    <Link to="/about" state={{ from: fromPath }}>Acerca de MealfitRD</Link>
+                    <Link to="/about" state={{ from: fromPath }}>MealfitRD</Link>
                     <Link to="/research" state={{ from: fromPath }}>Investigación</Link>
                 </div>
 
