@@ -26,7 +26,7 @@ const FEATURES = [
 //  Sub-componentes: un mockup por feature (compactos).
 // ============================================================
 
-const PlanMockup = () => (
+export const PlanMockup = () => (
     <div className={styles.mockFrame}>
         <div className={styles.mockHeader}>
             <div>
@@ -60,7 +60,7 @@ const PlanMockup = () => (
     </div>
 );
 
-const RecipesMockup = () => (
+export const RecipesMockup = () => (
     <div className={styles.mockFrame}>
         <div className={styles.mockHeader}>
             <div>
@@ -92,7 +92,7 @@ const RecipesMockup = () => (
     </div>
 );
 
-const ShoppingMockup = () => (
+export const ShoppingMockup = () => (
     <div className={styles.mockFrame}>
         <div className={styles.mockHeader}>
             <div>
@@ -127,7 +127,7 @@ const ShoppingMockup = () => (
     </div>
 );
 
-const ChatMockup = () => (
+export const ChatMockup = () => (
     <div className={styles.mockFrame}>
         <div className={styles.mockHeader}>
             <div className={styles.chatHeaderRow}>
@@ -152,7 +152,7 @@ const ChatMockup = () => (
     </div>
 );
 
-const PantryMockup = () => (
+export const PantryMockup = () => (
     <div className={styles.mockFrame}>
         <div className={styles.mockHeader}>
             <div>
@@ -196,8 +196,15 @@ const MOCKUPS = {
 
 const PANEL_ID = 'dashboard-showcase-panel';
 
-// [P3-DASHBOARD-3D-AUTOCYCLE · 2026-06-29] Cadencia del auto-rotado del coverflow.
-const AUTO_MS = 3800;
+// [P3-DASHBOARD-RHYTHM · 2026-06-30] Cadencia "impredecible" del auto-rotado: alterna un
+// dwell normal (~3.2-4.9s por tarjeta) con ráfagas rápidas (3-5 flips a ~0.4-0.55s) que
+// barren varias tarjetas "de golpe" y luego vuelven a velocidad normal. Jitter + cooldown
+// → ritmo orgánico, único, nunca dos ráfagas seguidas. (Antes: setInterval fijo de 3.8s.)
+const RHYTHM = {
+    normalMin: 3200, normalSpan: 1700,   // dwell normal: 3.2–4.9 s
+    burstMin: 400, burstSpan: 150,        // flip dentro de ráfaga: 0.40–0.55 s
+    burstProb: 0.45,                      // prob. de iniciar ráfaga (tras el cooldown)
+};
 
 // ============================================================
 //  Componente principal — coverflow 3D
@@ -206,21 +213,50 @@ const AUTO_MS = 3800;
 const DashboardShowcase = () => {
     const [active, setActive] = useState(0);
     const tabRefs = useRef([]);
+    // [P3-DASHBOARD-RHYTHM] Estado del ritmo (persiste entre re-arms del efecto):
+    // burst = flips rápidos restantes; cooldown = dwells normales antes de re-armar ráfaga.
+    const rhythmRef = useRef({ burst: 0, cooldown: 1 });
     const count = FEATURES.length;
     const current = FEATURES[active];
     const [paused, setPaused] = useState(false);
 
-    // [P3-DASHBOARD-3D-AUTOCYCLE · 2026-06-29] Auto-rota el coverflow para estética. Se
-    // pausa al interactuar (hover/focus) y se desactiva con prefers-reduced-motion (a11y).
-    // Depende de [active] → cada selección manual reinicia el contador (no salta justo
-    // después de elegir).
+    // [P3-DASHBOARD-RHYTHM · 2026-06-30] Auto-rota el coverflow con cadencia variable
+    // (ráfagas + dwell). Loop auto-reprogramado: cada tick avanza y agenda el siguiente con
+    // un delay que sale de la máquina de ritmo (rhythmRef). Se pausa al interactuar
+    // (hover/focus) y se desactiva con prefers-reduced-motion (a11y). El estado del ritmo
+    // vive en rhythmRef para sobrevivir a los re-arms del efecto (pausa/reanudación).
     useEffect(() => {
         if (paused) return undefined;
         if (typeof window !== 'undefined' &&
             window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
-        const id = setInterval(() => setActive((a) => (a + 1) % count), AUTO_MS);
-        return () => clearInterval(id);
-    }, [paused, active, count]);
+        let id;
+        const nextDelay = () => {
+            const r = rhythmRef.current;
+            if (r.burst > 0) {
+                // dentro de una ráfaga: flips rápidos encadenados
+                r.burst -= 1;
+                return RHYTHM.burstMin + Math.random() * RHYTHM.burstSpan;
+            }
+            if (r.cooldown > 0) {
+                // descanso obligatorio tras una ráfaga (nunca dos ráfagas pegadas)
+                r.cooldown -= 1;
+                return RHYTHM.normalMin + Math.random() * RHYTHM.normalSpan;
+            }
+            if (Math.random() < RHYTHM.burstProb) {
+                // arranca una ráfaga: este flip + 2-4 más (3-5 "de golpe"), luego 1-2 dwells
+                r.burst = 2 + Math.floor(Math.random() * 3);
+                r.cooldown = 1 + Math.floor(Math.random() * 2);
+                return RHYTHM.burstMin + Math.random() * RHYTHM.burstSpan;
+            }
+            return RHYTHM.normalMin + Math.random() * RHYTHM.normalSpan;
+        };
+        const tick = () => {
+            setActive((a) => (a + 1) % count);
+            id = setTimeout(tick, nextDelay());
+        };
+        id = setTimeout(tick, nextDelay());
+        return () => clearTimeout(id);
+    }, [paused, count]);
 
     const go = (i) => setActive(((i % count) + count) % count);
 
@@ -308,7 +344,7 @@ const DashboardShowcase = () => {
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0 }}
-                            transition={{ duration: 0.25 }}
+                            transition={{ duration: 0.2 }}
                         >
                             <h3 style={{ color: current.color }}>{current.title}</h3>
                             <p>{current.desc}</p>
