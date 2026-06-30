@@ -101,7 +101,7 @@ const FeaturesPage = () => {
     return (
         <div className={styles.page}>
             <section className={styles.intro}>
-                <span className={styles.eyebrow}><Sparkles size={14} strokeWidth={2.5} /> Funciones</span>
+                <span className={styles.eyebrow}>Funciones</span>
                 <h1 className={styles.title}>
                     Una app, <span className={styles.accent}>todo tu día</span> resuelto.
                 </h1>
