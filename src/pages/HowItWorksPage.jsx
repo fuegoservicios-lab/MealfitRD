@@ -82,7 +82,7 @@ const PIPELINE = [
 const GUARDS = [
     { Icon: Gauge, title: 'Banda de macros', text: 'Calorías 95–105% del objetivo; proteína, carbos y grasas dentro del 90–112%. Medido, no a ojo.' },
     { Icon: ShieldCheck, title: 'Piso de proteína', text: 'Un cierre determinista re-apunta las porciones para que nunca quedes por debajo de tu mínimo.' },
-    { Icon: Soup, title: 'Variedad y coherencia de plato', text: 'Evita repetir la misma proteína el mismo día y que un plato tenga sentido (nombre honesto, formas que combinan).' },
+    { Icon: Soup, title: 'Variedad y coherencia del plato', text: 'Reglas deterministas evitan repetir la misma fuente de proteína —y su perfil de aminoácidos— dentro de un mismo día, y verifican que cada plato sea coherente: su nombre refleja los ingredientes reales (sin proteínas fantasma) y sus componentes combinan entre sí.' },
     { Icon: Cpu, title: 'Capa clínica', text: 'Si declaras una condición, se ejecutan reglas deterministas sobre cada comida — no es solo un prompt.' },
     { Icon: Salad, title: 'Seguridad alimentaria', text: 'Sin huevo crudo ni mariscos crudos de riesgo; vísceras y leguminosas siempre con cocción segura.' },
 ];
