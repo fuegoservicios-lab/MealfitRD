@@ -160,14 +160,14 @@
 
 .mf-btn--primary {
   color: #fff;
-  background:
-    radial-gradient(85% 85% at 28% 18%, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 42%),
-    linear-gradient(158deg, var(--mf-primary) 0%, #6D78F0 55%, var(--mf-primary-dark) 100%);
-  box-shadow: 0 14px 30px -12px rgba(79, 70, 229, 0.6);
+  /* degradado vertical limpio y uniforme (sin reflejo blanco ni costado más claro) */
+  background: linear-gradient(180deg, #8E97F8 0%, var(--mf-primary-dark) 100%);
+  box-shadow: 0 12px 28px -12px rgba(79, 70, 229, 0.55);
 }
 .mf-btn--primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 18px 36px -12px rgba(79, 70, 229, 0.7);
+  background: linear-gradient(180deg, #99A1FA 0%, #574FE6 100%);
+  box-shadow: 0 16px 34px -12px rgba(79, 70, 229, 0.65);
 }
 
 .mf-btn--ghost {
