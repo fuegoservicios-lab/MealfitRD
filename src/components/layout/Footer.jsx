@@ -80,7 +80,7 @@ const Footer = () => {
                     <Link to="/privacy" state={{ from: fromPath }}>Política de Privacidad</Link>
                     <Link to="/data-protection" state={{ from: fromPath }}>Protección de Datos</Link>
                     <Link to="/cookies" state={{ from: fromPath }}>Política de Cookies</Link>
-                    <Link to="/research" state={{ from: fromPath }}>Política de Investigación</Link>
+                    <Link to="/research" state={{ from: fromPath }}>Investigación</Link>
                 </div>
 
                 {/* [P3-FOOTER-SUPPORT · 2026-05-31] Contacto directo de soporte
