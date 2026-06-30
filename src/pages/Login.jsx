@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useAssessment } from '../context/AssessmentContext';
 import { logoutFirstPartySession } from '../utils/firstPartySession';
 import { humanizeAuthError } from '../utils/authErrors';
+import PlanShowcase from '../components/auth/PlanShowcase';
 import './Login.css';
 
 // [P1-EMAIL-OTP · 2026-06-21] Login SIN contraseña: un solo flujo correo → código.
@@ -14,20 +15,6 @@ import './Login.css';
 // invitado, redirect de sesión) se conserva intacta del diseño original — solo cambia la
 // presentación. El SVG de Google y el flujo de login son los originales a propósito.
 const RESEND_COOLDOWN_S = 30;
-
-/* ---- Datos del preview animado (decorativos) ---- */
-const DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-const MACROS = [
-    { label: 'Proteína', grams: 184, pct: 78, color: 'var(--mf-protein)', delay: '0.80s' },
-    { label: 'Carbohidratos', grams: 210, pct: 66, color: 'var(--mf-carbs)', delay: '0.95s' },
-    { label: 'Grasa', grams: 58, pct: 46, color: 'var(--mf-fat)', delay: '1.10s' },
-];
-const THUMB_HL = 'radial-gradient(120% 120% at 26% 20%, rgba(255,255,255,0.26), transparent 55%)';
-const MEALS = [
-    { type: 'Desayuno', name: 'Avena & proteína', kcal: 520, thumb: 'linear-gradient(140deg,#E8C07E 0%,#C0832F 100%)' },
-    { type: 'Almuerzo', name: 'Pollo, arroz & palta', kcal: 760, thumb: 'linear-gradient(140deg,#7FC98A 0%,#3E8E5A 100%)' },
-    { type: 'Cena', name: 'Salmón & vegetales', kcal: 620, thumb: 'linear-gradient(140deg,#F0937F 0%,#C85C6A 100%)' },
-];
 
 /* ---- SVG de Google ORIGINAL (los 4 colores) — a propósito, es mejor que el placeholder ---- */
 function GoogleIcon() {
@@ -38,122 +25,6 @@ function GoogleIcon() {
             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
         </svg>
-    );
-}
-
-function PointerIcon() {
-    return (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M5 3l14 7-6 2.2L9.8 19 5 3z" fill="#fff" stroke="#0A0F1C" strokeWidth="1.2" strokeLinejoin="round" />
-        </svg>
-    );
-}
-
-function CalorieRing({ value = '1,940', goal = 'de 2,100' }) {
-    return (
-        <div className="mf-ring">
-            <svg width="96" height="96" viewBox="0 0 96 96">
-                <defs>
-                    <linearGradient id="mfRingGrad" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0" stopColor="#818CF8" />
-                        <stop offset="1" stopColor="#34D399" />
-                    </linearGradient>
-                </defs>
-                <circle cx="48" cy="48" r="40" fill="none" stroke="var(--mf-border)" strokeWidth="9" />
-                <circle
-                    className="mf-ring__progress"
-                    cx="48" cy="48" r="40" fill="none"
-                    stroke="url(#mfRingGrad)" strokeWidth="9" strokeLinecap="round"
-                />
-            </svg>
-            <div className="mf-ring__center">
-                <span className="mf-ring__value">{value}</span>
-                <span className="mf-ring__goal">{goal}</span>
-            </div>
-        </div>
-    );
-}
-
-function MacroBars() {
-    return (
-        <div className="mf-macros">
-            {MACROS.map((m) => (
-                <div key={m.label}>
-                    <div className="mf-macro__top">
-                        <span className="mf-macro__label">{m.label}</span>
-                        <span className="mf-macro__grams">{m.grams}g</span>
-                    </div>
-                    <div className="mf-macro__track">
-                        <div
-                            className="mf-macro__fill"
-                            style={{ width: `${m.pct}%`, background: m.color, animationDelay: m.delay }}
-                        />
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-}
-
-function MealRow({ meal, index }) {
-    return (
-        <div className="mf-meal" style={{ animationDelay: `${0.95 + index * 0.1}s` }}>
-            <div className="mf-meal__thumb" style={{ background: `${THUMB_HL}, ${meal.thumb}` }} />
-            <div className="mf-meal__body">
-                <div className="mf-meal__type">{meal.type}</div>
-                <div className="mf-meal__name">{meal.name}</div>
-            </div>
-            <span className="mf-meal__kcal">
-                {meal.kcal}<small> kcal</small>
-            </span>
-        </div>
-    );
-}
-
-function PlanPreview() {
-    return (
-        <div className="mf-showcase__anim">
-            <div className="mf-showcase__float">
-                <div className="mf-plan">
-                    <div className="mf-plan__header">
-                        <div className="mf-plan__head-row">
-                            <div>
-                                <div className="mf-plan__title">Plan de hoy</div>
-                                <div className="mf-plan__date">Lunes 2 de junio</div>
-                            </div>
-                            <span className="mf-badge">Ganar músculo</span>
-                        </div>
-                        <div className="mf-days">
-                            {DAYS.map((d, i) => (
-                                <span key={d + i} className={`mf-day${i === 0 ? ' is-active' : ''}`}>{d}</span>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="mf-hero">
-                        <CalorieRing />
-                        <MacroBars />
-                    </div>
-
-                    <div className="mf-meals">
-                        {MEALS.map((meal, i) => (
-                            <MealRow key={meal.type} meal={meal} index={i} />
-                        ))}
-                    </div>
-
-                    <div className="mf-cta">
-                        <button type="button" className="mf-btn mf-btn--primary" tabIndex={-1} aria-hidden="true">
-                            <span className="mf-cta__icon" aria-hidden="true">↻</span> Generar nuevo plan
-                        </button>
-                    </div>
-                </div>
-
-                <div className="mf-cursor" aria-hidden="true">
-                    <div className="mf-ripple" />
-                    <PointerIcon />
-                </div>
-            </div>
-        </div>
     );
 }
 
@@ -295,7 +166,7 @@ const Login = () => {
 
             {/* Preview del plan (decorativo, oculto en móvil) */}
             <aside className="mf-showcase" aria-hidden="true">
-                <PlanPreview />
+                <PlanShowcase />
             </aside>
 
             {/* Formulario (auth real) */}
