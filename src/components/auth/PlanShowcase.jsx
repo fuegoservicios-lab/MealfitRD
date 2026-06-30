@@ -194,25 +194,58 @@ function ScenePlan() {
 }
 
 /* ── Escena 4: ajuste (swap de un plato + toast) ──────────────────────────── */
+function NumFlip({ children }) {
+    return (
+        <AnimatePresence mode="wait" initial={false}>
+            <motion.span key={String(children)} style={{ display: 'inline-block' }}
+                initial={{ opacity: 0, y: 9 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -9 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}>
+                {children}
+            </motion.span>
+        </AnimatePresence>
+    );
+}
+
 function SceneAjuste() {
     const [swapped, setSwapped] = useState(false);
     const [press, setPress] = useState(false);
     useEffect(() => {
-        const t1 = setTimeout(() => setPress(true), 1400);
-        const t2 = setTimeout(() => { setPress(false); setSwapped(true); }, 1750);
+        const t1 = setTimeout(() => setPress(true), 1500);
+        const t2 = setTimeout(() => { setPress(false); setSwapped(true); }, 1850);
         return () => { clearTimeout(t1); clearTimeout(t2); };
     }, []);
     const cena = swapped ? CENA_SWAP : MEALS[2];
+    const total = swapped ? 1900 : 1940;
+    const rows = [MEALS[0], MEALS[1], { type: 'Cena', ...cena }];
+
     return (
         <motion.div className="mf-scene" {...fade}>
-            <div className="mf-q mf-q--sm">Cambia cualquier plato y tus macros se recalculan.</div>
+            <div className="mf-q mf-q--sm">Cambia cualquier plato y todo se recalcula al instante.</div>
+
+            {/* Resumen que se recalcula en vivo */}
+            <div className="mf-summary">
+                <span className="mf-summary__label">Calorías de hoy</span>
+                <span className="mf-summary__val">
+                    <NumFlip>{total.toLocaleString('es-DO')}</NumFlip><small> / 2,100</small>
+                </span>
+                <AnimatePresence>
+                    {swapped && (
+                        <motion.span className="mf-delta" initial={{ opacity: 0, scale: 0.8, x: -4 }}
+                            animate={{ opacity: 1, scale: 1, x: 0 }} transition={{ duration: 0.28, ease: 'backOut' }}>
+                            −40
+                        </motion.span>
+                    )}
+                </AnimatePresence>
+            </div>
+
+            {/* Comidas */}
             <div className="mf-meals mf-meals--adjust">
-                {[MEALS[0], MEALS[1], { ...MEALS[2], ...cena }].map((meal, i) => (
+                {rows.map((meal, i) => (
                     <div className={`mf-meal mf-meal__real${i === 2 ? ' is-target' : ''}`} key={i}>
                         <div className="mf-meal__thumb" style={{ background: `${THUMB_HL}, ${meal.thumb}` }} />
                         <div className="mf-meal__body">
                             <div className="mf-meal__type">{meal.type}</div>
-                            <AnimatePresence mode="wait">
+                            <AnimatePresence mode="wait" initial={false}>
                                 <motion.div className="mf-meal__name" key={meal.name}
                                     initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
                                     transition={{ duration: 0.25 }}>
@@ -220,20 +253,22 @@ function SceneAjuste() {
                                 </motion.div>
                             </AnimatePresence>
                         </div>
-                        {i === 2 ? (
-                            <motion.span className="mf-swap" animate={{ scale: press ? 0.85 : 1, rotate: swapped ? 360 : 0 }}
-                                transition={{ duration: 0.4 }}><RefreshCw size={15} /></motion.span>
-                        ) : (
-                            <span className="mf-meal__kcal">{meal.kcal}<small> kcal</small></span>
+                        <span className="mf-meal__kcal">
+                            {i === 2 ? <NumFlip>{meal.kcal}</NumFlip> : meal.kcal}<small> kcal</small>
+                        </span>
+                        {i === 2 && (
+                            <motion.span className="mf-swap" animate={{ scale: press ? 0.82 : 1, rotate: swapped ? 360 : 0 }}
+                                transition={{ duration: 0.45 }}><RefreshCw size={14} /></motion.span>
                         )}
                     </div>
                 ))}
             </div>
+
             <AnimatePresence>
                 {swapped && (
                     <motion.div className="mf-toast" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                         transition={{ duration: 0.3 }}>
-                        <Check size={14} strokeWidth={3} /> Plato actualizado · macros recalculadas
+                        <Check size={14} strokeWidth={3} /> Cena cambiada · macros y lista de compras al día
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -247,8 +282,8 @@ function Cursor({ target }) {
     const pos = {
         cta: { left: '50%', bottom: 24, x: '-50%', y: 0 },
         press: { left: '50%', bottom: 24, x: '-50%', y: 5 },
-        swap: { left: 'auto', right: 12, top: 170, x: 0, y: 0 },
-        'press-swap': { left: 'auto', right: 12, top: 170, x: 0, y: 4 },
+        swap: { left: 'auto', right: 10, top: 250, x: 0, y: 0 },
+        'press-swap': { left: 'auto', right: 10, top: 250, x: 0, y: 4 },
     }[target] || {};
     return (
         <motion.div className="mf-cursor" aria-hidden="true"

@@ -523,7 +523,19 @@
 .mf-spin { animation: mfSpin 0.9s linear infinite; }
 
 /* ajuste de plato */
-.mf-meals--adjust { margin-top: 0.5rem; gap: 0.75rem; }
+.mf-summary {
+  display: flex; align-items: baseline; gap: 0.6rem;
+  margin-bottom: 1rem; padding: 0.7rem 0.95rem;
+  border-radius: 0.7rem; background: rgba(255, 255, 255, 0.025); border: 1px solid var(--mf-border);
+}
+.mf-summary__label { font-size: 0.82rem; color: var(--mf-text-dim); }
+.mf-summary__val {
+  margin-left: auto; display: inline-flex; align-items: baseline; gap: 0.25rem;
+  font-family: var(--font-heading, 'Outfit', sans-serif); font-weight: 800; font-size: 1.2rem; color: var(--mf-text);
+}
+.mf-summary__val small { font-size: 0.7rem; font-weight: 500; color: var(--mf-text-dim); }
+.mf-delta { font-size: 0.74rem; font-weight: 800; color: var(--mf-secondary); background: rgba(52, 211, 153, 0.16); padding: 0.2rem 0.45rem; border-radius: 6px; flex-shrink: 0; }
+.mf-meals--adjust { margin-top: 0; gap: 0.7rem; }
 .mf-meal.is-target { padding: 0.55rem; margin: -0.55rem; border-radius: 0.8rem; background: rgba(129, 140, 248, 0.08); border: 1px solid rgba(129, 140, 248, 0.22); }
 .mf-swap { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(129, 140, 248, 0.16); color: var(--mf-primary); flex-shrink: 0; }
 .mf-toast {
