@@ -33,7 +33,9 @@
     var(--mf-bg);
   color: var(--mf-text);
   font-family: var(--font-body, 'Plus Jakarta Sans', sans-serif);
-  overflow: auto;
+  /* recorta los glows decorativos (que se salen del viewport) → sin barras de scroll
+     inútiles. El formulario tiene su propio scroll de respaldo para pantallas bajas. */
+  overflow: hidden;
   isolation: isolate;
 }
 
@@ -70,7 +72,11 @@
   display: flex;
   flex-direction: column;
   padding: clamp(1.75rem, 4vw, 3.5rem) clamp(1.5rem, 5vw, 5rem);
-  min-height: 100%;
+  min-height: 0;
+  height: 100%;
+  /* respaldo: si el form no cabe en pantallas muy bajas, scrollea SOLO el form (no la
+     página). En pantallas normales cabe → no aparece barra. */
+  overflow-y: auto;
 }
 
 .mf-brandmark {
