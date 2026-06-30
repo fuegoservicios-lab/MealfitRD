@@ -64,6 +64,13 @@
     outline-offset: 2px;
 }
 
+/* [P3-LEGAL-BACK-DESKTOP-HIDE · 2026-06-30] En PC/desktop ocultamos "Volver": las páginas
+   legales se abren en pestaña nueva (desde el login del app) → no hay destino útil al que
+   volver. En móvil se mantiene (navegación in-app desde el footer/landing). */
+@media (min-width: 769px) {
+    .backButton { display: none; }
+}
+
 /* Header Section */
 .header {
     margin-bottom: 3rem;
