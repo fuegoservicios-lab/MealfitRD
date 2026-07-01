@@ -22,7 +22,7 @@
  *      popular destacado con border colorido + badge top.
  *   6. ComparativeTable feature-by-feature (12 features × 4 planes).
  *   7. FAQ accordion (6 preguntas billing/cancelación).
- *   8. TrustBadges (4 items: PayPal SSL Garantía CancelAnytime).
+ *   8. TrustBadges (4 items: Pago seguro PayPal · Privacidad · Cambio de plan · Cancelar).
  *   9. FooterLinks (Privacy / Terms / Soporte).
  *
  * Reusos:
@@ -243,7 +243,9 @@ const FAQ_ITEMS = [
 
 const CompTableCell = ({ value, isCurrent }) => {
     const cls = isCurrent ? styles.compTableCellHighlight : '';
-    if (value === true) {
+    // [P3-UPGRADE-TABLE-POLISH · 2026-07-01] '✓' (string) se trata como `true` →
+    // check verde consistente (antes salía como un tick de texto diminuto).
+    if (value === true || value === '✓') {
         return <td className={cls}><Check size={18} className={styles.compTableIconYes} aria-label="Incluido" /></td>;
     }
     if (value === false) {
@@ -263,6 +265,11 @@ const CompTableCell = ({ value, isCurrent }) => {
                 />
             </td>
         );
+    }
+    // [P3-UPGRADE-TABLE-POLISH · 2026-07-01] Valor cualitativo (ej. "Limitado")
+    // como chip sutil; los numéricos (15/50/200) quedan como cifra en negrita.
+    if (typeof value === 'string' && !/^\d+$/.test(value)) {
+        return <td className={cls}><span className={styles.compTablePill}>{value}</span></td>;
     }
     return <td className={cls}>{value}</td>;
 };
@@ -701,7 +708,7 @@ const Upgrade = () => {
                 signals compactados — solo aparece en mobile. */}
             <div className={styles.trustLineMobile}>
                 <ShieldCheck size={14} aria-hidden="true" />
-                <span>Pago seguro · SSL cifrado · Cancela cuando quieras</span>
+                <span>Pago seguro · Datos protegidos · Cancela cuando quieras</span>
             </div>
 
             {/* --- TRUST BADGES (desktop only) --- */}
@@ -717,8 +724,8 @@ const Upgrade = () => {
                     <div className={styles.trustIcon}>
                         <ShieldCheck size={20} />
                     </div>
-                    <h3 className={styles.trustTitle}>SSL Encriptado</h3>
-                    <p className={styles.trustDesc}>Conexión cifrada extremo a extremo</p>
+                    <h3 className={styles.trustTitle}>Tus datos, protegidos</h3>
+                    <p className={styles.trustDesc}>No los vendemos ni entrenamos IA con ellos</p>
                 </div>
                 <div className={styles.trustItem}>
                     <div className={styles.trustIcon}>
