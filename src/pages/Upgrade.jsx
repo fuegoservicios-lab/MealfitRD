@@ -21,7 +21,7 @@
  *   5. PlansGrid (4 cards: Gratis/Básico/Plus/Ultra) — plan actual o más
  *      popular destacado con border colorido + badge top.
  *   6. ComparativeTable feature-by-feature (12 features × 4 planes).
- *   7. FAQ accordion (6 preguntas billing/cancelación).
+ *   7. FAQ accordion (4 preguntas clave: cancelación / créditos / reembolsos / datos).
  *   8. TrustBadges (4 items: Pago seguro PayPal · Privacidad · Cambio de plan · Cancelar).
  *   9. FooterLinks (Privacy / Terms / Soporte).
  *
@@ -222,14 +222,6 @@ const FAQ_ITEMS = [
     {
         q: '¿Ofrecen reembolsos?',
         a: 'Las suscripciones no son reembolsables, salvo donde la ley lo exija. Puedes cancelar cuando quieras: detienes las renovaciones y conservas el acceso hasta el fin del período ya pagado. Dudas: fuego.servicios@gmail.com.',
-    },
-    {
-        q: '¿Por qué Anual cuesta menos?',
-        a: 'Al pagar 12 meses por adelantado obtienes ~25% de descuento vs mensual. Es nuestra forma de premiar el compromiso largo plazo + reduce nuestros costos de procesamiento de pagos.',
-    },
-    {
-        q: '¿Puedo cambiar entre planes?',
-        a: 'Sí, en cualquier momento. Si haces upgrade, pagas la diferencia prorrateada y los créditos extra están disponibles inmediatamente. Si haces downgrade, el cambio aplica al inicio del siguiente período.',
     },
     {
         q: '¿Mis datos están seguros?',
