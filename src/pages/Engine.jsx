@@ -1,11 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import {
-    Cpu, ShieldCheck, Activity, ScanSearch, Refrigerator,
-    HeartPulse, Droplets, Scale, Baby, FlaskConical, Pill, Egg,
-    Gauge, ListChecks, ArrowRight, ChevronRight, Sparkles, Info,
-    BrainCircuit, Lock,
-} from 'lucide-react';
+import { Cpu, ArrowRight, ChevronRight, Info } from 'lucide-react';
 import styles from './Engine.module.css';
 
 /**
@@ -26,24 +21,6 @@ const RELEASE_DATE = '1 de julio de 2026';
 
 // [P3-ENGINE-MINIMAL · 2026-07-01] La fila de stats-tarjetas se eliminó (minimalismo);
 // sus cifras viven en la prosa técnica y en las secciones (clínica, precisión).
-
-const CLINICAL = [
-    { Icon: Droplets, title: 'Diabetes (DM2)', text: 'Control de índice glucémico y fibra mínima por caloría, siguiendo criterios tipo ADA.' },
-    { Icon: FlaskConical, title: 'Enfermedad renal', text: 'Tope de proteína según KDIGO (0.8 g/kg, 1.2 si hay diálisis), ajustado a tu peso.' },
-    { Icon: HeartPulse, title: 'Hipertensión', text: 'Control del sodio a lo largo de todo el plan.' },
-    { Icon: Activity, title: 'Dislipidemia', text: 'Sustituye grasas saturadas por opciones más magras.' },
-    { Icon: Scale, title: 'Cirugía bariátrica', text: 'Reglas anti-dumping, tope de porciones y de volumen por comida.' },
-    { Icon: Baby, title: 'Embarazo y lactancia', text: 'Cuida el mercurio de los pescados y evita el déficit calórico.' },
-    { Icon: ShieldCheck, title: 'Alergias (IgE)', text: 'Elimina el alérgeno por completo — incluidos derivados — y sustituye de forma segura.' },
-    { Icon: Pill, title: 'Medicamentos', text: 'Considera interacciones como warfarina ↔ vitamina K según tu tratamiento.' },
-    { Icon: Egg, title: 'Seguridad alimentaria', text: 'Sin huevo crudo ni mariscos crudos de riesgo: prioriza cocción segura.' },
-];
-
-const PRECISION = [
-    { Icon: Gauge, title: 'Macros en banda', text: 'Proteína, carbohidratos, grasas y calorías dentro de un rango objetivo. Medido, no a ojo.' },
-    { Icon: ScanSearch, title: '17 micronutrientes', text: 'Comparamos tu plan contra las referencias diarias (DRI) con un medidor de cobertura.' },
-    { Icon: ListChecks, title: 'Coherencia receta↔lista', text: 'Si una receta pide 200 g de pollo, la lista de compras tiene ≈200 g × tu hogar. Sin ingredientes fantasma.' },
-];
 
 // [P3-ENGINE-COMPARISON · 2026-07-01] Datos REALES del A/B interno (motor on vs off),
 // mismos números que BenchmarkShowcase. N=8, jun 2026. "LLM solo" = pedirle el plan al
@@ -201,19 +178,24 @@ const Engine = () => {
             <section className={styles.section}>
                 <span className={styles.kicker}>02 / capa clínica</span>
                 <h2 className={styles.sectionTitle}>La capa clínica</h2>
-                <p className={styles.sectionLead}>
-                    Si declaras una condición o una alergia, el motor aplica reglas
-                    específicas sobre cada comida — no es solo un prompt, son guardas
-                    deterministas que se ejecutan sobre el plan.
-                </p>
-                <div className={styles.cards}>
-                    {CLINICAL.map(({ Icon, title, text }) => (
-                        <div key={title} className={styles.card}>
-                            <div className={styles.cardIcon}><Icon size={24} strokeWidth={2} /></div>
-                            <div className={styles.cardTitle}>{title}</div>
-                            <div className={styles.cardText}>{text}</div>
-                        </div>
-                    ))}
+                <div className={styles.prose}>
+                    <p>
+                        Si declaras una condición o una alergia, el motor aplica reglas específicas
+                        sobre cada comida: no es solo un prompt, son guardas deterministas que se
+                        ejecutan sobre el plan.
+                    </p>
+                    <p>
+                        En diabetes (DM2) controla el índice glucémico y la fibra mínima por caloría,
+                        con criterios tipo ADA. En enfermedad renal topa la proteína según KDIGO
+                        —0.8 g/kg, o 1.2 con diálisis— ajustada a tu peso. En hipertensión vigila el
+                        sodio de todo el plan; en dislipidemia cambia las grasas saturadas por
+                        opciones más magras; y en cirugía bariátrica aplica reglas anti-dumping con
+                        topes de porción y de volumen. En embarazo y lactancia cuida el mercurio de
+                        los pescados y evita el déficit calórico. Con alergias IgE elimina el
+                        alérgeno por completo, incluidos derivados; considera interacciones de
+                        medicamentos (como warfarina ↔ vitamina K); y en seguridad alimentaria evita
+                        el huevo y los mariscos crudos de riesgo, priorizando la cocción segura.
+                    </p>
                 </div>
             </section>
 
@@ -221,17 +203,15 @@ const Engine = () => {
             <section className={styles.section}>
                 <span className={styles.kicker}>03 / precisión</span>
                 <h2 className={styles.sectionTitle}>La precisión que medimos</h2>
-                <p className={styles.sectionLead}>
-                    No basta con que se vea bien: el motor verifica que los números cuadren.
-                </p>
-                <div className={styles.cards}>
-                    {PRECISION.map(({ Icon, title, text }) => (
-                        <div key={title} className={styles.card}>
-                            <div className={styles.cardIcon}><Icon size={24} strokeWidth={2} /></div>
-                            <div className={styles.cardTitle}>{title}</div>
-                            <div className={styles.cardText}>{text}</div>
-                        </div>
-                    ))}
+                <div className={styles.prose}>
+                    <p>
+                        No basta con que se vea bien: el motor verifica que los números cuadren.
+                        Mantiene la proteína, los carbohidratos, las grasas y las calorías dentro de
+                        una banda objetivo —medido, no a ojo—; compara tu plan contra 17
+                        micronutrientes frente a las referencias diarias (DRI), con un medidor de
+                        cobertura; y cuida la coherencia receta↔lista: si una receta pide 200 g de
+                        pollo, la lista de compras tiene ≈200 g × tu hogar, sin ingredientes fantasma.
+                    </p>
                 </div>
             </section>
 
@@ -301,39 +281,22 @@ const Engine = () => {
             <section className={styles.section}>
                 <span className={styles.kicker}>05 / memoria</span>
                 <h2 className={styles.sectionTitle}>Aprendizaje a largo plazo</h2>
-                <p className={styles.sectionLead}>
-                    En los planes de pago (Básico, Plus y Ultra), el coach no empieza de cero cada
-                    vez: construye una memoria de tus preferencias que persiste entre conversaciones.
-                </p>
-                <div className={styles.cards}>
-                    <div className={styles.card}>
-                        <div className={styles.cardIcon}><BrainCircuit size={24} strokeWidth={2} /></div>
-                        <div className={styles.cardTitle}>Memoria semántica</div>
-                        <div className={styles.cardText}>
-                            Mientras conversas, el coach destila «hechos» permanentes — lo que te
-                            gusta, lo que rechazas, tus hábitos — y los guarda con un embedding
-                            vectorial (Cohere Embed v4, 1536 dimensiones). Al volver, recupera los
-                            más relevantes por <strong>significado</strong>, no por palabra exacta.
-                        </div>
-                    </div>
-                    <div className={styles.card}>
-                        <div className={styles.cardIcon}><Lock size={24} strokeWidth={2} /></div>
-                        <div className={styles.cardTitle}>Privada y tuya</div>
-                        <div className={styles.cardText}>
-                            La memoria vive por cuenta: nunca se cruza con otros usuarios y no se usa
-                            para entrenar modelos de terceros. Puedes pausarla cuando quieras desde
-                            Ajustes.
-                        </div>
-                    </div>
-                    <div className={styles.card}>
-                        <div className={styles.cardIcon}><Sparkles size={24} strokeWidth={2} /></div>
-                        <div className={styles.cardTitle}>Consolidación (en despliegue)</div>
-                        <div className={styles.cardText}>
-                            Un proceso offline — el «Dreaming» — que de-duplica, prioriza y ordena tu
-                            memoria con el tiempo, con salvaguardas que nunca degradan tus alergias
-                            ni condiciones. Está construido y se activa por fases.
-                        </div>
-                    </div>
+                <div className={styles.prose}>
+                    <p>
+                        En los planes de pago (Básico, Plus y Ultra), el coach no empieza de cero
+                        cada vez: construye una memoria de tus preferencias que persiste entre
+                        conversaciones. Mientras conversas, destila «hechos» permanentes —lo que te
+                        gusta, lo que rechazas, tus hábitos— y los guarda con un embedding vectorial
+                        (Cohere Embed v4, 1536 dimensiones); al volver, recupera los más relevantes
+                        por significado, no por palabra exacta.
+                    </p>
+                    <p>
+                        Esa memoria vive por cuenta: nunca se cruza con otros usuarios ni se usa para
+                        entrenar modelos de terceros, y puedes pausarla cuando quieras desde Ajustes.
+                        Un proceso offline —el «Dreaming»— que de-duplica, prioriza y ordena tu
+                        memoria con el tiempo, con salvaguardas que nunca degradan tus alergias ni
+                        condiciones, está construido y se activa por fases.
+                    </p>
                 </div>
             </section>
 
@@ -341,31 +304,15 @@ const Engine = () => {
             <section className={styles.section}>
                 <span className={styles.kicker}>06 / catálogo</span>
                 <h2 className={styles.sectionTitle}>Catálogo real y Nevera Inteligente</h2>
-                <div className={styles.cards}>
-                    <div className={styles.card}>
-                        <div className={styles.cardIcon}><Sparkles size={24} strokeWidth={2} /></div>
-                        <div className={styles.cardTitle}>200+ alimentos verificados</div>
-                        <div className={styles.cardText}>
-                            Productos dominicanos con datos nutricionales reales (curados desde
-                            USDA). El motor solo usa alimentos de este catálogo: nada inventado.
-                        </div>
-                    </div>
-                    <div className={styles.card}>
-                        <div className={styles.cardIcon}><ListChecks size={24} strokeWidth={2} /></div>
-                        <div className={styles.cardTitle}>Lista costeada de verdad</div>
-                        <div className={styles.cardText}>
-                            La lista de compras se calcula por tamaño de envase con precios reales
-                            de supermercado RD$ — para que el plan quepa en tu presupuesto.
-                        </div>
-                    </div>
-                    <div className={styles.card}>
-                        <div className={styles.cardIcon}><Refrigerator size={24} strokeWidth={2} /></div>
-                        <div className={styles.cardTitle}>Nevera Inteligente</div>
-                        <div className={styles.cardText}>
-                            Marcas “ya compré la lista” y, al renovar, el motor reusa lo que te
-                            sobró y te pide SOLO lo que falta para tener tu nevera al 100%.
-                        </div>
-                    </div>
+                <div className={styles.prose}>
+                    <p>
+                        El motor solo usa alimentos de un catálogo de más de 200 productos
+                        dominicanos con datos nutricionales reales, curados desde USDA: nada
+                        inventado. La lista de compras se calcula por tamaño de envase con precios
+                        reales de supermercado en RD$, para que el plan quepa en tu presupuesto. Y
+                        con la Nevera Inteligente marcas «ya compré la lista» y, al renovar, el motor
+                        reúsa lo que te sobró y te pide solo lo que falta para tener tu nevera al 100%.
+                    </p>
                 </div>
             </section>
 
