@@ -1450,6 +1450,17 @@ export const AssessmentProvider = ({ children }) => {
             return false;
         };
 
+        // [P3-APEX-NO-SESSION · 2026-07-01] En el apex (mealfitrd.com / www) el sitio es
+        // marketing PURO y NUNCA adopta sesión: las rutas de app redirigen a
+        // app.mealfitrd.com (ApexAppRedirect en App.jsx) y el login vive solo ahí. Forzamos
+        // estado deslogueado SIN tocar el token del adapter — localStorage es per-origen, así
+        // que app.* conserva su sesión intacta y no revocamos nada server-side (no signOut).
+        // Tampoco consultamos getSession ni suscribimos onAuthStateChange aquí.
+        if (typeof window !== 'undefined' && /^(www\.)?mealfitrd\.com$/i.test(window.location.hostname)) {
+            handleAuthChange(null);
+            return undefined;
+        }
+
         getSessionWithTimeout().then(async ({ data: { session: initialSession } }) => {
             if (initialSession) {
                 handleAuthChange(initialSession);
