@@ -916,6 +916,23 @@ export const QMedical = ({ onManualAdvance }) => {
         }
     };
 
+    // [P3-MED-NONE-CHIP · 2026-07-01] Sentinel LOCAL para medicamentos (a pedido: chip "Ninguno").
+    // NO va al SSOT `SENTINELS` porque ese contrato cubre los 4 multi-select REQUERIDOS vía
+    // `_SENTINEL_NONE_VALUES`/`_merge_other_text_fields` (y el drift test fija exactamente esos 4).
+    // Medicamentos es OPCIONAL y su "sin medicamentos" lo gobierna el frozenset backend
+    // `_MED_NONE_SENTINELS` (medication_rules.py), que YA incluye "ninguno" y está regresión-testeado:
+    // test_p1_medication_rules.py → detect_active_medications({"medications":["Ninguno"]}) == [].
+    const MED_SENTINEL = 'Ninguno';
+    const noMedications = (formData.medications || []).includes(MED_SENTINEL);
+    const handleMedToggle = (value) => {
+        const next = toggleArrayWithExclusiveSentinel(formData.medications || [], value, MED_SENTINEL);
+        updateData('medications', next);
+        // Si activa "Ninguno", limpia el texto libre (contradicción "sin medicamentos" + escribir uno).
+        if (next.length === 1 && next[0] === MED_SENTINEL && (formData.otherMedications || '').trim()) {
+            updateData('otherMedications', '');
+        }
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
@@ -960,8 +977,9 @@ export const QMedical = ({ onManualAdvance }) => {
                     </div>
                 </>
             )}
-            {/* [P1-MEDICATION-RULES · 2026-06-18] Medicamentos actuales (OPCIONAL, sin sentinel — vacío =
-                sin medicamentos). Alimenta el motor de interacciones fármaco-alimento del backend
+            {/* [P1-MEDICATION-RULES · 2026-06-18 · sentinel P3-MED-NONE-CHIP 2026-07-01] Medicamentos
+                actuales (OPCIONAL; array vacío = no respondió, chip "Ninguno" = confirmó sin medicamentos —
+                el backend `_MED_NONE_SENTINELS` lo neutraliza). Alimenta el motor de interacciones fármaco-alimento del backend
                 (warfarina↔vit K, metformina↔B12, IECA/ARA-II↔potasio, levotiroxina↔Ca/Fe) + el gate de
                 revisión profesional (FS9). NO gatea el botón (es opcional); un medicamento no listado se
                 escribe en el campo "Otro medicamento..." de abajo (P1-MEDICATION-FREETEXT; el backend
@@ -974,13 +992,16 @@ export const QMedical = ({ onManualAdvance }) => {
                     <ChipOption
                         key={med} val={med} label={med} icon={Pill}
                         isSelected={(formData.medications || []).includes(med)}
-                        onToggle={(value) => {
-                            const cur = Array.isArray(formData.medications) ? formData.medications : [];
-                            const next = cur.includes(value) ? cur.filter(m => m !== value) : [...cur, value];
-                            updateData('medications', next);
-                        }}
+                        onToggle={handleMedToggle}
                     />
                 ))}
+                {/* [P3-MED-NONE-CHIP · 2026-07-01] Sentinel "Ninguno" exclusivo: al marcarlo se
+                    deseleccionan los demás medicamentos y se bloquea el free-text de abajo. */}
+                <ChipOption
+                    val={MED_SENTINEL} label={MED_SENTINEL} icon={Ban}
+                    isSelected={noMedications}
+                    onToggle={handleMedToggle}
+                />
             </div>
             {/* [P1-MEDICATION-FREETEXT · 2026-06-19] Medicamento no listado en los chips.
                 Mirror de "Otra condición médica" (otherConditions). El texto llega al prompt
@@ -989,8 +1010,11 @@ export const QMedical = ({ onManualAdvance }) => {
                 escanea como backstop) → dispara las directivas de interacción + el gate de revisión
                 profesional (FS9). OPCIONAL: NO gatea el NextButton (igual que los chips de medications). */}
             <Input
-                type="text" placeholder="Otro medicamento..." value={formData.otherMedications || ''}
+                type="text"
+                placeholder={noMedications ? 'Marcaste «Ninguno»' : 'Otro medicamento...'}
+                value={noMedications ? '' : (formData.otherMedications || '')}
                 onChange={(e) => updateData('otherMedications', e.target.value)}
+                disabled={noMedications}
             />
             {/* [P1-FORM-7] Mismo patrón que QDislikes (P0-FORM-4): requiere
                 señal explícita (chip / "Ninguna" / free-text) antes de
