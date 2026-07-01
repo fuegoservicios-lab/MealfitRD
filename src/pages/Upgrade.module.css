@@ -326,16 +326,13 @@
     transform: none;
 }
 
-/* [PRICING-CURRENT-GLOW · 2026-07-01] Halo VERDE notable alrededor de la tarjeta del plan
-   actual (antes el anillo al 10% era casi imperceptible), espejo del halo morado del popular
-   pero en verde. OJO: en oscuro hay que repetirlo con mayor especificidad (ver
-   `:global(html[data-theme="dark"]) .planCardCurrent` abajo) porque el override oscuro de
-   `.planCard` pisa el border-color — era la causa de "no se ve el verde" en oscuro. */
+/* [PRICING-CURRENT-GLOW-REMOVED · 2026-07-01] Halo/borde VERDE del plan actual
+   eliminado a pedido. La tarjeta del plan actual se distingue por el botón
+   "Tu Plan Actual" (deshabilitado); ya no lleva borde ni glow verde → queda como
+   tarjeta neutra (mismo borde base que las demás). */
 .planCardCurrent {
-    border-color: #10B981;
-    box-shadow:
-        0 0 0 4px rgba(16, 185, 129, 0.16),
-        0 14px 40px -10px rgba(16, 185, 129, 0.4);
+    border-color: #E2E8F0;
+    box-shadow: none;
 }
 
 /* [PRICING-POPULAR-GLOW · 2026-05-31] Halo morado NOTABLE alrededor de la tarjeta
@@ -1343,14 +1340,11 @@
         0 14px 40px -10px rgba(139, 92, 246, 0.5);
 }
 
-/* [PRICING-CURRENT-GLOW · 2026-07-01] Mismo motivo que el popular: el override oscuro de
-   .planCard pisa el borde verde del plan actual → lo restauramos aquí, DESPUÉS, con el halo
-   verde un punto más intenso para que destaque sobre el fondo oscuro. */
+/* [PRICING-CURRENT-GLOW-REMOVED · 2026-07-01] Verde del plan actual eliminado a
+   pedido también en oscuro → borde base neutro, sin halo. */
 :global(html[data-theme="dark"]) .planCardCurrent {
-    border-color: #10B981;
-    box-shadow:
-        0 0 0 4px rgba(16, 185, 129, 0.22),
-        0 14px 40px -10px rgba(16, 185, 129, 0.5);
+    border-color: var(--border);
+    box-shadow: none;
 }
 
 :global(html[data-theme="dark"]) .planName {
