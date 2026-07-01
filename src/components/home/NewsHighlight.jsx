@@ -56,7 +56,6 @@ const NewsHighlight = () => {
                         {featured.badge
                             ? <span className={styles.coverBadge}>{featured.badge}</span>
                             : <Sparkles size={46} strokeWidth={1.5} className={styles.coverIcon} />}
-                        <span className={styles.coverTag}>MealfitRD · {featured.tag}</span>
                     </div>
                 </Link>
 

@@ -26,7 +26,7 @@ export const NEWS = [
         date: '2026-07-01',
         dateLabel: '1 de julio, 2026',
         tag: 'Producto',
-        title: 'Presentamos el Motor Mealfit v1',
+        title: 'Presentamos el Motor Mealfit',
         excerpt: 'Nuestro motor de nutrición de precisión llega a su versión 1.0: generación validada paso a paso, macros que cuadran de verdad y un catálogo dominicano verificado.',
         readTime: '3 min de lectura',
         // badge → texto grande del "cover" de la tarjeta destacada (opcional).

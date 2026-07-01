@@ -220,17 +220,6 @@
     text-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
 }
 .coverIcon { position: relative; z-index: 1; color: #fff; }
-.coverTag {
-    position: absolute;
-    bottom: 0.85rem;
-    left: 1rem;
-    z-index: 1;
-    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
-    font-size: 0.64rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.82);
-}
 
 /* ───────── lista compacta de anuncios anteriores ───────── */
 .list {
