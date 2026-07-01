@@ -22,8 +22,10 @@ const NewsHighlight = () => {
                     </Link>
                 </div>
 
-                {/* anuncio destacado (el más reciente) */}
-                <Link to={`/novedades/${featured.slug}`} className={styles.feature}>
+                {/* anuncio destacado (el más reciente). Si la noticia define `href`
+                    (p.ej. el Motor tiene su propia página /motor), va ahí; si no, a la
+                    página genérica del artículo. */}
+                <Link to={featured.href || `/novedades/${featured.slug}`} className={styles.feature}>
                     <div className={styles.meta}>
                         <span className={styles.tag}>{featured.tag}</span>
                         <span className={styles.date}>{featured.dateLabel}</span>
@@ -40,7 +42,7 @@ const NewsHighlight = () => {
                     <ul className={styles.list}>
                         {rest.map((n) => (
                             <li key={n.slug}>
-                                <Link to={`/novedades/${n.slug}`} className={styles.listItem}>
+                                <Link to={n.href || `/novedades/${n.slug}`} className={styles.listItem}>
                                     <span className={styles.listDate}>{n.dateLabel}</span>
                                     <span className={styles.listTag}>{n.tag}</span>
                                     <span className={styles.listTitle}>{n.title}</span>

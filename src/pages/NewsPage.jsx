@@ -26,7 +26,7 @@ const NewsPage = () => {
                     <ul className={styles.list}>
                         {NEWS.map((n) => (
                             <li key={n.slug}>
-                                <Link to={`/novedades/${n.slug}`} className={styles.card}>
+                                <Link to={n.href || `/novedades/${n.slug}`} className={styles.card}>
                                     <div className={styles.cardMeta}>
                                         <span className={styles.tag}>{n.tag}</span>
                                         <span className={styles.metaText}>{n.dateLabel}</span>

@@ -13,7 +13,12 @@
 //   title     → titular del anuncio.
 //   excerpt   → resumen de 1–2 líneas (landing + índice + meta description).
 //   readTime  → opcional, p.ej. "3 min de lectura".
+//   href      → OPCIONAL. Ruta INTERNA a la que apunta "Leer el anuncio" en vez de la
+//               página genérica /novedades/<slug> (p.ej. '/motor'). Si se define, la
+//               página /novedades/<slug> redirige a ese destino (útil cuando el anuncio
+//               ya tiene una página propia y rica). Sin href → usa la página del artículo.
 //   content   → array de bloques: { h?: string, body?: string[], list?: string[] }.
+//               (Se ignora si hay `href`, pero conviene mantenerlo por si se quita el href.)
 
 export const NEWS = [
     {
@@ -24,6 +29,8 @@ export const NEWS = [
         title: 'Presentamos el Motor Mealfit v1',
         excerpt: 'Nuestro motor de nutrición de precisión llega a su versión 1.0: generación validada paso a paso, macros que cuadran de verdad y un catálogo dominicano verificado.',
         readTime: '3 min de lectura',
+        // El Motor ya tiene su propia página completa → "Leer el anuncio" va ahí.
+        href: '/motor',
         content: [
             {
                 body: [

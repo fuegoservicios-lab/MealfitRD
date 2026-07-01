@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import styles from './News.module.css';
 import { getNewsBySlug } from '../data/news';
@@ -43,10 +43,14 @@ const NewsArticlePage = () => {
     const { slug } = useParams();
     const article = getNewsBySlug(slug);
 
+    // [P3-NEWS-1] Si la noticia apunta a una página propia (href, p.ej. el Motor → /motor),
+    // esta ruta genérica solo redirige a ese destino (cubre visitas directas / enlaces viejos).
+    const redirectTo = article?.href;
+
     useLayoutEffect(() => { window.scrollTo(0, 0); }, [slug]);
 
     useEffect(() => {
-        if (!article) return undefined;
+        if (!article || redirectTo) return undefined;
         const prevTitle = document.title;
         const canonical = `${ORIGIN}/novedades/${article.slug}`;
         document.title = `${article.title} · ${BRAND}`;
@@ -56,7 +60,11 @@ const NewsArticlePage = () => {
         setMetaByProp('og:url', canonical);
         setCanonical(canonical);
         return () => { document.title = prevTitle; };
-    }, [article]);
+    }, [article, redirectTo]);
+
+    if (redirectTo) {
+        return <Navigate to={redirectTo} replace />;
+    }
 
     if (!article) {
         return (
