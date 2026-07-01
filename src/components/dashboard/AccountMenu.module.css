@@ -15,30 +15,34 @@
 }
 
 /* — Encabezado de plan — */
+/* [ACCOUNT-MENU-POLISH · 2026-07-01] Layout vertical: el nombre del plan ocupa el
+   ancho completo (antes se truncaba a "Grat..." porque el botón le robaba espacio en
+   la misma fila) y "Mejorar plan" pasa a un CTA full-width debajo. Degradado más
+   suave desde la esquina superior izquierda para un acento premium sin recargar. */
 .planHeader {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 16px 16px 14px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 13px;
+  padding: 18px 16px 16px;
   border-bottom: 1px solid var(--border);
-  background: radial-gradient(130% 120% at 100% 0%,
-              color-mix(in srgb, var(--primary) 18%, transparent), transparent 55%);
+  background: radial-gradient(120% 140% at 0% 0%,
+              color-mix(in srgb, var(--primary) 14%, transparent), transparent 60%);
 }
-.planInfo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.planInfo { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .kicker {
   font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.13em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
-.planNameRow { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.planNameRow { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .planName {
   font-family: var(--font-heading);
-  font-weight: 700;
-  font-size: 19px;
-  letter-spacing: -0.01em;
+  font-weight: 800;
+  font-size: 21px;
+  letter-spacing: -0.015em;
   color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
@@ -47,23 +51,30 @@
 .planAccessory { display: inline-flex; flex: none; color: var(--primary); }
 
 .verBtn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  flex: none;
-  padding: 9px 13px;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  padding: 11px 14px;
   border: 0;
   border-radius: var(--radius-full);
   background: var(--primary);
   color: #fff;
   font-family: var(--font-heading);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 13.5px;
   cursor: pointer;
-  transition: background 0.16s, transform 0.16s;
+  box-shadow: 0 6px 16px -9px color-mix(in srgb, var(--primary) 70%, transparent);
+  transition: background 0.16s, transform 0.16s, box-shadow 0.16s;
 }
-.verBtn:hover { background: var(--primary-dark); transform: translateY(-1px); }
-.verChevron { width: 14px; height: 14px; }
+.verBtn:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 11px 22px -9px color-mix(in srgb, var(--primary) 78%, transparent);
+}
+.verBtn:active { transform: translateY(0); }
+.verChevron { width: 15px; height: 15px; }
 /* En oscuro el primary es claro → texto oscuro para contraste (idéntico al DS) */
 :global(html[data-theme='dark']) .verBtn { color: #0b1120; }
 :global(html[data-theme='dark']) .verBtn:hover { background: var(--primary-light); }
