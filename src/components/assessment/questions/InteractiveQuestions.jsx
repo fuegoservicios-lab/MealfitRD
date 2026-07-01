@@ -738,6 +738,7 @@ export const QAllergies = ({ onManualAdvance }) => {
     // [P0-B1] sentinel mutuamente exclusivo con cualquier alergia real.
     // [P1-FORM-2] valor desde SSOT (sentinels.js).
     const SENTINEL = SENTINELS.allergies;
+    const noneSelected = (formData.allergies || []).includes(SENTINEL);
     const handleToggle = (value) => {
         // [P2-QCHIPS-INCLUDES-GUARD · 2026-06-01] `|| []`: si health_profile hidrata
         // allergies como null/string (dato legacy / write parcial), .includes() lanza
@@ -773,9 +774,13 @@ export const QAllergies = ({ onManualAdvance }) => {
                     onToggle={handleToggle}
                 />
             </div>
+            {/* [P3-FORM-SENTINEL-LOCKS-FREETEXT · 2026-07-01] "Ninguna" bloquea el
+                free-text (contradicción de safety médica: sin alergias + escribir una). */}
             <Input
-                type="text" placeholder="Otra (Ej. Maní, Fresa...)" value={formData.otherAllergies || ''}
+                type="text" placeholder={noneSelected ? 'Marcaste «Ninguna»' : 'Otra (Ej. Maní, Fresa...)'}
+                value={noneSelected ? '' : (formData.otherAllergies || '')}
                 onChange={(e) => updateData('otherAllergies', e.target.value)}
+                disabled={noneSelected}
             />
             {/* [P1-2] Mismo patrón de enforcement explícito que QDislikes
                 (P0-FORM-4), QMedical y QStruggles (P1-FORM-7). ANTES este
@@ -813,6 +818,7 @@ export const QDislikes = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
     // [P1-FORM-2] valor desde SSOT (sentinels.js).
     const SENTINEL = SENTINELS.dislikes;
+    const noneSelected = (formData.dislikes || []).includes(SENTINEL);
     const handleToggle = (value) => {
         const next = toggleArrayWithExclusiveSentinel(formData.dislikes || [], value, SENTINEL);
         updateData('dislikes', next);
@@ -855,10 +861,16 @@ export const QDislikes = ({ onManualAdvance }) => {
                     onToggle={handleToggle}
                 />
             </div>
+            {/* [P3-FORM-SENTINEL-LOCKS-FREETEXT · 2026-07-01] Si el usuario marca
+                "Ninguno", el free-text queda bloqueado (contradicción "no rechazo
+                nada" + escribir un rechazo). handleToggle ya limpia otherDislikes al
+                marcar el sentinel; aquí lo hacemos no-editable para dejarlo claro. */}
             <Input
-                type="text" placeholder="Otros (Ej. Apio, Curry, Picante...)"
-                value={formData.otherDislikes || ''}
+                type="text"
+                placeholder={noneSelected ? 'Marcaste «Ninguno»' : 'Otros (Ej. Apio, Curry, Picante...)'}
+                value={noneSelected ? '' : (formData.otherDislikes || '')}
                 onChange={(e) => updateData('otherDislikes', e.target.value)}
+                disabled={noneSelected}
             />
             {/* [P0-FORM-4] Requiere señal explícita: chip seleccionado, "Ninguno",
                 o free-text con contenido. Antes el botón siempre estaba habilitado
@@ -891,6 +903,7 @@ export const QMedical = ({ onManualAdvance }) => {
     // [P0-B1] sentinel exclusivo con cualquier condición médica real.
     // [P1-FORM-2] valor desde SSOT (sentinels.js).
     const SENTINEL = SENTINELS.medicalConditions;
+    const noneSelected = (formData.medicalConditions || []).includes(SENTINEL);
     const handleToggle = (value) => {
         // [P2-QCHIPS-INCLUDES-GUARD · 2026-06-01] `|| []` (ver QAllergies).
         const next = toggleArrayWithExclusiveSentinel(formData.medicalConditions || [], value, SENTINEL);
@@ -915,9 +928,13 @@ export const QMedical = ({ onManualAdvance }) => {
                     onToggle={handleToggle}
                 />
             </div>
+            {/* [P3-FORM-SENTINEL-LOCKS-FREETEXT · 2026-07-01] "Ninguna" bloquea el
+                free-text de condiciones (el de medicamentos abajo es independiente). */}
             <Input
-                type="text" placeholder="Otra condición médica..." value={formData.otherConditions || ''}
+                type="text" placeholder={noneSelected ? 'Marcaste «Ninguna»' : 'Otra condición médica...'}
+                value={noneSelected ? '' : (formData.otherConditions || '')}
                 onChange={(e) => updateData('otherConditions', e.target.value)}
+                disabled={noneSelected}
             />
             {/* [P1-PREGNANCY-INTAKE-CAPTURE · 2026-06-19] (audit fresco P1-1) Captura explícita de
                 embarazo/lactancia — solo para mujeres (gender==='female'; QGender va antes que QMedical en el
@@ -1024,6 +1041,7 @@ export const QStruggles = ({ onManualAdvance }) => {
     // distinto de QAllergies/QMedical que usan femenino).
     // [P1-FORM-2] valor desde SSOT (sentinels.js).
     const SENTINEL = SENTINELS.struggles;
+    const noneSelected = (formData.struggles || []).includes(SENTINEL);
     const handleToggle = (value) => {
         // [P2-QCHIPS-INCLUDES-GUARD · 2026-06-01] `|| []` (ver QAllergies).
         const next = toggleArrayWithExclusiveSentinel(formData.struggles || [], value, SENTINEL);
@@ -1056,9 +1074,12 @@ export const QStruggles = ({ onManualAdvance }) => {
                     onToggle={handleToggle}
                 />
             </div>
+            {/* [P3-FORM-SENTINEL-LOCKS-FREETEXT · 2026-07-01] "Ninguno" bloquea el free-text. */}
             <Input
-                type="text" placeholder="Ej. Viajes frecuentes..." value={formData.otherStruggles || ''}
+                type="text" placeholder={noneSelected ? 'Marcaste «Ninguno»' : 'Ej. Viajes frecuentes...'}
+                value={noneSelected ? '' : (formData.otherStruggles || '')}
                 onChange={(e) => updateData('otherStruggles', e.target.value)}
+                disabled={noneSelected}
             />
             {/* [P1-FORM-7] Mismo patrón que QDislikes/QMedical: requiere
                 señal explícita antes de avanzar. ANTES, "Mayores Obstáculos"

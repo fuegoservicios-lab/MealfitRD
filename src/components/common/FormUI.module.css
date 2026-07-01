@@ -42,6 +42,17 @@
     box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
 }
 
+/* [P3-FORM-DISABLED-STATE · 2026-07-01] Feedback visual para inputs bloqueados
+   (ej. free-text de "Otros" cuando el usuario marca el sentinel "Ninguno").
+   Genérico y theme-agnóstico: dim + cursor not-allowed. */
+.input:disabled,
+.select:disabled,
+.textarea:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
 .selectWrapper {
     position: relative;
 }
