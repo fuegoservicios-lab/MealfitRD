@@ -172,9 +172,6 @@ const Engine = () => {
                             />
                         </picture>
                     </div>
-                    <figcaption className={styles.modelCaption}>
-                        El modelo MealfitRD v1.0 — nutrición dominicana, calculada.
-                    </figcaption>
                 </figure>
 
                 <p className={styles.lead}>
