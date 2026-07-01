@@ -75,7 +75,7 @@ const DESCRIPTIONS = {
     '/data-protection': 'Protección de datos en MealfitRD bajo la Ley 172-13: tus derechos de acceso, rectificación, cancelación y oposición, y cómo ejercerlos.',
     '/ai-policy': 'Cómo usa MealfitRD la inteligencia artificial: qué datos viajan al proveedor, límites del modelo, supervisión humana y que no entrenamos con tus datos.',
     '/research': 'Política de Investigación de MealfitRD: cómo usamos datos anonimizados para mejorar el producto, con exención de datos sensibles de salud y opt-out.',
-    '/refunds': 'Reembolsos y cancelaciones de MealfitRD: cómo cancelar tu suscripción, la ventana de reembolso de 7 días y cómo solicitarlo. Conforme a la Ley 358-05.',
+    '/refunds': 'Reembolsos y cancelaciones de MealfitRD: prueba gratis y cancela cuando quieras; las suscripciones no son reembolsables salvo donde la ley lo exija. Conforme a la Ley 358-05.',
     '/acceptable-use': 'Política de Uso de MealfitRD: reglas para un uso responsable, conductas prohibidas, uso justo de la IA y consecuencias del incumplimiento.',
     '/about': 'Acerca de MealfitRD: nutrición de precisión con IA para la mesa dominicana. Nuestra misión, cómo funciona el motor y los principios que nos guían.',
     '/responsible-disclosure': 'Política de Divulgación Responsable de MealfitRD: cómo reportar vulnerabilidades de seguridad, nuestro compromiso de puerto seguro y el alcance del programa.',

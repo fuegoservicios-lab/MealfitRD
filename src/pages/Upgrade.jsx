@@ -220,8 +220,8 @@ const FAQ_ITEMS = [
         a: 'Los créditos se reinician automáticamente cada mes el día de tu fecha de inicio. Si necesitas más antes, puedes hacer upgrade a un plan superior y la diferencia se prorratea.',
     },
     {
-        q: '¿Hay garantía de devolución?',
-        a: 'Sí. Tienes 7 días desde la primera compra para solicitar reembolso completo si la experiencia no cumple tus expectativas. Escribe a fuego.servicios@gmail.com.',
+        q: '¿Ofrecen reembolsos?',
+        a: 'Las suscripciones no son reembolsables, salvo donde la ley lo exija. Puedes cancelar cuando quieras: detienes las renovaciones y conservas el acceso hasta el fin del período ya pagado. Dudas: fuego.servicios@gmail.com.',
     },
     {
         q: '¿Por qué Anual cuesta menos?',
@@ -707,7 +707,7 @@ const Upgrade = () => {
                 signals compactados — solo aparece en mobile. */}
             <div className={styles.trustLineMobile}>
                 <ShieldCheck size={14} aria-hidden="true" />
-                <span>Pago seguro · Garantía 7d · Cancela cuando quieras</span>
+                <span>Pago seguro · SSL cifrado · Cancela cuando quieras</span>
             </div>
 
             {/* --- TRUST BADGES (desktop only) --- */}
@@ -730,8 +730,8 @@ const Upgrade = () => {
                     <div className={styles.trustIcon}>
                         <RefreshCw size={20} />
                     </div>
-                    <h3 className={styles.trustTitle}>Garantía 7 días</h3>
-                    <p className={styles.trustDesc}>Reembolso completo si no te convence</p>
+                    <h3 className={styles.trustTitle}>Cambia de plan al instante</h3>
+                    <p className={styles.trustDesc}>Sube o baja tu plan cuando quieras</p>
                 </div>
                 <div className={styles.trustItem}>
                     <div className={styles.trustIcon}>

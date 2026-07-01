@@ -244,7 +244,7 @@ export const Terms = () => (
             <li><strong>Max</strong> — USD 49.99/mes ó USD 449.99/año (≈ USD 37.50/mes).</li>
         </ul>
         <p>Todos los pagos se procesan mediante PayPal. La suscripción se renueva automáticamente al final de cada período (mensual o anual) salvo que usted la cancele desde Ajustes o desde su cuenta de PayPal antes de la fecha de renovación. Las cancelaciones surten efecto al final del período facturado en curso — no realizamos prorrateo de devolución por períodos parcialmente consumidos.</p>
-        <p><strong>Política de devolución:</strong> ofrecemos siete (7) días desde la primera compra para solicitar reembolso completo si el servicio no cumple sus expectativas. Las renovaciones automáticas no califican para esta ventana — solo la primera compra inicial. Solicitudes de reembolso deben dirigirse a fuego.servicios@gmail.com.</p>
+        <p><strong>Reembolsos:</strong> las suscripciones <strong>no son reembolsables</strong>, salvo donde la ley aplicable lo exija. Puede cancelar en cualquier momento para detener las renovaciones futuras; conservará el acceso hasta el final del período ya pagado. El detalle está en la <strong>Política de Reembolsos y Cancelaciones</strong>.</p>
         <p>Reservamos el derecho de modificar los precios y planes con notificación previa de treinta (30) días para suscriptores existentes.</p>
 
         <h3>4. Uso Aceptable</h3>
@@ -513,8 +513,8 @@ export const Research = () => (
    POLÍTICA DE REEMBOLSOS Y CANCELACIONES
    ============================================================================ */
 export const Refunds = () => (
-    <LegalLayout title="Política de Reembolsos y Cancelaciones" lastUpdated="30 de Junio, 2026">
-        <p>Esta Política detalla cómo funcionan las cancelaciones y los reembolsos de tu suscripción a MealfitRD. Queremos que sea clara y justa, conforme a la Ley No. 358-05 de Protección al Consumidor de República Dominicana.</p>
+    <LegalLayout title="Política de Reembolsos y Cancelaciones" lastUpdated="1 de Julio, 2026">
+        <p>Esta Política detalla cómo funcionan las cancelaciones y los reembolsos de tu suscripción a MealfitRD. Queremos que sea clara y justa, conforme a la Ley No. 358-05 de Protección al Consumidor de República Dominicana. En resumen: puedes <strong>probar gratis</strong> antes de pagar y <strong>cancelar cuando quieras</strong>; las suscripciones <strong>no son reembolsables</strong>, salvo donde la ley lo exija.</p>
 
         <h3>1. Plan Gratis</h3>
         <p>El Plan Gratis no tiene costo ni requiere tarjeta. Puedes dejar de usarlo cuando quieras, sin cargos ni compromisos.</p>
@@ -524,18 +524,19 @@ export const Refunds = () => (
         <ul>
             <li>Detiene las futuras renovaciones automáticas.</li>
             <li>Surte efecto <strong>al final del período ya facturado</strong> (mensual o anual): conservas el acceso de pago hasta esa fecha.</li>
-            <li>No genera prorrateo ni devolución por los días no usados del período en curso (salvo lo previsto en la ventana de reembolso del punto 3).</li>
+            <li>No genera prorrateo ni devolución por los días no usados del período en curso.</li>
         </ul>
 
-        <h3>3. Ventana de Reembolso</h3>
-        <p>Ofrecemos <strong>siete (7) días desde tu primera compra</strong> para solicitar un reembolso completo si el servicio no cumple tus expectativas. Importante:</p>
+        <h3>3. Reembolsos</h3>
+        <p>Las suscripciones de MealfitRD (Básico, Plus y Ultra) <strong>no son reembolsables</strong>, salvo donde la ley aplicable lo exija. Esto aplica tanto a la compra inicial como a las renovaciones. En lugar de reembolsos ofrecemos:</p>
         <ul>
-            <li>La ventana aplica únicamente a la <strong>primera compra inicial</strong> de un plan de pago.</li>
-            <li>Las <strong>renovaciones automáticas</strong> (períodos posteriores) <strong>no califican</strong> para reembolso — por eso te recomendamos cancelar antes de la fecha de renovación si no deseas continuar.</li>
+            <li>Un <strong>Plan Gratis</strong> para que evalúes la plataforma sin costo ni tarjeta antes de suscribirte.</li>
+            <li><strong>Cancelar cuando quieras</strong> para detener cobros futuros: conservas el acceso hasta el final del período ya pagado y no cobramos renovaciones posteriores.</li>
         </ul>
+        <p>Te recomendamos cancelar antes de tu fecha de renovación si no deseas continuar.</p>
 
-        <h3>4. Cómo Solicitar un Reembolso</h3>
-        <p>Escribe a <strong>fuego.servicios@gmail.com</strong> desde el correo asociado a tu cuenta, indicando el plan contratado y la fecha de compra. Procesamos las solicitudes válidas a la brevedad; el reembolso se acredita por la misma vía de pago (PayPal).</p>
+        <h3>4. Excepciones Legales</h3>
+        <p>Cuando la Ley No. 358-05 de Protección al Consumidor u otra normativa aplicable te reconozca un derecho de reembolso o de retracto en un caso concreto, lo respetaremos. Si consideras que te corresponde, escríbenos a <strong>fuego.servicios@gmail.com</strong> desde el correo asociado a tu cuenta, indicando el plan y la fecha de compra; revisaremos tu solicitud y, cuando proceda, acreditaremos el reembolso por la misma vía de pago (PayPal).</p>
 
         <h3>5. Renovación Automática</h3>
         <p>Las suscripciones se renuevan automáticamente al final de cada período hasta que las canceles. Te recomendamos revisar tu fecha de renovación en Ajustes o en PayPal. Si modificamos los precios, te avisaremos con al menos <strong>treinta (30) días</strong> de anticipación antes de que el nuevo precio aplique a tu renovación.</p>
