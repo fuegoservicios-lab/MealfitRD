@@ -473,12 +473,6 @@ const Upgrade = () => {
 
         return (
             <div key={tier} className={cardClass}>
-                {isCurrent && (
-                    <div className={`${styles.planCardBadge} ${styles.planCardBadgeCurrent}`}>
-                        <BadgeCheck size={12} style={{ marginRight: 4, verticalAlign: -2 }} />
-                        Plan actual
-                    </div>
-                )}
                 {isPopular && (
                     <div className={`${styles.planCardBadge} ${styles.planCardBadgePopular}`}>
                         Más Popular
