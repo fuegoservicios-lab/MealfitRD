@@ -146,10 +146,13 @@ function ModelDiagram() {
 
 /* ───────────────────────────────── datos ───────────────────────────────── */
 
+// [P3-ENGINE-STATS-DEDUP · 2026-07-01] Resúmenes que NO repiten los títulos de las
+// tarjetas de abajo (antes: 200+ alimentos / 17 micros / 100% se repetían en Catálogo
+// y Precisión). Ahora sintetizan cada sección: pipeline, clínica, precisión, modelo.
 const STATS = [
-    { num: '200+', label: 'Alimentos verificados' },
-    { num: '17', label: 'Micronutrientes vs DRI' },
-    { num: '100%', label: 'Ingredientes verificados' },
+    { num: '5', label: 'pasos con control de calidad' },
+    { num: '9', label: 'reglas clínicas por condición' },
+    { num: '±3.2%', label: 'error medio en el peor macro' },
     { num: 'V4', label: 'Motor DeepSeek' },
 ];
 
