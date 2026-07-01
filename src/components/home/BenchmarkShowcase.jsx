@@ -82,7 +82,11 @@ function PrecisionRadar() {
     const R = 138;
     const ang = (i) => ((-90 + i * 120) * Math.PI) / 180; // 0=arriba, +120 horario
     const pt = (i, frac) => [cx + R * frac * Math.cos(ang(i)), cy + R * frac * Math.sin(ang(i))];
+    const ptA = (a, frac) => [cx + R * frac * Math.cos(a), cy + R * frac * Math.sin(a)];
     const poly = (fracs) => fracs.map((f, i) => pt(i, f).join(',')).join(' ');
+    // barrido tipo scanner: cono de 52° desde el eje superior, gira sobre el radar.
+    const sweepLead = pt(0, 1);
+    const sweepTrail = ptA(ang(0) - (52 * Math.PI) / 180, 1);
 
     const mealfit = VERSUS.map((v) => v.mealfit / 100);
     const llm = VERSUS.map((v) => v.llm / 100);
@@ -113,6 +117,22 @@ function PrecisionRadar() {
             {/* Mealfit (adelante, casi lleno) */}
             <motion.polygon points={poly(mealfit)} className={styles.radarMealfit}
                 {...grow} transition={reduce ? undefined : { duration: 0.9, delay: 0.15, ease: [0.16, 1, 0.3, 1] }} />
+
+            {/* barrido tipo radar (scanner) que gira sobre el gráfico */}
+            {!reduce && (
+                <g>
+                    <defs>
+                        <radialGradient id="hiwRadarSweep" cx={cx} cy={cy} r={R} gradientUnits="userSpaceOnUse">
+                            <stop offset="0" stopColor="#2DD4BF" stopOpacity="0.32" />
+                            <stop offset="1" stopColor="#2DD4BF" stopOpacity="0" />
+                        </radialGradient>
+                    </defs>
+                    <polygon points={`${cx},${cy} ${sweepLead.join(',')} ${sweepTrail.join(',')}`} fill="url(#hiwRadarSweep)" />
+                    <line x1={cx} y1={cy} x2={sweepLead[0]} y2={sweepLead[1]} className={styles.radarSweepEdge} />
+                    <animateTransform attributeName="transform" attributeType="XML" type="rotate"
+                        from={`0 ${cx} ${cy}`} to={`360 ${cx} ${cy}`} dur="4.5s" repeatCount="indefinite" />
+                </g>
+            )}
 
             {/* vértices */}
             {llm.map((f, i) => { const [x, y] = pt(i, f); return <circle key={`l${i}`} cx={x} cy={y} r="3.5" className={styles.radarDotLlm} />; })}
