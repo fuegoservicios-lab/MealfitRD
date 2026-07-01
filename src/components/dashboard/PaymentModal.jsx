@@ -27,7 +27,6 @@ const PLAN_FEATURES = {
     ],
     plus: [
         { icon: "⚡", text: "200 Créditos de IA al mes" },
-        { icon: "🎙️", text: "Llamadas de Voz con tu Nutricionista IA" },
         { icon: "🧠", text: "Memoria Infinita" },
         { icon: "✅", text: "Todo lo incluido en Básico" },
     ],

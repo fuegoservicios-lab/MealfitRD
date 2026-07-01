@@ -100,10 +100,9 @@ const PLAN_SUMMARY = {
         ],
     },
     plus: {
-        description: 'Tu nutricionista en tiempo real. Voz IA 24/7 y métricas avanzadas.',
+        description: 'Tu nutricionista IA en tiempo real, con métricas avanzadas.',
         features: [
             '200 Créditos al mes',
-            'Llamadas de Voz con IA',
             'Memoria Infinita',
             'Todo lo incluido en Básico',
         ],
@@ -161,11 +160,6 @@ const COMP_FEATURES = [
             {
                 name: 'Memoria Infinita',
                 desc: 'Sin truncamiento del historial conversacional',
-                values: { gratis: false, basic: false, plus: true, ultra: true },
-            },
-            {
-                name: 'Llamadas de Voz IA',
-                desc: 'Consulta a tu nutricionista IA por voz 24/7',
                 values: { gratis: false, basic: false, plus: true, ultra: true },
             },
         ],

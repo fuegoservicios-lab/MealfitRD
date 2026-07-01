@@ -419,12 +419,11 @@ const Pricing = () => {
                             )}
 
                             <p className={styles.description}>
-                                Tu nutricionista en tiempo real. Consultas por voz las 24 horas y métricas de salud avanzadas.
+                                Tu nutricionista IA en tiempo real, disponible 24/7, con métricas de salud avanzadas.
                             </p>
 
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>200 Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Llamadas de Voz con tu Nutricionista IA</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Memoria Infinita</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Básico</strong></li>
                             </ul>
