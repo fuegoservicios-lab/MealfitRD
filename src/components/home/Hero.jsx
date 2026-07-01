@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, ChevronRight, Utensils, Activity, TrendingUp, BookOpen, Stethoscope, HeartPulse, ClipboardCheck, Wallet, Cpu } from 'lucide-react';
+import { ArrowRight, ChevronRight, BookOpen, Stethoscope, HeartPulse, ClipboardCheck, Wallet, Cpu } from 'lucide-react';
 import styles from './Hero.module.css';
 import { useHeroCta } from '../../context/HeroCtaContext';
 
@@ -204,38 +204,8 @@ const Hero = () => {
                             </video>
                         )}
 
-                        {/* Tarjetas-métrica flotantes (glass). Cada una entra con
-                            su propio variant (coreografía) y luego flota en su
-                            plano Z (parallax cuando .stage3d rota). */}
-                        <motion.div className={`${styles.floatCard} ${styles.floatCard1}`} variants={V.card}>
-                            <div className={styles.iconBox} style={{ '--icon-fg': 'var(--primary)' }}>
-                                <Utensils size={22} />
-                            </div>
-                            <div className={styles.cardText}>
-                                <strong>Plan a tu medida</strong>
-                                <small>Macros calculados, no a ojo</small>
-                            </div>
-                        </motion.div>
-
-                        <motion.div className={`${styles.floatCard} ${styles.floatCard2}`} variants={V.card}>
-                            <div className={styles.iconBox} style={{ '--icon-fg': 'var(--secondary)' }}>
-                                <Activity size={22} />
-                            </div>
-                            <div className={styles.cardText}>
-                                <strong>Se ajusta a tus condiciones</strong>
-                                <small>DM2 · renal · HTA · alergias</small>
-                            </div>
-                        </motion.div>
-
-                        <motion.div className={`${styles.floatCard} ${styles.floatCard3}`} variants={V.card}>
-                            <div className={styles.iconBox} style={{ '--icon-fg': 'var(--accent)' }}>
-                                <TrendingUp size={22} />
-                            </div>
-                            <div className={styles.cardText}>
-                                <strong>Progreso medible</strong>
-                                <small>Valores estimados, trazables</small>
-                            </div>
-                        </motion.div>
+                        {/* [P3-HERO-ORB-SOLO · 2026-06-30] Tarjetas-métrica flotantes
+                            eliminadas a pedido — el orbe-video queda solo, protagonista. */}
                     </div>
                 </motion.div>
             </div>
