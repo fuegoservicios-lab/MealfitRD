@@ -330,12 +330,36 @@ const Engine = () => {
                 <h2 className={styles.sectionTitle}>Catálogo real y Nevera Inteligente</h2>
                 <div className={styles.prose}>
                     <p>
-                        El motor solo usa alimentos de un catálogo de más de 200 productos
-                        dominicanos con datos nutricionales reales, curados desde USDA: nada
-                        inventado. La lista de compras se calcula por tamaño de envase con precios
-                        reales de supermercado en RD$, para que el plan quepa en tu presupuesto. Y
-                        con la Nevera Inteligente marcas «ya compré la lista» y, al renovar, el motor
-                        reúsa lo que te sobró y te pide solo lo que falta para tener tu nevera al 100%.
+                        <strong>Solo alimentos reales.</strong> El motor cocina únicamente con lo que
+                        existe: un catálogo de más de 200 productos dominicanos con datos
+                        nutricionales reales curados desde USDA, incluido un panel ampliado de 17
+                        micronutrientes. No inventa alimentos: la generación está limitada al catálogo
+                        y, si algo se cuela fuera de él, no llega a tu plan ni a tu lista de compras.
+                        Nada de calorías inventadas ni ingredientes fantasma que después no encuentras
+                        en el súper.
+                    </p>
+                    <p>
+                        <strong>Precio de góndola, no una estimación.</strong> La lista no se costea
+                        por gramos abstractos, sino por el envase real que de verdad compras —la funda,
+                        la lata, la libra, el cartón, el pote— con precios de supermercado en RD$, y
+                        eligiendo la presentación más económica para la cantidad que necesitas (así
+                        aprovecha el descuento por volumen). Los productos estables se cuentan una sola
+                        vez y los perecederos se multiplican por las semanas del ciclo, para que el
+                        total refleje lo que pagarías en caja y el plan quepa en tu presupuesto.
+                    </p>
+                    <p>
+                        <strong>La lista cuadra con las recetas.</strong> Un guardián de coherencia
+                        revisa que todo lo que una receta usa aparezca en la lista, en la cantidad
+                        correcta, y que no se cuele nada de más. Si una comida lleva pollo, la lista
+                        pide ese pollo en la magnitud que toca; si algo no cuadra, el motor lo corrige
+                        antes de entregarte el plan.
+                    </p>
+                    <p>
+                        <strong>Nevera Inteligente.</strong> Cuando marcas «ya compré la lista», tu
+                        nevera se llena y el motor pasa a saber qué tienes en casa. Al renovar el ciclo
+                        reúsa lo que te sobró y te pide solo lo que falta para volver a dejar tu nevera
+                        al 100%, para que no vuelvas a comprar la sal, el aceite o el arroz que ya
+                        tienes.
                     </p>
                 </div>
             </section>
