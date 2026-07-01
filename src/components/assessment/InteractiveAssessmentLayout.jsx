@@ -3,11 +3,10 @@ import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAssessment } from '../../context/AssessmentContext';
 import { ChevronLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import styles from './InteractiveAssessmentLayout.module.css';
 
 const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle }) => {
-    const { currentStep, prevStep, planData } = useAssessment();
+    const { currentStep, prevStep } = useAssessment();
     const progress = (currentStep / (totalSteps - 1)) * 100;
 
     useEffect(() => {
@@ -31,9 +30,9 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                         Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
                     </div>
                     
-                    <Link to={planData ? '/dashboard' : '/'} className={styles.closeBtn}>
-                        Cancelar
-                    </Link>
+                    {/* [P3-ASSESSMENT-NO-CANCEL · 2026-07-01] Botón «Cancelar» eliminado a pedido;
+                        spacer para conservar el centrado del logo (header 3-col space-between). */}
+                    <div className={styles.backSpacer} />
                 </div>
                 
                 {/* Progress Bar under header */}
