@@ -287,19 +287,39 @@ const Engine = () => {
                 <h2 className={styles.sectionTitle}>Aprendizaje a largo plazo</h2>
                 <div className={styles.prose}>
                     <p>
-                        En los planes de pago (Básico, Plus y Ultra), el coach no empieza de cero
-                        cada vez: construye una memoria de tus preferencias que persiste entre
-                        conversaciones. Mientras conversas, destila «hechos» permanentes —lo que te
-                        gusta, lo que rechazas, tus hábitos— y los guarda con un embedding vectorial
-                        (Cohere Embed v4, 1536 dimensiones); al volver, recupera los más relevantes
-                        por significado, no por palabra exacta.
+                        <strong>Qué recuerda.</strong> En los planes de pago (Básico, Plus y Ultra),
+                        el coach no empieza de cero cada vez. Mientras conversas, un extractor destila
+                        «hechos» estables sobre ti —lo que te gusta, lo que rechazas, tus hábitos y,
+                        de forma prioritaria, tus alergias y condiciones— y los guarda como memoria
+                        persistente ligada solo a tu cuenta. No archiva la conversación entera: se
+                        queda con las conclusiones.
                     </p>
                     <p>
-                        Esa memoria vive por cuenta: nunca se cruza con otros usuarios ni se usa para
-                        entrenar modelos de terceros, y puedes pausarla cuando quieras desde Ajustes.
-                        Un proceso offline —el «Dreaming»— que de-duplica, prioriza y ordena tu
-                        memoria con el tiempo, con salvaguardas que nunca degradan tus alergias ni
-                        condiciones, está construido y se activa por fases.
+                        <strong>Cómo lo recupera.</strong> Cada hecho se indexa con un embedding
+                        vectorial (Cohere Embed v4, 1536 dimensiones): una representación numérica de
+                        su significado. Al volver, el motor trae los hechos más afines a lo que estás
+                        pidiendo por cercanía semántica —por lo que quieres decir, no por la palabra
+                        exacta— y solo los más relevantes entran al prompt del coach. La consulta y el
+                        contenido guardado se embeben de forma asimétrica, una palanca de precisión
+                        para que la búsqueda acierte.
+                    </p>
+                    <p>
+                        <strong>Consolidación offline (el «Dreaming»).</strong> La memoria en vivo solo
+                        ve unos pocos hechos por consulta; nunca cruza todo tu historial. Por eso un
+                        proceso nocturno recorre tu memoria completa: fusiona preferencias repetidas
+                        en un solo hecho canónico —de forma reversible, nunca borra en firme—, pondera
+                        cada hecho por relevancia y deja que lo que dejas de reforzar pierda peso con
+                        el tiempo, detecta contradicciones entre sesiones y sintetiza un «modelo de ti»
+                        de alto nivel que resume quién eres para el motor. Cada frase de ese modelo va
+                        anclada a hechos reales y verificados tuyos, para que no invente nada. Este
+                        proceso ya está construido y se enciende por fases.
+                    </p>
+                    <p>
+                        <strong>Tus salvaguardas.</strong> Tus alergias y condiciones médicas quedan
+                        exentas de todo lo anterior: nunca se fusionan ni pierden peso, y su prioridad
+                        se fija siempre al máximo (por diseño, fallan del lado seguro). Tu memoria vive
+                        por cuenta —jamás se cruza con la de otro usuario ni se usa para entrenar
+                        modelos de terceros— y puedes pausarla cuando quieras desde Ajustes.
                     </p>
                 </div>
             </section>
