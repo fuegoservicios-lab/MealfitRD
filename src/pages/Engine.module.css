@@ -468,6 +468,13 @@
 .macroBarFill { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
 .macroBarVal { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; color: var(--text-muted); text-align: right; font-variant-numeric: tabular-nums; }
 
+/* [P3-ENGINE-ARCH-PROSE · 2026-07-01] prosa técnica (reemplaza los pasos numerados) */
+.prose { margin-top: 1.4rem; max-width: 720px; }
+.prose p { color: var(--text-muted); font-size: 1rem; line-height: 1.7; margin: 0 0 1.05rem; }
+.prose p:last-child { margin-bottom: 0; }
+.prose strong { color: var(--text-main); font-weight: 650; }
+.prose em { color: color-mix(in srgb, var(--primary) 82%, var(--text-main)); font-style: normal; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.94em; }
+
 /* ---- elementos del SVG del modelo ---- */
 .mFrame line { stroke: color-mix(in srgb, var(--primary) 55%, transparent); stroke-width: 1.4; }
 .mCoreGlow { opacity: 0.9; }

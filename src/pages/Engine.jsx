@@ -34,14 +34,6 @@ const STATS = [
     { num: 'V4', label: 'Motor DeepSeek' },
 ];
 
-const PIPELINE = [
-    { title: 'Tu perfil', text: 'Objetivo, datos biométricos, condiciones de salud, alergias, presupuesto y lo que te gusta (o no). Todo entra al motor.' },
-    { title: 'Cálculo de objetivos', text: 'Estimamos tus calorías diarias (gasto energético) y tus macros — proteína, carbohidratos y grasas — según tu meta.' },
-    { title: 'Generación con IA', text: 'DeepSeek V4 arma los platos día por día usando SOLO alimentos del catálogo verificado. El motor nunca inventa comida que no exista.' },
-    { title: 'Validación', text: 'Cada comida pasa por guardas: piso de proteína, banda de macros, variedad, coherencia receta↔lista y la capa clínica según tu perfil.' },
-    { title: 'Entrega', text: 'Tu plan completo + una lista de compras costeada con precios reales de supermercado dominicano (RD$).' },
-];
-
 const CLINICAL = [
     { Icon: Droplets, title: 'Diabetes (DM2)', text: 'Control de índice glucémico y fibra mínima por caloría, siguiendo criterios tipo ADA.' },
     { Icon: FlaskConical, title: 'Enfermedad renal', text: 'Tope de proteína según KDIGO (0.8 g/kg, 1.2 si hay diálisis), ajustado a tu peso.' },
@@ -190,27 +182,33 @@ const Engine = () => {
                 </div>
             </section>
 
-            {/* ---- pipeline ---- */}
+            {/* ---- arquitectura (prosa técnica) ---- */}
             <section className={styles.section}>
-                <span className={styles.kicker}>01 / pipeline</span>
-                <h2 className={styles.sectionTitle}>Cómo nace tu plan</h2>
-                <p className={styles.sectionLead}>
-                    Del formulario a tu lista de compras, en cinco pasos. Cada uno con su
-                    propia capa de control de calidad.
-                </p>
-                <div className={styles.steps}>
-                    {PIPELINE.map((step, i) => (
-                        <div key={step.title} className={styles.step}>
-                            <div className={styles.stepRail}>
-                                <div className={styles.stepNum}>{i + 1}</div>
-                                <div className={styles.stepLine} />
-                            </div>
-                            <div className={styles.stepBody}>
-                                <div className={styles.stepTitle}>{step.title}</div>
-                                <div className={styles.stepText}>{step.text}</div>
-                            </div>
-                        </div>
-                    ))}
+                <span className={styles.kicker}>01 / arquitectura</span>
+                <h2 className={styles.sectionTitle}>Cómo funciona por dentro</h2>
+                <div className={styles.prose}>
+                    <p>
+                        MealfitRD v1.0 no es «un LLM y ya»: es un <strong>sistema híbrido</strong>.
+                        Un modelo de lenguaje —DeepSeek V4— propone los platos día por día, y una
+                        <strong> capa determinista</strong> (un orquestador por grafos de estados)
+                        los valida y corrige. La generación ocurre por <strong>bloques en
+                        paralelo</strong>; cada bloque pasa por un revisor que verifica esquema,
+                        macros y reglas clínicas, y se <strong>reintenta hasta tres veces</strong>{' '}
+                        usando el rechazo como retroalimentación. Si el proveedor del modelo falla,
+                        un <em>circuit breaker</em> cae a un plan calculado matemáticamente — el
+                        motor nunca se cuelga ni se cae.
+                    </p>
+                    <p>
+                        El modelo solo trabaja con un <strong>catálogo verificado</strong> de
+                        alimentos dominicanos con datos nutricionales reales: nunca inventa comida
+                        que no exista. Sobre ese catálogo, un motor de optimización
+                        <strong> recalcula los macros desde los gramos reales</strong> de cada
+                        ingrediente y reescala las porciones para clavar tus objetivos, compara el
+                        plan contra 17 micronutrientes y cuadra la lista de compras con las recetas.
+                        Según tu plan, la generación usa DeepSeek V4 <strong>flash</strong> (gratis)
+                        o <strong>pro</strong> (planes de pago), priorizando siempre el costo más
+                        bajo ante cualquier duda.
+                    </p>
                 </div>
             </section>
 
