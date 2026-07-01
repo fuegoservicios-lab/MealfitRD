@@ -12,7 +12,21 @@
     isolation: isolate;
     color: var(--text-main);
     background: var(--bg-page);
-    padding: 0 0 clamp(4rem, 10vh, 7rem);
+    /* [P3-ABOUT-HEADER-SEAM · 2026-06-30] El Header es una barra flotante `fixed` y el
+       .main-content reserva su alto con padding-top (Layout.jsx). Sin esto, el fondo
+       (aurora) de la página arrancaba JUSTO bajo la barra → costura visible que "no
+       cuadra" con el header. Cancelamos ese padding con un margin-top negativo idéntico
+       y lo reponemos como padding-top del propio .page: el CONTENIDO queda en el mismo
+       sitio, pero el fondo sube por detrás de la barra (como en el landing). Los valores
+       DEBEN coincidir con Layout.jsx (72px+safe-area móvil / 88px desktop). */
+    margin-top: calc(-1 * (72px + max(env(safe-area-inset-top), 18px)));
+    padding: calc(72px + max(env(safe-area-inset-top), 18px)) 0 clamp(4rem, 10vh, 7rem);
+}
+@media (min-width: 768px) {
+    .page {
+        margin-top: -88px;
+        padding-top: 88px;
+    }
 }
 
 /* ───────────────────── aurora abstracta (sin imágenes) ─────────────────────
