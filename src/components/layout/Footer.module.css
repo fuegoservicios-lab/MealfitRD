@@ -34,10 +34,18 @@
        2rem) para que las columnas respiren; Términos con algo más de fr para que "Uso de
        Inteligencia Artificial" no envuelva con el gap mayor. */
     grid-template-columns: 1.3fr 1.25fr 1fr 0.85fr 1.2fr;
-    gap: 2.25rem 3rem;
+    gap: 2.25rem 3.25rem;
     padding: 0 1.5rem;
     max-width: 1320px;
     margin: 0 auto;
+}
+
+/* [P3-FOOTER-GAP · 2026-07-01] La columna de marca (con la descripción ancha) quedaba
+   pegada a "Términos" porque el texto llenaba la columna hasta el borde. Un padding-right
+   propio le da aire real ANTES del gap, sin encoger las columnas de enlaces. Solo en el
+   layout de 5 columnas (desktop); en tablet/móvil no aplica. */
+@media (min-width: 1025px) {
+    .col:first-child { padding-right: 2.25rem; }
 }
 
 .logo {
