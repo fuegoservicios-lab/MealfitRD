@@ -1455,6 +1455,32 @@ export const AssessmentProvider = ({ children }) => {
                 handleAuthChange(initialSession);
                 return;
             }
+            // [P1-OAUTH-RETURN-RETRY · 2026-07-01] Si acabamos de volver de un OAuth
+            // (Google), la sesión de Neon puede no estar disponible en el PRIMER
+            // getSession de este mount (carrera cookie↔XHR en el retorno). Antes eso
+            // caía a "sin sesión" → rebote a /login, y el usuario tenía que pulsar
+            // "Continuar con Google" una 2ª vez. Reintentamos getSession unas pocas
+            // veces con backoff corto ANTES de rendirnos. Mientras reintentamos NO
+            // llamamos handleAuthChange → loadingAuth sigue true → ProtectedRoute
+            // muestra la pantalla de carga (no rebota). El flag lo pone
+            // Login.handleGoogle y se consume aquí (una carga normal nunca reintenta).
+            let oauthPending = false;
+            try { oauthPending = sessionStorage.getItem('mf_oauth_pending') === '1'; } catch { /* noop */ }
+            if (oauthPending) {
+                try { sessionStorage.removeItem('mf_oauth_pending'); } catch { /* noop */ }
+                for (let i = 0; i < 4; i++) {
+                    await new Promise((r) => setTimeout(r, 600));
+                    try {
+                        // Acotamos cada reintento (3s) para que un getSession colgado NUNCA
+                        // congele la pantalla de carga — el loop siempre progresa.
+                        const { data: { session: retried } = {} } = await Promise.race([
+                            authClient.auth.getSession(),
+                            new Promise((res) => setTimeout(() => res({ data: { session: null } }), 3000)),
+                        ]);
+                        if (retried) { handleAuthChange(retried); return; }
+                    } catch { /* seguir reintentando */ }
+                }
+            }
             if (!(await _resolveViaFirstParty())) {
                 handleAuthChange(null);
             }

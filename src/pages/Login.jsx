@@ -153,6 +153,12 @@ const Login = () => {
         if (googleLoading) return;
         setGoogleLoading(true);
         setError(null);
+        // [P1-OAUTH-RETURN-RETRY · 2026-07-01] Marca que iniciamos un OAuth. Al volver
+        // de Google, el provider (AssessmentContext) reintenta resolver la sesión si el
+        // primer getSession corre antes de que la cookie/sesión de Neon esté disponible
+        // (carrera que obligaba a pulsar "Continuar con Google" una 2ª vez). sessionStorage
+        // sobrevive el round-trip app→Google→app (mismo origen, misma pestaña).
+        try { sessionStorage.setItem('mf_oauth_pending', '1'); } catch { /* noop */ }
         try {
             const { error: oauthError } = await authClient.auth.signInWithOAuth({
                 provider: 'google',
@@ -161,6 +167,8 @@ const Login = () => {
             if (oauthError) throw oauthError;
             // éxito → la página redirige a Google; no reseteamos loading.
         } catch (err) {
+            // No hubo redirect → limpiar el flag para no reintentar en un load normal.
+            try { sessionStorage.removeItem('mf_oauth_pending'); } catch { /* noop */ }
             setError(humanizeAuthError(err));
             setGoogleLoading(false);
         }
