@@ -28,6 +28,7 @@ const NAV_SECTIONS = [
     { id: 'how-it-works', label: 'Cómo funciona', to: '/como-funciona' },
     { id: 'dashboard', label: 'Funciones', to: '/funciones' },
     { id: 'benchmarks', label: 'Precisión', to: '/precision' },
+    { id: 'research', label: 'Investigación', to: '/research' },
     { id: 'pricing', label: 'Precios', to: '/precios' },
 ];
 
