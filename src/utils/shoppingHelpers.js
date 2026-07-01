@@ -124,6 +124,15 @@ export const resolveShopQty = (item) => {
 //   - Es una función pura para fácil testeo.
 // ============================================================
 
+const HTML_ESCAPE_MAP = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+};
+const HTML_ESCAPE_REGEX = /[&<>"']/g;
+
 /**
  * Escapa los 5 metacaracteres HTML para prevenir markup roto en el PDF.
  * @param {string|number|null|undefined} value
@@ -132,12 +141,7 @@ export const resolveShopQty = (item) => {
 export const escapeHtml = (value) => {
     if (value === null || value === undefined) return '';
     const str = typeof value === 'string' ? value : String(value);
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    return str.replace(HTML_ESCAPE_REGEX, match => HTML_ESCAPE_MAP[match]);
 };
 
 export const getActiveShoppingList = (planData, duration) => {
