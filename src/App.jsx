@@ -75,8 +75,9 @@ const Research = lazy(() => import('./pages/ResearchPage'));
 const Refunds = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Refunds })));
 // [P3-ACCEPTABLE-USE-PAGE · 2026-06-30] Política de Uso Aceptable (reglas de uso responsable).
 const AcceptableUse = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.AcceptableUse })));
-// [P3-ABOUT-PAGE · 2026-06-30] Página "Acerca de MealfitRD" (categoría Empresas en el footer).
-const About = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.About })));
+// [P3-ABOUT-PAGE-ABSTRACT · 2026-06-30] "Acerca de MealfitRD" — página propia con estética
+// abstracta (aurora CSS + tipografía editorial), distinta de las políticas y del marketing.
+const About = lazy(() => import('./pages/AboutPage'));
 // [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] Política de divulgación responsable (seguridad).
 const ResponsibleDisclosure = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.ResponsibleDisclosure })));
 // [P3-ENGINE-INFO-PAGE · 2026-06-28] Página pública informativa del motor v1.0.0.

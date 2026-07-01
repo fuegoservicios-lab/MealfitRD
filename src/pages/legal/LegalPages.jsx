@@ -609,45 +609,8 @@ export const AcceptableUse = () => (
     </LegalLayout>
 );
 
-/* ============================================================================
-   ACERCA DE MEALFITRD
-   ============================================================================ */
-export const About = () => (
-    <LegalLayout title="Acerca de MealfitRD">
-        <p>MealfitRD es una plataforma dominicana de <strong>nutrición de precisión potenciada por inteligencia artificial</strong>. Creamos planes de alimentación 100% personalizados, adaptados a tus gustos, tu presupuesto, tu condición de salud y, sobre todo, a la mesa dominicana real.</p>
-
-        <h3>Nuestra Misión</h3>
-        <p>Hacer que comer bien deje de ser complicado o caro. Creemos que una buena nutrición no debería requerir contratar a un especialista costoso ni seguir dietas genéricas pensadas para otros países y otros bolsillos. Por eso construimos una herramienta que pone la nutrición de precisión al alcance de cualquier persona, con alimentos que de verdad se consiguen y se comen en República Dominicana.</p>
-
-        <h3>El Problema que Resolvemos</h3>
-        <p>La mayoría de las apps de nutrición usan catálogos de alimentos extranjeros, precios irreales y planes que ignoran tu contexto. El resultado: listas de compras imposibles de seguir y comidas que nadie quiere repetir. MealfitRD parte de un <strong>catálogo verificado de alimentos dominicanos</strong> con precios reales en RD$, y arma planes coherentes que puedes cocinar, comprar y disfrutar.</p>
-
-        <h3>Cómo lo Hacemos</h3>
-        <p>Detrás de cada plan hay mucho más que un modelo de IA. Combinamos:</p>
-        <ul>
-            <li><strong>Un motor de orquestación</strong> que coordina la generación en varios pasos validados.</li>
-            <li><strong>Un cálculo determinista de macronutrientes</strong> — no estimamos "a ojo": cuadramos calorías, proteína y el resto de macros con fórmulas nutricionales estándar.</li>
-            <li><strong>Guardas clínicas</strong> que ajustan el plan según condiciones declaradas (diabetes, enfermedad renal, embarazo, cirugía bariátrica y más).</li>
-            <li><strong>Un motor de coherencia</strong> que verifica que la lista de compras concuerde con las recetas.</li>
-            <li><strong>Un coach conversacional</strong> que responde tus dudas, cambia comidas y registra tu consumo en tiempo real.</li>
-        </ul>
-        <p>La IA es una pieza poderosa dentro de un sistema mayor; el valor está en la validación, la personalización y la seguridad que la rodean.</p>
-
-        <h3>Nuestros Principios</h3>
-        <ul>
-            <li><strong>Precisión:</strong> medimos qué tan cerca queda tu plan de tus objetivos y mejoramos continuamente.</li>
-            <li><strong>Transparencia:</strong> te explicamos qué datos usamos, cómo funciona la IA y cuáles son sus límites.</li>
-            <li><strong>Privacidad:</strong> tus datos son tuyos. No los vendemos ni los usamos para entrenar modelos. Lee nuestra <strong>Política de Privacidad</strong>.</li>
-            <li><strong>Seguridad clínica:</strong> nuestras recomendaciones son una herramienta de apoyo y nunca sustituyen a un profesional de la salud (ver <strong>Aviso Médico</strong>).</li>
-        </ul>
-
-        <h3>Quiénes Somos</h3>
-        <p>MealfitRD es una plataforma operada desde República Dominicana, construida por un equipo que cree en la tecnología al servicio de la salud y la cultura local. Empezamos por la mesa dominicana, con la mira puesta en llevar esta misma precisión al resto de Latinoamérica.</p>
-
-        <h3>Hablemos</h3>
-        <p>¿Tienes preguntas, ideas o quieres colaborar con nosotros? Escríbenos a <strong>fuego.servicios@gmail.com</strong>. Respondemos en menos de 24 horas.</p>
-    </LegalLayout>
-);
+/* [P3-ABOUT-PAGE-ABSTRACT · 2026-06-30] El componente About se movió a su propia página
+   con estética abstracta: ver frontend/src/pages/AboutPage.jsx. Ya no vive aquí. */
 
 /* ============================================================================
    POLÍTICA DE DIVULGACIÓN RESPONSABLE (SEGURIDAD)
