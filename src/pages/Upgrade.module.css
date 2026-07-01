@@ -585,9 +585,11 @@
     padding-left: 1.5rem;
 }
 
-/* Columna Plus highlighted en header */
+/* Columna Plus highlighted en header
+   [P3-UPGRADE-TABLE-POLISH · 2026-07-01] Tinte más fuerte para que la columna
+   destacada se lea como "featured" (antes casi invisible, sobre todo en oscuro). */
 .compTable thead th.compTableCellHighlight {
-    background: linear-gradient(180deg, rgba(139, 92, 246, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%);
+    background: linear-gradient(180deg, rgba(139, 92, 246, 0.13) 0%, rgba(99, 102, 241, 0.05) 100%);
     color: #6366F1;
     border-bottom-color: #8B5CF6;
 }
@@ -649,12 +651,33 @@
 
 /* Columna Plus en el cuerpo: highlight con bordes laterales para destacar */
 .compTableCellHighlight {
-    background: linear-gradient(180deg, rgba(139, 92, 246, 0.05) 0%, rgba(139, 92, 246, 0.02) 100%);
+    background: linear-gradient(180deg, rgba(139, 92, 246, 0.07) 0%, rgba(139, 92, 246, 0.035) 100%);
     font-weight: 800;
     color: #6366F1;
-    border-left: 1.5px solid rgba(139, 92, 246, 0.18);
-    border-right: 1.5px solid rgba(139, 92, 246, 0.18);
+    border-left: 1.5px solid rgba(139, 92, 246, 0.22);
+    border-right: 1.5px solid rgba(139, 92, 246, 0.22);
     position: relative;
+}
+
+/* [P3-UPGRADE-TABLE-POLISH · 2026-07-01] Cap inferior redondeado de la columna
+   Plus (última fila) → la columna destacada se lee como un panel continuo. */
+.compTable tbody tr:last-child td.compTableCellHighlight {
+    border-bottom: 1.5px solid rgba(139, 92, 246, 0.22);
+    border-radius: 0 0 12px 12px;
+}
+
+/* [P3-UPGRADE-TABLE-POLISH · 2026-07-01] Valor cualitativo (ej. "Limitado")
+   como chip sutil en vez de texto plano en negrita → más legible y prolijo. */
+.compTablePill {
+    display: inline-block;
+    padding: 0.26rem 0.7rem;
+    border-radius: 9999px;
+    background: rgba(100, 116, 139, 0.1);
+    color: #64748B;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
 }
 
 /* [P3-UPGRADE-TABLE-INFINITY · 2026-05-26] Icono Infinity en celdas Ultra
@@ -1431,6 +1454,42 @@
 
 :global(html[data-theme="dark"]) .compTableFeatureDesc {
     color: var(--text-light);
+}
+
+/* [P3-UPGRADE-TABLE-POLISH · 2026-07-01] Columna destacada (Plus) en oscuro:
+   los tintes claros de ~5% eran invisibles sobre fondo oscuro. Se refuerzan
+   para que la columna "featured" se lea con claridad. */
+:global(html[data-theme="dark"]) .compTable thead th.compTableCellHighlight {
+    background: linear-gradient(180deg, rgba(139, 92, 246, 0.24) 0%, rgba(99, 102, 241, 0.10) 100%);
+    color: #C4B5FD;
+    border-bottom-color: #8B5CF6;
+}
+:global(html[data-theme="dark"]) .compTableCellHighlight {
+    background: linear-gradient(180deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.07) 100%);
+    color: #C4B5FD;
+    border-left-color: rgba(139, 92, 246, 0.38);
+    border-right-color: rgba(139, 92, 246, 0.38);
+}
+:global(html[data-theme="dark"]) .compTable tbody tr:nth-child(even) td.compTableCellHighlight {
+    background: linear-gradient(180deg, rgba(139, 92, 246, 0.17) 0%, rgba(139, 92, 246, 0.09) 100%);
+}
+:global(html[data-theme="dark"]) .compTable tbody tr:last-child td.compTableCellHighlight {
+    border-bottom-color: rgba(139, 92, 246, 0.38);
+}
+
+/* Chip cualitativo ("Limitado") en oscuro */
+:global(html[data-theme="dark"]) .compTablePill {
+    background: rgba(148, 163, 184, 0.16);
+    color: #CBD5E1;
+}
+
+/* ∞ dorado más brillante en oscuro (el #B45309 marrón se veía apagado) */
+:global(html[data-theme="dark"]) .compTableInfinity {
+    color: #FBBF24;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.22) 0%, rgba(245, 158, 11, 0.10) 100%);
+    box-shadow:
+        inset 0 0 0 1px rgba(251, 191, 36, 0.30),
+        0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 /* --- FAQ --- */
