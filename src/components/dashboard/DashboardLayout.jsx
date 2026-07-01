@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Crown, Lock } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Lock } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -139,7 +139,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
         ? 'Invitado'
         : !isPremium
         ? 'Gratuito'
-        : userProfile?.plan_tier === 'ultra' ? 'Ultra'
+        : userProfile?.plan_tier === 'ultra' ? 'Max'
         : userProfile?.plan_tier === 'plus' ? 'Plus'
         : 'Básico';
     const isUltraTier = isPremium && userProfile?.plan_tier === 'ultra';
@@ -261,7 +261,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                             <AccountMenu
                                 user={{ name: accountName, email: accountEmail }}
                                 plan={planLabel}
-                                planAccessory={isUltraTier ? <Crown size={15} strokeWidth={2.5} /> : null}
+                                planAccessory={null}
                                 /* [P3-CTA-MEJORAR-PLAN · 2026-06-30] "Mejorar plan" invita a subir
                                    de tier (Gratuito/Básico/Plus); Ultra ya está en el tope → "Ver planes". */
                                 viewPlansLabel={isUltraTier ? 'Ver planes' : 'Mejorar plan'}

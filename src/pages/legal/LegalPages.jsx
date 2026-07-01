@@ -241,7 +241,7 @@ export const Terms = () => (
         <ul>
             <li><strong>Básico</strong> — USD 9.99/mes ó USD 89.99/año (≈ USD 7.50/mes).</li>
             <li><strong>Plus</strong> — USD 19.99/mes ó USD 179.99/año (≈ USD 15.00/mes).</li>
-            <li><strong>Ultra Ilimitado</strong> — USD 49.99/mes ó USD 449.99/año (≈ USD 37.50/mes).</li>
+            <li><strong>Max</strong> — USD 49.99/mes ó USD 449.99/año (≈ USD 37.50/mes).</li>
         </ul>
         <p>Todos los pagos se procesan mediante PayPal. La suscripción se renueva automáticamente al final de cada período (mensual o anual) salvo que usted la cancele desde Ajustes o desde su cuenta de PayPal antes de la fecha de renovación. Las cancelaciones surten efecto al final del período facturado en curso — no realizamos prorrateo de devolución por períodos parcialmente consumidos.</p>
         <p><strong>Política de devolución:</strong> ofrecemos siete (7) días desde la primera compra para solicitar reembolso completo si el servicio no cumple sus expectativas. Las renovaciones automáticas no califican para esta ventana — solo la primera compra inicial. Solicitudes de reembolso deben dirigirse a fuego.servicios@gmail.com.</p>

@@ -2975,7 +2975,7 @@ export const AssessmentProvider = ({ children }) => {
             // [P5-SPEED-UPGRADE-PARALLEL · 2026-06-01] checkPlanLimit ya se ejecutó en
             // paralelo con refreshProfileAndPlan dentro de la rama de verify (arriba).
 
-            const planNames = { basic: 'Mealfit Básico', plus: 'Mealfit Plus', ultra: 'Mealfit Ultra Ilimitado' };
+            const planNames = { basic: 'Mealfit Básico', plus: 'Mealfit Plus', ultra: 'Mealfit Max' };
             const planName = planNames[tier] || 'Mealfit Plus';
             
             toast.success(`¡Bienvenido a ${planName}!`, {

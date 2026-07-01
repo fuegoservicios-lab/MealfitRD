@@ -34,7 +34,7 @@ import React, { useState, lazy, Suspense, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 import {
-    ArrowLeft, Check, X, Zap, Crown, ChevronDown,
+    ArrowLeft, Check, X, Zap, ChevronDown,
     ShieldCheck, RefreshCw, CreditCard, BadgeCheck,
     Infinity as InfinityIcon,
 } from 'lucide-react';
@@ -76,7 +76,7 @@ const ANNUAL_DISABLED_TIERS = new Set(['ultra']);
 const NAME_BY_TIER = {
     basic: 'Suscripción Básico',
     plus: 'Suscripción Plus',
-    ultra: 'Suscripción Ultra Ilimitado',
+    ultra: 'Suscripción Max',
 };
 
 const PLAN_SUMMARY = {
@@ -456,7 +456,6 @@ const Upgrade = () => {
         const isCurrent = isCurrentPlan(tier);
         const isPopular = isPopularPlan(tier);
         const disabled = isButtonDisabled(tier);
-        const isUltra = tier === 'ultra';
         const isFree = tier === 'gratis';
         const summary = PLAN_SUMMARY[tier];
 
@@ -487,7 +486,6 @@ const Upgrade = () => {
                 )}
 
                 <h3 className={styles.planName}>
-                    {isUltra && <Crown size={16} style={{ color: '#F59E0B', marginRight: 6, verticalAlign: -2 }} />}
                     {displayName}
                 </h3>
 
@@ -620,7 +618,7 @@ const Upgrade = () => {
                 {renderPlanCard('gratis', 'Gratis', 'Plan Gratis')}
                 {renderPlanCard('basic', 'Básico', 'Suscripción Básico')}
                 {renderPlanCard('plus', 'Plus', 'Suscripción Plus')}
-                {renderPlanCard('ultra', 'Ultra Ilimitado', 'Suscripción Ultra Ilimitado')}
+                {renderPlanCard('ultra', 'Max', 'Suscripción Max')}
             </div>
 
             {/* --- TABLA COMPARATIVA ---

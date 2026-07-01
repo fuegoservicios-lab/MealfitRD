@@ -2693,7 +2693,7 @@ const Settings = () => {
                                         Plan Actual
                                     </div>
                                     <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        {userProfile?.plan_tier === 'ultra' ? 'Ultra (Ilimitado)' : 
+                                        {userProfile?.plan_tier === 'ultra' ? 'Max' :
                                          userProfile?.plan_tier === 'plus' ? 'Plus' : 
                                          userProfile?.plan_tier === 'basic' ? 'Básico' :
                                          userProfile?.plan_tier === 'admin' ? 'Administrador' : 'Plan Gratis'}

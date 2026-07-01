@@ -10,7 +10,7 @@ import {
     RefreshCw, ChefHat, Heart, Pill, Lock,
     Brain, Wallet, AlertCircle, Dumbbell,
     Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, ChevronDown,
-    ThumbsDown, Shuffle, X, Utensils, Copy, ChevronRight, Crown, Refrigerator
+    ThumbsDown, Shuffle, X, Utensils, Copy, ChevronRight, Refrigerator
 } from 'lucide-react';
 import { toast } from 'sonner';
 import TrackingProgress from '../components/dashboard/TrackingProgress';
@@ -4215,7 +4215,7 @@ const DashboardInner = () => {
                                 ? 'Invitado'
                                 : !isPremium
                                 ? 'GRATUITO'
-                                : userProfile?.plan_tier === 'ultra' ? 'ULTRA'
+                                : userProfile?.plan_tier === 'ultra' ? 'MAX'
                                 : userProfile?.plan_tier === 'plus' ? 'PLUS'
                                 : 'BÁSICO';
                             return (
@@ -4225,15 +4225,6 @@ const DashboardInner = () => {
                                     aria-label={`Plan actual: ${tierLabel}. Click para ver todos los planes.`}
                                     className={`plan-tier-badge plan-tier-badge--${tierVariant}`}
                                 >
-                                    {/* Crown solo en Ultra — máximo tier */}
-                                    {tierVariant === 'ultra' && (
-                                        <Crown
-                                            size={11}
-                                            strokeWidth={2.5}
-                                            className="plan-tier-badge-crown"
-                                            aria-hidden="true"
-                                        />
-                                    )}
                                     <span className="plan-tier-badge-label">
                                         {tierLabel}
                                     </span>

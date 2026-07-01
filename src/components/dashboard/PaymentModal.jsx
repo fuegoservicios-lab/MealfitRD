@@ -41,7 +41,7 @@ const PLAN_FEATURES = {
 const PLAN_DISPLAY = {
     basic: "Plan Básico",
     plus: "Plan Plus",
-    ultra: "Plan Ultra Ilimitado",
+    ultra: "Plan Max",
 };
 
 const PaymentModal = ({

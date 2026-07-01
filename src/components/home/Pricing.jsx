@@ -38,7 +38,7 @@ const ANNUAL_DISABLED_TIERS = new Set(['ultra']);
 const NAME_BY_TIER = {
     basic: 'Suscripción Básico',
     plus: 'Suscripción Plus',
-    ultra: 'Suscripción Ultra Ilimitado',
+    ultra: 'Suscripción Max',
 };
 
 const Pricing = () => {
@@ -443,7 +443,7 @@ const Pricing = () => {
                     <div className={styles.card}>
                         <div className={styles.cardContent}>
                             <h3 className={styles.planName}>
-                                Ultra Ilimitado
+                                Max
                             </h3>
                             <div className={styles.price}>
                                 <span className={styles.currency}>USD$</span>
@@ -470,7 +470,7 @@ const Pricing = () => {
 
                             <button
                                 className={styles.btnOutline}
-                                onClick={() => handleUpgradeClick('ultra', 'Suscripción Ultra Ilimitado')}
+                                onClick={() => handleUpgradeClick('ultra', 'Suscripción Max')}
                                 disabled={isButtonDisabled('ultra')}
                                 style={isButtonDisabled('ultra') ? disabledStyles : {}}
                             >
