@@ -107,14 +107,15 @@
     transform: translateY(3px);
 }
 
-/* [P1-APP-VERSION · 2026-06-19 · rediseño inline P3-BRAND-VERSION-INLINE 2026-06-30]
-   Marca + versión en UNA fila (antes stack vertical con pill glow indentado, se veía
-   pesado en desktop). El chip de versión va a la derecha del wordmark, alineado al centro. */
+/* [P1-APP-VERSION · 2026-06-19 · chip refinado P3-BRAND-VERSION-INLINE 2026-06-30]
+   Marca + versión APILADAS (versión debajo del wordmark, preferencia del owner), pero con
+   el chip de versión refinado (muted-slate, sin glow). Se probó inline en una fila y se
+   revirtió al stack a pedido — solo cambió el estilo del chip, no su posición. */
 .brandStack {
     display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.6rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
     margin-bottom: 2.5rem;
 }
 .brandStack .logo {
@@ -129,7 +130,8 @@
     display: inline-flex;
     align-items: center;
     gap: 0.36rem;
-    align-self: center;
+    align-self: flex-start;
+    margin-left: 0.5rem; /* alinea el borde izq del chip bajo el wordmark (logo tiene padding-left 0.5rem) */
     font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
     font-size: 0.66rem;
     font-weight: 600;
