@@ -1,18 +1,15 @@
 import PropTypes from 'prop-types';
 import styles from './AccountMenu.module.css';
 
-/* [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27 · interactivo P3-ACCOUNT-MENU-INTERACTIVE 2026-07-01]
-   Card del menú de cuenta del sidebar (estilo OpenAI/Anthropic adaptado a un menú
-   ANCLADO ABAJO que abre hacia arriba → la identidad vive en el PIE, contigua al
-   disparador, no arriba como en un menú que abre hacia abajo). Presentacional:
-   el padre (DashboardLayout) calcula plan/tier/guest y pasa handlers + el toggle
-   de apariencia. Props opcionales (degradan limpio):
-     - `avatar`           ReactNode → reemplaza la inicial (MinimalAvatar).
-     - `subLabel`         texto bajo el email (invitado → "Plan de muestra").
-     - `planAccessory`    ReactNode junto al nombre del plan (Crown para Ultra).
-     - `appearanceToggle` ReactNode → control de tema inline para TODOS los usuarios
-                          (P3-ACCOUNT-MENU-INTERACTIVE; antes solo lo veían invitados).
-     - `showSettings`     bool → oculta "Configuración" (invitado no tiene auth → false).
+/* [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Card del menú de cuenta del sidebar.
+   Diseño aportado por el owner. Componente presentacional: el padre
+   (DashboardLayout) calcula plan/tier/guest y pasa los handlers reales.
+   Extensiones sobre el diseño base, todas opcionales (degradan al diseño puro):
+     - `avatar`        ReactNode → reemplaza la inicial (MinimalAvatar).
+     - `subLabel`      texto bajo el email (invitado → "Plan de muestra").
+     - `planAccessory` ReactNode junto al nombre del plan (Crown para Ultra).
+     - `settingsSlot`  ReactNode que reemplaza el item "Configuración"
+                       (invitado → selector de tema, sin fetches auth).
      - `onSettingsHover` / `onViewPlansHover` → prefetch de chunk al hover. */
 
 /* — Iconos (línea, heredan currentColor) — */
@@ -115,8 +112,7 @@ export default function AccountMenu({
   planAccessory = null,
   avatar = null,
   subLabel = null,
-  appearanceToggle = null,
-  showSettings = true,
+  settingsSlot = null,
   settingsLabel = 'Configuración',
   logoutLabel = 'Cerrar sesión',
   viewPlansLabel = 'Ver planes',
@@ -154,7 +150,9 @@ export default function AccountMenu({
 
       {/* Acciones */}
       <div className={styles.menu}>
-        {showSettings && (
+        {settingsSlot ? (
+          <div className={styles.settingsSlot}>{settingsSlot}</div>
+        ) : (
           <button
             type="button"
             className={styles.item}
@@ -166,20 +164,9 @@ export default function AccountMenu({
           >
             <span className={styles.iconChip}><GearIcon className={styles.icon} /></span>
             <span className={styles.itemLabel}>{settingsLabel}</span>
-            <ChevronRight className={styles.itemChevron} />
           </button>
         )}
 
-        {/* [P3-ACCOUNT-MENU-INTERACTIVE · 2026-07-01] Control de tema inline para
-            TODOS los usuarios (antes solo invitados). Cambio en vivo, sin auth.
-            El propio toggle ya rotula "Apariencia" internamente. */}
-        {appearanceToggle && (
-          <div className={styles.appearance}>{appearanceToggle}</div>
-        )}
-      </div>
-
-      {/* Cerrar sesión — zona separada (danger) */}
-      <div className={styles.dangerZone}>
         <button
           type="button"
           className={`${styles.item} ${styles.logout}`}
@@ -215,8 +202,7 @@ AccountMenu.propTypes = {
   planAccessory: PropTypes.node,
   avatar: PropTypes.node,
   subLabel: PropTypes.node,
-  appearanceToggle: PropTypes.node,
-  showSettings: PropTypes.bool,
+  settingsSlot: PropTypes.node,
   settingsLabel: PropTypes.string,
   logoutLabel: PropTypes.string,
   viewPlansLabel: PropTypes.string,

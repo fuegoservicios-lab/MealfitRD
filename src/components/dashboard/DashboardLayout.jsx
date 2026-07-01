@@ -267,11 +267,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 viewPlansLabel={isUltraTier ? 'Ver planes' : 'Mejorar plan'}
                                 avatar={accountAvatarNode}
                                 subLabel={accountSubLabel}
-                                /* [P3-ACCOUNT-MENU-INTERACTIVE · 2026-07-01] Toggle de tema para
-                                   TODOS (antes solo invitados). Configuración se oculta a invitados
-                                   (no tienen auth → sus fetches fallarían). */
-                                appearanceToggle={<GuestAppearanceToggle />}
-                                showSettings={!isGuest}
+                                settingsSlot={isGuest ? <GuestAppearanceToggle /> : null}
                                 logoutLabel={logoutLabel}
                                 onViewPlans={() => { setIsAccountMenuOpen(false); closeMenu(); navigate('/dashboard/upgrade'); }}
                                 onViewPlansHover={() => prefetchRoute('/dashboard/upgrade')}
