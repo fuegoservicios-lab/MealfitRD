@@ -4,6 +4,7 @@ import {
     Cpu, ShieldCheck, Activity, ScanSearch, Refrigerator,
     HeartPulse, Droplets, Scale, Baby, FlaskConical, Pill, Egg,
     Gauge, ListChecks, ArrowRight, ChevronRight, Sparkles, Info,
+    BrainCircuit, Lock,
 } from 'lucide-react';
 import styles from './Engine.module.css';
 
@@ -15,6 +16,9 @@ import styles from './Engine.module.css';
  * inicio que representa el MODELO: entrada de datos → núcleo de generación → capas de
  * validación (guardas) → plan. Contenido REAL, honesto, con disclaimer. Marketing (dark-only).
  */
+
+// [P3-ENGINE-MODEL-IMAGE · 2026-07-01] Fecha de publicación del modelo (editable).
+const RELEASE_DATE = '1 de julio de 2026';
 
 const CX = 390;
 const CY = 238;
@@ -175,6 +179,81 @@ const PRECISION = [
     { Icon: ListChecks, title: 'Coherencia receta↔lista', text: 'Si una receta pide 200 g de pollo, la lista de compras tiene ≈200 g × tu hogar. Sin ingredientes fantasma.' },
 ];
 
+// [P3-ENGINE-COMPARISON · 2026-07-01] Datos REALES del A/B interno (motor on vs off),
+// mismos números que BenchmarkShowcase. N=8, jun 2026. "LLM solo" = pedirle el plan al
+// modelo sin el motor determinista. Precisión = 100 − MAPE. "En banda" = 90-112% (95-105% kcal).
+const VERSUS = [
+    { label: 'Proteína', full: 'Precisión de proteína', mealfit: 98.5, llm: 84 },
+    { label: '4 macros', full: 'Los 4 macros en banda', mealfit: 91.7, llm: 24 },
+    { label: 'Recalcular', full: 'Cuadran al recalcular', mealfit: 100, llm: 0 },
+];
+
+const MACROS_PREC = [
+    { label: 'Calorías', mape: 2.0 },
+    { label: 'Grasas', mape: 3.1 },
+    { label: 'Carbos', mape: 3.2 },
+    { label: 'Proteína', mape: 1.5 },
+];
+
+const DIFF = [
+    { m: 'Catálogo verificado', llm: 'x', mf: 'Solo alimentos catalogados con precio real; nunca inventa comida.' },
+    { m: 'Motor de macros', llm: 'parcial', mf: 'Recalcula desde los gramos reales y reescala porciones para clavar el objetivo.' },
+    { m: 'Piso de proteína', llm: 'x', mf: 'Rechaza y reintenta si un día cae por debajo de tu mínimo.' },
+    { m: 'Banda de macros', llm: 'parcial', mf: 'Marca y reintenta las comidas fuera del rango objetivo.' },
+    { m: 'Coherencia receta↔lista', llm: 'x', mf: 'La lista de compras siempre cuadra con las recetas.' },
+    { m: 'Reglas clínicas (código)', llm: 'parcial', mf: 'Reescribe o bloquea el plan: KDIGO, ADA, anti-dumping, mercurio, alergias.' },
+    { m: 'Micronutrientes vs DRI', llm: 'x', mf: 'Panel de 17 nutrientes con medidor de cobertura (informativo).' },
+    { m: 'A prueba de fallos', llm: 'x', mf: 'Si el modelo falla, cae a un plan matemático — no se cuelga ni se cae.' },
+];
+
+/* Gráfico comparativo (barras agrupadas): MealfitRD vs LLM solo */
+function ComparisonChart() {
+    const W = 640;
+    const H = 340;
+    const padL = 46;
+    const padR = 18;
+    const padT = 44;
+    const padB = 64;
+    const plotH = H - padT - padB;
+    const baseY = padT + plotH;
+    const plotW = W - padL - padR;
+    const groupW = plotW / VERSUS.length;
+    const bw = 40;
+    const gap = 12;
+    const yOf = (v) => baseY - (v / 100) * plotH;
+    return (
+        <svg viewBox={`0 0 ${W} ${H}`} className={styles.chartSvg} role="img"
+            aria-label="Comparación de precisión de macros: MealfitRD frente a un LLM solo, en tres métricas.">
+            {[0, 25, 50, 75, 100].map((v) => (
+                <g key={v}>
+                    <line x1={padL} y1={yOf(v)} x2={W - padR} y2={yOf(v)} className={styles.chartGrid} />
+                    <text x={padL - 8} y={yOf(v) + 3.5} className={styles.chartYLabel}>{v}</text>
+                </g>
+            ))}
+            {VERSUS.map((d, i) => {
+                const gx = padL + groupW * i + groupW / 2;
+                const x1 = gx - bw - gap / 2;
+                const x2 = gx + gap / 2;
+                return (
+                    <g key={d.label}>
+                        <rect x={x1} y={yOf(d.mealfit)} width={bw} height={baseY - yOf(d.mealfit)} rx="3.5" className={styles.chartBarMf} />
+                        <rect x={x2} y={yOf(d.llm)} width={bw} height={Math.max(0.5, baseY - yOf(d.llm))} rx="3.5" className={styles.chartBarLlm} />
+                        <text x={x1 + bw / 2} y={yOf(d.mealfit) - 7} className={styles.chartVal}>{d.mealfit}%</text>
+                        <text x={x2 + bw / 2} y={yOf(d.llm) - 7} className={styles.chartValDim}>{d.llm}%</text>
+                        <text x={gx} y={baseY + 22} className={styles.chartXLabel}>{d.label}</text>
+                    </g>
+                );
+            })}
+            <g>
+                <rect x={padL} y={14} width={12} height={12} rx="2.5" className={styles.chartBarMf} />
+                <text x={padL + 18} y={24} className={styles.chartLegend}>MealfitRD</text>
+                <rect x={padL + 122} y={14} width={12} height={12} rx="2.5" className={styles.chartBarLlm} />
+                <text x={padL + 140} y={24} className={styles.chartLegend}>LLM solo</text>
+            </g>
+        </svg>
+    );
+}
+
 const Engine = () => {
     useEffect(() => {
         const prev = document.title;
@@ -187,27 +266,43 @@ const Engine = () => {
             {/* ---- intro + imagen abstracta del modelo ---- */}
             <section className={styles.intro}>
                 <span className={styles.eyebrow}>
-                    <Cpu size={14} strokeWidth={2.5} /> Motor v1.0.0
+                    <Cpu size={14} strokeWidth={2.5} /> Motor
                 </span>
                 <h1 className={styles.title}>
                     No adivinamos tu plato.<br />
                     Lo <span className={styles.accent}>calculamos</span>.
                 </h1>
-                <p className={styles.lead}>
-                    Cada plan de MealfitRD pasa por un pipeline de generación con IA y una
-                    capa de validación clínica y de coherencia. Esto es lo que ocurre por
-                    dentro — contado con honestidad.
-                </p>
+                <div className={styles.releaseMeta}>
+                    <span className={styles.releaseTag}>MealfitRD v1.0.0</span>
+                    <span className={styles.releaseDate}>{RELEASE_DATE}</span>
+                </div>
 
-                {/* UNA sola imagen abstracta: el modelo v1.0 */}
+                {/* imagen del modelo v1.0 (emblema) */}
                 <figure className={styles.modelFigure}>
-                    <div className={`${styles.modelCanvas} ${styles.blueprint}`}>
-                        <ModelDiagram />
+                    <div className={styles.modelImgWrap}>
+                        <picture>
+                            <source srcSet="/model-v1.webp" type="image/webp" />
+                            <img
+                                src="/model-v1.jpeg"
+                                alt="Emblema del modelo MealfitRD v1.0: un mandala de alimentos y botánicos dominicanos alrededor del logotipo «v1.0»."
+                                className={styles.modelImg}
+                                width="671"
+                                height="671"
+                                loading="eager"
+                                decoding="async"
+                            />
+                        </picture>
                     </div>
                     <figcaption className={styles.modelCaption}>
-                        Fig. — el modelo MealfitRD v1.0: entrada → núcleo → validación → plan
+                        El modelo MealfitRD v1.0 — nutrición dominicana, calculada.
                     </figcaption>
                 </figure>
+
+                <p className={styles.lead}>
+                    Cada plan pasa por un pipeline de generación con IA y una capa de
+                    validación clínica y de coherencia. Esto es lo que ocurre por dentro —
+                    contado con honestidad.
+                </p>
 
                 <div className={styles.stats}>
                     {STATS.map((s) => (
@@ -227,6 +322,15 @@ const Engine = () => {
                     Del formulario a tu lista de compras, en cinco pasos. Cada uno con su
                     propia capa de control de calidad.
                 </p>
+                {/* diagrama esquemático del flujo (entrada → núcleo → validación → plan) */}
+                <figure className={styles.modelFigure}>
+                    <div className={`${styles.modelCanvas} ${styles.blueprint}`}>
+                        <ModelDiagram />
+                    </div>
+                    <figcaption className={styles.modelCaption}>
+                        Fig. — flujo del motor: entrada → núcleo → validación → plan
+                    </figcaption>
+                </figure>
                 <div className={styles.steps}>
                     {PIPELINE.map((step, i) => (
                         <div key={step.title} className={styles.step}>
@@ -281,9 +385,111 @@ const Engine = () => {
                 </div>
             </section>
 
+            {/* ---- comparativa vs un LLM solo ---- */}
+            <section className={styles.section}>
+                <span className={styles.kicker}>04 / vs un LLM solo</span>
+                <h2 className={styles.sectionTitle}>Por qué no es «un LLM y ya»</h2>
+                <p className={styles.sectionLead}>
+                    Le medimos al motor lo que aporta: encendemos y apagamos su capa determinista
+                    sobre el mismo modelo. En precisión de macros, la diferencia es directa.
+                </p>
+                <figure className={styles.chartFigure}>
+                    <div className={`${styles.modelCanvas} ${styles.blueprint}`}>
+                        <ComparisonChart />
+                    </div>
+                    <figcaption className={styles.modelCaption}>
+                        Precisión de macros — A/B interno (motor encendido vs apagado)
+                    </figcaption>
+                </figure>
+                <p className={styles.chartNote}>
+                    Medición continua sobre planes reales (N=8, jun 2026). «LLM solo» = pedirle el
+                    plan al modelo sin el motor. Precisión = 100 − error medio (MAPE); «en banda» =
+                    90-112% del objetivo (95-105% en calorías). Compara enfoques, no productos con
+                    nombre — y son métricas de precisión, no de corrección clínica.
+                </p>
+
+                {/* precisión por macro */}
+                <div className={styles.macroBars}>
+                    {MACROS_PREC.map((mp) => {
+                        const prec = +(100 - mp.mape).toFixed(1);
+                        return (
+                            <div key={mp.label} className={styles.macroBar}>
+                                <div className={styles.macroBarLabel}>{mp.label}</div>
+                                <div className={styles.macroBarTrack}>
+                                    <span className={styles.macroBarFill} style={{ width: `${prec}%` }} />
+                                </div>
+                                <div className={styles.macroBarVal}>{prec}%</div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* tabla de diferenciadores */}
+                <div className={styles.cmpTableWrap}>
+                    <table className={styles.cmpTable}>
+                        <thead>
+                            <tr>
+                                <th>Mecanismo determinista</th>
+                                <th>LLM solo</th>
+                                <th className={styles.cmpColHi}>MealfitRD</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {DIFF.map((d) => (
+                                <tr key={d.m}>
+                                    <td>{d.m}</td>
+                                    <td className={styles.cmpBad}>{d.llm === 'x' ? '✗ no lo hace' : '~ parcial'}</td>
+                                    <td className={styles.cmpColHi}>{d.mf}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            {/* ---- aprendizaje a largo plazo ---- */}
+            <section className={styles.section}>
+                <span className={styles.kicker}>05 / memoria</span>
+                <h2 className={styles.sectionTitle}>Aprendizaje a largo plazo</h2>
+                <p className={styles.sectionLead}>
+                    En los planes de pago (Básico, Plus y Ultra), el coach no empieza de cero cada
+                    vez: construye una memoria de tus preferencias que persiste entre conversaciones.
+                </p>
+                <div className={styles.cards}>
+                    <div className={styles.card}>
+                        <div className={styles.cardIcon}><BrainCircuit size={24} strokeWidth={2} /></div>
+                        <div className={styles.cardTitle}>Memoria semántica</div>
+                        <div className={styles.cardText}>
+                            Mientras conversas, el coach destila «hechos» permanentes — lo que te
+                            gusta, lo que rechazas, tus hábitos — y los guarda con un embedding
+                            vectorial (Cohere Embed v4, 1536 dimensiones). Al volver, recupera los
+                            más relevantes por <strong>significado</strong>, no por palabra exacta.
+                        </div>
+                    </div>
+                    <div className={styles.card}>
+                        <div className={styles.cardIcon}><Lock size={24} strokeWidth={2} /></div>
+                        <div className={styles.cardTitle}>Privada y tuya</div>
+                        <div className={styles.cardText}>
+                            La memoria vive por cuenta: nunca se cruza con otros usuarios y no se usa
+                            para entrenar modelos de terceros. Puedes pausarla cuando quieras desde
+                            Ajustes.
+                        </div>
+                    </div>
+                    <div className={styles.card}>
+                        <div className={styles.cardIcon}><Sparkles size={24} strokeWidth={2} /></div>
+                        <div className={styles.cardTitle}>Consolidación (en despliegue)</div>
+                        <div className={styles.cardText}>
+                            Un proceso offline — el «Dreaming» — que de-duplica, prioriza y ordena tu
+                            memoria con el tiempo, con salvaguardas que nunca degradan tus alergias
+                            ni condiciones. Está construido y se activa por fases.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             {/* ---- catálogo + nevera ---- */}
             <section className={styles.section}>
-                <span className={styles.kicker}>04 / catálogo</span>
+                <span className={styles.kicker}>06 / catálogo</span>
                 <h2 className={styles.sectionTitle}>Catálogo real y Nevera Inteligente</h2>
                 <div className={styles.cards}>
                     <div className={styles.card}>
