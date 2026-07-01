@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Cpu, ArrowRight, ChevronRight, Info } from 'lucide-react';
 import styles from './Engine.module.css';
@@ -102,6 +102,11 @@ function ComparisonChart() {
 }
 
 const Engine = () => {
+    // [P3-NEWS-1 · 2026-07-01] Al navegar aquí (p.ej. desde el anuncio en el landing, ya
+    // scrolleado abajo) hay que arrancar en el tope: la navegación cliente no la toca
+    // ScrollRestoration (cada página hace su propio scrollTo). useLayoutEffect → antes del paint.
+    useLayoutEffect(() => { window.scrollTo(0, 0); }, []);
+
     useEffect(() => {
         const prev = document.title;
         document.title = 'Presentamos a Mealfit v1 — el motor de MealfitRD';
