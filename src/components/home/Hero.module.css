@@ -522,6 +522,27 @@
     filter: blur(5px);
 }
 
+/* [P3-HERO-ORB-VIDEO · 2026-06-30] Video 3D del orbe (reemplaza .orb + .orbRing +
+   .orbGlow). El video es 16:9 con la esfera centrada sobre un fondo navy con dot-grid;
+   se recorta a cuadrado (object-fit cover) y una máscara radial funde el borde
+   rectangular + el dot-grid del video con el fondo del hero, y oculta el ✦ de la esquina.
+   Vive en translateZ(0) → rota con .stage3d (±5°). El bloom/anillo ya vienen en el video. */
+.orbVideo {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 98%;
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%) translateZ(0);
+    object-fit: cover;
+    object-position: center;
+    border: none;
+    background: transparent;
+    pointer-events: none;
+    -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 56%, transparent 80%);
+    mask-image: radial-gradient(circle at 50% 50%, #000 56%, transparent 80%);
+}
+
 /* ── TARJETAS-MÉTRICA (glass) ────────────────────────────────────────────── */
 .floatCard {
     position: absolute;

@@ -182,16 +182,27 @@ const Hero = () => {
                         separan con translateZ para profundidad real (parallax al
                         rotar). */}
                     <div className={styles.stage3d}>
-                        {/* Anillo de luz cónico + glow ambiental detrás del orbe. */}
-                        <div className={styles.orbRing} aria-hidden="true" />
-                        <div className={styles.orbGlow} aria-hidden="true" />
-
-                        {/* Orbe del producto: esfera 3D refinada con highlight
-                            especular + sombra interna de oclusión + reflejo blando
-                            (bounce light emerald). */}
-                        <div className={styles.orb} aria-hidden="true">
-                            <span className={styles.orbSheen} />
-                        </div>
+                        {/* [P3-HERO-ORB-VIDEO · 2026-06-30] La esfera CSS (orb + ring +
+                            glow) se reemplazó por un video 3D (orb.webm/mp4) clipeado con
+                            máscara radial que funde el borde rectangular y el fondo dot-grid
+                            del video con el fondo del hero. Reduced-motion → poster estático.
+                            El landing es dark-only, así que el fondo navy del video coincide. */}
+                        {reduce ? (
+                            <img className={styles.orbVideo} src="/orb-poster.jpg" alt="" aria-hidden="true" />
+                        ) : (
+                            <video
+                                className={styles.orbVideo}
+                                autoPlay
+                                loop
+                                muted
+                                playsInline
+                                poster="/orb-poster.jpg"
+                                aria-hidden="true"
+                            >
+                                <source src="/orb.webm" type="video/webm" />
+                                <source src="/orb.mp4" type="video/mp4" />
+                            </video>
+                        )}
 
                         {/* Tarjetas-métrica flotantes (glass). Cada una entra con
                             su propio variant (coreografía) y luego flota en su
