@@ -69,7 +69,7 @@
 :global(html[data-theme='dark']) .verBtn:hover { background: var(--primary-light); }
 
 /* — Lista de acciones — */
-.menu { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; }
+.menu { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px 6px; }
 .item {
   display: flex;
   align-items: center;
@@ -85,6 +85,25 @@
 }
 .item:hover { background: var(--bg-muted); }
 .itemLabel { font-size: 14px; font-weight: 600; color: var(--text-main); }
+
+/* Chevron de afordancia "navega" (Configuración) — se desliza al hover */
+.itemChevron {
+  width: 15px;
+  height: 15px;
+  margin-left: auto;
+  flex: none;
+  color: var(--text-light);
+  transition: transform 0.16s ease, color 0.14s;
+}
+.item:hover .itemChevron { color: var(--text-main); transform: translateX(2px); }
+
+/* Foco por teclado visible (accesibilidad, estilo OpenAI/Anthropic) */
+.item:focus-visible,
+.verBtn:focus-visible,
+.account:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 
 .iconChip {
   display: flex;
@@ -110,8 +129,17 @@
 }
 .logout:hover .logoutChip { color: var(--danger); }
 
-/* Slot de invitado (selector de tema en vez de "Configuración") */
-.settingsSlot { padding: 4px 6px 2px; }
+/* — Apariencia (toggle de tema inline, todos los usuarios) —
+   [P3-ACCOUNT-MENU-INTERACTIVE · 2026-07-01] El GuestAppearanceToggle ya trae su
+   propio rótulo "Apariencia" + segmented; este wrapper solo lo alinea al padding
+   de los items. */
+.appearance { padding: 2px 6px 2px; }
+
+/* — Zona de cierre de sesión — separada del resto con una hairline (danger) — */
+.dangerZone {
+  padding: 6px;
+  border-top: 1px solid var(--border);
+}
 
 /* — Pie de cuenta — */
 .footer { border-top: 1px solid var(--border); padding: 10px; }
