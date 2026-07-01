@@ -9,140 +9,18 @@ import {
 import styles from './Engine.module.css';
 
 /**
- * [P3-ENGINE-INFO-PAGE · 2026-06-28 · rediseño abstracto P3-ENGINE-MODEL-DIAGRAM 2026-06-30]
- * Página pública del motor de MealfitRD (v1.0.0). Rediseñada con un lenguaje visual PROPIO
- * — distinto al line-art sobre dot-grid del resto de páginas de detalle: estética "blueprint"
- * (rejilla de líneas finas + marcas de calibración) y UNA sola imagen abstracta grande al
- * inicio que representa el MODELO: entrada de datos → núcleo de generación → capas de
- * validación (guardas) → plan. Contenido REAL, honesto, con disclaimer. Marketing (dark-only).
+ * [P3-ENGINE-INFO-PAGE · 2026-06-28 · imagen del modelo P3-ENGINE-MODEL-IMAGE 2026-07-01]
+ * Página pública del motor de MealfitRD (v1.0.0), estilo "anuncio del modelo": header mínimo
+ * + fecha + UNA imagen abstracta grande (emblema botánico model-v1) como hero. Contenido técnico
+ * real y honesto: pipeline, capa clínica, precisión, comparativa vs un LLM solo (gráfico de
+ * barras), aprendizaje a largo plazo (RAG), catálogo y disclaimer. Marketing (dark-only).
+ * [P3-ENGINE-DIAGRAM-REMOVED · 2026-07-01] El diagrama SVG blueprint se eliminó a pedido
+ * (redundante con los pasos + el gráfico). Su estética "blueprint" (.modelCanvas/.blueprint)
+ * la reusa el gráfico comparativo.
  */
 
 // [P3-ENGINE-MODEL-IMAGE · 2026-07-01] Fecha de publicación del modelo (editable).
 const RELEASE_DATE = '1 de julio de 2026';
-
-const CX = 390;
-const CY = 238;
-const D2R = (d) => (d * Math.PI) / 180;
-const onC = (r, a) => [CX + r * Math.cos(D2R(a)), CY + r * Math.sin(D2R(a))];
-const fmt = ([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`;
-
-/* ─────────── imagen abstracta del modelo v1.0 (SVG blueprint) ───────────
-   Composición con márgenes deliberados: eje de datos horizontal (ENTRADA →
-   núcleo → PLAN); nodos de las órbitas DESFASADOS para que nunca se alineen
-   entre capas; anotaciones lejos de anillos y nodos. */
-function ModelDiagram() {
-    const R_CAL = 176;   // anillo de calibración (exterior)
-    const R_GUARD = 142; // órbita de guardas (validación)
-    const R_PIPE = 90;   // anillo del pipeline (5 etapas)
-    const pipeline = [0, 1, 2, 3, 4].map((i) => onC(R_PIPE, -90 + i * 72));
-    const guards = Array.from({ length: 8 }, (_, i) => onC(R_GUARD, -90 + 22.5 + i * 45));
-    const hexOuter = Array.from({ length: 6 }, (_, i) => onC(44, -90 + i * 60));
-    const hexInner = Array.from({ length: 6 }, (_, i) => onC(25, -60 + i * 60));
-    const fans = [-56, 0, 56];   // 3 flujos de entrada (fan izquierdo)
-    const intakeX = 178;         // punto de convergencia de la entrada
-    const arrowX = 604;          // punta de la flecha de salida
-    const planX = 626;           // tarjeta del plan (con holgura vs la flecha)
-    const corners = [[24, 24], [756, 24], [24, 476], [756, 476]];
-    const hiGuard = 2;           // guarda destacada (spot despejado, abajo-derecha)
-
-    return (
-        <svg viewBox="0 0 780 500" className={styles.modelSvg} role="img"
-            aria-label="Diagrama abstracto del modelo MealfitRD v1.0: los datos de tu perfil entran al núcleo de generación, pasan por capas de validación y salen como tu plan.">
-            <defs>
-                <radialGradient id="mCoreGlow" cx="0.5" cy="0.5" r="0.5">
-                    <stop offset="0" stopColor="#818CF8" stopOpacity="0.5" />
-                    <stop offset="1" stopColor="#818CF8" stopOpacity="0" />
-                </radialGradient>
-            </defs>
-
-            {/* marco blueprint: ticks en las 4 esquinas */}
-            {corners.map(([x, y], i) => {
-                const sx = x < 390 ? 1 : -1;
-                const sy = y < 250 ? 1 : -1;
-                return (
-                    <g key={`c${i}`} className={styles.mFrame}>
-                        <line x1={x} y1={y} x2={x + sx * 22} y2={y} />
-                        <line x1={x} y1={y} x2={x} y2={y + sy * 22} />
-                    </g>
-                );
-            })}
-
-            {/* glow del núcleo */}
-            <circle cx={CX} cy={CY} r="140" fill="url(#mCoreGlow)" className={styles.mCoreGlow} />
-
-            {/* anillo de calibración exterior + ticks radiales */}
-            <circle cx={CX} cy={CY} r={R_CAL} className={styles.mCalRing} />
-            {Array.from({ length: 72 }, (_, i) => {
-                const a = i * 5;
-                const long = i % 3 === 0;
-                const [x1, y1] = onC(R_CAL, a);
-                const [x2, y2] = onC(long ? R_CAL - 9 : R_CAL - 5, a);
-                return <line key={`t${i}`} x1={x1} y1={y1} x2={x2} y2={y2} className={long ? styles.mTickLong : styles.mTick} />;
-            })}
-
-            {/* capa de validación (guardas) — órbita punteada que rota */}
-            <g className={styles.mSpinCcw}>
-                <circle cx={CX} cy={CY} r={R_GUARD} className={styles.mDash} />
-                {guards.map((p, i) => (
-                    <circle key={`g${i}`} cx={p[0]} cy={p[1]} r={i === hiGuard ? 4.2 : 3} className={i === hiGuard ? styles.mNodeHi : styles.mNode} />
-                ))}
-            </g>
-
-            {/* eje de datos: entrada → (núcleo) → salida, una sola línea limpia con flujo */}
-            <line x1={intakeX} y1={CY} x2={arrowX} y2={CY} className={styles.mAxis} />
-            <line x1={intakeX} y1={CY} x2={arrowX} y2={CY} className={styles.mFlow} />
-
-            {/* flujos de entrada (fan izquierdo) que convergen al eje */}
-            {fans.map((oy, i) => {
-                const y = CY + oy;
-                const d = `M 52 ${y} C 112 ${y}, 140 ${CY + oy * 0.25}, ${intakeX} ${CY}`;
-                return <path key={`in${i}`} d={d} className={styles.mInput} />;
-            })}
-            <circle cx="52" cy={CY - 56} r="2.6" className={styles.mNode} />
-            <circle cx="52" cy={CY} r="2.6" className={styles.mNode} />
-            <circle cx="52" cy={CY + 56} r="2.6" className={styles.mNode} />
-            <circle cx={intakeX} cy={CY} r="3.4" className={styles.mNode} />
-
-            {/* pipeline (5 etapas) — anillo interior con nodos que brillan en secuencia */}
-            <circle cx={CX} cy={CY} r="62" className={styles.mRingInner} />
-            <circle cx={CX} cy={CY} r={R_PIPE} className={styles.mRing} />
-            <polygon points={pipeline.map(fmt).join(' ')} className={styles.mRingPoly} />
-            {pipeline.map((p, i) => (
-                <g key={`p${i}`} className={styles.mSeq} style={{ animationDelay: `${i * 0.5}s` }}>
-                    <circle cx={p[0]} cy={p[1]} r="8.5" className={styles.mStageHalo} />
-                    <circle cx={p[0]} cy={p[1]} r="4.5" className={styles.mStage} />
-                </g>
-            ))}
-
-            {/* núcleo: retícula hexagonal que rota + centro brillante */}
-            <g className={styles.mSpinCw}>
-                <polygon points={hexOuter.map(fmt).join(' ')} className={styles.mHex} />
-                <polygon points={hexInner.map(fmt).join(' ')} className={styles.mHexInner} />
-                {hexOuter.map((p, i) => (
-                    <line key={`s${i}`} x1={CX} y1={CY} x2={p[0]} y2={p[1]} className={styles.mSpoke} />
-                ))}
-            </g>
-            <circle cx={CX} cy={CY} r="14" className={styles.mCorePulse} />
-            <circle cx={CX} cy={CY} r="6.5" className={styles.mCore} />
-
-            {/* salida (derecha): flecha + tarjeta del plan */}
-            <path d={`M ${arrowX - 12} ${CY - 6} L ${arrowX} ${CY} L ${arrowX - 12} ${CY + 6} Z`} className={styles.mArrow} />
-            <g className={styles.mPlanGlyph}>
-                <rect x={planX} y={CY - 17} width="34" height="34" rx="6" className={styles.mPlanCard} />
-                <line x1={planX + 8} y1={CY - 7} x2={planX + 26} y2={CY - 7} className={styles.mPlanLine} />
-                <line x1={planX + 8} y1={CY} x2={planX + 26} y2={CY} className={styles.mPlanLine} />
-                <line x1={planX + 8} y1={CY + 7} x2={planX + 20} y2={CY + 7} className={styles.mPlanLine} />
-            </g>
-
-            {/* anotaciones tipo esquema (lejos de anillos y nodos) */}
-            <text x="32" y="46" className={styles.mAnno}>MODELO · MEALFITRD</text>
-            <text x="32" y="63" className={styles.mAnnoDim}>v1.0.0 · deepseek-v4</text>
-            <text x="52" y={CY - 74} className={styles.mAnnoDim}>ENTRADA</text>
-            <text x={planX + 17} y={CY - 26} className={styles.mAnnoMidPlan}>PLAN</text>
-            <text x={CX} y="474" className={styles.mAnnoMid}>núcleo de generación + validación determinista</text>
-        </svg>
-    );
-}
 
 /* ───────────────────────────────── datos ───────────────────────────────── */
 
@@ -324,15 +202,6 @@ const Engine = () => {
                     Del formulario a tu lista de compras, en cinco pasos. Cada uno con su
                     propia capa de control de calidad.
                 </p>
-                {/* diagrama esquemático del flujo (entrada → núcleo → validación → plan) */}
-                <figure className={styles.modelFigure}>
-                    <div className={`${styles.modelCanvas} ${styles.blueprint}`}>
-                        <ModelDiagram />
-                    </div>
-                    <figcaption className={styles.modelCaption}>
-                        Fig. — flujo del motor: entrada → núcleo → validación → plan
-                    </figcaption>
-                </figure>
                 <div className={styles.steps}>
                     {PIPELINE.map((step, i) => (
                         <div key={step.title} className={styles.step}>
