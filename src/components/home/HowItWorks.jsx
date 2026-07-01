@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { ClipboardList, Cpu, Salad, LineChart } from 'lucide-react';
 import SeeMoreLink from './SeeMoreLink';
 import styles from './HowItWorks.module.css';
@@ -141,23 +141,22 @@ const VISUALS = [ProfileVisual, EngineVisual, MacroVisual, ChartVisual];
 const HowItWorks = () => {
     const [active, setActive] = useState(0);
     const [paused, setPaused] = useState(false);
+    const reduce = useReducedMotion();
     const step = STEPS[active];
     const Visual = VISUALS[active];
 
     /* [P3-HOWITWORKS-AUTOCYCLE · 2026-06-29] Rota el paso activo cada AUTO_ADVANCE_MS
        para un loop estético. Se pausa al interactuar (hover/focus en la lista) y se
-       desactiva con prefers-reduced-motion (a11y: no auto-animar a quien no lo quiere).
-       Depende de [active] → cada selección manual re-arma el timer desde cero, así no
-       salta justo después de que el usuario elige un paso. */
+       desactiva con prefers-reduced-motion (a11y). Depende de [active] → cada selección
+       manual re-arma el timer desde cero. La barra de progreso del paso activo
+       (styles.stepProgress) visualiza esta misma cadencia. */
     useEffect(() => {
-        if (paused) return undefined;
-        if (typeof window !== 'undefined' &&
-            window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+        if (paused || reduce) return undefined;
         const id = setInterval(() => {
             setActive((a) => (a + 1) % STEPS.length);
         }, AUTO_ADVANCE_MS);
         return () => clearInterval(id);
-    }, [paused, active]);
+    }, [paused, active, reduce]);
 
     return (
         <section className={styles.section} id="how-it-works">
@@ -227,6 +226,15 @@ const HowItWorks = () => {
                                             )}
                                         </AnimatePresence>
                                     </span>
+                                    {/* [P3-HOWITWORKS-POLISH · 2026-06-30] Barra de progreso
+                                        del auto-avance en el paso activo — se llena en
+                                        AUTO_ADVANCE_MS y desaparece al pausar (hover/focus)
+                                        o con reduced-motion. */}
+                                    {isActive && !paused && !reduce && (
+                                        <motion.span key={active} className={styles.stepProgress} aria-hidden="true"
+                                            initial={{ scaleX: 0 }} animate={{ scaleX: 1 }}
+                                            transition={{ duration: AUTO_ADVANCE_MS / 1000, ease: 'linear' }} />
+                                    )}
                                 </button>
                             );
                         })}
