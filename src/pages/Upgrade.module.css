@@ -1292,6 +1292,17 @@
     color: var(--text-main);
 }
 
+/* [UPGRADE-DARK-DISCOUNT-BADGE · 2026-07-01] En dark el badge "-25%" seguía usando
+   el gradiente mint claro (#D1FAE5→#A7F3D0) con texto verde oscuro → se lavaba sobre
+   el pill oscuro. Chip esmeralda translúcido: texto brillante, borde tenue y halo sutil
+   para que lea como acento premium sin romper la armonía del tema oscuro. */
+:global(html[data-theme="dark"]) .toggleDiscountBadge {
+    background: rgba(16, 185, 129, 0.18);
+    color: #6EE7B7;
+    border: 1px solid rgba(52, 211, 153, 0.40);
+    box-shadow: 0 1px 8px rgba(16, 185, 129, 0.22);
+}
+
 /* --- PLAN CARDS --- */
 :global(html[data-theme="dark"]) .planCard {
     background: var(--bg-card);
