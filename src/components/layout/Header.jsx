@@ -79,7 +79,13 @@ const Header = () => {
     // aparece para invitados — antes solo `session &&`, así que un invitado en la
     // landing no tenía cómo salir del modo invitado. La salida de un invitado es
     // un teardown local (exitGuestSession) + redirect a /login, sin signOut.
-    const showAccountMenu = (session || isGuest) && !isPlanLoading;
+    // [P3-LANDING-NO-SESSION-CHROME · 2026-07-01] El menú de cuenta (avatar + nombre +
+    // Configuración + Cerrar Sesión) NO debe aparecer en superficies públicas de marketing
+    // (landing, marketing, legales, novedades): el chrome de sesión vive SOLO en la app
+    // (el DashboardLayout tiene su propio menú de cuenta). En el apex las rutas de app
+    // redirigen al subdominio, así que aquí `!isLandingLike` deja el menú solo en las
+    // páginas de app que usan este header (p.ej. /configuracion, /upgrade).
+    const showAccountMenu = (session || isGuest) && !isPlanLoading && !isLandingLike;
     const logoutLabel = isGuest ? 'Salir del modo invitado' : 'Cerrar Sesión';
 
     // [HEADER-EMPTY-MENU-HIDE · 2026-06-23] ¿El menú móvil tendría AL MENOS un item?
