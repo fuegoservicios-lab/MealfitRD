@@ -4,7 +4,7 @@
     color: var(--text-light);
     /* [P3-SAFE-AREA-BOTTOM · 2026-05-31] env(safe-area-inset-bottom) para que el
        copyright no quede pegado al home-indicator en iPhones con notch. */
-    padding: 4rem 0 calc(2rem + env(safe-area-inset-bottom, 0px));
+    padding: 4.5rem 0 calc(2.25rem + env(safe-area-inset-bottom, 0px));
     margin-top: auto;
     overflow: hidden;
 }
@@ -27,12 +27,15 @@
     position: relative;
     z-index: 1;
     display: grid;
-    /* [P3-ABOUT-PAGE · 2026-06-30] 5 columnas: marca + 3 legales/empresas + soporte
-       (antes 4). La columna "Empresas" se sumó entre "Privacidad y datos" y "Soporte". */
-    grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr;
-    gap: 2.5rem;
+    /* [P3-ABOUT-PAGE · 2026-06-30 · pulido P3-FOOTER-POLISH 2026-06-30] 5 columnas: marca +
+       Términos + Privacidad + Empresas + Soporte. Proporciones desbalanceadas a propósito:
+       marca y Soporte más anchas (el correo largo se partía a media palabra), Empresas más
+       angosta (solo 2-3 links cortos). Un poco más de max-width + gap menor → columnas con
+       más aire, sin envolver feo. */
+    grid-template-columns: 1.5fr 1.2fr 1fr 0.85fr 1.25fr;
+    gap: 2rem;
     padding: 0 1.5rem;
-    max-width: 1280px;
+    max-width: 1320px;
     margin: 0 auto;
 }
 
@@ -52,25 +55,31 @@
 .desc {
     color: var(--text-light);
     max-width: 300px;
-    line-height: 1.6;
+    font-size: 0.92rem;
+    line-height: 1.65;
 }
 
+/* [P3-FOOTER-POLISH · 2026-06-30] Encabezados como etiqueta en mayúsculas (índigo-eyebrow
+   style, consistente con las páginas de detalle) — más "diseñado" que el título grande. */
 .col h4 {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.35rem;
     color: #FFFFFF;
-    font-size: 1.05rem;
+    font-family: var(--font-heading);
+    font-size: 0.8rem;
     font-weight: 700;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
 }
 
 .col a {
     display: block;
     color: var(--text-light);
     text-decoration: none;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.7rem;
     transition: all 0.2s;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-weight: 500;
+    line-height: 1.45;
 }
 
 /* [APPEARANCE-THEME · 2026-05-29] `:not(.socialIcon)` excluye los iconos
@@ -83,8 +92,8 @@
 
 .socialLinks {
     display: flex;
-    gap: 1.5rem;
-    margin-top: 1.5rem;
+    gap: 1.35rem;
+    margin-top: 1.85rem;
 }
 
 /* [APPEARANCE-THEME · 2026-05-29] Sin círculo: solo el icono, más grande y
@@ -134,8 +143,8 @@
    intro + correo con badge de icono + nota de tiempo de respuesta. */
 .supportIntro {
     color: var(--text-light);
-    font-size: 0.9rem;
-    line-height: 1.5;
+    font-size: 0.88rem;
+    line-height: 1.55;
     margin: 0 0 1.1rem;
     max-width: 240px;
 }
@@ -145,11 +154,11 @@
 .col .supportLink {
     display: inline-flex;
     align-items: center;
-    gap: 0.65rem;
+    gap: 0.6rem;
     color: #FFFFFF;
     font-weight: 600;
-    font-size: 0.95rem;
-    overflow-wrap: anywhere;
+    font-size: 0.88rem;
+    overflow-wrap: break-word;
     margin-bottom: 0;
 }
 
@@ -187,12 +196,12 @@
 .bottom {
     grid-column: 1 / -1;
     width: 100%;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    margin-top: 3rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin-top: 3.5rem;
     padding-top: 2rem;
     text-align: center;
     color: var(--text-light);
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     font-weight: 500;
 }
 
