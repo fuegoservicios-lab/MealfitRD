@@ -42,7 +42,7 @@ const TITLES = {
     '/dashboard/upgrade': `Planes · ${BRAND}`,
     '/configuracion': `Ajustes · ${BRAND}`,
     '/history': `Historial · ${BRAND}`,
-    '/precios': `Precios · ${BRAND}`,
+    '/precios': `Planes y Precios · ${BRAND}`,
     '/privacy': `Política de Privacidad · ${BRAND}`,
     '/terms': `Términos de Servicio · ${BRAND}`,
     '/medical': `Aviso Médico · ${BRAND}`,
@@ -51,7 +51,7 @@ const TITLES = {
     '/research': `Investigación · ${BRAND}`,
     '/refunds': `Reembolsos y Cancelaciones · ${BRAND}`,
     '/acceptable-use': `Política de Uso · ${BRAND}`,
-    '/about': `Acerca de ${BRAND}`,
+    '/about': `Acerca de ${BRAND} — nutrición de precisión con IA`,
     '/responsible-disclosure': `Divulgación Responsable · ${BRAND}`,
     '/novedades': `Novedades · ${BRAND}`,
 };
