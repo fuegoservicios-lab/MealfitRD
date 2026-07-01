@@ -422,14 +422,16 @@
 .mNode { fill: color-mix(in srgb, var(--text-muted) 60%, transparent); }
 .mNodeHi { fill: var(--accent); }
 .mRing { fill: none; stroke: color-mix(in srgb, var(--primary) 30%, transparent); stroke-width: 1.1; }
+.mRingInner { fill: none; stroke: color-mix(in srgb, var(--primary) 16%, transparent); stroke-width: 1; }
 .mRingPoly { fill: color-mix(in srgb, var(--primary) 6%, transparent); stroke: color-mix(in srgb, var(--primary) 34%, transparent); stroke-width: 1; stroke-linejoin: round; }
+.mAxis { stroke: color-mix(in srgb, var(--primary) 24%, transparent); stroke-width: 1.1; }
 .mStage { fill: var(--primary); }
 .mStageHalo { fill: color-mix(in srgb, var(--primary) 40%, transparent); }
 .mHex { fill: none; stroke: color-mix(in srgb, var(--primary) 70%, transparent); stroke-width: 1.4; stroke-linejoin: round; }
 .mHexInner { fill: color-mix(in srgb, var(--primary) 10%, transparent); stroke: color-mix(in srgb, var(--primary) 55%, transparent); stroke-width: 1.1; stroke-linejoin: round; }
 .mSpoke { stroke: color-mix(in srgb, var(--primary) 32%, transparent); stroke-width: 1; }
 .mCore { fill: #EEF2FF; }
-.mCorePulse { fill: none; stroke: var(--primary); stroke-width: 1.6; transform-box: view-box; transform-origin: 380px 230px; animation: mCorePulse 3s ease-out infinite; }
+.mCorePulse { fill: none; stroke: var(--primary); stroke-width: 1.6; transform-box: view-box; transform-origin: 390px 238px; animation: mCorePulse 3s ease-out infinite; }
 .mInput { fill: none; stroke: color-mix(in srgb, var(--text-muted) 34%, transparent); stroke-width: 1.1; }
 .mOutput { fill: none; stroke: color-mix(in srgb, var(--primary) 34%, transparent); stroke-width: 1.2; }
 .mFlow { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 1 12; animation: mFlow 1.4s linear infinite; }
@@ -439,10 +441,11 @@
 .mAnno { fill: color-mix(in srgb, var(--text-main) 78%, transparent); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; letter-spacing: 0.14em; }
 .mAnnoDim { fill: var(--text-muted); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9.5px; letter-spacing: 0.12em; }
 .mAnnoMid { fill: var(--text-muted); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10px; letter-spacing: 0.06em; text-anchor: middle; }
+.mAnnoMidPlan { fill: var(--text-muted); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9.5px; letter-spacing: 0.12em; text-anchor: middle; }
 
-/* rotaciones de anillos (alrededor del centro 380,230 en unidades del viewBox) */
-.mSpinCw { transform-box: view-box; transform-origin: 380px 230px; animation: mspin 44s linear infinite; }
-.mSpinCcw { transform-box: view-box; transform-origin: 380px 230px; animation: mspinRev 66s linear infinite; }
+/* rotaciones de anillos (alrededor del centro 390,238 en unidades del viewBox) */
+.mSpinCw { transform-box: view-box; transform-origin: 390px 238px; animation: mspin 44s linear infinite; }
+.mSpinCcw { transform-box: view-box; transform-origin: 390px 238px; animation: mspinRev 66s linear infinite; }
 .mSeq { animation: mseq 3.4s ease-in-out infinite; }
 
 @keyframes mspin { to { transform: rotate(360deg); } }

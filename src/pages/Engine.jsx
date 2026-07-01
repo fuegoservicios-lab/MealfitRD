@@ -16,23 +16,33 @@ import styles from './Engine.module.css';
  * validación (guardas) → plan. Contenido REAL, honesto, con disclaimer. Marketing (dark-only).
  */
 
-const CX = 380;
-const CY = 230;
+const CX = 390;
+const CY = 238;
 const D2R = (d) => (d * Math.PI) / 180;
 const onC = (r, a) => [CX + r * Math.cos(D2R(a)), CY + r * Math.sin(D2R(a))];
 const fmt = ([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`;
 
-/* ─────────── imagen abstracta del modelo v1.0 (SVG blueprint) ─────────── */
+/* ─────────── imagen abstracta del modelo v1.0 (SVG blueprint) ───────────
+   Composición con márgenes deliberados: eje de datos horizontal (ENTRADA →
+   núcleo → PLAN); nodos de las órbitas DESFASADOS para que nunca se alineen
+   entre capas; anotaciones lejos de anillos y nodos. */
 function ModelDiagram() {
-    const pipeline = [0, 1, 2, 3, 4].map((i) => onC(104, -90 + i * 72));
-    const guards = Array.from({ length: 9 }, (_, i) => onC(168, -90 + i * 40));
-    const hexOuter = Array.from({ length: 6 }, (_, i) => onC(52, -90 + i * 60));
-    const hexInner = Array.from({ length: 6 }, (_, i) => onC(29, -60 + i * 60));
-    const inputs = [-46, 0, 46]; // offsets Y de los 3 flujos de entrada
-    const corners = [[26, 26], [734, 26], [26, 434], [734, 434]];
+    const R_CAL = 176;   // anillo de calibración (exterior)
+    const R_GUARD = 142; // órbita de guardas (validación)
+    const R_PIPE = 90;   // anillo del pipeline (5 etapas)
+    const pipeline = [0, 1, 2, 3, 4].map((i) => onC(R_PIPE, -90 + i * 72));
+    const guards = Array.from({ length: 8 }, (_, i) => onC(R_GUARD, -90 + 22.5 + i * 45));
+    const hexOuter = Array.from({ length: 6 }, (_, i) => onC(44, -90 + i * 60));
+    const hexInner = Array.from({ length: 6 }, (_, i) => onC(25, -60 + i * 60));
+    const fans = [-56, 0, 56];   // 3 flujos de entrada (fan izquierdo)
+    const intakeX = 178;         // punto de convergencia de la entrada
+    const arrowX = 604;          // punta de la flecha de salida
+    const planX = 626;           // tarjeta del plan (con holgura vs la flecha)
+    const corners = [[24, 24], [756, 24], [24, 476], [756, 476]];
+    const hiGuard = 2;           // guarda destacada (spot despejado, abajo-derecha)
 
     return (
-        <svg viewBox="0 0 760 460" className={styles.modelSvg} role="img"
+        <svg viewBox="0 0 780 500" className={styles.modelSvg} role="img"
             aria-label="Diagrama abstracto del modelo MealfitRD v1.0: los datos de tu perfil entran al núcleo de generación, pasan por capas de validación y salen como tu plan.">
             <defs>
                 <radialGradient id="mCoreGlow" cx="0.5" cy="0.5" r="0.5">
@@ -43,8 +53,8 @@ function ModelDiagram() {
 
             {/* marco blueprint: ticks en las 4 esquinas */}
             {corners.map(([x, y], i) => {
-                const sx = x < 380 ? 1 : -1;
-                const sy = y < 230 ? 1 : -1;
+                const sx = x < 390 ? 1 : -1;
+                const sy = y < 250 ? 1 : -1;
                 return (
                     <g key={`c${i}`} className={styles.mFrame}>
                         <line x1={x} y1={y} x2={x + sx * 22} y2={y} />
@@ -54,41 +64,44 @@ function ModelDiagram() {
             })}
 
             {/* glow del núcleo */}
-            <circle cx={CX} cy={CY} r="150" fill="url(#mCoreGlow)" className={styles.mCoreGlow} />
+            <circle cx={CX} cy={CY} r="140" fill="url(#mCoreGlow)" className={styles.mCoreGlow} />
 
             {/* anillo de calibración exterior + ticks radiales */}
-            <circle cx={CX} cy={CY} r="200" className={styles.mCalRing} />
+            <circle cx={CX} cy={CY} r={R_CAL} className={styles.mCalRing} />
             {Array.from({ length: 72 }, (_, i) => {
                 const a = i * 5;
                 const long = i % 3 === 0;
-                const [x1, y1] = onC(200, a);
-                const [x2, y2] = onC(long ? 190 : 195, a);
+                const [x1, y1] = onC(R_CAL, a);
+                const [x2, y2] = onC(long ? R_CAL - 9 : R_CAL - 5, a);
                 return <line key={`t${i}`} x1={x1} y1={y1} x2={x2} y2={y2} className={long ? styles.mTickLong : styles.mTick} />;
             })}
 
             {/* capa de validación (guardas) — órbita punteada que rota */}
             <g className={styles.mSpinCcw}>
-                <circle cx={CX} cy={CY} r="168" className={styles.mDash} />
+                <circle cx={CX} cy={CY} r={R_GUARD} className={styles.mDash} />
                 {guards.map((p, i) => (
-                    <circle key={`g${i}`} cx={p[0]} cy={p[1]} r={i === 3 ? 4.2 : 3} className={i === 3 ? styles.mNodeHi : styles.mNode} />
+                    <circle key={`g${i}`} cx={p[0]} cy={p[1]} r={i === hiGuard ? 4.2 : 3} className={i === hiGuard ? styles.mNodeHi : styles.mNode} />
                 ))}
             </g>
 
-            {/* flujos de entrada (izquierda): datos del perfil hacia el núcleo */}
-            {inputs.map((oy, i) => {
+            {/* eje de datos: entrada → (núcleo) → salida, una sola línea limpia con flujo */}
+            <line x1={intakeX} y1={CY} x2={arrowX} y2={CY} className={styles.mAxis} />
+            <line x1={intakeX} y1={CY} x2={arrowX} y2={CY} className={styles.mFlow} />
+
+            {/* flujos de entrada (fan izquierdo) que convergen al eje */}
+            {fans.map((oy, i) => {
                 const y = CY + oy;
-                const d = `M 48 ${y} C 150 ${y}, 210 ${CY + oy * 0.4}, ${CX - 60} ${CY + oy * 0.14}`;
-                return (
-                    <g key={`in${i}`}>
-                        <path d={d} className={styles.mInput} />
-                        <path d={d} className={styles.mFlow} />
-                        <circle cx="48" cy={y} r="2.6" className={styles.mNode} />
-                    </g>
-                );
+                const d = `M 52 ${y} C 112 ${y}, 140 ${CY + oy * 0.25}, ${intakeX} ${CY}`;
+                return <path key={`in${i}`} d={d} className={styles.mInput} />;
             })}
+            <circle cx="52" cy={CY - 56} r="2.6" className={styles.mNode} />
+            <circle cx="52" cy={CY} r="2.6" className={styles.mNode} />
+            <circle cx="52" cy={CY + 56} r="2.6" className={styles.mNode} />
+            <circle cx={intakeX} cy={CY} r="3.4" className={styles.mNode} />
 
             {/* pipeline (5 etapas) — anillo interior con nodos que brillan en secuencia */}
-            <circle cx={CX} cy={CY} r="104" className={styles.mRing} />
+            <circle cx={CX} cy={CY} r="62" className={styles.mRingInner} />
+            <circle cx={CX} cy={CY} r={R_PIPE} className={styles.mRing} />
             <polygon points={pipeline.map(fmt).join(' ')} className={styles.mRingPoly} />
             {pipeline.map((p, i) => (
                 <g key={`p${i}`} className={styles.mSeq} style={{ animationDelay: `${i * 0.5}s` }}>
@@ -105,26 +118,24 @@ function ModelDiagram() {
                     <line key={`s${i}`} x1={CX} y1={CY} x2={p[0]} y2={p[1]} className={styles.mSpoke} />
                 ))}
             </g>
-            <circle cx={CX} cy={CY} r="7" className={styles.mCore} />
             <circle cx={CX} cy={CY} r="14" className={styles.mCorePulse} />
+            <circle cx={CX} cy={CY} r="6.5" className={styles.mCore} />
 
-            {/* salida (derecha): el plan */}
-            <path d={`M ${CX + 52} ${CY} C ${CX + 130} ${CY}, 600 ${CY}, 686 ${CY}`} className={styles.mOutput} />
-            <path d={`M ${CX + 52} ${CY} C ${CX + 130} ${CY}, 600 ${CY}, 686 ${CY}`} className={styles.mFlow} />
-            <path d="M 680 224 L 692 230 L 680 236 Z" className={styles.mArrow} />
+            {/* salida (derecha): flecha + tarjeta del plan */}
+            <path d={`M ${arrowX - 12} ${CY - 6} L ${arrowX} ${CY} L ${arrowX - 12} ${CY + 6} Z`} className={styles.mArrow} />
             <g className={styles.mPlanGlyph}>
-                <rect x="700" y="214" width="34" height="32" rx="5" className={styles.mPlanCard} />
-                <line x1="707" y1="223" x2="727" y2="223" className={styles.mPlanLine} />
-                <line x1="707" y1="230" x2="727" y2="230" className={styles.mPlanLine} />
-                <line x1="707" y1="237" x2="720" y2="237" className={styles.mPlanLine} />
+                <rect x={planX} y={CY - 17} width="34" height="34" rx="6" className={styles.mPlanCard} />
+                <line x1={planX + 8} y1={CY - 7} x2={planX + 26} y2={CY - 7} className={styles.mPlanLine} />
+                <line x1={planX + 8} y1={CY} x2={planX + 26} y2={CY} className={styles.mPlanLine} />
+                <line x1={planX + 8} y1={CY + 7} x2={planX + 20} y2={CY + 7} className={styles.mPlanLine} />
             </g>
 
-            {/* anotaciones tipo esquema */}
-            <text x="30" y="44" className={styles.mAnno}>MODELO · MEALFITRD</text>
-            <text x="30" y="60" className={styles.mAnnoDim}>v1.0.0 · deepseek-v4</text>
-            <text x="48" y={CY - 62} className={styles.mAnnoDim}>ENTRADA</text>
-            <text x="700" y={CY - 22} className={styles.mAnnoDim}>PLAN</text>
-            <text x={CX} y="440" className={styles.mAnnoMid}>núcleo de generación + validación determinista</text>
+            {/* anotaciones tipo esquema (lejos de anillos y nodos) */}
+            <text x="32" y="46" className={styles.mAnno}>MODELO · MEALFITRD</text>
+            <text x="32" y="63" className={styles.mAnnoDim}>v1.0.0 · deepseek-v4</text>
+            <text x="52" y={CY - 74} className={styles.mAnnoDim}>ENTRADA</text>
+            <text x={planX + 17} y={CY - 26} className={styles.mAnnoMidPlan}>PLAN</text>
+            <text x={CX} y="474" className={styles.mAnnoMid}>núcleo de generación + validación determinista</text>
         </svg>
     );
 }
