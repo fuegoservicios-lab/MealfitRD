@@ -29,6 +29,8 @@ export const NEWS = [
         title: 'Presentamos el Motor Mealfit v1',
         excerpt: 'Nuestro motor de nutrición de precisión llega a su versión 1.0: generación validada paso a paso, macros que cuadran de verdad y un catálogo dominicano verificado.',
         readTime: '3 min de lectura',
+        // badge → texto grande del "cover" de la tarjeta destacada (opcional).
+        badge: 'v1.0',
         // El Motor ya tiene su propia página completa → "Leer el anuncio" va ahí.
         href: '/motor',
         content: [
