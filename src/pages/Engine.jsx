@@ -138,7 +138,7 @@ function ComparisonChart() {
 const Engine = () => {
     useEffect(() => {
         const prev = document.title;
-        document.title = 'Introducción al modelo — MealfitRD v1.0';
+        document.title = 'Presentamos a MealfitRD v1.0 — el motor';
         return () => { document.title = prev; };
     }, []);
 
@@ -150,10 +150,9 @@ const Engine = () => {
                     <Cpu size={14} strokeWidth={2.5} /> Motor
                 </span>
                 <h1 className={styles.title}>
-                    Introducción al <span className={styles.accent}>modelo</span>.
+                    Presentamos a <span className={styles.accent}>MealfitRD v1.0</span>.
                 </h1>
                 <div className={styles.releaseMeta}>
-                    <span className={styles.releaseTag}>MealfitRD v1.0.0</span>
                     <span className={styles.releaseDate}>{RELEASE_DATE}</span>
                 </div>
 
