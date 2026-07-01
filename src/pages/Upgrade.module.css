@@ -50,6 +50,14 @@
     gap: 1rem;
 }
 
+/* [P3-UPGRADE-NO-BACK-DESKTOP · 2026-07-01] En PC se oculta el header sticky
+   (solo contiene "Volver al Dashboard") a pedido. El hero ya trae 3.25rem de
+   aire superior, así que el título no queda pegado al borde. En móvil se
+   mantiene — la página es standalone (sin sidebar), es la vía de regreso. */
+@media (min-width: 1025px) {
+    .stickyHeader { display: none; }
+}
+
 .backButton {
     display: inline-flex;
     align-items: center;
@@ -318,9 +326,16 @@
     transform: none;
 }
 
+/* [PRICING-CURRENT-GLOW · 2026-07-01] Halo VERDE notable alrededor de la tarjeta del plan
+   actual (antes el anillo al 10% era casi imperceptible), espejo del halo morado del popular
+   pero en verde. OJO: en oscuro hay que repetirlo con mayor especificidad (ver
+   `:global(html[data-theme="dark"]) .planCardCurrent` abajo) porque el override oscuro de
+   `.planCard` pisa el border-color — era la causa de "no se ve el verde" en oscuro. */
 .planCardCurrent {
     border-color: #10B981;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    box-shadow:
+        0 0 0 4px rgba(16, 185, 129, 0.16),
+        0 14px 40px -10px rgba(16, 185, 129, 0.4);
 }
 
 /* [PRICING-POPULAR-GLOW · 2026-05-31] Halo morado NOTABLE alrededor de la tarjeta
@@ -1292,6 +1307,16 @@
     box-shadow:
         0 0 0 4px rgba(139, 92, 246, 0.2),
         0 14px 40px -10px rgba(139, 92, 246, 0.5);
+}
+
+/* [PRICING-CURRENT-GLOW · 2026-07-01] Mismo motivo que el popular: el override oscuro de
+   .planCard pisa el borde verde del plan actual → lo restauramos aquí, DESPUÉS, con el halo
+   verde un punto más intenso para que destaque sobre el fondo oscuro. */
+:global(html[data-theme="dark"]) .planCardCurrent {
+    border-color: #10B981;
+    box-shadow:
+        0 0 0 4px rgba(16, 185, 129, 0.22),
+        0 14px 40px -10px rgba(16, 185, 129, 0.5);
 }
 
 :global(html[data-theme="dark"]) .planName {
