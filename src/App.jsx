@@ -69,7 +69,9 @@ const MedicalDisclaimer = lazy(() => import('./pages/legal/LegalPages').then(m =
 // [P3-LEGAL-EXPANSION · 2026-06-30] Políticas nuevas para compliance RD (+LatAm próximamente).
 const DataProtection = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.DataProtection })));
 const AIUse = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.AIUse })));
-const Research = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Research })));
+// [P3-RESEARCH-PAGE-SCIENTIFIC · 2026-06-30] "Investigación" ya NO usa el chrome de política
+// (LegalLayout): es una página propia en estilo minimalista-científico (ver ResearchPage).
+const Research = lazy(() => import('./pages/ResearchPage'));
 const Refunds = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Refunds })));
 // [P3-ACCEPTABLE-USE-PAGE · 2026-06-30] Política de Uso Aceptable (reglas de uso responsable).
 const AcceptableUse = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.AcceptableUse })));

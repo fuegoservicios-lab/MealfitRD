@@ -80,7 +80,10 @@ const DESCRIPTIONS = {
     '/responsible-disclosure': 'Política de Divulgación Responsable de MealfitRD: cómo reportar vulnerabilidades de seguridad, nuestro compromiso de puerto seguro y el alcance del programa.',
 };
 
-const SELF_MANAGED = new Set(['/motor', '/como-funciona', '/funciones', '/precision']);
+// [P3-RESEARCH-PAGE-SCIENTIFIC · 2026-06-30] /research ahora es página propia (estilo científico)
+// que fija su propio <title> vía useEffect → self-managed. Su description/canonical se siguen
+// gestionando aquí (SELF_MANAGED solo exime el TITLE).
+const SELF_MANAGED = new Set(['/motor', '/como-funciona', '/funciones', '/precision', '/research']);
 
 function setMetaByName(name, content) {
     let el = document.head.querySelector(`meta[name="${name}"]`);
