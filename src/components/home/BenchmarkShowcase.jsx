@@ -27,7 +27,7 @@ const MACROS = [
 const VERSUS = [
     { label: 'Precisión de proteína', axis: 'Proteína', mealfit: 98.5, llm: 84 },
     { label: 'Los 4 macros en banda', axis: '4 macros', mealfit: 91.7, llm: 24 },
-    { label: 'Macros que cuadran al recalcular', axis: 'Recalcular', mealfit: 100, llm: 55 },
+    { label: 'Macros que cuadran al recalcular', axis: 'Recalcular', mealfit: 100, llm: 0 },
 ];
 
 const CAPS = [
