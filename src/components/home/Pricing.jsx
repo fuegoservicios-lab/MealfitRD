@@ -50,7 +50,9 @@ const Pricing = () => {
         planData,
         upgradeUserPlan,
         userProfile,
-        isGuest
+        isGuest,
+        session,
+        loadingAuth,
     } = useAssessment();
 
     // Estado para controlar billing period y modal
@@ -81,7 +83,17 @@ const Pricing = () => {
     // hidrata jamás) → sin el guard de isGuest los botones quedaban atascados en
     // "Cargando…" para siempre. Para invitado el estado está RESUELTO (no hay perfil
     // que cargar): isProfileLoading=false → muestra "Invitado"/CTA de registro.
-    const isProfileLoading = !isGuest && !userProfile?.id;
+    // [P1-PRICING-ANON-LOADING · 2026-07-01] El guard `!isGuest` NO cubría al visitante
+    // ANÓNIMO (sin sesión Y sin modo invitado): `isGuest = !session && guestFlag` es false
+    // para él, así que `!isGuest && !userProfile?.id` quedaba true → los 4 botones decían
+    // "Cargando…" para siempre (todo visitante frío que scrollea a precios lo veía roto).
+    // Fix: "Cargando…" SOLO mientras la auth resuelve (`loadingAuth`, ventana breve común
+    // a todos) O cuando ya hay sesión pero el perfil aún no hidrata (carga real del usuario
+    // logueado). Una vez resuelta la auth sin sesión, `noSession` (anónimo O invitado)
+    // resuelve a los CTA de gratis/registro — ninguno tiene perfil que esperar. El
+    // `loadingAuth ||` evita además que un logueado parpadee el CTA anónimo en el mount.
+    const noSession = !session;
+    const isProfileLoading = loadingAuth || (!noSession && !userProfile?.id);
 
     // Helper: obtener precio actual según billing period (tier-aware: Ultra
     // siempre mensual, ver ANNUAL_DISABLED_TIERS).
@@ -101,9 +113,11 @@ const Pricing = () => {
 
     // Manejador del botón Planes Pagos
     const handleUpgradeClick = (tier, name) => {
-        // [P1-GUEST-PRICING · 2026-06-21] Un invitado debe crear cuenta antes de
-        // suscribirse (el checkout/verify requiere auth). Redirige a registro.
-        if (isGuest) {
+        // [P1-GUEST-PRICING · 2026-06-21 · P1-PRICING-ANON-LOADING 2026-07-01] Sin sesión
+        // (invitado O visitante anónimo) debe crear cuenta antes de suscribirse (el
+        // checkout/verify requiere auth). Redirige a registro. Antes solo cubría `isGuest`;
+        // un anónimo caía al checkout sin auth y el verify fallaba.
+        if (noSession) {
             window.scrollTo(0, 0);
             navigate('/register');
             return;
@@ -208,11 +222,13 @@ const Pricing = () => {
         // Ventana de carga: sesión presente pero perfil aún sin hidratar.
         if (isProfileLoading) return "Cargando…";
 
-        // [P1-GUEST-PRICING · 2026-06-21] Invitado: el plan Gratis es su tier efectivo
-        // (etiqueta de estado "Invitado", como "Tu Plan Actual"); los planes pagos lo
-        // invitan a crear cuenta (el checkout requiere auth).
-        if (isGuest) {
-            return tier === 'gratis' ? 'Invitado' : 'Crear cuenta';
+        // [P1-GUEST-PRICING · 2026-06-21 · P1-PRICING-ANON-LOADING 2026-07-01] Sin sesión:
+        // el plan Gratis es una etiqueta de estado para el invitado ("Invitado") o un CTA
+        // de conversión para el visitante anónimo ("Empezar Gratis Ahora"); los planes
+        // pagos, en ambos casos, invitan a crear cuenta (el checkout requiere auth).
+        if (noSession) {
+            if (tier === 'gratis') return isGuest ? 'Invitado' : 'Empezar Gratis Ahora';
+            return 'Crear cuenta';
         }
 
         // Plan Gratis: CTA de adquisición del usuario gratis sin plan (el target
@@ -242,9 +258,11 @@ const Pricing = () => {
         // Durante la carga del perfil, deshabilitar para no exponer acciones erróneas.
         if (isProfileLoading) return true;
 
-        // [P1-GUEST-PRICING · 2026-06-21] Invitado: 'Invitado' (Gratis) es una etiqueta
-        // de estado → disabled; los planes pagos son CTA de registro → clickeables.
-        if (isGuest) return tier === 'gratis';
+        // [P1-GUEST-PRICING · 2026-06-21 · P1-PRICING-ANON-LOADING 2026-07-01] Sin sesión:
+        // el Gratis del invitado es etiqueta de estado ('Invitado' → disabled); el Gratis
+        // del anónimo es CTA de conversión ('Empezar Gratis' → clickeable); los planes
+        // pagos siempre clickeables (CTA de registro) en ambos casos.
+        if (noSession) return isGuest && tier === 'gratis';
 
         // Gratis: solo deshabilitado si el usuario YA pagó un tier superior;
         // nunca para el usuario gratis (su CTA de conversión debe ser clickeable).
