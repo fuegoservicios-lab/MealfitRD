@@ -4,9 +4,10 @@ import DashboardShowcase from '../components/home/DashboardShowcase';
 // [P3-BENCHMARK-SHOWCASE · 2026-06-19] Benchmarks del "modelo Mealfit vX" (precisión
 // de macros real) debajo del showcase del dashboard.
 import BenchmarkShowcase from '../components/home/BenchmarkShowcase';
-// [P3-PRICING-SEPARATE-PAGE · 2026-06-29] El detalle de planes se movió a /precios
-// (estilo Anthropic/OpenAI). El landing solo muestra una banda CTA hacia esa página.
-import PricingCta from '../components/home/PricingCta';
+// [P3-NEWS-1 · 2026-07-01] La banda de precios del landing se reemplazó por la banda de
+// "Novedades" (anuncios de MealfitRD, estilo Anthropic/OpenAI). El detalle de planes sigue
+// en /precios (link en la nav). PricingCta queda disponible por si se reintroduce.
+import NewsHighlight from '../components/home/NewsHighlight';
 
 function Home() {
     return (
@@ -15,7 +16,7 @@ function Home() {
             <HowItWorks />
             <DashboardShowcase />
             <BenchmarkShowcase />
-            <PricingCta />
+            <NewsHighlight />
         </>
     );
 }

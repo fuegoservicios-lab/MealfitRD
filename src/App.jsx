@@ -78,6 +78,9 @@ const AcceptableUse = lazy(() => import('./pages/legal/LegalPages').then(m => ({
 // [P3-ABOUT-PAGE-ABSTRACT · 2026-06-30] "Acerca de MealfitRD" — página propia con estética
 // abstracta (aurora CSS + tipografía editorial), distinta de las políticas y del marketing.
 const About = lazy(() => import('./pages/AboutPage'));
+// [P3-NEWS-1 · 2026-07-01] Novedades: índice (/novedades) + artículo (/novedades/:slug).
+const NewsPage = lazy(() => import('./pages/NewsPage'));
+const NewsArticlePage = lazy(() => import('./pages/NewsArticlePage'));
 // [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] Política de divulgación responsable (seguridad).
 const ResponsibleDisclosure = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.ResponsibleDisclosure })));
 // [P3-ENGINE-INFO-PAGE · 2026-06-28] Página pública informativa del motor v1.0.0.
@@ -398,6 +401,10 @@ function App() {
             <Route path="/about" element={<Layout><About /></Layout>} />
             {/* [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] Política de divulgación responsable (seguridad). */}
             <Route path="/responsible-disclosure" element={<Layout><ResponsibleDisclosure /></Layout>} />
+
+            {/* [P3-NEWS-1 · 2026-07-01] Novedades (pública, indexable): índice + artículo. */}
+            <Route path="/novedades" element={<Layout><NewsPage /></Layout>} />
+            <Route path="/novedades/:slug" element={<Layout><NewsArticlePage /></Layout>} />
 
             {/* [P3-ENGINE-INFO-PAGE · 2026-06-28] Motor v1.0.0 (pública, indexable, en el apex). */}
             <Route path="/motor" element={<Layout><Engine /></Layout>} />

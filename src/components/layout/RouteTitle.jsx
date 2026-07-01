@@ -53,6 +53,7 @@ const TITLES = {
     '/acceptable-use': `Política de Uso · ${BRAND}`,
     '/about': `Acerca de ${BRAND}`,
     '/responsible-disclosure': `Divulgación Responsable · ${BRAND}`,
+    '/novedades': `Novedades · ${BRAND}`,
 };
 
 // [P3-ROUTE-META] Description por ruta para el snippet de buscadores. ≤ ~160 chars,
@@ -78,6 +79,7 @@ const DESCRIPTIONS = {
     '/acceptable-use': 'Política de Uso de MealfitRD: reglas para un uso responsable, conductas prohibidas, uso justo de la IA y consecuencias del incumplimiento.',
     '/about': 'Acerca de MealfitRD: nutrición de precisión con IA para la mesa dominicana. Nuestra misión, cómo funciona el motor y los principios que nos guían.',
     '/responsible-disclosure': 'Política de Divulgación Responsable de MealfitRD: cómo reportar vulnerabilidades de seguridad, nuestro compromiso de puerto seguro y el alcance del programa.',
+    '/novedades': 'Novedades de MealfitRD: anuncios, mejoras del motor y todo lo nuevo, a medida que sucede.',
 };
 
 // [P3-RESEARCH-PAGE-SCIENTIFIC · 2026-06-30] /research ahora es página propia (estilo científico)
@@ -119,6 +121,11 @@ export default function RouteTitle() {
     const { pathname } = useLocation();
     useEffect(() => {
         const path = pathname.replace(/\/+$/, '') || '/';
+
+        // [P3-NEWS-1 · 2026-07-01] Las páginas de artículo de Novedades (/novedades/<slug>)
+        // son dinámicas y auto-gestionan su título/description/canonical por artículo →
+        // no las tocamos aquí (evita pisar el título del artículo con uno genérico).
+        if (path.startsWith('/novedades/')) return;
 
         // Título — las páginas de marketing con título propio lo setean ellas mismas.
         if (!SELF_MANAGED.has(path)) {

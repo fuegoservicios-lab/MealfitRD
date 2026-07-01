@@ -16,6 +16,8 @@ import { isMarketingRoute } from '../../utils/marketingRoutes';
 // [P3-LEGAL-HEADER-PARITY · 2026-06-30] SSOT de rutas legales (compartido con Footer) —
 // estas rutas usan el header completo del landing. Evita el drift de listas hardcodeadas.
 import { isLegalRoute } from '../../utils/legalRoutes';
+// [P3-NEWS-1 · 2026-07-01] Rutas de Novedades → header completo del landing (nav + CTA).
+import { isNewsRoute } from '../../utils/newsRoutes';
 
 // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Secciones del landing para la nav segmentada.
 // El `id` debe coincidir con el id de cada <section> del Home (how-it-works, dashboard,
@@ -59,7 +61,7 @@ const Header = () => {
     // versión recortada. isMarketingRoute (SSOT) agrupa las de marketing; las legales se
     // suman vía isLegalPage. (El tema NO se toca aquí — las legales respetan su propio
     // light/dark, a diferencia de las de marketing que sí fuerzan oscuro.)
-    const isLandingLike = isMarketingRoute(location.pathname) || isLegalPage;
+    const isLandingLike = isMarketingRoute(location.pathname) || isLegalPage || isNewsRoute(location.pathname);
 
     // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El CTA del header SIEMPRE visible en
     // landing/marketing (decisión del owner). Ya no se gatea por scroll, así que Header

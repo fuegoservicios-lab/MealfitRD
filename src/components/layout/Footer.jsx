@@ -89,6 +89,7 @@ const Footer = () => {
                 <div className={styles.col}>
                     <h4>Empresas</h4>
                     <Link to="/about" state={{ from: fromPath }}>MealfitRD</Link>
+                    <Link to="/novedades" state={{ from: fromPath }}>Novedades</Link>
                     <Link to="/research" state={{ from: fromPath }}>Investigación</Link>
                 </div>
 

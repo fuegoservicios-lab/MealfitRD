@@ -1,0 +1,172 @@
+/* [P3-NEWS-1 · 2026-07-01] Banda de "Novedades" del landing (oscuro). Reemplaza la banda
+   de precios. Estilo anuncio Anthropic/OpenAI: anuncio destacado en tarjeta de vidrio +
+   enlace al índice. Un único glow índigo suave detrás, sin manchones. */
+.section {
+    position: relative;
+    padding: 5rem 1.5rem 6rem;
+    overflow: hidden;
+    background: var(--bg-page);
+}
+.section::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 30%;
+    transform: translate(-50%, -50%);
+    width: min(820px, 96%);
+    height: 460px;
+    background: radial-gradient(ellipse at center, color-mix(in srgb, var(--primary) 18%, transparent) 0%, transparent 70%);
+    filter: blur(50px);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.inner {
+    position: relative;
+    z-index: 1;
+    max-width: 940px;
+    margin: 0 auto;
+}
+
+/* encabezado: "Novedades" + "Ver todas" */
+.head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.6rem;
+}
+.eyebrow {
+    font-family: var(--font-heading);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--primary);
+}
+.allLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.18s ease, gap 0.18s ease;
+}
+.allLink:hover { color: var(--primary); gap: 0.6rem; }
+
+/* anuncio destacado */
+.feature {
+    display: block;
+    padding: clamp(1.75rem, 4vw, 2.75rem);
+    border-radius: 24px;
+    text-decoration: none;
+    background: color-mix(in srgb, var(--bg-card, var(--text-main)) 60%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-main) 12%, transparent);
+    box-shadow: 0 40px 90px -55px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    -webkit-backdrop-filter: blur(18px) saturate(130%);
+    backdrop-filter: blur(18px) saturate(130%);
+    transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+.feature:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+    box-shadow: 0 48px 100px -50px rgba(0, 0, 0, 0.78), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.1rem;
+}
+.tag {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 13%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+    padding: 0.32rem 0.75rem;
+    border-radius: 999px;
+}
+.date {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+.title {
+    font-family: var(--font-heading);
+    font-size: clamp(1.7rem, 4vw, 2.7rem);
+    font-weight: 800;
+    letter-spacing: -0.032em;
+    line-height: 1.08;
+    margin: 0;
+    color: var(--text-main);
+}
+.excerpt {
+    margin: 1rem 0 0;
+    max-width: 640px;
+    font-size: clamp(1rem, 1.5vw, 1.12rem);
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+.readMore {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 1.5rem;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.98rem;
+    color: var(--primary);
+    transition: gap 0.18s ease;
+}
+.feature:hover .readMore { gap: 0.65rem; }
+
+/* lista compacta de anuncios anteriores */
+.list {
+    list-style: none;
+    margin: 1rem 0 0;
+    padding: 0;
+}
+.listItem {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.1rem 0.5rem;
+    border-top: 1px solid color-mix(in srgb, var(--text-main) 10%, transparent);
+    text-decoration: none;
+    transition: padding-left 0.18s ease;
+}
+.listItem:hover { padding-left: 0.9rem; }
+.listDate { font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; }
+.listTag {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--primary);
+    white-space: nowrap;
+}
+.listTitle {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.listArrow { color: var(--text-muted); flex: none; }
+.listItem:hover .listArrow { color: var(--primary); }
+
+@media (max-width: 620px) {
+    .listItem { grid-template-columns: 1fr auto; grid-auto-rows: auto; gap: 0.35rem 0.75rem; }
+    .listDate { order: 1; }
+    .listTag { order: 2; text-align: right; }
+    .listTitle { order: 3; grid-column: 1 / -1; white-space: normal; }
+    .listArrow { display: none; }
+}
