@@ -103,11 +103,9 @@ const AboutPage = () => {
 
     return (
         <div className={styles.page}>
-            {/* atmósfera abstracta: aurora + velo + hairlines (todo CSS, sin imágenes) */}
+            {/* atmósfera abstracta: aurora + velo (todo CSS, sin imágenes) */}
             <div className={styles.canvas} aria-hidden="true" />
             <div className={styles.veil} aria-hidden="true" />
-            <div className={styles.rule} style={{ top: '18%' }} aria-hidden="true" />
-            <div className={styles.rule} style={{ top: '62%' }} aria-hidden="true" />
 
             <div className={styles.inner}>
                 {/* ───────────── hero ───────────── */}
@@ -131,8 +129,12 @@ const AboutPage = () => {
 
                 {/* ───────────── manifiesto ───────────── */}
                 <div className={styles.rows}>
-                    {ROWS.map((r) => (
-                        <section key={r.num} className={`${styles.row} ${styles.reveal}`}>
+                    {ROWS.map((r, i) => (
+                        <section
+                            key={r.num}
+                            className={`${styles.row} ${styles.reveal}`}
+                            style={{ animationDelay: `${0.05 + i * 0.04}s` }}
+                        >
                             <div className={styles.rowAside}>
                                 <div className={styles.ghost}>{r.num}</div>
                                 <span className={styles.asideLabel}>{r.label}</span>
