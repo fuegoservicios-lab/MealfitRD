@@ -349,3 +349,115 @@
     .featureIcon { width: 44px; height: 44px; }
     .cmpTable { min-width: 420px; }
 }
+
+/* ============================================================
+   [P3-ENGINE-MODEL-DIAGRAM · 2026-06-30] Lenguaje visual PROPIO de /motor
+   (distinto al line-art sobre dot-grid del resto): estética "blueprint" +
+   la imagen abstracta grande del modelo v1.0. Marketing → dark-only.
+   ============================================================ */
+
+/* kicker de sección tipo esquema (monospace, "01 / pipeline") */
+.kicker {
+    display: inline-block;
+    font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--primary) 78%, var(--text-muted));
+    margin-bottom: 0.7rem;
+}
+
+/* figura del modelo (una sola imagen abstracta al inicio) */
+.modelFigure {
+    margin: 2.6rem 0 0;
+}
+.modelCanvas {
+    position: relative;
+    border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+    border-radius: 20px;
+    padding: 0.5rem 0.5rem 0.25rem;
+    overflow: hidden;
+    background:
+        radial-gradient(120% 90% at 50% 40%, color-mix(in srgb, var(--primary) 12%, transparent) 0%, transparent 60%),
+        color-mix(in srgb, var(--bg-page) 60%, #05070E);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 4%, transparent), 0 30px 60px -30px rgba(0, 0, 0, 0.6);
+}
+/* rejilla blueprint: líneas finas (NO puntos) — el diferenciador vs las otras páginas */
+.blueprint::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(color-mix(in srgb, var(--primary) 16%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in srgb, var(--primary) 16%, transparent) 1px, transparent 1px);
+    background-size: 34px 34px;
+    -webkit-mask-image: radial-gradient(120% 100% at 50% 45%, #000 30%, transparent 82%);
+    mask-image: radial-gradient(120% 100% at 50% 45%, #000 30%, transparent 82%);
+    opacity: 0.5;
+}
+.modelSvg {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: auto;
+}
+.modelCaption {
+    margin-top: 0.85rem;
+    text-align: center;
+    font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
+/* ---- elementos del SVG del modelo ---- */
+.mFrame line { stroke: color-mix(in srgb, var(--primary) 55%, transparent); stroke-width: 1.4; }
+.mCoreGlow { opacity: 0.9; }
+.mCalRing { fill: none; stroke: color-mix(in srgb, var(--text-muted) 26%, transparent); stroke-width: 1; }
+.mTick { stroke: color-mix(in srgb, var(--text-muted) 32%, transparent); stroke-width: 1; }
+.mTickLong { stroke: color-mix(in srgb, var(--primary) 55%, transparent); stroke-width: 1.2; }
+.mDash { fill: none; stroke: color-mix(in srgb, var(--text-muted) 40%, transparent); stroke-width: 1.1; stroke-dasharray: 2 7; }
+.mNode { fill: color-mix(in srgb, var(--text-muted) 60%, transparent); }
+.mNodeHi { fill: var(--accent); }
+.mRing { fill: none; stroke: color-mix(in srgb, var(--primary) 30%, transparent); stroke-width: 1.1; }
+.mRingPoly { fill: color-mix(in srgb, var(--primary) 6%, transparent); stroke: color-mix(in srgb, var(--primary) 34%, transparent); stroke-width: 1; stroke-linejoin: round; }
+.mStage { fill: var(--primary); }
+.mStageHalo { fill: color-mix(in srgb, var(--primary) 40%, transparent); }
+.mHex { fill: none; stroke: color-mix(in srgb, var(--primary) 70%, transparent); stroke-width: 1.4; stroke-linejoin: round; }
+.mHexInner { fill: color-mix(in srgb, var(--primary) 10%, transparent); stroke: color-mix(in srgb, var(--primary) 55%, transparent); stroke-width: 1.1; stroke-linejoin: round; }
+.mSpoke { stroke: color-mix(in srgb, var(--primary) 32%, transparent); stroke-width: 1; }
+.mCore { fill: #EEF2FF; }
+.mCorePulse { fill: none; stroke: var(--primary); stroke-width: 1.6; transform-box: view-box; transform-origin: 380px 230px; animation: mCorePulse 3s ease-out infinite; }
+.mInput { fill: none; stroke: color-mix(in srgb, var(--text-muted) 34%, transparent); stroke-width: 1.1; }
+.mOutput { fill: none; stroke: color-mix(in srgb, var(--primary) 34%, transparent); stroke-width: 1.2; }
+.mFlow { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 1 12; animation: mFlow 1.4s linear infinite; }
+.mArrow { fill: var(--primary); }
+.mPlanCard { fill: color-mix(in srgb, var(--primary) 10%, transparent); stroke: color-mix(in srgb, var(--primary) 55%, transparent); stroke-width: 1.2; }
+.mPlanLine { stroke: color-mix(in srgb, var(--text-muted) 60%, transparent); stroke-width: 1.4; stroke-linecap: round; }
+.mAnno { fill: color-mix(in srgb, var(--text-main) 78%, transparent); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; letter-spacing: 0.14em; }
+.mAnnoDim { fill: var(--text-muted); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9.5px; letter-spacing: 0.12em; }
+.mAnnoMid { fill: var(--text-muted); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10px; letter-spacing: 0.06em; text-anchor: middle; }
+
+/* rotaciones de anillos (alrededor del centro 380,230 en unidades del viewBox) */
+.mSpinCw { transform-box: view-box; transform-origin: 380px 230px; animation: mspin 44s linear infinite; }
+.mSpinCcw { transform-box: view-box; transform-origin: 380px 230px; animation: mspinRev 66s linear infinite; }
+.mSeq { animation: mseq 3.4s ease-in-out infinite; }
+
+@keyframes mspin { to { transform: rotate(360deg); } }
+@keyframes mspinRev { to { transform: rotate(-360deg); } }
+@keyframes mFlow { to { stroke-dashoffset: -13; } }
+@keyframes mseq { 0%, 100% { opacity: 0.45; } 42% { opacity: 1; } }
+@keyframes mCorePulse { 0% { transform: scale(0.7); opacity: 0.9; } 70%, 100% { transform: scale(2.4); opacity: 0; } }
+
+@media (max-width: 620px) {
+    .blueprint::before { background-size: 26px 26px; }
+    .modelCaption { font-size: 0.66rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mSpinCw, .mSpinCcw, .mSeq, .mFlow, .mCorePulse { animation: none !important; }
+    .mCorePulse { opacity: 0; }
+    .mSeq { opacity: 1; }
+}

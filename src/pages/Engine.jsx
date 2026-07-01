@@ -8,12 +8,128 @@ import {
 import styles from './Engine.module.css';
 
 /**
- * [P3-ENGINE-INFO-PAGE · 2026-06-28] Página pública informativa del motor de
- * MealfitRD (v1.0.0). Explica el pipeline de generación, la capa clínica, la
- * precisión y la honestidad del producto. Contenido REAL (basado en el motor) y
- * calibrado: describe mecanismos sin prometer precisión clínica absoluta + incluye
- * disclaimer. Vive en el apex (público, indexable) bajo <Layout>.
+ * [P3-ENGINE-INFO-PAGE · 2026-06-28 · rediseño abstracto P3-ENGINE-MODEL-DIAGRAM 2026-06-30]
+ * Página pública del motor de MealfitRD (v1.0.0). Rediseñada con un lenguaje visual PROPIO
+ * — distinto al line-art sobre dot-grid del resto de páginas de detalle: estética "blueprint"
+ * (rejilla de líneas finas + marcas de calibración) y UNA sola imagen abstracta grande al
+ * inicio que representa el MODELO: entrada de datos → núcleo de generación → capas de
+ * validación (guardas) → plan. Contenido REAL, honesto, con disclaimer. Marketing (dark-only).
  */
+
+const CX = 380;
+const CY = 230;
+const D2R = (d) => (d * Math.PI) / 180;
+const onC = (r, a) => [CX + r * Math.cos(D2R(a)), CY + r * Math.sin(D2R(a))];
+const fmt = ([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`;
+
+/* ─────────── imagen abstracta del modelo v1.0 (SVG blueprint) ─────────── */
+function ModelDiagram() {
+    const pipeline = [0, 1, 2, 3, 4].map((i) => onC(104, -90 + i * 72));
+    const guards = Array.from({ length: 9 }, (_, i) => onC(168, -90 + i * 40));
+    const hexOuter = Array.from({ length: 6 }, (_, i) => onC(52, -90 + i * 60));
+    const hexInner = Array.from({ length: 6 }, (_, i) => onC(29, -60 + i * 60));
+    const inputs = [-46, 0, 46]; // offsets Y de los 3 flujos de entrada
+    const corners = [[26, 26], [734, 26], [26, 434], [734, 434]];
+
+    return (
+        <svg viewBox="0 0 760 460" className={styles.modelSvg} role="img"
+            aria-label="Diagrama abstracto del modelo MealfitRD v1.0: los datos de tu perfil entran al núcleo de generación, pasan por capas de validación y salen como tu plan.">
+            <defs>
+                <radialGradient id="mCoreGlow" cx="0.5" cy="0.5" r="0.5">
+                    <stop offset="0" stopColor="#818CF8" stopOpacity="0.5" />
+                    <stop offset="1" stopColor="#818CF8" stopOpacity="0" />
+                </radialGradient>
+            </defs>
+
+            {/* marco blueprint: ticks en las 4 esquinas */}
+            {corners.map(([x, y], i) => {
+                const sx = x < 380 ? 1 : -1;
+                const sy = y < 230 ? 1 : -1;
+                return (
+                    <g key={`c${i}`} className={styles.mFrame}>
+                        <line x1={x} y1={y} x2={x + sx * 22} y2={y} />
+                        <line x1={x} y1={y} x2={x} y2={y + sy * 22} />
+                    </g>
+                );
+            })}
+
+            {/* glow del núcleo */}
+            <circle cx={CX} cy={CY} r="150" fill="url(#mCoreGlow)" className={styles.mCoreGlow} />
+
+            {/* anillo de calibración exterior + ticks radiales */}
+            <circle cx={CX} cy={CY} r="200" className={styles.mCalRing} />
+            {Array.from({ length: 72 }, (_, i) => {
+                const a = i * 5;
+                const long = i % 3 === 0;
+                const [x1, y1] = onC(200, a);
+                const [x2, y2] = onC(long ? 190 : 195, a);
+                return <line key={`t${i}`} x1={x1} y1={y1} x2={x2} y2={y2} className={long ? styles.mTickLong : styles.mTick} />;
+            })}
+
+            {/* capa de validación (guardas) — órbita punteada que rota */}
+            <g className={styles.mSpinCcw}>
+                <circle cx={CX} cy={CY} r="168" className={styles.mDash} />
+                {guards.map((p, i) => (
+                    <circle key={`g${i}`} cx={p[0]} cy={p[1]} r={i === 3 ? 4.2 : 3} className={i === 3 ? styles.mNodeHi : styles.mNode} />
+                ))}
+            </g>
+
+            {/* flujos de entrada (izquierda): datos del perfil hacia el núcleo */}
+            {inputs.map((oy, i) => {
+                const y = CY + oy;
+                const d = `M 48 ${y} C 150 ${y}, 210 ${CY + oy * 0.4}, ${CX - 60} ${CY + oy * 0.14}`;
+                return (
+                    <g key={`in${i}`}>
+                        <path d={d} className={styles.mInput} />
+                        <path d={d} className={styles.mFlow} />
+                        <circle cx="48" cy={y} r="2.6" className={styles.mNode} />
+                    </g>
+                );
+            })}
+
+            {/* pipeline (5 etapas) — anillo interior con nodos que brillan en secuencia */}
+            <circle cx={CX} cy={CY} r="104" className={styles.mRing} />
+            <polygon points={pipeline.map(fmt).join(' ')} className={styles.mRingPoly} />
+            {pipeline.map((p, i) => (
+                <g key={`p${i}`} className={styles.mSeq} style={{ animationDelay: `${i * 0.5}s` }}>
+                    <circle cx={p[0]} cy={p[1]} r="8.5" className={styles.mStageHalo} />
+                    <circle cx={p[0]} cy={p[1]} r="4.5" className={styles.mStage} />
+                </g>
+            ))}
+
+            {/* núcleo: retícula hexagonal que rota + centro brillante */}
+            <g className={styles.mSpinCw}>
+                <polygon points={hexOuter.map(fmt).join(' ')} className={styles.mHex} />
+                <polygon points={hexInner.map(fmt).join(' ')} className={styles.mHexInner} />
+                {hexOuter.map((p, i) => (
+                    <line key={`s${i}`} x1={CX} y1={CY} x2={p[0]} y2={p[1]} className={styles.mSpoke} />
+                ))}
+            </g>
+            <circle cx={CX} cy={CY} r="7" className={styles.mCore} />
+            <circle cx={CX} cy={CY} r="14" className={styles.mCorePulse} />
+
+            {/* salida (derecha): el plan */}
+            <path d={`M ${CX + 52} ${CY} C ${CX + 130} ${CY}, 600 ${CY}, 686 ${CY}`} className={styles.mOutput} />
+            <path d={`M ${CX + 52} ${CY} C ${CX + 130} ${CY}, 600 ${CY}, 686 ${CY}`} className={styles.mFlow} />
+            <path d="M 680 224 L 692 230 L 680 236 Z" className={styles.mArrow} />
+            <g className={styles.mPlanGlyph}>
+                <rect x="700" y="214" width="34" height="32" rx="5" className={styles.mPlanCard} />
+                <line x1="707" y1="223" x2="727" y2="223" className={styles.mPlanLine} />
+                <line x1="707" y1="230" x2="727" y2="230" className={styles.mPlanLine} />
+                <line x1="707" y1="237" x2="720" y2="237" className={styles.mPlanLine} />
+            </g>
+
+            {/* anotaciones tipo esquema */}
+            <text x="30" y="44" className={styles.mAnno}>MODELO · MEALFITRD</text>
+            <text x="30" y="60" className={styles.mAnnoDim}>v1.0.0 · deepseek-v4</text>
+            <text x="48" y={CY - 62} className={styles.mAnnoDim}>ENTRADA</text>
+            <text x="700" y={CY - 22} className={styles.mAnnoDim}>PLAN</text>
+            <text x={CX} y="440" className={styles.mAnnoMid}>núcleo de generación + validación determinista</text>
+        </svg>
+    );
+}
+
+/* ───────────────────────────────── datos ───────────────────────────────── */
 
 const STATS = [
     { num: '200+', label: 'Alimentos verificados' },
@@ -51,13 +167,13 @@ const PRECISION = [
 const Engine = () => {
     useEffect(() => {
         const prev = document.title;
-        document.title = 'El motor de MealfitRD — cómo funciona';
+        document.title = 'El motor de MealfitRD — el modelo v1.0 por dentro';
         return () => { document.title = prev; };
     }, []);
 
     return (
         <div className={styles.page}>
-            {/* ---- intro ---- */}
+            {/* ---- intro + imagen abstracta del modelo ---- */}
             <section className={styles.intro}>
                 <span className={styles.eyebrow}>
                     <Cpu size={14} strokeWidth={2.5} /> Motor v1.0.0
@@ -72,6 +188,16 @@ const Engine = () => {
                     dentro — contado con honestidad.
                 </p>
 
+                {/* UNA sola imagen abstracta: el modelo v1.0 */}
+                <figure className={styles.modelFigure}>
+                    <div className={`${styles.modelCanvas} ${styles.blueprint}`}>
+                        <ModelDiagram />
+                    </div>
+                    <figcaption className={styles.modelCaption}>
+                        Fig. — el modelo MealfitRD v1.0: entrada → núcleo → validación → plan
+                    </figcaption>
+                </figure>
+
                 <div className={styles.stats}>
                     {STATS.map((s) => (
                         <div key={s.label} className={styles.stat}>
@@ -84,6 +210,7 @@ const Engine = () => {
 
             {/* ---- pipeline ---- */}
             <section className={styles.section}>
+                <span className={styles.kicker}>01 / pipeline</span>
                 <h2 className={styles.sectionTitle}>Cómo nace tu plan</h2>
                 <p className={styles.sectionLead}>
                     Del formulario a tu lista de compras, en cinco pasos. Cada uno con su
@@ -107,6 +234,7 @@ const Engine = () => {
 
             {/* ---- capa clínica ---- */}
             <section className={styles.section}>
+                <span className={styles.kicker}>02 / capa clínica</span>
                 <h2 className={styles.sectionTitle}>La capa clínica</h2>
                 <p className={styles.sectionLead}>
                     Si declaras una condición o una alergia, el motor aplica reglas
@@ -126,6 +254,7 @@ const Engine = () => {
 
             {/* ---- precisión ---- */}
             <section className={styles.section}>
+                <span className={styles.kicker}>03 / precisión</span>
                 <h2 className={styles.sectionTitle}>La precisión que medimos</h2>
                 <p className={styles.sectionLead}>
                     No basta con que se vea bien: el motor verifica que los números cuadren.
@@ -143,6 +272,7 @@ const Engine = () => {
 
             {/* ---- catálogo + nevera ---- */}
             <section className={styles.section}>
+                <span className={styles.kicker}>04 / catálogo</span>
                 <h2 className={styles.sectionTitle}>Catálogo real y Nevera Inteligente</h2>
                 <div className={styles.cards}>
                     <div className={styles.card}>
