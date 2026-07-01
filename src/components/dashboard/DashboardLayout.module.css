@@ -107,63 +107,50 @@
     transform: translateY(3px);
 }
 
-/* [P1-APP-VERSION · 2026-06-19] Stack marca + versión. El wordmark cede su
-   margen inferior al contenedor para que la versión quede pegada debajo. */
+/* [P1-APP-VERSION · 2026-06-19 · rediseño inline P3-BRAND-VERSION-INLINE 2026-06-30]
+   Marca + versión en UNA fila (antes stack vertical con pill glow indentado, se veía
+   pesado en desktop). El chip de versión va a la derecha del wordmark, alineado al centro. */
 .brandStack {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.3rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.6rem;
     margin-bottom: 2.5rem;
 }
 .brandStack .logo {
     margin-bottom: 0;
 }
 
-/* [P1-APP-VERSION · 2026-06-19] Etiqueta de versión: pill tintado de marca con
-   punto-indicador en degradado (indigo→rosa, mismo dúo del wordmark RD) + glow.
-   Minimalista pero NOTORIO. Tints rgba hardcodeadas por tema (compat total, sin
-   color-mix); el texto y el punto usan los tokens de marca → adaptan solos. */
+/* [P3-BRAND-VERSION-INLINE · 2026-06-30] Chip de versión refinado: pill muted-slate
+   (no tintado de marca ni glow), con un punto indigo sobrio. Se lee como un tag de
+   versión maduro, no como un badge llamativo. color-mix con tokens → se adapta solo a
+   claro/oscuro (sin overrides por tema). El texto y el punto usan tokens de marca. */
 .version {
     display: inline-flex;
     align-items: center;
-    gap: 0.42rem;
-    align-self: flex-start;
-    margin-left: 0.55rem;
+    gap: 0.36rem;
+    align-self: center;
     font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
-    font-size: 0.72rem;
+    font-size: 0.66rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
     line-height: 1;
-    color: var(--primary);
-    padding: 0.32rem 0.64rem 0.32rem 0.56rem;
-    border: 1px solid rgba(79, 70, 229, 0.5);
-    border-radius: 999px;
-    background: rgba(79, 70, 229, 0.1);
-    box-shadow: 0 1px 8px -2px rgba(79, 70, 229, 0.35);
+    color: var(--text-muted);
+    padding: 0.28rem 0.52rem;
+    border: 1px solid color-mix(in srgb, var(--text-muted) 24%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--text-muted) 9%, transparent);
     user-select: none;
 }
 .version::before {
     content: '';
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
     flex: none;
-    background: linear-gradient(135deg, var(--primary), var(--accent));
-    box-shadow: 0 0 7px 0 rgba(244, 63, 94, 0.7);
+    background: var(--primary);
 }
-/* [2026-06-19] Sin efecto de hover (ni movimiento ni glow) — el badge de versión
-   es una etiqueta, no un control interactivo. */
-/* Tema oscuro: indigo más claro (#818CF8) → tints/glow más brillantes para que
-   resalte sobre el sidebar oscuro. */
-:global(html[data-theme="dark"]) .version {
-    border-color: rgba(129, 140, 248, 0.55);
-    background: rgba(129, 140, 248, 0.16);
-    box-shadow: 0 1px 10px -2px rgba(129, 140, 248, 0.45);
-}
-:global(html[data-theme="dark"]) .version::before {
-    box-shadow: 0 0 8px 0 rgba(251, 113, 133, 0.8);
-}
+/* Sin hover ni glow — es una etiqueta de versión, no un control. */
 
 .mobileLogo {
     font-size: 1.35rem;
