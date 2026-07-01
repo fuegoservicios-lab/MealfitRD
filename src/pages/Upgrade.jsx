@@ -477,7 +477,7 @@ const Upgrade = () => {
                 {isCurrent && (
                     <div className={`${styles.planCardBadge} ${styles.planCardBadgeCurrent}`}>
                         <BadgeCheck size={12} style={{ marginRight: 4, verticalAlign: -2 }} />
-                        Tu Plan
+                        Plan actual
                     </div>
                 )}
                 {isPopular && (
