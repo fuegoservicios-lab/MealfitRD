@@ -24,15 +24,8 @@ const RELEASE_DATE = '1 de julio de 2026';
 
 /* ───────────────────────────────── datos ───────────────────────────────── */
 
-// [P3-ENGINE-STATS-DEDUP · 2026-07-01] Resúmenes que NO repiten los títulos de las
-// tarjetas de abajo (antes: 200+ alimentos / 17 micros / 100% se repetían en Catálogo
-// y Precisión). Ahora sintetizan cada sección: pipeline, clínica, precisión, modelo.
-const STATS = [
-    { num: '5', label: 'pasos con control de calidad' },
-    { num: '9', label: 'reglas clínicas por condición' },
-    { num: '±3.2%', label: 'error medio en el peor macro' },
-    { num: 'V4', label: 'Motor DeepSeek' },
-];
+// [P3-ENGINE-MINIMAL · 2026-07-01] La fila de stats-tarjetas se eliminó (minimalismo);
+// sus cifras viven en la prosa técnica y en las secciones (clínica, precisión).
 
 const CLINICAL = [
     { Icon: Droplets, title: 'Diabetes (DM2)', text: 'Control de índice glucémico y fibra mínima por caloría, siguiendo criterios tipo ADA.' },
@@ -171,15 +164,6 @@ const Engine = () => {
                     validación clínica y de coherencia. Esto es lo que ocurre por dentro —
                     contado con honestidad.
                 </p>
-
-                <div className={styles.stats}>
-                    {STATS.map((s) => (
-                        <div key={s.label} className={styles.stat}>
-                            <div className={styles.statNum}>{s.num}</div>
-                            <div className={styles.statLabel}>{s.label}</div>
-                        </div>
-                    ))}
-                </div>
             </section>
 
             {/* ---- arquitectura (prosa técnica) ---- */}
@@ -203,8 +187,9 @@ const Engine = () => {
                         alimentos dominicanos con datos nutricionales reales: nunca inventa comida
                         que no exista. Sobre ese catálogo, un motor de optimización
                         <strong> recalcula los macros desde los gramos reales</strong> de cada
-                        ingrediente y reescala las porciones para clavar tus objetivos, compara el
-                        plan contra 17 micronutrientes y cuadra la lista de compras con las recetas.
+                        ingrediente y reescala las porciones para clavar tus objetivos —con un error
+                        medio de apenas <strong>±3.2% en el peor macro</strong>—, compara el plan
+                        contra 17 micronutrientes y cuadra la lista de compras con las recetas.
                         Según tu plan, la generación usa DeepSeek V4 <strong>flash</strong> (gratis)
                         o <strong>pro</strong> (planes de pago), priorizando siempre el costo más
                         bajo ante cualquier duda.
