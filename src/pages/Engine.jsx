@@ -27,7 +27,7 @@ const RELEASE_DATE = '1 de julio de 2026';
 // modelo sin el motor determinista. Precisión = 100 − MAPE. "En banda" = 90-112% (95-105% kcal).
 const VERSUS = [
     { label: 'Proteína', full: 'Precisión de proteína', mealfit: 98.5, llm: 84 },
-    { label: '4 macros', full: 'Los 4 macros en banda', mealfit: 91.7, llm: 24 },
+    { label: 'macros', full: 'Los 4 macros en banda', mealfit: 91.7, llm: 24 },
     { label: 'Recalcular', full: 'Cuadran al recalcular', mealfit: 100, llm: 0 },
 ];
 
