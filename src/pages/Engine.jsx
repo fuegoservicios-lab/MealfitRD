@@ -52,18 +52,22 @@ const DIFF = [
 /* Gráfico comparativo (barras agrupadas): MealfitRD vs LLM solo */
 function ComparisonChart() {
     const W = 640;
-    const H = 340;
+    const H = 360;
     const padL = 46;
     const padR = 18;
     const padT = 44;
-    const padB = 64;
+    const padB = 66;
+    // [P3-ENGINE-CHART-HEADROOM · 2026-07-01] la escala llega hasta MAX (>100) para que el
+    // 100% NO toque el borde superior: deja headroom estético arriba. Las gridlines siguen
+    // en 0-100; el espacio 100→MAX es aire.
+    const MAX = 118;
     const plotH = H - padT - padB;
     const baseY = padT + plotH;
     const plotW = W - padL - padR;
     const groupW = plotW / VERSUS.length;
-    const bw = 40;
-    const gap = 12;
-    const yOf = (v) => baseY - (v / 100) * plotH;
+    const bw = 38;
+    const gap = 18;
+    const yOf = (v) => baseY - (v / MAX) * plotH;
     return (
         <svg viewBox={`0 0 ${W} ${H}`} className={styles.chartSvg} role="img"
             aria-label="Comparación de precisión de macros: MealfitRD frente a un LLM solo, en tres métricas.">
