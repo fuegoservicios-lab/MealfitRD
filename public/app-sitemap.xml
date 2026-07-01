@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- [P3-SEO-APP-SITEMAP · 2026-07-01] Sitemap del SUBDOMINIO app.mealfitrd.com (la app:
+     login + dashboard, estilo claude.ai). El subdominio sirve el MISMO dist que el apex,
+     por eso su /sitemap.xml sería el del apex; este archivo aparte lista SOLO URLs app.* y
+     se envía en la PROPIEDAD de Search Console de app.mealfitrd.com.
+     Solo la entrada pública es indexable: `/` (el root del app renderiza el login para
+     anónimos; nginx le fija canonical self = https://app.mealfitrd.com/ y title de login).
+     Dashboard/assessment/plan/etc. están gated (robots Disallow) → NO se listan. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://app.mealfitrd.com/</loc>
+    <lastmod>2026-07-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>
