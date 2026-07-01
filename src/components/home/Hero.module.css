@@ -539,8 +539,13 @@
     border: none;
     background: transparent;
     pointer-events: none;
-    -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 56%, transparent 80%);
-    mask-image: radial-gradient(circle at 50% 50%, #000 56%, transparent 80%);
+    /* [P3-HERO-ORB-SEAM · 2026-06-30] `closest-side` → la máscara es un CÍRCULO inscrito en
+       el cuadrado del video: los bordes/esquinas del rectángulo quedan fuera del círculo y
+       NUNCA se ven (cero costura, aunque el aura pulse). El feather muere justo en el lado
+       (transparent 100%), disolviendo el borde del aura en el fondo del hero. Sólido hasta
+       72% preserva esfera + anillo + bloom. */
+    -webkit-mask-image: radial-gradient(circle closest-side at 50% 50%, #000 72%, transparent 100%);
+    mask-image: radial-gradient(circle closest-side at 50% 50%, #000 72%, transparent 100%);
 }
 
 /* ── TARJETAS-MÉTRICA (glass) ────────────────────────────────────────────── */
