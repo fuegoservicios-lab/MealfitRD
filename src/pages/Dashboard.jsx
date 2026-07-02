@@ -5000,7 +5000,41 @@ const DashboardInner = () => {
                             plan_data ni el costeo; persistencia de marca preferida = fase 2. */}
                         {Array.isArray(planData?.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0
                             && !isPlanExpired && !planFinished && !isPlanCorrupted && (
-                            <SupermarketBrands shoppingList={planData.aggregated_shopping_list} />
+                            <SupermarketBrands
+                                shoppingList={planData.aggregated_shopping_list}
+                                // [P2-BRANDS-APPLY-IMMEDIATE · 2026-07-02] la marca elegida re-costea el
+                                // plan al instante vía el endpoint canónico (mismo flujo que el cambio de
+                                // duración). El overlay P1-SUPERMARKET-COSTING lee las prefs al recalcular
+                                // → costo del PDF y total del panel dejan de ser números distintos.
+                                onPrefApplied={async () => {
+                                    if (!userProfile?.id || !planData?.id) return;
+                                    try {
+                                        await withRecalcLock(async () => {
+                                            const r = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    user_id: userProfile.id,
+                                                    plan_id: planData.id,
+                                                    householdSize: formData?.householdSize || planData.calc_household_size || 1,
+                                                    groceryDuration: planData.calc_grocery_duration || formData?.groceryDuration || 'weekly',
+                                                    preserve_restock: true,
+                                                }),
+                                            });
+                                            if (!r.ok) return;
+                                            const result = await r.json().catch(() => null);
+                                            if (result?.success && result.plan_data) {
+                                                setPlanData(result.plan_data);
+                                                safeLocalStorageSet('mealfit_plan', JSON.stringify(result.plan_data));
+                                                toast.success('Costeo actualizado con tu marca', { position: 'top-center' });
+                                            }
+                                        });
+                                    } catch (e) {
+                                        // Fail-open: la preferencia quedó guardada; el próximo recalc la aplica.
+                                        console.error('[P2-BRANDS-APPLY-IMMEDIATE] recalc falló:', e);
+                                    }
+                                }}
+                            />
                         )}
                     </div>
                 </div>

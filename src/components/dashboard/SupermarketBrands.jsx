@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { BadgeCheck, Check, ChevronDown, Store } from 'lucide-react';
 import { api, fetchWithAuth } from '../../config/api';
@@ -54,10 +54,13 @@ const readLocalPrefs = () => {
 
 const MAX_VARIANTS_SHOWN = 4;
 
-const SupermarketBrands = ({ shoppingList }) => {
+const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    // [P2-BRANDS-APPLY-IMMEDIATE · 2026-07-02] debounce del re-costeo: elegir 3 marcas
+    // seguidas dispara UN solo recalc (el padre pasa onPrefApplied → /recalculate-shopping-list).
+    const applyTimerRef = useRef(null);
     const [matches, setMatches] = useState(null); // { <nombre item>: [{food_name, variants:[...]}] }
     const [expandedItem, setExpandedItem] = useState(null);
     // prefs: { <food_key normalizado>: product_id } · source: 'server' | 'local'
@@ -137,6 +140,17 @@ const SupermarketBrands = ({ shoppingList }) => {
                     body: JSON.stringify({ food_key: foodKey, product_id: productId }),
                 });
                 if (!res.ok) throw new Error(`Error ${res.status}`);
+                // [P2-BRANDS-APPLY-IMMEDIATE · 2026-07-02] preferencia persistida → re-costear el
+                // plan YA (antes el costo real solo cambiaba al regenerar/recalcular a mano y el
+                // total del panel vs el del PDF eran números distintos). Debounce 900ms: elegir
+                // varias marcas seguidas = un solo recalc. Solo server-prefs (guests no costean).
+                if (typeof onPrefApplied === 'function') {
+                    if (applyTimerRef.current) clearTimeout(applyTimerRef.current);
+                    applyTimerRef.current = setTimeout(() => {
+                        applyTimerRef.current = null;
+                        try { onPrefApplied(); } catch { /* fail-open */ }
+                    }, 900);
+                }
             } catch (err) {
                 // Degradación: guarda local para no perder la elección del usuario.
                 console.error('[P1-SUPERMARKET-PREFS] persist falló, fallback local:', err);
@@ -397,7 +411,7 @@ const SupermarketBrands = ({ shoppingList }) => {
                             <p style={{ margin: '0.55rem 0 0', fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                                 Precios de referencia de La Sirena y Supermercados Nacional (1 presentación
                                 por ítem elegido). Tus marcas elegidas se aplican al costo real de la lista
-                                (PDF) al regenerar o recalcular el plan.
+                                al instante (recalculamos el plan al elegir).
                             </p>
                         </>
                     )}
@@ -409,6 +423,7 @@ const SupermarketBrands = ({ shoppingList }) => {
 
 SupermarketBrands.propTypes = {
     shoppingList: PropTypes.array,
+    onPrefApplied: PropTypes.func,  // [P2-BRANDS-APPLY-IMMEDIATE] re-costeo inmediato (debounced)
 };
 
 export default SupermarketBrands;

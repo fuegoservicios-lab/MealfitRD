@@ -128,7 +128,7 @@ const emojiForFood = (foodName, category) => {
 
 const EMPTY_FORM = {
     food_name: '', brand: '', presentation: '', portion_label: '',
-    duration_label: '', price_rd: '', notes: '', category: '',
+    duration_label: '', price_rd: '', size_grams: '', notes: '', category: '',
     master_food_name: '', image_url: '', description: '', active: true,
 };
 
@@ -211,6 +211,12 @@ const ProductForm = ({ initial, categories, onCancel, onSubmit, saving }) => {
             toast.error('Precio inválido.');
             return;
         }
+        // [P2-BRANDPREF-SIZE-COLUMN] tamaño de envase: vacío = NULL (parser fallback); si viene, >0.
+        if (form.size_grams !== '' && form.size_grams !== null
+            && (isNaN(Number(form.size_grams)) || Number(form.size_grams) <= 0)) {
+            toast.error('Tamaño de envase inválido (gramos/ml > 0).');
+            return;
+        }
         onSubmit(form);
     };
 
@@ -232,6 +238,13 @@ const ProductForm = ({ initial, categories, onCancel, onSubmit, saving }) => {
                 <label className={styles.field}>
                     <span>Precio (RD$)</span>
                     <input value={form.price_rd ?? ''} onChange={set('price_rd')} inputMode="decimal" placeholder="0.00" />
+                </label>
+                {/* [P2-BRANDPREF-SIZE-COLUMN · 2026-07-02] Tamaño explícito del envase — fuente
+                    autoritativa del costeo con marca preferida; sin él, la "L" suelta de la
+                    presentación es ambigua (libra/litro) y el producto pierde el overlay. */}
+                <label className={styles.field}>
+                    <span>Tamaño envase (g / ml)</span>
+                    <input value={form.size_grams ?? ''} onChange={set('size_grams')} inputMode="decimal" placeholder="Ej. 800 (funda 800 g) · 1000 (1 Lt)" />
                 </label>
                 <label className={styles.field}>
                     <span>Categoría</span>
@@ -496,6 +509,7 @@ const SupermarketPage = () => {
         portion_label: form.portion_label?.trim() || null,
         duration_label: form.duration_label?.trim() || null,
         price_rd: form.price_rd === '' || form.price_rd === null ? null : Number(form.price_rd),
+        size_grams: form.size_grams === '' || form.size_grams === null ? null : Number(form.size_grams),
         notes: form.notes?.trim() || null,
         category: form.category?.trim() || null,
         master_food_name: form.master_food_name?.trim() || null,
@@ -553,6 +567,7 @@ const SupermarketPage = () => {
     const toFormInitial = (p) => ({
         ...p,
         price_rd: p.price_rd ?? '',
+        size_grams: p.size_grams ?? '',
         brand: p.brand || '',
         presentation: p.presentation || '',
         portion_label: p.portion_label || '',
