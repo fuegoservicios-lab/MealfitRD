@@ -126,7 +126,15 @@
     font-size: 0.9rem;
     max-width: 230px;
 }
-.select option { color: initial; }
+/* [P1-SUPERMARKET-DB · fix dropdown] En dark (`color-scheme: dark` global) Chrome
+   pinta el popup nativo CLARO cuando el <select> tiene background custom, y las
+   opciones heredaban el texto claro del sitio → blanco sobre blanco (`color: initial`
+   tampoco sirve: bajo color-scheme dark resuelve a CanvasText = blanco). Pintar las
+   opciones EXPLÍCITO con las vars del tema las hace legibles en ambos temas. */
+.select option {
+    color: var(--text-main);
+    background: var(--bg-page);
+}
 
 .resultBar {
     min-height: 1.3rem;
