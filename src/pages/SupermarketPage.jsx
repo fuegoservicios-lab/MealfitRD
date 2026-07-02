@@ -753,10 +753,18 @@ const SupermarketPage = () => {
                     </>
                 )}
 
-                <p className={styles.footnote}>
-                    Precios de referencia del mercado dominicano, verificados por nuestro equipo.
-                    Pueden variar por establecimiento y temporada.
-                </p>
+                <div className={styles.footNotes}>
+                    <p className={styles.footnote}>
+                        Precios de referencia del mercado dominicano, verificados por nuestro equipo.
+                        Pueden variar por establecimiento y temporada.
+                    </p>
+                    <p className={styles.footnote}>
+                        Los alimentos y precios de esta base provienen de los catálogos públicos de los
+                        principales supermercados del país — <strong>La Sirena</strong> y{' '}
+                        <strong>Supermercados Nacional</strong> — transcritos y curados familia por
+                        familia por nuestro equipo, con actualizaciones continuas.
+                    </p>
+                </div>
             </div>
 
             {/* ─────────────────────── modal ─────────────────────── */}
