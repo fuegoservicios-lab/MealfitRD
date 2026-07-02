@@ -106,7 +106,7 @@ const Footer = () => {
                     <Link to="/novedades" state={{ from: fromPath }}>Novedades</Link>
                     {/* [P1-SUPERMARKET-DB · 2026-07-02] Base de datos pública del
                         Supermercado RD (alimentos verificados + precios RD$). */}
-                    <Link to="/supermercado" state={{ from: fromPath }}>Supermercado RD</Link>
+                    <Link to="/supermercado" state={{ from: fromPath }}>Supermercados RD</Link>
                     <Link to="/research" state={{ from: fromPath }}>Investigación</Link>
                 </div>
 

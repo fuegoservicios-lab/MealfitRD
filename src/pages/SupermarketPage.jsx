@@ -394,7 +394,7 @@ const SupermarketPage = () => {
                 <header className={styles.pageHead}>
                     <span className={styles.eyebrow}>
                         <ShoppingBasket size={15} strokeWidth={2.5} aria-hidden="true" />
-                        Supermercado RD
+                        Supermercados RD
                     </span>
                     <h1 className={styles.pageTitle}>
                         Base de datos <span className={styles.titleAccent}>República Dominicana</span>

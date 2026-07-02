@@ -55,7 +55,7 @@ const TITLES = {
     '/responsible-disclosure': `Divulgación Responsable · ${BRAND}`,
     '/novedades': `Novedades · ${BRAND}`,
     // [P1-SUPERMARKET-DB · 2026-07-02]
-    '/supermercado': `Supermercado RD · ${BRAND}`,
+    '/supermercado': `Supermercados RD · ${BRAND}`,
 };
 
 // [P3-ROUTE-META] Description por ruta para el snippet de buscadores. ≤ ~160 chars,
