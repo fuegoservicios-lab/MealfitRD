@@ -22,6 +22,46 @@
 
 export const NEWS = [
     {
+        slug: 'base-datos-supermercados-rd',
+        date: '2026-07-02',
+        dateLabel: '2 de julio, 2026',
+        tag: 'Datos',
+        title: 'Una base de datos de supermercados hecha para RD',
+        excerpt: 'Casi 2,000 productos reales de supermercados dominicanos, conectados a más de 200 alimentos verificados de nuestro catálogo. Ya puedes explorarla en Supermercados RD.',
+        readTime: '2 min de lectura',
+        badge: '≈2K',
+        content: [
+            {
+                body: [
+                    'Acabamos de encender una pieza clave de MealfitRD: una base de datos propia con casi 2,000 productos reales de supermercados dominicanos, conectada a los más de 200 alimentos verificados que usa el motor para generar tus planes.',
+                ],
+            },
+            {
+                h: 'Qué contiene',
+                list: [
+                    'Casi 2,000 presentaciones comprables: marcas, tamaños y empaques tal como aparecen en la góndola.',
+                    'Más de 200 alimentos verificados como base: cada producto se conecta a un alimento que el motor ya conoce, con macros, micronutrientes y precios en RD$.',
+                    'Decenas de familias de alimentos: arroz, carnes, yogures, granos, vegetales, enlatados y más.',
+                    'Curaduría manual: cada producto fue revisado a mano — nombres honestos, empaques reales y sin listados duplicados.',
+                ],
+            },
+            {
+                h: 'Por qué importa',
+                body: [
+                    'Un plan solo sirve si la compra existe. Con esta base, MealfitRD deja de hablar de "pollo" en abstracto y empieza a conocer las presentaciones reales que encuentras en el supermercado: qué marcas hay, en qué tamaños vienen y cómo se llaman de verdad.',
+                    'Es también el primer paso para que tu lista de compras te deje elegir marca y presentación — el yogurt, el arroz o la carne exacta que prefieres — con el plan ajustándose a tu elección.',
+                ],
+            },
+            {
+                h: 'Explórala hoy',
+                body: [
+                    'La base completa ya es navegable en la sección Supermercados RD, disponible desde el pie de página de mealfitrd.com. Búscala por familia de alimento y mira las presentaciones disponibles.',
+                    'Seguiremos ampliándola: más productos, más supermercados y, pronto, su conexión directa con tu lista de compras.',
+                ],
+            },
+        ],
+    },
+    {
         slug: 'motor-mealfit-v1',
         date: '2026-07-01',
         dateLabel: '1 de julio, 2026',
