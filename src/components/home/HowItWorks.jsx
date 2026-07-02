@@ -9,11 +9,8 @@ const AUTO_ADVANCE_MS = 4500;
 
 /* [P3-HOWITWORKS-REDESIGN · 2026-06-29] Panel interactivo (acordeón): a la izquierda
    un visual que cambia según el paso activo; a la derecha la lista de pasos (el activo
-   se expande). Copy más científico pero honesto (sin prometer resultados).
-   [P3-HOWITWORKS-SCIENTIFIC-POLISH · 2026-07-02] Alineado al lenguaje minimalista-
-   científico aceptado en /como-funciona: gama única (indigo --primary + neutros, sin
-   chips multicolor), visuales line-art sobre papel milimetrado, pie de figura tipo
-   paper ("Fig. 0N — ..."), sin glows ni gradientes pesados. */
+   se expande). Copy más científico pero honesto (sin prometer resultados). Animación
+   media (reveal on-scroll + estados animados + hover). */
 
 const STEPS = [
     {
@@ -21,24 +18,28 @@ const STEPS = [
         title: 'Perfil clínico-metabólico',
         desc: 'Más que tu peso: composición, gasto energético, condiciones, alergias IgE, presupuesto y estilo de vida. Es el sustrato de cada decisión del motor.',
         tag: '20+ variables de entrada',
+        color: '#60A5FA',
     },
     {
         icon: Cpu,
         title: 'Motor de inferencia',
         desc: 'DeepSeek V4 resuelve tu plan contra el catálogo verificado, optimizando macronutrientes, coste y adherencia — en minutos, no a ojo.',
         tag: 'DeepSeek V4 · minutos',
+        color: '#A78BFA',
     },
     {
         icon: Salad,
         title: 'Calibración nutricional',
         desc: 'Cada plato se ajusta a tus macronutrientes objetivo y a 17 micronutrientes (vs DRI), con coherencia receta↔lista validada.',
         tag: '17 micronutrientes · DRI',
+        color: '#34D399',
     },
     {
         icon: LineChart,
         title: 'Adaptación longitudinal',
         desc: 'El plan se recalcula con tu progreso semana a semana, ajustando porciones para sortear la meseta metabólica.',
         tag: 'recálculo semanal',
+        color: '#FB923C',
     },
 ];
 
@@ -74,7 +75,7 @@ function EngineVisual() {
         <div className={styles.vEngine}>
             <span className={styles.vEngineRing} />
             <span className={styles.vEngineRing2} />
-            <span className={styles.vEngineCore}><Cpu size={34} strokeWidth={1.5} /></span>
+            <span className={styles.vEngineCore}><Cpu size={38} strokeWidth={1.6} /></span>
             {[0, 1, 2, 3, 4, 5].map((i) => (
                 <span key={i} className={styles.vToken} style={{ '--i': i }} />
             ))}
@@ -82,14 +83,14 @@ function EngineVisual() {
     );
 }
 
-function Ring({ pct, label }) {
+function Ring({ pct, color, label }) {
     const r = 28;
     const c = 2 * Math.PI * r;
     return (
         <div className={styles.vRingItem}>
             <svg width="78" height="78" viewBox="0 0 78 78">
-                <circle cx="39" cy="39" r={r} className={styles.vRingTrack} strokeWidth="5" />
-                <motion.circle cx="39" cy="39" r={r} className={styles.vRingFill} strokeWidth="5"
+                <circle cx="39" cy="39" r={r} fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth="6.5" />
+                <motion.circle cx="39" cy="39" r={r} fill="none" stroke={color} strokeWidth="6.5"
                     strokeLinecap="round" strokeDasharray={c} transform="rotate(-90 39 39)"
                     initial={{ strokeDashoffset: c }} animate={{ strokeDashoffset: c * (1 - pct / 100) }}
                     transition={{ duration: 0.85, ease: 'easeOut' }} />
@@ -103,29 +104,25 @@ function Ring({ pct, label }) {
 function MacroVisual() {
     return (
         <div className={styles.vMacros}>
-            <Ring pct={94} label="Proteína" />
-            <Ring pct={89} label="Carbos" />
-            <Ring pct={96} label="Grasas" />
+            <Ring pct={94} color="#818CF8" label="Proteína" />
+            <Ring pct={89} color="#34D399" label="Carbos" />
+            <Ring pct={96} color="#FB7185" label="Grasas" />
         </div>
     );
 }
 
 function ChartVisual() {
-    const pts = [[16, 82], [58, 64], [100, 70], [142, 46], [184, 32], [226, 18]];
+    const pts = [[8, 76], [54, 62], [100, 66], [146, 44], [192, 30], [232, 16]];
     const poly = pts.map((p) => p.join(',')).join(' ');
     return (
         <div className={styles.vChart}>
-            <svg width="100%" viewBox="0 0 240 106" role="img" aria-label="Progreso recalculado semana a semana">
-                {[26, 52, 78].map((y) => (
-                    <line key={y} x1="10" y1={y} x2="232" y2={y} className={styles.vGridline} />
-                ))}
-                <line x1="10" y1="8" x2="10" y2="96" className={styles.vAxisLine} />
-                <line x1="10" y1="96" x2="232" y2="96" className={styles.vAxisLine} />
-                <motion.polyline points={poly} className={styles.vLine}
+            <svg width="100%" height="150" viewBox="0 0 240 90" preserveAspectRatio="none">
+                <motion.polyline points={poly} fill="none" stroke="#FB923C" strokeWidth="2.6"
+                    strokeLinecap="round" strokeLinejoin="round"
                     initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
                     transition={{ duration: 1, ease: 'easeOut' }} />
                 {pts.map((p, i) => (
-                    <motion.circle key={i} cx={p[0]} cy={p[1]} r="3.2" className={styles.vPoint}
+                    <motion.circle key={i} cx={p[0]} cy={p[1]} r="3.6" fill="#FB923C"
                         initial={{ scale: 0 }} animate={{ scale: 1 }}
                         transition={{ delay: 0.12 * i + 0.3, type: 'spring', stiffness: 300 }} />
                 ))}
@@ -163,6 +160,7 @@ const HowItWorks = () => {
 
     return (
         <section className={styles.section} id="how-it-works">
+            <div className={styles.bgGlow} aria-hidden="true" />
             <div className={styles.container}>
                 <motion.div className={styles.header}
                     initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }}
@@ -179,7 +177,8 @@ const HowItWorks = () => {
                     viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.55 }}>
 
                     {/* visual (cambia según el paso activo) */}
-                    <div className={styles.visualCol}>
+                    <div className={styles.visualCol} style={{ '--accent': step.color }}>
+                        <div className={styles.visualGlow} aria-hidden="true" />
                         <AnimatePresence mode="wait">
                             <motion.div key={active} className={styles.visualInner}
                                 initial={{ opacity: 0, scale: 0.96, y: 10 }}
@@ -189,8 +188,8 @@ const HowItWorks = () => {
                                 <Visual />
                             </motion.div>
                         </AnimatePresence>
-                        <div className={styles.visualCaption}>
-                            Fig. 0{active + 1} — {step.tag}
+                        <div className={styles.visualTag}>
+                            <span className={styles.visualDot} /> {step.tag}
                         </div>
                     </div>
 
@@ -207,11 +206,12 @@ const HowItWorks = () => {
                             return (
                                 <button type="button" key={s.title}
                                     className={`${styles.step} ${isActive ? styles.stepActive : ''}`}
+                                    style={{ '--accent': s.color }}
                                     onClick={() => setActive(i)}
                                     onMouseEnter={() => setActive(i)}
                                     aria-expanded={isActive}>
                                     <span className={styles.stepNum}>0{i + 1}</span>
-                                    <span className={styles.stepIcon}><Icon size={19} strokeWidth={1.8} /></span>
+                                    <span className={styles.stepIcon}><Icon size={19} strokeWidth={2} /></span>
                                     <span className={styles.stepMain}>
                                         <span className={styles.stepTitle}>{s.title}</span>
                                         <AnimatePresence initial={false}>
