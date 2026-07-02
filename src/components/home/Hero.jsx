@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, ChevronRight, BookOpen, Stethoscope, HeartPulse, ClipboardCheck, Wallet, Cpu } from 'lucide-react';
+import { BookOpen, Stethoscope, HeartPulse, ClipboardCheck, Wallet, Cpu } from 'lucide-react';
 import styles from './Hero.module.css';
 import { useHeroCta } from '../../context/HeroCtaContext';
 
@@ -119,6 +119,14 @@ const Hero = () => {
                     initial="hidden"
                     animate="show"
                 >
+                    {/* [P3-HERO-DETAIL-POLISH · 2026-07-02] Eyebrow: todas las secciones
+                        del landing abren con su badge ("El método", etc.) — el hero era
+                        el único sin uno. Píldora indigo + dot esmeralda (eco del CTA). */}
+                    <motion.span className={styles.eyebrow} variants={V.rise}>
+                        <span className={styles.eyebrowDot} aria-hidden="true" />
+                        Motor DeepSeek V4 · Hecho para RD
+                    </motion.span>
+
                     <h1 className={styles.title}>
                         {/* Wrapper anima (y/opacity/blur); el span interno clipea
                             el gradiente. Separar capas evita el artefacto WebKit
