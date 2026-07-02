@@ -142,7 +142,7 @@ function IconButton({ name, danger, title, onClick }) {
   const [h, setH] = useState(false);
   const dangerHover = danger && h;
   return (
-    <button type="button" title={title} onClick={(e) => { e.stopPropagation(); onClick && onClick(); }}
+    <button type="button" title={title} aria-label={title} onClick={(e) => { e.stopPropagation(); onClick && onClick(); }}
       onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
       style={{ width: 34, height: 34, borderRadius: 10, display: "grid", placeItems: "center", cursor: "pointer", appearance: "none",
         color: dangerHover ? "var(--danger-text)" : h ? "var(--text-main)" : "var(--text-light)",

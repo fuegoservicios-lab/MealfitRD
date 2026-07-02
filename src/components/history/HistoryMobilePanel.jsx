@@ -85,8 +85,8 @@ function NameEditor({ tempName, setTempName, onSave, onCancel }) {
         style={{ flex: 1, minWidth: 0, appearance: "none", font: "inherit", fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: "1rem",
           color: "var(--text-main)", background: "var(--bg-page)", border: "1px solid var(--primary)", borderRadius: 9, padding: "5px 9px", outline: "none" }}
       />
-      <button type="button" title="Guardar" onClick={(e) => { e.stopPropagation(); onSave(); }} style={miniBtn}><Check size={15} /></button>
-      <button type="button" title="Cancelar" onClick={(e) => { e.stopPropagation(); onCancel(); }} style={miniBtn}><X size={15} /></button>
+      <button type="button" title="Guardar" aria-label="Guardar" onClick={(e) => { e.stopPropagation(); onSave(); }} style={miniBtn}><Check size={15} aria-hidden="true" /></button>
+      <button type="button" title="Cancelar" aria-label="Cancelar" onClick={(e) => { e.stopPropagation(); onCancel(); }} style={miniBtn}><X size={15} aria-hidden="true" /></button>
     </div>
   );
 }
@@ -117,7 +117,7 @@ function PlanCard({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNa
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
               <span style={{ fontFamily: "var(--font-heading)", fontSize: "1.02rem", fontWeight: 800, letterSpacing: "-.01em", color: "var(--text-main)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{plan.name}</span>
-              <button type="button" title="Renombrar" onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} style={{ ...cardIconBtn, width: 26, height: 26 }}><Pencil size={14} /></button>
+              <button type="button" title="Renombrar" aria-label="Renombrar" onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} style={{ ...cardIconBtn, width: 26, height: 26 }}><Pencil size={14} aria-hidden="true" /></button>
             </div>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: ".75rem", color: "var(--text-light)", marginTop: 3 }}>
@@ -125,7 +125,7 @@ function PlanCard({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNa
           </div>
         </div>
         {!editing && (
-          <button type="button" title="Eliminar" onClick={(e) => { e.stopPropagation(); onDelete && onDelete(); }} style={cardIconBtn}><Trash2 size={16} /></button>
+          <button type="button" title="Eliminar" aria-label="Eliminar" onClick={(e) => { e.stopPropagation(); onDelete && onDelete(); }} style={cardIconBtn}><Trash2 size={16} aria-hidden="true" /></button>
         )}
       </div>
       <Chips meals={plan.meals} max={2} />
@@ -186,7 +186,7 @@ export default function HistoryMobilePanel({
         <Search size={16} style={{ flexShrink: 0 }} />
         <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar planes…" aria-label="Buscar planes por nombre" style={searchInput} />
         {q && (
-          <button type="button" onClick={() => setSearchQuery("")} aria-label="Limpiar búsqueda" style={{ ...miniBtn, width: 28, height: 28 }}><X size={14} /></button>
+          <button type="button" onClick={() => setSearchQuery("")} aria-label="Limpiar búsqueda" style={{ ...miniBtn, width: 28, height: 28 }}><X size={14} aria-hidden="true" /></button>
         )}
       </div>
 
