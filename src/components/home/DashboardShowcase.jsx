@@ -274,14 +274,14 @@ const DashboardShowcase = () => {
 
     return (
         <section className={styles.section} id="dashboard">
-            <div className={styles.bgGlow} aria-hidden="true" />
+            <div className={styles.bgGrid} aria-hidden="true" />
 
             <div className={styles.container}>
                 <div className={styles.header}>
                     <span className={styles.badge}>Tu Dashboard</span>
                     <h2 className={styles.title}>
                         Todo lo que necesitas, <br />
-                        <span className={styles.gradientText}>en un solo lugar</span>
+                        <span className={styles.titleAccent}>en un solo lugar</span>
                     </h2>
                     <p className={styles.subtitle}>
                         Más que un plan: una herramienta diaria que aprende contigo, organiza tus compras y te ahorra tiempo en la cocina.

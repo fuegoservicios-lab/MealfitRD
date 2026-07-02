@@ -11,13 +11,16 @@
     background: linear-gradient(180deg, #FAFAFA 0%, #FFFFFF 100%);
 }
 
-.bgGlow {
+/* [P3-DASHBOARD-POLISH · 2026-07-02] El glow radial ambiental se reemplaza por la
+   cuadrícula "papel milimetrado" del lenguaje minimalista-científico (misma firma que
+   BenchmarkShowcase, Novedades y footer), desvanecida radialmente tras el carrusel. */
+.bgGrid {
     position: absolute;
-    top: 10%;
-    right: -10%;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(79, 70, 229, 0.08) 0%, transparent 70%);
+    inset: 0;
+    background-image: radial-gradient(color-mix(in srgb, var(--text-main) 8%, transparent) 1px, transparent 1px);
+    background-size: 20px 20px;
+    -webkit-mask-image: radial-gradient(62% 58% at 50% 52%, #000, transparent 76%);
+    mask-image: radial-gradient(62% 58% at 50% 52%, #000, transparent 76%);
     pointer-events: none;
     z-index: 0;
 }
@@ -34,37 +37,40 @@
 /* ---------- Header ---------- */
 .header {
     text-align: center;
-    margin-bottom: 4rem;
+    margin-bottom: 2.75rem;
 }
 
+/* [P3-DASHBOARD-POLISH · 2026-07-02] Eyebrow-pill hairline, consistente con el resto
+   del marketing (borde fino + tinte, font-heading, tracking amplio). */
 .badge {
     display: inline-block;
-    padding: 0.4rem 1rem;
-    background: rgba(79, 70, 229, 0.1);
+    padding: 0.42rem 0.9rem;
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 26%, transparent);
     color: var(--primary);
-    border-radius: 99px;
-    font-size: 0.8rem;
+    border-radius: 999px;
+    font-family: var(--font-heading);
+    font-size: 0.74rem;
     font-weight: 700;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.14em;
     margin-bottom: 1.25rem;
     text-transform: uppercase;
 }
 
 .title {
+    font-family: var(--font-heading);
     font-size: 2.5rem;
     font-weight: 800;
     color: var(--text-main);
-    line-height: 1.15;
-    letter-spacing: -0.02em;
+    line-height: 1.12;
+    letter-spacing: -0.03em;
     margin: 0 0 1.25rem;
 }
 
-.gradientText {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 50%, var(--accent) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    display: inline-block;
+/* [P3-DASHBOARD-POLISH · 2026-07-02] Acento sólido indigo en vez de gradiente tricolor
+   (indigo→violeta→rosa) — una sola gama, consistente con el resto del marketing. */
+.titleAccent {
+    color: var(--primary);
 }
 
 .subtitle {
@@ -1011,7 +1017,7 @@
     }
 
     .header {
-        margin-bottom: 5rem;
+        margin-bottom: 3.25rem;
     }
 
     .grid {
