@@ -1,6 +1,7 @@
-/* [P1-SUPERMARKET-DB · 2026-07-02] Estilos del Supermercado RD (/supermercado).
-   Mismo lenguaje visual que Novedades (News.module.css): theme-aware vía CSS vars,
-   glow ambiental suave, tarjetas con borde translúcido. */
+/* [P1-SUPERMARKET-DB · 2026-07-02 · fase 2 catálogo] Estilos del Supermercado RD
+   (/supermercado). Catálogo estilo supermercado online: grid de tarjetas por SKU con
+   área de imagen (foto o placeholder por categoría) + modal de detalle con specs y
+   variantes. Theme-aware vía CSS vars, mismo lenguaje visual del landing. */
 
 .page {
     position: relative;
@@ -27,15 +28,15 @@
 .inner {
     position: relative;
     z-index: 1;
-    max-width: 1080px;
+    max-width: 1180px;
     margin: 0 auto;
     padding: clamp(2.75rem, 7vh, 5rem) 1.5rem 0;
 }
 
 /* ─────────────── encabezado ─────────────── */
 .pageHead {
-    max-width: 720px;
-    margin-bottom: clamp(1.75rem, 4vh, 2.75rem);
+    max-width: 760px;
+    margin-bottom: clamp(1.6rem, 4vh, 2.5rem);
 }
 .eyebrow {
     display: inline-flex;
@@ -50,11 +51,11 @@
 }
 .pageTitle {
     font-family: var(--font-heading);
-    font-size: clamp(2.2rem, 5.5vw, 3.3rem);
+    font-size: clamp(2.1rem, 5vw, 3.1rem);
     font-weight: 800;
     letter-spacing: -0.038em;
-    line-height: 1.04;
-    margin: 0.95rem 0 0;
+    line-height: 1.05;
+    margin: 0.9rem 0 0;
     color: var(--text-main);
 }
 .titleAccent {
@@ -64,9 +65,9 @@
     color: transparent;
 }
 .lead {
-    margin: 1.1rem 0 0;
-    font-size: clamp(1rem, 1.5vw, 1.14rem);
-    line-height: 1.62;
+    margin: 1.05rem 0 0;
+    font-size: clamp(0.98rem, 1.4vw, 1.1rem);
+    line-height: 1.6;
     color: var(--text-muted);
 }
 .stats {
@@ -74,7 +75,7 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 0.75rem;
-    margin-top: 1.15rem;
+    margin-top: 1.1rem;
     font-size: 0.92rem;
     color: var(--text-muted);
 }
@@ -92,15 +93,15 @@
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 0.7rem;
-    margin-bottom: 1.1rem;
+    gap: 0.6rem;
+    margin-bottom: 0.75rem;
 }
 .searchBox {
     display: flex;
     align-items: center;
     gap: 0.55rem;
-    flex: 1 1 260px;
-    min-width: 220px;
+    flex: 1 1 250px;
+    min-width: 210px;
     padding: 0.62rem 0.9rem;
     border-radius: 12px;
     border: 1px solid color-mix(in srgb, var(--text-main) 14%, transparent);
@@ -116,16 +117,23 @@
     color: var(--text-main);
     font-size: 0.95rem;
 }
-.categorySelect {
-    padding: 0.62rem 0.85rem;
+.select {
+    padding: 0.62rem 0.8rem;
     border-radius: 12px;
     border: 1px solid color-mix(in srgb, var(--text-main) 14%, transparent);
     background: color-mix(in srgb, var(--text-main) 4%, transparent);
     color: var(--text-main);
-    font-size: 0.92rem;
-    max-width: 260px;
+    font-size: 0.9rem;
+    max-width: 230px;
 }
-.categorySelect option { color: initial; }
+.select option { color: initial; }
+
+.resultBar {
+    min-height: 1.3rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 0.9rem;
+}
 
 /* ─────────────── admin ─────────────── */
 .unlockBtn {
@@ -147,7 +155,7 @@
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    margin-bottom: 1.1rem;
+    margin-bottom: 1rem;
 }
 .unlockForm input {
     flex: 0 1 300px;
@@ -160,7 +168,7 @@
 }
 .adminBar { display: flex; align-items: center; gap: 0.5rem; }
 .adminNotice {
-    margin: 0 0 1.1rem;
+    margin: 0 0 1rem;
     padding: 0.65rem 0.95rem;
     border-radius: 12px;
     font-size: 0.88rem;
@@ -200,172 +208,137 @@
     transition: color 0.15s ease, border-color 0.15s ease;
 }
 .btnGhost:hover { color: var(--text-main); border-color: color-mix(in srgb, var(--text-main) 30%, transparent); }
+.btnDanger:hover { color: #e05555; border-color: color-mix(in srgb, #e05555 45%, transparent); }
 
-/* ─────────────── editor ─────────────── */
-.editorCard {
-    margin-bottom: 1.4rem;
-    padding: 1.1rem 1.2rem 1.2rem;
-    border-radius: 16px;
-    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
-    background: color-mix(in srgb, var(--primary) 6%, transparent);
-}
-.editorTitle {
-    margin: 0 0 0.8rem;
-    font-family: var(--font-heading);
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--text-main);
-}
-.form { width: 100%; }
-.formGrid {
+/* ─────────────── grid de productos ─────────────── */
+.grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-    gap: 0.7rem 0.9rem;
+    grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    gap: 0.9rem;
 }
-.field { display: flex; flex-direction: column; gap: 0.3rem; }
-.fieldWide { grid-column: 1 / -1; }
-.field span {
-    font-size: 0.76rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-}
-.field span em { font-style: normal; text-transform: none; font-weight: 500; opacity: 0.8; }
-.field input {
-    padding: 0.52rem 0.7rem;
-    border-radius: 10px;
-    border: 1px solid color-mix(in srgb, var(--text-main) 16%, transparent);
-    background: color-mix(in srgb, var(--bg-page) 60%, transparent);
-    color: var(--text-main);
-    font-size: 0.92rem;
-}
-.checkField {
+.card {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    align-self: end;
-    font-size: 0.88rem;
-    color: var(--text-main);
-    padding-bottom: 0.35rem;
-}
-.formActions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.6rem;
-    margin-top: 0.95rem;
-}
-
-/* ─────────────── listado ─────────────── */
-.categorySection { margin-top: clamp(1.6rem, 4vh, 2.4rem); }
-.categoryTitle {
-    font-family: var(--font-heading);
-    font-size: 1.12rem;
-    font-weight: 800;
-    letter-spacing: -0.01em;
-    color: var(--text-main);
-    margin: 0 0 0.85rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--text-main) 10%, transparent);
-}
-.foodGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
-    gap: 0.85rem;
-}
-.foodCard {
+    flex-direction: column;
+    text-align: left;
+    padding: 0;
     border-radius: 16px;
     border: 1px solid color-mix(in srgb, var(--text-main) 10%, transparent);
     background: color-mix(in srgb, var(--text-main) 3%, transparent);
-    padding: 0.95rem 1.05rem 1rem;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
-.foodName {
-    margin: 0 0 0.6rem;
-    font-family: var(--font-heading);
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--text-main);
+.card:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+    box-shadow: 0 10px 28px -14px color-mix(in srgb, var(--primary) 45%, transparent);
 }
-.variantList {
-    list-style: none;
-    margin: 0;
-    padding: 0;
+.cardInactive { opacity: 0.5; border-style: dashed; }
+
+.cardMedia {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 128px;
+    background:
+        radial-gradient(ellipse 70% 80% at 50% 110%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 70%),
+        color-mix(in srgb, var(--text-main) 5%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--text-main) 7%, transparent);
+}
+.cardImg {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 0.6rem;
+}
+.cardEmoji { font-size: 2.6rem; filter: saturate(0.9); }
+
+.cardBody {
     display: flex;
     flex-direction: column;
-    gap: 0.55rem;
-}
-.variant {
-    position: relative;
-    padding: 0.55rem 0.65rem;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--text-main) 4%, transparent);
-    border: 1px solid color-mix(in srgb, var(--text-main) 7%, transparent);
-}
-.variantInactive { opacity: 0.5; border-style: dashed; }
-.variantMain {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 0.45rem 0.6rem;
-    padding-right: 3.6rem;
+    gap: 0.3rem;
+    padding: 0.75rem 0.85rem 0.85rem;
+    flex: 1;
 }
 .brandTag {
-    font-size: 0.68rem;
+    align-self: flex-start;
+    font-size: 0.64rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
     color: var(--primary);
     background: color-mix(in srgb, var(--primary) 13%, transparent);
     border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
-    padding: 0.14rem 0.5rem;
+    padding: 0.13rem 0.5rem;
     border-radius: 999px;
     white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.presentation { font-size: 0.92rem; font-weight: 600; color: var(--text-main); }
+.cardTitle {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 0.96rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--text-main);
+}
+.cardSub {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+.cardPriceRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 0.45rem;
+}
 .price {
-    margin-left: auto;
-    font-size: 0.95rem;
+    font-size: 0.98rem;
     font-weight: 800;
     color: var(--primary);
     white-space: nowrap;
 }
-.variantMeta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem 0.9rem;
-    margin-top: 0.3rem;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-}
-.notes { font-style: italic; }
+.verified { display: inline-flex; color: color-mix(in srgb, var(--primary) 75%, var(--text-main)); }
 .hiddenTag {
-    font-weight: 700;
-    color: #e0a13c;
-}
-.variantActions {
     position: absolute;
     top: 0.5rem;
-    right: 0.55rem;
-    display: flex;
-    gap: 0.3rem;
+    left: 0.5rem;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #e0a13c;
+    background: color-mix(in srgb, #e0a13c 14%, transparent);
+    border: 1px solid color-mix(in srgb, #e0a13c 40%, transparent);
+    padding: 0.12rem 0.45rem;
+    border-radius: 999px;
 }
-.iconBtn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 27px;
-    height: 27px;
-    border-radius: 8px;
-    border: 1px solid color-mix(in srgb, var(--text-main) 14%, transparent);
-    background: color-mix(in srgb, var(--bg-page) 70%, transparent);
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: color 0.15s ease, border-color 0.15s ease;
-}
-.iconBtn:hover { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
-.iconBtnDanger:hover { color: #e05555; border-color: color-mix(in srgb, #e05555 45%, transparent); }
 
-/* ─────────────── estados ─────────────── */
+.moreWrap { display: flex; justify-content: center; margin-top: 1.6rem; }
+
+/* ─────────────── skeleton / estados ─────────────── */
+.skeletonGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    gap: 0.9rem;
+}
+.skeleton {
+    height: 236px;
+    border-radius: 16px;
+    background: linear-gradient(100deg,
+        color-mix(in srgb, var(--text-main) 4%, transparent) 40%,
+        color-mix(in srgb, var(--text-main) 8%, transparent) 50%,
+        color-mix(in srgb, var(--text-main) 4%, transparent) 60%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
 .empty {
     margin: 2.5rem 0;
     text-align: center;
@@ -388,7 +361,254 @@
     color: color-mix(in srgb, var(--text-main) 45%, transparent);
 }
 
-@media (max-width: 560px) {
-    .foodGrid { grid-template-columns: 1fr; }
-    .categorySelect { max-width: 100%; flex: 1 1 100%; }
+/* ─────────────── modal ─────────────── */
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: color-mix(in srgb, #000 62%, transparent);
+    backdrop-filter: blur(6px);
+    animation: fadeIn 0.16s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } }
+.modal {
+    position: relative;
+    width: min(860px, 100%);
+    max-height: min(86vh, 780px);
+    overflow-y: auto;
+    border-radius: 20px;
+    border: 1px solid color-mix(in srgb, var(--text-main) 12%, transparent);
+    background: var(--bg-page);
+    box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.55);
+    animation: pop 0.18s ease;
+}
+@keyframes pop { from { opacity: 0; transform: translateY(10px) scale(0.985); } }
+.modalClose {
+    position: absolute;
+    top: 0.8rem;
+    right: 0.8rem;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--text-main) 14%, transparent);
+    background: color-mix(in srgb, var(--bg-page) 70%, transparent);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+.modalClose:hover { color: var(--text-main); }
+.modalPad { padding: 1.4rem 1.5rem 1.5rem; }
+.modalTitle {
+    margin: 0 0 1rem;
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+/* detalle */
+.detail {
+    display: grid;
+    grid-template-columns: minmax(230px, 320px) 1fr;
+    gap: 0;
+}
+.detailMedia {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    background:
+        radial-gradient(ellipse 75% 85% at 50% 115%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 72%),
+        color-mix(in srgb, var(--text-main) 5%, transparent);
+    border-right: 1px solid color-mix(in srgb, var(--text-main) 8%, transparent);
+}
+.detailImg {
+    width: 100%;
+    height: 100%;
+    max-height: 420px;
+    object-fit: contain;
+    padding: 1.2rem;
+}
+.detailEmoji { font-size: 5.2rem; filter: saturate(0.9); }
+
+.detailInfo {
+    padding: 1.6rem 1.6rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+.detailTitle {
+    margin: 0.2rem 0 0;
+    font-family: var(--font-heading);
+    font-size: 1.45rem;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    color: var(--text-main);
+}
+.detailDesc {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--text-muted);
+}
+.detailPriceRow {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-top: 0.25rem;
+}
+.detailPrice {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--primary);
+}
+.verifiedLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.32rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: color-mix(in srgb, var(--primary) 80%, var(--text-main));
+}
+.detailPriceRow .hiddenTag { position: static; }
+
+.specs {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.35rem 1rem;
+    margin: 0.6rem 0 0;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--text-main) 4%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-main) 8%, transparent);
+    font-size: 0.87rem;
+}
+.specs dt {
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.07em;
+    align-self: center;
+}
+.specs dd { margin: 0; color: var(--text-main); }
+
+.detailActions {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 0.7rem;
+}
+
+.variants { margin-top: 1rem; }
+.variantsTitle {
+    margin: 0 0 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.variantList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.variantRow {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    width: 100%;
+    text-align: left;
+    padding: 0.5rem 0.65rem;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--text-main) 8%, transparent);
+    background: color-mix(in srgb, var(--text-main) 3%, transparent);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+}
+.variantRow:hover { border-color: color-mix(in srgb, var(--primary) 45%, transparent); }
+.variantBrand {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--primary);
+    white-space: nowrap;
+}
+.variantPres {
+    flex: 1;
+    font-size: 0.84rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.variantPrice { font-size: 0.86rem; font-weight: 800; color: var(--text-main); white-space: nowrap; }
+
+/* ─────────────── formulario ─────────────── */
+.form { width: 100%; }
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 0.7rem 0.9rem;
+}
+.field { display: flex; flex-direction: column; gap: 0.3rem; }
+.fieldWide { grid-column: 1 / -1; }
+.field span {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.field span em { font-style: normal; text-transform: none; font-weight: 500; opacity: 0.8; }
+.field input {
+    padding: 0.52rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--text-main) 16%, transparent);
+    background: color-mix(in srgb, var(--text-main) 4%, transparent);
+    color: var(--text-main);
+    font-size: 0.92rem;
+}
+.checkField {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    align-self: end;
+    font-size: 0.88rem;
+    color: var(--text-main);
+    padding-bottom: 0.35rem;
+}
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    margin-top: 0.95rem;
+}
+
+/* ─────────────── responsive ─────────────── */
+@media (max-width: 720px) {
+    .detail { grid-template-columns: 1fr; }
+    .detailMedia {
+        min-height: 200px;
+        border-right: none;
+        border-bottom: 1px solid color-mix(in srgb, var(--text-main) 8%, transparent);
+    }
+    .select { max-width: 100%; flex: 1 1 45%; }
+}
+@media (max-width: 480px) {
+    .grid, .skeletonGrid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    .cardMedia { height: 106px; }
 }
