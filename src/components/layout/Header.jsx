@@ -61,7 +61,10 @@ const Header = () => {
     // versión recortada. isMarketingRoute (SSOT) agrupa las de marketing; las legales se
     // suman vía isLegalPage. (El tema NO se toca aquí — las legales respetan su propio
     // light/dark, a diferencia de las de marketing que sí fuerzan oscuro.)
-    const isLandingLike = isMarketingRoute(location.pathname) || isLegalPage || isNewsRoute(location.pathname);
+    // [P1-SUPERMARKET-DB · 2026-07-02] /supermercado (catálogo público) también lleva el
+    // header COMPLETO del landing, igual que novedades/legales (el tema NO se fuerza).
+    const isLandingLike = isMarketingRoute(location.pathname) || isLegalPage || isNewsRoute(location.pathname)
+        || location.pathname === '/supermercado';
 
     // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El CTA del header SIEMPRE visible en
     // landing/marketing (decisión del owner). Ya no se gatea por scroll, así que Header
