@@ -33,6 +33,9 @@ import MicronutrientMeter from '../components/dashboard/MicronutrientMeter';
 // comprar (banner + prompt + auto-fill + recordatorio). Cierra el olvido de tocar
 // "Ya compré la lista". Lógica de decisión en utils/restockNudge.js.
 import RestockNudge from '../components/dashboard/RestockNudge';
+// [P1-SUPERMARKET-MATCH · 2026-07-02] Panel "Marcas del súper": conecta la lista
+// de compras con supermarket_products (marcas/presentaciones/precios reales).
+import SupermarketBrands from '../components/dashboard/SupermarketBrands';
 // [P3-AGENT-PREFILL · 2026-06-15] Tocar un micronutriente → pregunta al coach IA.
 import { requestAgentPrefill } from '../utils/agentPrefill';
 import Modal from '../components/common/Modal';
@@ -4918,6 +4921,14 @@ const DashboardInner = () => {
                                     ))}
                                 </div>
                             </div>
+                        )}
+
+                        {/* [P1-SUPERMARKET-MATCH · 2026-07-02] Marcas y precios reales del súper
+                            por ítem de la lista (base Supermercado RD). Informativo — no toca
+                            plan_data ni el costeo; persistencia de marca preferida = fase 2. */}
+                        {Array.isArray(planData?.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0
+                            && !isPlanExpired && !planFinished && !isPlanCorrupted && (
+                            <SupermarketBrands shoppingList={planData.aggregated_shopping_list} />
                         )}
                     </div>
                 </div>

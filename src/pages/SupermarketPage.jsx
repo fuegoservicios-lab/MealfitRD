@@ -290,7 +290,11 @@ const SupermarketPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const [q, setQ] = useState('');
+    // Deep-link: /supermercado?q=arroz llega con la búsqueda prellenada
+    // (lo usa el panel "Marcas del súper" del Dashboard).
+    const [q, setQ] = useState(() => {
+        try { return new URLSearchParams(window.location.search).get('q') || ''; } catch { return ''; }
+    });
     const [category, setCategory] = useState('');
     const [brand, setBrand] = useState('');
     const [sort, setSort] = useState('nombre');
