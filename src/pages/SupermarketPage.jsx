@@ -383,7 +383,7 @@ const SupermarketPage = () => {
                         Supermercado RD
                     </span>
                     <h1 className={styles.pageTitle}>
-                        El supermercado <span className={styles.titleAccent}>dominicano</span> de MealfitRD
+                        Base de datos <span className={styles.titleAccent}>República Dominicana</span>
                     </h1>
                     <p className={styles.lead}>
                         Nuestra base de datos viva del mercado dominicano: alimentos verificados con sus
