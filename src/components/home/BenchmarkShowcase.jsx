@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Cpu, Target, Layers, Check, X, Minus, TrendingUp, Activity, Gauge, Radio } from 'lucide-react';
+import { Cpu, Target, Layers, Check, X, Minus, TrendingUp, Activity, Gauge, Radio, FlaskConical } from 'lucide-react';
 import { APP_VERSION } from '../../config/appVersion';
 import SeeMoreLink from './SeeMoreLink';
 import styles from './BenchmarkShowcase.module.css';
@@ -110,6 +110,13 @@ function PrecisionRadar() {
                 const [x, y] = pt(i, 1);
                 return <line key={i} x1={cx} y1={cy} x2={x} y2={y} className={styles.radarSpoke} />;
             })}
+            {/* [P3-BENCHMARK-POLISH · 2026-07-02] Escala numérica de los anillos (25·50·75·100)
+                sobre el eje vertical — lectura de instrumento, no decoración. */}
+            {rings.map((g) => (
+                <text key={`t${g}`} x={cx + 7} y={cy - R * g + 3} className={styles.radarTick}>
+                    {Math.round(g * 100)}
+                </text>
+            ))}
 
             {/* LLM (atrás, colapsado) */}
             <motion.polygon points={poly(llm)} className={styles.radarLlm}
@@ -177,7 +184,7 @@ const BenchmarkShowcase = () => {
 
     return (
         <section className={styles.section} id="benchmarks">
-            <div className={styles.bgGlow} aria-hidden="true" />
+            <div className={styles.bgGrid} aria-hidden="true" />
 
             <div className={styles.container}>
                 <div className={styles.header}>
@@ -186,7 +193,7 @@ const BenchmarkShowcase = () => {
                         Mealfit {VERSION_SHORT}
                     </span>
                     <h2 className={styles.title}>
-                        Precisión que <span className={styles.gradientText}>puedes medir</span>
+                        Precisión que <span className={styles.titleAccent}>puedes medir</span>
                     </h2>
                     <p className={styles.subtitle}>
                         No prometemos números — los medimos. Y los comparamos contra lo que hay afuera:
@@ -253,8 +260,13 @@ const BenchmarkShowcase = () => {
                                     })}
                                 </div>
 
-                                {/* capacidades */}
+                                {/* capacidades — cabecera micro aclara de quién es la marca
+                                    de la derecha (antes los —/× quedaban sin columna). */}
                                 <div className={styles.caps}>
+                                    <div className={styles.capsHead}>
+                                        <span className={styles.panelLabelSub}>Capacidades</span>
+                                        <span className={styles.capsLlmHead}>LLM solo</span>
+                                    </div>
                                     {CAPS.map((c) => (
                                         <div key={c.label} className={styles.capRow}>
                                             <span className={styles.capCheck}><Check size={13} strokeWidth={3} /></span>
@@ -283,16 +295,19 @@ const BenchmarkShowcase = () => {
                     </div>
                 </div>
 
-                <p className={styles.footnote}>
-                    <strong>Metodología.</strong> Es una prueba A/B del mismo pipeline de generación, con y sin
-                    nuestro motor de optimización determinista — comparamos <strong>enfoques</strong>, no productos
-                    con nombre. «Sin motor (LLM solo)» es lo que obtienes al pedirle el plan directamente a un
-                    modelo de lenguaje, sin nada que cuadre tus macros. La precisión se mide con el{' '}
-                    <strong>MAPE</strong> (error absoluto porcentual medio); «en banda» = dentro del 90–112% del
-                    objetivo (95–105% en calorías). Son métricas de <strong>precisión de macros</strong> —qué tan
-                    cerca queda el plan de tus números—, no de corrección clínica, y no constituyen consejo médico.
-                    Medición continua sobre planes reales.
-                </p>
+                <div className={styles.footnote}>
+                    <FlaskConical size={15} strokeWidth={2.25} className={styles.footnoteIcon} aria-hidden="true" />
+                    <p className={styles.footnoteText}>
+                        <strong>Metodología.</strong> Es una prueba A/B del mismo pipeline de generación, con y sin
+                        nuestro motor de optimización determinista — comparamos <strong>enfoques</strong>, no productos
+                        con nombre. «Sin motor (LLM solo)» es lo que obtienes al pedirle el plan directamente a un
+                        modelo de lenguaje, sin nada que cuadre tus macros. La precisión se mide con el{' '}
+                        <strong>MAPE</strong> (error absoluto porcentual medio); «en banda» = dentro del 90–112% del
+                        objetivo (95–105% en calorías). Son métricas de <strong>precisión de macros</strong> —qué tan
+                        cerca queda el plan de tus números—, no de corrección clínica, y no constituyen consejo médico.
+                        Medición continua sobre planes reales.
+                    </p>
+                </div>
 
                 <SeeMoreLink to="/precision">Ver la metodología completa</SeeMoreLink>
             </div>
