@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
-    ArrowUpDown, BadgeCheck, ChevronDown, KeyRound, LockKeyhole, Pencil, Plus,
+    ArrowLeft, ArrowUpDown, BadgeCheck, ChevronDown, KeyRound, LockKeyhole, Pencil, Plus,
     RefreshCw, Search, ShoppingBasket, Store, Tags, Trash2, X,
 } from 'lucide-react';
 import styles from './Supermarket.module.css';
 import { api } from '../config/api';
 
-/* [P1-SUPERMARKET-DB · 2026-07-02 · fase 2 catálogo] Supermercado RD (/supermercado).
-   Catálogo profesional estilo supermercado online (patrón La Sirena): una tarjeta por
-   SKU (alimento + marca + presentación + precio RD$); clic → modal de detalle con
-   imagen (o placeholder por categoría), especificaciones y las demás variantes del
-   mismo alimento. Base del futuro selector de marcas en la lista de compras.
+/* [P1-SUPERMARKET-DB · 2026-07-02 · fase 3 catálogo por alimento] Supermercado RD
+   (/supermercado). El catálogo se agrupa por ALIMENTO: una tarjeta por alimento
+   (no por SKU) con su rango de precios y conteo de variantes; clic → modal del
+   alimento con TODAS sus variantes (genérico primero, luego por precio) → clic en
+   una variante → ficha completa del producto. Es la misma estructura
+   alimento→variantes que consumirá el selector de marcas de la lista de compras.
 
    Edición: modo admin en la misma página (token = CRON_SECRET, sessionStorage).
    TODAS las mutaciones van por el backend (/api/supermarket, gate
@@ -53,6 +54,19 @@ const formatPrice = (value) => {
 };
 
 const productTitle = (p) => [p.food_name, p.brand].filter(Boolean).join(' · ');
+
+/* Clave normalizada del alimento: minúsculas + sin acentos. Une drifts de
+   escritura ("Kefir" / "Kéfir") en una sola tarjeta sin tocar los datos. */
+const foodKeyOf = (name) => (name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+const normText = (s) => (s || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
 
 async function requestJson(path, { token, ...options } = {}) {
     const headers = { ...(options.headers || {}) };
@@ -199,7 +213,11 @@ const SupermarketPage = () => {
     const [tokenInput, setTokenInput] = useState('');
     const [saving, setSaving] = useState(false);
 
-    // modal: { mode: 'detail' | 'edit' | 'create', product? }
+    // modal:
+    //   { mode: 'food', foodKey }                        → alimento + variantes
+    //   { mode: 'detail', product, fromFood? }           → ficha de un SKU
+    //   { mode: 'edit', product, fromFood? }             → editar SKU
+    //   { mode: 'create', initial?, fromFood? }          → crear SKU / variante
     const [modal, setModal] = useState(null);
 
     const isAdmin = !!adminToken;
@@ -265,33 +283,101 @@ const SupermarketPage = () => {
         return [...set].sort((a, b) => a.localeCompare(b, 'es'));
     }, [products]);
 
-    const filtered = useMemo(() => {
-        const needle = q.trim().toLowerCase();
-        let list = products.filter((p) => {
-            if (category && p.category !== category) return false;
-            if (brand === '__generic__') { if (p.brand) return false; }
-            else if (brand && p.brand !== brand) return false;
-            if (!needle) return true;
-            return [p.food_name, p.brand, p.category, p.presentation, p.description]
-                .some((v) => (v || '').toLowerCase().includes(needle));
-        });
-        if (sort === 'precio-asc') {
-            list = [...list].sort((a, b) => (a.price_rd ?? Infinity) - (b.price_rd ?? Infinity));
-        } else if (sort === 'precio-desc') {
-            list = [...list].sort((a, b) => (b.price_rd ?? -Infinity) - (a.price_rd ?? -Infinity));
+    /* ── agrupación por alimento ── */
+
+    const groups = useMemo(() => {
+        const map = new Map();
+        for (const p of products) {
+            const key = foodKeyOf(p.food_name);
+            if (!map.has(key)) map.set(key, []);
+            map.get(key).push(p);
         }
-        // 'nombre': orden del backend (categoría → alimento → marca → presentación)
+        return [...map.entries()].map(([key, items]) => {
+            const generic = items.find((i) => !i.brand) || null;
+            const prices = items
+                .map((i) => i.price_rd)
+                .filter((v) => v !== null && v !== undefined);
+            const brandSet = new Set(items.filter((i) => i.brand).map((i) => i.brand));
+            const withImage = items.find((i) => i.image_url);
+            return {
+                key,
+                items,
+                generic,
+                displayName: generic?.food_name || items[0].food_name,
+                category: generic?.category || items[0].category || null,
+                image: withImage?.image_url || null,
+                minPrice: prices.length ? Math.min(...prices) : null,
+                maxPrice: prices.length ? Math.max(...prices) : null,
+                brandCount: brandSet.size,
+                verified: items.some((i) => i.is_verified),
+                allInactive: items.every((i) => !i.active),
+                hiddenCount: items.filter((i) => !i.active).length,
+            };
+        });
+    }, [products]);
+
+    const groupByKey = useCallback(
+        (key) => groups.find((g) => g.key === key) || null,
+        [groups],
+    );
+
+    const matchesFilters = useCallback((p, needle) => {
+        if (category && p.category !== category) return false;
+        if (brand === '__generic__') { if (p.brand) return false; }
+        else if (brand && p.brand !== brand) return false;
+        if (!needle) return true;
+        return [p.food_name, p.brand, p.category, p.presentation, p.description]
+            .some((v) => normText(v).includes(needle));
+    }, [category, brand]);
+
+    const filteredGroups = useMemo(() => {
+        const needle = normText(q.trim());
+        let list = groups.filter((g) => g.items.some((p) => matchesFilters(p, needle)));
+        if (sort === 'precio-asc') {
+            list = [...list].sort((a, b) => (a.minPrice ?? Infinity) - (b.minPrice ?? Infinity));
+        } else if (sort === 'precio-desc') {
+            list = [...list].sort((a, b) => (b.maxPrice ?? -Infinity) - (a.maxPrice ?? -Infinity));
+        } else {
+            list = [...list].sort((a, b) => a.displayName.localeCompare(b.displayName, 'es'));
+        }
         return list;
-    }, [products, q, category, brand, sort]);
+    }, [groups, q, sort, matchesFilters]);
+
+    const filteredProductCount = useMemo(() => {
+        const needle = normText(q.trim());
+        return filteredGroups.reduce(
+            (acc, g) => acc + g.items.filter((p) => matchesFilters(p, needle)).length,
+            0,
+        );
+    }, [filteredGroups, q, matchesFilters]);
 
     useEffect(() => { setVisibleCount(PAGE_SIZE); }, [q, category, brand, sort]);
 
-    const visible = filtered.slice(0, visibleCount);
-    const foodCount = useMemo(() => new Set(products.map((p) => p.food_name.toLowerCase())).size, [products]);
+    const visible = filteredGroups.slice(0, visibleCount);
 
-    const variantsOf = useCallback((p) => (
-        products.filter((v) => v.food_name === p.food_name && v.id !== p.id)
-    ), [products]);
+    /* Variantes ordenadas para el modal del alimento: genérico primero,
+       luego por precio ascendente (sin precio al final), luego por marca. */
+    const sortedVariants = useCallback((g) => [...g.items].sort((a, b) => {
+        if (!a.brand !== !b.brand) return a.brand ? 1 : -1;
+        const pa = a.price_rd ?? Infinity;
+        const pb = b.price_rd ?? Infinity;
+        if (pa !== pb) return pa - pb;
+        return (a.brand || '').localeCompare(b.brand || '', 'es');
+    }), []);
+
+    const priceRangeLabel = (g) => {
+        if (g.minPrice === null) return 'Precio relativo';
+        if (g.minPrice === g.maxPrice) return formatPrice(g.minPrice);
+        return `${formatPrice(g.minPrice)} – ${formatPrice(g.maxPrice)}`;
+    };
+
+    const variantCountLabel = (g) => {
+        const pres = `${g.items.length} presentaci${g.items.length === 1 ? 'ón' : 'ones'}`;
+        const marcas = g.brandCount > 0
+            ? `${g.brandCount} marca${g.brandCount === 1 ? '' : 's'}`
+            : 'genérico';
+        return `${pres} · ${marcas}`;
+    };
 
     /* ── admin ── */
 
@@ -326,14 +412,14 @@ const SupermarketPage = () => {
         active: !!form.active,
     });
 
-    const createProduct = async (form) => {
+    const createProduct = async (form, fromFood) => {
         setSaving(true);
         try {
             await requestJson('/api/supermarket/products', {
                 method: 'POST', token: adminToken, body: JSON.stringify(toPayload(form)),
             });
             toast.success('Producto agregado.');
-            setModal(null);
+            setModal(fromFood ? { mode: 'food', foodKey: fromFood } : null);
             await load(adminToken);
         } catch (err) {
             toast.error(err.message || 'No se pudo crear el producto.');
@@ -342,14 +428,14 @@ const SupermarketPage = () => {
         }
     };
 
-    const updateProduct = async (id, form) => {
+    const updateProduct = async (id, form, fromFood) => {
         setSaving(true);
         try {
             const data = await requestJson(`/api/supermarket/products/${id}`, {
                 method: 'PATCH', token: adminToken, body: JSON.stringify(toPayload(form)),
             });
             toast.success('Producto actualizado.');
-            setModal({ mode: 'detail', product: data.product });
+            setModal({ mode: 'detail', product: data.product, fromFood });
             await load(adminToken);
         } catch (err) {
             toast.error(err.message || 'No se pudo actualizar.');
@@ -358,14 +444,14 @@ const SupermarketPage = () => {
         }
     };
 
-    const deleteProduct = async (p) => {
+    const deleteProduct = async (p, fromFood) => {
         const label = [p.food_name, p.brand, p.presentation].filter(Boolean).join(' · ');
         // eslint-disable-next-line no-alert
         if (!window.confirm(`¿Eliminar "${label}" del supermercado? Esta acción no se puede deshacer.`)) return;
         try {
             await requestJson(`/api/supermarket/products/${p.id}`, { method: 'DELETE', token: adminToken });
             toast.success('Producto eliminado.');
-            setModal(null);
+            setModal(fromFood ? { mode: 'food', foodKey: fromFood } : null);
             await load(adminToken);
         } catch (err) {
             toast.error(err.message || 'No se pudo eliminar.');
@@ -405,7 +491,7 @@ const SupermarketPage = () => {
                         lista de compras más completa posible — hasta la marca exacta que prefieras.
                     </p>
                     <div className={styles.stats}>
-                        <span><strong>{foodCount}</strong> alimentos</span>
+                        <span><strong>{groups.length}</strong> alimentos</span>
                         <span className={styles.statSep} aria-hidden="true" />
                         <span><strong>{products.length}</strong> productos</span>
                         <span className={styles.statSep} aria-hidden="true" />
@@ -497,14 +583,18 @@ const SupermarketPage = () => {
 
                 {isAdmin && (
                     <p className={styles.adminNotice}>
-                        Modo edición activo — clic en un producto para editarlo. Los productos ocultos
-                        aparecen atenuados y no son visibles al público.
+                        Modo edición activo — abre un alimento y toca una variante para editarla. Los
+                        productos ocultos aparecen atenuados y no son visibles al público.
                     </p>
                 )}
 
                 <div className={styles.resultBar} aria-live="polite">
                     {!loading && !error && (
-                        <span>{filtered.length} producto{filtered.length === 1 ? '' : 's'}</span>
+                        <span>
+                            {filteredGroups.length} alimento{filteredGroups.length === 1 ? '' : 's'}
+                            {' · '}
+                            {filteredProductCount} producto{filteredProductCount === 1 ? '' : 's'}
+                        </span>
                     )}
                 </div>
 
@@ -521,32 +611,36 @@ const SupermarketPage = () => {
                         </button>
                     </div>
                 )}
-                {!loading && !error && filtered.length === 0 && (
-                    <p className={styles.empty}>No hay productos que coincidan con tu búsqueda.</p>
+                {!loading && !error && filteredGroups.length === 0 && (
+                    <p className={styles.empty}>No hay alimentos que coincidan con tu búsqueda.</p>
                 )}
 
                 {!loading && !error && (
                     <>
                         <div className={styles.grid}>
-                            {visible.map((p) => (
+                            {visible.map((g) => (
                                 <button
-                                    key={p.id}
+                                    key={g.key}
                                     type="button"
-                                    className={`${styles.card} ${!p.active ? styles.cardInactive : ''}`}
-                                    onClick={() => setModal({ mode: 'detail', product: p })}
-                                    aria-label={`Ver detalles de ${productTitle(p)}`}
+                                    className={`${styles.card} ${g.allInactive ? styles.cardInactive : ''}`}
+                                    onClick={() => setModal({ mode: 'food', foodKey: g.key })}
+                                    aria-label={`Ver variantes de ${g.displayName}`}
                                 >
                                     <div className={styles.cardMedia}>
-                                        <ProductImage product={p} />
-                                        {!p.active && <span className={styles.hiddenTag}>Oculto</span>}
+                                        <ProductImage product={{ image_url: g.image, category: g.category, food_name: g.displayName }} />
+                                        {isAdmin && g.hiddenCount > 0 && (
+                                            <span className={styles.hiddenTag}>
+                                                {g.allInactive ? 'Oculto' : `${g.hiddenCount} oculto${g.hiddenCount === 1 ? '' : 's'}`}
+                                            </span>
+                                        )}
                                     </div>
                                     <div className={styles.cardBody}>
-                                        <span className={styles.brandTag}>{p.brand || 'Genérico'}</span>
-                                        <h3 className={styles.cardTitle}>{p.food_name}</h3>
-                                        <p className={styles.cardSub}>{p.presentation || 'Presentación única'}</p>
+                                        <span className={styles.catTag}>{g.category || 'Sin categoría'}</span>
+                                        <h3 className={styles.cardTitle}>{g.displayName}</h3>
+                                        <p className={styles.cardSub}>{variantCountLabel(g)}</p>
                                         <div className={styles.cardPriceRow}>
-                                            <span className={styles.price}>{formatPrice(p.price_rd)}</span>
-                                            {p.is_verified && (
+                                            <span className={styles.price}>{priceRangeLabel(g)}</span>
+                                            {g.verified && (
                                                 <span className={styles.verified} title="Verificado por MealfitRD">
                                                     <BadgeCheck size={14} strokeWidth={2.25} aria-hidden="true" />
                                                 </span>
@@ -557,14 +651,14 @@ const SupermarketPage = () => {
                             ))}
                         </div>
 
-                        {visibleCount < filtered.length && (
+                        {visibleCount < filteredGroups.length && (
                             <div className={styles.moreWrap}>
                                 <button
                                     type="button"
                                     className={styles.btnGhost}
                                     onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
                                 >
-                                    Mostrar más ({filtered.length - visibleCount} restantes)
+                                    Mostrar más ({filteredGroups.length - visibleCount} restantes)
                                 </button>
                             </div>
                         )}
@@ -584,7 +678,13 @@ const SupermarketPage = () => {
                         className={styles.modal}
                         role="dialog"
                         aria-modal="true"
-                        aria-label={modal.mode === 'create' ? 'Nuevo producto' : productTitle(modal.product || {})}
+                        aria-label={
+                            modal.mode === 'create'
+                                ? 'Nuevo producto'
+                                : modal.mode === 'food'
+                                    ? (groupByKey(modal.foodKey)?.displayName || 'Alimento')
+                                    : productTitle(modal.product || {})
+                        }
                         onClick={(e) => e.stopPropagation()}
                     >
                         <button type="button" className={styles.modalClose} onClick={() => setModal(null)} aria-label="Cerrar">
@@ -593,13 +693,15 @@ const SupermarketPage = () => {
 
                         {modal.mode === 'create' && (
                             <div className={styles.modalPad}>
-                                <h3 className={styles.modalTitle}>Nuevo producto</h3>
+                                <h3 className={styles.modalTitle}>
+                                    {modal.initial?.food_name ? `Nueva variante de ${modal.initial.food_name}` : 'Nuevo producto'}
+                                </h3>
                                 <ProductForm
-                                    initial={EMPTY_FORM}
+                                    initial={{ ...EMPTY_FORM, ...(modal.initial || {}) }}
                                     categories={categories}
                                     saving={saving}
-                                    onCancel={() => setModal(null)}
-                                    onSubmit={createProduct}
+                                    onCancel={() => setModal(modal.fromFood ? { mode: 'food', foodKey: modal.fromFood } : null)}
+                                    onSubmit={(form) => createProduct(form, modal.fromFood)}
                                 />
                             </div>
                         )}
@@ -611,21 +713,112 @@ const SupermarketPage = () => {
                                     initial={toFormInitial(modal.product)}
                                     categories={categories}
                                     saving={saving}
-                                    onCancel={() => setModal({ mode: 'detail', product: modal.product })}
-                                    onSubmit={(form) => updateProduct(modal.product.id, form)}
+                                    onCancel={() => setModal({ mode: 'detail', product: modal.product, fromFood: modal.fromFood })}
+                                    onSubmit={(form) => updateProduct(modal.product.id, form, modal.fromFood)}
                                 />
                             </div>
                         )}
 
+                        {modal.mode === 'food' && (() => {
+                            const g = groupByKey(modal.foodKey);
+                            if (!g) {
+                                return (
+                                    <div className={styles.modalPad}>
+                                        <p className={styles.empty}>Este alimento ya no está en el catálogo.</p>
+                                    </div>
+                                );
+                            }
+                            const variants = sortedVariants(g);
+                            const desc = g.generic?.description
+                                || variants.find((v) => v.description)?.description
+                                || null;
+                            return (
+                                <div className={styles.detail}>
+                                    <div className={styles.detailMedia}>
+                                        <ProductImage
+                                            product={{ image_url: g.image, category: g.category, food_name: g.displayName }}
+                                            large
+                                        />
+                                    </div>
+                                    <div className={styles.detailInfo}>
+                                        <span className={styles.catTag}>{g.category || 'Sin categoría'}</span>
+                                        <h3 className={styles.detailTitle}>{g.displayName}</h3>
+                                        {desc && <p className={styles.detailDesc}>{desc}</p>}
+                                        <div className={styles.detailPriceRow}>
+                                            <span className={styles.detailPrice}>{priceRangeLabel(g)}</span>
+                                            {g.verified && (
+                                                <span className={styles.verifiedLabel}>
+                                                    <BadgeCheck size={15} strokeWidth={2.25} aria-hidden="true" /> Verificado
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className={styles.foodMeta}>{variantCountLabel(g)}</p>
+
+                                        <div className={styles.variants}>
+                                            <h4 className={styles.variantsTitle}>
+                                                Marcas y presentaciones disponibles
+                                            </h4>
+                                            <ul className={styles.variantList}>
+                                                {variants.map((v) => (
+                                                    <li key={v.id}>
+                                                        <button
+                                                            type="button"
+                                                            className={`${styles.variantRow} ${!v.active ? styles.variantRowInactive : ''}`}
+                                                            onClick={() => setModal({ mode: 'detail', product: v, fromFood: g.key })}
+                                                        >
+                                                            <span className={styles.variantBrand}>{v.brand || 'Genérico'}</span>
+                                                            <span className={styles.variantPres}>{v.presentation || '—'}</span>
+                                                            {v.is_verified && (
+                                                                <BadgeCheck size={13} strokeWidth={2.25} className={styles.variantCheck} aria-hidden="true" />
+                                                            )}
+                                                            <span className={styles.variantPrice}>{formatPrice(v.price_rd)}</span>
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+
+                                        {isAdmin && (
+                                            <div className={styles.detailActions}>
+                                                <button
+                                                    type="button"
+                                                    className={styles.btnPrimary}
+                                                    onClick={() => setModal({
+                                                        mode: 'create',
+                                                        fromFood: g.key,
+                                                        initial: {
+                                                            food_name: g.generic?.food_name || g.displayName,
+                                                            category: g.category || '',
+                                                            master_food_name: g.generic?.master_food_name || g.displayName,
+                                                        },
+                                                    })}
+                                                >
+                                                    <Plus size={14} strokeWidth={2.5} /> Variante
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
                         {modal.mode === 'detail' && (() => {
-                            const p = modal.product;
-                            const variants = variantsOf(p);
+                            const p = products.find((x) => x.id === modal.product.id) || modal.product;
+                            const fromFood = modal.fromFood || foodKeyOf(p.food_name);
                             return (
                                 <div className={styles.detail}>
                                     <div className={styles.detailMedia}>
                                         <ProductImage product={p} large />
                                     </div>
                                     <div className={styles.detailInfo}>
+                                        <button
+                                            type="button"
+                                            className={styles.backBtn}
+                                            onClick={() => setModal({ mode: 'food', foodKey: fromFood })}
+                                        >
+                                            <ArrowLeft size={14} strokeWidth={2.25} aria-hidden="true" />
+                                            Todas las variantes de {p.food_name}
+                                        </button>
                                         <span className={styles.brandTag}>{p.brand || 'Genérico'}</span>
                                         <h3 className={styles.detailTitle}>{p.food_name}</h3>
                                         {p.description && <p className={styles.detailDesc}>{p.description}</p>}
@@ -649,35 +842,12 @@ const SupermarketPage = () => {
 
                                         {isAdmin && (
                                             <div className={styles.detailActions}>
-                                                <button type="button" className={styles.btnPrimary} onClick={() => setModal({ mode: 'edit', product: p })}>
+                                                <button type="button" className={styles.btnPrimary} onClick={() => setModal({ mode: 'edit', product: p, fromFood })}>
                                                     <Pencil size={14} strokeWidth={2.25} /> Editar
                                                 </button>
-                                                <button type="button" className={`${styles.btnGhost} ${styles.btnDanger}`} onClick={() => deleteProduct(p)}>
+                                                <button type="button" className={`${styles.btnGhost} ${styles.btnDanger}`} onClick={() => deleteProduct(p, fromFood)}>
                                                     <Trash2 size={14} strokeWidth={2.25} /> Eliminar
                                                 </button>
-                                            </div>
-                                        )}
-
-                                        {variants.length > 0 && (
-                                            <div className={styles.variants}>
-                                                <h4 className={styles.variantsTitle}>
-                                                    Otras presentaciones y marcas de {p.food_name}
-                                                </h4>
-                                                <ul className={styles.variantList}>
-                                                    {variants.map((v) => (
-                                                        <li key={v.id}>
-                                                            <button
-                                                                type="button"
-                                                                className={styles.variantRow}
-                                                                onClick={() => setModal({ mode: 'detail', product: v })}
-                                                            >
-                                                                <span className={styles.variantBrand}>{v.brand || 'Genérico'}</span>
-                                                                <span className={styles.variantPres}>{v.presentation || '—'}</span>
-                                                                <span className={styles.variantPrice}>{formatPrice(v.price_rd)}</span>
-                                                            </button>
-                                                        </li>
-                                                    ))}
-                                                </ul>
                                             </div>
                                         )}
                                     </div>
