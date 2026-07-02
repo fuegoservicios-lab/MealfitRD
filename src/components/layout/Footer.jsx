@@ -104,6 +104,9 @@ const Footer = () => {
                     <h4>Empresas</h4>
                     <Link to="/about" state={{ from: fromPath }}>MealfitRD</Link>
                     <Link to="/novedades" state={{ from: fromPath }}>Novedades</Link>
+                    {/* [P1-SUPERMARKET-DB · 2026-07-02] Base de datos pública del
+                        Supermercado RD (alimentos verificados + precios RD$). */}
+                    <Link to="/supermercado" state={{ from: fromPath }}>Supermercado RD</Link>
                     <Link to="/research" state={{ from: fromPath }}>Investigación</Link>
                 </div>
 

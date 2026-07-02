@@ -54,6 +54,8 @@ const TITLES = {
     '/about': `Acerca de ${BRAND} — nutrición de precisión con IA`,
     '/responsible-disclosure': `Divulgación Responsable · ${BRAND}`,
     '/novedades': `Novedades · ${BRAND}`,
+    // [P1-SUPERMARKET-DB · 2026-07-02]
+    '/supermercado': `Supermercado RD · ${BRAND}`,
 };
 
 // [P3-ROUTE-META] Description por ruta para el snippet de buscadores. ≤ ~160 chars,
@@ -80,6 +82,8 @@ const DESCRIPTIONS = {
     '/about': 'Acerca de MealfitRD: nutrición de precisión con IA para la mesa dominicana. Nuestra misión, cómo funciona el motor y los principios que nos guían.',
     '/responsible-disclosure': 'Política de Divulgación Responsable de MealfitRD: cómo reportar vulnerabilidades de seguridad, nuestro compromiso de puerto seguro y el alcance del programa.',
     '/novedades': 'Novedades de MealfitRD: anuncios, mejoras del motor y todo lo nuevo, a medida que sucede.',
+    // [P1-SUPERMARKET-DB · 2026-07-02]
+    '/supermercado': 'El supermercado dominicano de MealfitRD: +200 alimentos verificados con presentaciones, marcas y precios reales en RD$ que alimentan tu lista de compras.',
 };
 
 // [P3-RESEARCH-PAGE-SCIENTIFIC · 2026-06-30] /research ahora es página propia (estilo científico)

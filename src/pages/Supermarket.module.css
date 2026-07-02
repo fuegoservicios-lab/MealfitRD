@@ -1,0 +1,394 @@
+/* [P1-SUPERMARKET-DB · 2026-07-02] Estilos del Supermercado RD (/supermercado).
+   Mismo lenguaje visual que Novedades (News.module.css): theme-aware vía CSS vars,
+   glow ambiental suave, tarjetas con borde translúcido. */
+
+.page {
+    position: relative;
+    overflow: hidden;
+    min-height: 70vh;
+    color: var(--text-main);
+    background: var(--bg-page);
+    padding: 0 0 clamp(4rem, 10vh, 7rem);
+}
+.page::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    width: min(1100px, 130%);
+    height: 640px;
+    background: radial-gradient(ellipse 58% 60% at 50% 24%, color-mix(in srgb, var(--primary) 15%, transparent), transparent 70%);
+    filter: blur(28px);
+    pointer-events: none;
+}
+
+.inner {
+    position: relative;
+    z-index: 1;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: clamp(2.75rem, 7vh, 5rem) 1.5rem 0;
+}
+
+/* ─────────────── encabezado ─────────────── */
+.pageHead {
+    max-width: 720px;
+    margin-bottom: clamp(1.75rem, 4vh, 2.75rem);
+}
+.eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-family: var(--font-heading);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--primary);
+}
+.pageTitle {
+    font-family: var(--font-heading);
+    font-size: clamp(2.2rem, 5.5vw, 3.3rem);
+    font-weight: 800;
+    letter-spacing: -0.038em;
+    line-height: 1.04;
+    margin: 0.95rem 0 0;
+    color: var(--text-main);
+}
+.titleAccent {
+    background: linear-gradient(120deg, var(--primary-light), var(--primary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.lead {
+    margin: 1.1rem 0 0;
+    font-size: clamp(1rem, 1.5vw, 1.14rem);
+    line-height: 1.62;
+    color: var(--text-muted);
+}
+.stats {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.15rem;
+    font-size: 0.92rem;
+    color: var(--text-muted);
+}
+.stats strong { color: var(--text-main); font-weight: 700; }
+.statSep {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--text-main) 32%, transparent);
+    flex: none;
+}
+
+/* ─────────────── controles ─────────────── */
+.controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    margin-bottom: 1.1rem;
+}
+.searchBox {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex: 1 1 260px;
+    min-width: 220px;
+    padding: 0.62rem 0.9rem;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--text-main) 14%, transparent);
+    background: color-mix(in srgb, var(--text-main) 4%, transparent);
+    color: var(--text-muted);
+}
+.searchBox input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--text-main);
+    font-size: 0.95rem;
+}
+.categorySelect {
+    padding: 0.62rem 0.85rem;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--text-main) 14%, transparent);
+    background: color-mix(in srgb, var(--text-main) 4%, transparent);
+    color: var(--text-main);
+    font-size: 0.92rem;
+    max-width: 260px;
+}
+.categorySelect option { color: initial; }
+
+/* ─────────────── admin ─────────────── */
+.unlockBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--text-main) 12%, transparent);
+    background: transparent;
+    color: color-mix(in srgb, var(--text-main) 40%, transparent);
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease;
+}
+.unlockBtn:hover { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
+
+.unlockForm {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1.1rem;
+}
+.unlockForm input {
+    flex: 0 1 300px;
+    padding: 0.6rem 0.85rem;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--text-main) 14%, transparent);
+    background: color-mix(in srgb, var(--text-main) 4%, transparent);
+    color: var(--text-main);
+    font-size: 0.92rem;
+}
+.adminBar { display: flex; align-items: center; gap: 0.5rem; }
+.adminNotice {
+    margin: 0 0 1.1rem;
+    padding: 0.65rem 0.95rem;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+.btnPrimary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.58rem 1rem;
+    border-radius: 12px;
+    border: none;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+}
+.btnPrimary:hover { filter: brightness(1.08); }
+.btnPrimary:disabled { opacity: 0.6; cursor: default; }
+.btnGhost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.58rem 0.85rem;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--text-main) 14%, transparent);
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+.btnGhost:hover { color: var(--text-main); border-color: color-mix(in srgb, var(--text-main) 30%, transparent); }
+
+/* ─────────────── editor ─────────────── */
+.editorCard {
+    margin-bottom: 1.4rem;
+    padding: 1.1rem 1.2rem 1.2rem;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+    background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+.editorTitle {
+    margin: 0 0 0.8rem;
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+.form { width: 100%; }
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 0.7rem 0.9rem;
+}
+.field { display: flex; flex-direction: column; gap: 0.3rem; }
+.fieldWide { grid-column: 1 / -1; }
+.field span {
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.field span em { font-style: normal; text-transform: none; font-weight: 500; opacity: 0.8; }
+.field input {
+    padding: 0.52rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--text-main) 16%, transparent);
+    background: color-mix(in srgb, var(--bg-page) 60%, transparent);
+    color: var(--text-main);
+    font-size: 0.92rem;
+}
+.checkField {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    align-self: end;
+    font-size: 0.88rem;
+    color: var(--text-main);
+    padding-bottom: 0.35rem;
+}
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    margin-top: 0.95rem;
+}
+
+/* ─────────────── listado ─────────────── */
+.categorySection { margin-top: clamp(1.6rem, 4vh, 2.4rem); }
+.categoryTitle {
+    font-family: var(--font-heading);
+    font-size: 1.12rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+    margin: 0 0 0.85rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--text-main) 10%, transparent);
+}
+.foodGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 0.85rem;
+}
+.foodCard {
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--text-main) 10%, transparent);
+    background: color-mix(in srgb, var(--text-main) 3%, transparent);
+    padding: 0.95rem 1.05rem 1rem;
+}
+.foodName {
+    margin: 0 0 0.6rem;
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+.variantList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+.variant {
+    position: relative;
+    padding: 0.55rem 0.65rem;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--text-main) 4%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-main) 7%, transparent);
+}
+.variantInactive { opacity: 0.5; border-style: dashed; }
+.variantMain {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.6rem;
+    padding-right: 3.6rem;
+}
+.brandTag {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 13%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+    padding: 0.14rem 0.5rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.presentation { font-size: 0.92rem; font-weight: 600; color: var(--text-main); }
+.price {
+    margin-left: auto;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--primary);
+    white-space: nowrap;
+}
+.variantMeta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.9rem;
+    margin-top: 0.3rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+.notes { font-style: italic; }
+.hiddenTag {
+    font-weight: 700;
+    color: #e0a13c;
+}
+.variantActions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.55rem;
+    display: flex;
+    gap: 0.3rem;
+}
+.iconBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 27px;
+    height: 27px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--text-main) 14%, transparent);
+    background: color-mix(in srgb, var(--bg-page) 70%, transparent);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+.iconBtn:hover { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
+.iconBtnDanger:hover { color: #e05555; border-color: color-mix(in srgb, #e05555 45%, transparent); }
+
+/* ─────────────── estados ─────────────── */
+.empty {
+    margin: 2.5rem 0;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.98rem;
+}
+.errorBox {
+    margin: 2.5rem auto;
+    max-width: 420px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+    color: var(--text-muted);
+}
+.footnote {
+    margin-top: clamp(2rem, 5vh, 3rem);
+    font-size: 0.82rem;
+    color: color-mix(in srgb, var(--text-main) 45%, transparent);
+}
+
+@media (max-width: 560px) {
+    .foodGrid { grid-template-columns: 1fr; }
+    .categorySelect { max-width: 100%; flex: 1 1 100%; }
+}

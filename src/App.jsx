@@ -81,6 +81,9 @@ const About = lazy(() => import('./pages/AboutPage'));
 // [P3-NEWS-1 · 2026-07-01] Novedades: índice (/novedades) + artículo (/novedades/:slug).
 const NewsPage = lazy(() => import('./pages/NewsPage'));
 const NewsArticlePage = lazy(() => import('./pages/NewsArticlePage'));
+// [P1-SUPERMARKET-DB · 2026-07-02] Supermercado RD: base de datos pública de alimentos
+// verificados (+variantes de marca) con edición admin en la misma página.
+const SupermarketPage = lazy(() => import('./pages/SupermarketPage'));
 // [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] Política de divulgación responsable (seguridad).
 const ResponsibleDisclosure = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.ResponsibleDisclosure })));
 // [P3-ENGINE-INFO-PAGE · 2026-06-28] Página pública informativa del motor v1.0.0.
@@ -405,6 +408,10 @@ function App() {
             {/* [P3-NEWS-1 · 2026-07-01] Novedades (pública, indexable): índice + artículo. */}
             <Route path="/novedades" element={<Layout><NewsPage /></Layout>} />
             <Route path="/novedades/:slug" element={<Layout><NewsArticlePage /></Layout>} />
+
+            {/* [P1-SUPERMARKET-DB · 2026-07-02] Supermercado RD (pública, indexable, apex).
+                Base de datos viva de alimentos verificados; edición admin en la misma página. */}
+            <Route path="/supermercado" element={<Layout><SupermarketPage /></Layout>} />
 
             {/* [P3-ENGINE-INFO-PAGE · 2026-06-28] Motor v1.0.0 (pública, indexable, en el apex). */}
             <Route path="/motor" element={<Layout><Engine /></Layout>} />
