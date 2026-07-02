@@ -25,7 +25,7 @@ const PAGE_SIZE = 48;
    Cubre los 252 alimentos del catálogo a 2026-07-02; para alimentos futuros
    aplican los keywords de FOOD_EMOJI_KEYWORDS y, de último, el de categoría. */
 const FOOD_EMOJI = {
-    'aceite de coco': '🥥', 'aceite de oliva': '🫒', 'aceite de sesamo': '🫗', 'aceite vegetal': '🫗',
+    'aceite de coco': '🥥', 'aceite de oliva': '🫒', 'aceite de sesamo': '🍶', 'aceite vegetal': '🌻',
     'aceituna': '🫒', 'adamame': '🫛', 'aguacate': '🥑',
     'ajo': '🧄', 'ajo en pasta': '🧄', 'ajo en polvo': '🧄', 'ajo y perejil': '🧄', 'ajonjoli': '🌱',
     'aji cubanela': '🫑', 'aji morron': '🫑',
@@ -96,7 +96,7 @@ const FOOD_EMOJI = {
 const FOOD_EMOJI_KEYWORDS = [
     ['queso', '🧀'], ['yogur', '🥣'], ['leche', '🥛'], ['arroz', '🍚'], ['harina', '🌾'],
     ['pollo', '🍗'], ['pavo', '🦃'], ['cerdo', '🥩'], ['pescado', '🐟'], ['atun', '🐟'],
-    ['sardina', '🐟'], ['jamon', '🍖'], ['vinagre', '🫙'], ['semilla', '🌱'], ['aceite', '🫗'],
+    ['sardina', '🐟'], ['jamon', '🍖'], ['vinagre', '🫙'], ['semilla', '🌱'], ['aceite', '🌻'],
     ['huevo', '🥚'], ['pan ', '🍞'], ['tortilla', '🫓'], ['habichuela', '🫘'], ['frijol', '🫘'],
 ];
 
