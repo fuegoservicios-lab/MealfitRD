@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
-    BadgeCheck, KeyRound, LockKeyhole, Pencil, Plus, RefreshCw, Search,
-    ShoppingBasket, Trash2, X,
+    ArrowUpDown, BadgeCheck, ChevronDown, KeyRound, LockKeyhole, Pencil, Plus,
+    RefreshCw, Search, ShoppingBasket, Store, Tags, Trash2, X,
 } from 'lucide-react';
 import styles from './Supermarket.module.css';
 import { api } from '../config/api';
@@ -412,20 +412,32 @@ const SupermarketPage = () => {
                             aria-label="Buscar en el supermercado"
                         />
                     </div>
-                    <select className={styles.select} value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Filtrar por categoría">
-                        <option value="">Todas las categorías</option>
-                        {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    <select className={styles.select} value={brand} onChange={(e) => setBrand(e.target.value)} aria-label="Filtrar por marca">
-                        <option value="">Todas las marcas</option>
-                        <option value="__generic__">Genérico (sin marca)</option>
-                        {brands.map((b) => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                    <select className={styles.select} value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Ordenar">
-                        <option value="nombre">Ordenar: A–Z</option>
-                        <option value="precio-asc">Precio: menor a mayor</option>
-                        <option value="precio-desc">Precio: mayor a menor</option>
-                    </select>
+                    <label className={`${styles.selectWrap} ${category ? styles.selectActive : ''}`}>
+                        <Tags size={15} strokeWidth={2.25} className={styles.selectIcon} aria-hidden="true" />
+                        <select className={styles.select} value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Filtrar por categoría">
+                            <option value="">Todas las categorías</option>
+                            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <ChevronDown size={15} strokeWidth={2.25} className={styles.selectChevron} aria-hidden="true" />
+                    </label>
+                    <label className={`${styles.selectWrap} ${brand ? styles.selectActive : ''}`}>
+                        <Store size={15} strokeWidth={2.25} className={styles.selectIcon} aria-hidden="true" />
+                        <select className={styles.select} value={brand} onChange={(e) => setBrand(e.target.value)} aria-label="Filtrar por marca">
+                            <option value="">Todas las marcas</option>
+                            <option value="__generic__">Genérico (sin marca)</option>
+                            {brands.map((b) => <option key={b} value={b}>{b}</option>)}
+                        </select>
+                        <ChevronDown size={15} strokeWidth={2.25} className={styles.selectChevron} aria-hidden="true" />
+                    </label>
+                    <label className={styles.selectWrap}>
+                        <ArrowUpDown size={15} strokeWidth={2.25} className={styles.selectIcon} aria-hidden="true" />
+                        <select className={styles.select} value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Ordenar">
+                            <option value="nombre">A–Z</option>
+                            <option value="precio-asc">Precio: menor a mayor</option>
+                            <option value="precio-desc">Precio: mayor a menor</option>
+                        </select>
+                        <ChevronDown size={15} strokeWidth={2.25} className={styles.selectChevron} aria-hidden="true" />
+                    </label>
 
                     {isAdmin ? (
                         <div className={styles.adminBar}>
