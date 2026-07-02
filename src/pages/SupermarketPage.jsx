@@ -21,6 +21,85 @@ import { api } from '../config/api';
 const TOKEN_KEY = 'mf_market_admin_token';
 const PAGE_SIZE = 48;
 
+/* Emoji POR ALIMENTO (clave = nombre normalizado sin acentos, ver foodKeyOf).
+   Cubre los 252 alimentos del catálogo a 2026-07-02; para alimentos futuros
+   aplican los keywords de FOOD_EMOJI_KEYWORDS y, de último, el de categoría. */
+const FOOD_EMOJI = {
+    'aceite de coco': '🥥', 'aceite de oliva': '🫒', 'aceite de sesamo': '🫗', 'aceite vegetal': '🫗',
+    'aceituna': '🫒', 'adamame': '🫛', 'aguacate': '🥑',
+    'ajo': '🧄', 'ajo en pasta': '🧄', 'ajo en polvo': '🧄', 'ajo y perejil': '🧄', 'ajonjoli': '🌱',
+    'aji cubanela': '🫑', 'aji morron': '🫑',
+    'albahaca': '🌿', 'albahaca seca': '🌿', 'alcachofa': '🥬', 'algas marinas': '🌊',
+    'almendras': '🌰', 'almendras fileteadas': '🌰', 'apio': '🥬', 'arenque': '🐟',
+    'arroz arborio': '🍚', 'arroz basmati': '🍚', 'arroz blanco': '🍚', 'arroz integral': '🍚',
+    'arroz jazmin': '🍚', 'arroz sazonado': '🍚', 'arroz valencia': '🍚', 'arandanos': '🫐',
+    'atun en aceite': '🐟', 'atun en agua': '🐟', 'auyama': '🎃', 'avena': '🥣', 'bacalao': '🐟',
+    'barra de granola': '🍪', 'batata': '🍠', 'berenjena': '🍆', 'berro': '🌿', 'bok choy': '🥬',
+    'brocoli': '🥦', 'bulgur': '🌾', 'cacao en polvo': '🍫', 'calabacin': '🥒', 'calamar': '🦑',
+    'camaron': '🦐', 'canela en polvo': '🟤', 'cangrejo': '🦀',
+    'carne de res molida': '🥩', 'carne de res': '🥩', 'casabe': '🫓', 'casabe albahaca': '🫓',
+    'cebada': '🌾', 'cebolla': '🧅', 'cebolla en polvo': '🧅', 'cebollin': '🧅', 'cerdo': '🥩',
+    'cereza': '🍒', 'champinones': '🍄', 'chinola': '🥭', 'chivo': '🐐', 'chuleta costillas': '🥩',
+    'cilantro': '🌿', 'cilantro ancho': '🌿', 'cilantro seco': '🌿', 'ciruela': '🍇', 'ciruela pasa': '🍇',
+    'coco': '🥥', 'coles de bruselas': '🥬', 'coliflor': '🥦', 'comino': '🧂', 'conejo': '🐇',
+    'crema de leche': '🥛', 'cundeamor': '🥒', 'curry en polvo': '🍛', 'curcuma': '🫚',
+    'curcuma molida': '🫚', 'dumplings de cerdo': '🥟', 'durazno': '🍑', 'datiles': '🌴',
+    'espaguetis': '🍝', 'espinaca': '🥬', 'esparragos': '🌱', 'filete arenque': '🐟',
+    'filete de pescado blanco': '🐟', 'filete pechuga de pollo': '🍗', 'fresa': '🍓',
+    'frijoles pintos': '🫘', 'galleta de soda': '🍪', 'galleta de soda integral': '🍪',
+    'garbanzo': '🫘', 'granada': '🍎', 'granola': '🥣', 'guandules': '🫘', 'guanabana': '🍈',
+    'guayaba': '🍈', 'guineo maduro': '🍌', 'guineo verde': '🍌', 'guisantes': '🫛',
+    'guisantes secos': '🫛', 'habas': '🫘', 'habichuela negra': '🫘', 'habichuelas blancas': '🫘',
+    'habichuelas rojas': '🫘', 'harina de negrito': '🌾', 'harina de arroz integral': '🌾',
+    'harina de garbanzo': '🌾', 'harina de maiz precocida': '🌽', 'harina de trigo': '🌾',
+    'harina de trigo integral': '🌾', 'huevos': '🥚', 'huevos de codorniz': '🥚',
+    'higado de res': '🥩', 'jamon de cerdo': '🍖', 'jamon de pavo': '🍖', 'jengibre': '🫚',
+    'jengibre molido': '🫚', 'kale picado': '🥬', 'kefir': '🥛', 'kiwi': '🥝', 'kombucha': '🍵',
+    'laurel': '🍃', 'leche': '🥛', 'leche condensada': '🥛', 'leche de almendras': '🥛',
+    'leche de avena': '🥛', 'leche de cabra en polvo': '🥛', 'leche de coco': '🥥',
+    'leche de soya': '🥛', 'leche descremada': '🥛', 'leche en polvo': '🥛', 'leche evaporada': '🥛',
+    'leche infantil y de crecimiento': '🍼', 'leche saborizada': '🥛', 'leche semidescremada': '🥛',
+    'leche sin lactosa': '🥛', 'lechosa': '🍈', 'lechuga': '🥬', 'lechuga romana': '🥬',
+    'lenteja': '🫘', 'limon': '🍋', 'linaza': '🌾', 'longaniza': '🌭', 'mandarina': '🍊',
+    'mango': '🥭', 'manteca de cerdo': '🥓', 'mantequilla': '🧈', 'mantequilla de almendras': '🌰',
+    'mantequilla de mani': '🥜', 'manzana': '🍎', 'mani': '🥜', 'mapuey': '🍠', 'margarina': '🧈',
+    'maiz dulce': '🌽', 'mejillones': '🦪', 'melon': '🍈', 'mero': '🐟', 'miel': '🍯',
+    'molondrones': '🫛', 'mostaza': '🫙', 'mostaza en polvo': '🫙', 'muslo de pollo': '🍗',
+    'nabo': '🥔', 'naranja': '🍊', 'nueces mixtas': '🌰', 'nectar de chinola': '🧃',
+    'nispero': '🍈', 'oregano': '🌿', 'oregano fresco': '🌿', 'palmito': '🌴',
+    'pan blanco familiar': '🍞', 'pan blanco personal': '🍞', 'pan de semillas': '🍞',
+    'pan integral familiar': '🍞', 'pan integral personal': '🍞', 'pan pita integral': '🫓',
+    'papa': '🥔', 'pasas': '🍇', 'pasta de tomate': '🥫', 'pasta integral': '🍝',
+    'pavo molido': '🦃', 'pepino': '🥒', 'pera': '🍐', 'perejil': '🌿', 'perejil seco': '🌿',
+    'pimenton': '🌶️', 'pimienta negra': '🧂', 'pistachos': '🌰', 'pina': '🍍',
+    'platano maduro': '🍌', 'platano verde': '🍌', 'puerro': '🧅', 'pulpo': '🐙',
+    'queso blanco': '🧀', 'queso cheddar': '🧀', 'queso cottage': '🧀', 'queso crema': '🧀',
+    'queso de hoja': '🧀', 'queso de oveja': '🧀', 'queso gouda': '🧀', 'queso mozzarella': '🧀',
+    'queso parmesano': '🧀', 'queso ricotta': '🧀', 'quinoa': '🌾', 'remolacha': '🍠',
+    'repollo': '🥬', 'repollo morado': '🥬', 'rabano': '🥕', 'rucula': '🥬',
+    'sal': '🧂', 'sal de ajo': '🧂', 'sal de apio': '🧂', 'sal saborizada': '🧂',
+    'salami': '🍖', 'salchichas': '🌭', 'salmon': '🐟', 'salsa de soya': '🍶',
+    'salsa de tomate': '🥫', 'sandia': '🍉', 'sardina fresca': '🐟', 'sardinas en lata': '🐟',
+    'semillas de cajuil': '🥜', 'semillas de calabaza': '🎃', 'semillas de chia': '🌱',
+    'semillas de girasol': '🌻', 'soya texturizada': '🫘', 'tamarindo': '🌰', 'tayota': '🍐',
+    'tilapia': '🐟', 'tofu': '🫘', 'tomate': '🍅', 'tomate enlatado': '🥫', 'tomillo': '🌿',
+    'toronja': '🍊', 'tortilla de trigo': '🫓', 'tortilla integral': '🫓', 'uva': '🍇',
+    'vainilla': '🍦', 'vainitas': '🫛', 'vinagre blanco': '🫙', 'vinagre balsamico': '🫙',
+    'vinagre de manzana': '🫙', 'yautia': '🍠', 'yogur de coco griego': '🥥',
+    'yogur de coco regular': '🥥', 'yogurt griego': '🥣', 'yogurt regular': '🥣',
+    'yogurt de cabra': '🥣', 'yuca': '🍠', 'zanahoria': '🥕', 'name': '🍠',
+};
+
+/* Fallback por keyword para alimentos que aún no estén en FOOD_EMOJI.
+   Orden importa (del más específico al más genérico); solo keywords sin
+   falsos positivos conocidos ("sal" NO va aquí: matchearía salami/salsa). */
+const FOOD_EMOJI_KEYWORDS = [
+    ['queso', '🧀'], ['yogur', '🥣'], ['leche', '🥛'], ['arroz', '🍚'], ['harina', '🌾'],
+    ['pollo', '🍗'], ['pavo', '🦃'], ['cerdo', '🥩'], ['pescado', '🐟'], ['atun', '🐟'],
+    ['sardina', '🐟'], ['jamon', '🍖'], ['vinagre', '🫙'], ['semilla', '🌱'], ['aceite', '🫗'],
+    ['huevo', '🥚'], ['pan ', '🍞'], ['tortilla', '🫓'], ['habichuela', '🫘'], ['frijol', '🫘'],
+];
+
 const CATEGORY_EMOJI = {
     'Lácteos y huevos': '🥛',
     'Carnes, pescados y mariscos': '🥩',
@@ -36,6 +115,15 @@ const CATEGORY_EMOJI = {
     'Víveres y tubérculos': '🍠',
     'Salsas y aderezos': '🥫',
     'Otros': '🛒',
+};
+
+const emojiForFood = (foodName, category) => {
+    const key = foodKeyOf(foodName);
+    if (FOOD_EMOJI[key]) return FOOD_EMOJI[key];
+    for (const [kw, emoji] of FOOD_EMOJI_KEYWORDS) {
+        if (key.includes(kw)) return emoji;
+    }
+    return CATEGORY_EMOJI[category] || '🛒';
 };
 
 const EMPTY_FORM = {
@@ -102,7 +190,7 @@ const ProductImage = ({ product, large = false }) => {
     }
     return (
         <span className={large ? styles.detailEmoji : styles.cardEmoji} aria-hidden="true">
-            {CATEGORY_EMOJI[product.category] || '🛒'}
+            {emojiForFood(product.food_name, product.category)}
         </span>
     );
 };
