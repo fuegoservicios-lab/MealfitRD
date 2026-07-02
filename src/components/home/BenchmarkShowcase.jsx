@@ -77,8 +77,11 @@ function CountUp({ to, decimals = 1, suffix = '%', duration = 1600 }) {
 /* ── Radar de precisión (3 ejes = las 3 métricas del versus) ── */
 function PrecisionRadar() {
     const reduce = useReducedMotion();
+    // [P3-BENCHMARK-RADAR-CENTER · 2026-07-02] viewBox ajustado al contenido real
+    // (triángulo + etiquetas): antes 420×384 con cy=176 dejaba ~116px de aire muerto
+    // abajo y el radar se sentía descentrado/asimétrico dentro de su columna.
     const cx = 210;
-    const cy = 176;
+    const cy = 181;
     const R = 138;
     const ang = (i) => ((-90 + i * 120) * Math.PI) / 180; // 0=arriba, +120 horario
     const pt = (i, frac) => [cx + R * frac * Math.cos(ang(i)), cy + R * frac * Math.sin(ang(i))];
@@ -102,21 +105,15 @@ function PrecisionRadar() {
         };
 
     return (
-        <svg viewBox="0 0 420 384" className={styles.radarSvg} role="img"
+        <svg viewBox="0 0 420 285" className={styles.radarSvg} role="img"
             aria-label="Radar de precisión: el polígono de Mealfit casi llena el gráfico; el de un LLM solo colapsa.">
-            {/* grid concéntrico + ejes */}
+            {/* grid concéntrico + ejes (sin escala numérica — los números chocaban con el
+                polígono lleno de Mealfit; los valores exactos viven en la columna derecha) */}
             {rings.map((g) => <polygon key={g} points={poly([g, g, g])} className={styles.radarGrid} />)}
             {[0, 1, 2].map((i) => {
                 const [x, y] = pt(i, 1);
                 return <line key={i} x1={cx} y1={cy} x2={x} y2={y} className={styles.radarSpoke} />;
             })}
-            {/* [P3-BENCHMARK-POLISH · 2026-07-02] Escala numérica de los anillos (25·50·75·100)
-                sobre el eje vertical — lectura de instrumento, no decoración. */}
-            {rings.map((g) => (
-                <text key={`t${g}`} x={cx + 7} y={cy - R * g + 3} className={styles.radarTick}>
-                    {Math.round(g * 100)}
-                </text>
-            ))}
 
             {/* LLM (atrás, colapsado) */}
             <motion.polygon points={poly(llm)} className={styles.radarLlm}
