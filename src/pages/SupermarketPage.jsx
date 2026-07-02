@@ -208,10 +208,24 @@ const SupermarketPage = () => {
         setLoading(true);
         setError(null);
         try {
-            const params = new URLSearchParams({ limit: '1000' });
-            if (token) params.set('include_inactive', 'true');
-            const data = await requestJson(`/api/supermarket/products?${params.toString()}`, { token });
-            setProducts(data?.products || []);
+            // El backend clampa a 1000 filas por request (_MAX_LIMIT) — paginamos
+            // con offset hasta cubrir `total` para que el catálogo pueda crecer
+            // sin tope visible en la página.
+            const PAGE = 1000;
+            const all = [];
+            let offset = 0;
+            let total = Infinity;
+            while (offset < total) {
+                const params = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
+                if (token) params.set('include_inactive', 'true');
+                const data = await requestJson(`/api/supermarket/products?${params.toString()}`, { token });
+                const page = data?.products || [];
+                all.push(...page);
+                total = Number.isFinite(Number(data?.total)) ? Number(data.total) : all.length;
+                offset += PAGE;
+                if (page.length < PAGE) break;
+            }
+            setProducts(all);
         } catch (err) {
             if (token && (err.status === 401 || err.status === 403)) {
                 try { sessionStorage.removeItem(TOKEN_KEY); } catch { /* noop */ }
