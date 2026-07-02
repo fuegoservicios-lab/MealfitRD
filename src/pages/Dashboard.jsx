@@ -2271,9 +2271,17 @@ const DashboardInner = () => {
             const _stableCost = _sumBucketCost(stables);
             const _cycleWeeks = duration === 'monthly' ? 4 : duration === 'biweekly' ? 2 : 1;
             const _fullCycleCost = _stableCost + _perishableCost * _cycleWeeks;
+            // [P1-BUDGET-COST-SSOT · 2026-07-02] Preferir el resumen del BACKEND (SSOT, mismo número
+            // que la reconciliación de presupuesto) cuando el plan lo trae; la re-suma local queda
+            // como fallback para planes legacy persistidos antes del fix.
+            const _backendCostSummary = planData?.shopping_cost_summary?.by_duration?.[duration] || null;
+            const _shopTotalCostFinal = (_backendCostSummary && typeof _backendCostSummary.trip_total_rd === 'number' && _backendCostSummary.trip_total_rd > 0)
+                ? _backendCostSummary.trip_total_rd : _shopTotalCost;
+            const _fullCycleCostFinal = (_backendCostSummary && typeof _backendCostSummary.cycle_total_rd === 'number' && _backendCostSummary.cycle_total_rd > 0)
+                ? _backendCostSummary.cycle_total_rd : _fullCycleCost;
             // Solo mostramos el segundo número cuando aporta info (ciclo > 1 semana y
             // de hecho cuesta más que la compra de esta semana).
-            const _showCycleCost = duration !== 'weekly' && _fullCycleCost > _shopTotalCost + 1;
+            const _showCycleCost = duration !== 'weekly' && _fullCycleCostFinal > _shopTotalCostFinal + 1;
 
             // [P1-PDF-3] Decisión centralizada de densidad y paginación.
             // El helper devuelve `isHyperDense` (≥60 items) y `multiPage` (≥80
@@ -2644,12 +2652,30 @@ const DashboardInner = () => {
                 ${_shopPricedCount > 0 ? `<div style="margin-top: 14px; padding: 11px 15px; background: linear-gradient(135deg,#ecfdf5,#f0fdf4); border: 1.5px solid #10b98133; border-radius: 9px; break-inside: avoid; page-break-inside: avoid;">
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
                         <div style="font-size: 12px; font-weight: 800; color: #065f46;">💵 ${_showCycleCost ? 'Esta compra <span style="font-weight: 600; color: #059669;">(frescos de 1 semana + despensa)</span>' : 'Total estimado del mercado'}</div>
-                        <span style="font-size: 19px; font-weight: 800; color: #047857; white-space: nowrap;">RD$${Math.round(_shopTotalCost).toLocaleString('es-DO')}</span>
+                        <span style="font-size: 19px; font-weight: 800; color: #047857; white-space: nowrap;">RD$${Math.round(_shopTotalCostFinal).toLocaleString('es-DO')}</span>
                     </div>
                     ${_showCycleCost ? `<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155;">
                         <div style="font-size: 11.5px; font-weight: 800; color: #065f46;">🛒 Costo real del ciclo de ${escapeHtml(durationText)}<div style="font-size: 9px; font-weight: 500; color: #059669; margin-top: 1px; letter-spacing: normal;">Despensa 1× + frescos recomprados ${_cycleWeeks}× (cada 7 días)</div></div>
-                        <span style="font-size: 18px; font-weight: 800; color: #065f46; white-space: nowrap;">RD$${Math.round(_fullCycleCost).toLocaleString('es-DO')}</span>
+                        <span style="font-size: 18px; font-weight: 800; color: #065f46; white-space: nowrap;">RD$${Math.round(_fullCycleCostFinal).toLocaleString('es-DO')}</span>
                     </div>` : ''}
+                    ${(() => {
+                        // [P1-BUDGET-RECONCILE · 2026-07-02] Estado honesto del presupuesto en el PDF:
+                        // compara el costo real del ciclo contra el presupuesto del formulario
+                        // (custom → monto; tiers → banda del piso de metas). Solo números + enum
+                        // internos (sin texto user-controlled) → sin riesgo XSS.
+                        const _br = planData?.budget_reconciliation;
+                        if (!_br || !_br.status || _br.status === 'sin_limite' || !_br.reference_rd) return '';
+                        const _est = Math.round(_br.estimated_cycle_rd || 0).toLocaleString('es-DO');
+                        const _ref = Math.round(_br.reference_rd).toLocaleString('es-DO');
+                        if (_br.status === 'dentro') {
+                            return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155; font-size: 11px; font-weight: 700; color: #047857;">✓ Dentro de tu presupuesto — RD$${_est} de RD$${_ref}</div>`;
+                        }
+                        if (_br.status === 'cerca') {
+                            return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f59e0b55; font-size: 11px; font-weight: 700; color: #92400e;">≈ Al límite de tu presupuesto — RD$${_est} de RD$${_ref}</div>`;
+                        }
+                        const _delta = Math.round(Math.max(0, _br.delta_rd || 0)).toLocaleString('es-DO');
+                        return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f8717155; font-size: 11px; font-weight: 700; color: #b91c1c;">▲ Supera tu presupuesto por RD$${_delta} — RD$${_est} de RD$${_ref}${_br.adjusted ? '<span style="font-weight:600; color:#92400e;"> · ya ajustamos ingredientes premium a equivalentes económicos</span>' : ''}</div>`;
+                    })()}
                 </div>` : ''}
                 ${clinicalNoteHTML}
                 <!-- Footer -->
@@ -4922,6 +4948,52 @@ const DashboardInner = () => {
                                 </div>
                             </div>
                         )}
+
+                        {/* [P1-BUDGET-RECONCILE · 2026-07-02] Estado honesto del presupuesto: costo real
+                            del ciclo (SSOT backend) vs el presupuesto del formulario. dentro=verde,
+                            cerca=ámbar, excedido=rojo + sustituciones/sugerencias de ahorro. */}
+                        {(() => {
+                            const _br = planData?.budget_reconciliation;
+                            if (!_br || !_br.status || _br.status === 'sin_limite' || !_br.reference_rd
+                                || isPlanExpired || planFinished || isPlanCorrupted) return null;
+                            const _fmtRD = (v) => `RD$${Math.round(v || 0).toLocaleString('es-DO')}`;
+                            const _palette = _br.status === 'dentro'
+                                ? { icon: '✓', bg: isDark ? 'rgba(16,185,129,0.10)' : '#ECFDF5', border: isDark ? 'rgba(52,211,153,0.35)' : '#A7F3D0', fg: isDark ? '#6EE7B7' : '#065F46' }
+                                : _br.status === 'cerca'
+                                    ? { icon: '≈', bg: isDark ? 'rgba(245,158,11,0.10)' : '#FFFBEB', border: isDark ? 'rgba(251,191,36,0.35)' : '#FDE68A', fg: isDark ? '#FCD34D' : '#92400E' }
+                                    : { icon: '▲', bg: isDark ? 'rgba(244,63,94,0.10)' : '#FEF2F2', border: isDark ? 'rgba(251,113,133,0.35)' : '#FECACA', fg: isDark ? '#FDA4AF' : '#991B1B' };
+                            const _headline = _br.status === 'dentro'
+                                ? `Dentro de tu presupuesto: ${_fmtRD(_br.estimated_cycle_rd)} de ${_fmtRD(_br.reference_rd)} por ciclo`
+                                : _br.status === 'cerca'
+                                    ? `Al límite de tu presupuesto: ${_fmtRD(_br.estimated_cycle_rd)} de ${_fmtRD(_br.reference_rd)} por ciclo`
+                                    : `Tu lista supera tu presupuesto por ${_fmtRD(Math.max(0, _br.delta_rd || 0))} (${_fmtRD(_br.estimated_cycle_rd)} de ${_fmtRD(_br.reference_rd)})`;
+                            const _subs = Array.isArray(_br.substitutions) ? _br.substitutions.slice(0, 3) : [];
+                            const _sugs = Array.isArray(_br.suggestions) ? _br.suggestions.slice(0, 3) : [];
+                            return (
+                                <div role="status" style={{
+                                    marginTop: '0.75rem', padding: '0.65rem 0.85rem',
+                                    background: _palette.bg, border: `1px solid ${_palette.border}`,
+                                    borderRadius: '0.75rem',
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                                        <span aria-hidden="true" style={{ fontWeight: 800, color: _palette.fg }}>{_palette.icon}</span>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: _palette.fg }}>{_headline}</span>
+                                    </div>
+                                    {_br.adjusted && _subs.length > 0 && (
+                                        <p style={{ margin: '0.35rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                                            Para cuidar tu bolsillo ajustamos: {_subs.join(' · ')}
+                                        </p>
+                                    )}
+                                    {_br.status === 'excedido' && _sugs.length > 0 && (
+                                        <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.1rem', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                                            {_sugs.map((s, i) => (
+                                                <li key={i}>{typeof s === 'string' ? s : (s && s.text) || ''}</li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            );
+                        })()}
 
                         {/* [P1-SUPERMARKET-MATCH · 2026-07-02] Marcas y precios reales del súper
                             por ítem de la lista (base Supermercado RD). Informativo — no toca
