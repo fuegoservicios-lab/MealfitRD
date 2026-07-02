@@ -2,13 +2,21 @@
     position: relative;
     background: var(--text-main);
     color: var(--text-light);
+    /* [P3-FOOTER-SCIENTIFIC · 2026-07-02] Hairline superior que separa el footer de la
+       página (antes se fundía con el fondo). */
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     /* [P3-SAFE-AREA-BOTTOM · 2026-05-31] env(safe-area-inset-bottom) para que el
        copyright no quede pegado al home-indicator en iPhones con notch. */
-    padding: 4.5rem 0 calc(2.25rem + env(safe-area-inset-bottom, 0px));
+    padding: 4rem 0 calc(2.25rem + env(safe-area-inset-bottom, 0px));
     margin-top: auto;
     overflow: hidden;
 }
 
+/* [P3-FOOTER-SCIENTIFIC · 2026-07-02] Los glows radiales indigo se reemplazan por la
+   cuadrícula "papel milimetrado" del lenguaje minimalista-científico (mismo motivo que
+   las figuras de /como-funciona y Novedades), a opacidad muy baja y desvaneciendo hacia
+   abajo para no competir con los enlaces. El fondo del footer es oscuro en ambos temas
+   (ver override APPEARANCE-THEME abajo) → puntos blancos funcionan siempre. */
 .footer::before {
     content: '';
     position: absolute;
@@ -16,9 +24,10 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: 
-        radial-gradient(circle at 80% 0%, rgba(79, 70, 229, 0.15) 0%, transparent 50%),
-        radial-gradient(circle at 20% 100%, rgba(79, 70, 229, 0.08) 0%, transparent 50%);
+    background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+    -webkit-mask-image: linear-gradient(to bottom, #000, transparent 80%);
+    mask-image: linear-gradient(to bottom, #000, transparent 80%);
     pointer-events: none;
     z-index: 0;
 }
@@ -171,6 +180,8 @@
     margin-bottom: 0;
 }
 
+/* [P3-FOOTER-SCIENTIFIC · 2026-07-02] Chip hairline (antes relleno indigo) — consistente
+   con el lenguaje minimalista-científico del resto del marketing. */
 .supportIcon {
     display: grid;
     place-items: center;
@@ -178,13 +189,15 @@
     height: 34px;
     border-radius: 10px;
     flex-shrink: 0;
-    background: rgba(129, 140, 248, 0.16);
+    background: transparent;
+    border: 1px solid rgba(129, 140, 248, 0.35);
     color: var(--primary-light);
-    transition: background 0.2s ease;
+    transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .supportLink:hover .supportIcon {
-    background: rgba(129, 140, 248, 0.28);
+    border-color: rgba(129, 140, 248, 0.7);
+    background: rgba(129, 140, 248, 0.1);
 }
 
 .supportNote {
@@ -206,8 +219,10 @@
     grid-column: 1 / -1;
     width: 100%;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
-    margin-top: 3.5rem;
-    padding-top: 2rem;
+    /* [P3-FOOTER-SCIENTIFIC · 2026-07-02] Ritmo vertical más apretado — antes quedaba
+       una banda de aire muerto entre las columnas y el divisor del copyright. */
+    margin-top: 2.5rem;
+    padding-top: 1.75rem;
     text-align: center;
     color: var(--text-light);
     font-size: 0.85rem;

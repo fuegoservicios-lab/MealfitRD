@@ -2,39 +2,15 @@ import { useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import styles from './News.module.css';
+import NewsFigure from '../components/news/NewsFigure';
 import { NEWS } from '../data/news';
 
 /* [P3-NEWS-SCIENTIFIC · 2026-07-02] Índice de Novedades (/novedades) en clave
    minimalista-científica (lenguaje P3-HOWITWORKS-PAGE-SCIENTIFIC): hero centrado,
-   último anuncio como "figura" line-art sobre papel milimetrado (pie "Fig. 01 —")
-   y registro de anuncios anteriores en filas hairline numeradas. Se alimenta del
-   SSOT data/news.js. `href` → destino propio; `badge` → rótulo central de la figura.
-   El <title>/description los fija RouteTitle. */
-
-/* Retícula de calibración: círculos concéntricos + ejes + marcas + arco de avance. */
-const FeaturedFigure = () => (
-    <svg
-        className={styles.figSvg}
-        viewBox="0 0 320 240"
-        preserveAspectRatio="xMidYMid meet"
-        aria-hidden="true"
-    >
-        <circle cx="160" cy="120" r="92" className={styles.figLine} />
-        <circle cx="160" cy="120" r="64" className={styles.figLine} />
-        <circle cx="160" cy="120" r="38" className={styles.figMuted} />
-        <line x1="24" y1="120" x2="296" y2="120" className={styles.figDash} />
-        <line x1="160" y1="8" x2="160" y2="232" className={styles.figDash} />
-        {[48, 68, 88, 232, 252, 272].map((x) => (
-            <line key={x} x1={x} y1="116" x2={x} y2="124" className={styles.figMuted} />
-        ))}
-        <circle cx="160" cy="28" r="3" className={styles.figDotAccent} />
-        <circle cx="225" cy="55" r="2.5" className={styles.figDot} />
-        <circle cx="252" cy="120" r="3" className={styles.figDotAccent} />
-        <circle cx="95" cy="185" r="2.5" className={styles.figDot} />
-        <circle cx="68" cy="120" r="3" className={styles.figDot} />
-        <path d="M 160 28 A 92 92 0 0 1 252 120" className={styles.figAccent} />
-    </svg>
-);
+   último anuncio como "figura" line-art sobre papel milimetrado (pie "Fig. 01 —",
+   componente compartido NewsFigure) y registro de anuncios anteriores en filas
+   hairline numeradas. Se alimenta del SSOT data/news.js. `href` → destino propio;
+   `badge` → rótulo central de la figura. El <title>/description los fija RouteTitle. */
 
 const NewsPage = () => {
     useLayoutEffect(() => { window.scrollTo(0, 0); }, []);
@@ -88,17 +64,10 @@ const NewsPage = () => {
                                 </span>
                             </div>
 
-                            <figure className={styles.featuredFigure} aria-hidden="true">
-                                <div className={`${styles.figCanvas} ${styles.gridPaper}`}>
-                                    <FeaturedFigure />
-                                    {featured.badge && (
-                                        <span className={styles.figBadge}>{featured.badge}</span>
-                                    )}
-                                </div>
-                                <figcaption className={styles.figCaption}>
-                                    Fig. 01 — Último anuncio
-                                </figcaption>
-                            </figure>
+                            <NewsFigure
+                                badge={featured.badge}
+                                caption="Fig. 01 — Último anuncio"
+                            />
                         </Link>
 
                         {/* anuncios anteriores — registro en filas hairline */}

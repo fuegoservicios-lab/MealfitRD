@@ -1,13 +1,15 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, ArrowUpRight, Sparkles } from 'lucide-react';
+import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import styles from './NewsHighlight.module.css';
+import NewsFigure from '../news/NewsFigure';
 import { NEWS } from '../../data/news';
 
-/* [P3-NEWS-1 · 2026-07-01 · rediseño 2026-07-01] Banda de "Novedades" del landing.
-   Estilo anuncio Anthropic/OpenAI: tarjeta destacada a dos columnas (editorial + cover
-   abstracto con la versión) + lista compacta de anteriores + enlace al índice. Se alimenta
-   del SSOT data/news.js (añadir noticia = actualiza solo). `href` → destino propio; `badge`
-   → texto grande del cover. */
+/* [P3-NEWS-1 · 2026-07-01 · rediseño científico 2026-07-02] Banda de "Novedades" del
+   landing en clave minimalista-científica (mismo lenguaje que /novedades): tarjeta
+   hairline a dos columnas (editorial + figura de calibración compartida NewsFigure
+   con pie "Fig. 01 —") + lista compacta de anteriores + enlace al índice. Se alimenta
+   del SSOT data/news.js (añadir noticia = actualiza solo). `href` → destino propio;
+   `badge` → rótulo central de la figura. */
 
 const NewsHighlight = () => {
     const featured = NEWS[0];
@@ -45,18 +47,11 @@ const NewsHighlight = () => {
                         <h2 className={styles.title}>{featured.title}</h2>
                         <p className={styles.excerpt}>{featured.excerpt}</p>
                         <span className={styles.cta}>
-                            Leer el anuncio <ArrowUpRight size={17} strokeWidth={2.5} />
+                            Leer el anuncio <ArrowUpRight size={16} strokeWidth={2.5} />
                         </span>
                     </div>
 
-                    {/* cover abstracto (CSS puro): retícula + glow + rings + versión */}
-                    <div className={styles.cover} aria-hidden="true">
-                        <span className={styles.coverGrid} />
-                        <span className={styles.coverGlow} />
-                        {featured.badge
-                            ? <span className={styles.coverBadge}>{featured.badge}</span>
-                            : <Sparkles size={46} strokeWidth={1.5} className={styles.coverIcon} />}
-                    </div>
+                    <NewsFigure badge={featured.badge} caption="Fig. 01 — Último anuncio" />
                 </Link>
 
                 {/* anuncios anteriores (si los hay) */}

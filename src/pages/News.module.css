@@ -21,13 +21,6 @@
     max-width: 720px;
 }
 
-/* cuadrícula "papel milimetrado" para la figura */
-.gridPaper {
-    background-image: radial-gradient(color-mix(in srgb, var(--text-main) 9%, transparent) 1px, transparent 1px);
-    background-size: 18px 18px;
-    background-position: center;
-}
-
 /* ─────────────── back link (artículo) ─────────────── */
 .back {
     display: inline-flex;
@@ -173,54 +166,7 @@
 }
 .featured:hover .featuredCta { gap: 0.7rem; }
 
-/* figura (der.) — line-art sobre papel milimetrado */
-.featuredFigure {
-    margin: 0;
-    min-width: 0;
-}
-.figCanvas {
-    position: relative;
-    height: 240px;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    overflow: hidden;
-}
-.figSvg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-.figBadge {
-    position: relative;
-    z-index: 1;
-    font-family: var(--font-heading);
-    font-weight: 800;
-    font-size: clamp(2rem, 3.6vw, 2.7rem);
-    letter-spacing: -0.04em;
-    color: var(--primary);
-}
-.figCaption {
-    margin-top: 0.7rem;
-    font-family: var(--font-heading);
-    font-size: 0.66rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text-light);
-    text-align: center;
-}
-
-/* clases de los elementos SVG (theme-aware) */
-.figLine { stroke: color-mix(in srgb, var(--text-muted) 45%, transparent); stroke-width: 1.2; fill: none; }
-.figMuted { stroke: color-mix(in srgb, var(--text-muted) 72%, transparent); stroke-width: 1.3; fill: none; }
-.figDash { stroke: color-mix(in srgb, var(--text-muted) 38%, transparent); stroke-width: 1.1; fill: none; stroke-dasharray: 3 3.5; }
-.figAccent { stroke: var(--primary); stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.figDot { fill: color-mix(in srgb, var(--text-muted) 55%, transparent); }
-.figDotAccent { fill: var(--primary); }
+/* (figura del destacado: componente compartido NewsFigure — components/news/) */
 
 /* ─────────────── separador "Registro" ─────────────── */
 .sep {
@@ -474,7 +420,6 @@
 /* ─────────────── responsive ─────────────── */
 @media (max-width: 760px) {
     .featured { grid-template-columns: 1fr; gap: 1.35rem; }
-    .figCanvas { height: 200px; }
     .row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 0.4rem; }
     .rowIndex { display: none; }
     .rowDate { grid-column: 1 / -1; margin-top: 0; }
