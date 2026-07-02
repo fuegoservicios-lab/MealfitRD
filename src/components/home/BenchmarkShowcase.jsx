@@ -1,34 +1,33 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Check, X, Minus, FlaskConical } from 'lucide-react';
+import { Cpu, Target, Layers, Check, X, Minus, TrendingUp, Activity, Gauge, Radio, FlaskConical } from 'lucide-react';
 import { APP_VERSION } from '../../config/appVersion';
 import SeeMoreLink from './SeeMoreLink';
 import styles from './BenchmarkShowcase.module.css';
 
-/* [P3-BENCHMARK-LAB · 2026-07-02] Rediseño: LÁMINA DE LABORATORIO. Reemplaza la consola
-   3D (radar + tilt + scanlines) por una lámina científica en el lenguaje minimalista
-   aprobado (hairlines, papel milimetrado, indigo único, pies "Fig. —"):
-   A · blanco de dispersión del error — el cluster de Mealfit (4 macros, ±1.5–3.2%)
-       apretado al centro vs el LLM solo en la zona achurada "fuera de banda". Es la
-       metáfora canónica de precisión (agrupación de impactos sobre diana calibrada).
-   B · barras A/B duales con los números exactos + tabla de capacidades.
-   C · regla de error por macro (MAPE) con marcadores tipo instrumento.
-   MISMOS datos reales del benchmark (N=8 jun 2026, sincronizados con /precision —
-   regla: las cifras viven en DOS sitios, cambiarlas en ambos). */
+/* [P3-BENCHMARK-RADAR · 2026-06-30] Rediseño RADICAL: RADAR DE PRECISIÓN. El corazón es
+   un radar/telaraña donde el polígono de Mealfit casi llena el gráfico y el de «LLM solo»
+   colapsa (sobre todo el 24% de planes-en-banda) — la brecha se ve de un vistazo. Ejes =
+   las 3 métricas del A/B (con dato real de AMBOS lados, honesto). Alrededor: los números
+   exactos + precisión por macro + capacidades + highlights. Mantiene el shell "instrumento"
+   (tilt 3D + scanlines) high-tech. Mismos datos REALES (benchmark N=8 jun 2026, motor
+   P3-MACRO-REBALANCE). «LLM solo» = A/B interno con el motor apagado. Precisión de MACROS. */
 
 const VERSION_SHORT = `V${String(APP_VERSION).split('.')[0]}`;
 
 const MACROS = [
-    { key: 'protein', label: 'Proteína', mape: 1.5 },
     { key: 'kcal', label: 'Calorías', mape: 2.0 },
     { key: 'fat', label: 'Grasas', mape: 3.1 },
     { key: 'carbs', label: 'Carbohidratos', mape: 3.2 },
+    { key: 'protein', label: 'Proteína', mape: 1.5 },
 ];
 
+// Ejes del radar = métricas Mealfit vs «LLM solo» (A/B con el motor apagado). Cada eje
+// tiene dato REAL de ambos lados. `axis` = etiqueta corta para el vértice.
 const VERSUS = [
-    { label: 'Precisión de proteína', mealfit: 98.5, llm: 84 },
-    { label: 'Los 4 macros en banda', mealfit: 91.7, llm: 24 },
-    { label: 'Macros que cuadran al recalcular', mealfit: 100, llm: 0 },
+    { label: 'Precisión de proteína', axis: 'Proteína', mealfit: 98.5, llm: 84 },
+    { label: 'Los 4 macros en banda', axis: '4 macros', mealfit: 91.7, llm: 24 },
+    { label: 'Macros que cuadran al recalcular', axis: 'Recalcular', mealfit: 100, llm: 0 },
 ];
 
 const CAPS = [
@@ -37,11 +36,10 @@ const CAPS = [
     { label: 'Coach que ajusta tu plan', llm: 'partial' },
 ];
 
-const STATS = [
-    { value: '3.8×', label: 'más precisos que un LLM solo' },
-    { value: '100%', label: 'planes con macros calculados, no a ojo' },
-    { value: '±3.2%', label: 'error medio en el peor macro' },
-    { value: '4', label: 'macros calibrados a la vez en cada comida' },
+const HIGHLIGHTS = [
+    { icon: Cpu, value: '100%', label: 'planes con macros calculados, no a ojo' },
+    { icon: Target, value: '±3.2%', label: 'error medio en el peor macro' },
+    { icon: Layers, value: '4', label: 'macros calibrados a la vez en cada comida' },
 ];
 
 /* Contador que sube de 0 al valor cuando entra en pantalla (IntersectionObserver +
@@ -76,94 +74,89 @@ function CountUp({ to, decimals = 1, suffix = '%', duration = 1600 }) {
     return <span ref={ref}>{text}{suffix}</span>;
 }
 
-/* ── Fig. 01 — blanco de dispersión del error ──
-   Escala radial NO lineal (raíz cuadrada, 0–±20%) para que el cluster de ±1.5–3.2%
-   sea legible junto al ±16% del LLM. Anillos en ±2/±5/±10/±20; la corona achurada
-   (>±10%) es la zona "fuera de banda" (banda = 90–112% del objetivo). */
-const CX = 180;
-const CY = 160;
-const R_MAX = 130;
-const ERR_MAX = 20;
-const rOf = (err) => R_MAX * Math.sqrt(err / ERR_MAX);
-const at = (err, deg) => {
-    const rad = (deg * Math.PI) / 180;
-    return [CX + rOf(err) * Math.cos(rad), CY + rOf(err) * Math.sin(rad)];
-};
+/* ── Radar de precisión (3 ejes = las 3 métricas del versus) ── */
+function PrecisionRadar() {
+    const reduce = useReducedMotion();
+    const cx = 210;
+    const cy = 176;
+    const R = 138;
+    const ang = (i) => ((-90 + i * 120) * Math.PI) / 180; // 0=arriba, +120 horario
+    const pt = (i, frac) => [cx + R * frac * Math.cos(ang(i)), cy + R * frac * Math.sin(ang(i))];
+    const ptA = (a, frac) => [cx + R * frac * Math.cos(a), cy + R * frac * Math.sin(a)];
+    const poly = (fracs) => fracs.map((f, i) => pt(i, f).join(',')).join(' ');
+    // barrido tipo scanner: cono de 52° desde el eje superior, gira sobre el radar.
+    const sweepLead = pt(0, 1);
+    const sweepTrail = ptA(ang(0) - (52 * Math.PI) / 180, 1);
 
-// Posiciones angulares fijas (deterministas) de los 4 macros de Mealfit sobre la diana.
-const MEALFIT_SHOTS = [
-    { err: 1.5, deg: -68 },   // proteína
-    { err: 2.0, deg: 160 },   // calorías
-    { err: 3.1, deg: 40 },    // grasas
-    { err: 3.2, deg: 250 },   // carbohidratos
-];
-const LLM_SHOT = at(16, 205); // proteína LLM solo: 100 − 84 = ±16% (medido)
+    const mealfit = VERSUS.map((v) => v.mealfit / 100);
+    const llm = VERSUS.map((v) => v.llm / 100);
+    const rings = [0.25, 0.5, 0.75, 1];
 
-function DispersionTarget() {
-    const rings = [2, 5, 10, 20];
-    const bandMid = (rOf(10) + R_MAX) / 2;
-    const bandWidth = R_MAX - rOf(10);
+    const grow = reduce
+        ? {}
+        : {
+            initial: { opacity: 0, scale: 0.4 },
+            whileInView: { opacity: 1, scale: 1 },
+            viewport: { once: true, amount: 0.5 },
+            style: { transformBox: 'fill-box', transformOrigin: 'center' },
+        };
+
     return (
-        <svg
-            viewBox="0 0 360 320"
-            className={styles.figSvg}
-            role="img"
-            aria-label="Blanco de dispersión: los 4 macros de Mealfit agrupados al centro (error ±1.5 a ±3.2%); el LLM solo cae en la zona fuera de banda (±16% en proteína)."
-        >
-            <defs>
-                <pattern id="bmLabHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                    <line x1="0" y1="0" x2="0" y2="6" className={styles.figHatch} />
-                </pattern>
-            </defs>
-
-            {/* corona "fuera de banda" (>±10%) */}
-            <circle cx={CX} cy={CY} r={bandMid} fill="none" stroke="url(#bmLabHatch)" strokeWidth={bandWidth} opacity="0.5" />
-            <text x="256" y="80" className={styles.figNote}>fuera de banda</text>
-
-            {/* ejes + anillos + escala */}
-            <line x1={CX - R_MAX - 12} y1={CY} x2={CX + R_MAX + 12} y2={CY} className={styles.figDash} />
-            <line x1={CX} y1={CY - R_MAX - 12} x2={CX} y2={CY + R_MAX + 12} className={styles.figDash} />
-            {rings.map((e) => <circle key={e} cx={CX} cy={CY} r={rOf(e)} className={styles.figLine} />)}
-            {rings.map((e) => (
-                <text key={`t${e}`} x={CX + 4} y={CY - rOf(e) - 4} className={styles.figTick}>±{e}%</text>
+        <svg viewBox="0 0 420 384" className={styles.radarSvg} role="img"
+            aria-label="Radar de precisión: el polígono de Mealfit casi llena el gráfico; el de un LLM solo colapsa.">
+            {/* grid concéntrico + ejes */}
+            {rings.map((g) => <polygon key={g} points={poly([g, g, g])} className={styles.radarGrid} />)}
+            {[0, 1, 2].map((i) => {
+                const [x, y] = pt(i, 1);
+                return <line key={i} x1={cx} y1={cy} x2={x} y2={y} className={styles.radarSpoke} />;
+            })}
+            {/* [P3-BENCHMARK-POLISH · 2026-07-02] Escala numérica de los anillos (25·50·75·100)
+                sobre el eje vertical — lectura de instrumento, no decoración. */}
+            {rings.map((g) => (
+                <text key={`t${g}`} x={cx + 7} y={cy - R * g + 3} className={styles.radarTick}>
+                    {Math.round(g * 100)}
+                </text>
             ))}
 
-            {/* cluster Mealfit: círculo del peor macro + impactos */}
-            <circle cx={CX} cy={CY} r={rOf(3.2)} className={styles.figCluster} />
-            <text x={CX + 56} y={CY - 42} className={styles.figClusterLabel}>±3.2%</text>
-            {MEALFIT_SHOTS.map((s) => {
-                const [x, y] = at(s.err, s.deg);
-                return <circle key={s.deg} cx={x} cy={y} r="4.5" className={styles.figShot} />;
-            })}
+            {/* LLM (atrás, colapsado) */}
+            <motion.polygon points={poly(llm)} className={styles.radarLlm}
+                {...grow} transition={reduce ? undefined : { duration: 0.9, delay: 0.45, ease: 'easeOut' }} />
+            {/* Mealfit (adelante, casi lleno) */}
+            <motion.polygon points={poly(mealfit)} className={styles.radarMealfit}
+                {...grow} transition={reduce ? undefined : { duration: 0.9, delay: 0.15, ease: [0.16, 1, 0.3, 1] }} />
 
-            {/* impacto del LLM solo (proteína, medido) */}
-            <circle cx={LLM_SHOT[0]} cy={LLM_SHOT[1]} r="4" className={styles.figShotLlm} />
-            <text x={LLM_SHOT[0] + 11} y={LLM_SHOT[1] - 5} className={styles.figNote}>
-                <tspan x={LLM_SHOT[0] + 11}>LLM solo</tspan>
-                <tspan x={LLM_SHOT[0] + 11} dy="11">proteína ±16%</tspan>
-            </text>
-        </svg>
-    );
-}
-
-/* Barra horizontal del duelo A/B (respeta prefers-reduced-motion). */
-function Bar({ value, llm = false, delay = 0 }) {
-    const reduce = useReducedMotion();
-    const cls = llm ? `${styles.duelFill} ${styles.duelFillLlm}` : styles.duelFill;
-    return (
-        <div className={styles.duelTrack}>
-            {reduce ? (
-                <div className={cls} style={{ width: `${value}%` }} />
-            ) : (
-                <motion.div
-                    className={cls}
-                    initial={{ width: 0 }}
-                    whileInView={{ width: `${value}%` }}
-                    viewport={{ once: true, amount: 0.6 }}
-                    transition={{ duration: 0.8, delay, ease: 'easeOut' }}
-                />
+            {/* barrido tipo radar (scanner) que gira sobre el gráfico */}
+            {!reduce && (
+                <g>
+                    <defs>
+                        <radialGradient id="hiwRadarSweep" cx={cx} cy={cy} r={R} gradientUnits="userSpaceOnUse">
+                            <stop offset="0" stopColor="#2DD4BF" stopOpacity="0.32" />
+                            <stop offset="1" stopColor="#2DD4BF" stopOpacity="0" />
+                        </radialGradient>
+                    </defs>
+                    <polygon points={`${cx},${cy} ${sweepLead.join(',')} ${sweepTrail.join(',')}`} fill="url(#hiwRadarSweep)" />
+                    <line x1={cx} y1={cy} x2={sweepLead[0]} y2={sweepLead[1]} className={styles.radarSweepEdge} />
+                    <animateTransform attributeName="transform" attributeType="XML" type="rotate"
+                        from={`0 ${cx} ${cy}`} to={`360 ${cx} ${cy}`} dur="4.5s" repeatCount="indefinite" />
+                </g>
             )}
-        </div>
+
+            {/* vértices */}
+            {llm.map((f, i) => { const [x, y] = pt(i, f); return <circle key={`l${i}`} cx={x} cy={y} r="3.5" className={styles.radarDotLlm} />; })}
+            {mealfit.map((f, i) => { const [x, y] = pt(i, f); return <circle key={`m${i}`} cx={x} cy={y} r="4.5" className={styles.radarDotMealfit} />; })}
+
+            {/* etiquetas de eje */}
+            {VERSUS.map((v, i) => {
+                const [x, y] = pt(i, 1.14);
+                const anchor = Math.abs(x - cx) < 6 ? 'middle' : (x > cx ? 'start' : 'end');
+                return (
+                    <text key={v.axis} x={x} y={y} className={styles.radarAxisLabel}
+                        textAnchor={anchor} dominantBaseline={y < cy ? 'auto' : 'hanging'}>
+                        {v.axis}
+                    </text>
+                );
+            })}
+        </svg>
     );
 }
 
@@ -171,142 +164,155 @@ const Mark = ({ v }) => (v === 'x'
     ? <X size={12} strokeWidth={2.5} />
     : <Minus size={12} strokeWidth={3} />);
 
-const RULER_MAX = 4; // escala de la regla C: 0 → ±4%
+const BenchmarkShowcase = () => {
+    const stageRef = useRef(null);
+    const consoleRef = useRef(null);
 
-const BenchmarkShowcase = () => (
-    <section className={styles.section} id="benchmarks">
-        <div className={styles.bgGrid} aria-hidden="true" />
+    // Tilt 3D siguiendo el mouse (solo desktop; touch → estático).
+    const onMove = (e) => {
+        const stage = stageRef.current;
+        const panel = consoleRef.current;
+        if (!stage || !panel) return;
+        const r = stage.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width - 0.5;
+        const y = (e.clientY - r.top) / r.height - 0.5;
+        panel.style.transform = `rotateX(${(-y * 4).toFixed(2)}deg) rotateY(${(x * 6).toFixed(2)}deg)`;
+    };
+    const onLeave = () => {
+        if (consoleRef.current) consoleRef.current.style.transform = 'rotateX(0deg) rotateY(0deg)';
+    };
 
-        <div className={styles.container}>
-            <div className={styles.header}>
-                <span className={styles.eyebrow}>
-                    <span className={styles.eyeDot} aria-hidden="true" />
-                    Benchmark · Mealfit {VERSION_SHORT}
-                </span>
-                <h2 className={styles.title}>
-                    Precisión que <span className={styles.titleAccent}>puedes medir</span>
-                </h2>
-                <p className={styles.subtitle}>
-                    No prometemos números — los medimos. Y los comparamos contra lo que hay afuera:
-                    pedirle un plan a un LLM, sin un motor que cuadre tus macros.
-                </p>
-            </div>
+    return (
+        <section className={styles.section} id="benchmarks">
+            <div className={styles.bgGrid} aria-hidden="true" />
 
-            {/* ── Lámina de laboratorio ── */}
-            <div className={styles.plate}>
-                <div className={styles.plateHead}>
-                    <span className={styles.plateKicker}>
-                        <span className={styles.plateDot} aria-hidden="true" />
-                        Banco de pruebas — A/B con y sin motor
+            <div className={styles.container}>
+                <div className={styles.header}>
+                    <span className={styles.modelBadge}>
+                        <span className={styles.modelDot} aria-hidden="true" />
+                        Mealfit {VERSION_SHORT}
                     </span>
-                    <span className={styles.plateVer}>Motor v{APP_VERSION} · medición continua</span>
+                    <h2 className={styles.title}>
+                        Precisión que <span className={styles.titleAccent}>puedes medir</span>
+                    </h2>
+                    <p className={styles.subtitle}>
+                        No prometemos números — los medimos. Y los comparamos contra lo que hay afuera:
+                        pedirle un plan a un LLM, sin un motor que cuadre tus macros.
+                    </p>
                 </div>
 
-                <div className={styles.plateGrid}>
-                    {/* A · dispersión del error */}
-                    <figure className={styles.panel}>
-                        <span className={styles.panelKicker}>A · Dispersión del error</span>
-                        <div className={`${styles.figCanvas} ${styles.gridPaper}`}>
-                            <DispersionTarget />
-                        </div>
-                        <div className={styles.figLegend}>
-                            <span className={styles.legendItem}><span className={styles.swatchMealfit} /> Mealfit · 4 macros</span>
-                            <span className={styles.legendItem}><span className={styles.swatchLlm} /> LLM solo</span>
-                            <span className={styles.legendItem}><span className={styles.swatchBand} /> fuera de banda</span>
-                        </div>
-                        <figcaption className={styles.figCaption}>
-                            Fig. 01 — Error medio por macro sobre diana calibrada (escala radial no lineal)
-                        </figcaption>
-                    </figure>
+                {/* ── Consola de telemetría (radar) ── */}
+                <div className={styles.stage} ref={stageRef} onMouseMove={onMove} onMouseLeave={onLeave}>
+                    <div className={styles.console} ref={consoleRef}>
+                        <div className={styles.scanlines} aria-hidden="true" />
 
-                    {/* B · resultados del A/B */}
-                    <div className={`${styles.panel} ${styles.panelRight}`}>
-                        <span className={styles.panelKicker}>B · Mealfit vs LLM solo</span>
-                        <div className={styles.duels}>
-                            {VERSUS.map((v, i) => (
-                                <div key={v.label} className={styles.duel}>
-                                    <span className={styles.duelLabel}>{v.label}</span>
-                                    <div className={styles.duelRow}>
-                                        <Bar value={v.mealfit} delay={0.1 + i * 0.08} />
-                                        <span className={styles.duelVal}>
-                                            <CountUp to={v.mealfit} decimals={v.mealfit === 100 ? 0 : 1} />
-                                        </span>
-                                    </div>
-                                    <div className={styles.duelRow}>
-                                        <Bar value={Math.max(v.llm, 1)} llm delay={0.18 + i * 0.08} />
-                                        <span className={`${styles.duelVal} ${styles.duelValLlm}`}>{v.llm}%</span>
-                                    </div>
+                        <div className={styles.consoleHead}>
+                            <span className={styles.live}>
+                                <span className={styles.liveDot} aria-hidden="true" /> MEDICIÓN EN VIVO
+                            </span>
+                            <span className={styles.consoleVer}><Radio size={11} strokeWidth={2.5} /> Motor v{APP_VERSION}</span>
+                            <span className={styles.consoleBadge}>
+                                <TrendingUp size={12} strokeWidth={2.75} /> 3.8× más precisos
+                            </span>
+                        </div>
+
+                        <div className={styles.consoleBody}>
+                            {/* Radar (izquierda) */}
+                            <div className={styles.radarCol}>
+                                <span className={styles.panelLabel}><Gauge size={12} strokeWidth={2.5} /> Mealfit vs LLM solo</span>
+                                <div className={styles.radarWrap}>
+                                    <PrecisionRadar />
                                 </div>
-                            ))}
-                        </div>
-
-                        {/* capacidades */}
-                        <div className={styles.caps}>
-                            <div className={styles.capsHead}>
-                                <span className={styles.panelKicker}>Capacidades</span>
-                                <span className={styles.capsLlmHead}>LLM solo</span>
+                                <div className={styles.legend}>
+                                    <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.legendMealfit}`} /> Mealfit</span>
+                                    <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.legendLlm}`} /> LLM solo</span>
+                                </div>
                             </div>
-                            {CAPS.map((c) => (
-                                <div key={c.label} className={styles.capRow}>
-                                    <span className={styles.capCheck}><Check size={13} strokeWidth={3} /></span>
-                                    <span className={styles.capLabel}>{c.label}</span>
-                                    <span className={styles.capLlm}><Mark v={c.llm} /></span>
+
+                            {/* Datos (derecha) */}
+                            <div className={styles.dataCol}>
+                                {/* versus — números exactos */}
+                                <div className={styles.versus}>
+                                    {VERSUS.map((v) => (
+                                        <div key={v.label} className={styles.vRow}>
+                                            <span className={styles.vLabel}>{v.label}</span>
+                                            <span className={styles.vVals}>
+                                                <span className={styles.vMealfit}><CountUp to={v.mealfit} decimals={v.mealfit === 100 ? 0 : 1} /></span>
+                                                <span className={styles.vVs}>vs</span>
+                                                <span className={styles.vLlm}>{v.llm}%</span>
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
+
+                                {/* precisión por macro */}
+                                <span className={styles.panelLabelSub}><Activity size={12} strokeWidth={2.5} /> Precisión por macro</span>
+                                <div className={styles.macroGrid}>
+                                    {MACROS.map((m) => {
+                                        const pct = Number((100 - m.mape).toFixed(1));
+                                        return (
+                                            <div key={m.key} className={styles.macroCell}>
+                                                <span className={styles.macroVal}><CountUp to={pct} decimals={1} /></span>
+                                                <span className={styles.macroLabel}>{m.label}</span>
+                                                <span className={styles.macroErr}>±{m.mape}%</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* capacidades — cabecera micro aclara de quién es la marca
+                                    de la derecha (antes los —/× quedaban sin columna). */}
+                                <div className={styles.caps}>
+                                    <div className={styles.capsHead}>
+                                        <span className={styles.panelLabelSub}>Capacidades</span>
+                                        <span className={styles.capsLlmHead}>LLM solo</span>
+                                    </div>
+                                    {CAPS.map((c) => (
+                                        <div key={c.label} className={styles.capRow}>
+                                            <span className={styles.capCheck}><Check size={13} strokeWidth={3} /></span>
+                                            <span className={styles.capLabel}>{c.label}</span>
+                                            <span className={styles.capLlm}><Mark v={c.llm} /></span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className={styles.highlights}>
+                            {HIGHLIGHTS.map((h) => {
+                                const Icon = h.icon;
+                                return (
+                                    <div key={h.label} className={styles.highlight}>
+                                        <span className={styles.highlightIcon} aria-hidden="true"><Icon size={16} strokeWidth={2.5} /></span>
+                                        <div className={styles.highlightText}>
+                                            <strong>{h.value}</strong>
+                                            <span>{h.label}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
 
-                {/* C · regla de error por macro */}
-                <div className={styles.rulerBlock}>
-                    <span className={styles.panelKicker}>C · Error medio por macro (MAPE)</span>
-                    <div className={styles.ruler}>
-                        <div className={styles.rulerLine} aria-hidden="true" />
-                        {[0, 1, 2, 3, 4].map((t) => (
-                            <span key={t} className={styles.rulerTick} style={{ left: `${(t / RULER_MAX) * 100}%` }}>
-                                <i aria-hidden="true" /><b>±{t}%</b>
-                            </span>
-                        ))}
-                        {MACROS.map((m, i) => (
-                            <span
-                                key={m.key}
-                                className={`${styles.marker} ${i % 2 ? styles.markerDown : styles.markerUp}`}
-                                style={{ left: `${(m.mape / RULER_MAX) * 100}%` }}
-                            >
-                                <span className={styles.markerLabel}>{m.label} ±{m.mape}%</span>
-                            </span>
-                        ))}
-                    </div>
+                <div className={styles.footnote}>
+                    <FlaskConical size={15} strokeWidth={2.25} className={styles.footnoteIcon} aria-hidden="true" />
+                    <p className={styles.footnoteText}>
+                        <strong>Metodología.</strong> Es una prueba A/B del mismo pipeline de generación, con y sin
+                        nuestro motor de optimización determinista — comparamos <strong>enfoques</strong>, no productos
+                        con nombre. «Sin motor (LLM solo)» es lo que obtienes al pedirle el plan directamente a un
+                        modelo de lenguaje, sin nada que cuadre tus macros. La precisión se mide con el{' '}
+                        <strong>MAPE</strong> (error absoluto porcentual medio); «en banda» = dentro del 90–112% del
+                        objetivo (95–105% en calorías). Son métricas de <strong>precisión de macros</strong> —qué tan
+                        cerca queda el plan de tus números—, no de corrección clínica, y no constituyen consejo médico.
+                        Medición continua sobre planes reales.
+                    </p>
                 </div>
-            </div>
 
-            {/* tira de lectura */}
-            <div className={styles.stats}>
-                {STATS.map((s) => (
-                    <div key={s.label} className={styles.stat}>
-                        <span className={styles.statNum}>{s.value}</span>
-                        <span className={styles.statLabel}>{s.label}</span>
-                    </div>
-                ))}
+                <SeeMoreLink to="/precision">Ver la metodología completa</SeeMoreLink>
             </div>
-
-            <div className={styles.footnote}>
-                <FlaskConical size={15} strokeWidth={2.25} className={styles.footnoteIcon} aria-hidden="true" />
-                <p className={styles.footnoteText}>
-                    <strong>Metodología.</strong> Es una prueba A/B del mismo pipeline de generación, con y sin
-                    nuestro motor de optimización determinista — comparamos <strong>enfoques</strong>, no productos
-                    con nombre. «Sin motor (LLM solo)» es lo que obtienes al pedirle el plan directamente a un
-                    modelo de lenguaje, sin nada que cuadre tus macros. La precisión se mide con el{' '}
-                    <strong>MAPE</strong> (error absoluto porcentual medio); «en banda» = dentro del 90–112% del
-                    objetivo (95–105% en calorías). Son métricas de <strong>precisión de macros</strong> —qué tan
-                    cerca queda el plan de tus números—, no de corrección clínica, y no constituyen consejo médico.
-                    Medición continua sobre planes reales.
-                </p>
-            </div>
-
-            <SeeMoreLink to="/precision">Ver la metodología completa</SeeMoreLink>
-        </div>
-    </section>
-);
+        </section>
+    );
+};
 
 export default BenchmarkShowcase;
