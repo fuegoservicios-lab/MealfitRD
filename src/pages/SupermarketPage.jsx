@@ -372,11 +372,11 @@ const SupermarketPage = () => {
     };
 
     const variantCountLabel = (g) => {
-        const pres = `${g.items.length} presentaci${g.items.length === 1 ? 'ón' : 'ones'}`;
+        const variantes = `${g.items.length} variante${g.items.length === 1 ? '' : 's'}`;
         const marcas = g.brandCount > 0
             ? `${g.brandCount} marca${g.brandCount === 1 ? '' : 's'}`
             : 'genérico';
-        return `${pres} · ${marcas}`;
+        return `${variantes} · ${marcas}`;
     };
 
     /* ── admin ── */
