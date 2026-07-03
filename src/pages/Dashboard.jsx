@@ -3390,9 +3390,15 @@ const DashboardInner = () => {
                 /* [P3-NEVERA-NOTICE-NO-DEFORM · 2026-06-24] Cap del ancho de la
                    columna de controles. El aviso verde de la Nevera (texto largo)
                    estiraba el dropdown + botones a su ancho de una sola línea; con
-                   el cap, el aviso hace wrap dentro y los controles no se deforman. */
+                   el cap, el aviso hace wrap dentro y los controles no se deforman.
+                   [P3-BRANDS-WIDTH-STABLE · 2026-07-02] width FIJO (no solo cap):
+                   antes el ancho lo dictaba el contenido, y al abrir "Marcas del
+                   súper" el label crecía ("· 39 de 41 ítems…") → la columna entera
+                   saltaba de ancho. Ahora siempre mide 420px en desktop (el media
+                   query ≤768px lo pone full-width). */
                 .new-plan-wrapper {
-                    max-width: 420px;
+                    width: 420px;
+                    max-width: 100%;
                 }
                 /* [P3-NEVERA-NOTICE-CENTER-MOBILE · 2026-06-24] El chip del aviso de
                    la Nevera va a la izquierda en PC; en móvil, centrado. */

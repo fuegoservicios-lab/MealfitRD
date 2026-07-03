@@ -243,7 +243,10 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
                 }}
             >
                 <Store size={15} style={{ flexShrink: 0, color: 'var(--text-muted)' }} aria-hidden="true" />
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, flex: 1 }}>
+                {/* [P3-BRANDS-WIDTH-STABLE · 2026-07-02] nowrap+ellipsis: el sufijo
+                    "· N de M ítems · N elegidas" no puede partir la barra en 2 líneas
+                    ni empujar el ancho de la columna (ahora fija en 420px desktop). */}
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     Marcas y precios del súper
                     {matches && (
                         <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>
