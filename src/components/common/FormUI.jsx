@@ -39,7 +39,14 @@ export const RadioCard = ({ name, value, checked, onChange, onClick, label, icon
             onChange={onChange}
             className={styles.radioHidden}
         />
-        {Icon && <Icon className={styles.icon} size={28} strokeWidth={checked ? 2.5 : 1.5} />}
+        {/* [FORM-VISUAL-V2 · 2026-07-02] El icono vive en un chip circular que se
+            llena de primary al seleccionar — mismo lenguaje que DietOption en
+            InteractiveQuestions, antes el icono iba "flotando" sin contenedor. */}
+        {Icon && (
+            <span className={styles.iconChip} aria-hidden="true">
+                <Icon className={styles.icon} size={24} strokeWidth={checked ? 2.5 : 1.75} />
+            </span>
+        )}
         <div className={styles.radioTextContent}>
             <span className={styles.radioLabel}>{label}</span>
             {desc && <span className={styles.radioDesc}>{desc}</span>}

@@ -13,7 +13,9 @@
     width: 100%;
     padding: 1rem 1.25rem;
     border: 1px solid var(--border);
-    border-radius: 0.75rem;
+    /* [FORM-VISUAL-V2 · 2026-07-02] Radius alineado con las cards (1rem) y hover
+       de borde para affordance antes del focus. */
+    border-radius: 1rem;
     font-family: var(--font-body);
     font-size: 1rem;
     font-weight: 500;
@@ -21,6 +23,12 @@
     background: #FAFAFA;
     transition: all 0.25s ease;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.input:hover:not(:disabled):not(:focus),
+.select:hover:not(:disabled):not(:focus),
+.textarea:hover:not(:disabled):not(:focus) {
+    border-color: #CBD5E1;
 }
 
 /* [P3-FORM-TEXTAREA-STYLE · 2026-06-23] El componente TextArea referenciaba
@@ -95,13 +103,66 @@
     box-shadow: 0 4px 15px rgba(37, 99, 235, 0.15);
 }
 
+/* [FORM-VISUAL-V2 · 2026-07-02] Badge de confirmación en la esquina de la card
+   seleccionada — el check entra con scale-in. El glyph ✓ va en font-weight alto
+   sobre círculo primary. */
+.radioCard::after {
+    /* alt-text vacío: el estado ya lo anuncia el radio nativo; el ✓ es decorativo */
+    content: '✓' / '';
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 900;
+    line-height: 20px;
+    text-align: center;
+    transform: scale(0);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.radioCard.checked::after {
+    transform: scale(1);
+}
+
+/* [FORM-VISUAL-V2 · 2026-07-02] Anillo de foco de teclado: el radio real está
+   oculto (.radioHidden), así que el ring va en la card contenedora. :has() con
+   :focus-visible → solo teclado, no click. */
+.radioCard:has(.radioHidden:focus-visible) {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.45);
+}
+
+/* [FORM-VISUAL-V2 · 2026-07-02] Chip circular del icono — se llena de primary al
+   seleccionar (mismo lenguaje que DietOption). */
+.iconChip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--bg-muted);
+    transition: all 0.25s ease;
+    flex: none;
+}
+
+.radioCard.checked .iconChip {
+    background: var(--primary);
+    box-shadow: 0 6px 16px -4px rgba(79, 70, 229, 0.5);
+}
+
 .icon {
     color: var(--text-muted);
     transition: color 0.2s;
 }
 
 .radioCard.checked .icon {
-    color: var(--primary);
+    color: #fff;
 }
 
 .radioTextContent {
@@ -127,8 +188,14 @@
     line-height: 1.3;
 }
 
+/* [FORM-VISUAL-V2 · 2026-07-02] Antes display:none — un input display:none sale
+   del tab order y el Checkbox era INOPERABLE por teclado. Mismo patrón
+   visually-hidden que .radioHidden: invisible pero enfocable. */
 .checkboxInput {
-    display: none;
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
 }
 
 .checkboxWrapper {
@@ -140,11 +207,28 @@
     border-radius: 1rem;
     cursor: pointer;
     transition: all 0.25s ease;
+    /* Ancla del input visually-hidden (evita scroll-jump al enfocarlo). */
+    position: relative;
 }
 
 .checkboxWrapper:hover {
     background: #FAFAFA;
     border-color: #CBD5E1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* [FORM-VISUAL-V2 · 2026-07-02] El CONTENEDOR también refleja el estado marcado
+   (antes solo cambiaba el cuadradito interno — a un vistazo no se distinguía qué
+   filas estaban activas). Ring de teclado análogo al de .radioCard. */
+.checkboxWrapper:has(.checkboxInput:checked) {
+    background: rgba(37, 99, 235, 0.04);
+    border-color: var(--primary);
+}
+
+.checkboxWrapper:has(.checkboxInput:focus-visible) {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.45);
 }
 
 .checkboxCustom {
@@ -245,4 +329,21 @@
 
 :global(html[data-theme="dark"]) .checkboxCustom {
     border-color: var(--border);
+}
+
+/* [FORM-VISUAL-V2 · 2026-07-02] Oscuro: hover de inputs, chip del icono, tint del
+   checkbox marcado y glow del chip seleccionado. */
+:global(html[data-theme="dark"]) .input:hover:not(:disabled):not(:focus),
+:global(html[data-theme="dark"]) .select:hover:not(:disabled):not(:focus),
+:global(html[data-theme="dark"]) .textarea:hover:not(:disabled):not(:focus) {
+    border-color: var(--text-light);
+}
+
+:global(html[data-theme="dark"]) .radioCard.checked .iconChip {
+    box-shadow: 0 6px 18px -4px rgba(129, 140, 248, 0.55);
+}
+
+:global(html[data-theme="dark"]) .checkboxWrapper:has(.checkboxInput:checked) {
+    background: rgba(129, 140, 248, 0.08);
+    border-color: var(--primary);
 }

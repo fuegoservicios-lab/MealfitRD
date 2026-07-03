@@ -30,9 +30,13 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                         Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
                     </div>
                     
-                    {/* [P3-ASSESSMENT-NO-CANCEL · 2026-07-01] Botón «Cancelar» eliminado a pedido;
-                        spacer para conservar el centrado del logo (header 3-col space-between). */}
-                    <div className={styles.backSpacer} />
+                    {/* [P3-ASSESSMENT-NO-CANCEL · 2026-07-01] Botón «Cancelar» eliminado a pedido.
+                        [FORM-VISUAL-V2 · 2026-07-02] El hueco derecho ahora muestra el contador
+                        de paso (el grid 3-col del header conserva el logo centrado). */}
+                    <div className={styles.stepPill}>
+                        <span className={styles.stepPillCurrent}>{currentStep + 1}</span>
+                        <span className={styles.stepPillTotal}>/ {totalSteps}</span>
+                    </div>
                 </div>
                 
                 {/* Progress Bar under header */}
@@ -60,6 +64,11 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                             transition={{ duration: 0.3 }}
                             className={styles.titleSection}
                         >
+                            {/* [FORM-VISUAL-V2 · 2026-07-02] Kicker de contexto sobre el
+                                título — orienta cuánto falta sin mirar el header. */}
+                            <span className={styles.kicker}>
+                                Paso {currentStep + 1} de {totalSteps}
+                            </span>
                             {title && <h1 className={styles.title}>{title}</h1>}
                             {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
                         </motion.div>
