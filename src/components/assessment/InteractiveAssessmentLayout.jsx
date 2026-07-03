@@ -7,9 +7,25 @@ import { ChevronLeft } from 'lucide-react';
 import styles from './InteractiveAssessmentLayout.module.css';
 
 const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle }) => {
-    const { currentStep, prevStep } = useAssessment();
+    const { currentStep, prevStep, resetApp, isGuest, exitGuestSession } = useAssessment();
     const navigate = useNavigate();
     const progress = (currentStep / (totalSteps - 1)) * 100;
+
+    // [FORM-BACK-TO-LOGIN · 2026-07-03] navigate('/login') a secas NO llega: el guard
+    // redirect-if-session de Login.jsx (:211) rebota a "/" mientras haya sesión/guest
+    // activo. Mismo teardown del logout canónico (DashboardLayout.handleLogoutConfirm):
+    // guest → exitGuestSession; autenticado → resetApp (limpia session síncrono) →
+    // /login ya no rebota.
+    const handleBackToLogin = async () => {
+        try {
+            if (isGuest) {
+                exitGuestSession();
+            } else {
+                await resetApp();
+            }
+        } catch { /* teardown best-effort — navegar igual */ }
+        navigate('/login', { replace: true });
+    };
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -26,11 +42,11 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                         </button>
                     ) : (
                         /* [FORM-BACK-TO-LOGIN · 2026-07-03] En el PASO 1 no había forma de salir del
-                           wizard en móvil (sin nav visible) → botón de volver al login. SOLO móvil:
-                           en desktop el CSS lo oculta con visibility (conserva el ancho del grid
-                           3-col para no descentrar el logo). */
+                           wizard en móvil (sin nav visible) → botón de volver al login (con teardown
+                           de sesión — ver handleBackToLogin). SOLO móvil: en desktop el CSS lo oculta
+                           con visibility (conserva el ancho del grid 3-col, logo centrado). */
                         <button
-                            onClick={() => navigate('/login')}
+                            onClick={handleBackToLogin}
                             className={`${styles.backBtn} ${styles.backToLogin}`}
                             aria-label="Volver al inicio de sesión"
                         >
