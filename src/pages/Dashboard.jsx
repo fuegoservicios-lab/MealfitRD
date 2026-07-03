@@ -1,4 +1,8 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+// [UX-DURATION-PANEL-BACKDROP · 2026-07-03] Portal a <body> para el backdrop con blur del panel
+// duración/presupuesto (position:fixed dentro del árbol se rompería si un ancestro framer-motion
+// conserva un transform — el portal lo hace inmune a eso).
+import { createPortal } from 'react-dom';
 import { useAssessment } from '../context/AssessmentContext';
 import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
@@ -4304,7 +4308,34 @@ const DashboardInner = () => {
                     <div className="new-plan-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'stretch' }}>
 
                         {/* INDICADOR COMPACTO: Despensa + Personas (Híbrido) */}
-                        <div ref={despensaDropdownRef} style={{ position: 'relative' }}>
+                        {/* [UX-DURATION-PANEL-BACKDROP · 2026-07-03] zIndex 9999 al abrir: el trigger y el
+                            panel quedan POR ENCIMA del backdrop blurreado (nítidos); cerrado vuelve a auto
+                            para no interferir con otros overlays del dashboard. */}
+                        <div ref={despensaDropdownRef} style={{ position: 'relative', zIndex: showDespensaDropdown ? 9999 : 'auto' }}>
+                            {/* [UX-DURATION-PANEL-BACKDROP · 2026-07-03] Backdrop fijo con blur al abrir el
+                                panel: desenfoca el resto del dashboard y enfoca el menú. Portal a <body>
+                                (inmune a ancestros con transform). SIEMPRE montado con transición de opacity
+                                (fade simétrico abrir/cerrar sin depender de AnimatePresence-en-portal, que no
+                                maneja bien los exits); pointerEvents solo al abrir. Click en el fondo cierra.
+                                Blur constante + fade de opacity = sin el flicker histórico del blur animado
+                                (P3-DURATION-DROPDOWN-OPEN-FLUID: aquel era backdrop-filter EN el panel con
+                                spring+scale; esto es un overlay estático que solo funde opacidad). */}
+                            {createPortal(
+                                <div
+                                    aria-hidden="true"
+                                    onClick={() => setShowDespensaDropdown(false)}
+                                    style={{
+                                        position: 'fixed', inset: 0, zIndex: 9998,
+                                        background: isDark ? 'rgba(2, 6, 23, 0.45)' : 'rgba(15, 23, 42, 0.22)',
+                                        backdropFilter: 'blur(5px)',
+                                        WebkitBackdropFilter: 'blur(5px)',
+                                        opacity: showDespensaDropdown ? 1 : 0,
+                                        pointerEvents: showDespensaDropdown ? 'auto' : 'none',
+                                        transition: 'opacity 0.2s ease',
+                                    }}
+                                />,
+                                document.body
+                            )}
                             {/* Compact Trigger Row */}
                             <div
                                 onClick={() => setShowDespensaDropdown(!showDespensaDropdown)}
