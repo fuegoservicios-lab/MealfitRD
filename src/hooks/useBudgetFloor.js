@@ -21,7 +21,10 @@ export function useBudgetFloor(formData) {
     // Fallback estático (sin red): piso a la caloría de referencia, mismo SSOT que el gate base.
     const staticMin = minBudgetFor(currency, groceryDuration);
 
-    const [result, setResult] = useState({ min: staticMin, isPersonalized: false, targetCalories: null });
+    // [P2-AUDIT-V6-BATCH · 2026-07-03] (P2-I) tierReferences: referencia estimada por ciclo de cada
+    // tier categórico (piso × banda low/medium/high, misma fórmula del banner del Dashboard) para
+    // mostrarla al ELEGIR el tier — el usuario ya no descubre un "RD$Y" que nunca declaró.
+    const [result, setResult] = useState({ min: staticMin, isPersonalized: false, targetCalories: null, tierReferences: null });
     const debounceRef = useRef(null);
 
     // Key estable: solo re-pedimos cuando cambia un campo que mueve el piso.
@@ -32,7 +35,7 @@ export function useBudgetFloor(formData) {
         // [P1-DASH-BUDGET-AUTOFILL · 2026-06-23] isPersonalized=false hasta que llegue el valor
         // real del backend para ESTOS inputs → el Dashboard espera ese flanco para auto-marcar el
         // monto al mínimo PERSONALIZADO de la nueva duración (no al estático).
-        setResult((r) => ({ ...r, min: staticMin, isPersonalized: false }));
+        setResult((r) => ({ ...r, min: staticMin, isPersonalized: false, tierReferences: null }));
         if (debounceRef.current) clearTimeout(debounceRef.current);
         let cancelled = false;
         debounceRef.current = setTimeout(async () => {
@@ -55,6 +58,7 @@ export function useBudgetFloor(formData) {
                     min: data.min_budget,
                     isPersonalized: true,
                     targetCalories: data.target_calories ?? null,
+                    tierReferences: data.tier_references ?? null,
                 });
             } catch {
                 /* red caída → conservar el estático */

@@ -2666,7 +2666,10 @@ const DashboardInner = () => {
                         const _br = planData?.budget_reconciliation;
                         if (!_br || !_br.status || _br.status === 'sin_limite' || !_br.reference_rd) return '';
                         const _est = Math.round(_br.estimated_cycle_rd || 0).toLocaleString('es-DO');
-                        const _ref = Math.round(_br.reference_rd).toLocaleString('es-DO');
+                        // [P2-AUDIT-V6-BATCH · 2026-07-03] (P2-I) tiers categóricos → RD$Y es piso×banda
+                        // (número no declarado por el usuario) → etiquetado "referencia estimada" (paridad app).
+                        const _ref = Math.round(_br.reference_rd).toLocaleString('es-DO')
+                            + (_br.basis && _br.basis !== 'custom' ? ' (referencia estimada)' : '');
                         // [P2-AUDIT-V5-BATCH GAP-06] Caveat de cobertura parcial (solo números backend → sin XSS).
                         const _pp = _br.partial_pricing
                             ? `<span style="font-weight:600; color:#92400e;"> · estimado parcial (${Math.round((_br.price_coverage || 0) * 100)}% con precio)</span>`
@@ -4972,11 +4975,16 @@ const DashboardInner = () => {
                                 : _br.status === 'cerca'
                                     ? { icon: '≈', bg: isDark ? 'rgba(245,158,11,0.10)' : '#FFFBEB', border: isDark ? 'rgba(251,191,36,0.35)' : '#FDE68A', fg: isDark ? '#FCD34D' : '#92400E' }
                                     : { icon: '▲', bg: isDark ? 'rgba(244,63,94,0.10)' : '#FEF2F2', border: isDark ? 'rgba(251,113,133,0.35)' : '#FECACA', fg: isDark ? '#FDA4AF' : '#991B1B' };
+                            // [P2-AUDIT-V6-BATCH · 2026-07-03] (P2-I) para tiers categóricos (low/medium/high)
+                            // el RD$Y es piso×banda — un número que el usuario NUNCA declaró. Etiquetarlo
+                            // "referencia estimada" evita que se lea como un techo que él puso. Custom = su monto.
+                            const _refIsEstimated = _br.basis && _br.basis !== 'custom';
+                            const _refLabel = `${_fmtRD(_br.reference_rd)}${_refIsEstimated ? ' (referencia estimada)' : ''}`;
                             const _headline = _br.status === 'dentro'
-                                ? `Dentro de tu presupuesto: ${_fmtRD(_br.estimated_cycle_rd)} de ${_fmtRD(_br.reference_rd)} por ciclo`
+                                ? `Dentro de tu presupuesto: ${_fmtRD(_br.estimated_cycle_rd)} de ${_refLabel} por ciclo`
                                 : _br.status === 'cerca'
-                                    ? `Al límite de tu presupuesto: ${_fmtRD(_br.estimated_cycle_rd)} de ${_fmtRD(_br.reference_rd)} por ciclo`
-                                    : `Tu lista supera tu presupuesto por ${_fmtRD(Math.max(0, _br.delta_rd || 0))} (${_fmtRD(_br.estimated_cycle_rd)} de ${_fmtRD(_br.reference_rd)})`;
+                                    ? `Al límite de tu presupuesto: ${_fmtRD(_br.estimated_cycle_rd)} de ${_refLabel} por ciclo`
+                                    : `Tu lista supera tu presupuesto por ${_fmtRD(Math.max(0, _br.delta_rd || 0))} (${_fmtRD(_br.estimated_cycle_rd)} de ${_refLabel})`;
                             const _subs = Array.isArray(_br.substitutions) ? _br.substitutions.slice(0, 3) : [];
                             const _sugs = Array.isArray(_br.suggestions) ? _br.suggestions.slice(0, 3) : [];
                             return (

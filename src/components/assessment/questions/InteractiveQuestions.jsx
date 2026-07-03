@@ -697,8 +697,16 @@ export const QBudget = ({ onAutoAdvance }) => {
     // estático mientras carga / si falla. Lo sincronizamos a `_budgetFloorMin` para que el gate
     // "Siguiente Paso" (validateExtra del flow) use EXACTAMENTE el mismo piso que mostramos
     // (evita "warning pero puede avanzar" → luego 422 del backend).
-    const { min: minBudget, isPersonalized: budgetIsPersonalized } = useBudgetFloor(formData);
+    const { min: minBudget, isPersonalized: budgetIsPersonalized, tierReferences } = useBudgetFloor(formData);
     const cycleDays = budgetCycleDays(formData.groceryDuration);
+    // [P2-AUDIT-V6-BATCH · 2026-07-03] (P2-I) Referencia estimada por ciclo de cada tier categórico
+    // (misma fórmula piso×banda del banner del Dashboard) → el usuario ve el "RD$Y" contra el que
+    // se comparará su plan ANTES de elegir el tier, en vez de descubrirlo en el banner.
+    const tierRefLabel = (val) => {
+        const ref = tierReferences && tierReferences[val];
+        if (!ref || !(ref > 0)) return null;
+        return `≈ ${currencySymbol}${Number(ref).toLocaleString('en-US')} / ${cycleDays} días (referencia estimada)`;
+    };
     useEffect(() => {
         if (Number(formData._budgetFloorMin) !== Number(minBudget)) {
             updateData('_budgetFloorMin', minBudget);
@@ -718,7 +726,9 @@ export const QBudget = ({ onAutoAdvance }) => {
                     { val: 'unlimited', label: 'Sin límite', desc: 'Sin restricciones', icon: InfinityIcon }
                 ].map(opt => (
                     <RadioCard
-                        key={opt.val} name="budget" value={opt.val} label={opt.label} desc={opt.desc} icon={opt.icon}
+                        key={opt.val} name="budget" value={opt.val} label={opt.label}
+                        desc={tierRefLabel(opt.val) ? `${opt.desc} · ${tierRefLabel(opt.val)}` : opt.desc}
+                        icon={opt.icon}
                         checked={formData.budget === opt.val}
                         onChange={(e) => { updateData('budget', e.target.value); onAutoAdvance(); }}
                         onClick={() => { if (formData.budget === opt.val) onAutoAdvance(); }}

@@ -7,6 +7,10 @@
  *   - `_slot_advisory`              → el plato quedó fuera de su horario (arroz de noche, etc.).
  *   - `_appetibility_combo_warning` → combinación inusual (fruta dulce + base salada).
  *   - `_macro_band_low`             → el plato editado quedó fuera de la banda del macro objetivo (>15%).
+ *   - `_name_honesty_degraded`      → [P2-AUDIT-V6-BATCH · 2026-07-03] el nombre lidera con una
+ *                                     proteína que el plato no trae y no hubo reemplazo honesto.
+ *   - `_recipe_contract_advisory`   → [P2-AUDIT-V6-BATCH · 2026-07-03] pasos de receta incompletos
+ *                                     (prefijos/orden/tiempo) tras los backstops.
  *
  * NINGUNO bloquea — son informativos (el usuario puede regenerar/cambiar el plato). Pre-fix el backend
  * los calculaba y persistía pero el frontend NUNCA los mostraba, mientras que señales hermanas (banner de
@@ -27,6 +31,12 @@ export function getMealAdvisories(meal) {
   }
   if (meal._macro_band_low) {
     out.push({ key: 'macro_band', label: 'Macros algo fuera de la banda objetivo' });
+  }
+  if (meal._name_honesty_degraded) {
+    out.push({ key: 'name_honesty', label: 'El nombre puede no reflejar la proteína real' });
+  }
+  if (meal._recipe_contract_advisory) {
+    out.push({ key: 'recipe_contract', label: 'Receta con pasos incompletos — regenera para detalle' });
   }
   return out;
 }
