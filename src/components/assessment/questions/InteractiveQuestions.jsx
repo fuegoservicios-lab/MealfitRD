@@ -27,7 +27,7 @@ import {
     Mars, Venus,
     Battery, BatteryFull, BatteryMedium, BatteryLow, BatteryWarning,
     Clock, ChefHat,
-    Wallet, Banknote, Landmark, Infinity as InfinityIcon, Utensils, SlidersHorizontal,
+    Wallet, Banknote, Landmark, Infinity as InfinityIcon, UtensilsCrossed, Vegan, SlidersHorizontal,
     Leaf, Salad, Zap,
     Flame, BicepsFlexed, Scale, Gauge,
     AlertTriangle, Frown, Users, XCircle, HelpCircle,
@@ -105,7 +105,10 @@ const DietOption = ({ val, label, icon: Icon, desc, isSelected, onSelect }) => (
             transition: 'all 0.2s ease', position: 'relative'
         }}
     >
-        <div style={{ padding: '0.75rem', borderRadius: '50%', background: isSelected ? 'var(--primary)' : 'var(--bg-muted)', color: isSelected ? 'white' : 'var(--text-muted)' }}>
+        {/* [FORM-ICON-CIRCLE-CENTER · 2026-07-03] display:flex + centrado: sin esto el
+            SVG inline se asienta en la baseline de texto y el line-height agrega espacio
+            fantasma debajo → el círculo se vuelve óvalo y el icono queda descentrado. */}
+        <div style={{ padding: '0.75rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isSelected ? 'var(--primary)' : 'var(--bg-muted)', color: isSelected ? 'white' : 'var(--text-muted)' }}>
             <Icon size={24} />
         </div>
         <div>
@@ -152,7 +155,8 @@ const GoalCard = ({ val, label, icon: Icon, color, isSelected, onSelect }) => (
             position: 'relative'
         }}
     >
-        <div style={{ padding: '0.75rem', borderRadius: '50%', background: isSelected ? color : 'var(--bg-muted)', color: isSelected ? 'white' : 'var(--text-muted)' }}>
+        {/* [FORM-ICON-CIRCLE-CENTER · 2026-07-03] mismo fix de centrado que DietOption. */}
+        <div style={{ padding: '0.75rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isSelected ? color : 'var(--bg-muted)', color: isSelected ? 'white' : 'var(--text-muted)' }}>
             <Icon size={28} />
         </div>
         <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.95rem' }}>{label}</span>
@@ -686,10 +690,14 @@ export const QBudget = ({ onAutoAdvance }) => {
 // [P1-FORM-8] Metadata UI por cada tipo de dieta. Las claves DEBEN coincidir
 // EXACTAMENTE con `DIET_TYPES` (SSOT de validación). El check de invariante
 // debajo del componente avisa si hay drift.
+// [FORM-DIET-ICONS · 2026-07-03] Escalera semántica: cubiertos cruzados (come de
+// todo) → bowl de ensalada (sin carne, pero variado) → sello vegano de lucide
+// (el marcador estándar de etiquetado 100% vegetal). Antes Utensils (tenedor
+// solitario que se leía como tridente) / Leaf genérica / Salad.
 const DIET_TYPE_META = {
-    balanced:   { label: 'Balanceada',   icon: Utensils, desc: 'De todo un poco' },
-    vegetarian: { label: 'Vegetariana',  icon: Leaf,     desc: 'Sin carne' },
-    vegan:      { label: 'Vegana',       icon: Salad,    desc: '100% vegetal' },
+    balanced:   { label: 'Balanceada',   icon: UtensilsCrossed, desc: 'De todo un poco' },
+    vegetarian: { label: 'Vegetariana',  icon: Salad,           desc: 'Sin carne' },
+    vegan:      { label: 'Vegana',       icon: Vegan,           desc: '100% vegetal' },
 };
 
 // [P1-FORM-8] Invariante de desarrollo: `DIET_TYPE_META` debe cubrir
