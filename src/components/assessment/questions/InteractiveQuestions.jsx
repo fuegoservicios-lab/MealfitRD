@@ -60,12 +60,12 @@ export const NextButton = ({ onClick, disabled, label = "Siguiente", icon: Icon 
     <button
         onClick={onClick}
         disabled={disabled}
-        // [CTA-HOVER-GLOW · 2026-05-31] El box-shadow (base/disabled/hover/active/
-        // focus) vive en la clase `.mf-cta-btn` de index.css — NO inline — para que
-        // el :hover pueda intensificar la sombra (lift sutil + glow bicolor azul→verde
-        // de los extremos del gradiente + brillo leve) sin que la especificidad del
-        // estilo inline lo gane. Respeta prefers-reduced-motion (conserva el glow,
-        // quita sólo el desplazamiento). El gradiente/padding siguen inline.
+        // [CTA-HOVER-GLOW · 2026-05-31 · calmado FORM-CTA-STATIC 2026-07-03] El
+        // box-shadow (base/disabled/hover/active/focus) vive en la clase `.mf-cta-btn`
+        // de index.css — NO inline — para que los estados puedan variarlo sin que la
+        // especificidad del estilo inline lo gane. A pedido del usuario: sin
+        // desplazamiento en hover/active y glow discreto (sombra tenue de un solo
+        // color). El gradiente/padding siguen inline.
         className="mf-cta-btn"
         style={{
             padding: '1rem 3rem',

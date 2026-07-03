@@ -412,43 +412,31 @@ html[data-theme="dark"] .glass-panel {
   box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-/* [CTA-HOVER-GLOW · 2026-05-31] Botón CTA primario del formulario (NextButton /
-   "Finalizar y Generar"). El box-shadow vive aquí (no inline) para que :hover
-   pueda intensificarlo. El gradiente azul→verde, padding y resto siguen inline
-   en el componente. Hover = lift sutil + glow bicolor (azul y verde, los dos
-   extremos del gradiente) + brillo leve. Funciona idéntico en claro y oscuro:
-   el glow es de color, no gris, así que se ve sobre ambos fondos. */
+/* [CTA-HOVER-GLOW · 2026-05-31 · calmado FORM-CTA-STATIC 2026-07-03] Botón CTA
+   primario del formulario (NextButton / "Finalizar y Generar"). El box-shadow
+   vive aquí (no inline); el gradiente azul→verde, padding y resto siguen inline
+   en el componente. A pedido del usuario (mismo pedido que .mf-empty-cta): SIN
+   desplazamiento en hover/active y glow discreto — la sombra base es tenue y el
+   hover solo la intensifica levemente (un color, sin bicolor ni brightness). */
 .mf-cta-btn {
-  box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 4px 14px -6px rgba(37, 99, 235, 0.3);
+  transition: box-shadow 0.2s ease;
 }
 .mf-cta-btn:disabled {
   box-shadow: none;
 }
 .mf-cta-btn:not(:disabled):hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 18px 38px -8px rgba(37, 99, 235, 0.55),
-    0 8px 22px -8px rgba(16, 185, 129, 0.42);
-  filter: brightness(1.06);
+  box-shadow: 0 6px 18px -6px rgba(37, 99, 235, 0.38);
 }
 .mf-cta-btn:not(:disabled):active {
-  transform: translateY(0);
-  box-shadow: 0 8px 18px -6px rgba(37, 99, 235, 0.45);
-  filter: brightness(0.99);
+  box-shadow: 0 3px 10px -5px rgba(37, 99, 235, 0.3);
 }
 /* Anillo de foco para teclado (a11y) — conserva la sombra base + ring indigo. */
 .mf-cta-btn:focus-visible {
   outline: none;
   box-shadow:
-    0 10px 25px -5px rgba(37, 99, 235, 0.4),
+    0 4px 14px -6px rgba(37, 99, 235, 0.3),
     0 0 0 3px rgba(129, 140, 248, 0.55);
-}
-/* Reduced-motion: sin desplazamiento; el glow/brillo (estáticos) se conservan. */
-@media (prefers-reduced-motion: reduce) {
-  .mf-cta-btn:not(:disabled):hover,
-  .mf-cta-btn:not(:disabled):active {
-    transform: none;
-  }
 }
 
 /* [FORM-CTA-UNIFY · 2026-07-02] Botón ghost secundario del formulario ("Saltar a
