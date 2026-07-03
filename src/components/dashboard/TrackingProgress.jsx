@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Flame, Dumbbell, Wheat, Droplet, Activity, Camera } from 'lucide-react';
+import { Flame, Dumbbell, Wheat, Droplet, Activity, Camera, Flag } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { useAssessment } from '../../context/AssessmentContext';
 import { fetchWithAuth } from '../../config/api';
@@ -227,6 +227,17 @@ const TrackingProgress = ({ planData, userId }) => {
                         <p className={styles.subtitle}>
                             {loading ? 'Cargando registros...' : `${consumed.meals.length} ${consumed.meals.length === 1 ? 'comida registrada' : 'comidas registradas'} hoy`}
                         </p>
+                        {/* [P1-GOAL-ETA · 2026-07-03] Plazo estimado hasta la meta de peso —
+                            plan_data.goal_eta lo calcula el backend con el déficit REAL
+                            entregado (post ritmo + pisos clínicos). Solo aparece si el
+                            usuario dio meta cuantificada (planes viejos/invitados: oculto).
+                            El title lleva la nota de honestidad (estimación energética). */}
+                        {planData?.goal_eta?.weeks_estimate ? (
+                            <div className={styles.etaChip} title={planData.goal_eta.note}>
+                                <Flag size={13} strokeWidth={2.5} aria-hidden="true" />
+                                Meta: {planData.goal_eta.target_weight_display} · ~{planData.goal_eta.weeks_estimate} semanas a tu ritmo{planData.goal_eta.pace ? ` (${planData.goal_eta.pace})` : ''}
+                            </div>
+                        ) : null}
                     </div>
                 </div>
                 

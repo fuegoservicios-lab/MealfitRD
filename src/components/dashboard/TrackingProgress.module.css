@@ -59,6 +59,24 @@
     margin-top: 0.15rem;
 }
 
+/* [P1-GOAL-ETA · 2026-07-03] Chip del plazo estimado hasta la meta de peso
+   (plan_data.goal_eta, calculado backend con el déficit real post pisos).
+   cursor:help + title = nota de honestidad (estimación energética). */
+.etaChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.45rem;
+    padding: 0.28rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid #C7D2FE;
+    background: #EEF2FF;
+    color: #4338CA;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: help;
+}
+
 /* Content Layout */
 .content {
     display: flex;
@@ -401,6 +419,13 @@
 
 :global(html[data-theme="dark"]) .subtitle {
     color: var(--text-muted);
+}
+
+/* [P1-GOAL-ETA · 2026-07-03] Oscuro: superficie indigo translúcida. */
+:global(html[data-theme="dark"]) .etaChip {
+    background: rgba(129, 140, 248, 0.12);
+    border-color: rgba(129, 140, 248, 0.35);
+    color: #A5B4FC;
 }
 
 :global(html[data-theme="dark"]) .barLabel {
