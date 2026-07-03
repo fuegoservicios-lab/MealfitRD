@@ -21,6 +21,18 @@ import { toast } from 'sonner'
 import './index.css'
 import App from './App.jsx'
 
+// [P1-OAUTH-FIRST-PARTY · 2026-07-03] Captura el `neon_auth_session_verifier` (retorno del
+// OAuth de Google) ANTES de que React monte. La ruta '/' del app-host hace
+// <Navigate to="/dashboard" replace/> que DESCARTA el query string — y los efectos de los
+// hijos (Navigate) corren ANTES que el del provider → cuando el adopt leía la URL, el
+// verifier single-use ya no estaba (Neon aterriza en '/' en el primer login OAuth, la
+// redirectTo no siempre se honra). El stash en sessionStorage sobrevive cualquier replace
+// del router; el provider lo consume (URL primero, stash como fallback).
+try {
+  const _vv = new URLSearchParams(window.location.search).get('neon_auth_session_verifier')
+  if (_vv) sessionStorage.setItem('mf_oauth_verifier', _vv)
+} catch { /* noop: sin storage seguimos con el param de la URL si sobrevive */ }
+
 // Register Service Worker
 // [P2-PWA-SKIPWAITING · 2026-05-30] Flujo "prompt" (registerType:'prompt' en
 // vite.config). Cuando hay un SW nuevo en 'waiting', `onNeedRefresh` muestra un

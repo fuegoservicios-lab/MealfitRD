@@ -1539,9 +1539,21 @@ export const AssessmentProvider = ({ children }) => {
         const _adoptOAuthVerifier = async () => {
             try {
                 if (typeof window === 'undefined') return false;
-                const _vp = new URLSearchParams(window.location.search).get('neon_auth_session_verifier');
-                if (!_vp) return false;
-                const ok = await adoptOAuthVerifierFirstParty(_vp);
+                // [P1-OAUTH-FIRST-PARTY · 2026-07-03] URL primero; el STASH de main.jsx como
+                // fallback: cuando Neon aterriza en '/' (primer login OAuth), el <Navigate
+                // to="/dashboard" replace/> del app-host descarta el query ANTES de que este
+                // efecto corra (efectos hijo < efecto provider) — sin el stash el verifier
+                // single-use moría sin canjearse y el usuario debía pulsar Google 2 veces.
+                let _vp = null;
+                try { _vp = new URLSearchParams(window.location.search).get('neon_auth_session_verifier'); } catch { /* noop */ }
+                let _stash = null;
+                try { _stash = sessionStorage.getItem('mf_oauth_verifier'); } catch { /* noop */ }
+                const _verifier = _vp || _stash;
+                if (!_verifier) return false;
+                // single-use: consumir el stash SIEMPRE (aunque el adopt falle, un verifier
+                // viejo jamás debe re-intentarse en el próximo load).
+                try { sessionStorage.removeItem('mf_oauth_verifier'); } catch { /* noop */ }
+                const ok = await adoptOAuthVerifierFirstParty(_verifier);
                 if (ok) {
                     try { sessionStorage.removeItem('mf_oauth_pending'); } catch { /* noop */ }
                     try {
