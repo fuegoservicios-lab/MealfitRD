@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
     User, Shield, ChevronRight, ArrowLeft,
     LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, GlassWater, Cog, Fingerprint,
-    Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon
+    Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon, Stethoscope
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAssessment } from '../context/AssessmentContext';
@@ -36,6 +36,9 @@ import { buildHealthProfilePayload } from '../config/secureFormStorage';
 // [P1-SUPERPERSONALIZATION-1 · 2026-06-19] Panel opt-in de preferencias ricas
 // (gustos/cultura/equipo/sabor/nivel/texto libre) → health_profile.super_personalization.
 import SuperPersonalizationPanel from '../components/settings/SuperPersonalizationPanel';
+// [P1-CLINICAL-PANEL · 2026-07-03] Panel opt-in de perfil clínico avanzado
+// (labs, historia ponderal, digestión, entrenamiento) → health_profile.clinical_profile.
+import ClinicalProfilePanel from '../components/settings/ClinicalProfilePanel';
 // [P1-ACCOUNT-DELETE-1 · 2026-06-22] Misma sección "Eliminar cuenta" que /configuracion.
 import DeleteAccountSection from '../components/account/DeleteAccountSection';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatares minimalistas: clic en el avatar del perfil cicla al siguiente.
@@ -558,7 +561,7 @@ const Settings = () => {
     // --- NAVEGACIÓN DE SECCIONES ---
     // activeSection puede ser un id de SECTION_IDS o null (en móvil = vista de lista).
     // Sincronizado con window.location.hash para deep-linking y back/forward del navegador.
-    const SECTION_IDS = ['profile', 'preferences', 'superpers', 'plan', 'subscription'];
+    const SECTION_IDS = ['profile', 'preferences', 'superpers', 'clinical', 'plan', 'subscription'];
     const computeInitialSection = () => {
         if (typeof window === 'undefined') return 'profile';
         const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
@@ -679,6 +682,7 @@ const Settings = () => {
         { id: 'profile', label: 'General', description: 'Cuenta, apariencia y notificaciones', Icon: Cog, iconBg: _settingsDark ? 'rgba(59, 130, 246, 0.16)' : '#EFF6FF', iconColor: _settingsDark ? '#60A5FA' : '#3B82F6' },
         { id: 'preferences', label: 'Capacidades', description: 'Modo automático, memoria y datos del agente', Icon: SlidersHorizontal, iconBg: _settingsDark ? 'rgba(219, 39, 119, 0.18)' : '#FCE7F3', iconColor: _settingsDark ? '#F472B6' : '#DB2777' },
         { id: 'superpers', label: 'Súper Personalización', description: 'Gustos, cocina, equipo y más para mejores planes', Icon: Fingerprint, iconBg: _settingsDark ? 'rgba(245, 158, 11, 0.18)' : '#FEF3C7', iconColor: _settingsDark ? '#FBBF24' : '#D97706' },
+        { id: 'clinical', label: 'Perfil Clínico Avanzado', description: 'Laboratorios, historial de peso, digestión y entrenamiento', Icon: Stethoscope, iconBg: _settingsDark ? 'rgba(239, 68, 68, 0.16)' : '#FEE2E2', iconColor: _settingsDark ? '#F87171' : '#DC2626' },
         { id: 'plan', label: 'Plan & Objetivo', description: 'Meta principal y calorías', Icon: Trophy, iconBg: _settingsDark ? 'rgba(16, 185, 129, 0.18)' : '#DCFCE7', iconColor: _settingsDark ? '#34D399' : '#166534' },
         { id: 'subscription', label: 'Suscripción', description: 'Plan, pagos y cancelación', Icon: CreditCard, iconBg: _settingsDark ? 'rgba(99, 102, 241, 0.18)' : '#E0E7FF', iconColor: _settingsDark ? '#A5B4FC' : '#4F46E5' },
     ];
@@ -1535,7 +1539,7 @@ const Settings = () => {
                             degradado + borde + barra/glows indigo) se aplana en móvil →
                             fondo uniforme. Pedido owner: aplicarlo a TODAS las secciones de
                             Ajustes (general, capacidades, súper-pers, plan, suscripción). */}
-                        <div className={`${styles.grid} ${['profile', 'preferences', 'superpers', 'plan', 'subscription'].includes(activeSection) ? styles.gridFlush : ''}`}>
+                        <div className={`${styles.grid} ${['profile', 'preferences', 'superpers', 'clinical', 'plan', 'subscription'].includes(activeSection) ? styles.gridFlush : ''}`}>
 
                     {/* SECCIÓN 1: PERFIL + APARIENCIA */}
                     {activeSection === 'profile' && (
@@ -2372,6 +2376,21 @@ const Settings = () => {
                                 Dale a la IA más contexto sobre ti para planes clínicos y respuestas más precisas.
                             </p>
                             <SuperPersonalizationPanel />
+                        </section>
+                    )}
+
+                    {/* [P1-CLINICAL-PANEL · 2026-07-03] Panel opt-in de perfil clínico
+                        avanzado. El componente carga/guarda vía el endpoint backend y
+                        sincroniza formData.clinical_profile al guardar. */}
+                    {activeSection === 'clinical' && (
+                        <section className={styles.section}>
+                            <h2 className={styles.sectionTitle}>
+                                Perfil Clínico Avanzado
+                            </h2>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                                Los datos que un nutriólogo pediría en consulta. Opcionales — cada uno que completes afina tu plan.
+                            </p>
+                            <ClinicalProfilePanel />
                         </section>
                     )}
 
