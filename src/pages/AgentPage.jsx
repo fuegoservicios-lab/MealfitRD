@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
-import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Home } from 'lucide-react';
+import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { toast } from 'sonner';
 // [P3-LAZY-MARKDOWN · 2026-05-12] import de `react-markdown` eliminado:
@@ -2752,8 +2752,7 @@ const AgentPage = () => {
                                         { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' },
                                         { icon: Refrigerator, label: 'Nevera', path: '/dashboard/pantry' },
                                         { icon: Clock, label: 'Historial', path: '/history' },
-                                        { icon: Settings, label: 'Configuración', path: '/dashboard/settings' },
-                                        { icon: Home, label: 'Inicio', path: '/' }
+                                        { icon: Settings, label: 'Configuración', path: '/dashboard/settings' }
                                     ].map((item) => (
                                         <button
                                             key={item.path}
