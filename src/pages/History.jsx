@@ -1641,15 +1641,21 @@ const History = () => {
     );
 
     // Empty State
+    // [P3-HIST-EMPTY-CTA · 2026-07-02] El estado vacío decía QUÉ hacer ("genera tu
+    // primer plan") pero no daba CÓMO — sin acción, en móvil era una caja muerta.
+    // CTA directo al formulario, mismo look .emptyCta del SessionExpiredState.
     const EmptyState = () => (
         <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>
-                <BookOpen size={36} />
+                <BookOpen size={32} />
             </div>
             <h3 className={styles.emptyTitle}>Tu historial está vacío</h3>
             <p className={styles.emptyText}>
                 Genera tu primer plan nutricional y lo encontrarás aquí.
             </p>
+            <button className={styles.emptyCta} onClick={() => navigate('/assessment')}>
+                Crear mi primer plan <ChevronRight size={17} />
+            </button>
         </div>
     );
 
