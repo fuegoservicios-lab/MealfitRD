@@ -1544,8 +1544,14 @@ export const AssessmentProvider = ({ children }) => {
             try { oauthPending = sessionStorage.getItem('mf_oauth_pending') === '1'; } catch { /* noop */ }
             if (oauthPending) {
                 try { sessionStorage.removeItem('mf_oauth_pending'); } catch { /* noop */ }
-                for (let i = 0; i < 4; i++) {
-                    await new Promise((r) => setTimeout(r, 600));
+                // [P1-OTP-SESSION-RETRY · 2026-07-03] 4×600ms (~2.4s) se quedaba corto en la
+                // vuelta del OAuth con red móvil (el owner necesitaba un 2º click en "Continuar
+                // con Google": el 1º registraba pero los retries se agotaban antes de que la
+                // sesión fuera resoluble). 8 intentos con delay creciente (~8s techo; en el
+                // caso común resuelve en 1-2s). Cubre también el flujo OTP, que ahora arma
+                // el mismo flag. La pantalla de carga (loadingAuth) cubre la espera.
+                for (let i = 0; i < 8; i++) {
+                    await new Promise((r) => setTimeout(r, 500 + i * 300));
                     try {
                         // Acotamos cada reintento (3s) para que un getSession colgado NUNCA
                         // congele la pantalla de carga — el loop siempre progresa.

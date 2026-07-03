@@ -146,6 +146,12 @@ const Login = () => {
         }
         // [P0-LOGIN-SESSION-PROPAGATE · 2026-06-18] Recarga COMPLETA para que el provider
         // remonte y lea la cookie fresca de Neon Auth + mintee la first-party.
+        // [P1-OTP-SESSION-RETRY · 2026-07-03] El flujo OTP NO armaba el flag de retry que
+        // OAuth sí arma (P1-OAUTH-RETURN-RETRY): si el primer getSession() de la recarga
+        // corría antes de que la cookie/sesión estuviera resoluble, el provider concluía
+        // "sin sesión" y ProtectedRoute rebotaba a /login — "pongo el código y no entro".
+        // Mismo flag → mismo loop de reintentos del provider.
+        try { sessionStorage.setItem('mf_oauth_pending', '1'); } catch { /* noop */ }
         window.location.assign('/');
     };
 
