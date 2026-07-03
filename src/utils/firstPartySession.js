@@ -94,6 +94,38 @@ export async function checkFirstPartySession() {
     }
 }
 
+// [P1-OTP-FIRST-PARTY · 2026-07-03] Verifica el código OTP vía NUESTRO backend
+// (que lo valida contra Neon server-side) y adopta la sesión first-party que
+// este emite (cookie __Host-mf_session + token→localStorage + form_key). El
+// fetch directo del navegador a Neon seteaba una cookie third-party vía XHR que
+// los navegadores móviles bloquean → "pongo el código y no entro". Same-origin
+// aquí ⇒ la cookie SIEMPRE pega; el provider resuelve vía _resolveViaFirstParty.
+export async function verifyEmailOtpFirstParty(email, otp) {
+    try {
+        const res = await fetch(api('/api/auth/email-otp/verify'), {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: (email || '').trim(), otp: (otp || '').trim() }),
+        });
+        if (!res.ok) {
+            const msg = res.status === 401
+                ? 'Código inválido o expirado.'
+                : `No se pudo verificar el código (HTTP ${res.status}).`;
+            return { error: { message: msg, status: res.status } };
+        }
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok || !data.user_id) {
+            return { error: { message: 'Código inválido o expirado.' } };
+        }
+        if (data.token) _storeToken(data.token);
+        _applyFormKey(data);
+        return { data, error: null };
+    } catch (e) {
+        return { error: { message: e?.message || 'Error de red verificando el código.' } };
+    }
+}
+
 // Cierra la sesión first-party: borra el token local + la cookie del servidor.
 export async function logoutFirstPartySession() {
     clearStoredMfSession();

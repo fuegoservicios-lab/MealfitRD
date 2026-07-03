@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { authClient, sendEmailOtp, signInWithEmailOtp } from '../authClient';
+import { authClient, sendEmailOtp } from '../authClient';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAssessment } from '../context/AssessmentContext';
-import { logoutFirstPartySession } from '../utils/firstPartySession';
+// [P1-OTP-FIRST-PARTY · 2026-07-03] la verificación del código emite sesión first-party
+// vía nuestro backend (la cookie de Neon vía XHR era third-party → bloqueada en móvil).
+import { logoutFirstPartySession, verifyEmailOtpFirstParty } from '../utils/firstPartySession';
 import { humanizeAuthError } from '../utils/authErrors';
 import PlanShowcase from '../components/auth/PlanShowcase';
 import './Login.css';
@@ -138,20 +140,22 @@ const Login = () => {
             return;
         }
         setLoading(true);
-        const { error: otpError } = await signInWithEmailOtp(email.trim(), clean);
+        // [P1-OTP-FIRST-PARTY · 2026-07-03] La verificación va vía NUESTRO backend (proxy a
+        // Neon server-side) que emite la sesión FIRST-PARTY directo. El fetch directo previo
+        // a Neon seteaba una cookie third-party vía XHR que los navegadores móviles bloquean
+        // → getSession() del reload no encontraba nada y rebotaba a /login ("pongo el código
+        // y no entro"). Con la first-party same-origin, el reload resuelve la sesión vía
+        // _resolveViaFirstParty SIN depender de la cookie de Neon — NO se arma el flag de
+        // retry (mf_oauth_pending): esperaría ~8s reintentando un getSession de Neon que
+        // aquí legítimamente no existe; el fallback first-party entra de inmediato.
+        const { error: otpError } = await verifyEmailOtpFirstParty(email.trim(), clean);
         if (otpError) {
             setError(humanizeAuthError(otpError));
             setLoading(false);
             return;
         }
         // [P0-LOGIN-SESSION-PROPAGATE · 2026-06-18] Recarga COMPLETA para que el provider
-        // remonte y lea la cookie fresca de Neon Auth + mintee la first-party.
-        // [P1-OTP-SESSION-RETRY · 2026-07-03] El flujo OTP NO armaba el flag de retry que
-        // OAuth sí arma (P1-OAUTH-RETURN-RETRY): si el primer getSession() de la recarga
-        // corría antes de que la cookie/sesión estuviera resoluble, el provider concluía
-        // "sin sesión" y ProtectedRoute rebotaba a /login — "pongo el código y no entro".
-        // Mismo flag → mismo loop de reintentos del provider.
-        try { sessionStorage.setItem('mf_oauth_pending', '1'); } catch { /* noop */ }
+        // remonte y resuelva la sesión (Neon si su cookie llegó; first-party si no).
         window.location.assign('/');
     };
 
