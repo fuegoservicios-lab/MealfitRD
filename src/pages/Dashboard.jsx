@@ -692,6 +692,31 @@ const DashboardInner = () => {
     const [sessionRestocked, setSessionRestocked] = useState(false);
     const [showDespensaDropdown, setShowDespensaDropdown] = useState(false);
     const despensaDropdownRef = useRef(null);
+    // [UX-DURATION-PANEL-BACKDROP · 2026-07-03] El panel vive en un PORTAL a <body> (iteración 2):
+    // el intento 1 (backdrop en portal + panel in-tree con zIndex 9999) fallaba porque un ancestro
+    // del dashboard crea su propio stacking context → el panel competía DENTRO de ese contexto y el
+    // backdrop de body lo tapaba (todo salía borroso, incluido el menú). Portalizando TAMBIÉN el
+    // panel, backdrop (z 9998) y panel (z 9999) comparten el contexto raíz de body y el orden es
+    // determinista. El panel se posiciona con el rect del trigger (medido al abrir + resize/scroll).
+    const despensaPanelRef = useRef(null);
+    const [despensaMenuRect, setDespensaMenuRect] = useState(null);
+    useEffect(() => {
+        if (!showDespensaDropdown) return;
+        const measure = () => {
+            const el = despensaDropdownRef.current;
+            if (!el) return;
+            const r = el.getBoundingClientRect();
+            setDespensaMenuRect({ top: r.top, left: r.left, width: r.width });
+        };
+        measure();
+        window.addEventListener('resize', measure);
+        // capture=true: también scrolls de contenedores internos, no solo el window.
+        window.addEventListener('scroll', measure, true);
+        return () => {
+            window.removeEventListener('resize', measure);
+            window.removeEventListener('scroll', measure, true);
+        };
+    }, [showDespensaDropdown]);
 
     // [P3-DASH-SCROLL-TOP · 2026-06-01] Al montar el Dashboard, resetea el scroll
     // arriba. React Router (BrowserRouter) NO restaura scroll en cambios de ruta:
@@ -709,7 +734,11 @@ const DashboardInner = () => {
     // Cierra los dropdowns custom si el usuario hace clic fuera de ellos
     useEffect(() => {
         function handleClickOutside(event) {
-            if (despensaDropdownRef.current && !despensaDropdownRef.current.contains(event.target)) {
+            // [UX-DURATION-PANEL-BACKDROP · 2026-07-03] el panel vive en un portal fuera del ref del
+            // trigger → un click DENTRO del panel portaleado no debe cerrarlo (chequear ambos refs).
+            const inTrigger = despensaDropdownRef.current && despensaDropdownRef.current.contains(event.target);
+            const inPanel = despensaPanelRef.current && despensaPanelRef.current.contains(event.target);
+            if (!inTrigger && !inPanel) {
                 setShowDespensaDropdown(false);
             }
         }
@@ -4308,18 +4337,16 @@ const DashboardInner = () => {
                     <div className="new-plan-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'stretch' }}>
 
                         {/* INDICADOR COMPACTO: Despensa + Personas (Híbrido) */}
-                        {/* [UX-DURATION-PANEL-BACKDROP · 2026-07-03] zIndex 9999 al abrir: el trigger y el
-                            panel quedan POR ENCIMA del backdrop blurreado (nítidos); cerrado vuelve a auto
-                            para no interferir con otros overlays del dashboard. */}
-                        <div ref={despensaDropdownRef} style={{ position: 'relative', zIndex: showDespensaDropdown ? 9999 : 'auto' }}>
+                        <div ref={despensaDropdownRef} style={{ position: 'relative' }}>
                             {/* [UX-DURATION-PANEL-BACKDROP · 2026-07-03] Backdrop fijo con blur al abrir el
                                 panel: desenfoca el resto del dashboard y enfoca el menú. Portal a <body>
-                                (inmune a ancestros con transform). SIEMPRE montado con transición de opacity
-                                (fade simétrico abrir/cerrar sin depender de AnimatePresence-en-portal, que no
-                                maneja bien los exits); pointerEvents solo al abrir. Click en el fondo cierra.
-                                Blur constante + fade de opacity = sin el flicker histórico del blur animado
-                                (P3-DURATION-DROPDOWN-OPEN-FLUID: aquel era backdrop-filter EN el panel con
-                                spring+scale; esto es un overlay estático que solo funde opacidad). */}
+                                (inmune a ancestros con transform/stacking context — el intento in-tree con
+                                zIndex fallaba: un ancestro del dashboard crea su propio contexto y el
+                                backdrop de body tapaba el menú → TODO salía borroso). SIEMPRE montado con
+                                transición de opacity (fade simétrico abrir/cerrar sin depender de
+                                AnimatePresence-en-portal); pointerEvents solo al abrir. Click en el fondo
+                                cierra. Blur constante + fade de opacity = sin el flicker histórico del blur
+                                animado (P3-DURATION-DROPDOWN-OPEN-FLUID). */}
                             {createPortal(
                                 <div
                                     aria-hidden="true"
@@ -4465,8 +4492,9 @@ const DashboardInner = () => {
                             </div>
 
                             {/* Combined Popover */}
+                            {createPortal(
                             <AnimatePresence>
-                                {showDespensaDropdown && (
+                                {showDespensaDropdown && despensaMenuRect && (
                                     // [P3-DURATION-DROPDOWN-OPEN-FLUID · 2026-05-17]
                                     // Iteración 2: pre-fix tenía spring underdamped + scale +
                                     // backdropFilter blur(16px) sobre background rgba(0.97).
@@ -4479,30 +4507,31 @@ const DashboardInner = () => {
                                     // SOLO de opacity (sin transform/scale) — opacity-only no puede
                                     // flickerar porque no requiere capa de composición nueva.
                                     <motion.div
+                                        ref={despensaPanelRef}
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         exit={{ opacity: 0 }}
                                         transition={{ duration: 0.15, ease: 'easeOut' }}
                                         style={{
-                                            // [P1-DASH-BUDGET-EDIT · 2026-06-23] Panel ensanchado para alojar
-                                            // el editor de presupuesto debajo de la duración (antes era tan
-                                            // angosto como el chip). Anclado a la izquierda + maxWidth/scroll
-                                            // de seguridad para no desbordar el viewport ni recortar contenido.
                                             // [UX-DURATION-PANEL-WIDTH · 2026-07-03] El cap de 340px dejaba el
-                                            // panel MÁS ANGOSTO que su propio trigger (~430px) → botones de
-                                            // presupuesto apretados y el aviso de mínimo envuelto en 2 líneas.
-                                            // Anclado a AMBOS bordes del trigger (left+right) = mismo ancho de
-                                            // la barra; minWidth de seguridad si el trigger fuera angosto y
-                                            // maxWidth de viewport para móviles.
-                                            position: 'absolute', top: 'calc(100% + 6px)', left: '-4px', right: '-4px',
-                                            minWidth: 'min(300px, calc(100vw - 24px))',
-                                            maxWidth: 'calc(100vw - 24px)',
+                                            // panel MÁS ANGOSTO que su propio trigger (~430px) → mismo ancho
+                                            // de la barra (rect del trigger + 8px), capado al viewport.
+                                            // [UX-DURATION-PANEL-BACKDROP · 2026-07-03] Portaleado a <body> y
+                                            // posicionado FIXED con el rect del trigger: queda SOBRE el
+                                            // backdrop blurreado (z 9999 > 9998) y CUBRE el área del trigger
+                                            // (nada del control queda borroso detrás). El rect se re-mide en
+                                            // resize/scroll (efecto de arriba) → sigue anclado al moverse.
+                                            position: 'fixed',
+                                            top: Math.max(12, despensaMenuRect.top - 4),
+                                            left: Math.max(12, despensaMenuRect.left - 4),
+                                            width: Math.min(despensaMenuRect.width + 8, window.innerWidth - 24),
                                             zIndex: 9999,
                                             background: 'var(--bg-card)',
                                             borderRadius: '12px',
                                             border: '1.5px solid var(--border)',
                                             boxShadow: '0 20px 40px -10px rgba(0,0,0,0.15)',
-                                            overflowX: 'hidden', overflowY: 'auto', maxHeight: '78vh',
+                                            overflowX: 'hidden', overflowY: 'auto',
+                                            maxHeight: `calc(100vh - ${Math.max(12, despensaMenuRect.top - 4) + 12}px)`,
                                             padding: '8px'
                                         }}
                                     >
@@ -4737,7 +4766,9 @@ const DashboardInner = () => {
 
                                     </motion.div>
                                 )}
-                            </AnimatePresence>
+                            </AnimatePresence>,
+                            document.body
+                            )}
                         </div>
 
 
