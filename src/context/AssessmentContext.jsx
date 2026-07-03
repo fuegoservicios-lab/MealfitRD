@@ -985,7 +985,16 @@ export const AssessmentProvider = ({ children }) => {
                         for (const [k, v] of Object.entries(data.health_profile)) {
                             if (edited.has(k)) continue;
                             const cur = prev[k];
-                            const isEmpty = cur === null || cur === undefined || cur === '' || (Array.isArray(cur) && cur.length === 0);
+                            // [P1-CLINICAL-INTAKE-HYDRATE · 2026-07-03] `targetWeightAuto`
+                            // es boolean con default false — nunca califica como "vacío",
+                            // así que la elección "Sin meta específica" (true en DB) jamás
+                            // hidrataba cross-device. Para ese campo: solo hidratamos un
+                            // true del DB sobre un false local (default no tocado); un true
+                            // local (elección viva de esta sesión/localStorage) se preserva,
+                            // y false→false no marca `changed` (evita re-render sin cambio).
+                            const isEmpty = k === 'targetWeightAuto'
+                                ? (cur !== true && v === true)
+                                : (cur === null || cur === undefined || cur === '' || (Array.isArray(cur) && cur.length === 0));
                             if (!isEmpty) continue;
                             next[k] = v; changed = true;
                         }
@@ -1039,7 +1048,12 @@ export const AssessmentProvider = ({ children }) => {
                             for (const [k, v] of Object.entries(data.health_profile)) {
                                 if (edited.has(k)) continue;
                                 const cur = prev[k];
-                                const isEmpty = cur === null || cur === undefined || cur === '' || (Array.isArray(cur) && cur.length === 0);
+                                // [P1-CLINICAL-INTAKE-HYDRATE · 2026-07-03] Mismo caso
+                                // especial que fetchProfile: solo un true del DB hidrata
+                                // sobre el default false no tocado.
+                                const isEmpty = k === 'targetWeightAuto'
+                                    ? (cur !== true && v === true)
+                                    : (cur === null || cur === undefined || cur === '' || (Array.isArray(cur) && cur.length === 0));
                                 if (!isEmpty) continue;
                                 next[k] = v; changed = true;
                             }
