@@ -175,6 +175,14 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
         if (next) load();
     };
 
+    // [P3-BRANDS-PREFETCH · 2026-07-02] Cargar matches + prefs al montar, no al
+    // primer click: el trigger muestra "· N de M ítems con opciones · N elegidas"
+    // sin tener que abrir el panel. Mismo fetch de siempre, solo adelantado —
+    // load() se auto-guarda (matches/loading) así que abrir después no re-fetchea.
+    useEffect(() => {
+        if (names.length > 0) load();
+    }, [names, load]);
+
     // [P3-BRANDS-POPOVER-NO-DEFORM] Al ser overlay flotante, cerrar con click
     // fuera del componente o con Escape (igual que el dropdown de duración).
     useEffect(() => {
