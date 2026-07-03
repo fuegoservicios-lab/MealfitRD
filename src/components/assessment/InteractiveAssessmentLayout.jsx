@@ -1,12 +1,14 @@
 import { useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
 import { ChevronLeft } from 'lucide-react';
 import styles from './InteractiveAssessmentLayout.module.css';
 
 const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle }) => {
     const { currentStep, prevStep } = useAssessment();
+    const navigate = useNavigate();
     const progress = (currentStep / (totalSteps - 1)) * 100;
 
     useEffect(() => {
@@ -19,11 +21,21 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
             <header className={styles.header}>
                 <div className={styles.headerContent}>
                     {currentStep > 0 ? (
-                        <button onClick={prevStep} className={styles.backBtn}>
+                        <button onClick={prevStep} className={styles.backBtn} aria-label="Paso anterior">
                             <ChevronLeft size={24} />
                         </button>
                     ) : (
-                        <div className={styles.backSpacer} />
+                        /* [FORM-BACK-TO-LOGIN · 2026-07-03] En el PASO 1 no había forma de salir del
+                           wizard en móvil (sin nav visible) → botón de volver al login. SOLO móvil:
+                           en desktop el CSS lo oculta con visibility (conserva el ancho del grid
+                           3-col para no descentrar el logo). */
+                        <button
+                            onClick={() => navigate('/login')}
+                            className={`${styles.backBtn} ${styles.backToLogin}`}
+                            aria-label="Volver al inicio de sesión"
+                        >
+                            <ChevronLeft size={24} />
+                        </button>
                     )}
                     
                     <div className={styles.logo}>

@@ -99,6 +99,17 @@
     width: 40px;
 }
 
+/* [FORM-BACK-TO-LOGIN · 2026-07-03] Botón "volver al login" del PASO 1 — SOLO móvil
+   (pedido del owner: en PC no hace falta). En desktop se oculta con visibility (no
+   display:none) para conservar el ancho del slot izquierdo del grid 3-col del header
+   y mantener el logo centrado. */
+@media (min-width: 769px) {
+    .backToLogin {
+        visibility: hidden;
+        pointer-events: none;
+    }
+}
+
 .logo {
     text-decoration: none;
     font-weight: 800;
