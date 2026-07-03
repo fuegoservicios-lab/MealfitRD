@@ -186,35 +186,6 @@
     z-index: 1;
 }
 
-/* ── EYEBROW ─────────────────────────────────────────────────────────────── */
-/* [P3-HERO-DETAIL-POLISH · 2026-07-02] Badge de apertura, mismo lenguaje que los
-   badges de sección del landing (píldora indigo uppercase) + dot esmeralda que
-   ecoa el CTA verde. */
-.eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-family: var(--font-heading);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--primary-light);
-    background: color-mix(in srgb, var(--primary) 12%, transparent);
-    border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
-    padding: 0.42rem 0.95rem;
-    border-radius: 999px;
-    margin-bottom: 1.4rem;
-}
-.eyebrowDot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--secondary);
-    box-shadow: 0 0 8px var(--secondary);
-    flex: none;
-}
-
 /* ── TITULAR ─────────────────────────────────────────────────────────────── */
 .title {
     font-family: var(--font-heading);
