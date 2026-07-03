@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { BadgeCheck, Check, ChevronDown, Store } from 'lucide-react';
 import { api, fetchWithAuth } from '../../config/api';
@@ -63,6 +63,11 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
     const applyTimerRef = useRef(null);
     const [matches, setMatches] = useState(null); // { <nombre item>: [{food_name, variants:[...]}] }
     const [expandedItem, setExpandedItem] = useState(null);
+    // [P3-BRANDS-POPOVER-NO-DEFORM · 2026-07-02] El listado abierto ya NO crece
+    // inline (estiraba el header card completo con 40+ ítems); ahora es un popover
+    // flotante anclado al trigger — mismo patrón que el dropdown de duración del
+    // Dashboard. rootRef cierra en click-afuera / Escape.
+    const rootRef = useRef(null);
     // prefs: { <food_key normalizado>: product_id } · source: 'server' | 'local'
     const [prefs, setPrefs] = useState({});
     const [prefsSource, setPrefsSource] = useState('local');
@@ -170,6 +175,26 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
         if (next) load();
     };
 
+    // [P3-BRANDS-POPOVER-NO-DEFORM] Al ser overlay flotante, cerrar con click
+    // fuera del componente o con Escape (igual que el dropdown de duración).
+    useEffect(() => {
+        if (!open) return undefined;
+        const onPointerDown = (e) => {
+            if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+        };
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') setOpen(false);
+        };
+        document.addEventListener('mousedown', onPointerDown);
+        document.addEventListener('touchstart', onPointerDown);
+        document.addEventListener('keydown', onKeyDown);
+        return () => {
+            document.removeEventListener('mousedown', onPointerDown);
+            document.removeEventListener('touchstart', onPointerDown);
+            document.removeEventListener('keydown', onKeyDown);
+        };
+    }, [open]);
+
     if (!names.length) return null;
 
     const matchedNames = matches ? names.filter((n) => matches[n]?.length) : [];
@@ -196,13 +221,15 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
     const selectionTotal = selection.reduce((acc, s) => acc + (s.variant.price_rd || 0), 0);
 
     return (
-        <div style={{
+        <div ref={rootRef} style={{
+            // [P3-BRANDS-POPOVER-NO-DEFORM · 2026-07-02] position:relative ancla el
+            // popover del listado; SIN overflow:hidden (recortaría el panel absoluto).
+            position: 'relative',
             marginTop: '0.6rem',
             borderRadius: '0.75rem',
             border: '1px solid var(--border)',
             background: 'var(--bg-card)',
             maxWidth: '100%',
-            overflow: 'hidden',
         }}>
             <button
                 type="button"
@@ -237,7 +264,25 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
             </button>
 
             {open && (
-                <div style={{ padding: '0 0.85rem 0.75rem', borderTop: '1px solid var(--border)' }}>
+                // [P3-BRANDS-POPOVER-NO-DEFORM · 2026-07-02] Popover flotante con scroll
+                // interno: el header card ya no se estira con 40+ ítems. Mismo lenguaje
+                // visual que el dropdown de duración (fondo opaco, sombra, maxHeight).
+                <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    left: 0,
+                    right: 0,
+                    zIndex: 9999,
+                    background: 'var(--bg-card)',
+                    border: '1.5px solid var(--border)',
+                    borderRadius: '12px',
+                    boxShadow: '0 20px 40px -10px rgba(0,0,0,0.25)',
+                    maxHeight: 'min(62vh, 480px)',
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    overscrollBehavior: 'contain',
+                    padding: '0 0.85rem 0.75rem',
+                }}>
                     {loading && (
                         <p style={{ margin: '0.6rem 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                             Buscando marcas en el supermercado…
