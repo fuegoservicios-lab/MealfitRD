@@ -33,6 +33,7 @@ import {
     AlertTriangle, Frown, Users, XCircle, HelpCircle,
     Check, Pill, ArrowRight, Ban, Milk, Wheat, Egg, Fish, Nut, Activity, Timer,
     Droplet, Droplets, HeartPulse, TestTube, Slice, Baby, Syringe,
+    Beef, LeafyGreen, Shrimp, TreeDeciduous, Cloud, Sprout, Layers, Bean,
     CalendarDays, CalendarRange, CalendarClock,
     Hourglass,
     Armchair, Footprints, Bike, Dumbbell, Medal,
@@ -839,17 +840,28 @@ export const QDislikes = ({ onManualAdvance }) => {
 
     // Lista de alimentos comúnmente rechazados en el contexto dominicano.
     // No exhaustiva: el input free-text de abajo captura el resto.
+    // [FORM-DISLIKE-ICONS · 2026-07-03] Icono temático por alimento — antes 6 de 10
+    // compartían Salad, Mariscos repetía Fish y Hígado usaba AlertTriangle (señal de
+    // peligro, ni siquiera comida). El label siempre acompaña al icono, así que las
+    // metáforas de forma funcionan como refuerzo visual:
+    //   - Beef (Hígado): corte de carne/víscera.
+    //   - Shrimp (Mariscos): camarón, distinto del pez.
+    //   - TreeDeciduous (Brócoli): el "arbolito".
+    //   - Cloud (Coliflor): forma de nube.
+    //   - Sprout (Hongos): brota del suelo.
+    //   - Layers (Cebolla): capas.
+    //   - Bean (Aguacate): silueta ovalada con "pepa".
     const COMMON_DISLIKES = [
         { val: "Cilantro", label: "Cilantro", icon: Leaf },
-        { val: "Hígado", label: "Hígado", icon: AlertTriangle },
-        { val: "Berenjena", label: "Berenjena", icon: Salad },
+        { val: "Hígado", label: "Hígado", icon: Beef },
+        { val: "Berenjena", label: "Berenjena", icon: LeafyGreen },
         { val: "Pescado", label: "Pescado", icon: Fish },
-        { val: "Mariscos", label: "Mariscos", icon: Fish },
-        { val: "Brócoli", label: "Brócoli", icon: Salad },
-        { val: "Coliflor", label: "Coliflor", icon: Salad },
-        { val: "Hongos", label: "Hongos", icon: Salad },
-        { val: "Cebolla", label: "Cebolla", icon: Salad },
-        { val: "Aguacate", label: "Aguacate", icon: Salad },
+        { val: "Mariscos", label: "Mariscos", icon: Shrimp },
+        { val: "Brócoli", label: "Brócoli", icon: TreeDeciduous },
+        { val: "Coliflor", label: "Coliflor", icon: Cloud },
+        { val: "Hongos", label: "Hongos", icon: Sprout },
+        { val: "Cebolla", label: "Cebolla", icon: Layers },
+        { val: "Aguacate", label: "Aguacate", icon: Bean },
     ];
 
     return (
