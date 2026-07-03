@@ -1,4 +1,8 @@
+import { Fragment, useState } from 'react';
 import PropTypes from 'prop-types';
+// [P3-MORE-INFO-MENU · 2026-07-03] Enlaces del submenú "Más información"
+// (SSOT compartido con el menú "más" móvil de DashboardLayout).
+import { MORE_INFO_GROUPS, landingUrl } from './moreInfoLinks';
 import styles from './AccountMenu.module.css';
 
 /* [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Card del menú de cuenta del sidebar.
@@ -34,6 +38,31 @@ const ChevronRight = (p) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
        strokeLinecap="round" strokeLinejoin="round" {...p}>
     <polyline points="9 18 15 12 9 6" />
+  </svg>
+);
+
+const ChevronLeft = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
+       strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
+
+const InfoIcon = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+       strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <line x1="12" y1="11" x2="12" y2="16" />
+    <line x1="12" y1="8" x2="12.01" y2="8" />
+  </svg>
+);
+
+const ExternalIcon = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+       strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    <polyline points="15 3 21 3 21 9" />
+    <line x1="10" y1="14" x2="21" y2="3" />
   </svg>
 );
 
@@ -123,6 +152,48 @@ export default function AccountMenu({
   onLogout,
   onAccount,
 }) {
+  // [P3-MORE-INFO-MENU · 2026-07-03] Vista del submenú "Más información": la
+  // card intercambia su contenido por el panel de enlaces (patrón Claude.ai).
+  // El popover se desmonta al cerrarse → el estado vuelve solo a la vista raíz.
+  const [showMoreInfo, setShowMoreInfo] = useState(false);
+
+  if (showMoreInfo) {
+    return (
+      <div className={styles.card} role="menu">
+        <button
+          type="button"
+          className={styles.backRow}
+          onClick={() => setShowMoreInfo(false)}
+          aria-label="Volver al menú de cuenta"
+        >
+          <ChevronLeft className={styles.backChevron} />
+          Más información
+        </button>
+        <div className={styles.infoMenu}>
+          {MORE_INFO_GROUPS.map((group, gi) => (
+            <Fragment key={gi}>
+              {gi > 0 && <div className={styles.infoDivider} role="separator" />}
+              {group.map((link) => (
+                <a
+                  key={link.path}
+                  href={landingUrl(link.path)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.infoLink}
+                  role="menuitem"
+                  onClick={() => onAccount?.()}
+                >
+                  <span className={styles.itemLabel}>{link.label}</span>
+                  <ExternalIcon className={styles.externalIcon} />
+                </a>
+              ))}
+            </Fragment>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.card} role="menu">
       {/* Encabezado de plan */}
@@ -166,6 +237,19 @@ export default function AccountMenu({
             <span className={styles.itemLabel}>{settingsLabel}</span>
           </button>
         )}
+
+        <button
+          type="button"
+          className={styles.item}
+          role="menuitem"
+          aria-haspopup="menu"
+          aria-expanded={false}
+          onClick={() => setShowMoreInfo(true)}
+        >
+          <span className={styles.iconChip}><InfoIcon className={styles.icon} /></span>
+          <span className={styles.itemLabel}>Más información</span>
+          <ChevronRight className={styles.itemChevron} />
+        </button>
 
         <button
           type="button"

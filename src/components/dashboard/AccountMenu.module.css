@@ -112,6 +112,46 @@
 .icon { width: 16px; height: 16px; }
 .item:hover .iconChip { color: var(--text-main); }
 
+/* — Submenú "Más información" (P3-MORE-INFO-MENU · 2026-07-03) — */
+.itemChevron { width: 14px; height: 14px; margin-left: auto; flex: none; color: var(--text-light); }
+.item:hover .itemChevron { color: var(--text-main); }
+
+.backRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--text-main);
+  transition: background 0.14s;
+}
+.backRow:hover { background: var(--bg-muted); }
+.backChevron { width: 15px; height: 15px; flex: none; color: var(--text-muted); }
+
+.infoMenu { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; }
+.infoDivider { height: 1px; margin: 6px 8px; background: var(--border); }
+.infoLink {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background 0.14s;
+}
+.infoLink:hover { background: var(--bg-muted); }
+.infoLink .itemLabel { flex: 1; min-width: 0; }
+.externalIcon { width: 14px; height: 14px; flex: none; color: var(--text-light); }
+.infoLink:hover .externalIcon { color: var(--text-main); }
+
 /* Cerrar sesión */
 .logout:hover { background: var(--danger-bg); }
 .logout .itemLabel { color: var(--danger); }

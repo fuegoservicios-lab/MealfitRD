@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Lock } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Lock, Info, ChevronRight, ExternalLink } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -19,6 +19,9 @@ import BottomTabBar from './BottomTabBar';
 // AccountIdentityButton = la fila de cuenta compartida: pie de la card (abierto)
 // Y disparador del sidebar (cerrado) → ambos estados idénticos por construcción.
 import AccountMenu, { AccountIdentityButton } from './AccountMenu';
+// [P3-MORE-INFO-MENU · 2026-07-03] Enlaces "Más información" (SSOT compartido
+// con la card del menú de cuenta) — versión inline para el menú "más" móvil.
+import { MORE_INFO_GROUPS, landingUrl } from './moreInfoLinks';
 // [P1-APP-VERSION · 2026-06-19] Versión visible bajo el wordmark (SSOT en config).
 import { APP_VERSION } from '../../config/appVersion';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatar minimalista elegido en Ajustes, reflejado
@@ -91,7 +94,13 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     // re-arma en cada render (misma lección que P2-DASH-SCAN-ONCLOSE-MEMO). Da
     // ESC para cerrar, focus-trap (Tab no escapa al fondo) y restore-focus al
     // trigger. Conserva `role="menu"` — el hook NO toca el DOM, solo gestiona foco.
-    const closeMoreMenu = useCallback(() => setIsMobileMoreMenuOpen(false), []);
+    // [P3-MORE-INFO-MENU · 2026-07-03] Al cerrar el menú "más" móvil, colapsa
+    // también la sub-lista "Más información" para que reabra en estado limpio.
+    const [isMobileInfoOpen, setIsMobileInfoOpen] = useState(false);
+    const closeMoreMenu = useCallback(() => {
+        setIsMobileMoreMenuOpen(false);
+        setIsMobileInfoOpen(false);
+    }, []);
     const { containerRef: moreMenuRef } = useModalAccessibility({
         isOpen: isMobileMoreMenuOpen,
         onClose: closeMoreMenu,
@@ -369,6 +378,47 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 <Settings size={18} strokeWidth={2.5} />
                                 <span>Configuración</span>
                             </Link>
+                        )}
+                        {/* [P3-MORE-INFO-MENU · 2026-07-03] "Más información" — expande
+                            inline los enlaces de marketing/legales (SSOT moreInfoLinks).
+                            Abren en pestaña nueva (su casa canónica es el apex). */}
+                        <button
+                            className={styles.mobileMoreItem}
+                            onClick={() => setIsMobileInfoOpen(prev => !prev)}
+                            role="menuitem"
+                            aria-expanded={isMobileInfoOpen}
+                        >
+                            <Info size={18} strokeWidth={2.5} />
+                            <span style={{ flex: 1 }}>Más información</span>
+                            <ChevronRight
+                                size={15}
+                                strokeWidth={2.5}
+                                style={{ transform: isMobileInfoOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s ease' }}
+                                aria-hidden="true"
+                            />
+                        </button>
+                        {isMobileInfoOpen && (
+                            <div className={styles.mobileMoreSubList}>
+                                {MORE_INFO_GROUPS.map((group, gi) => (
+                                    <Fragment key={gi}>
+                                        {gi > 0 && <div className={styles.mobileMoreSubDivider} role="separator" />}
+                                        {group.map((link) => (
+                                            <a
+                                                key={link.path}
+                                                href={landingUrl(link.path)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={styles.mobileMoreSubItem}
+                                                role="menuitem"
+                                                onClick={closeMoreMenu}
+                                            >
+                                                <span style={{ flex: 1 }}>{link.label}</span>
+                                                <ExternalLink size={13} strokeWidth={2.25} aria-hidden="true" />
+                                            </a>
+                                        ))}
+                                    </Fragment>
+                                ))}
+                            </div>
                         )}
                         <button
                             className={`${styles.mobileMoreItem} ${styles.mobileMoreItemDanger}`}

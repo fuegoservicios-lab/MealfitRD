@@ -376,6 +376,43 @@
     color: #B91C1C;
 }
 
+/* [P3-MORE-INFO-MENU · 2026-07-03] Sub-lista inline de "Más información" */
+.mobileMoreSubList {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 0 0.25rem 0.25rem;
+    padding: 0.3rem;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 0.65rem;
+}
+
+.mobileMoreSubItem {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.6rem;
+    color: #475569;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 0.5rem;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mobileMoreSubItem:hover,
+.mobileMoreSubItem:active {
+    background: #E9EEF5;
+    color: #0F172A;
+}
+
+.mobileMoreSubDivider {
+    height: 1px;
+    margin: 0.25rem 0.35rem;
+    background: #E2E8F0;
+}
+
 /* Overlay for Mobile Sidebar */
 .overlay {
     position: fixed;
@@ -595,6 +632,21 @@
 :global(html[data-theme="dark"]) .mobileMoreItemDanger:active {
     background: var(--danger-bg);
     color: var(--danger-text);
+}
+:global(html[data-theme="dark"]) .mobileMoreSubList {
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+:global(html[data-theme="dark"]) .mobileMoreSubItem {
+    color: var(--text-muted);
+}
+:global(html[data-theme="dark"]) .mobileMoreSubItem:hover,
+:global(html[data-theme="dark"]) .mobileMoreSubItem:active {
+    background: var(--bg-card);
+    color: var(--text-main);
+}
+:global(html[data-theme="dark"]) .mobileMoreSubDivider {
+    background: var(--border);
 }
 :global(html[data-theme="dark"]) .overlay {
     background: rgba(0, 0, 0, 0.55);
