@@ -4457,21 +4457,28 @@ const DashboardInner = () => {
                                             // el editor de presupuesto debajo de la duración (antes era tan
                                             // angosto como el chip). Anclado a la izquierda + maxWidth/scroll
                                             // de seguridad para no desbordar el viewport ni recortar contenido.
-                                            position: 'absolute', top: 'calc(100% + 6px)', left: '-4px',
-                                            minWidth: '252px', maxWidth: 'min(340px, calc(100vw - 24px))',
+                                            // [UX-DURATION-PANEL-WIDTH · 2026-07-03] El cap de 340px dejaba el
+                                            // panel MÁS ANGOSTO que su propio trigger (~430px) → botones de
+                                            // presupuesto apretados y el aviso de mínimo envuelto en 2 líneas.
+                                            // Anclado a AMBOS bordes del trigger (left+right) = mismo ancho de
+                                            // la barra; minWidth de seguridad si el trigger fuera angosto y
+                                            // maxWidth de viewport para móviles.
+                                            position: 'absolute', top: 'calc(100% + 6px)', left: '-4px', right: '-4px',
+                                            minWidth: 'min(300px, calc(100vw - 24px))',
+                                            maxWidth: 'calc(100vw - 24px)',
                                             zIndex: 9999,
                                             background: 'var(--bg-card)',
                                             borderRadius: '12px',
                                             border: '1.5px solid var(--border)',
                                             boxShadow: '0 20px 40px -10px rgba(0,0,0,0.15)',
                                             overflowX: 'hidden', overflowY: 'auto', maxHeight: '78vh',
-                                            padding: '6px'
+                                            padding: '8px'
                                         }}
                                     >
                                         {/* Despensa Section */}
-                                        <div style={{ padding: '4px 8px 2px' }}>
-                                            <span style={{ fontSize: '0.62rem', color: isDark ? '#34D399' : '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                                <Clock size={10} /> Duración del Plan
+                                        <div style={{ padding: '4px 8px 3px' }}>
+                                            <span style={{ fontSize: '0.66rem', color: isDark ? '#34D399' : '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                <Clock size={11} /> Duración del Plan
                                             </span>
                                         </div>
                                         {[
@@ -4575,23 +4582,23 @@ const DashboardInner = () => {
                                                 }}
                                                 style={{
                                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                    padding: '0.4rem 0.6rem', borderRadius: '7px', cursor: 'pointer',
+                                                    padding: '0.5rem 0.75rem', borderRadius: '8px', cursor: 'pointer',
                                                     background: groceryDuration === opt.value
                                                         ? (isDark ? 'rgba(16, 185, 129, 0.14)' : 'linear-gradient(135deg, #F0FDF4, #DCFCE7)')
                                                         : 'transparent',
                                                     border: groceryDuration === opt.value
                                                         ? (isDark ? '1px solid rgba(52, 211, 153, 0.45)' : '1px solid #BBF7D0')
                                                         : '1px solid transparent',
-                                                    transition: 'all 0.15s ease', margin: '1px 0'
+                                                    transition: 'all 0.15s ease', margin: '2px 0'
                                                 }}
                                                 onMouseEnter={e => { if (groceryDuration !== opt.value) e.currentTarget.style.background = 'var(--bg-muted)'; }}
                                                 onMouseLeave={e => { if (groceryDuration !== opt.value) e.currentTarget.style.background = 'transparent'; }}
                                             >
-                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: groceryDuration === opt.value ? (isDark ? '#34D399' : '#059669') : 'var(--text-main)' }}>{opt.label}</span>
-                                                    <span style={{ fontSize: '0.6rem', color: isDark ? 'var(--text-muted)' : 'var(--text-light)' }}>{opt.sub}</span>
+                                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
+                                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: groceryDuration === opt.value ? (isDark ? '#34D399' : '#059669') : 'var(--text-main)' }}>{opt.label}</span>
+                                                    <span style={{ fontSize: '0.66rem', color: isDark ? 'var(--text-muted)' : 'var(--text-light)' }}>{opt.sub}</span>
                                                 </div>
-                                                {groceryDuration === opt.value && <CheckCircle size={13} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.5} />}
+                                                {groceryDuration === opt.value && <CheckCircle size={15} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.5} />}
                                             </div>
                                         ))}
 
@@ -4603,10 +4610,10 @@ const DashboardInner = () => {
                                             (mismo panel que la duración); persiste a formData + health profile,
                                             así la próxima renovación usa el monto nuevo. El mínimo mostrado se
                                             recalcula con la duración elegida (mismo SSOT minBudgetFor). */}
-                                        <div style={{ height: 1, background: 'var(--border)', margin: '6px 4px' }} />
-                                        <div style={{ padding: '2px 8px 4px' }}>
-                                            <span style={{ fontSize: '0.62rem', color: isDark ? '#34D399' : '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                                <Wallet size={10} /> Presupuesto
+                                        <div style={{ height: 1, background: 'var(--border)', margin: '8px 4px' }} />
+                                        <div style={{ padding: '2px 8px 5px' }}>
+                                            <span style={{ fontSize: '0.66rem', color: isDark ? '#34D399' : '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                <Wallet size={11} /> Presupuesto
                                             </span>
                                         </div>
                                         {(() => {
@@ -4625,9 +4632,14 @@ const DashboardInner = () => {
                                                 { val: 'unlimited', label: 'Sin límite' },
                                                 { val: 'custom', label: 'Personalizar' },
                                             ];
+                                            // [P2-AUDIT-V6-BATCH · 2026-07-03] (P2-I) referencia estimada del tier
+                                            // seleccionado (piso × banda, misma fórmula del banner) — paridad con
+                                            // el formulario: el usuario ve el RD$Y contra el que se comparará.
+                                            const _selTierRef = (!_isCustom && budgetFloor.tierReferences
+                                                && budgetFloor.tierReferences[formData?.budget]) || null;
                                             return (
                                                 <div style={{ padding: '0 4px' }}>
-                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                                                         {_opts.map(o => {
                                                             const sel = (formData?.budget || '') === o.val;
                                                             return (
@@ -4636,9 +4648,9 @@ const DashboardInner = () => {
                                                                     type="button"
                                                                     onClick={() => _setBudget('budget', o.val)}
                                                                     style={{
-                                                                        flex: o.val === 'custom' ? '1 1 100%' : '1 1 calc(50% - 4px)',
-                                                                        padding: '0.35rem 0.5rem', borderRadius: '7px', cursor: 'pointer',
-                                                                        fontSize: '0.7rem', fontWeight: 700, textAlign: 'center',
+                                                                        flex: o.val === 'custom' ? '1 1 100%' : '1 1 calc(50% - 6px)',
+                                                                        padding: '0.5rem 0.6rem', borderRadius: '8px', cursor: 'pointer',
+                                                                        fontSize: '0.75rem', fontWeight: 700, textAlign: 'center',
                                                                         background: sel ? (isDark ? 'rgba(16,185,129,0.14)' : 'linear-gradient(135deg,#F0FDF4,#DCFCE7)') : 'var(--bg-muted)',
                                                                         border: sel ? (isDark ? '1px solid rgba(52,211,153,0.45)' : '1px solid #BBF7D0') : '1px solid transparent',
                                                                         color: sel ? (isDark ? '#34D399' : '#059669') : 'var(--text-main)',
@@ -4648,11 +4660,16 @@ const DashboardInner = () => {
                                                             );
                                                         })}
                                                     </div>
+                                                    {_selTierRef && (
+                                                        <span style={{ display: 'block', marginTop: '0.45rem', fontSize: '0.68rem', lineHeight: 1.35, color: 'var(--text-muted)' }}>
+                                                            ≈ {_sym}{Number(_selTierRef).toLocaleString('en-US')} por {_cycleDays} días (referencia estimada según tus metas).
+                                                        </span>
+                                                    )}
                                                     {_isCustom && (
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
-                                                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: '0.55rem' }}>
+                                                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                                                                 <div style={{ position: 'relative', flex: 1 }}>
-                                                                    <span style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.8rem', pointerEvents: 'none' }}>{_sym}</span>
+                                                                    <span style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.85rem', pointerEvents: 'none' }}>{_sym}</span>
                                                                     <input
                                                                         type="number" inputMode="decimal" min={_min} step="1"
                                                                         placeholder={_cur === 'USD' ? 'Ej. 100' : 'Ej. 5000'}
@@ -4661,24 +4678,24 @@ const DashboardInner = () => {
                                                                         aria-label={`Presupuesto total en ${_cur === 'USD' ? 'dólares' : 'pesos dominicanos'}`}
                                                                         style={{
                                                                             width: '100%', boxSizing: 'border-box',
-                                                                            padding: '0.4rem 0.5rem 0.4rem 2.4rem', borderRadius: '7px',
+                                                                            padding: '0.5rem 0.6rem 0.5rem 2.6rem', borderRadius: '8px',
                                                                             border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)',
-                                                                            fontSize: '0.78rem', fontWeight: 600, outline: 'none',
+                                                                            fontSize: '0.85rem', fontWeight: 600, outline: 'none',
                                                                         }}
                                                                     />
                                                                 </div>
-                                                                <div style={{ display: 'flex', background: 'var(--bg-muted)', borderRadius: '0.5rem', padding: '2px', flexShrink: 0 }}>
+                                                                <div style={{ display: 'flex', background: 'var(--bg-muted)', borderRadius: '0.5rem', padding: '3px', flexShrink: 0 }}>
                                                                     {['DOP', 'USD'].map(c => {
                                                                         const on = (_cur === c);
                                                                         return (
                                                                             <button key={c} type="button" onClick={() => _setBudget('budgetCurrency', c)} aria-pressed={on}
-                                                                                style={{ border: 'none', background: on ? 'var(--bg-card)' : 'transparent', padding: '3px 7px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 700, color: on ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}
+                                                                                style={{ border: 'none', background: on ? 'var(--bg-card)' : 'transparent', padding: '4px 9px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 700, color: on ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}
                                                                             >{c === 'USD' ? 'US$' : 'RD$'}</button>
                                                                         );
                                                                     })}
                                                                 </div>
                                                             </div>
-                                                            <span style={{ fontSize: '0.66rem', lineHeight: 1.35, fontWeight: _belowMin ? 700 : 500, color: _belowMin ? 'var(--warning)' : 'var(--text-muted)' }}>
+                                                            <span style={{ fontSize: '0.72rem', lineHeight: 1.4, fontWeight: _belowMin ? 700 : 500, color: _belowMin ? 'var(--warning)' : 'var(--text-muted)' }}>
                                                                 {_belowMin ? '⚠️ ' : ''}Mínimo {_sym}{_min.toLocaleString('en-US')} para {_cycleDays} días{budgetFloor.isPersonalized ? ' (según tus metas)' : ''}.
                                                             </span>
                                                         </div>
