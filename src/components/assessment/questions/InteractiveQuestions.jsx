@@ -90,6 +90,9 @@ export const NextButton = ({ onClick, disabled, label = "Siguiente", icon: Icon 
 );
 
 // --- Componentes Reutilizables Extraídos de los Steps Originales ---
+// [FORM-OPT-HOVER · 2026-07-03] Base (border/fondo/hover/focus-ring/transition)
+// vive en `.mf-opt-card` (index.css); inline solo va el estado SELECCIONADO,
+// que gana sobre la clase y anula el hover mientras está activo.
 const DietOption = ({ val, label, icon: Icon, desc, isSelected, onSelect }) => (
     <div
         onClick={() => onSelect(val)}
@@ -97,12 +100,12 @@ const DietOption = ({ val, label, icon: Icon, desc, isSelected, onSelect }) => (
         role="button"
         aria-pressed={isSelected}
         tabIndex={0}
+        className="mf-opt-card"
         style={{
-            cursor: 'pointer', padding: '1rem', borderRadius: 'var(--radius-md)',
-            border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
-            backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-card)',
+            padding: '1rem', borderRadius: 'var(--radius-md)',
             display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '0.5rem',
-            transition: 'all 0.2s ease', position: 'relative'
+            position: 'relative',
+            ...(isSelected ? { border: '2px solid var(--primary)', backgroundColor: 'rgba(37, 99, 235, 0.12)' } : {})
         }}
     >
         {/* [FORM-ICON-CIRCLE-CENTER · 2026-07-03] display:flex + centrado: sin esto el
@@ -119,6 +122,8 @@ const DietOption = ({ val, label, icon: Icon, desc, isSelected, onSelect }) => (
     </div>
 );
 
+// [FORM-OPT-HOVER · 2026-07-03] Base en `.mf-opt-chip` (index.css); inline solo
+// el estado seleccionado (ver DietOption).
 const ChipOption = ({ val, label, icon: Icon, isSelected, onToggle }) => (
     <div
         onClick={() => onToggle(val)}
@@ -126,11 +131,11 @@ const ChipOption = ({ val, label, icon: Icon, isSelected, onToggle }) => (
         role="button"
         aria-pressed={isSelected}
         tabIndex={0}
+        className="mf-opt-chip"
         style={{
-            cursor: 'pointer', padding: '0.75rem 1rem', borderRadius: 'var(--radius-lg)',
-            border: isSelected ? '1px solid var(--secondary)' : '1px solid var(--border)',
-            backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-card)',
-            display: 'flex', alignItems: 'center', gap: '0.75rem', transition: 'all 0.2s ease'
+            padding: '0.75rem 1rem', borderRadius: 'var(--radius-lg)',
+            display: 'flex', alignItems: 'center', gap: '0.75rem',
+            ...(isSelected ? { border: '1px solid var(--secondary)', backgroundColor: 'rgba(16, 185, 129, 0.12)' } : {})
         }}
     >
         {Icon && <Icon size={18} color={isSelected ? 'var(--secondary)' : 'var(--text-muted)'} />}
@@ -140,6 +145,8 @@ const ChipOption = ({ val, label, icon: Icon, isSelected, onToggle }) => (
     </div>
 );
 
+// [FORM-OPT-HOVER · 2026-07-03] Base en `.mf-opt-card`; el seleccionado inline
+// usa el `color` dinámico de cada objetivo (por eso no puede vivir en CSS).
 const GoalCard = ({ val, label, icon: Icon, color, isSelected, onSelect }) => (
     <div
         onClick={() => onSelect(val)}
@@ -147,12 +154,12 @@ const GoalCard = ({ val, label, icon: Icon, color, isSelected, onSelect }) => (
         role="button"
         aria-pressed={isSelected}
         tabIndex={0}
+        className="mf-opt-card"
         style={{
-            cursor: 'pointer', padding: '1.25rem', borderRadius: 'var(--radius-lg)',
-            border: isSelected ? `2px solid ${color}` : '1px solid var(--border)',
-            backgroundColor: isSelected ? `${color}22` : 'var(--bg-card)',
+            padding: '1.25rem', borderRadius: 'var(--radius-lg)',
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', textAlign: 'center',
-            position: 'relative'
+            position: 'relative',
+            ...(isSelected ? { border: `2px solid ${color}`, backgroundColor: `${color}22` } : {})
         }}
     >
         {/* [FORM-ICON-CIRCLE-CENTER · 2026-07-03] mismo fix de centrado que DietOption. */}

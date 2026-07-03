@@ -475,6 +475,39 @@ html[data-theme="dark"] .glass-panel {
   flex: none;
 }
 
+/* [FORM-OPT-HOVER · 2026-07-03] Cards/chips seleccionables del formulario
+   (ChipOption / DietOption / GoalCard en InteractiveQuestions). Antes eran divs
+   inline-styled SIN feedback de hover NI anillo de foco de teclado (tabIndex=0
+   pero invisible al navegar con Tab). El estado SELECCIONADO va inline en el
+   componente (border/fondo — dinámico por color en GoalCard) y gana sobre estas
+   reglas (inline > clase) — el hover solo se nota en las NO seleccionadas.
+   Sin transform: los elementos no se mueven (pedido del usuario 2026-07-03). */
+.mf-opt-chip,
+.mf-opt-card {
+  cursor: pointer;
+  background-color: var(--bg-card);
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.mf-opt-chip {
+  border: 1px solid var(--border);
+}
+/* 2px SIEMPRE (antes 1px→2px al seleccionar: el contenido saltaba 1px). Mismo
+   grosor que .radioCard de FormUI — unifica el lenguaje de cards del form. */
+.mf-opt-card {
+  border: 2px solid var(--border);
+}
+.mf-opt-chip:hover,
+.mf-opt-card:hover {
+  background-color: var(--bg-muted);
+  border-color: var(--text-light);
+}
+/* Mismo ring indigo que .radioCard / .mf-cta-btn (a11y teclado). */
+.mf-opt-chip:focus-visible,
+.mf-opt-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.45);
+}
+
 /* [CTA-HOVER-GLOW · 2026-05-31] CTA pill de EmptyState ("Generar nuevo plan", etc.,
    reutilizado en Dashboard/Historial/Recetas). Indigo var(--primary); el box-shadow
    vive aquí (no inline) para que :hover lo intensifique. Hover = glow indigo + brillo,
