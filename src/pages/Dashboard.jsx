@@ -2667,14 +2667,18 @@ const DashboardInner = () => {
                         if (!_br || !_br.status || _br.status === 'sin_limite' || !_br.reference_rd) return '';
                         const _est = Math.round(_br.estimated_cycle_rd || 0).toLocaleString('es-DO');
                         const _ref = Math.round(_br.reference_rd).toLocaleString('es-DO');
+                        // [P2-AUDIT-V5-BATCH GAP-06] Caveat de cobertura parcial (solo números backend → sin XSS).
+                        const _pp = _br.partial_pricing
+                            ? `<span style="font-weight:600; color:#92400e;"> · estimado parcial (${Math.round((_br.price_coverage || 0) * 100)}% con precio)</span>`
+                            : '';
                         if (_br.status === 'dentro') {
-                            return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155; font-size: 11px; font-weight: 700; color: #047857;">✓ Dentro de tu presupuesto — RD$${_est} de RD$${_ref}</div>`;
+                            return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155; font-size: 11px; font-weight: 700; color: #047857;">✓ Dentro de tu presupuesto — RD$${_est} de RD$${_ref}${_pp}</div>`;
                         }
                         if (_br.status === 'cerca') {
-                            return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f59e0b55; font-size: 11px; font-weight: 700; color: #92400e;">≈ Al límite de tu presupuesto — RD$${_est} de RD$${_ref}</div>`;
+                            return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f59e0b55; font-size: 11px; font-weight: 700; color: #92400e;">≈ Al límite de tu presupuesto — RD$${_est} de RD$${_ref}${_pp}</div>`;
                         }
                         const _delta = Math.round(Math.max(0, _br.delta_rd || 0)).toLocaleString('es-DO');
-                        return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f8717155; font-size: 11px; font-weight: 700; color: #b91c1c;">▲ Supera tu presupuesto por RD$${_delta} — RD$${_est} de RD$${_ref}${_br.adjusted ? '<span style="font-weight:600; color:#92400e;"> · ya ajustamos ingredientes premium a equivalentes económicos</span>' : ''}</div>`;
+                        return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f8717155; font-size: 11px; font-weight: 700; color: #b91c1c;">▲ Supera tu presupuesto por RD$${_delta} — RD$${_est} de RD$${_ref}${_br.adjusted ? '<span style="font-weight:600; color:#92400e;"> · ya ajustamos ingredientes premium a equivalentes económicos</span>' : ''}${_pp}</div>`;
                     })()}
                 </div>` : ''}
                 ${clinicalNoteHTML}
@@ -4985,6 +4989,14 @@ const DashboardInner = () => {
                                         <span aria-hidden="true" style={{ fontWeight: 800, color: _palette.fg }}>{_palette.icon}</span>
                                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: _palette.fg }}>{_headline}</span>
                                     </div>
+                                    {/* [P2-AUDIT-V5-BATCH GAP-06] Caveat de cobertura parcial de precios:
+                                        el backend marca partial_pricing cuando pocos ítems tienen precio —
+                                        el total mostrado subestima, así que bajamos la certeza del verde. */}
+                                    {_br.partial_pricing && (
+                                        <p style={{ margin: '0.3rem 0 0', fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                                            Estimado parcial: {Math.round((_br.price_coverage || 0) * 100)}% de los ítems tienen precio — el total real puede ser mayor.
+                                        </p>
+                                    )}
                                     {_br.adjusted && _subs.length > 0 && (
                                         <p style={{ margin: '0.35rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                                             Para cuidar tu bolsillo ajustamos: {_subs.join(' · ')}
