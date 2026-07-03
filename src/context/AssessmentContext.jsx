@@ -4,7 +4,7 @@ import { authClient } from '../authClient';
 // [P1-FIRST-PARTY-SESSION · 2026-06-16] Cookie de sesión first-party que NUESTRO
 // backend emite en mealfitrd.com → iOS PWA conserva la sesión al cerrar la app
 // (la de Neon es third-party y la borra). Ver utils/firstPartySession.js.
-import { mintFirstPartySession, checkFirstPartySession, logoutFirstPartySession, FORM_KEY_READY_EVENT } from '../utils/firstPartySession';
+import { mintFirstPartySession, checkFirstPartySession, logoutFirstPartySession, adoptOAuthVerifierFirstParty, FORM_KEY_READY_EVENT } from '../utils/firstPartySession';
 // [P2-AUDIT-3 · 2026-05-15] Helper SSOT para `localStorage.setItem` defensivo.
 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] + `safeLocalStorageRemove` para
 // los flujos de logout/reset (iOS Private Mode lanza SecurityError en
@@ -1526,7 +1526,37 @@ export const AssessmentProvider = ({ children }) => {
             return undefined;
         }
 
-        getSessionWithTimeout().then(async ({ data: { session: initialSession } }) => {
+        // [P1-OAUTH-FIRST-PARTY · 2026-07-03] Si volvemos del OAuth de Google, la URL trae
+        // `neon_auth_session_verifier` (de UN SOLO USO). El canje client-side del SDK es
+        // frágil en móvil: si el primer /get-session se pierde por timeout, el verifier
+        // queda consumido sin sesión y ningún retry resuelve → el usuario debía pulsar
+        // "Continuar con Google" una 2ª vez. Lo canjeamos PRIMERO vía nuestro backend
+        // (server-side, timeout generoso) que emite la sesión first-party; si mintó:
+        //   - quitamos el param (el SDK deja de bypassear su cache / re-pegar un verifier muerto)
+        //   - desarmamos el flag de retry (el fallback first-party de abajo resuelve al instante)
+        // Si el adopt falla (red), dejamos el param intacto → el SDK intenta su canje nativo
+        // (comportamiento previo). Fail-open total.
+        const _adoptOAuthVerifier = async () => {
+            try {
+                if (typeof window === 'undefined') return false;
+                const _vp = new URLSearchParams(window.location.search).get('neon_auth_session_verifier');
+                if (!_vp) return false;
+                const ok = await adoptOAuthVerifierFirstParty(_vp);
+                if (ok) {
+                    try { sessionStorage.removeItem('mf_oauth_pending'); } catch { /* noop */ }
+                    try {
+                        const _url = new URL(window.location.href);
+                        _url.searchParams.delete('neon_auth_session_verifier');
+                        window.history.replaceState(window.history.state, '', _url.href);
+                    } catch { /* noop */ }
+                }
+                return ok;
+            } catch {
+                return false;
+            }
+        };
+
+        _adoptOAuthVerifier().then(() => getSessionWithTimeout()).then(async ({ data: { session: initialSession } }) => {
             if (initialSession) {
                 handleAuthChange(initialSession);
                 return;

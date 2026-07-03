@@ -126,6 +126,32 @@ export async function verifyEmailOtpFirstParty(email, otp) {
     }
 }
 
+// [P1-OAUTH-FIRST-PARTY · 2026-07-03] Canjea el verifier con el que Neon regresa del
+// OAuth de Google por la sesión first-party, vía NUESTRO backend (server-side). El canje
+// client-side del SDK es frágil en móvil: el verifier es de UN SOLO USO y si la primera
+// petición se pierde por timeout queda consumido sin sesión → el usuario debía pulsar
+// "Continuar con Google" una segunda vez. Devuelve true si mintó la sesión.
+export async function adoptOAuthVerifierFirstParty(verifier) {
+    try {
+        const v = (verifier || '').trim();
+        if (!v) return false;
+        const res = await fetch(api('/api/auth/oauth/adopt'), {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ verifier: v }),
+        });
+        if (!res.ok) return false;
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok || !data.user_id) return false;
+        if (data.token) _storeToken(data.token);
+        _applyFormKey(data);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 // Cierra la sesión first-party: borra el token local + la cookie del servidor.
 export async function logoutFirstPartySession() {
     clearStoredMfSession();
