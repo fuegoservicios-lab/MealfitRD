@@ -31,12 +31,11 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                     </div>
                     
                     {/* [P3-ASSESSMENT-NO-CANCEL · 2026-07-01] Botón «Cancelar» eliminado a pedido.
-                        [FORM-VISUAL-V2 · 2026-07-02] El hueco derecho ahora muestra el contador
-                        de paso (el grid 3-col del header conserva el logo centrado). */}
-                    <div className={styles.stepPill}>
-                        <span className={styles.stepPillCurrent}>{currentStep + 1}</span>
-                        <span className={styles.stepPillTotal}>/ {totalSteps}</span>
-                    </div>
+                        [FORM-STEP-COUNTER-DEDUP · 2026-07-03] La píldora contador "N / M" del
+                        header eliminada a pedido — duplicaba el kicker "Paso N de M" de la card.
+                        Spacer vacío para que el grid 3-col conserve el logo centrado
+                        (`:last-child { justify-self: end }` capturaría el logo sin él). */}
+                    <div className={styles.backSpacer} />
                 </div>
                 
                 {/* Progress Bar under header */}

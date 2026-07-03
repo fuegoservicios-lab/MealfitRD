@@ -76,33 +76,6 @@
     justify-self: end;
 }
 
-/* [FORM-VISUAL-V2 · 2026-07-02] Contador de paso del header — píldora hairline con
-   el paso actual destacado en primary y el total atenuado. Tabular nums para que
-   no "baile" el ancho al cambiar de dígitos. */
-.stepPill {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 0.3rem;
-    padding: 0.32rem 0.85rem;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--bg-card);
-    font-variant-numeric: tabular-nums;
-    font-size: 0.85rem;
-    line-height: 1;
-}
-
-.stepPillCurrent {
-    font-weight: 800;
-    color: var(--primary);
-}
-
-.stepPillTotal {
-    font-weight: 600;
-    color: var(--text-muted);
-    font-size: 0.78rem;
-}
-
 .backBtn {
     background: none;
     border: none;
@@ -295,14 +268,6 @@
    en builds donde el scoping del módulo podría diferir. */
 :global(html[data-theme="dark"]) .header {
     background: rgba(17, 24, 39, 0.92);
-}
-
-/* [FORM-VISUAL-V2 · 2026-07-02] Oscuro: la píldora de paso y el panel glass toman
-   superficies translúcidas slate (los sólidos --bg-card se ven "pegados" sobre
-   los glows ambientales del fondo). */
-:global(html[data-theme="dark"]) .stepPill {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.09);
 }
 
 :global(html[data-theme="dark"]) .kicker {
