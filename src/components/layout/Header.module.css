@@ -143,11 +143,18 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
     /* [HERO-CTA-ORB-COLOR · 2026-06-29] El CTA toma el color de la "bola" del Hero.
        [HERO-CTA-ORB-SATURATE · 2026-06-29] El cuerpo es el periwinkle SATURADO
        var(--primary) (= el color dominante del orbe), NO el lavanda pálido — antes
        arrancaba en #EEF1FE/#C7D2FE y se veía lavado. El blanco queda como reflejo
-       especular pequeño arriba-izq (como .orbSheen) + oclusión inferior indigo. */
+       especular pequeño arriba-izq (como .orbSheen).
+       [HEADER-CTA-POLISH · 2026-07-02] Rediseño de profundidad: bisel superior
+       inset (rgba blanca 1px, NO llega al filo inferior → no reintroduce la línea
+       clara de HERO-CTA-NO-WHITE-RIM-3), glow en dos capas (tight + ambient) y
+       barrido de brillo en hover vía ::after. */
     background:
         radial-gradient(85% 85% at 28% 18%, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 42%),
         linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 58%, var(--primary-dark) 100%);
@@ -156,16 +163,18 @@
     border-radius: 9999px;
     text-decoration: none;
     font-weight: 600;
-    transition: all 0.2s ease;
-    /* [HERO-CTA-NO-WHITE-RIM · 2026-06-29] Sin borde blanco.
-       [HERO-CTA-NO-WHITE-RIM-2 · 2026-06-29] Sin reflejo blanco interno superior.
-       [HERO-CTA-NO-WHITE-RIM-3 · 2026-06-29] Quitada también la oclusión interna
-       inferior (inset 0 -8px indigo): oscurecía el interior del fondo y el 1px del
-       borde inferior mostraba el color base del degradado (más claro que esa banda)
-       → se leía como una línea clara en el filo de abajo. Ahora el fondo queda
-       uniforme; el volumen vive solo en el glow externo + el blob de gloss superior. */
+    letter-spacing: 0.01em;
+    transition:
+        transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.25s ease,
+        background 0.25s ease;
+    /* [HERO-CTA-NO-WHITE-RIM · 2026-06-29] Sin borde blanco (el bisel de arriba es
+       inset y se funde antes del filo — no cuenta como rim). */
     border: 1px solid transparent;
-    box-shadow: 0 12px 26px -10px rgba(79, 70, 229, 0.5);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.25),
+        0 2px 6px -2px rgba(49, 46, 129, 0.45),
+        0 12px 26px -10px rgba(79, 70, 229, 0.55);
     font-size: 0.95rem;
     /* [P3-HEADER-CTA-MOBILE · 2026-06-01] Un CTA nunca debe partirse en 2 líneas.
        En el header móvil estrecho (logo + CTA sticky + hamburguesa) el flex
@@ -174,12 +183,71 @@
     white-space: nowrap;
 }
 
+/* [HEADER-CTA-POLISH · 2026-07-02] Barrido de brillo: banda diagonal blanca que
+   cruza la píldora al hacer hover. Vive en ::after para no tocar el background
+   (que el override dark reemplaza por completo). */
+.ctaButton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient(
+        105deg,
+        transparent 30%,
+        rgba(255, 255, 255, 0.35) 48%,
+        rgba(255, 255, 255, 0.12) 54%,
+        transparent 70%
+    );
+    transform: translateX(-110%);
+    transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+}
+
+.ctaButton:hover::after {
+    transform: translateX(110%);
+}
+
+/* [HEADER-CTA-POLISH · 2026-07-02] El chevron/icono acompaña el hover con un
+   micro-desplazamiento hacia la acción. */
+.ctaButton svg {
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    flex: none;
+}
+
+.ctaButton:hover svg {
+    transform: translateX(3px);
+}
+
 .ctaButton:hover {
     background:
         radial-gradient(85% 85% at 28% 18%, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 44%),
         linear-gradient(158deg, var(--primary-light) 0%, var(--primary) 70%, var(--primary-dark) 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 16px 32px -10px rgba(79, 70, 229, 0.6);
+    transform: translateY(-1.5px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.32),
+        0 3px 8px -2px rgba(49, 46, 129, 0.5),
+        0 18px 36px -12px rgba(79, 70, 229, 0.65);
+}
+
+.ctaButton:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        0 6px 14px -8px rgba(79, 70, 229, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ctaButton,
+    .ctaButton::after,
+    .ctaButton svg {
+        transition: none;
+    }
+    .ctaButton:hover::after {
+        transform: translateX(-110%);
+    }
+    .ctaButton:hover svg {
+        transform: none;
+    }
 }
 
 /* [P3-HEADER-CTA-MOBILE-SHORT · 2026-06-29] CTA del header más corto en móvil:
