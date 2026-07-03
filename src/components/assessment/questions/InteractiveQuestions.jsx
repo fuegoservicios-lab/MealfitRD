@@ -31,7 +31,8 @@ import {
     Leaf, Salad, Zap,
     Flame, BicepsFlexed, Scale, Gauge,
     AlertTriangle, Frown, Users, XCircle, HelpCircle,
-    Check, Pill, ArrowRight, Ban, Milk, Wheat, Egg, Fish, Nut, Activity, Heart, AlertCircle, Timer,
+    Check, Pill, ArrowRight, Ban, Milk, Wheat, Egg, Fish, Nut, Activity, Timer,
+    Droplet, Droplets, HeartPulse, TestTube, Slice, Baby, Syringe,
     CalendarDays, CalendarRange, CalendarClock,
     Hourglass,
     Armchair, Footprints, Bike, Dumbbell, Medal,
@@ -904,6 +905,45 @@ export const QDislikes = ({ onManualAdvance }) => {
     );
 };
 
+// [FORM-MEDICAL-ICONS · 2026-07-03] Icono temático por condición — antes 5 de las 7
+// compartían `Activity` (indistinguibles) y las otras dos eran genéricas. Mapping literal:
+//   - Droplet (Diabetes T2): gota de sangre = glucosa.
+//   - HeartPulse (Hipertensión): latido = presión arterial.
+//   - TestTube (Colesterol Alto): perfil lipídico de laboratorio.
+//   - Flame (Gastritis): ardor/acidez.
+//   - Venus (SOP): condición hormonal femenina.
+//   - BatteryLow (Hipotiroidismo): metabolismo/energía lenta (no hay Butterfly en lucide).
+//   - Slice (Cirugía Bariátrica): bisturí = quirúrgico.
+// Fallback `Activity` si un futuro chip no se mapea (defensivo, hoy cubre las 7).
+const CONDITION_ICONS = {
+    'Diabetes T2': Droplet,
+    'Hipertensión': HeartPulse,
+    'Colesterol Alto': TestTube,
+    'Gastritis': Flame,
+    'SOP (PCOS)': Venus,
+    'Hipotiroidismo': BatteryLow,
+    'Cirugía Bariátrica': Slice,
+};
+
+// [FORM-MEDICAL-ICONS · 2026-07-03] Medicamentos: icono = lo que TRATA (espeja
+// CONDITION_ICONS para coherencia visual dentro del step — quien marcó Diabetes T2
+// con la gota reconoce la misma gota en Metformina). Insulina → Syringe (inyectable);
+// diuréticos → Droplets (líquidos). Los sin metáfora clara (Prednisona, Warfarina,
+// Alopurinol) conservan el fallback `Pill`.
+const MED_ICONS = {
+    'Metformina': Droplet,
+    'Insulina': Syringe,
+    'Glibenclamida': Droplet,
+    'Lisinopril': HeartPulse,
+    'Losartán': HeartPulse,
+    'Amlodipina': HeartPulse,
+    'Hidroclorotiazida': Droplets,
+    'Espironolactona': Droplets,
+    'Atorvastatina': TestTube,
+    'Levotiroxina': BatteryLow,
+    'Omeprazol': Flame,
+};
+
 export const QMedical = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
     // [P0-B1] sentinel exclusivo con cualquier condición médica real.
@@ -943,7 +983,7 @@ export const QMedical = ({ onManualAdvance }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
                 {['Diabetes T2', 'Hipertensión', 'Colesterol Alto', 'Gastritis', 'SOP (PCOS)', 'Hipotiroidismo', 'Cirugía Bariátrica'].map(opt => (
-                    <ChipOption key={opt} val={opt} label={opt} icon={opt === 'Hipertensión' ? Heart : (opt === 'Colesterol Alto' ? AlertCircle : Activity)} isSelected={(formData.medicalConditions || []).includes(opt)} onToggle={handleToggle} />
+                    <ChipOption key={opt} val={opt} label={opt} icon={CONDITION_ICONS[opt] || Activity} isSelected={(formData.medicalConditions || []).includes(opt)} onToggle={handleToggle} />
                 ))}
                 <ChipOption
                     val={SENTINEL} label={SENTINEL} icon={Ban}
@@ -973,9 +1013,11 @@ export const QMedical = ({ onManualAdvance }) => {
                         ¿Estás embarazada o lactando? (opcional)
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
+                        {/* [FORM-MEDICAL-ICONS · 2026-07-03] Baby (Embarazo) / Milk (Lactancia)
+                            — antes ambos compartían Heart (genérico). */}
                         {PREGNANCY_CHIP_LABELS.map(opt => (
                             <ChipOption
-                                key={opt} val={opt} label={opt} icon={Heart}
+                                key={opt} val={opt} label={opt} icon={opt === 'Embarazo' ? Baby : Milk}
                                 isSelected={(formData.medicalConditions || []).includes(opt)}
                                 onToggle={handleToggle}
                             />
@@ -996,7 +1038,7 @@ export const QMedical = ({ onManualAdvance }) => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
                 {['Metformina', 'Insulina', 'Glibenclamida', 'Lisinopril', 'Losartán', 'Amlodipina', 'Hidroclorotiazida', 'Espironolactona', 'Atorvastatina', 'Levotiroxina', 'Omeprazol', 'Prednisona', 'Warfarina', 'Alopurinol'].map(med => (
                     <ChipOption
-                        key={med} val={med} label={med} icon={Pill}
+                        key={med} val={med} label={med} icon={MED_ICONS[med] || Pill}
                         isSelected={(formData.medications || []).includes(med)}
                         onToggle={handleMedToggle}
                     />
