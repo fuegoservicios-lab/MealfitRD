@@ -34,6 +34,7 @@ import {
     Check, Pill, ArrowRight, Ban, Milk, Wheat, Egg, Fish, Nut, Activity, Timer,
     Droplet, Droplets, HeartPulse, TestTube, Slice, Baby, Syringe,
     Beef, LeafyGreen, Shrimp, TreeDeciduous, Cloud, Sprout, Layers, Bean,
+    Wine, Cigarette, Coffee, GlassWater,
     CalendarDays, CalendarRange, CalendarClock,
     Hourglass,
     Armchair, Footprints, Bike, Dumbbell, Medal,
@@ -332,6 +333,10 @@ export const QMeasurements = ({ onManualAdvance }) => {
         updateData('weightUnit', newUnit);
         updateData('_weightUnitTouched', true);
         updateData('weight', '');
+        // [P1-CLINICAL-INTAKE · 2026-07-03] La meta de peso (QGoalTarget) vive en la
+        // MISMA unidad que weight — cambiar la unidad sin limpiarla dejaría "140"
+        // interpretado como kg. Mismo tratamiento que weight.
+        if ((formData.targetWeight || '') !== '') updateData('targetWeight', '');
     };
 
     // [P1-3] Validación de rangos biométricos antes de habilitar "Siguiente".
@@ -345,7 +350,9 @@ export const QMeasurements = ({ onManualAdvance }) => {
     const weightOK = isBiometricInRange(formData.weight, weightRange);
     // bodyFat es opcional — si está vacío, OK; si está, debe estar en rango.
     const bodyFatOK = isBiometricInRange(formData.bodyFat, BIO_RANGES.bodyFat, { optional: true });
-    const isFormValid = ageOK && heightOK && weightOK && bodyFatOK;
+    // [P1-CLINICAL-INTAKE · 2026-07-03] Cintura opcional (mismo contrato que bodyFat).
+    const waistOK = isBiometricInRange(formData.waistCm, BIO_RANGES.waistCm, { optional: true });
+    const isFormValid = ageOK && heightOK && weightOK && bodyFatOK && waistOK;
 
     return (
         <div style={{ display: 'grid', gap: '1.5rem' }}>
@@ -434,6 +441,17 @@ export const QMeasurements = ({ onManualAdvance }) => {
                         id="bodyFat" type="number" inputMode="decimal" placeholder="Ej. 20"
                         min={BIO_RANGES.bodyFat.min} max={BIO_RANGES.bodyFat.max} step={BIO_RANGES.bodyFat.step}
                         value={formData.bodyFat} onChange={e => updateData('bodyFat', _normalizeDecimal(e.target.value))}
+                    />
+                </div>
+                {/* [P1-CLINICAL-INTAKE · 2026-07-03] Cintura opcional: criterio de riesgo
+                    cardiometabólico + señal de composición corporal que el peso solo no da.
+                    Siempre en cm (una sola unidad — es como se mide con cinta en RD). */}
+                <div>
+                    <Label htmlFor="waistCm">Cintura en cm (Opcional)</Label>
+                    <Input
+                        id="waistCm" type="number" inputMode="decimal" placeholder="Ej. 85"
+                        min={BIO_RANGES.waistCm.min} max={BIO_RANGES.waistCm.max} step={BIO_RANGES.waistCm.step}
+                        value={formData.waistCm || ''} onChange={e => updateData('waistCm', _normalizeDecimal(e.target.value))}
                     />
                 </div>
             </div>
@@ -553,6 +571,84 @@ export const QStress = ({ onAutoAdvance }) => {
                     onClick={() => { if (formData.stressLevel === opt.val) onAutoAdvance(); }}
                 />
             ))}
+        </div>
+    );
+};
+
+// [P1-CLINICAL-INTAKE · 2026-07-03] Hábitos de consumo — parte de la anamnesis
+// estándar de nutrición que el wizard no capturaba. Cada señal tiene consumidor
+// real aguas abajo (llegan al prompt vía el JSON dump de form_data):
+//   - Alcohol: calorías líquidas + interactúa con metformina/warfarina (el motor
+//     de interacciones medication_rules ya existe; esta era su señal faltante).
+//   - Tabaco: modula apetito y vitamina C.
+//   - Cafeína: cruza con sleepHours (ya capturado) y horarios de comidas.
+//   - Agua: baseline de hidratación (el WaterTracker del dashboard mide DESPUÉS;
+//     esto captura el punto de partida).
+// 4 sub-preguntas single-select en un solo step (patrón QMedical: varias
+// secciones + manual advance). Valores en es-DO legibles — van directo al prompt.
+const _HABIT_ROWS = [
+    {
+        key: 'habitAlcohol', label: 'Alcohol', icon: Wine,
+        options: [
+            { val: 'nunca', label: 'Nunca' },
+            { val: 'ocasional', label: 'Ocasional (social)' },
+            { val: 'semanal', label: 'Cada semana' },
+            { val: 'diario', label: 'A diario' },
+        ],
+    },
+    {
+        key: 'habitSmoking', label: 'Tabaco / vape', icon: Cigarette,
+        options: [
+            { val: 'no', label: 'No fumo' },
+            { val: 'ocasional', label: 'A veces' },
+            { val: 'diario', label: 'A diario' },
+        ],
+    },
+    {
+        key: 'habitCaffeine', label: 'Cafeína (café, té, energizantes)', icon: Coffee,
+        options: [
+            { val: 'ninguna', label: 'No tomo' },
+            { val: '1-2 tazas/día', label: '1–2 tazas/día' },
+            { val: '3-4 tazas/día', label: '3–4 tazas/día' },
+            { val: '5+ tazas/día', label: '5 o más' },
+        ],
+    },
+    {
+        key: 'habitWater', label: 'Agua al día', icon: GlassWater,
+        options: [
+            { val: 'menos de 1L', label: 'Menos de 1 litro' },
+            { val: '1-2L', label: '1–2 litros' },
+            { val: '2-3L', label: '2–3 litros' },
+            { val: 'más de 3L', label: 'Más de 3 litros' },
+        ],
+    },
+];
+
+export const QHabits = ({ onManualAdvance }) => {
+    const { formData, updateData } = useAssessment();
+    const allAnswered = _HABIT_ROWS.every(row => (formData[row.key] || '') !== '');
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {_HABIT_ROWS.map(({ key, label, icon: Icon, options }) => (
+                <div key={key}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+                        <Icon size={16} aria-hidden="true" />
+                        {label}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.75rem' }}>
+                        {options.map(opt => (
+                            <ChipOption
+                                key={opt.val} val={opt.val} label={opt.label}
+                                isSelected={formData[key] === opt.val}
+                                onToggle={(val) => updateData(key, val)}
+                            />
+                        ))}
+                    </div>
+                </div>
+            ))}
+            {/* Señal explícita en las 4 filas antes de avanzar (patrón P1-FORM-7:
+                cada fila tiene opción "Nunca/No tomo" — 1 click si no aplica). */}
+            <NextButton onClick={onManualAdvance} disabled={!allAnswered} />
         </div>
     );
 };
@@ -1137,6 +1233,104 @@ export const QMainGoal = ({ onAutoAdvance }) => {
                     onSelect={(val) => { updateData('mainGoal', val); onAutoAdvance(); }} 
                 />
             ))}
+        </div>
+    );
+};
+
+// [P1-CLINICAL-INTAKE · 2026-07-03] Meta de peso cuantificada + ritmo — lo primero
+// que un nutriólogo fija tras conocer el objetivo. Antes el motor decidía el
+// déficit/superávit genéricamente por mainGoal, sin meta ni ritmo del usuario.
+// Va DESPUÉS de QMainGoal (adapta copy al objetivo). Contrato de señal explícita
+// del repo: número válido O chip "Sin meta específica" (sentinel que bloquea el
+// input, patrón P3-FORM-SENTINEL-LOCKS-FREETEXT). El ritmo solo aplica a
+// lose_fat/gain_muscle. Sanity de dirección: perder grasa exige meta < peso
+// actual (y ganar músculo, meta > actual) — un typo aquí invertiría el plan.
+export const QGoalTarget = ({ onManualAdvance }) => {
+    const { formData, updateData } = useAssessment();
+    const weightUnit = formData.weightUnit || 'lb';
+    const weightRange = weightUnit === 'kg' ? BIO_RANGES.weightKg : BIO_RANGES.weightLb;
+    const goal = formData.mainGoal;
+    const needsPace = goal === 'lose_fat' || goal === 'gain_muscle';
+    const auto = !!formData.targetWeightAuto;
+
+    const handleAutoToggle = () => {
+        const next = !auto;
+        updateData('targetWeightAuto', next);
+        if (next && (formData.targetWeight || '') !== '') updateData('targetWeight', '');
+    };
+    const handleWeightInput = (raw) => {
+        const v = typeof raw === 'string' ? raw.replace(',', '.') : raw;
+        updateData('targetWeight', v);
+        if (v !== '' && auto) updateData('targetWeightAuto', false);
+    };
+
+    const tw = parseFloat(String(formData.targetWeight ?? '').replace(',', '.'));
+    const cw = parseFloat(String(formData.weight ?? '').replace(',', '.'));
+    const inRange = isBiometricInRange(formData.targetWeight, weightRange);
+    const directionBad = Number.isFinite(tw) && Number.isFinite(cw) && (
+        (goal === 'lose_fat' && tw >= cw) ||
+        (goal === 'gain_muscle' && tw <= cw)
+    );
+    const targetOK = auto || (inRange && !directionBad);
+    const paceOK = !needsPace || (formData.goalPace || '') !== '';
+
+    const inputLabel = goal === 'maintenance'
+        ? `¿En qué peso te quieres mantener? (${weightUnit})`
+        : goal === 'performance'
+            ? `¿Peso objetivo para rendir mejor? (${weightUnit})`
+            : `¿A qué peso quieres llegar? (${weightUnit})`;
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div>
+                <Label htmlFor="targetWeight">{inputLabel}</Label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', alignItems: 'stretch' }}>
+                    <Input
+                        id="targetWeight" type="number" inputMode="decimal"
+                        placeholder={auto ? 'Marcaste «Sin meta específica»' : (weightUnit === 'lb' ? 'Ej. 140' : 'Ej. 64')}
+                        min={weightRange.min} max={weightRange.max} step={weightRange.step}
+                        value={auto ? '' : (formData.targetWeight || '')}
+                        onChange={e => handleWeightInput(e.target.value)}
+                        disabled={auto}
+                    />
+                    <ChipOption
+                        val="auto" label="Sin meta específica" icon={Ban}
+                        isSelected={auto}
+                        onToggle={handleAutoToggle}
+                    />
+                </div>
+                {directionBad && !auto && (
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--warning, #F59E0B)' }}>
+                        Para {goal === 'lose_fat' ? 'perder grasa, la meta debería ser menor' : 'ganar músculo, la meta debería ser mayor'} que tu peso actual ({formData.weight} {weightUnit}).
+                    </div>
+                )}
+            </div>
+
+            {needsPace && (
+                <div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+                        ¿A qué ritmo quieres avanzar?
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
+                        {[
+                            { val: 'gradual', label: 'Gradual (recomendado)' },
+                            { val: 'moderado', label: 'Moderado' },
+                            { val: 'decidido', label: 'Decidido' },
+                        ].map(opt => (
+                            <ChipOption
+                                key={opt.val} val={opt.val} label={opt.label}
+                                isSelected={formData.goalPace === opt.val}
+                                onToggle={(val) => updateData('goalPace', val)}
+                            />
+                        ))}
+                    </div>
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                        Gradual prioriza sostenibilidad; Decidido es más exigente y requiere más constancia. Nunca usamos ritmos extremos que comprometan tu salud.
+                    </div>
+                </div>
+            )}
+
+            <NextButton onClick={onManualAdvance} disabled={!(targetOK && paceOK)} />
         </div>
     );
 };

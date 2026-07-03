@@ -4,8 +4,8 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import InteractiveAssessmentLayout from './InteractiveAssessmentLayout';
 import {
     QGender, QMeasurements, QActivityLevel, QSchedule,
-    QSleep, QStress, QCookingTime, QBudget, QHousehold,
-    QDietType, QAllergies, QDislikes, QMedical, QMainGoal, QStruggles,
+    QSleep, QStress, QHabits, QCookingTime, QBudget, QHousehold,
+    QDietType, QAllergies, QDislikes, QMedical, QMainGoal, QGoalTarget, QStruggles,
     QMotivation, QSupplements,
     NextButton
 } from './questions/InteractiveQuestions';
@@ -158,6 +158,17 @@ const InteractiveAssessmentFlow = () => {
             component: <QStress onAutoAdvance={handleAutoAdvance} />
         },
         {
+            // [P1-CLINICAL-INTAKE · 2026-07-03] Hábitos de consumo — anamnesis
+            // estándar (alcohol/tabaco/cafeína/agua). NO va en REQUIRED_FORM_FIELDS
+            // (usuarios existentes con form guardado no deben ser bloqueados al
+            // regenerar); el gate vive en el NextButton interno del componente,
+            // que exige las 4 filas respondidas al pasar por el step.
+            title: <>Tus hábitos de consumo&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: "Alcohol, tabaco, cafeína y agua cambian cómo calibramos tu plan (y cómo interactúa con tus medicamentos).",
+            hasInternalNext: true,
+            component: <QHabits onManualAdvance={nextStep} />
+        },
+        {
             // [P2-FORM-KITCHEN-EQUIPMENT · 2026-06-22] (audit fresco P2-24) DECISIÓN DE PRODUCTO: el intake
             // principal captura solo el TIEMPO de cocina, no el EQUIPO (estufa/horno/airfryer/licuadora). El
             // equipo SÍ se captura vía el panel opt-in de Súper Personalización (`kitchenEquipment`) e inyecta
@@ -244,6 +255,17 @@ const InteractiveAssessmentFlow = () => {
             subtitle: "Define la meta que quieres lograr con este plan.",
             fields: ['mainGoal'],
             component: <QMainGoal onAutoAdvance={handleAutoAdvance} />
+        },
+        {
+            // [P1-CLINICAL-INTAKE · 2026-07-03] Meta cuantificada + ritmo, justo
+            // después del objetivo (el componente adapta copy a mainGoal). Igual
+            // que QHabits: NO en REQUIRED_FORM_FIELDS — gate en el NextButton
+            // interno (número válido con dirección coherente O "Sin meta
+            // específica"; ritmo solo para lose_fat/gain_muscle).
+            title: <>Tu meta de peso&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: "Cuantificar la meta nos deja calibrar el ritmo del plan a tu medida — o déjala en manos de la IA.",
+            hasInternalNext: true,
+            component: <QGoalTarget onManualAdvance={nextStep} />
         },
         {
             // [P1-FORM-7] Title con asterisco rojo + subtitle clarificador,

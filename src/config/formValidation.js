@@ -284,6 +284,11 @@ export const BIO_RANGES = {
     weightKg: { min: 30,  max: 300, step: 0.1, unit: 'kg' },
     weightLb: { min: 66,  max: 660, step: 0.1, unit: 'lb' },     // = 30-300 kg
     bodyFat:  { min: 1,   max: 60,  step: 0.1, unit: '%' },
+    // [P1-CLINICAL-INTAKE · 2026-07-03] Cintura OPCIONAL (riesgo cardiometabólico;
+    // afina la lectura de composición corporal junto a bodyFat). Solo-frontend,
+    // como weightLb/heightFt: el backend NO la valida por rango (dato opcional que
+    // fluye al prompt vía form_data) → NO entra en `_PAIRS` del test de paridad.
+    waistCm:  { min: 40,  max: 220, step: 0.5, unit: 'cm' },
     // [P1-FORM-12] Espejo de `_BIO_RANGES["household"]` en
     // `backend/routers/plans.py`. El cap de 12 cubre callers legacy /
     // hidratación de DB / households extendidos. Históricamente había

@@ -319,6 +319,16 @@ export const AssessmentProvider = ({ children }) => {
 
     const initialFormData = {
         age: '', gender: '', height: '', weight: '', weightUnit: _getDefaultWeightUnit(), bodyFat: '', activityLevel: '',
+        // [P1-CLINICAL-INTAKE · 2026-07-03] Intake clínico ampliado (paridad con la
+        // anamnesis de primera consulta). Todos fluyen al prompt vía el JSON dump de
+        // form_data (keys sin `_` sobreviven a _sanitize_form_data_for_prompt):
+        //   - waistCm: cintura opcional (QMeasurements) — riesgo cardiometabólico. SENSITIVE.
+        //   - targetWeight/targetWeightAuto/goalPace: meta de peso + ritmo (QGoalTarget).
+        //     `targetWeightAuto=true` = eligió "Sin meta específica" (señal explícita).
+        //   - habit*: alcohol/tabaco/cafeína/agua (QHabits). Alcohol interactúa con
+        //     metformina/warfarina (medication_rules). SENSITIVE (hábitos de salud).
+        waistCm: '', targetWeight: '', targetWeightAuto: false, goalPace: '',
+        habitAlcohol: '', habitSmoking: '', habitCaffeine: '', habitWater: '',
         sleepHours: '', stressLevel: '', cookingTime: '', budget: '', budgetAmount: '', budgetCurrency: 'DOP', scheduleType: '',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
         // [P1-MEDICATION-RULES · 2026-06-18] Medicamentos actuales (chips, OPCIONAL — array vacío = sin
@@ -2231,6 +2241,17 @@ export const AssessmentProvider = ({ children }) => {
                 // expandirla. Forzar false (también se persiste en new_meal).
                 isExpanded: false
             };
+
+            // [P2-SWAP-BAND-WARNING · 2026-07-01] El backend marca el plato con `swap_quality_warning`
+            // cuando quedó materialmente fuera de banda de proteína tras retries+fallback (antes era
+            // telemetría muda `_macro_band_low` → entrega en silencio). Toast honesto + accionable
+            // (espejo del day_quality_warning de regenerate-day).
+            if (newMealData.swap_quality_warning) {
+                toast.warning('Plato cambiado, pero menos preciso', {
+                    description: newMealData.swap_quality_warning,
+                    duration: 8000,
+                });
+            }
 
             updatedDayObj.meals = updatedMeals;
             updatedDays[dayIndex] = updatedDayObj;

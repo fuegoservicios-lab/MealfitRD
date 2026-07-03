@@ -42,6 +42,16 @@ export const SENSITIVE_FIELDS = [
     // que el resto del paso médico — se pierden al recargar (costo aceptable, decisión P1-B7).
     'medications',
     'otherMedications',
+    // [P1-CLINICAL-INTAKE · 2026-07-03] Intake clínico ampliado: cintura (dato
+    // corporal, misma clase que bodyFat) + hábitos de consumo (alcohol/tabaco =
+    // conducta de salud sensible; cafeína/agua entran por uniformidad del bloque —
+    // más simple y privacy-safe tratar las 4 filas de QHabits igual). Para
+    // invitados quedan en sessionStorage plano como el resto del bloque médico.
+    'waistCm',
+    'habitAlcohol',
+    'habitSmoking',
+    'habitCaffeine',
+    'habitWater',
 ];
 
 const PUBLIC_KEY = 'mealfit_form';
