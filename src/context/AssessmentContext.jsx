@@ -230,6 +230,14 @@ export const AssessmentProvider = ({ children }) => {
     // Estado para saber si estamos sincronizando datos de la DB
     const [loadingData, setLoadingData] = useState(true);
 
+    // [P1-LOGIN-PLAN-SYNC-RETRY · 2026-07-03] True cuando la sincronización del plan
+    // desde el backend FALLÓ (red/5xx/race del token recién minteado en un dispositivo
+    // nuevo) — distinto de "el usuario no tiene plan". Antes ese fallo dejaba planData
+    // en null silenciosamente y el guard del Dashboard rebotaba al FORMULARIO como si
+    // no existiera plan (reporte del owner: login en el teléfono con cuenta que SÍ
+    // tiene plan → formulario). El Dashboard ahora muestra "Reintentar" en ese caso.
+    const [planSyncFailed, setPlanSyncFailed] = useState(false);
+
     // Estado del Perfil Real (Base de Datos)
     const [userProfile, setUserProfile] = useState(null);
 
@@ -741,11 +749,32 @@ export const AssessmentProvider = ({ children }) => {
             // (PostgREST) → GET /api/plans-data/latest. El backend resuelve la
             // identidad desde el Bearer token y filtra user_id server-side
             // (I2); timestamps con paridad PostgREST (ISO-8601 con 'T').
-            const latestResp = await fetchWithAuth('/api/plans-data/latest');
-            if (!latestResp.ok) {
-                throw new Error(`GET /api/plans-data/latest → HTTP ${latestResp.status}`);
+            // [P1-LOGIN-PLAN-SYNC-RETRY · 2026-07-03] Retry con backoff (3 intentos:
+            // 0ms/600ms/2400ms) para fallos TRANSITORIOS: network error, 5xx y
+            // 401/403 (race clásica post-login en dispositivo nuevo — el Bearer/
+            // cookie first-party aún no está listo cuando corre el primer fetch).
+            // Un fallo definitivo lanza al catch de abajo, que ahora marca
+            // planSyncFailed en vez de dejar que el Dashboard interprete el null
+            // como "no tiene plan" y rebote al formulario.
+            let latestResp = null;
+            let _syncErr = null;
+            for (let _attempt = 0; _attempt < 3; _attempt++) {
+                if (_attempt > 0) {
+                    await new Promise(r => setTimeout(r, 600 * _attempt * _attempt + 600 * _attempt));
+                }
+                try {
+                    latestResp = await fetchWithAuth('/api/plans-data/latest');
+                    if (latestResp.ok) { _syncErr = null; break; }
+                    _syncErr = new Error(`GET /api/plans-data/latest → HTTP ${latestResp.status}`);
+                    // 4xx determinista (≠ auth-race) → no vale la pena reintentar.
+                    if (latestResp.status < 500 && latestResp.status !== 401 && latestResp.status !== 403) break;
+                } catch (_netErr) {
+                    _syncErr = _netErr;
+                }
             }
+            if (_syncErr) throw _syncErr;
             const { plan: latestRow } = await latestResp.json();
+            setPlanSyncFailed(false);
 
             if (latestRow) {
                 const latestPlan = latestRow.plan_data;
@@ -905,11 +934,23 @@ export const AssessmentProvider = ({ children }) => {
             }
         } catch (err) {
             console.error("❌ Error restaurando sesión:", err);
+            // [P1-LOGIN-PLAN-SYNC-RETRY · 2026-07-03] Fallo de sync ≠ "sin plan":
+            // el Dashboard muestra Reintentar en vez de rebotar al formulario.
+            setPlanSyncFailed(true);
         } finally {
             guestAdoptPendingRef.current = false; // [P1-GUEST-ADOPT-1] one-shot: nunca persiste cross-call
             setLoadingData(false);
         }
     }, []);
+
+    // [P1-LOGIN-PLAN-SYNC-RETRY · 2026-07-03] Reintento manual desde el guard del
+    // Dashboard cuando la sincronización del plan falló (botón "Reintentar").
+    const retryPlanSync = useCallback(async () => {
+        const _uid = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
+        if (!_uid || _uid === 'guest') return;
+        setPlanSyncFailed(false);
+        await restoreSessionData(_uid);
+    }, [session?.user?.id, restoreSessionData]);
 
     // --- 1. FUNCIÓN PARA CONSULTAR LÍMITE DE IA (API) ---
     const checkPlanLimit = useCallback(async (specificUserId = null) => {
@@ -3049,6 +3090,9 @@ export const AssessmentProvider = ({ children }) => {
             session,
             loadingAuth,
             loadingData,
+            // [P1-LOGIN-PLAN-SYNC-RETRY · 2026-07-03] fallo de sync del plan ≠ sin plan.
+            planSyncFailed,
+            retryPlanSync,
             // [P1-3 + P1-10] Hidratación pendiente del formData post-login.
             // Combina dos sources de hidratación async:
             //   - `loadingSensitive`: descifrado de `mealfit_form_secure`

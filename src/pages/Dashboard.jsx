@@ -7409,7 +7409,7 @@ const DashboardInner = () => {
 // con ~80 hooks debajo. Comportamiento idéntico al previo en el camino común
 // (ProtectedRoute ya garantiza loadingData=false al renderizar esta ruta).
 const Dashboard = () => {
-    const { loadingData, planData } = useAssessment();
+    const { loadingData, planData, planSyncFailed, retryPlanSync } = useAssessment();
 
     // ESTADO DE CARGA: recuperando datos de la DB → loader.
     if (loadingData) {
@@ -7430,6 +7430,40 @@ const Dashboard = () => {
                     .spin-fast { animation: spin 1s linear infinite; }
                     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
                 `}</style>
+            </div>
+        );
+    }
+
+    // [P1-LOGIN-PLAN-SYNC-RETRY · 2026-07-03] La sincronización del plan FALLÓ
+    // (red/5xx/race post-login en dispositivo nuevo) — eso NO significa que el
+    // usuario no tenga plan. Antes este caso caía al Navigate de abajo y el
+    // usuario con plan aterrizaba en el FORMULARIO (reporte del owner desde el
+    // teléfono). Pantalla honesta con Reintentar en vez de asumir "sin plan".
+    if (!planData && planSyncFailed) {
+        return (
+            <div style={{
+                height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexDirection: 'column', gap: '1rem', padding: '1.5rem', textAlign: 'center',
+                color: 'var(--text-muted)', background: 'var(--bg-page)'
+            }}>
+                <AlertCircle size={44} color="var(--warning)" />
+                <p style={{ fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                    No pudimos sincronizar tu plan
+                </p>
+                <p style={{ fontSize: '0.85rem', maxWidth: 340, margin: 0, lineHeight: 1.45 }}>
+                    Puede ser una conexión inestable o que la sesión aún se esté activando.
+                    Tu plan sigue guardado — vuelve a intentarlo.
+                </p>
+                <button
+                    onClick={() => retryPlanSync?.()}
+                    style={{
+                        marginTop: '0.25rem', padding: '0.6rem 1.4rem', borderRadius: '10px',
+                        border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem',
+                        background: 'var(--primary)', color: '#fff'
+                    }}
+                >
+                    Reintentar
+                </button>
             </div>
         );
     }
