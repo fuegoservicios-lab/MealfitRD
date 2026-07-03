@@ -52,6 +52,13 @@ export const SENSITIVE_FIELDS = [
     'habitSmoking',
     'habitCaffeine',
     'habitWater',
+    // [P1-FORM-AUDIT-BATCH · 2026-07-03] (audit form · ALTA) El panel clínico opt-in
+    // (ClinicalProfilePanel → updateData('clinical_profile', saved)) es la PII médica MÁS
+    // densa del producto: labs (glucosa/HbA1c/LDL...), freeText de cirugías/diagnósticos,
+    // historia ponderal, síntomas GI. NO estaba en esta lista → splitFormData la escribía
+    // en claro en `mealfit_form` (localStorage) y SOBREVIVÍA al logout (resetApp solo borra
+    // mealfit_form_secure). Regresión directa del modelo P1-B7. Cifrado + purge en load.
+    'clinical_profile',
 ];
 
 const PUBLIC_KEY = 'mealfit_form';
@@ -331,6 +338,22 @@ export const loadFormData = async (session) => {
             const parsed = JSON.parse(raw);
             if (parsed && typeof parsed === 'object') {
                 publicData = parsed;
+                // [P1-FORM-AUDIT-BATCH · 2026-07-03] (audit form · ALTA) Purge defensivo:
+                // si una key HOY-sensible quedó en el blob público (escrita por una versión
+                // anterior — caso real: `clinical_profile` en claro antes de entrar a
+                // SENSITIVE_FIELDS), se elimina del blob Y se re-escribe el storage saneado.
+                // Sin esto, la PII médica plana de sesiones viejas sobreviviría para siempre
+                // (incluido post-logout, que solo borra mealfit_form_secure).
+                let _purged = false;
+                for (const _sk of SENSITIVE_FIELDS) {
+                    if (_sk in publicData) {
+                        delete publicData[_sk];
+                        _purged = true;
+                    }
+                }
+                if (_purged) {
+                    try { localStorage.setItem(PUBLIC_KEY, JSON.stringify(publicData)); } catch { /* best-effort */ }
+                }
             }
         }
     } catch (e) {

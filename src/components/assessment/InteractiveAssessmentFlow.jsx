@@ -163,7 +163,11 @@ const InteractiveAssessmentFlow = () => {
             // (usuarios existentes con form guardado no deben ser bloqueados al
             // regenerar); el gate vive en el NextButton interno del componente,
             // que exige las 4 filas respondidas al pasar por el step.
-            title: <>Tus hábitos de consumo&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            // [P1-FORM-AUDIT-BATCH · 2026-07-03] SIN asterisco rojo: el * prometía un
+            // enforcement que "Saltar a la última pregunta" y el submit NO aplican
+            // (findFirstIncompleteField solo cubre REQUIRED_FORM_FIELDS) — contradicción
+            // UI↔contrato. El gate lineal del NextButton interno se mantiene intacto.
+            title: <>Tus hábitos de consumo</>,
             subtitle: "Alcohol, tabaco, cafeína y agua cambian cómo calibramos tu plan (y cómo interactúa con tus medicamentos).",
             hasInternalNext: true,
             component: <QHabits onManualAdvance={nextStep} />
@@ -262,7 +266,9 @@ const InteractiveAssessmentFlow = () => {
             // que QHabits: NO en REQUIRED_FORM_FIELDS — gate en el NextButton
             // interno (número válido con dirección coherente O "Sin meta
             // específica"; ritmo solo para lose_fat/gain_muscle).
-            title: <>Tu meta de peso&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            // [P1-FORM-AUDIT-BATCH · 2026-07-03] SIN asterisco rojo (mismo racional que
+            // QHabits: el * prometía enforcement que skip/submit no aplican).
+            title: <>Tu meta de peso</>,
             subtitle: "Cuantificar la meta nos deja calibrar el ritmo del plan a tu medida — o déjala en manos de la IA.",
             hasInternalNext: true,
             component: <QGoalTarget onManualAdvance={nextStep} />
@@ -344,6 +350,27 @@ const InteractiveAssessmentFlow = () => {
                         return;
                     }
 
+                    // [P1-FORM-AUDIT-BATCH · 2026-07-03] Piso de presupuesto custom TAMBIÉN
+                    // en el submit: el validateExtra del step 10 solo corre al pasar por ese
+                    // paso — un usuario returning que usa "Saltar a la última pregunta" con
+                    // un budgetAmount stale bajo el piso llegaba al backend y quemaba una
+                    // ida/vuelta para recibir el 422 budget_below_goal_floor. Mismo SSOT del
+                    // validateExtra (piso personalizado _budgetFloorMin → estático).
+                    if (formData.budget === 'custom') {
+                        const _floor = Number(formData._budgetFloorMin)
+                            || minBudgetFor(formData.budgetCurrency || 'DOP', formData.groceryDuration);
+                        if (!(Number(formData.budgetAmount) >= _floor)) {
+                            submittingRef.current = false;
+                            toast.error('Tu presupuesto quedó por debajo del mínimo para tu plan.', {
+                                description: 'Te llevamos al paso de presupuesto para ajustarlo.',
+                                duration: 4000,
+                            });
+                            const _budgetIdx = fieldToStepIndex['budget'];
+                            if (typeof _budgetIdx === 'number') setCurrentStep(_budgetIdx);
+                            return;
+                        }
+                    }
+
                     // [P0-B3] Sin setTimeout artificial: el toast "Analizando..."
                     // del código anterior era engañoso (no analizaba nada, solo
                     // dormía 1.5s antes de navegar). Ahora navegamos directo;
@@ -379,6 +406,17 @@ const InteractiveAssessmentFlow = () => {
     const currentStepConfig = steps[currentStep] || steps[0];
     const hasCompletedBefore = !!planData;
     const canSkip = (currentStep < maxReachedStep) || hasCompletedBefore;
+
+    // [P1-FORM-AUDIT-BATCH · 2026-07-03] Clamp REAL al nº de pasos: el clamp del provider
+    // admite hasta 100 (genérico, no conoce steps.length). Con un `mealfit_wizard_step`
+    // stale > 18 (storage corrupto o un deploy futuro que reduzca pasos) se renderizaba
+    // steps[0] por el fallback pero el kicker decía "Paso 21 de 19" y la barra >100%.
+    useEffect(() => {
+        if (currentStep > steps.length - 1) {
+            setCurrentStep(steps.length - 1);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentStep]);
 
     // [BUDGET-CUSTOM · 2026-05-31] Validación extra por-step (scoped). Ej: el
     // step de presupuesto exige `budgetAmount > 0` cuando budget==='custom'. Se

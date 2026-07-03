@@ -123,6 +123,30 @@ const AssessmentContext = createContext();
 // o indefinido si ese fetch hacía timeout). Invocada desde resetApp (logout) y
 // desde la rama user-switch de handleAuthChange (cubre re-login sin logout
 // previo limpio: cierre de tab / magic link / token switch).
+
+// [P1-FORM-AUDIT-BATCH · 2026-07-03] SSOT del criterio "¿este campo del health_profile
+// hidrata sobre el estado local?" — antes duplicado en fetchProfile y refreshProfileAndPlan
+// con UN solo caso especial (targetWeightAuto). El audit del form encontró DOS campos más
+// con el mismo bug "default truthy/false nunca califica como vacío":
+//   - includeSupplements (bool false): el toggle activado en el dispositivo A jamás
+//     hidrataba en B → chips de selectedSupplements presentes (array SÍ hidrata) con el
+//     toggle apagado, y la regeneración mandaba includeSupplements=false.
+//   - budgetCurrency (default 'DOP' truthy): un presupuesto declarado en USD se re-leía
+//     como DOP en otro dispositivo (~×60 de drift silencioso del piso y la referencia).
+// Regla general: booleans default-false hidratan solo un true del DB sobre false local;
+// budgetCurrency hidrata cuando lo local es el default 'DOP' y el DB dice otra cosa
+// (el DB refleja la última elección persistida; la edición viva la protege editedFieldsRef).
+const _hydrateFieldQualifies = (k, cur, v) => {
+    if (k === 'targetWeightAuto' || k === 'includeSupplements') {
+        return cur !== true && v === true;
+    }
+    if (k === 'budgetCurrency') {
+        return (cur === 'DOP' || cur === null || cur === undefined || cur === '')
+            && typeof v === 'string' && v && v !== cur;
+    }
+    return cur === null || cur === undefined || cur === '' || (Array.isArray(cur) && cur.length === 0);
+};
+
 const _clearUserScopedCaches = () => {
     try { invalidateInventoryCache(); } catch { /* noop */ }
     try { invalidateHistoryListCache(); } catch { /* noop */ }
@@ -512,6 +536,25 @@ export const AssessmentProvider = ({ children }) => {
     // hay sesión real (un login válido siempre gana sobre el modo invitado).
     const [guestFlag, setGuestFlag] = useState(() => isGuestModeActive());
     const [guestCreditsUsed, setGuestCreditsUsed] = useState(() => getGuestCreditsUsed());
+
+    // [P1-FORM-AUDIT-BATCH · 2026-07-03] (audit form · MEDIA-ALTA) Carry-over de los campos
+    // SENSIBLES del invitado hacia la cuenta recién creada. El registro por OTP/OAuth hace un
+    // reload completo; al remontar, el effect de sesión-confirmada ejecuta
+    // clearGuestSensitiveFields() ANTES de que la rama de hidratación guest (gateada por
+    // !session.user) pueda correr → alergias/condiciones/medicaciones del invitado se PERDÍAN
+    // al convertirse en cuenta, y una regeneración futura podía reintroducir un alérgeno.
+    // Stash EN EL MOUNT (antes de cualquier effect, con el flag guest aún activo — el orden de
+    // efectos deja de importar); se consume one-shot cuando el perfil resuelve
+    // (_applyGuestSensitiveCarryover): solo llena campos VACÍOS y SOLO si el perfil DB no trae
+    // ya datos médicos (una cuenta existente jamás se contamina con datos del invitado).
+    const guestSensitiveCarryoverRef = useRef(
+        (() => {
+            try {
+                if (!isGuestModeActive()) return null;
+                return loadGuestSensitiveFields();
+            } catch { return null; }
+        })()
+    );
 
     // Al confirmarse una sesión real, salir de modo invitado y limpiar TODAS las
     // keys de invitado (flag + créditos + session_id efímero) para que el usuario
@@ -983,6 +1026,37 @@ export const AssessmentProvider = ({ children }) => {
         // mantiene la identidad estable salvo cambio real de usuario.
     }, [session?.user?.id]);
 
+    // [P1-FORM-AUDIT-BATCH · 2026-07-03] Consume (one-shot) el stash de sensibles del
+    // invitado cuando el perfil de la cuenta resuelve. Reglas de seguridad:
+    //   - Si el perfil DB YA tiene datos médicos (alergias o condiciones) → DESCARTAR el
+    //     carry-over completo: una cuenta existente jamás hereda datos del invitado.
+    //   - Solo llena campos VACÍOS y no editados en esta sesión (editedFieldsRef).
+    const _applyGuestSensitiveCarryover = useCallback((dbHealthProfile) => {
+        const carry = guestSensitiveCarryoverRef.current;
+        if (!carry) return;
+        guestSensitiveCarryoverRef.current = null; // one-shot, pase lo que pase
+        try {
+            const hp = dbHealthProfile || {};
+            const dbHasMedical = (Array.isArray(hp.allergies) && hp.allergies.length > 0)
+                || (Array.isArray(hp.medicalConditions) && hp.medicalConditions.length > 0);
+            if (dbHasMedical) return;
+            const edited = editedFieldsRef.current;
+            setFormData(prev => {
+                const next = { ...prev };
+                let changed = false;
+                for (const [k, v] of Object.entries(carry)) {
+                    if (edited.has(k)) continue;
+                    const cur = prev[k];
+                    const empty = cur === null || cur === undefined || cur === ''
+                        || (Array.isArray(cur) && cur.length === 0);
+                    if (!empty) continue;
+                    next[k] = v; changed = true;
+                }
+                return changed ? next : prev;
+            });
+        } catch { /* fail-open: sin carry-over, comportamiento previo */ }
+    }, [setFormData]);
+
     // --- 2. MANEJO DE SESIÓN Y PERFIL ---
     const fetchProfile = useCallback(async (userId) => {
         if (!userId) return;
@@ -993,7 +1067,12 @@ export const AssessmentProvider = ({ children }) => {
             // de compat para los callers). 404 = sin perfil aún (mismo no-op
             // que .single() sin fila).
             const profileResp = await fetchWithAuth('/api/profile');
-            if (profileResp.status === 404) return;
+            if (profileResp.status === 404) {
+                // [P1-FORM-AUDIT-BATCH] cuenta SIN perfil (recién creada) = el caso más
+                // fuerte del carry-over guest→cuenta.
+                _applyGuestSensitiveCarryover(null);
+                return;
+            }
             if (!profileResp.ok) {
                 throw new Error(`GET /api/profile → HTTP ${profileResp.status}`);
             }
@@ -1026,27 +1105,21 @@ export const AssessmentProvider = ({ children }) => {
                         for (const [k, v] of Object.entries(data.health_profile)) {
                             if (edited.has(k)) continue;
                             const cur = prev[k];
-                            // [P1-CLINICAL-INTAKE-HYDRATE · 2026-07-03] `targetWeightAuto`
-                            // es boolean con default false — nunca califica como "vacío",
-                            // así que la elección "Sin meta específica" (true en DB) jamás
-                            // hidrataba cross-device. Para ese campo: solo hidratamos un
-                            // true del DB sobre un false local (default no tocado); un true
-                            // local (elección viva de esta sesión/localStorage) se preserva,
-                            // y false→false no marca `changed` (evita re-render sin cambio).
-                            const isEmpty = k === 'targetWeightAuto'
-                                ? (cur !== true && v === true)
-                                : (cur === null || cur === undefined || cur === '' || (Array.isArray(cur) && cur.length === 0));
-                            if (!isEmpty) continue;
+                            if (!_hydrateFieldQualifies(k, cur, v)) continue;
                             next[k] = v; changed = true;
                         }
                         return changed ? next : prev;
                     });
                 }
+                // [P1-FORM-AUDIT-BATCH · 2026-07-03] carry-over guest→cuenta DESPUÉS del
+                // merge DB (el DB llena primero; el guest solo llena lo que siga vacío, y
+                // se descarta entero si el DB ya trae datos médicos).
+                _applyGuestSensitiveCarryover(data?.health_profile || null);
             }
         } catch (error) {
             console.error('Error cargando perfil:', error);
         }
-    }, [setFormData, setUserProfile]);
+    }, [setFormData, setUserProfile, _applyGuestSensitiveCarryover]);
 
     const refreshProfileAndPlan = useCallback(async () => {
         const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
@@ -1089,13 +1162,7 @@ export const AssessmentProvider = ({ children }) => {
                             for (const [k, v] of Object.entries(data.health_profile)) {
                                 if (edited.has(k)) continue;
                                 const cur = prev[k];
-                                // [P1-CLINICAL-INTAKE-HYDRATE · 2026-07-03] Mismo caso
-                                // especial que fetchProfile: solo un true del DB hidrata
-                                // sobre el default false no tocado.
-                                const isEmpty = k === 'targetWeightAuto'
-                                    ? (cur !== true && v === true)
-                                    : (cur === null || cur === undefined || cur === '' || (Array.isArray(cur) && cur.length === 0));
-                                if (!isEmpty) continue;
+                                if (!_hydrateFieldQualifies(k, cur, v)) continue;
                                 next[k] = v; changed = true;
                             }
                             return changed ? next : prev;
