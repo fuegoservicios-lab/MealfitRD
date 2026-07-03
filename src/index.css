@@ -451,6 +451,42 @@ html[data-theme="dark"] .glass-panel {
   }
 }
 
+/* [FORM-CTA-UNIFY · 2026-07-02] Botón ghost secundario del formulario ("Saltar a
+   la última pregunta"). Jerarquía deliberada: transparente + borde hairline para
+   NO competir con el CTA gradiente primario. Radius 1rem = mismo del NextButton.
+   Nota: el inline previo usaba var(--text-secondary)/var(--text-primary), tokens
+   que NO existen en este design system (resolvían por herencia) — aquí van los
+   reales --text-muted/--text-main. */
+.mf-ghost-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 1rem;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.mf-ghost-btn:hover {
+  background: var(--bg-card);
+  color: var(--text-main);
+  border-color: var(--text-muted);
+}
+.mf-ghost-btn:focus-visible {
+  outline: none;
+  color: var(--text-main);
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.55);
+}
+.mf-ghost-btn svg {
+  flex: none;
+}
+
 /* [CTA-HOVER-GLOW · 2026-05-31] CTA pill de EmptyState ("Generar nuevo plan", etc.,
    reutilizado en Dashboard/Historial/Recetas). Indigo var(--primary); el box-shadow
    vive aquí (no inline) para que :hover lo intensifique. Hover = glow indigo + brillo,

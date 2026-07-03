@@ -6,8 +6,12 @@ import {
     QGender, QMeasurements, QActivityLevel, QSchedule,
     QSleep, QStress, QCookingTime, QBudget, QHousehold,
     QDietType, QAllergies, QDislikes, QMedical, QMainGoal, QStruggles,
-    QMotivation, QSupplements
+    QMotivation, QSupplements,
+    NextButton
 } from './questions/InteractiveQuestions';
+// [FORM-CTA-UNIFY · 2026-07-02] Icono del botón "Saltar" (antes glyph ⏭ de texto,
+// que renderiza distinto por plataforma; lucide es consistente con el resto).
+import { ChevronsRight } from 'lucide-react';
 import { toast } from 'sonner';
 // [P1-B6] Validación cliente-side centralizada. El módulo
 // `config/formValidation` mantiene las constantes y el helper alineadas con
@@ -449,26 +453,17 @@ const InteractiveAssessmentFlow = () => {
                         gap: '0.75rem',
                         animation: 'fadeIn 0.3s ease-in-out'
                     }}>
+                        {/* [FORM-CTA-UNIFY · 2026-07-02] Antes este botón era una
+                            píldora plana indigo inline, DISTINTA del NextButton
+                            gradiente (indigo→esmeralda) que renderizan los steps
+                            con hasInternalNext — dos looks para la misma acción.
+                            Ahora ambos paths usan el mismo componente. */}
                         {!currentStepConfig.hasInternalNext && (
-                            <button 
+                            <NextButton
                                 onClick={nextStep}
-                                style={{ 
-                                    padding: '1rem', 
-                                    background: 'var(--primary)', 
-                                    color: 'white', 
-                                    border: 'none', 
-                                    borderRadius: '12px', 
-                                    fontWeight: '600', 
-                                    fontSize: '1rem',
-                                    cursor: 'pointer', 
-                                    transition: 'all 0.2s',
-                                    width: '100%'
-                                }}
-                                onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
-                                onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
-                            >
-                                Siguiente Paso ➔
-                            </button>
+                                label="Siguiente Paso"
+                                style={{ marginTop: 0 }}
+                            />
                         )}
                         
                         {/* [P6-FORM-SKIP-ALWAYS] Pre-fix: solo aparecía si
@@ -482,31 +477,17 @@ const InteractiveAssessmentFlow = () => {
                          * Por eso es seguro mostrar el botón siempre en
                          * step 0 — peor caso es 1 click → toast → primer
                          * step incompleto. */}
+                        {/* [FORM-CTA-UNIFY · 2026-07-02] Ghost secundario a
+                            propósito (jerarquía: acción alternativa, no debe
+                            competir con el CTA gradiente). Hover/focus viven en
+                            .mf-ghost-btn (index.css) — antes eran handlers JS
+                            onMouseOver que no cubrían focus de teclado. */}
                         {currentStep === 0 && (
                             <button
                                 onClick={handleSkipToLastStep}
-                                style={{ 
-                                    padding: '1rem', 
-                                    background: 'transparent', 
-                                    color: 'var(--text-secondary)', 
-                                    border: '1px solid var(--border)', 
-                                    borderRadius: '12px', 
-                                    fontWeight: '600', 
-                                    fontSize: '1rem',
-                                    cursor: 'pointer', 
-                                    transition: 'all 0.2s',
-                                    width: '100%'
-                                }}
-                                onMouseOver={(e) => {
-                                    e.currentTarget.style.background = 'var(--bg-card)';
-                                    e.currentTarget.style.color = 'var(--text-primary)';
-                                }}
-                                onMouseOut={(e) => {
-                                    e.currentTarget.style.background = 'transparent';
-                                    e.currentTarget.style.color = 'var(--text-secondary)';
-                                }}
+                                className="mf-ghost-btn"
                             >
-                                Saltar a la última pregunta ⏭
+                                Saltar a la última pregunta <ChevronsRight size={18} />
                             </button>
                         )}
                     </div>

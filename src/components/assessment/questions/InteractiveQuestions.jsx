@@ -49,7 +49,11 @@ const handleActivationKey = (callback) => (e) => {
 };
 
 // --- Reusable Navigation Button for Manual Steps ---
-export const NextButton = ({ onClick, disabled, label = "Siguiente", icon: Icon = ArrowRight }) => (
+// [FORM-CTA-UNIFY · 2026-07-02] `style` permite overrides puntuales (ej. el flow
+// externo pasa marginTop:0 porque su contenedor ya aporta el espaciado). Este
+// componente es el ÚNICO look válido para el CTA primario del formulario — el
+// "Siguiente Paso" del flow lo reutiliza; no dupliques botones inline planos.
+export const NextButton = ({ onClick, disabled, label = "Siguiente", icon: Icon = ArrowRight, style = {} }) => (
     <button
         onClick={onClick}
         disabled={disabled}
@@ -74,7 +78,8 @@ export const NextButton = ({ onClick, disabled, label = "Siguiente", icon: Icon 
             transition: 'all 0.3s',
             marginTop: '2rem',
             justifyContent: 'center',
-            width: '100%'
+            width: '100%',
+            ...style
         }}
     >
         {label} <Icon size={20} />
