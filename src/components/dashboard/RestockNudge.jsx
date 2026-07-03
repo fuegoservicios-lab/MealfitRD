@@ -136,6 +136,90 @@ export default function RestockNudge({
 
     return (
         <>
+            {/* [P3-RESTOCK-BANNER-MOBILE · 2026-07-02] Layout del banner por CLASES
+                (antes inline flex-wrap): en móvil el CTA y la X caían sueltos abajo a
+                la izquierda. Ahora ≤640px es un grid — icono + texto arriba, X en la
+                esquina superior derecha, CTA verde full-width abajo. Desktop intacto. */}
+            <style>{`
+                .restock-nudge-banner {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    background: rgba(16, 185, 129, 0.09);
+                    border: 1.5px solid rgba(16, 185, 129, 0.45);
+                    border-radius: 1rem;
+                    padding: 0.85rem 1.1rem;
+                    margin-bottom: 1.5rem;
+                }
+                .restock-nudge-ico {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 50%;
+                    background: rgba(16, 185, 129, 0.16);
+                    flex-shrink: 0;
+                }
+                .restock-nudge-txt { flex: 1; min-width: 200px; }
+                .restock-nudge-title {
+                    font-weight: 700;
+                    color: var(--text-main);
+                    font-size: 0.92rem;
+                    display: block;
+                    margin-bottom: 0.12rem;
+                }
+                .restock-nudge-desc { color: var(--text-muted); font-size: 0.83rem; line-height: 1.45; }
+                .restock-nudge-cta {
+                    background: #10B981;
+                    color: #fff;
+                    border: none;
+                    padding: 0.55rem 1.05rem;
+                    border-radius: 0.7rem;
+                    font-weight: 700;
+                    font-size: 0.83rem;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.4rem;
+                    white-space: nowrap;
+                }
+                .restock-nudge-x {
+                    background: transparent;
+                    border: none;
+                    color: var(--text-muted);
+                    cursor: pointer;
+                    padding: 0.25rem;
+                    display: flex;
+                    align-items: center;
+                }
+                @media (max-width: 640px) {
+                    .restock-nudge-banner {
+                        display: grid;
+                        grid-template-columns: auto 1fr auto;
+                        align-items: start;
+                        column-gap: 0.6rem;
+                        row-gap: 0.75rem;
+                        padding: 0.95rem 0.9rem 0.85rem;
+                    }
+                    .restock-nudge-ico { grid-area: 1 / 1; width: 32px; height: 32px; }
+                    .restock-nudge-txt { grid-area: 1 / 2; min-width: 0; }
+                    .restock-nudge-x {
+                        grid-area: 1 / 3;
+                        align-self: start;
+                        margin: -0.2rem -0.2rem 0 0;
+                        padding: 0.35rem;
+                    }
+                    .restock-nudge-cta {
+                        grid-area: 2 / 1 / 3 / 4;
+                        width: 100%;
+                        padding: 0.7rem 1rem;
+                        font-size: 0.88rem;
+                    }
+                }
+            `}</style>
+
             {/* ── #1 Banner persistente y descartable ── */}
             <AnimatePresence>
                 {bannerVisible && (
@@ -144,58 +228,23 @@ export default function RestockNudge({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10, transition: { duration: 0.2 } }}
                         role="status"
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
-                            background: 'rgba(16, 185, 129, 0.09)',
-                            border: '1.5px solid rgba(16, 185, 129, 0.45)',
-                            borderRadius: '1rem',
-                            padding: '0.85rem 1.1rem',
-                            marginBottom: '1.5rem',
-                            flexWrap: 'wrap',
-                        }}
+                        className="restock-nudge-banner"
                     >
-                        <span
-                            aria-hidden="true"
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                width: '34px',
-                                height: '34px',
-                                borderRadius: '50%',
-                                background: 'rgba(16, 185, 129, 0.16)',
-                                flexShrink: 0,
-                            }}
-                        >
+                        <span aria-hidden="true" className="restock-nudge-ico">
                             <ShoppingCart size={18} color="#10B981" strokeWidth={2.1} />
                         </span>
-                        <div style={{ flex: 1, minWidth: '200px' }}>
-                            <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.92rem', display: 'block', marginBottom: '0.12rem' }}>
+                        <div className="restock-nudge-txt">
+                            <span className="restock-nudge-title">
                                 Tu Nevera está vacía para este plan
                             </span>
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.83rem' }}>
+                            <span className="restock-nudge-desc">
                                 ¿Ya hiciste las compras? Llénala con un toque para que tu plan use lo que tienes.
                             </span>
                         </div>
                         <button
                             type="button"
                             onClick={confirm}
-                            style={{
-                                background: '#10B981',
-                                color: '#fff',
-                                border: 'none',
-                                padding: '0.55rem 1.05rem',
-                                borderRadius: '0.7rem',
-                                fontWeight: 700,
-                                fontSize: '0.83rem',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.4rem',
-                                whiteSpace: 'nowrap',
-                            }}
+                            className="restock-nudge-cta"
                         >
                             <Check size={15} strokeWidth={2.5} />
                             Sí, ya compré
@@ -205,15 +254,7 @@ export default function RestockNudge({
                             onClick={hideBanner}
                             aria-label="Descartar aviso"
                             title="Descartar"
-                            style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: 'var(--text-muted)',
-                                cursor: 'pointer',
-                                padding: '0.25rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                            }}
+                            className="restock-nudge-x"
                         >
                             <X size={16} strokeWidth={2.25} />
                         </button>
