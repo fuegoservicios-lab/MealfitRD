@@ -578,6 +578,50 @@ const DashboardInner = () => {
         openNotificationCenter();
     };
 
+    // [P3-BUDGET-BANNER-DISMISS · 2026-07-04] El banner de presupuesto (dentro/cerca/
+    // excedido) ahora tiene su X — mismo patrón que el de coherencia: al cerrarlo se
+    // ARCHIVA en el centro de notificaciones (no se pierde) y se abre el centro.
+    // Recordado por plan Y por status: si un recalc (household/duración/marca) cambia
+    // el status (p.ej. dentro→excedido), el banner REAPARECE — ocultar un "cerca" no
+    // debe silenciar un futuro "excedido".
+    const _budgetStatus = planData?.budget_reconciliation?.status || '';
+    const [budgetBannerHidden, setBudgetBannerHidden] = useState(false);
+    useEffect(() => {
+        const key = (_planMicroSig && _budgetStatus)
+            ? `mealfit_budget_dismissed_${_planMicroSig}_${_budgetStatus}` : null;
+        setBudgetBannerHidden(!!(key && safeLocalStorageGet(key, '') === '1'));
+    }, [_planMicroSig, _budgetStatus]);
+    const buildBudgetNotification = useCallback(() => {
+        const _br = planData?.budget_reconciliation;
+        if (!_br || !_br.status || _br.status === 'sin_limite' || !_br.reference_rd) return null;
+        const _fmt = (v) => `RD$${Math.round(v || 0).toLocaleString('es-DO')}`;
+        const _est = _br.basis && _br.basis !== 'custom' ? ' (referencia estimada)' : '';
+        const title = _br.status === 'dentro'
+            ? 'Presupuesto: dentro de tu referencia'
+            : _br.status === 'cerca'
+                ? 'Presupuesto: al límite de tu referencia'
+                : 'Presupuesto: tu lista supera tu referencia';
+        const subs = Array.isArray(_br.substitutions) && _br.substitutions.length
+            ? ` Para cuidar tu bolsillo ajustamos: ${_br.substitutions.slice(0, 3).join(' · ')}.` : '';
+        return {
+            id: _planMicroSig ? `budget_${_planMicroSig}_${_br.status}` : undefined,
+            kind: 'info',
+            title,
+            message: `${_fmt(_br.estimated_cycle_rd)} de ${_fmt(_br.reference_rd)}${_est} por ciclo.${subs}`,
+            severity: _br.status === 'excedido' ? 'warning' : 'info',
+        };
+    }, [planData?.budget_reconciliation, _planMicroSig]);
+    const dismissBudgetBanner = () => {
+        const notif = buildBudgetNotification();
+        if (notif) addNotification(notif);
+        setBudgetBannerHidden(true);
+        const key = (_planMicroSig && _budgetStatus)
+            ? `mealfit_budget_dismissed_${_planMicroSig}_${_budgetStatus}` : null;
+        if (key) safeLocalStorageSet(key, '1');
+        // Abre el centro para que el usuario vea dónde quedó archivado.
+        openNotificationCenter();
+    };
+
     // [P1-REASONING-DISMISS · 2026-06-26] El panel "Razonamiento" (Diagnóstico /
     // Plan de Acción / Tip del Chef) ahora tiene su "X": al cerrarlo se ARCHIVA en
     // el centro de notificaciones (no se pierde) y se puede volver a mostrar cuando
@@ -5102,7 +5146,10 @@ const DashboardInner = () => {
                             cerca=ámbar, excedido=rojo + sustituciones/sugerencias de ahorro. */}
                         {(() => {
                             const _br = planData?.budget_reconciliation;
+                            // [P3-BUDGET-BANNER-DISMISS · 2026-07-04] respetar la X (recordada
+                            // por plan+status; ver dismissBudgetBanner).
                             if (!_br || !_br.status || _br.status === 'sin_limite' || !_br.reference_rd
+                                || budgetBannerHidden
                                 || isPlanExpired || planFinished || isPlanCorrupted) return null;
                             const _fmtRD = (v) => `RD$${Math.round(v || 0).toLocaleString('es-DO')}`;
                             const _palette = _br.status === 'dentro'
@@ -5128,9 +5175,33 @@ const DashboardInner = () => {
                                     background: _palette.bg, border: `1px solid ${_palette.border}`,
                                     borderRadius: '0.75rem',
                                 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.45rem' }}>
                                         <span aria-hidden="true" style={{ fontWeight: 800, color: _palette.fg }}>{_palette.icon}</span>
-                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: _palette.fg }}>{_headline}</span>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: _palette.fg, flex: 1, minWidth: 0 }}>{_headline}</span>
+                                        {/* [P3-BUDGET-BANNER-DISMISS · 2026-07-04] X → archiva en
+                                            notificaciones (mismo patrón del banner de coherencia). */}
+                                        <button
+                                            type="button"
+                                            onClick={dismissBudgetBanner}
+                                            aria-label="Ocultar este aviso (se guarda en notificaciones)"
+                                            title="Ocultar (se guarda en notificaciones)"
+                                            style={{
+                                                flexShrink: 0,
+                                                display: 'grid',
+                                                placeItems: 'center',
+                                                width: 24,
+                                                height: 24,
+                                                marginTop: '-2px',
+                                                border: 'none',
+                                                borderRadius: '0.5rem',
+                                                background: 'transparent',
+                                                color: _palette.fg,
+                                                opacity: 0.7,
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            <X size={15} strokeWidth={2.5} />
+                                        </button>
                                     </div>
                                     {/* [P2-AUDIT-V5-BATCH GAP-06] Caveat de cobertura parcial de precios:
                                         el backend marca partial_pricing cuando pocos ítems tienen precio —
