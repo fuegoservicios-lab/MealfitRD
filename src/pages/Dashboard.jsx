@@ -6467,49 +6467,51 @@ const DashboardInner = () => {
                                                 </div>
                                             )}
 
-                                            {/* [P2-DISHQUAL-SURFACE-UPDATES · 2026-06-29] (re-audit objetivo · P2)
-                                                Advisories NO-bloqueantes per-comida que el backend setea en el
-                                                finalizer y persiste (receta básica / horario inusual / combo inusual
-                                                / macro fuera de banda). Espejo del banner de coherencia: informa, no
-                                                bloquea. Amber (≠ rojo del pantry-urgent). */}
+                                            {/* [P3-MEAL-ADVISORY-INLINE · 2026-07-04] Fila ÚNICA de metadatos:
+                                                tiempo + advisories como pills compactos en la MISMA línea. El
+                                                bloque-caja anterior (P2-DISHQUAL-SURFACE-UPDATES) quedaba suelto
+                                                entre el título y el chip de tiempo y deformaba la tarjeta
+                                                (feedback directo del owner). Amber (≠ rojo del pantry-urgent);
+                                                sigue informando sin bloquear. */}
                                             {(() => {
                                                 const _advisories = getMealAdvisories(meal);
-                                                if (!_advisories.length) return null;
+                                                if (!meal.prep_time && !_advisories.length) return null;
                                                 return (
                                                     <div style={{
-                                                        display: 'flex', flexDirection: 'column', gap: '0.2rem',
-                                                        fontSize: '0.72rem', color: isDark ? '#FCD34D' : '#B45309',
-                                                        background: isDark ? 'rgba(245, 158, 11, 0.14)' : 'rgba(245, 158, 11, 0.1)',
-                                                        padding: '0.4rem 0.6rem', borderRadius: '0.5rem', marginBottom: '0.5rem',
-                                                        fontWeight: 600,
-                                                        border: isDark ? '1px solid rgba(252, 211, 77, 0.3)' : '1px solid rgba(245, 158, 11, 0.25)'
+                                                        display: 'flex', alignItems: 'center', flexWrap: 'wrap',
+                                                        gap: '0.4rem', marginBottom: '0.75rem',
                                                     }}>
+                                                        {meal.prep_time && (
+                                                            <div style={{
+                                                                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                                                fontSize: '0.75rem',
+                                                                // [APPEARANCE-THEME · 2026-05-29] En oscuro, el azul claro
+                                                                // (#EFF6FF) se veía brilloso → tinte translúcido + texto claro.
+                                                                color: isDark ? '#93C5FD' : '#2563EB',
+                                                                background: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF',
+                                                                padding: '4px 10px', borderRadius: '6px', fontWeight: 700,
+                                                                border: isDark ? '1px solid rgba(96, 165, 250, 0.4)' : '1px solid #BFDBFE',
+                                                                boxShadow: isDark ? 'none' : '0 1px 2px rgba(37,99,235,0.05)'
+                                                            }}>
+                                                                <Clock size={13} strokeWidth={2.5} /> {meal.prep_time}
+                                                            </div>
+                                                        )}
                                                         {_advisories.map((a) => (
-                                                            <div key={a.key} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                                                                <AlertCircle size={13} strokeWidth={2.5} />
+                                                            <div key={a.key} title={a.label} style={{
+                                                                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                                                fontSize: '0.7rem', fontWeight: 600,
+                                                                color: isDark ? '#FCD34D' : '#B45309',
+                                                                background: isDark ? 'rgba(245, 158, 11, 0.14)' : 'rgba(245, 158, 11, 0.1)',
+                                                                padding: '4px 10px', borderRadius: '6px',
+                                                                border: isDark ? '1px solid rgba(252, 211, 77, 0.3)' : '1px solid rgba(245, 158, 11, 0.25)',
+                                                            }}>
+                                                                <AlertCircle size={12} strokeWidth={2.5} style={{ flexShrink: 0 }} />
                                                                 <span>{a.label}</span>
                                                             </div>
                                                         ))}
                                                     </div>
                                                 );
                                             })()}
-
-                                            {/* TIEMPO DE PREPARACIÓN */}
-                                            {meal.prep_time && (
-                                                <div style={{
-                                                    display: 'inline-flex', alignItems: 'center', gap: '6px',
-                                                    fontSize: '0.75rem',
-                                                    // [APPEARANCE-THEME · 2026-05-29] En oscuro, el azul claro
-                                                    // (#EFF6FF) se veía brilloso → tinte translúcido + texto claro.
-                                                    color: isDark ? '#93C5FD' : '#2563EB',
-                                                    background: isDark ? 'rgba(37, 99, 235, 0.16)' : '#EFF6FF',
-                                                    padding: '4px 10px', borderRadius: '6px', marginBottom: '0.75rem', fontWeight: 700,
-                                                    border: isDark ? '1px solid rgba(96, 165, 250, 0.4)' : '1px solid #BFDBFE',
-                                                    boxShadow: isDark ? 'none' : '0 1px 2px rgba(37,99,235,0.05)'
-                                                }}>
-                                                    <Clock size={13} strokeWidth={2.5} /> {meal.prep_time}
-                                                </div>
-                                            )}
 
                                             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
                                                 {meal.desc}
