@@ -2584,27 +2584,11 @@ const Settings = () => {
                                     {isExportingData ? 'Exportando…' : 'Exportar datos'}
                                 </button>
                             </div>
-                            <div style={{
-                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
-                                padding: '0.9rem 1.1rem', border: '1px solid var(--border)', borderRadius: '0.875rem', background: 'var(--bg-card)',
-                            }}>
-                                <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>Eliminar cuenta</div>
-                                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
-                                        Borra tu cuenta y toda tu información de forma permanente. Vive en Suscripción.
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => navigateToSection('subscription')}
-                                    style={{
-                                        flexShrink: 0, padding: '0.5rem 1rem', borderRadius: '0.65rem',
-                                        border: '1px solid var(--border)', background: 'var(--bg-muted)',
-                                        color: 'var(--danger, #DC2626)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer',
-                                    }}
-                                >
-                                    Administrar
-                                </button>
+                            {/* [P2-PRIVACY-SETTINGS v4 · 2026-07-04] Zona de peligro real
+                                (antes en Suscripción — estaba duplicada con una fila acá).
+                                DeleteAccountSection trae su propia card + confirmación. */}
+                            <div style={{ marginTop: '0.6rem' }}>
+                                <DeleteAccountSection />
                             </div>
                         </section>
                     )}
@@ -3069,12 +3053,9 @@ const Settings = () => {
                                 </div>
                             )}
                         </div>
-                        {/* [P1-ACCOUNT-DELETE-1] Zona de peligro: FUERA del bloque de
-                            "Suscripción y Pagos" (card propia con aire arriba) para que
-                            no se vea pegada, pero DENTRO de la sección de Suscripción. */}
-                        <div style={{ marginTop: '1.75rem' }}>
-                            <DeleteAccountSection />
-                        </div>
+                        {/* [P2-PRIVACY-SETTINGS v4 · 2026-07-04] Zona de peligro
+                            "Eliminar cuenta" MOVIDA a Privacidad → "Tus datos"
+                            (estaba duplicada: fila en Privacidad + card aquí). */}
                     </section>
                     )}
 

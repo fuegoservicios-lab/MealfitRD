@@ -3427,6 +3427,21 @@ const DashboardInner = () => {
                     position: relative;
                     z-index: 50;
                 }
+                /* [P3-HERO-TITLE-WRAP · 2026-07-04] En desktop el saludo largo
+                   ("Buenas madrugadas, ...") NO empuja los controles a la fila de
+                   abajo: la columna de texto cede (flex 1 + min-width 0) y el
+                   título parte en dos líneas dentro de su columna; los controles
+                   se quedan a la derecha. Solo ≥1025px — en móvil/tablet el
+                   layout depende del wrap actual (controles debajo, full-width). */
+                @media (min-width: 1025px) {
+                    .dashboard-header .header-text-group {
+                        flex: 1 1 0;
+                        min-width: 0;
+                    }
+                    .dashboard-header .actions-group {
+                        flex-shrink: 0;
+                    }
+                }
                 /* [P3-NEVERA-NOTICE-NO-DEFORM · 2026-06-24] Cap del ancho de la
                    columna de controles. El aviso verde de la Nevera (texto largo)
                    estiraba el dropdown + botones a su ancho de una sola línea; con
