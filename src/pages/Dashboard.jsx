@@ -3263,7 +3263,13 @@ const DashboardInner = () => {
                     margin-bottom: 3rem;
                     display: flex;
                     justify-content: space-between;
-                    align-items: flex-end;
+                    /* [P3-HEADER-NO-DEFORM · 2026-07-04] era flex-end: cuando la columna
+                       derecha crece (banner de presupuesto + lista por pasillo + marcas +
+                       avisos), el saludo quedaba clavado ABAJO de un hero alto con un vacío
+                       enorme encima — deformado. stretch + centrado vertical del texto
+                       (regla de .header-text-group abajo) mantiene el hero equilibrado sin
+                       importar cuántos paneles se apilen a la derecha. */
+                    align-items: stretch;
                     flex-wrap: wrap;
                     gap: 1.5rem;
                     background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.5) 100%);
@@ -3423,11 +3429,23 @@ const DashboardInner = () => {
                 }
                 .actions-group {
                     display: flex;
-                    align-items: center;
+                    /* [P3-HEADER-NO-DEFORM · 2026-07-04] era center: el medidor de créditos
+                       quedaba FLOTANDO a media altura de la columna de controles (420px) cuando
+                       los paneles/banners la alargaban. flex-start lo ancla arriba, alineado
+                       con la fila del selector de duración — estructura estable al crecer. */
+                    align-items: flex-start;
                     gap: 1rem;
                     flex-wrap: wrap;
                     position: relative;
                     z-index: 50;
+                }
+                /* [P3-HEADER-NO-DEFORM · 2026-07-04] El saludo se centra verticalmente en el
+                   alto real del hero (dictado por la columna derecha). Solo desktop — en ≤768px
+                   el header pasa a columna y el media query de abajo ya centra el texto. */
+                @media (min-width: 769px) {
+                    .dashboard-header .header-text-group {
+                        justify-content: center;
+                    }
                 }
                 /* [P3-HERO-TITLE-WRAP · 2026-07-04] En desktop el saludo largo
                    ("Buenas madrugadas, ...") NO empuja los controles a la fila de
