@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
     User, Shield, ChevronRight, ArrowLeft,
     LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, GlassWater, Cog, Fingerprint,
-    Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon, Stethoscope
+    Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon, Stethoscope, ShieldCheck, Download, ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAssessment } from '../context/AssessmentContext';
@@ -44,6 +44,9 @@ import DeleteAccountSection from '../components/account/DeleteAccountSection';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatares minimalistas: clic en el avatar del perfil cicla al siguiente.
 import { MinimalAvatar, MINIMAL_AVATARS } from '../components/avatars/minimalAvatars';
 import { getAvatarId, persistAvatar } from '../utils/avatarStore';
+// [P2-PRIVACY-SETTINGS · 2026-07-04] Enlaces de políticas de la sección
+// Privacidad — abren en el apex (mismo patrón que el menú "Más información").
+import { landingUrl } from '../components/dashboard/moreInfoLinks';
 
 // [APPEARANCE-THEME · 2026-05-28] Opciones del selector de Apariencia de la
 // sección "Preferencias". `value` se persiste en localStorage('mealfit_theme')
@@ -561,7 +564,7 @@ const Settings = () => {
     // --- NAVEGACIÓN DE SECCIONES ---
     // activeSection puede ser un id de SECTION_IDS o null (en móvil = vista de lista).
     // Sincronizado con window.location.hash para deep-linking y back/forward del navegador.
-    const SECTION_IDS = ['profile', 'preferences', 'superpers', 'clinical', 'plan', 'subscription'];
+    const SECTION_IDS = ['profile', 'preferences', 'superpers', 'clinical', 'plan', 'privacy', 'subscription'];
     const computeInitialSection = () => {
         if (typeof window === 'undefined') return 'profile';
         const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
@@ -684,10 +687,45 @@ const Settings = () => {
         { id: 'superpers', label: 'Súper Personalización', description: 'Gustos, cocina, equipo y más para mejores planes', Icon: Fingerprint, iconBg: _settingsDark ? 'rgba(245, 158, 11, 0.18)' : '#FEF3C7', iconColor: _settingsDark ? '#FBBF24' : '#D97706' },
         { id: 'clinical', label: 'Perfil Clínico Avanzado', description: 'Laboratorios, historial de peso, digestión y entrenamiento', Icon: Stethoscope, iconBg: _settingsDark ? 'rgba(239, 68, 68, 0.16)' : '#FEE2E2', iconColor: _settingsDark ? '#F87171' : '#DC2626' },
         { id: 'plan', label: 'Plan & Objetivo', description: 'Meta principal y calorías', Icon: Trophy, iconBg: _settingsDark ? 'rgba(16, 185, 129, 0.18)' : '#DCFCE7', iconColor: _settingsDark ? '#34D399' : '#166534' },
+        // [P2-PRIVACY-SETTINGS · 2026-07-04] Sección Privacidad: políticas,
+        // memoria y export de datos (estilo panel de privacidad de Claude.ai).
+        { id: 'privacy', label: 'Privacidad', description: 'Tus datos, memoria y políticas', Icon: ShieldCheck, iconBg: _settingsDark ? 'rgba(20, 184, 166, 0.18)' : '#CCFBF1', iconColor: _settingsDark ? '#2DD4BF' : '#0F766E' },
         { id: 'subscription', label: 'Suscripción', description: 'Plan, pagos y cancelación', Icon: CreditCard, iconBg: _settingsDark ? 'rgba(99, 102, 241, 0.18)' : '#E0E7FF', iconColor: _settingsDark ? '#A5B4FC' : '#4F46E5' },
     ];
 
     const activeSectionMeta = sectionsConfig.find(s => s.id === activeSection) || null;
+
+    // [P2-PRIVACY-SETTINGS · 2026-07-04] Export self-service de datos (sección
+    // Privacidad). GET /api/account/export → descarga JSON. El backend deriva el
+    // user del JWT (cero user_id client-side) y aplica throttle 3/5min.
+    const [isExportingData, setIsExportingData] = useState(false);
+    const handleExportData = async () => {
+        if (isExportingData) return;
+        setIsExportingData(true);
+        try {
+            const res = await fetchWithAuth('/api/account/export');
+            if (res.status === 429) {
+                toast.error('Acabas de exportar. Espera unos minutos e intenta de nuevo.');
+                return;
+            }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mealfitrd_datos_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            toast.success('Datos exportados. Revisa tu carpeta de descargas.');
+        } catch {
+            toast.error('No se pudo exportar tus datos. Intenta de nuevo en un momento.');
+        } finally {
+            setIsExportingData(false);
+        }
+    };
 
     // --- EFECTOS ---
 
@@ -2391,6 +2429,121 @@ const Settings = () => {
                                 Los datos que un nutriólogo pediría en consulta. Opcionales — cada uno que completes afina tu plan.
                             </p>
                             <ClinicalProfilePanel />
+                        </section>
+                    )}
+
+                    {/* [P2-PRIVACY-SETTINGS · 2026-07-04] SECCIÓN PRIVACIDAD —
+                        adaptación MealfitRD del panel de privacidad de Claude.ai:
+                        políticas (enlaces al apex), preferencia de memoria (deep-link
+                        a Capacidades, SIN duplicar el toggle) y "Tus datos"
+                        (export JSON self-service + acceso a eliminar cuenta). */}
+                    {activeSection === 'privacy' && (
+                        <section className={styles.section}>
+                            <h2 className={styles.sectionTitle}>Privacidad</h2>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.55 }}>
+                                En MealfitRD creemos en prácticas transparentes de datos: tu información se usa
+                                para generar y mejorar TU plan, nunca se vende. Conoce el detalle en nuestra{' '}
+                                <a href={landingUrl('/privacy')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>Política de Privacidad</a>.
+                            </p>
+
+                            {[
+                                { label: 'Cómo protegemos tus datos', path: '/data-protection' },
+                                { label: 'Cómo usamos tus datos', path: '/privacy' },
+                                { label: 'Cómo usamos la IA', path: '/ai-policy' },
+                            ].map((link) => (
+                                <a
+                                    key={link.path}
+                                    href={landingUrl(link.path)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
+                                        padding: '0.9rem 1.1rem', marginBottom: '0.6rem',
+                                        border: '1px solid var(--border)', borderRadius: '0.875rem',
+                                        background: 'var(--bg-card)', textDecoration: 'none',
+                                        color: 'var(--text-main)', fontWeight: 600, fontSize: '0.925rem',
+                                    }}
+                                >
+                                    {link.label}
+                                    <ExternalLink size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} aria-hidden="true" />
+                                </a>
+                            ))}
+
+                            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '1.75rem 0 0.75rem' }}>Preferencias</h3>
+                            <div style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
+                                padding: '0.9rem 1.1rem', border: '1px solid var(--border)', borderRadius: '0.875rem', background: 'var(--bg-card)',
+                            }}>
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>Memoria a Largo Plazo</div>
+                                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
+                                        Controla si la IA aprende de tus conversaciones. El toggle vive en Capacidades.
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => navigateToSection('preferences')}
+                                    style={{
+                                        flexShrink: 0, padding: '0.5rem 1rem', borderRadius: '0.65rem',
+                                        border: '1px solid var(--border)', background: 'var(--bg-muted)',
+                                        color: 'var(--text-main)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer',
+                                    }}
+                                >
+                                    Administrar
+                                </button>
+                            </div>
+
+                            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '1.75rem 0 0.75rem' }}>Tus datos</h3>
+                            <div style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
+                                padding: '0.9rem 1.1rem', marginBottom: '0.6rem',
+                                border: '1px solid var(--border)', borderRadius: '0.875rem', background: 'var(--bg-card)',
+                            }}>
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>Exportar datos</div>
+                                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
+                                        Descarga una copia JSON de tu perfil, planes, nevera, comidas registradas y memoria del agente.
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleExportData}
+                                    disabled={isExportingData}
+                                    style={{
+                                        flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.45rem',
+                                        padding: '0.5rem 1rem', borderRadius: '0.65rem', border: 'none',
+                                        background: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '0.85rem',
+                                        cursor: isExportingData ? 'wait' : 'pointer', opacity: isExportingData ? 0.7 : 1,
+                                    }}
+                                >
+                                    {isExportingData
+                                        ? <Loader2 size={15} className={styles.spinner ?? ''} style={{ animation: 'spin 1s linear infinite' }} aria-hidden="true" />
+                                        : <Download size={15} aria-hidden="true" />}
+                                    {isExportingData ? 'Exportando…' : 'Exportar datos'}
+                                </button>
+                            </div>
+                            <div style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
+                                padding: '0.9rem 1.1rem', border: '1px solid var(--border)', borderRadius: '0.875rem', background: 'var(--bg-card)',
+                            }}>
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>Eliminar cuenta</div>
+                                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
+                                        Borra tu cuenta y toda tu información de forma permanente. Vive en Suscripción.
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => navigateToSection('subscription')}
+                                    style={{
+                                        flexShrink: 0, padding: '0.5rem 1rem', borderRadius: '0.65rem',
+                                        border: '1px solid var(--border)', background: 'var(--bg-muted)',
+                                        color: 'var(--danger, #DC2626)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer',
+                                    }}
+                                >
+                                    Administrar
+                                </button>
+                            </div>
                         </section>
                     )}
 
