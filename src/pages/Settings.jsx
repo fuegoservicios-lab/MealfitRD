@@ -15,7 +15,7 @@ import { fetchWithAuth } from '../config/api';
 // ~862). Modal nativo rompía dark theme + a11y; este helper usa sonner.
 import { confirmToast } from '../utils/confirmToast';
 import { requestNotificationPermission, subscribeToPushNotifications, unsubscribeFromPushNotifications, isPushSupported } from '../utils/pushNotifications';
-import { trackEvent } from '../utils/analytics';
+import { trackEvent, ANALYTICS_OPT_OUT_KEY, isAnalyticsOptedOut } from '../utils/analytics';
 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] Helper defensivo para removeItem
 // — iOS Private Mode lanza SecurityError y corta el cleanup del reset
 // preferences (líneas ~775+).
@@ -694,6 +694,22 @@ const Settings = () => {
     ];
 
     const activeSectionMeta = sectionsConfig.find(s => s.id === activeSection) || null;
+
+    // [P2-PRIVACY-SETTINGS · 2026-07-04] Toggle "Ayuda a mejorar MealfitRD":
+    // opt-out REAL de analytics (trackEvent gatea en isAnalyticsOptedOut).
+    // Flag por dispositivo en localStorage — la analítica es per-device por
+    // naturaleza (PostHog/GA/GTM viven en el browser).
+    const [analyticsEnabled, setAnalyticsEnabled] = useState(() => !isAnalyticsOptedOut());
+    const handleToggleAnalytics = () => {
+        setAnalyticsEnabled((prev) => {
+            const next = !prev;
+            safeLocalStorageSet(ANALYTICS_OPT_OUT_KEY, next ? '0' : '1');
+            toast.success(next
+                ? 'Gracias por ayudar a mejorar MealfitRD.'
+                : 'Eventos de uso desactivados en este dispositivo.');
+            return next;
+        });
+    };
 
     // [P2-PRIVACY-SETTINGS · 2026-07-04] Export self-service de datos (sección
     // Privacidad). GET /api/account/export → descarga JSON. El backend deriva el
@@ -2470,6 +2486,52 @@ const Settings = () => {
                             ))}
 
                             <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '1.75rem 0 0.75rem' }}>Preferencias</h3>
+
+                            {/* Toggle REAL de analytics: trackEvent (Sentry breadcrumbs /
+                                PostHog / GA / GTM) gatea en isAnalyticsOptedOut. Equivalente
+                                MealfitRD del "Ayuda a mejorar" de Claude.ai — acá NO entrena
+                                modelos: son eventos de uso del producto. */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
+                                padding: '0.9rem 1.1rem', marginBottom: '0.6rem',
+                                border: '1px solid var(--border)', borderRadius: '0.875rem', background: 'var(--bg-card)',
+                            }}>
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>Ayuda a mejorar MealfitRD</div>
+                                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
+                                        Permitir eventos de uso anónimos (qué pantallas y funciones se usan) para mejorar
+                                        el producto. Nunca incluye tus datos de salud ni tus conversaciones. Se guarda por dispositivo.
+                                    </div>
+                                </div>
+                                <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={analyticsEnabled}
+                                        onChange={handleToggleAnalytics}
+                                        aria-label="Permitir eventos de uso anónimos"
+                                    />
+                                    <span className={styles.toggleSlider}></span>
+                                </label>
+                            </div>
+
+                            {/* Fila informativa (SIN toggle a propósito): MealfitRD no entrena
+                                modelos con datos de usuarios — no hay nada que activar/desactivar,
+                                y un toggle sin efecto real sería un ajuste falso. */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
+                                padding: '0.9rem 1.1rem', marginBottom: '0.6rem',
+                                border: '1px solid var(--border)', borderRadius: '0.875rem', background: 'var(--bg-card)',
+                            }}>
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>Entrenamiento de modelos de IA</div>
+                                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
+                                        MealfitRD <strong>no usa</strong> tus datos ni tus conversaciones para entrenar modelos de IA.
+                                        La memoria a largo plazo solo personaliza TU experiencia.{' '}
+                                        <a href={landingUrl('/ai-policy')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>Más información</a>.
+                                    </div>
+                                </div>
+                            </div>
+
                             <div style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
                                 padding: '0.9rem 1.1rem', border: '1px solid var(--border)', borderRadius: '0.875rem', background: 'var(--bg-card)',

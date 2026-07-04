@@ -4,6 +4,16 @@
 // muerto → el trail de acciones del usuario no llegaba a los reportes de error.
 // `addBreadcrumb` es no-op si Sentry no está inicializado (seguro sin guard).
 import { addBreadcrumb } from '@sentry/react';
+import { safeLocalStorageGet } from './safeLocalStorage';
+
+// [P2-PRIVACY-SETTINGS · 2026-07-04] Opt-out de analytics (Configuración →
+// Privacidad → toggle "Ayuda a mejorar MealfitRD"). Flag por dispositivo:
+// '1' = no emitir NINGÚN evento de uso (Sentry breadcrumbs, PostHog, GA, GTM).
+// Los errores (Sentry captureException) NO se gatean — son operacionales,
+// no analítica de producto.
+export const ANALYTICS_OPT_OUT_KEY = 'mealfit_analytics_opt_out';
+export const isAnalyticsOptedOut = () =>
+    safeLocalStorageGet(ANALYTICS_OPT_OUT_KEY, null) === '1';
 
 // [P0-FRONTEND-ANALYTICS · 2026-05-12] `process.env.NODE_ENV` rompe en runtime
 // browser: Vite NO inyecta `process` en el bundle del cliente, así que cada
@@ -13,6 +23,9 @@ import { addBreadcrumb } from '@sentry/react';
 // reales. Vite expone `import.meta.env.MODE` (string: 'development' /
 // 'production' / 'test') con la misma semántica. Anchor: P0-FRONTEND-ANALYTICS.
 export const trackEvent = (eventName, data = {}) => {
+    // [P2-PRIVACY-SETTINGS · 2026-07-04] Respeta el opt-out del usuario.
+    if (isAnalyticsOptedOut()) return;
+
     // Console log para debugging local
     if (import.meta.env.MODE !== 'production') {
         console.log(`[Analytics] ${eventName}`, data);
