@@ -2586,8 +2586,10 @@ const Settings = () => {
                             </div>
                             {/* [P2-PRIVACY-SETTINGS v4 · 2026-07-04] Zona de peligro real
                                 (antes en Suscripción — estaba duplicada con una fila acá).
-                                DeleteAccountSection trae su propia card + confirmación. */}
-                            <div style={{ marginTop: '0.6rem' }}>
+                                DeleteAccountSection trae su propia card + confirmación.
+                                Aire generoso arriba: es destructiva, no debe leerse como
+                                parte del bloque de export. */}
+                            <div style={{ marginTop: '1.75rem' }}>
                                 <DeleteAccountSection />
                             </div>
                         </section>
