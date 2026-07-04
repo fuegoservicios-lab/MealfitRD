@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, LogIn } from 'lucide-react';
 import styles from './InteractiveAssessmentLayout.module.css';
 
 const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle }) => {
@@ -61,9 +61,18 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                     {/* [P3-ASSESSMENT-NO-CANCEL · 2026-07-01] Botón «Cancelar» eliminado a pedido.
                         [FORM-STEP-COUNTER-DEDUP · 2026-07-03] La píldora contador "N / M" del
                         header eliminada a pedido — duplicaba el kicker "Paso N de M" de la card.
-                        Spacer vacío para que el grid 3-col conserve el logo centrado
-                        (`:last-child { justify-self: end }` capturaría el logo sin él). */}
-                    <div className={styles.backSpacer} />
+                        [FORM-EXIT-TO-LOGIN-PC · 2026-07-04] El slot derecho (antes spacer) ahora
+                        es el botón "Volver al login" SOLO desktop (a pedido: en PC no había forma
+                        de salir del wizard; en móvil ya existe el chevron del paso 1). Mismo
+                        teardown handleBackToLogin. Ocupa el 3er slot del grid → logo centrado. */}
+                    <button
+                        onClick={handleBackToLogin}
+                        className={styles.loginExitBtn}
+                        aria-label="Volver al inicio de sesión"
+                    >
+                        <LogIn size={15} strokeWidth={2.4} aria-hidden="true" />
+                        Volver al login
+                    </button>
                 </div>
                 
                 {/* Progress Bar under header */}

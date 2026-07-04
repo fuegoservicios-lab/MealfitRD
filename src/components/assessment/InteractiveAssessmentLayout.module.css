@@ -95,14 +95,43 @@
     color: var(--text-main);
 }
 
-.backSpacer {
-    width: 40px;
+/* [FORM-EXIT-TO-LOGIN-PC · 2026-07-04] Botón "Volver al login" en la esquina derecha
+   del header — SOLO desktop (a pedido: en PC no había forma de salir del wizard; el
+   móvil ya tiene el chevron del paso 1). Reemplaza al antiguo .backSpacer como 3er
+   slot del grid → el logo sigue centrado. En móvil display:none saca el botón del
+   layout pero el logo conserva su columna (auto-placement: child 2 → col 2). */
+.loginExitBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.loginExitBtn:hover {
+    background-color: var(--bg-muted);
+    color: var(--text-main);
+}
+
+@media (max-width: 768px) {
+    .loginExitBtn {
+        display: none;
+    }
 }
 
 /* [FORM-BACK-TO-LOGIN · 2026-07-03] Botón "volver al login" del PASO 1 — SOLO móvil
-   (pedido del owner: en PC no hace falta). En desktop se oculta con visibility (no
-   display:none) para conservar el ancho del slot izquierdo del grid 3-col del header
-   y mantener el logo centrado. */
+   (en desktop existe el botón de esquina FORM-EXIT-TO-LOGIN-PC). Se oculta con
+   visibility (no display:none) para conservar el ancho del slot izquierdo del grid
+   3-col del header y mantener el logo centrado. */
 @media (min-width: 769px) {
     .backToLogin {
         visibility: hidden;
