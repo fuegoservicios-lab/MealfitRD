@@ -11,6 +11,9 @@
  *                                     proteína que el plato no trae y no hubo reemplazo honesto.
  *   - `_recipe_contract_advisory`   → [P2-AUDIT-V6-BATCH · 2026-07-03] pasos de receta incompletos
  *                                     (prefijos/orden/tiempo) tras los backstops.
+ *   - `_cross_week_repeat`          → [P2-AUDIT-V7-BATCH · 2026-07-04] (P2-6) el plato repite el
+ *                                     mismo slot de una semana previa del plan (check determinista
+ *                                     del merge de chunks; la palanca es "Cambiar Plato").
  *
  * NINGUNO bloquea — son informativos (el usuario puede regenerar/cambiar el plato). Pre-fix el backend
  * los calculaba y persistía pero el frontend NUNCA los mostraba, mientras que señales hermanas (banner de
@@ -37,6 +40,9 @@ export function getMealAdvisories(meal) {
   }
   if (meal._recipe_contract_advisory) {
     out.push({ key: 'recipe_contract', label: 'Receta con pasos incompletos — regenera para detalle' });
+  }
+  if (meal._cross_week_repeat) {
+    out.push({ key: 'cross_week_repeat', label: 'Se repite de una semana anterior — cámbialo si quieres variedad' });
   }
   return out;
 }

@@ -40,6 +40,8 @@ import RestockNudge from '../components/dashboard/RestockNudge';
 // [P1-SUPERMARKET-MATCH · 2026-07-02] Panel "Marcas del súper": conecta la lista
 // de compras con supermarket_products (marcas/presentaciones/precios reales).
 import SupermarketBrands from '../components/dashboard/SupermarketBrands';
+// [P2-AUDIT-V7-BATCH · 2026-07-04] (P2-8) lista por pasillo on-screen (antes solo PDF).
+import ShoppingListPanel from '../components/dashboard/ShoppingListPanel';
 // [P3-AGENT-PREFILL · 2026-06-15] Tocar un micronutriente → pregunta al coach IA.
 import { requestAgentPrefill } from '../utils/agentPrefill';
 import Modal from '../components/common/Modal';
@@ -5115,6 +5117,18 @@ const DashboardInner = () => {
                             );
                         })()}
 
+                        {/* [P2-AUDIT-V7-BATCH · 2026-07-04] (P2-8) Lista de compras POR PASILLO en
+                            la UI viva: misma agrupación estables/frescos + categorías + costo por
+                            ítem que el PDF (que era el único lugar donde vivía). Colapsada por
+                            default para no engordar el Dashboard. */}
+                        {Array.isArray(planData?.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0
+                            && !isPlanExpired && !planFinished && !isPlanCorrupted && (
+                            <ShoppingListPanel
+                                shoppingList={planData.aggregated_shopping_list}
+                                duration={planData.calc_grocery_duration || formData?.groceryDuration || 'weekly'}
+                            />
+                        )}
+
                         {/* [P1-SUPERMARKET-MATCH · 2026-07-02] Marcas y precios reales del súper
                             por ítem de la lista (base Supermercado RD). Informativo — no toca
                             plan_data ni el costeo; persistencia de marca preferida = fase 2. */}
@@ -5515,6 +5529,38 @@ const DashboardInner = () => {
                                     const _sev = planData?._quality_degraded_severity === 'high' ? 'Importante' : 'Menor';
                                     return <>Motivo ({_sev}): {_label}</>;
                                 })()}
+                            </span>
+                        )}
+                        {/* [P2-AUDIT-V7-BATCH · 2026-07-04] (P2-9) CTA diferenciado cuando el backend
+                            atribuyó el degradado a la Nevera (_quality_degraded_pantry_limited,
+                            P1-PANTRY-DEGRADED-SIGNAL): los closers/motor se auto-revirtieron porque el
+                            modo estricto no puede "comprar más". Antes la señal se persistía sin lector
+                            → el usuario veía el banner genérico sin saber que la palanca es surtir su
+                            Nevera. */}
+                        {planData?._quality_degraded_pantry_limited && (
+                            <span style={{ display: 'block', marginTop: '0.4rem' }}>
+                                <span style={{ color: isDark ? '#FCD34D' : '#92400E', fontSize: '0.72rem', display: 'block', marginBottom: '0.3rem' }}>
+                                    Este ajuste quedó limitado por tu <strong>Nevera</strong>: cocinamos solo con lo que tienes y no alcanzó para clavar los macros.
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/dashboard/pantry')}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.3rem',
+                                        border: 'none',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.32rem 0.6rem',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        background: isDark ? 'rgba(251,191,36,0.18)' : '#FDE68A',
+                                        color: isDark ? '#FDE68A' : '#92400E'
+                                    }}
+                                >
+                                    Agregar ítems a mi Nevera →
+                                </button>
                             </span>
                         )}
                     </div>
