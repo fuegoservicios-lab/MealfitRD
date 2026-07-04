@@ -246,6 +246,12 @@ const Q_DEGRADED_REASON_MAP = {
     // reintentos → puede haber comidas repetidas (almuerzo↔cena) o un slot incoherente. Antes se
     // entregaba como plan plenamente verificado SIN aviso.
     slot_coherence_unresolved: 'Algunos días pueden tener comidas repetidas o poco variadas: el ajuste automático no terminó. Usa Cambiar Plato para variar el día que no te cuadre.',
+    // [P3-MICRO-WORSTDAY-COPY · 2026-07-04] Los dos motivos del soft-reject del panel de micros
+    // (P2-PANEL-SOFT-REJECT) caían al genérico "Calidad por debajo del óptimo" — el owner vio el
+    // banner y no supo que era el SODIO del peor día (pregunta real 2026-07-04). Copy específico
+    // y accionable, alineado con lo que el panel de micros muestra abajo.
+    micro_worst_day_ceiling: 'Un día se pasa del techo de sodio o azúcar añadida (revisa el panel de micros: enlatados, queso y embutidos son los sospechosos típicos). Usa Cambiar Plato en la comida más salada de ese día.',
+    micro_worst_day: 'Un día quedó por debajo del piso en algunos micronutrientes (fibra, potasio, magnesio…). Revisa el panel de micros y usa Cambiar Plato si quieres reforzar ese día.',
 };
 
 // [P3-NOTIF-CENTER-BACKFILL · 2026-06-16] Reconcilia (crea-o-enriquece) una
