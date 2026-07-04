@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react';
 import PropTypes from 'prop-types';
 // [P3-MORE-INFO-MENU · 2026-07-03] Enlaces del submenú "Más información"
 // (SSOT compartido con el menú "más" móvil de DashboardLayout).
-import { MORE_INFO_GROUPS, SUPPORT_EMAIL, landingUrl } from './moreInfoLinks';
+import { MORE_INFO_GROUPS, landingUrl } from './moreInfoLinks';
 import styles from './AccountMenu.module.css';
 
 /* [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Card del menú de cuenta del sidebar.
@@ -160,6 +160,7 @@ export default function AccountMenu({
   onSettingsHover,
   onLogout,
   onAccount,
+  onHelp,
 }) {
   // [P3-MORE-INFO-MENU · 2026-07-03] Vista del submenú "Más información": la
   // card intercambia su contenido por el panel de enlaces (patrón Claude.ai).
@@ -260,17 +261,19 @@ export default function AccountMenu({
           <ChevronRight className={styles.itemChevron} />
         </button>
 
-        {/* [P3-HELP-MENU-ITEM · 2026-07-03] "Obtener ayuda" — abre el correo de
-            soporte canónico (SUPPORT_EMAIL, SSOT en moreInfoLinks). */}
-        <a
-          href={`mailto:${SUPPORT_EMAIL}`}
+        {/* [P2-HELP-CHATBOT · 2026-07-04] "Obtener ayuda" — abre el chatbot de
+            ayuda (HelpChatWidget, POST /api/help/chat). Antes era mailto directo
+            (P3-HELP-MENU-ITEM); el correo sigue como escalación en el pie del
+            widget. */}
+        <button
+          type="button"
           className={styles.item}
           role="menuitem"
-          onClick={() => onAccount?.()}
+          onClick={onHelp}
         >
           <span className={styles.iconChip}><HelpIcon className={styles.icon} /></span>
           <span className={styles.itemLabel}>Obtener ayuda</span>
-        </a>
+        </button>
 
         {/* [P3-ACCOUNT-MENU-COMPACT · 2026-07-04] Ítems nuevos van ARRIBA de este
             divider; el grupo final queda reservado a la sesión. Más grupos =
@@ -322,4 +325,5 @@ AccountMenu.propTypes = {
   onSettingsHover: PropTypes.func,
   onLogout: PropTypes.func,
   onAccount: PropTypes.func,
+  onHelp: PropTypes.func,
 };

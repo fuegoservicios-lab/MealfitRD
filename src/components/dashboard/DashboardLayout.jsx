@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Lock, Info, ChevronRight, ExternalLink, HelpCircle } from 'lucide-react';
@@ -21,7 +21,10 @@ import BottomTabBar from './BottomTabBar';
 import AccountMenu, { AccountIdentityButton } from './AccountMenu';
 // [P3-MORE-INFO-MENU · 2026-07-03] Enlaces "Más información" (SSOT compartido
 // con la card del menú de cuenta) — versión inline para el menú "más" móvil.
-import { MORE_INFO_GROUPS, SUPPORT_EMAIL, landingUrl } from './moreInfoLinks';
+import { MORE_INFO_GROUPS, landingUrl } from './moreInfoLinks';
+// [P2-HELP-CHATBOT · 2026-07-04] Chatbot de ayuda ("Obtener ayuda"). Lazy:
+// solo carga su chunk cuando el usuario lo abre.
+const HelpChatWidget = lazy(() => import('./HelpChatWidget'));
 // [P1-APP-VERSION · 2026-06-19] Versión visible bajo el wordmark (SSOT en config).
 import { APP_VERSION } from '../../config/appVersion';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatar minimalista elegido en Ajustes, reflejado
@@ -47,6 +50,8 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const [isMobileMoreMenuOpen, setIsMobileMoreMenuOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+    // [P2-HELP-CHATBOT · 2026-07-04] Panel del chatbot de ayuda.
+    const [isHelpChatOpen, setIsHelpChatOpen] = useState(false);
     const accountMenuRef = useRef(null);
 
     // [P3-AVATAR-CYCLE · 2026-06-20] Avatar elegido (en Ajustes); refleja el cambio
@@ -284,6 +289,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 onSettingsHover={() => prefetchRoute('/dashboard/settings')}
                                 onLogout={() => { setIsAccountMenuOpen(false); setShowLogoutModal(true); }}
                                 onAccount={() => setIsAccountMenuOpen(false)}
+                                onHelp={() => { setIsAccountMenuOpen(false); setIsHelpChatOpen(true); }}
                             />
                         </div>
                     )}
@@ -342,6 +348,14 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 userEmail={session?.user?.email}
                 isGuest={isGuest}
             />
+
+            {/* [P2-HELP-CHATBOT · 2026-07-04] Chatbot de ayuda — se monta solo al
+                abrirlo (lazy chunk) y se porta a <body> él mismo (createPortal). */}
+            {isHelpChatOpen && (
+                <Suspense fallback={null}>
+                    <HelpChatWidget onClose={() => setIsHelpChatOpen(false)} />
+                </Suspense>
+            )}
 
             {/* [P3-NOTIF-CENTER · 2026-06-16] Tirador + drawer de notificaciones —
                 SOLO en la página "Plan" (/dashboard), que es de donde salen los
@@ -420,17 +434,20 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 ))}
                             </div>
                         )}
-                        {/* [P3-HELP-MENU-ITEM · 2026-07-03] "Obtener ayuda" — abre el
-                            correo de soporte canónico (SUPPORT_EMAIL, SSOT moreInfoLinks). */}
-                        <a
-                            href={`mailto:${SUPPORT_EMAIL}`}
+                        {/* [P2-HELP-CHATBOT · 2026-07-04] "Obtener ayuda" — abre el
+                            chatbot de ayuda (antes mailto directo; el correo sigue
+                            como escalación en el pie del widget). */}
+                        <button
                             className={styles.mobileMoreItem}
                             role="menuitem"
-                            onClick={closeMoreMenu}
+                            onClick={() => {
+                                closeMoreMenu();
+                                setIsHelpChatOpen(true);
+                            }}
                         >
                             <HelpCircle size={18} strokeWidth={2.5} />
                             <span>Obtener ayuda</span>
-                        </a>
+                        </button>
                         <button
                             className={`${styles.mobileMoreItem} ${styles.mobileMoreItemDanger}`}
                             onClick={() => {

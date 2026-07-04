@@ -1,0 +1,224 @@
+/* [P2-HELP-CHATBOT · 2026-07-04] Panel del chatbot de ayuda ("Obtener ayuda").
+   Desktop: card flotante abajo-derecha. Móvil (≤640px): sheet a pantalla
+   completa. Colores 100% desde tokens de index.css → tema claro/oscuro gratis.
+   z-index 80 > .accountMenuPopover (60) para abrir por encima del menú. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: transparent;
+}
+
+.panel {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 81;
+  display: flex;
+  flex-direction: column;
+  width: min(370px, calc(100vw - 40px));
+  height: min(560px, calc(100dvh - 40px));
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  font-family: var(--font-body);
+  animation: helpPanelIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes helpPanelIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* — Header — */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: radial-gradient(120% 160% at 0% 0%,
+              color-mix(in srgb, var(--primary) 12%, transparent), transparent 60%);
+}
+.headerIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  color: var(--primary);
+}
+.headerText { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 1px; }
+.headerTitle {
+  font-family: var(--font-heading);
+  font-weight: 750;
+  font-size: 14.5px;
+  color: var(--text-main);
+}
+.headerSub { font-size: 11px; color: var(--text-muted); }
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s;
+}
+.closeBtn:hover { background: var(--bg-muted); color: var(--text-main); }
+
+/* — Mensajes — */
+.messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.bubble {
+  max-width: 85%;
+  padding: 9px 12px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-main);
+  overflow-wrap: break-word;
+}
+.bubbleBot {
+  align-self: flex-start;
+  background: var(--bg-muted);
+  border-bottom-left-radius: 5px;
+}
+.bubbleUser {
+  align-self: flex-end;
+  background: var(--primary);
+  color: #fff;
+  border-bottom-right-radius: 5px;
+  white-space: pre-wrap;
+}
+:global(html[data-theme='dark']) .bubbleUser { color: #0b1120; }
+.bubbleError { border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); }
+
+/* Markdown dentro de burbujas del bot: sin márgenes extremos */
+.bubbleBot :global(.markdown-chat) > :first-child { margin-top: 0; }
+.bubbleBot :global(.markdown-chat) > :last-child { margin-bottom: 0; }
+
+/* Indicador "escribiendo" (3 puntos) */
+.typing { display: flex; gap: 4px; padding: 12px 14px; }
+.typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: helpTypingDot 1.1s infinite ease-in-out;
+}
+.typing span:nth-child(2) { animation-delay: 0.15s; }
+.typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes helpTypingDot {
+  0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* — Sugerencias (estado inicial) — */
+.suggestions { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+.suggestionChip {
+  align-self: flex-start;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-main);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s;
+}
+.suggestionChip:hover {
+  background: var(--bg-muted);
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+}
+
+/* — Input — */
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-muted);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color 0.14s;
+}
+.input:focus { border-color: color-mix(in srgb, var(--primary) 55%, var(--border)); }
+.input::placeholder { color: var(--text-light); }
+.sendBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.14s, opacity 0.14s;
+}
+:global(html[data-theme='dark']) .sendBtn { color: #0b1120; }
+.sendBtn:hover:not(:disabled) { background: var(--primary-dark); }
+:global(html[data-theme='dark']) .sendBtn:hover:not(:disabled) { background: var(--primary-light); }
+.sendBtn:disabled { opacity: 0.45; cursor: default; }
+
+/* — Pie: escalación por correo — */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px 9px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.footerLink { color: var(--primary); text-decoration: none; font-weight: 600; }
+.footerLink:hover { text-decoration: underline; }
+
+/* — Móvil: sheet a pantalla completa — */
+@media (max-width: 640px) {
+  .overlay { background: color-mix(in srgb, #000 30%, transparent); }
+  .panel {
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+  }
+}
