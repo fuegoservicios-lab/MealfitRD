@@ -201,7 +201,9 @@ const ShoppingListPanel = ({ shoppingList, duration }) => {
                                     fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.05em',
                                     color: meta.color, marginBottom: '0.25rem',
                                 }}>
-                                    {meta.label} · {count}
+                                    {/* [P3-AISLE-COUNT-LABEL · 2026-07-04] "· 27" a secas era ambiguo
+                                        (pregunta real del owner) — explícito: "· 27 ítems". */}
+                                    {meta.label} · {count} {count === 1 ? 'ítem' : 'ítems'}
                                 </div>
                                 {groups.map(([cat, items]) => {
                                     const catCost = items.reduce((s, i) => s + (itemCost(i) || 0), 0);
