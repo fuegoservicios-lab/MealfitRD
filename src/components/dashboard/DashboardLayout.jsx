@@ -363,9 +363,11 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 [P3-NOTIF-HIDE-ON-MENU · 2026-06-29] En móvil, con el menú de las 3
                 rayas abierto la campanita chocaba visualmente con el dropdown → se
                 oculta mientras el menú está abierto. display:none (no desmonta) →
-                preserva el estado/notificaciones del NotificationCenter. */}
+                preserva el estado/notificaciones del NotificationCenter.
+                [P3-NOTIF-HANDLE-RAISE · 2026-07-04] Ídem con el chat de ayuda
+                abierto: el panel vive abajo-derecha y el tirador le quedaba encima. */}
             {location.pathname.replace(/\/$/, '') === '/dashboard' && (
-                <NotificationCenter hidden={isMobileMoreMenuOpen} />
+                <NotificationCenter hidden={isMobileMoreMenuOpen || isHelpChatOpen} />
             )}
 
 

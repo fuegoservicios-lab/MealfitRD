@@ -8,7 +8,10 @@
 /* ============================ TIRADOR / BORDE ============================ */
 .handle {
     position: fixed;
-    top: 50%;
+    /* [P3-NOTIF-HANDLE-RAISE · 2026-07-04] 38% (antes 50%): en PC el tirador
+       centrado chocaba visualmente con paneles anclados abajo-derecha (chat de
+       ayuda P2-HELP-CHATBOT). Móvil lo overridea con top absoluto más abajo. */
+    top: 38%;
     right: 0;
     transform: translateY(-50%);
     z-index: 860;
