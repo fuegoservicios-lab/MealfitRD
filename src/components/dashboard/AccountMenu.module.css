@@ -15,34 +15,36 @@
 }
 
 /* — Encabezado de plan — */
-/* [ACCOUNT-MENU-POLISH · 2026-07-01] Layout vertical: el nombre del plan ocupa el
-   ancho completo (antes se truncaba a "Grat..." porque el botón le robaba espacio en
-   la misma fila) y "Mejorar plan" pasa a un CTA full-width debajo. Degradado más
-   suave desde la esquina superior izquierda para un acento premium sin recargar. */
+/* [P3-ACCOUNT-MENU-COMPACT · 2026-07-04] Rediseño compacto: el encabezado pasa
+   del bloque vertical (kicker + nombre 21px + CTA full-width, ~120px de alto)
+   a UNA fila (~52px): plan a la izquierda, "Mejorar plan" como pill compacto a
+   la derecha. El truncado "Grat..." que motivó el layout vertical
+   (ACCOUNT-MENU-POLISH 2026-07-01) era por el nombre a 21px + pill grande en
+   la misma fila; a 15px + pill chico caben con holgura (ellipsis de guardia). */
 .planHeader {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 13px;
-  padding: 18px 16px 16px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border);
-  background: radial-gradient(120% 140% at 0% 0%,
-              color-mix(in srgb, var(--primary) 14%, transparent), transparent 60%);
+  background: radial-gradient(120% 160% at 0% 0%,
+              color-mix(in srgb, var(--primary) 12%, transparent), transparent 60%);
 }
-.planInfo { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.planInfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .kicker {
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
-.planNameRow { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.planNameRow { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .planName {
   font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 21px;
-  letter-spacing: -0.015em;
+  font-weight: 750;
+  font-size: 15px;
+  letter-spacing: -0.01em;
   color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
@@ -53,19 +55,18 @@
 .verBtn {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  width: 100%;
-  padding: 11px 14px;
+  gap: 5px;
+  flex: none;
+  padding: 7px 12px;
   border: 0;
   border-radius: var(--radius-full);
   background: var(--primary);
   color: #fff;
   font-family: var(--font-heading);
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 12px;
   cursor: pointer;
-  box-shadow: 0 6px 16px -9px color-mix(in srgb, var(--primary) 70%, transparent);
+  box-shadow: 0 5px 14px -8px color-mix(in srgb, var(--primary) 70%, transparent);
   transition: background 0.16s, transform 0.16s, box-shadow 0.16s;
 }
 .verBtn:hover {
@@ -74,21 +75,36 @@
   box-shadow: 0 11px 22px -9px color-mix(in srgb, var(--primary) 78%, transparent);
 }
 .verBtn:active { transform: translateY(0); }
-.verChevron { width: 15px; height: 15px; }
+.verChevron { width: 13px; height: 13px; }
 /* En oscuro el primary es claro → texto oscuro para contraste (idéntico al DS) */
 :global(html[data-theme='dark']) .verBtn { color: #0b1120; }
 :global(html[data-theme='dark']) .verBtn:hover { background: var(--primary-light); }
 
 /* — Lista de acciones — */
-.menu { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; }
+/* [P3-ACCOUNT-MENU-COMPACT · 2026-07-04] Filas ligeras (~36px, antes ~52px):
+   icono plano sin chip de fondo + padding contenido. Escala: con muchos ítems
+   futuros el bloque scrollea (max-height) en vez de empujar la card fuera del
+   viewport (el popover crece hacia ARRIBA desde bottom:0 del sidebar).
+   Agrupar ítems nuevos con .menuDivider, no con espaciado. */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
 .item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 11px 12px;
+  flex: none;
+  padding: 8px 10px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 9px;
   background: transparent;
   cursor: pointer;
   text-align: left;
@@ -96,22 +112,23 @@
   transition: background 0.14s;
 }
 .item:hover { background: var(--bg-muted); }
-.itemLabel { font-size: 14px; font-weight: 600; color: var(--text-main); }
+.itemLabel { font-size: 13.5px; font-weight: 600; color: var(--text-main); }
 
 .iconChip {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 20px;
+  height: 20px;
   flex: none;
-  border-radius: 9px;
-  background: var(--bg-muted);
   color: var(--text-muted);
   transition: color 0.14s;
 }
 .icon { width: 16px; height: 16px; }
 .item:hover .iconChip { color: var(--text-main); }
+
+/* Separador de grupos (hoy: sesión al final; futuros grupos = más dividers) */
+.menuDivider { height: 1px; flex: none; margin: 5px 8px; background: var(--border); }
 
 /* — Submenú "Más información" (P3-MORE-INFO-MENU · 2026-07-03) — */
 .itemChevron { width: 14px; height: 14px; margin-left: auto; flex: none; color: var(--text-light); }
@@ -122,7 +139,7 @@
   align-items: center;
   gap: 9px;
   width: 100%;
-  padding: 13px 14px;
+  padding: 11px 14px;
   border: 0;
   border-bottom: 1px solid var(--border);
   background: transparent;
@@ -137,14 +154,24 @@
 .backRow:hover { background: var(--bg-muted); }
 .backChevron { width: 15px; height: 15px; flex: none; color: var(--text-muted); }
 
-.infoMenu { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; }
-.infoDivider { height: 1px; margin: 6px 8px; background: var(--border); }
+.infoMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.infoDivider { height: 1px; flex: none; margin: 5px 8px; background: var(--border); }
 .infoLink {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
+  flex: none;
+  padding: 8px 10px;
+  border-radius: 9px;
   text-decoration: none;
   transition: background 0.14s;
 }
@@ -156,17 +183,14 @@
 /* Cerrar sesión */
 .logout:hover { background: var(--danger-bg); }
 .logout .itemLabel { color: var(--danger); }
-.logoutChip {
-  background: color-mix(in srgb, var(--danger) 14%, transparent);
-  color: var(--danger);
-}
+.logoutChip { color: var(--danger); }
 .logout:hover .logoutChip { color: var(--danger); }
 
 /* Slot de invitado (selector de tema en vez de "Configuración") */
 .settingsSlot { padding: 4px 6px 2px; }
 
 /* — Pie de cuenta — */
-.footer { border-top: 1px solid var(--border); padding: 10px; }
+.footer { border-top: 1px solid var(--border); padding: 8px; }
 .account {
   display: flex;
   align-items: center;

@@ -272,6 +272,11 @@ export default function AccountMenu({
           <span className={styles.itemLabel}>Obtener ayuda</span>
         </a>
 
+        {/* [P3-ACCOUNT-MENU-COMPACT · 2026-07-04] Ítems nuevos van ARRIBA de este
+            divider; el grupo final queda reservado a la sesión. Más grupos =
+            más dividers (no espaciado). */}
+        <div className={styles.menuDivider} role="separator" />
+
         <button
           type="button"
           className={`${styles.item} ${styles.logout}`}
