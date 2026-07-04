@@ -564,7 +564,7 @@ const Settings = () => {
     // --- NAVEGACIÓN DE SECCIONES ---
     // activeSection puede ser un id de SECTION_IDS o null (en móvil = vista de lista).
     // Sincronizado con window.location.hash para deep-linking y back/forward del navegador.
-    const SECTION_IDS = ['profile', 'preferences', 'superpers', 'clinical', 'plan', 'privacy', 'subscription'];
+    const SECTION_IDS = ['profile', 'preferences', 'privacy', 'superpers', 'clinical', 'plan', 'subscription'];
     const computeInitialSection = () => {
         if (typeof window === 'undefined') return 'profile';
         const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
@@ -684,12 +684,12 @@ const Settings = () => {
     const sectionsConfig = [
         { id: 'profile', label: 'General', description: 'Cuenta, apariencia y notificaciones', Icon: Cog, iconBg: _settingsDark ? 'rgba(59, 130, 246, 0.16)' : '#EFF6FF', iconColor: _settingsDark ? '#60A5FA' : '#3B82F6' },
         { id: 'preferences', label: 'Capacidades', description: 'Modo automático, memoria y datos del agente', Icon: SlidersHorizontal, iconBg: _settingsDark ? 'rgba(219, 39, 119, 0.18)' : '#FCE7F3', iconColor: _settingsDark ? '#F472B6' : '#DB2777' },
+        // [P2-PRIVACY-SETTINGS · 2026-07-04] Privacidad va DEBAJO de Capacidades
+        // (a pedido del owner): políticas, memoria y export de datos.
+        { id: 'privacy', label: 'Privacidad', description: 'Tus datos, memoria y políticas', Icon: ShieldCheck, iconBg: _settingsDark ? 'rgba(20, 184, 166, 0.18)' : '#CCFBF1', iconColor: _settingsDark ? '#2DD4BF' : '#0F766E' },
         { id: 'superpers', label: 'Súper Personalización', description: 'Gustos, cocina, equipo y más para mejores planes', Icon: Fingerprint, iconBg: _settingsDark ? 'rgba(245, 158, 11, 0.18)' : '#FEF3C7', iconColor: _settingsDark ? '#FBBF24' : '#D97706' },
         { id: 'clinical', label: 'Perfil Clínico Avanzado', description: 'Laboratorios, historial de peso, digestión y entrenamiento', Icon: Stethoscope, iconBg: _settingsDark ? 'rgba(239, 68, 68, 0.16)' : '#FEE2E2', iconColor: _settingsDark ? '#F87171' : '#DC2626' },
         { id: 'plan', label: 'Plan & Objetivo', description: 'Meta principal y calorías', Icon: Trophy, iconBg: _settingsDark ? 'rgba(16, 185, 129, 0.18)' : '#DCFCE7', iconColor: _settingsDark ? '#34D399' : '#166534' },
-        // [P2-PRIVACY-SETTINGS · 2026-07-04] Sección Privacidad: políticas,
-        // memoria y export de datos (estilo panel de privacidad de Claude.ai).
-        { id: 'privacy', label: 'Privacidad', description: 'Tus datos, memoria y políticas', Icon: ShieldCheck, iconBg: _settingsDark ? 'rgba(20, 184, 166, 0.18)' : '#CCFBF1', iconColor: _settingsDark ? '#2DD4BF' : '#0F766E' },
         { id: 'subscription', label: 'Suscripción', description: 'Plan, pagos y cancelación', Icon: CreditCard, iconBg: _settingsDark ? 'rgba(99, 102, 241, 0.18)' : '#E0E7FF', iconColor: _settingsDark ? '#A5B4FC' : '#4F46E5' },
     ];
 
