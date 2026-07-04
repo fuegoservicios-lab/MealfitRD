@@ -92,6 +92,7 @@
   background: transparent;
   cursor: pointer;
   text-align: left;
+  text-decoration: none; /* .item también se usa en <a> ("Obtener ayuda") */
   transition: background 0.14s;
 }
 .item:hover { background: var(--bg-muted); }

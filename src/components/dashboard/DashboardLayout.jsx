@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Lock, Info, ChevronRight, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Lock, Info, ChevronRight, ExternalLink, HelpCircle } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -21,7 +21,7 @@ import BottomTabBar from './BottomTabBar';
 import AccountMenu, { AccountIdentityButton } from './AccountMenu';
 // [P3-MORE-INFO-MENU · 2026-07-03] Enlaces "Más información" (SSOT compartido
 // con la card del menú de cuenta) — versión inline para el menú "más" móvil.
-import { MORE_INFO_GROUPS, landingUrl } from './moreInfoLinks';
+import { MORE_INFO_GROUPS, SUPPORT_EMAIL, landingUrl } from './moreInfoLinks';
 // [P1-APP-VERSION · 2026-06-19] Versión visible bajo el wordmark (SSOT en config).
 import { APP_VERSION } from '../../config/appVersion';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatar minimalista elegido en Ajustes, reflejado
@@ -420,6 +420,17 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 ))}
                             </div>
                         )}
+                        {/* [P3-HELP-MENU-ITEM · 2026-07-03] "Obtener ayuda" — abre el
+                            correo de soporte canónico (SUPPORT_EMAIL, SSOT moreInfoLinks). */}
+                        <a
+                            href={`mailto:${SUPPORT_EMAIL}`}
+                            className={styles.mobileMoreItem}
+                            role="menuitem"
+                            onClick={closeMoreMenu}
+                        >
+                            <HelpCircle size={18} strokeWidth={2.5} />
+                            <span>Obtener ayuda</span>
+                        </a>
                         <button
                             className={`${styles.mobileMoreItem} ${styles.mobileMoreItemDanger}`}
                             onClick={() => {

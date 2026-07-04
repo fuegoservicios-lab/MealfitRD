@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react';
 import PropTypes from 'prop-types';
 // [P3-MORE-INFO-MENU · 2026-07-03] Enlaces del submenú "Más información"
 // (SSOT compartido con el menú "más" móvil de DashboardLayout).
-import { MORE_INFO_GROUPS, landingUrl } from './moreInfoLinks';
+import { MORE_INFO_GROUPS, SUPPORT_EMAIL, landingUrl } from './moreInfoLinks';
 import styles from './AccountMenu.module.css';
 
 /* [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Card del menú de cuenta del sidebar.
@@ -54,6 +54,15 @@ const InfoIcon = (p) => (
     <circle cx="12" cy="12" r="9" />
     <line x1="12" y1="11" x2="12" y2="16" />
     <line x1="12" y1="8" x2="12.01" y2="8" />
+  </svg>
+);
+
+const HelpIcon = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+       strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
   </svg>
 );
 
@@ -250,6 +259,18 @@ export default function AccountMenu({
           <span className={styles.itemLabel}>Más información</span>
           <ChevronRight className={styles.itemChevron} />
         </button>
+
+        {/* [P3-HELP-MENU-ITEM · 2026-07-03] "Obtener ayuda" — abre el correo de
+            soporte canónico (SUPPORT_EMAIL, SSOT en moreInfoLinks). */}
+        <a
+          href={`mailto:${SUPPORT_EMAIL}`}
+          className={styles.item}
+          role="menuitem"
+          onClick={() => onAccount?.()}
+        >
+          <span className={styles.iconChip}><HelpIcon className={styles.icon} /></span>
+          <span className={styles.itemLabel}>Obtener ayuda</span>
+        </a>
 
         <button
           type="button"

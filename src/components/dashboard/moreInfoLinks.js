@@ -17,6 +17,11 @@ export const landingUrl = (path) => {
   return path; // dev / preview → ruta in-app
 };
 
+// [P3-HELP-MENU-ITEM · 2026-07-03] Correo de soporte del ítem "Obtener ayuda"
+// (menú de cuenta desktop + menú "más" móvil). Mismo email canónico que
+// Footer.jsx (P3-FOOTER-SUPPORT) y Upgrade.jsx.
+export const SUPPORT_EMAIL = 'fuego.servicios@gmail.com';
+
 // Grupos separados por divider (arriba: conocer el producto; abajo: legal).
 export const MORE_INFO_GROUPS = [
   [
