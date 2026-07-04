@@ -35,36 +35,37 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
         <div className={styles.layout}>
             {/* Header / Top Bar */}
             <header className={styles.header}>
+                {/* [FORM-EXIT-TO-LOGIN-PC · 2026-07-04 · v3] Pill "Volver al login"
+                    SOLO desktop, anclado ABSOLUTO a la esquina izquierda del header
+                    (v2 lo dejaba en el slot del grid .headerContent, que es
+                    max-width:1200px centrado → en pantallas anchas flotaba a ~360px
+                    del borde). Mismo teardown handleBackToLogin. */}
+                <button
+                    onClick={handleBackToLogin}
+                    className={styles.loginExitBtn}
+                    aria-label="Volver al inicio de sesión"
+                >
+                    <LogIn size={15} strokeWidth={2.4} aria-hidden="true" />
+                    Volver al login
+                </button>
                 <div className={styles.headerContent}>
-                    {/* [FORM-EXIT-TO-LOGIN-PC · 2026-07-04] Slot izquierdo agrupado:
-                        chevron de paso anterior (o el chevron móvil del paso 1,
-                        FORM-BACK-TO-LOGIN) + pill "Volver al login" SOLO desktop
-                        (a pedido, esquina IZQUIERDA). Mismo teardown handleBackToLogin. */}
-                    <div className={styles.headerLeft}>
-                        {currentStep > 0 ? (
-                            <button onClick={prevStep} className={styles.backBtn} aria-label="Paso anterior">
-                                <ChevronLeft size={24} />
-                            </button>
-                        ) : (
-                            /* [FORM-BACK-TO-LOGIN · 2026-07-03] Chevron de salir al login del
-                               PASO 1 — SOLO móvil (en desktop existe el pill de al lado). */
-                            <button
-                                onClick={handleBackToLogin}
-                                className={`${styles.backBtn} ${styles.backToLogin}`}
-                                aria-label="Volver al inicio de sesión"
-                            >
-                                <ChevronLeft size={24} />
-                            </button>
-                        )}
+                    {currentStep > 0 ? (
+                        <button onClick={prevStep} className={styles.backBtn} aria-label="Paso anterior">
+                            <ChevronLeft size={24} />
+                        </button>
+                    ) : (
+                        /* [FORM-BACK-TO-LOGIN · 2026-07-03] Chevron de salir al login del
+                           PASO 1 — SOLO móvil (en desktop existe el pill de la esquina).
+                           visibility:hidden en desktop: como grid child de la col 1,
+                           display:none correría el logo a la col 1. */
                         <button
                             onClick={handleBackToLogin}
-                            className={styles.loginExitBtn}
+                            className={`${styles.backBtn} ${styles.backToLogin}`}
                             aria-label="Volver al inicio de sesión"
                         >
-                            <LogIn size={15} strokeWidth={2.4} aria-hidden="true" />
-                            Volver al login
+                            <ChevronLeft size={24} />
                         </button>
-                    </div>
+                    )}
 
                     <div className={styles.logo}>
                         Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>

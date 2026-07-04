@@ -95,22 +95,22 @@
     color: var(--text-main);
 }
 
-/* [FORM-EXIT-TO-LOGIN-PC · 2026-07-04] Botón "Volver al login" en la esquina
-   IZQUIERDA del header (v2 a pedido; nació a la derecha) — SOLO desktop: en PC no
-   había forma de salir del wizard; el móvil ya tiene el chevron del paso 1. Vive
-   dentro de .headerLeft junto al chevron de paso anterior. */
-.headerLeft {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-}
-
+/* [FORM-EXIT-TO-LOGIN-PC · 2026-07-04 · v3] Botón "Volver al login" en la esquina
+   IZQUIERDA REAL del header — SOLO desktop: en PC no había forma de salir del
+   wizard; el móvil ya tiene el chevron del paso 1. Absoluto respecto al .header
+   (position:fixed, full-width): en v2 vivía dentro del grid .headerContent
+   (max-width:1200px centrado) y en pantallas anchas flotaba a ~360px del borde.
+   Centrado vertical en la fila de 64px, respetando el safe-area superior. */
 .backSpacer {
     width: 40px;
 }
 
 .loginExitBtn {
+    position: absolute;
+    left: 1.5rem;
+    top: calc(env(safe-area-inset-top, 0px) + 32px);
+    transform: translateY(-50%);
+    z-index: 1;
     display: inline-flex;
     align-items: center;
     gap: 7px;
@@ -124,7 +124,7 @@
     font-size: 13px;
     white-space: nowrap;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .loginExitBtn:hover {
@@ -139,13 +139,13 @@
 }
 
 /* [FORM-BACK-TO-LOGIN · 2026-07-03] Chevron "volver al login" del PASO 1 — SOLO
-   móvil (en desktop existe el pill FORM-EXIT-TO-LOGIN-PC de al lado). display:none
-   (ya no visibility): dentro del flex .headerLeft su ancho ya no sostiene el
-   centrado del logo (lo hace el grid 1fr auto 1fr), y ocultarlo con visibility
-   dejaría un hueco de 40px antes del pill. */
+   móvil (en desktop existe el pill FORM-EXIT-TO-LOGIN-PC de la esquina). Se oculta
+   con visibility (no display:none): es grid child de la col 1 y sin él el logo
+   correría a la col 1 (auto-placement). */
 @media (min-width: 769px) {
     .backToLogin {
-        display: none;
+        visibility: hidden;
+        pointer-events: none;
     }
 }
 
