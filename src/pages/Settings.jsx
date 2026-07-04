@@ -711,6 +711,47 @@ const Settings = () => {
         });
     };
 
+    // [P2-AI-TRAINING-CONSENT · 2026-07-04] Consentimiento OPT-IN para uso
+    // futuro de datos en entrenamiento de modelos propios. Persistido en
+    // user_profiles.ai_training_consent (default FALSE fail-secure) — el
+    // consentimiento no es retroactivo, por eso se captura desde YA aunque
+    // el pipeline de training aún no exista.
+    const [aiTrainingConsent, setAiTrainingConsent] = useState(false);
+    const [isAiConsentLoading, setIsAiConsentLoading] = useState(false);
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetchWithAuth('/api/user/preferences/ai-training');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!cancelled) setAiTrainingConsent(Boolean(data?.ai_training_consent));
+            } catch { /* default false (opt-in fail-secure) */ }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+    const handleToggleAiTraining = async () => {
+        if (isAiConsentLoading) return;
+        const next = !aiTrainingConsent;
+        setIsAiConsentLoading(true);
+        try {
+            const res = await fetchWithAuth('/api/user/preferences/ai-training', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ai_training_consent: next }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            setAiTrainingConsent(next);
+            toast.success(next
+                ? 'Gracias por tu confianza. Tus datos podrán usarse de forma anónima cuando exista el entrenamiento propio.'
+                : 'Listo. Tus datos no se usarán para entrenar modelos.');
+        } catch {
+            toast.error('No se pudo guardar la preferencia. Intenta de nuevo.');
+        } finally {
+            setIsAiConsentLoading(false);
+        }
+    };
+
     // [P2-PRIVACY-SETTINGS · 2026-07-04] Export self-service de datos (sección
     // Privacidad). GET /api/account/export → descarga JSON. El backend deriva el
     // user del JWT (cero user_id client-side) y aplica throttle 3/5min.
@@ -2514,9 +2555,11 @@ const Settings = () => {
                                 </label>
                             </div>
 
-                            {/* Fila informativa (SIN toggle a propósito): MealfitRD no entrena
-                                modelos con datos de usuarios — no hay nada que activar/desactivar,
-                                y un toggle sin efecto real sería un ajuste falso. */}
+                            {/* [P2-AI-TRAINING-CONSENT · 2026-07-04] Toggle REAL opt-in
+                                (antes fila informativa): hoy NO se entrena con datos de
+                                usuarios, pero el consentimiento no es retroactivo — se
+                                captura desde ya para que el corpus futuro nazca limpio.
+                                Persistido en user_profiles.ai_training_consent. */}
                             <div style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
                                 padding: '0.9rem 1.1rem', marginBottom: '0.6rem',
@@ -2525,11 +2568,22 @@ const Settings = () => {
                                 <div style={{ minWidth: 0 }}>
                                     <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>Entrenamiento de modelos de IA</div>
                                     <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
-                                        MealfitRD <strong>no usa</strong> tus datos ni tus conversaciones para entrenar modelos de IA.
-                                        La memoria a largo plazo solo personaliza TU experiencia.{' '}
+                                        Hoy MealfitRD <strong>no entrena</strong> modelos con tus datos. Si lo permites, tus
+                                        planes y conversaciones podrán usarse <strong>de forma anónima</strong> para entrenar
+                                        los modelos propios de MealfitRD en el futuro.{' '}
                                         <a href={landingUrl('/ai-policy')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>Más información</a>.
                                     </div>
                                 </div>
+                                <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={aiTrainingConsent}
+                                        onChange={handleToggleAiTraining}
+                                        disabled={isAiConsentLoading}
+                                        aria-label="Permitir uso futuro anónimo de mis datos para entrenar modelos de MealfitRD"
+                                    />
+                                    <span className={styles.toggleSlider} style={{ opacity: isAiConsentLoading ? 0.6 : 1 }}></span>
+                                </label>
                             </div>
 
                             <div style={{
