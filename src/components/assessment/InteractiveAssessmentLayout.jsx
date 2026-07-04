@@ -36,43 +36,45 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
             {/* Header / Top Bar */}
             <header className={styles.header}>
                 <div className={styles.headerContent}>
-                    {currentStep > 0 ? (
-                        <button onClick={prevStep} className={styles.backBtn} aria-label="Paso anterior">
-                            <ChevronLeft size={24} />
-                        </button>
-                    ) : (
-                        /* [FORM-BACK-TO-LOGIN · 2026-07-03] En el PASO 1 no había forma de salir del
-                           wizard en móvil (sin nav visible) → botón de volver al login (con teardown
-                           de sesión — ver handleBackToLogin). SOLO móvil: en desktop el CSS lo oculta
-                           con visibility (conserva el ancho del grid 3-col, logo centrado). */
+                    {/* [FORM-EXIT-TO-LOGIN-PC · 2026-07-04] Slot izquierdo agrupado:
+                        chevron de paso anterior (o el chevron móvil del paso 1,
+                        FORM-BACK-TO-LOGIN) + pill "Volver al login" SOLO desktop
+                        (a pedido, esquina IZQUIERDA). Mismo teardown handleBackToLogin. */}
+                    <div className={styles.headerLeft}>
+                        {currentStep > 0 ? (
+                            <button onClick={prevStep} className={styles.backBtn} aria-label="Paso anterior">
+                                <ChevronLeft size={24} />
+                            </button>
+                        ) : (
+                            /* [FORM-BACK-TO-LOGIN · 2026-07-03] Chevron de salir al login del
+                               PASO 1 — SOLO móvil (en desktop existe el pill de al lado). */
+                            <button
+                                onClick={handleBackToLogin}
+                                className={`${styles.backBtn} ${styles.backToLogin}`}
+                                aria-label="Volver al inicio de sesión"
+                            >
+                                <ChevronLeft size={24} />
+                            </button>
+                        )}
                         <button
                             onClick={handleBackToLogin}
-                            className={`${styles.backBtn} ${styles.backToLogin}`}
+                            className={styles.loginExitBtn}
                             aria-label="Volver al inicio de sesión"
                         >
-                            <ChevronLeft size={24} />
+                            <LogIn size={15} strokeWidth={2.4} aria-hidden="true" />
+                            Volver al login
                         </button>
-                    )}
-                    
+                    </div>
+
                     <div className={styles.logo}>
                         Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
                     </div>
-                    
+
                     {/* [P3-ASSESSMENT-NO-CANCEL · 2026-07-01] Botón «Cancelar» eliminado a pedido.
                         [FORM-STEP-COUNTER-DEDUP · 2026-07-03] La píldora contador "N / M" del
                         header eliminada a pedido — duplicaba el kicker "Paso N de M" de la card.
-                        [FORM-EXIT-TO-LOGIN-PC · 2026-07-04] El slot derecho (antes spacer) ahora
-                        es el botón "Volver al login" SOLO desktop (a pedido: en PC no había forma
-                        de salir del wizard; en móvil ya existe el chevron del paso 1). Mismo
-                        teardown handleBackToLogin. Ocupa el 3er slot del grid → logo centrado. */}
-                    <button
-                        onClick={handleBackToLogin}
-                        className={styles.loginExitBtn}
-                        aria-label="Volver al inicio de sesión"
-                    >
-                        <LogIn size={15} strokeWidth={2.4} aria-hidden="true" />
-                        Volver al login
-                    </button>
+                        Spacer para que `:last-child { justify-self: end }` no capture el logo. */}
+                    <div className={styles.backSpacer} aria-hidden="true" />
                 </div>
                 
                 {/* Progress Bar under header */}
