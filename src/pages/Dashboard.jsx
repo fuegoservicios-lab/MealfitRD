@@ -3447,6 +3447,20 @@ const DashboardInner = () => {
                         justify-content: center;
                     }
                 }
+                /* [P3-CREDITS-IN-IDENTITY · 2026-07-04] El medidor de créditos vive bajo el
+                   saludo: alineado a la izquierda en desktop, centrado en móvil (donde el
+                   header-text-group ya centra todo). */
+                .credits-meter-slot {
+                    align-self: flex-start;
+                }
+                @media (max-width: 768px) {
+                    .credits-meter-slot {
+                        align-self: center;
+                        width: 100%;
+                        display: flex;
+                        justify-content: center;
+                    }
+                }
                 /* [P3-HERO-TITLE-WRAP · 2026-07-04] En desktop el saludo largo
                    ("Buenas madrugadas, ...") NO empuja los controles a la fila de
                    abajo: la columna de texto cede (flex 1 + min-width 0) y el
@@ -4354,19 +4368,26 @@ const DashboardInner = () => {
                         con transición animada. El nombre conserva su gradient (estilo en
                         `_GREETING_NAME_STYLE`, con los fixes de clip P3-GRADIENT-NAME-CLIP-FIX). */}
                     <RotatingGreeting firstName={userProfile?.full_name?.split(' ')[0] || formData?.name || 'Nutrifit'} />
+
+                    {/* VISUALIZADOR DE CRÉDITOS — [P2-CREDITS-METER · 2026-06-15] gauge circular
+                        animado (ver components/dashboard/CreditsMeter).
+                        [P3-CREDITS-IN-IDENTITY · 2026-07-04] Movido de actions-group al bloque de
+                        identidad: tras P3-HEADER-NO-DEFORM quedaba HUÉRFANO flotando entre el
+                        saludo y la columna de controles (feedback directo del owner). Debajo del
+                        saludo ancla con la identidad y equilibra el lado izquierdo del hero
+                        contra la columna derecha cargada. */}
+                    <div style={{ marginTop: '0.65rem' }} className="credits-meter-slot">
+                        <CreditsMeter
+                            remainingCredits={remainingCredits}
+                            userPlanLimit={userPlanLimit}
+                            isLimitReached={isLimitReached}
+                            isGuest={isGuest}
+                        />
+                    </div>
                 </div>
 
                 {/* --- ACTIONS GROUP --- */}
                 <div className="actions-group">
-
-                    {/* VISUALIZADOR DE CRÉDITOS — [P2-CREDITS-METER · 2026-06-15]
-                        gauge circular animado (ver components/dashboard/CreditsMeter). */}
-                    <CreditsMeter
-                        remainingCredits={remainingCredits}
-                        userPlanLimit={userPlanLimit}
-                        isLimitReached={isLimitReached}
-                        isGuest={isGuest}
-                    />
 
                     {/* REGENERACIÓN DE MENÚ Y EXPORTACIÓN */}
                     <div className="new-plan-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'stretch' }}>
