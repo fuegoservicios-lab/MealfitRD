@@ -532,7 +532,7 @@ const DashboardInner = () => {
         return {
             id: _planMicroSig ? `quality_${_planMicroSig}` : undefined,
             kind: 'quality',
-            title: `Plan no óptimo (${_attempts} intentos)`,
+            title: `Plan no óptimo (${_attempts} intento${_attempts === 1 ? '' : 's'})`,
             message: _reasonText,
             severity: 'warning',
             // Payload estructurado para la vista expandida.
@@ -5628,7 +5628,9 @@ const DashboardInner = () => {
                     <AlertCircle size={17} color={isDark ? '#FBBF24' : '#D97706'} style={{ flexShrink: 0, marginTop: '1px' }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                         <span style={{ fontWeight: 700, color: isDark ? '#FDE68A' : '#92400E', fontSize: '0.82rem', display: 'block', marginBottom: '0.1rem' }}>
-                            La IA no logró un plan óptimo tras {planData?._quality_degraded_attempts || 3} intentos
+                            {/* [P3-ATTEMPTS-SINGULAR · 2026-07-04] "tras 1 intentos" era visible
+                                desde que MAX_ATTEMPTS puede entregar al primer intento. */}
+                            La IA no logró un plan óptimo tras {planData?._quality_degraded_attempts || 3} intento{(planData?._quality_degraded_attempts || 3) === 1 ? '' : 's'}
                         </span>
                         <span style={{ color: isDark ? '#FCD34D' : '#B45309', fontSize: '0.76rem', lineHeight: 1.4 }}>
                             Te entregamos la mejor versión. Usa <strong>Cambiar Plato</strong> para reemplazar comidas o regenera el plan completo.
