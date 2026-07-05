@@ -122,7 +122,7 @@ function AttentionCard({ e, adviceItem, onAsk }) {
 
 // — Chip "Al día": colapsado muestra solo el nombre + ✓; al tocarlo se expande y
 //   revela la cantidad EXACTA (valor / objetivo + %). Transparencia total. —
-function ReachedChip({ e }) {
+function ReachedChip({ e, worstDayNum = null }) {
     const [open, setOpen] = useState(false);
     const s = classifyRow(e);
     return (
@@ -136,6 +136,10 @@ function ReachedChip({ e }) {
             <span className={styles.qRow}>
                 <span className={styles.chk}><CheckIcon /></span>
                 <span className={styles.qName}>{e.nutriente}</span>
+                {/* [P3-FLOOR-WORSTDAY-UI · 2026-07-04] el % es el PROMEDIO — si el chequeo
+                    per-día flaggeó ESTE micro, el chip lo delata sin abrirlo (simétrico del
+                    aviso per-día de techos: promedio verde + banner ámbar parecían contradictorios). */}
+                {worstDayNum != null && <span className={styles.qDay}>⚠ Día {worstDayNum}</span>}
                 <span className={styles.qPct}>{s.pct}%</span>
                 <ChevronIcon className={`${styles.qChev} ${open ? styles.qChevOpen : ''}`} />
             </span>
@@ -151,6 +155,11 @@ function ReachedChip({ e }) {
                         <span className={styles.qValsInner}>
                             <b>{_fmtN(s.valor)}</b> / {_fmtN(s.target)} {e.unidad}
                             {s.estimado && <span className={styles.qEst}> · ≈ estimado</span>}
+                            {worstDayNum != null && (
+                                <span className={styles.qDayNote}>
+                                    {' '}· el promedio cumple, pero el Día {worstDayNum} quedó corto en este micro — refuérzalo ese día (Cambiar Plato)
+                                </span>
+                            )}
                         </span>
                     </motion.span>
                 )}
@@ -250,7 +259,16 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
                 <>
                     <div className={styles.eye}>Al día <span className={styles.ct}>· {nReached}</span><span className={styles.ln} /></div>
                     <div className={styles.grid2}>
-                        {reached.map((e, i) => <ReachedChip key={`r-${e.key || i}`} e={e} />)}
+                        {reached.map((e, i) => {
+                            // [P3-FLOOR-WORSTDAY-UI · 2026-07-04] chip delata el peor día si el
+                            // detector per-día de pisos flaggeó este micro (promedio verde ≠ todos
+                            // los días cubiertos).
+                            const _pdf = report?.per_day_floors;
+                            const _low = (_pdf?.flagged && Array.isArray(_pdf?.worst_day?.low)
+                                && _pdf.worst_day.low.includes(e.key))
+                                ? (_pdf.worst_day?.day_index ?? 0) + 1 : null;
+                            return <ReachedChip key={`r-${e.key || i}`} e={e} worstDayNum={_low} />;
+                        })}
                     </div>
                 </>
             )}

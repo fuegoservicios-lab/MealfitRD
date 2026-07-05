@@ -177,6 +177,11 @@
    escondía días que SÍ se pasan (banner de plan-no-óptimo parecía ilógico junto al panel verde). */
 .limDays { margin-top: 6px; font-size: .68rem; line-height: 1.45; font-weight: 600; color: #b45309; }
 :global(html[data-theme="dark"]) .limDays { color: #fcd34d; }
+/* [P3-FLOOR-WORSTDAY-UI · 2026-07-04] simétrico para PISOS: el chip verde delata el día corto. */
+.qDay { font-size: .58rem; font-weight: 800; color: #b45309; white-space: nowrap; }
+:global(html[data-theme="dark"]) .qDay { color: #fcd34d; }
+.qDayNote { color: #b45309; font-weight: 600; }
+:global(html[data-theme="dark"]) .qDayNote { color: #fcd34d; }
 
 .foot { margin: 15px 2px 2px; font-size: .68rem; line-height: 1.5; color: var(--text-light); opacity: .9; }
 
