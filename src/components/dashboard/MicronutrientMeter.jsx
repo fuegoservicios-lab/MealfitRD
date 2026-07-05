@@ -281,6 +281,24 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
                                                 : `margen ${_fmtN(_round1(s.target - s.valor))} ${e.unidad}`}
                                         </span>
                                     </div>
+                                    {/* [P3-CEILING-WORSTDAY-UI · 2026-07-04] El valor de arriba es el
+                                        PROMEDIO multi-día — con techos (sodio) el promedio esconde días
+                                        que sí se pasan (caso vivo: promedio 1,818 "bajo control" con 2 de
+                                        3 días sobre 2,000 → el banner de plan-no-óptimo parecía ilógico
+                                        junto al panel verde). Si el chequeo per-día del backend flaggeó
+                                        ESTE nutriente, lo decimos aquí mismo. */}
+                                    {(() => {
+                                        const pdc = report?.per_day_ceilings;
+                                        if (!pdc?.flagged) return null;
+                                        const highs = pdc?.worst_day?.high;
+                                        if (!Array.isArray(highs) || !highs.includes(e.key)) return null;
+                                        const _dNum = (pdc.worst_day?.day_index ?? 0) + 1;
+                                        return (
+                                            <div className={styles.limDays}>
+                                                ⚠ {pdc.days_above} de {pdc.days_evaluated} día{pdc.days_evaluated === 1 ? '' : 's'} se pasa{pdc.days_above === 1 ? '' : 'n'} del techo (peor: Día {_dNum}) — el promedio está bien, pero revisa los enlatados/queso/embutidos de esos días.
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             );
                         })}
