@@ -5317,20 +5317,16 @@ const DashboardInner = () => {
 
                     </div>
                 </div>
-                {/* [2026-07-06] movido FUERA de la columna derecha: centrado
-                    respecto a la TARJETA completa (pedido del owner — dentro de la
-                    columna angosta el centrado apenas se notaba). */}
-                        {/* [P2-NEVERA-DELTA-NOTICE · 2026-06-24] Aviso de la Nevera Inteligente,
-                            DEBAJO de los botones. Solo ícono + texto verde (SIN pastilla: ni fondo
-                            ni borde — la pastilla se confundía con un botón). Una línea. Izquierda
-                            en PC / centrado en móvil. Solo con plan válido; la deducción es by-design. */}
-                        {shoppingDeltaMeta?.itemsRemoved > 0 && !isPlanExpired && !planFinished && !isPlanCorrupted && (
-                            /* [2026-07-06] pedido del owner: más aire respecto a los botones y
-                               CENTRADO (antes quedaba pegado a la izquierda y se veía suelto). */
+                {/* [P2-NEVERA-DELTA-NOTICE · 2026-06-24 · re-colocado 2026-07-06] Aviso
+                    de la Nevera al PIE de la tarjeta, centrado sobre el ancho COMPLETO
+                    (pedido del owner). `.dashboard-header` es flex-row con wrap →
+                    flexBasis:100% fuerza al chip a su propia fila al fondo; sin él
+                    quedaba como tercera columna arriba a la derecha. */}
+                {shoppingDeltaMeta?.itemsRemoved > 0 && !isPlanExpired && !planFinished && !isPlanCorrupted && (
+                    <div style={{ flexBasis: '100%', display: 'flex', justifyContent: 'center' }}>
                             <span className="nevera-notice-chip" style={{
                                 maxWidth: '100%',
-                                display: 'flex', width: 'fit-content',
-                                margin: '1rem auto 0',
+                                display: 'inline-flex',
                                 alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
                                 padding: '0.1rem 0',
                                 color: isDark ? '#6EE7B7' : '#047857',
@@ -5344,7 +5340,8 @@ const DashboardInner = () => {
                                         : <>{shoppingDeltaMeta.itemsRemoved} ítem{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} de la lista ya en tu Nevera</>}
                                 </span>
                             </span>
-                        )}
+                    </div>
+                )}
             </header>
 
             {/* [P1-GUEST-MODE · 2026-06-15] Banner de conversión para invitados:
