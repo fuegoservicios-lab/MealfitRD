@@ -5238,39 +5238,6 @@ const DashboardInner = () => {
                             );
                         })()}
 
-                        {/* [P2-SHOPLIST-PANEL-REMOVED · 2026-07-06] Eliminado el panel expandible
-                            "Lista de compras por pasillo" (P2-AUDIT-V7-BATCH P2-8): decisión del
-                            owner — el detalle itemizado ya vive en el PDF y el panel duplicaba.
-                            Se conserva SOLO esta línea con el total "esta ida al súper" (dato
-                            único: el banner de presupuesto muestra el CICLO completo, que es otro
-                            número) para ver el efecto de marcas/duración sin descargar el PDF. */}
-                        {Array.isArray(planData?.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0
-                            && !isPlanExpired && !planFinished && !isPlanCorrupted && (() => {
-                                const _items = planData.aggregated_shopping_list.filter((it) => it && typeof it === 'object');
-                                if (!_items.length) return null;
-                                let _cost = 0;
-                                _items.forEach((it) => {
-                                    const c = it?.estimated_cost_rd ?? it?.estimated_cost;
-                                    if (typeof c === 'number' && c > 0) _cost += c;
-                                });
-                                return (
-                                    <span className="nevera-notice-chip" style={{
-                                        maxWidth: '100%',
-                                        display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                                        padding: '0.1rem 0',
-                                        color: 'var(--text-muted)',
-                                        fontSize: '0.72rem', fontWeight: 600, lineHeight: 1.25,
-                                    }}>
-                                        <ShoppingCart size={12} style={{ flexShrink: 0 }} aria-hidden="true" />
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {_items.length} ítems
-                                            {_cost > 0 && <> · RD${Math.round(_cost).toLocaleString('es-DO')} esta ida al súper</>}
-                                            {' '}— el detalle está en el PDF
-                                        </span>
-                                    </span>
-                                );
-                            })()}
-
                         {/* [P1-SUPERMARKET-MATCH · 2026-07-02] Marcas y precios reales del súper
                             por ítem de la lista (base Supermercado RD). Informativo — no toca
                             plan_data ni el costeo; persistencia de marca preferida = fase 2. */}
@@ -5332,6 +5299,42 @@ const DashboardInner = () => {
                                 }}
                             />
                         )}
+
+                        {/* [2026-07-06] línea movida DEBAJO del panel de marcas (pedido del owner:
+                            arriba se veía mal visualmente — el total cierra la sección de compras). */}
+                        {/* [P2-SHOPLIST-PANEL-REMOVED · 2026-07-06] Eliminado el panel expandible
+                            "Lista de compras por pasillo" (P2-AUDIT-V7-BATCH P2-8): decisión del
+                            owner — el detalle itemizado ya vive en el PDF y el panel duplicaba.
+                            Se conserva SOLO esta línea con el total "esta ida al súper" (dato
+                            único: el banner de presupuesto muestra el CICLO completo, que es otro
+                            número) para ver el efecto de marcas/duración sin descargar el PDF. */}
+                        {Array.isArray(planData?.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0
+                            && !isPlanExpired && !planFinished && !isPlanCorrupted && (() => {
+                                const _items = planData.aggregated_shopping_list.filter((it) => it && typeof it === 'object');
+                                if (!_items.length) return null;
+                                let _cost = 0;
+                                _items.forEach((it) => {
+                                    const c = it?.estimated_cost_rd ?? it?.estimated_cost;
+                                    if (typeof c === 'number' && c > 0) _cost += c;
+                                });
+                                return (
+                                    <span className="nevera-notice-chip" style={{
+                                        maxWidth: '100%',
+                                        display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                                        padding: '0.1rem 0',
+                                        color: 'var(--text-muted)',
+                                        fontSize: '0.72rem', fontWeight: 600, lineHeight: 1.25,
+                                    }}>
+                                        <ShoppingCart size={12} style={{ flexShrink: 0 }} aria-hidden="true" />
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {_items.length} ítems
+                                            {_cost > 0 && <> · RD${Math.round(_cost).toLocaleString('es-DO')} esta ida al súper</>}
+                                            {' '}— el detalle está en el PDF
+                                        </span>
+                                    </span>
+                                );
+                            })()}
+
                     </div>
                 </div>
             </header>
