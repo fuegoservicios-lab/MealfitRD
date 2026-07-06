@@ -5133,12 +5133,17 @@ const DashboardInner = () => {
                             ni borde — la pastilla se confundía con un botón). Una línea. Izquierda
                             en PC / centrado en móvil. Solo con plan válido; la deducción es by-design. */}
                         {shoppingDeltaMeta?.itemsRemoved > 0 && !isPlanExpired && !planFinished && !isPlanCorrupted && (
+                            /* [2026-07-06] pedido del owner: más aire respecto a los botones y
+                               CENTRADO (antes quedaba pegado a la izquierda y se veía suelto). */
                             <span className="nevera-notice-chip" style={{
                                 maxWidth: '100%',
-                                display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                                display: 'flex', width: 'fit-content',
+                                margin: '0.75rem auto 0',
+                                alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
                                 padding: '0.1rem 0',
                                 color: isDark ? '#6EE7B7' : '#047857',
                                 fontSize: '0.72rem', fontWeight: 600, lineHeight: 1.25,
+                                textAlign: 'center',
                             }}>
                                 <Refrigerator size={12} style={{ flexShrink: 0 }} aria-hidden="true" />
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
