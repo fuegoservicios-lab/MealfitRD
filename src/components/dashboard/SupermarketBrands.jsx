@@ -467,7 +467,9 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
                             <p style={{ margin: '0.55rem 0 0', fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                                 Precios de referencia de La Sirena y Supermercados Nacional (1 presentación
                                 por ítem elegido). Tus marcas elegidas se aplican al costo real de la lista
-                                al instante (recalculamos el plan al elegir).
+                                al instante (recalculamos el plan al elegir) y quedan como tu
+                                predeterminado para todos tus planes futuros — sin elección, usamos la
+                                marca más económica del súper.
                             </p>
                         </>
                     )}

@@ -248,6 +248,10 @@ const ShoppingListPanel = ({ shoppingList, duration }) => {
                     })}
                     <p style={{ margin: '0.35rem 0 0', fontSize: '0.66rem', color: 'var(--text-muted)' }}>
                         Mismos grupos y precios que el PDF descargable — los frescos se recompran cada semana; la despensa una sola vez por ciclo.
+                        {/* [P1-BRAND-LIST-VISIBILITY · 2026-07-06] la marca entre paréntesis viene del
+                            costeo backend (más barata por default; tu preferencia si la elegiste). */}
+                        {' '}La marca junto a cada ítem es la más económica del súper — cámbiala en
+                        «Marcas y precios del súper» y tu elección queda para futuros planes.
                     </p>
                 </div>
             )}
