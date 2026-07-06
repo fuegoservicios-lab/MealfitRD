@@ -152,6 +152,23 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
         return out;
     }, [shoppingList]);
 
+    // [P1-BRAND-DEFAULT-PRESELECTED · 2026-07-06] Producto del súper que la LISTA
+    // está usando por ítem (`brand_product_id` del costeo backend). El picker lo
+    // muestra pre-seleccionado (estilo distinto a la preferencia manual) para que
+    // el usuario vea qué marca está en su lista — pedido del owner: "Wala está
+    // por defecto en arroz blanco, debe verse seleccionado; así no se confunden".
+    // Tocarlo lo FIJA como preferencia permanente (deja de moverse si el default
+    // más barato cambia con los precios).
+    const defaultIdByKey = useMemo(() => {
+        const out = {};
+        (shoppingList || []).forEach((item) => {
+            const name = itemDisplayName(item);
+            const pid = item?.brand_product_id;
+            if (name && typeof pid === 'string' && pid) out[norm(name)] = pid;
+        });
+        return out;
+    }, [shoppingList]);
+
     const load = useCallback(async () => {
         if (matches || loading || names.length === 0) return;
         setLoading(true);
@@ -391,9 +408,10 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
                             <p style={{ margin: '0.55rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                                 Toca una variante para marcarla como tu preferida
                                 {prefsSource === 'local' && ' (se guarda en este dispositivo)'}.
-                                {' '}En despensa/duraderos ves el catálogo completo (los de tu tamaño
-                                primero); en frescos, las marcas del tamaño que usa tu lista — siempre
-                                de la más económica a la más cara.
+                                {' '}El check punteado marca la que tu lista usa por defecto (la más
+                                económica) — tócala para fijarla. En despensa/duraderos ves el catálogo
+                                completo (los de tu tamaño primero); en frescos, las marcas del tamaño
+                                que usa tu lista — siempre de la más económica a la más cara.
                             </p>
                             <ul style={{ listStyle: 'none', margin: '0.45rem 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                                 {matchedNames.map((name) => {
@@ -423,6 +441,24 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
                                     const prices = effGroups.flatMap((g) => g.shownVariants.map((v) => v.price_rd)).filter((v) => v !== null && v !== undefined);
                                     const minPrice = prices.length ? Math.min(...prices) : null;
                                     const sizedAny = effGroups.some((g) => g.sizedApplied);
+                                    // [P1-BRAND-DEFAULT-PRESELECTED] la variante que la LISTA usa hoy
+                                    // (sin pref manual): por brand_product_id del costeo, o — fallback —
+                                    // la ÚNICA variante del ítem (yuca/laurel: 1 opción = esa es).
+                                    const defaultId = defaultIdByKey[norm(name)] || null;
+                                    const hasChosen = foodGroups.some((g) => prefs[norm(g.food_name)]);
+                                    let defaultVariant = null;
+                                    if (!hasChosen) {
+                                        if (defaultId) {
+                                            for (const g of foodGroups) {
+                                                const v = g.variants.find((x) => x.id === defaultId);
+                                                if (v) { defaultVariant = v; break; }
+                                            }
+                                        }
+                                        if (!defaultVariant) {
+                                            const all = foodGroups.flatMap((g) => g.variants);
+                                            if (all.length === 1) defaultVariant = all[0];
+                                        }
+                                    }
                                     const isExpanded = expandedItem === name;
                                     const chosen = foodGroups
                                         .map((g) => {
@@ -461,6 +497,25 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
                                                             {chosen.brand || 'Genérico'} · {formatPrice(chosen.price_rd)}
                                                         </span>
                                                     </span>
+                                                ) : defaultVariant ? (
+                                                    // [P1-BRAND-DEFAULT-PRESELECTED] chip apagado (no verde):
+                                                    // es la marca que tu lista USA por default, no tu elección.
+                                                    <span
+                                                        title="Marca predeterminada de tu lista — tócala adentro para fijarla"
+                                                        style={{
+                                                            display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                                            fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap',
+                                                            color: 'var(--text-muted)', background: 'var(--bg-muted)',
+                                                            border: '1px solid var(--border)',
+                                                            padding: '0.1rem 0.45rem', borderRadius: '999px',
+                                                            maxWidth: '46%', overflow: 'hidden', textOverflow: 'ellipsis',
+                                                        }}
+                                                    >
+                                                        <Check size={11} style={{ flexShrink: 0 }} aria-hidden="true" />
+                                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                            {defaultVariant.brand || 'Genérico'} · {formatPrice(defaultVariant.price_rd)}
+                                                        </span>
+                                                    </span>
                                                 ) : (
                                                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                                                         {variantCount} {sizedAny
@@ -485,29 +540,45 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
                                                                 )}
                                                                 {g.shownVariants.map((v) => {
                                                                     const isChosen = chosenId === v.id;
+                                                                    // [P1-BRAND-DEFAULT-PRESELECTED] la marca que tu lista USA
+                                                                    // hoy (sin pref manual): check verde HUECO. Tocarla la fija
+                                                                    // como preferencia permanente (deja de moverse si el default
+                                                                    // más barato cambia con los precios del súper).
+                                                                    const isDefault = !isChosen && !chosenId && defaultVariant && v.id === defaultVariant.id;
                                                                     return (
                                                                         <button
                                                                             key={v.id}
                                                                             type="button"
                                                                             onClick={() => persistPref(foodKey, isChosen ? null : v.id)}
                                                                             aria-pressed={isChosen}
-                                                                            title={isChosen ? 'Quitar preferencia' : 'Marcar como mi preferida'}
+                                                                            title={isChosen
+                                                                                ? 'Quitar preferencia'
+                                                                                : isDefault
+                                                                                    ? 'Predeterminada de tu lista — tócala para fijarla como tu preferida'
+                                                                                    : 'Marcar como mi preferida'}
                                                                             style={{
                                                                                 display: 'flex', alignItems: 'center', gap: '0.45rem',
                                                                                 width: '100%', padding: '0.28rem 0.45rem',
                                                                                 borderRadius: '0.45rem', cursor: 'pointer', textAlign: 'left',
-                                                                                border: isChosen ? '1px solid rgba(16,185,129,0.5)' : '1px solid transparent',
-                                                                                background: isChosen ? 'rgba(16,185,129,0.08)' : 'transparent',
+                                                                                border: isChosen ? '1px solid rgba(16,185,129,0.5)'
+                                                                                    : isDefault ? '1px dashed rgba(16,185,129,0.45)'
+                                                                                        : '1px solid transparent',
+                                                                                background: isChosen ? 'rgba(16,185,129,0.08)'
+                                                                                    : isDefault ? 'rgba(16,185,129,0.04)'
+                                                                                        : 'transparent',
                                                                             }}
                                                                         >
                                                                             <span style={{
                                                                                 width: '14px', height: '14px', flexShrink: 0,
                                                                                 borderRadius: '50%', display: 'inline-flex',
                                                                                 alignItems: 'center', justifyContent: 'center',
-                                                                                border: isChosen ? 'none' : '1.5px solid var(--border)',
+                                                                                border: isChosen ? 'none'
+                                                                                    : isDefault ? '1.5px solid #10B981'
+                                                                                        : '1.5px solid var(--border)',
                                                                                 background: isChosen ? '#10B981' : 'transparent',
                                                                             }} aria-hidden="true">
                                                                                 {isChosen && <Check size={10} color="#fff" strokeWidth={3} />}
+                                                                                {isDefault && <Check size={10} color="#10B981" strokeWidth={3} />}
                                                                             </span>
                                                                             <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                                                                                 {v.brand || 'Genérico'}
