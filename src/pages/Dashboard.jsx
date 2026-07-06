@@ -3520,11 +3520,15 @@ const DashboardInner = () => {
                 }
                 .actions-group {
                     display: flex;
-                    /* [P3-HEADER-NO-DEFORM · 2026-07-04] era center: el medidor de créditos
-                       quedaba FLOTANDO a media altura de la columna de controles (420px) cuando
-                       los paneles/banners la alargaban. flex-start lo ancla arriba, alineado
-                       con la fila del selector de duración — estructura estable al crecer. */
-                    align-items: flex-start;
+                    /* [2026-07-06] flex-start → center (pedido del owner: post-restock la
+                       columna de controles queda corta y pegada ARRIBA con un vacío enorme
+                       debajo — asimétrico). La objeción original de P3-HEADER-NO-DEFORM
+                       (créditos flotando a media altura) ya NO aplica: el medidor se mudó
+                       al bloque de identidad (P3-CREDITS-IN-IDENTITY · 2026-07-04). Cuando
+                       la columna es más alta que el saludo, ella dicta el alto del hero y
+                       center ≡ flex-start — solo cambia el caso corto, que es el que se
+                       veía mal. */
+                    align-items: center;
                     gap: 1rem;
                     flex-wrap: wrap;
                     position: relative;
