@@ -801,11 +801,9 @@ const DashboardInner = () => {
     // Estado local para la navegación por pestañas (Días)
     const [activeDayIndex, setActiveDayIndex] = useState(0);
     const [isRecalculating, setIsRecalculating] = useState(false);
-    // [P1-RENEWAL-PANTRY-AWARE · 2026-06-28 · Fase 3] Lista de FALTANTES para
-    // "completar la nevera al 100%" (lo que el plan necesita menos lo que tienes).
-    // Llega en la respuesta de /recalculate-shopping-list (gated backend, vacía
-    // hasta activar MEALFIT_PANTRY_COMPLETION_LIST_ENABLED → la sección no se muestra).
-    const [pantryCompletionList, setPantryCompletionList] = useState([]);
+    // [P2-NEVERA-COMPLETION-REMOVED · 2026-07-06] eliminado el estado
+    // `pantryCompletionList` junto con el panel "Para completar tu Nevera"
+    // (decisión del owner: redundante con la lista de compras + ocupaba espacio).
     // [P3-DASH-WINDOW-AUTOSELECT · 2026-05-30] Track del índice de "hoy" del render
     // anterior, para detectar cuándo el día avanza (medianoche / re-index del shift)
     // y seguir a hoy. Ref declarado aquí (top-level hooks) — NO dentro del effect,
@@ -4729,10 +4727,9 @@ const DashboardInner = () => {
                                                                     setPlanData(result.plan_data);
                                                                     safeLocalStorageSet('mealfit_plan', JSON.stringify(result.plan_data));
                                                                     toast.success('Lista actualizada', { id: recalcToast });
-                                                                    // [P1-RENEWAL-PANTRY-AWARE · Fase 3] Lista de faltantes
-                                                                    // para "completar la nevera al 100%" (vacía si el knob
-                                                                    // backend está OFF → la sección no se renderiza).
-                                                                    setPantryCompletionList(Array.isArray(result.pantry_completion_list) ? result.pantry_completion_list : []);
+                                                                    // [P2-NEVERA-COMPLETION-REMOVED · 2026-07-06] el panel
+                                                                    // "Para completar tu Nevera" fue eliminado (decisión del
+                                                                    // owner); `result.pantry_completion_list` se ignora.
                                                                     // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir
                                                                     // `_coherence_warnings` post-recalc (silencio
                                                                     // si endpoint legacy o sin drift).
@@ -5109,43 +5106,13 @@ const DashboardInner = () => {
                             </span>
                         )}
 
-                        {/* [P1-RENEWAL-PANTRY-AWARE · 2026-06-28 · Fase 3] "Para completar tu
-                            Nevera": lo que te falta comprar para que la Nevera cubra el plan al
-                            100% (resta cuantitativa backend). Solo se muestra si el backend devolvió
-                            faltantes (gated OFF por default → lista vacía → sección oculta). */}
-                        {Array.isArray(pantryCompletionList) && pantryCompletionList.length > 0 && !isPlanExpired && !planFinished && !isPlanCorrupted && (
-                            <div style={{
-                                marginTop: '0.6rem',
-                                padding: '0.7rem 0.85rem',
-                                borderRadius: '0.75rem',
-                                background: isDark ? 'rgba(245, 158, 11, 0.08)' : '#FFFBEB',
-                                border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.25)' : '#FDE68A'}`,
-                                maxWidth: '100%',
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.35rem' }}>
-                                    <Refrigerator size={14} style={{ color: isDark ? '#FBBF24' : '#B45309', flexShrink: 0 }} aria-hidden="true" />
-                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: isDark ? '#FCD34D' : '#92400E' }}>
-                                        Para completar tu Nevera
-                                    </span>
-                                </div>
-                                <p style={{ margin: '0 0 0.5rem', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                                    Lo que te falta comprar para que tu Nevera cubra este plan al 100%:
-                                </p>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                                    {pantryCompletionList.slice(0, 30).map((it, i) => (
-                                        <span key={i} style={{
-                                            display: 'inline-flex', alignItems: 'center',
-                                            padding: '0.2rem 0.55rem', borderRadius: '999px',
-                                            fontSize: '0.72rem', fontWeight: 600,
-                                            background: 'var(--bg-card)', border: '1px solid var(--border)',
-                                            color: 'var(--text-main)',
-                                        }}>
-                                            {(it && (it.display_string || it.display_qty || it.name)) || String(it)}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                        {/* [P2-NEVERA-COMPLETION-REMOVED · 2026-07-06] Eliminado el panel "Para
+                            completar tu Nevera" (P1-RENEWAL-PANTRY-AWARE Fase 3): decisión del
+                            owner — redundante ("es obvio que faltan alimentos": la lista de
+                            compras YA es exactamente eso) y ocupaba demasiado espacio del hero
+                            con 30+ chips. El campo backend `pantry_completion_list` sigue
+                            llegando en el recalc y se ignora (knob backend intacto por si se
+                            revisita como tooltip/contador compacto). */}
 
                         {/* [P1-BUDGET-RECONCILE · 2026-07-02] Estado honesto del presupuesto: costo real
                             del ciclo (SSOT backend) vs el presupuesto del formulario. dentro=verde,
