@@ -87,12 +87,30 @@ const sizeFilteredVariants = (variants, targetG, chosenId) => {
     ));
 };
 
-const stableSortedVariants = (variants, targetG) => {
+/* [P2-BRAND-SIZE-FLOOR · 2026-07-06] Piso de tamaño en duraderos. Feedback del
+   owner: "si el plan necesita 800 g de maní, ¿por qué aparecen fundas de 55 g?
+   Deben ser cantidades iguales o mayores — o como mucho un poco menos (12 Oz vs
+   16 Oz)". Regla: variantes con tamaño ≥ 70% del envase que la lista usa (12/16
+   Oz = 75% → pasa; potes de 300 g para 800 g → fuera, quedan tras el link del
+   catálogo). La variante YA elegida siempre se muestra (para poder quitarla) y
+   si el piso vaciara la lista, se enseña todo (fail-open). */
+const MIN_STABLE_SIZE_RATIO = 0.7;
+
+const stableSortedVariants = (variants, targetG, chosenId) => {
     const matchesSize = (v) => (
         targetG && typeof v.size_g === 'number' && v.size_g > 0
         && Math.abs(v.size_g - targetG) / targetG <= SIZE_TOLERANCE
     );
-    return [...(variants || [])].sort((a, b) => (
+    let pool = [...(variants || [])];
+    if (targetG) {
+        const floored = pool.filter((v) => (
+            (chosenId && v.id === chosenId)
+            || typeof v.size_g !== 'number' || v.size_g <= 0
+            || v.size_g >= targetG * MIN_STABLE_SIZE_RATIO
+        ));
+        if (floored.length) pool = floored;
+    }
+    return pool.sort((a, b) => (
         (matchesSize(a) ? 0 : 1) - (matchesSize(b) ? 0 : 1)
         || (a.price_rd ?? Infinity) - (b.price_rd ?? Infinity)
     ));
@@ -417,9 +435,10 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
                                 Toca una variante para marcarla como tu preferida
                                 {prefsSource === 'local' && ' (se guarda en este dispositivo)'}.
                                 {' '}El check punteado marca la que tu lista usa por defecto (la más
-                                económica) — tócala para fijarla. En despensa/duraderos ves el catálogo
-                                completo (los de tu tamaño primero); en frescos, las marcas del tamaño
-                                que usa tu lista — siempre de la más económica a la más cara.
+                                económica) — tócala para fijarla. En despensa/duraderos ves todas las
+                                marcas en tamaños que cubren lo que tu plan necesita (los de tu tamaño
+                                primero); en frescos, las del tamaño que usa tu lista — siempre de la
+                                más económica a la más cara.
                             </p>
                             <ul style={{ listStyle: 'none', margin: '0.45rem 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                                 {matchedNames.map((name) => {
@@ -434,7 +453,8 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
                                         if (isStable) {
                                             return {
                                                 ...g,
-                                                shownVariants: stableSortedVariants(g.variants, targetG).slice(0, MAX_STABLE_SHOWN),
+                                                // [P2-BRAND-SIZE-FLOOR] piso ≥70% del envase de la lista.
+                                                shownVariants: stableSortedVariants(g.variants, targetG, prefs[norm(g.food_name)]).slice(0, MAX_STABLE_SHOWN),
                                                 sizedApplied: false,
                                             };
                                         }
