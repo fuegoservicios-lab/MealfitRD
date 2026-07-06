@@ -1859,16 +1859,30 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     // Calibración real (logs prod 2026-06-17, era DeepSeek V4): el pipeline
     // completo tarda ~3-5 min (skeleton ~22s + day_gen paralelo ~30s +
     // self-critique ~2min + reviewer + assembly). MUCHO más rápido que los
-    // 12-13 min de la era Gemini (free-tier que saturaba pool). Rango honesto
-    // = 4-5 min. Copy adapta:
-    //   - <30s:    "Esto suele tomar entre 4 y 5 minutos."
-    //   - 30s-6m:  "Transcurrido X:XX · estimado 4-5 minutos"
-    //   - 6-10m:   "Transcurrido X:XX · ya casi terminamos, espera un poco más"
-    //   - >10m:    "Transcurrido X:XX · gracias por tu paciencia · cerca del final"
+    // 12-13 min de la era Gemini (free-tier que saturaba pool).
+    // [P2-LOADING-ETA-57 · 2026-07-06] Rango honesto = 5-7 min (pedido del
+    // owner; consistente con prod: la renovación monitoreada de hoy tomó
+    // 5m49s CON un retry quirúrgico — los retries del reviewer son parte
+    // normal del pipeline, no la excepción). Copy adapta:
+    //   - <30s:    "Esto suele tomar entre 5 y 7 minutos."
+    //   - 30s-8m:  "Transcurrido X:XX · estimado 5-7 minutos"
+    //   - 8-12m:   "Transcurrido X:XX · ya casi terminamos, espera un poco más"
+    //   - >12m:    "Transcurrido X:XX · gracias por tu paciencia · cerca del final"
     // El startTimeRef se inicializa UNA VEZ al mount (useRef no re-init en
     // re-renders) — incluso si el componente re-renderea por cambios de
     // status/streamPhase, el contador es continuo desde el primer mount.
-    const startTimeRef = useRef(Date.now());
+    // [P2-LOADING-ETA-57] Continuidad cross-reentrada: si hay un pipeline
+    // pendiente (flag mealfit_plan_in_progress con started_at), el contador
+    // arranca desde ESE inicio real — al cerrar la pestaña y volver (modo
+    // recovery), "Transcurrido" ya no miente reiniciándose en 0:00.
+    const startTimeRef = useRef((() => {
+        try {
+            const f = JSON.parse(localStorage.getItem('mealfit_plan_in_progress') || 'null');
+            const t = f?.started_at ? new Date(f.started_at).getTime() : NaN;
+            if (Number.isFinite(t) && t < Date.now() && (Date.now() - t) < 6 * 3600 * 1000) return t;
+        } catch { /* noop */ }
+        return Date.now();
+    })());
     const [elapsedSec, setElapsedSec] = useState(0);
     // [P3-CANCEL-FORCE-NAVIGATE · 2026-05-16] Hook local del navigate para
     // forzar el redirect al /assessment ANTES de que el SSE catch propague el
@@ -1979,12 +1993,12 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     const timeMessage = (() => {
         const transcurrido = formatElapsed(elapsedSec);
         if (elapsedSec < 30) {
-            return 'Esto suele tomar entre 4 y 5 minutos.';
+            return 'Esto suele tomar entre 5 y 7 minutos.';
         }
-        if (elapsedSec < 6 * 60) {
-            return `Transcurrido ${transcurrido} · estimado 4-5 minutos`;
+        if (elapsedSec < 8 * 60) {
+            return `Transcurrido ${transcurrido} · estimado 5-7 minutos`;
         }
-        if (elapsedSec < 10 * 60) {
+        if (elapsedSec < 12 * 60) {
             return `Transcurrido ${transcurrido} · ya casi terminamos, espera un poco más`;
         }
         return `Transcurrido ${transcurrido} · gracias por tu paciencia · cerca del final`;
