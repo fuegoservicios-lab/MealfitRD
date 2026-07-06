@@ -5128,31 +5128,6 @@ const DashboardInner = () => {
                             </button>
                         </div>
 
-                        {/* [P2-NEVERA-DELTA-NOTICE · 2026-06-24] Aviso de la Nevera Inteligente,
-                            DEBAJO de los botones. Solo ícono + texto verde (SIN pastilla: ni fondo
-                            ni borde — la pastilla se confundía con un botón). Una línea. Izquierda
-                            en PC / centrado en móvil. Solo con plan válido; la deducción es by-design. */}
-                        {shoppingDeltaMeta?.itemsRemoved > 0 && !isPlanExpired && !planFinished && !isPlanCorrupted && (
-                            /* [2026-07-06] pedido del owner: más aire respecto a los botones y
-                               CENTRADO (antes quedaba pegado a la izquierda y se veía suelto). */
-                            <span className="nevera-notice-chip" style={{
-                                maxWidth: '100%',
-                                display: 'flex', width: 'fit-content',
-                                margin: '0.75rem auto 0',
-                                alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
-                                padding: '0.1rem 0',
-                                color: isDark ? '#6EE7B7' : '#047857',
-                                fontSize: '0.72rem', fontWeight: 600, lineHeight: 1.25,
-                                textAlign: 'center',
-                            }}>
-                                <Refrigerator size={12} style={{ flexShrink: 0 }} aria-hidden="true" />
-                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {shoppingDeltaMeta.isEmptyDueToPantry
-                                        ? <>Tu Nevera ya cubre la lista ({shoppingDeltaMeta.itemsRemoved} ítem{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} de la compra)</>
-                                        : <>{shoppingDeltaMeta.itemsRemoved} ítem{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} de la lista ya en tu Nevera</>}
-                                </span>
-                            </span>
-                        )}
 
                         {/* [P2-NEVERA-COMPLETION-REMOVED · 2026-07-06] Eliminado el panel "Para
                             completar tu Nevera" (P1-RENEWAL-PANTRY-AWARE Fase 3): decisión del
@@ -5342,6 +5317,34 @@ const DashboardInner = () => {
 
                     </div>
                 </div>
+                {/* [2026-07-06] movido FUERA de la columna derecha: centrado
+                    respecto a la TARJETA completa (pedido del owner — dentro de la
+                    columna angosta el centrado apenas se notaba). */}
+                        {/* [P2-NEVERA-DELTA-NOTICE · 2026-06-24] Aviso de la Nevera Inteligente,
+                            DEBAJO de los botones. Solo ícono + texto verde (SIN pastilla: ni fondo
+                            ni borde — la pastilla se confundía con un botón). Una línea. Izquierda
+                            en PC / centrado en móvil. Solo con plan válido; la deducción es by-design. */}
+                        {shoppingDeltaMeta?.itemsRemoved > 0 && !isPlanExpired && !planFinished && !isPlanCorrupted && (
+                            /* [2026-07-06] pedido del owner: más aire respecto a los botones y
+                               CENTRADO (antes quedaba pegado a la izquierda y se veía suelto). */
+                            <span className="nevera-notice-chip" style={{
+                                maxWidth: '100%',
+                                display: 'flex', width: 'fit-content',
+                                margin: '1rem auto 0',
+                                alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
+                                padding: '0.1rem 0',
+                                color: isDark ? '#6EE7B7' : '#047857',
+                                fontSize: '0.72rem', fontWeight: 600, lineHeight: 1.25,
+                                textAlign: 'center',
+                            }}>
+                                <Refrigerator size={12} style={{ flexShrink: 0 }} aria-hidden="true" />
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {shoppingDeltaMeta.isEmptyDueToPantry
+                                        ? <>Tu Nevera ya cubre la lista ({shoppingDeltaMeta.itemsRemoved} ítem{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} de la compra)</>
+                                        : <>{shoppingDeltaMeta.itemsRemoved} ítem{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} de la lista ya en tu Nevera</>}
+                                </span>
+                            </span>
+                        )}
             </header>
 
             {/* [P1-GUEST-MODE · 2026-06-15] Banner de conversión para invitados:
