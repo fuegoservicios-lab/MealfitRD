@@ -5166,10 +5166,17 @@ const DashboardInner = () => {
                             cerca=ámbar, excedido=rojo + sustituciones/sugerencias de ahorro. */}
                         {(() => {
                             const _br = planData?.budget_reconciliation;
+                            // [P3-BUDGET-BANNER-POST-RESTOCK · 2026-07-06] Con la compra YA hecha
+                            // ("Ya compré la lista" → Nevera cubre la lista), el banner de
+                            // presupuesto cumplió su trabajo (guiar la compra) y es ruido
+                            // post-hoc — se oculta solo (pedido del owner). Misma señal que el
+                            // RestockNudge; el render condicional colapsa el layout sin hueco.
+                            // Reaparece al renovar el ciclo (is_restocked se resetea con el plan).
+                            const _restockedNow = !!planData?.is_restocked || sessionRestocked;
                             // [P3-BUDGET-BANNER-DISMISS · 2026-07-04] respetar la X (recordada
                             // por plan+status; ver dismissBudgetBanner).
                             if (!_br || !_br.status || _br.status === 'sin_limite' || !_br.reference_rd
-                                || budgetBannerHidden
+                                || budgetBannerHidden || _restockedNow
                                 || isPlanExpired || planFinished || isPlanCorrupted) return null;
                             const _fmtRD = (v) => `RD$${Math.round(v || 0).toLocaleString('es-DO')}`;
                             const _palette = _br.status === 'dentro'
