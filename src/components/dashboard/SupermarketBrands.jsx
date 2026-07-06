@@ -98,7 +98,7 @@ const stableSortedVariants = (variants, targetG) => {
     ));
 };
 
-const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
+const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -228,6 +228,14 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
                     body: JSON.stringify({ food_key: foodKey, product_id: productId }),
                 });
                 if (!res.ok) throw new Error(`Error ${res.status}`);
+                // [P2-BRAND-APPLY-FEEDBACK · 2026-07-06] Señal INMEDIATA al padre
+                // (toast "Aplicando tu marca…"): el recalc tarda 15-40s (pipeline +
+                // cola tras el auto-refresh) y sin feedback el owner refrescaba la
+                // página creyendo que no pasó nada (caso Quaker en avena — el 200
+                // llegó, pero el F5 mató el fetch antes).
+                if (typeof onPrefPending === 'function') {
+                    try { onPrefPending(); } catch { /* fail-open */ }
+                }
                 // [P2-BRANDS-APPLY-IMMEDIATE · 2026-07-02] preferencia persistida → re-costear el
                 // plan YA (antes el costo real solo cambiaba al regenerar/recalcular a mano y el
                 // total del panel vs el del PDF eran números distintos). Debounce 900ms: elegir
@@ -646,6 +654,7 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
 SupermarketBrands.propTypes = {
     shoppingList: PropTypes.array,
     onPrefApplied: PropTypes.func,  // [P2-BRANDS-APPLY-IMMEDIATE] re-costeo inmediato (debounced)
+    onPrefPending: PropTypes.func,  // [P2-BRAND-APPLY-FEEDBACK] señal instantánea al elegir (toast loading)
 };
 
 export default SupermarketBrands;

@@ -5258,35 +5258,55 @@ const DashboardInner = () => {
                             && !isPlanExpired && !planFinished && !isPlanCorrupted && (
                             <SupermarketBrands
                                 shoppingList={planData.aggregated_shopping_list}
+                                // [P2-BRAND-APPLY-FEEDBACK · 2026-07-06] feedback INSTANTÁNEO al
+                                // elegir: el recalc tarda 15-40s (pipeline + cola tras el
+                                // auto-refresh) y sin señal visible el owner refrescaba la página
+                                // creyendo que no pasó nada (caso Quaker en avena). El toast
+                                // 'brand-apply' vive del pick al resultado (loading→success/error).
+                                onPrefPending={() => {
+                                    toast.loading('Aplicando tu marca a la lista…', { id: 'brand-apply', position: 'top-center' });
+                                }}
                                 // [P2-BRANDS-APPLY-IMMEDIATE · 2026-07-02] la marca elegida re-costea el
                                 // plan al instante vía el endpoint canónico (mismo flujo que el cambio de
                                 // duración). El overlay P1-SUPERMARKET-COSTING lee las prefs al recalcular
                                 // → costo del PDF y total del panel dejan de ser números distintos.
                                 onPrefApplied={async () => {
                                     if (!userProfile?.id || !planData?.id) return;
+                                    // [P2-BRAND-APPLY-FEEDBACK] un intento + 1 retry (2s): un blip
+                                    // transitorio no puede dejar la lista desactualizada en silencio.
+                                    const _applyOnce = async () => {
+                                        const r = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                user_id: userProfile.id,
+                                                plan_id: planData.id,
+                                                householdSize: formData?.householdSize || planData.calc_household_size || 1,
+                                                groceryDuration: planData.calc_grocery_duration || formData?.groceryDuration || 'weekly',
+                                                preserve_restock: true,
+                                            }),
+                                        });
+                                        if (!r.ok) return null;
+                                        return r.json().catch(() => null);
+                                    };
                                     try {
                                         await withRecalcLock(async () => {
-                                            const r = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({
-                                                    user_id: userProfile.id,
-                                                    plan_id: planData.id,
-                                                    householdSize: formData?.householdSize || planData.calc_household_size || 1,
-                                                    groceryDuration: planData.calc_grocery_duration || formData?.groceryDuration || 'weekly',
-                                                    preserve_restock: true,
-                                                }),
-                                            });
-                                            if (!r.ok) return;
-                                            const result = await r.json().catch(() => null);
+                                            let result = await _applyOnce();
+                                            if (!result?.success || !result.plan_data) {
+                                                await new Promise((res) => setTimeout(res, 2000));
+                                                result = await _applyOnce();
+                                            }
                                             if (result?.success && result.plan_data) {
                                                 setPlanData(result.plan_data);
                                                 safeLocalStorageSet('mealfit_plan', JSON.stringify(result.plan_data));
-                                                toast.success('Costeo actualizado con tu marca', { position: 'top-center' });
+                                                toast.success('Lista actualizada con tu marca', { id: 'brand-apply', position: 'top-center' });
+                                            } else {
+                                                toast.error('No se pudo actualizar la lista ahora — tu marca quedó guardada y se aplicará al recargar.', { id: 'brand-apply', position: 'top-center' });
                                             }
                                         });
                                     } catch (e) {
                                         // Fail-open: la preferencia quedó guardada; el próximo recalc la aplica.
+                                        toast.error('No se pudo actualizar la lista ahora — tu marca quedó guardada y se aplicará al recargar.', { id: 'brand-apply', position: 'top-center' });
                                         console.error('[P2-BRANDS-APPLY-IMMEDIATE] recalc falló:', e);
                                     }
                                 }}
