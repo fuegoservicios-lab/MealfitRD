@@ -3109,7 +3109,12 @@ const DashboardInner = () => {
                         structured = {
                             name: ing.name,
                             quantity: mqNum,
-                            unit: ing.market_unit || ing.unit || 'unidad'
+                            unit: ing.market_unit || ing.unit || 'unidad',
+                            // [P2-NEVERA-BRANDS · 2026-07-06] producto que la lista usó
+                            // (default o preferencia) → el backend resuelve la marca y
+                            // la Nevera la enseña junto al ítem comprado.
+                            ...(typeof ing.brand_product_id === 'string' && ing.brand_product_id
+                                ? { brand_product_id: ing.brand_product_id } : {}),
                         };
                     }
                     raw = ing.display_string || ing.id_string || `${ing.display_qty || '1'} de ${ing.name || 'Ingrediente'}`;

@@ -1852,6 +1852,11 @@ const Pantry = () => {
                     {item.ingredient_name}
                 </span>
                 <span className={fstyles.unit} title={`Medida: ${displayUnit}`}>{displayUnit}</span>
+                {/* [P2-NEVERA-BRANDS · 2026-07-06] marca comprada (del restock de la
+                    lista — brand_product_id → supermarket_products). Manual = sin chip. */}
+                {item.brand && (
+                    <span className={fstyles.unit} title={`Marca comprada: ${item.brand}`}>{item.brand}</span>
+                )}
                 {low && (
                     <span className={fstyles.lowtag}><AlertCircle size={11} strokeWidth={2.5} /> Queda poco</span>
                 )}
@@ -1985,6 +1990,10 @@ const Pantry = () => {
                 </div>
                 <div className={mstyles.imeta}>
                     <span className={mstyles.unit}>{displayUnit}</span>
+                    {/* [P2-NEVERA-BRANDS] marca comprada — espejo del renderRow desktop. */}
+                    {item.brand && (
+                        <span className={mstyles.unit} title={`Marca comprada: ${item.brand}`}>{item.brand}</span>
+                    )}
                     {low && (
                         <span className={mstyles.lowtag}><AlertCircle size={11} strokeWidth={2.5} /> Queda poco</span>
                     )}
