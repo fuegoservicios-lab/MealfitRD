@@ -760,13 +760,36 @@ export const AssessmentProvider = ({ children }) => {
     // `await withRecalcLock(async () => { ... })`. Garantiza release en finally
     // — incluido si la fn lanza, retorna early, o termina con success. Devuelve
     // el valor que retorne `asyncFn` para componer con el caller.
+    //
+    // [P1-RECALC-SERIALIZE · 2026-07-06] Ahora además SERIALIZA: el lock era
+    // solo un flag informativo (consultado por restoreSessionData) — dos
+    // recalcs concurrentes corrían AMBOS. Carrera real observada por el owner:
+    // el auto-refresh del Dashboard (P2-SHOPLIST-AUTO-REFRESH, ~30s en planes
+    // grandes) seguía in-flight cuando eligió una marca (Campos→Wala); el
+    // recalc de la marca terminó primero y el del auto-refresh aterrizó DE
+    // ÚLTIMO → pisó lista/DB con el costeo viejo (la marca vieja y el laurel
+    // pre-fix). Con la cadena de promesas, todo recalc espera al anterior:
+    // el último disparado (la elección del usuario) SIEMPRE gana, en UI y DB.
+    const recalcChainRef = useRef(Promise.resolve());
     const withRecalcLock = useCallback(async (asyncFn) => {
-        setRecalcLock(true);
-        try {
-            return await asyncFn();
-        } finally {
-            setRecalcLock(false);
-        }
+        const _run = async () => {
+            setRecalcLock(true);
+            try {
+                return await asyncFn();
+            } finally {
+                setRecalcLock(false);
+            }
+        };
+        // Encolar tras el recalc anterior (éxito O fallo — la cadena no muere).
+        const p = recalcChainRef.current.then(_run, _run);
+        // La cadena avanza aunque un op se cuelgue (fetch hanging): el siguiente
+        // espera máx 90s al predecesor — peor caso volvemos al comportamiento
+        // concurrente previo, jamás a un Dashboard congelado.
+        recalcChainRef.current = Promise.race([
+            p.catch(() => { /* mantener la cadena viva */ }),
+            new Promise((res) => setTimeout(res, 90000)),
+        ]);
+        return p;
     }, [setRecalcLock]);
 
     // --- FUNCIÓN PARA RESTAURAR SESIÓN DESDE DB ---
