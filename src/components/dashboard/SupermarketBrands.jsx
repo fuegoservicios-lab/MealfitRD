@@ -66,6 +66,14 @@ const MAX_VARIANTS_SHOWN = 4;
 const SIZE_TOLERANCE = 0.15;
 const MAX_SIZED_SHOWN = 12;
 
+/* [P1-BRAND-STABLE-ALL-SIZES · 2026-07-06] Pedido del owner: los alimentos
+   DURADEROS (estables de despensa — is_perishable === false, flag SSOT backend)
+   deben enseñar TODAS las marcas y tamaños del catálogo para seleccionar ("hay
+   personas que compran 50 lb de arroz si quieren, o 2 lb"). Para estables NO se
+   filtra por tamaño: se ordena con los del tamaño de tu lista PRIMERO y luego
+   por precio ascendente. El filtro ±15% queda solo para frescos/perecederos. */
+const MAX_STABLE_SHOWN = 60;
+
 const sizeFilteredVariants = (variants, targetG, chosenId) => {
     if (!targetG || !Array.isArray(variants)) return null;
     const matched = variants.filter((v) => (
@@ -76,6 +84,17 @@ const sizeFilteredVariants = (variants, targetG, chosenId) => {
     if (!matched.length) return null;
     return [...matched].sort((a, b) => (
         (a.price_rd ?? Infinity) - (b.price_rd ?? Infinity)
+    ));
+};
+
+const stableSortedVariants = (variants, targetG) => {
+    const matchesSize = (v) => (
+        targetG && typeof v.size_g === 'number' && v.size_g > 0
+        && Math.abs(v.size_g - targetG) / targetG <= SIZE_TOLERANCE
+    );
+    return [...(variants || [])].sort((a, b) => (
+        (matchesSize(a) ? 0 : 1) - (matchesSize(b) ? 0 : 1)
+        || (a.price_rd ?? Infinity) - (b.price_rd ?? Infinity)
     ));
 };
 
@@ -118,6 +137,17 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
             const name = itemDisplayName(item);
             const g = Number(item?.package_grams);
             if (name && Number.isFinite(g) && g > 0) out[norm(name)] = g;
+        });
+        return out;
+    }, [shoppingList]);
+
+    // [P1-BRAND-STABLE-ALL-SIZES] ítems DURADEROS (flag SSOT is_perishable === false):
+    // sin filtro de tamaño — catálogo completo, tu tamaño primero.
+    const stableByKey = useMemo(() => {
+        const out = {};
+        (shoppingList || []).forEach((item) => {
+            const name = itemDisplayName(item);
+            if (name && item?.is_perishable === false) out[norm(name)] = true;
         });
         return out;
     }, [shoppingList]);
@@ -361,16 +391,27 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
                             <p style={{ margin: '0.55rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                                 Toca una variante para marcarla como tu preferida
                                 {prefsSource === 'local' && ' (se guarda en este dispositivo)'}.
-                                {' '}Te mostramos las marcas del tamaño que usa tu lista, de la más
-                                económica a la más cara.
+                                {' '}En despensa/duraderos ves el catálogo completo (los de tu tamaño
+                                primero); en frescos, las marcas del tamaño que usa tu lista — siempre
+                                de la más económica a la más cara.
                             </p>
                             <ul style={{ listStyle: 'none', margin: '0.45rem 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                                 {matchedNames.map((name) => {
                                     const foodGroups = matches[name];
                                     // [P1-BRAND-SIZE-FILTER] variantes efectivas por grupo: las del
                                     // tamaño de la lista (ordenadas por precio) o fallback a todas.
+                                    // [P1-BRAND-STABLE-ALL-SIZES] duraderos: catálogo COMPLETO
+                                    // (todas las marcas/tamaños), tu tamaño primero.
                                     const targetG = sizeByKey[norm(name)] || null;
+                                    const isStable = stableByKey[norm(name)] === true;
                                     const effGroups = foodGroups.map((g) => {
+                                        if (isStable) {
+                                            return {
+                                                ...g,
+                                                shownVariants: stableSortedVariants(g.variants, targetG).slice(0, MAX_STABLE_SHOWN),
+                                                sizedApplied: false,
+                                            };
+                                        }
                                         const sized = sizeFilteredVariants(g.variants, targetG, prefs[norm(g.food_name)]);
                                         return {
                                             ...g,

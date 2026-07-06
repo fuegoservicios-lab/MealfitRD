@@ -1512,7 +1512,46 @@ const DashboardInner = () => {
         )
     );
 
-
+    // [P2-SHOPLIST-AUTO-REFRESH · 2026-07-06] Recalc SILENCIOSO de la lista de
+    // compras al cargar el Dashboard (una vez por plan). Pedido del owner: la
+    // lista persistida solo se actualizaba al cambiar duración 30→15→30 (truco
+    // manual) — cambios server-side (marcas default, precios vivos, fixes de
+    // costeo) quedaban invisibles hasta ese dance. Mismo endpoint canónico que
+    // el cambio de duración (cero costo LLM, RateLimiter 20/60s, atómico
+    // P1-RECALC-LOSTUPDATE) con preserve_restock. Sin toast: si falla, la lista
+    // persistida sigue siendo válida (fail-open).
+    const _shopAutoRefreshRef = useRef(null);
+    useEffect(() => {
+        if (isGuest || !userProfile?.id || !planData?.id) return;
+        if (isPlanExpired || planFinished || isPlanCorrupted) return;
+        if (!Array.isArray(planData?.aggregated_shopping_list) || planData.aggregated_shopping_list.length === 0) return;
+        if (_shopAutoRefreshRef.current === planData.id) return;
+        _shopAutoRefreshRef.current = planData.id;
+        (async () => {
+            try {
+                await withRecalcLock(async () => {
+                    const r = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            user_id: userProfile.id,
+                            plan_id: planData.id,
+                            householdSize: formData?.householdSize || planData.calc_household_size || 1,
+                            groceryDuration: planData.calc_grocery_duration || formData?.groceryDuration || 'weekly',
+                            preserve_restock: true,
+                        }),
+                    });
+                    if (!r.ok) return;
+                    const result = await r.json().catch(() => null);
+                    if (result?.success && result.plan_data) {
+                        setPlanData(result.plan_data);
+                        safeLocalStorageSet('mealfit_plan', JSON.stringify(result.plan_data));
+                    }
+                });
+            } catch { /* fail-open: la lista persistida sigue siendo válida */ }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isGuest, userProfile?.id, planData?.id, isPlanExpired, planFinished, isPlanCorrupted]);
 
     // Pre-calcular ingredientes de la despensa para mostrarlos en UI
     // Prioridad unificada: Mostrar una fusión (UNION) entre el Inventario Físico Real y la Lista de Compras del Ciclo.
