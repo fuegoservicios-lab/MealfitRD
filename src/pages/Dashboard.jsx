@@ -1523,7 +1523,10 @@ const DashboardInner = () => {
     useEffect(() => {
         if (isGuest || !userProfile?.id || !planData?.id) return;
         if (isPlanExpired || planFinished || isPlanCorrupted) return;
-        if (!Array.isArray(planData?.aggregated_shopping_list) || planData.aggregated_shopping_list.length === 0) return;
+        // [P2-BRANDS-CANONICAL-SOURCE · 2026-07-06] gate por DAYS (la fuente del
+        // recalc), NO por la lista activa: post-restock total la activa queda
+        // vacía por diseño y el gate viejo BLOQUEABA el self-heal del recalc.
+        if (!Array.isArray(planData?.days) || planData.days.length === 0) return;
         if (_shopAutoRefreshRef.current === planData.id) return;
         _shopAutoRefreshRef.current = planData.id;
         (async () => {
@@ -1854,6 +1857,19 @@ const DashboardInner = () => {
         }
         return null;  // null = "no sabemos aún" (vs false = "sabemos que NO hay items")
     }, [liveInventory, planData, formData?.groceryDuration, allPlanIngredients, buildDeltaShoppingList]);
+
+    // [P2-BRANDS-CANONICAL-SOURCE · 2026-07-06] Fuente del panel "Marcas y precios
+    // del súper": la lista CANÓNICA semanal (necesidades completas del plan),
+    // JAMÁS la activa/híbrida — las listas biweekly/monthly filtran lo YA
+    // comprado en el ciclo (restocked_items), así que tras un restock total
+    // quedan en 0 y el panel DESAPARECÍA ("¿por qué el menú del supermercado
+    // desaparece?" — owner, plan ff673061). Gestionar marcas debe poder hacerse
+    // siempre, comprado o no. Fallback a la lista activa para planes viejos.
+    const brandsPanelList = useMemo(() => {
+        const weekly = planData?.aggregated_shopping_list_weekly;
+        if (Array.isArray(weekly) && weekly.length > 0) return weekly;
+        return Array.isArray(planData?.aggregated_shopping_list) ? planData.aggregated_shopping_list : [];
+    }, [planData]);
 
     // [P2-NEVERA-DELTA-NOTICE · 2026-06-24] Metadata del delta para el aviso IN-APP de la Nevera
     // Inteligente. computedHasPendingShoppingItems descarta `_itemsRemoved`; este useMemo lo conserva
@@ -5289,10 +5305,12 @@ const DashboardInner = () => {
                         {/* [P1-SUPERMARKET-MATCH · 2026-07-02] Marcas y precios reales del súper
                             por ítem de la lista (base Supermercado RD). Informativo — no toca
                             plan_data ni el costeo; persistencia de marca preferida = fase 2. */}
-                        {Array.isArray(planData?.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0
+                        {brandsPanelList.length > 0
                             && !isPlanExpired && !planFinished && !isPlanCorrupted && (
                             <SupermarketBrands
-                                shoppingList={planData.aggregated_shopping_list}
+                                // [P2-BRANDS-CANONICAL-SOURCE] canónica semanal — el panel de
+                                // marcas vive aunque ya hayas comprado todo el ciclo.
+                                shoppingList={brandsPanelList}
                                 // [P2-BRAND-APPLY-FEEDBACK · 2026-07-06] feedback INSTANTÁNEO al
                                 // elegir: el recalc tarda 15-40s (pipeline + cola tras el
                                 // auto-refresh) y sin señal visible el owner refrescaba la página
