@@ -5133,12 +5133,22 @@ const DashboardInner = () => {
                             ni borde — la pastilla se confundía con un botón). Una línea. Izquierda
                             en PC / centrado en móvil. Solo con plan válido; la deducción es by-design. */}
                         {shoppingDeltaMeta?.itemsRemoved > 0 && !isPlanExpired && !planFinished && !isPlanCorrupted && (
+                            /* [2026-07-06] Polish visual (pedido del owner): de texto desnudo a
+                               mini-banner de éxito — MISMA paleta esmeralda que el banner de
+                               presupuesto (coherencia), franja a lo ancho de la columna, texto
+                               centrado. Supersede el "sin pastilla" de P2-NEVERA-DELTA-NOTICE:
+                               el low-contrast + sin sombra evita que se lea como botón. */
                             <span className="nevera-notice-chip" style={{
-                                maxWidth: '100%',
-                                display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                                padding: '0.1rem 0',
+                                width: '100%',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                                padding: '0.5rem 0.85rem',
+                                marginTop: '0.1rem',
+                                borderRadius: '0.75rem',
+                                background: isDark ? 'rgba(16,185,129,0.10)' : '#ECFDF5',
+                                border: isDark ? '1px solid rgba(52,211,153,0.30)' : '1px solid #A7F3D0',
                                 color: isDark ? '#6EE7B7' : '#047857',
-                                fontSize: '0.72rem', fontWeight: 600, lineHeight: 1.25,
+                                fontSize: '0.74rem', fontWeight: 600, lineHeight: 1.3,
+                                textAlign: 'center',
                             }}>
                                 <Refrigerator size={12} style={{ flexShrink: 0 }} aria-hidden="true" />
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
