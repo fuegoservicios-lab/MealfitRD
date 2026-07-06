@@ -5152,6 +5152,10 @@ const DashboardInner = () => {
                             llegando en el recalc y se ignora (knob backend intacto por si se
                             revisita como tooltip/contador compacto). */}
 
+                        {/* [P2-SHOPLIST-PANEL-REMOVED · 2026-07-06] Panel "Lista de compras
+                            por pasillo" eliminado (decisión del owner: el detalle vive en el
+                            PDF). El total "esta ida al súper" se integró al banner de
+                            presupuesto de abajo — la línea suelta se veía huérfana. */}
                         {/* [P1-BUDGET-RECONCILE · 2026-07-02] Estado honesto del presupuesto: costo real
                             del ciclo (SSOT backend) vs el presupuesto del formulario. dentro=verde,
                             cerca=ámbar, excedido=rojo + sustituciones/sugerencias de ahorro. */}
@@ -5234,6 +5238,24 @@ const DashboardInner = () => {
                                             ))}
                                         </ul>
                                     )}
+                                    {/* [P2-SHOPLIST-PANEL-REMOVED] total de ESTA ida (frescos 1
+                                        semana + despensa) — convive con el total del CICLO de
+                                        arriba; se actualiza en vivo al cambiar marcas/duración. */}
+                                    {(() => {
+                                        const _trItems = (planData?.aggregated_shopping_list || []).filter((it) => it && typeof it === 'object');
+                                        if (!_trItems.length) return null;
+                                        let _tripCost = 0;
+                                        _trItems.forEach((it) => {
+                                            const c = it?.estimated_cost_rd ?? it?.estimated_cost;
+                                            if (typeof c === 'number' && c > 0) _tripCost += c;
+                                        });
+                                        if (_tripCost <= 0) return null;
+                                        return (
+                                            <p style={{ margin: '0.35rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                                                Esta ida al súper: <strong style={{ color: _palette.fg }}>{_fmtRD(_tripCost)}</strong> · {_trItems.length} ítems — el detalle está en el PDF.
+                                            </p>
+                                        );
+                                    })()}
                                 </div>
                             );
                         })()}
@@ -5300,40 +5322,6 @@ const DashboardInner = () => {
                             />
                         )}
 
-                        {/* [2026-07-06] línea movida DEBAJO del panel de marcas (pedido del owner:
-                            arriba se veía mal visualmente — el total cierra la sección de compras). */}
-                        {/* [P2-SHOPLIST-PANEL-REMOVED · 2026-07-06] Eliminado el panel expandible
-                            "Lista de compras por pasillo" (P2-AUDIT-V7-BATCH P2-8): decisión del
-                            owner — el detalle itemizado ya vive en el PDF y el panel duplicaba.
-                            Se conserva SOLO esta línea con el total "esta ida al súper" (dato
-                            único: el banner de presupuesto muestra el CICLO completo, que es otro
-                            número) para ver el efecto de marcas/duración sin descargar el PDF. */}
-                        {Array.isArray(planData?.aggregated_shopping_list) && planData.aggregated_shopping_list.length > 0
-                            && !isPlanExpired && !planFinished && !isPlanCorrupted && (() => {
-                                const _items = planData.aggregated_shopping_list.filter((it) => it && typeof it === 'object');
-                                if (!_items.length) return null;
-                                let _cost = 0;
-                                _items.forEach((it) => {
-                                    const c = it?.estimated_cost_rd ?? it?.estimated_cost;
-                                    if (typeof c === 'number' && c > 0) _cost += c;
-                                });
-                                return (
-                                    <span className="nevera-notice-chip" style={{
-                                        maxWidth: '100%',
-                                        display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                                        padding: '0.1rem 0',
-                                        color: 'var(--text-muted)',
-                                        fontSize: '0.72rem', fontWeight: 600, lineHeight: 1.25,
-                                    }}>
-                                        <ShoppingCart size={12} style={{ flexShrink: 0 }} aria-hidden="true" />
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {_items.length} ítems
-                                            {_cost > 0 && <> · RD${Math.round(_cost).toLocaleString('es-DO')} esta ida al súper</>}
-                                            {' '}— el detalle está en el PDF
-                                        </span>
-                                    </span>
-                                );
-                            })()}
 
                     </div>
                 </div>
