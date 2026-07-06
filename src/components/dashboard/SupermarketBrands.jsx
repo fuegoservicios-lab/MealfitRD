@@ -54,6 +54,31 @@ const readLocalPrefs = () => {
 
 const MAX_VARIANTS_SHOWN = 4;
 
+/* [P1-BRAND-SIZE-FILTER · 2026-07-06] Filtro por tamaño del envase de la LISTA.
+   El backend expone `package_grams` en cada ítem (envase que el costeo eligió,
+   ej. 907 g = 2 lb) y `size_g` en cada variante del /match. El picker enseña
+   SOLO las marcas de ese tamaño (±15%), ordenadas de más barata a más cara —
+   feedback del owner: "Genérico 5L/10L están de más si la lista dice 2 Lb, y
+   deben aparecer MÁS marcas sin irme al catálogo". La variante ya elegida se
+   muestra siempre (aunque sea de otro tamaño) para poder des-seleccionarla.
+   Sin package_grams (planes viejos sin recalc) o sin tamaños → fallback al
+   comportamiento previo (todas, cap 4). */
+const SIZE_TOLERANCE = 0.15;
+const MAX_SIZED_SHOWN = 12;
+
+const sizeFilteredVariants = (variants, targetG, chosenId) => {
+    if (!targetG || !Array.isArray(variants)) return null;
+    const matched = variants.filter((v) => (
+        (chosenId && v.id === chosenId)
+        || (typeof v.size_g === 'number' && v.size_g > 0
+            && Math.abs(v.size_g - targetG) / targetG <= SIZE_TOLERANCE)
+    ));
+    if (!matched.length) return null;
+    return [...matched].sort((a, b) => (
+        (a.price_rd ?? Infinity) - (b.price_rd ?? Infinity)
+    ));
+};
+
 const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -84,6 +109,17 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
             out.push(name);
         });
         return out.slice(0, 200);
+    }, [shoppingList]);
+
+    // [P1-BRAND-SIZE-FILTER] tamaño (g) del envase que el costeo eligió por ítem.
+    const sizeByKey = useMemo(() => {
+        const out = {};
+        (shoppingList || []).forEach((item) => {
+            const name = itemDisplayName(item);
+            const g = Number(item?.package_grams);
+            if (name && Number.isFinite(g) && g > 0) out[norm(name)] = g;
+        });
+        return out;
     }, [shoppingList]);
 
     const load = useCallback(async () => {
@@ -325,13 +361,27 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
                             <p style={{ margin: '0.55rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                                 Toca una variante para marcarla como tu preferida
                                 {prefsSource === 'local' && ' (se guarda en este dispositivo)'}.
+                                {' '}Te mostramos las marcas del tamaño que usa tu lista, de la más
+                                económica a la más cara.
                             </p>
                             <ul style={{ listStyle: 'none', margin: '0.45rem 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                                 {matchedNames.map((name) => {
                                     const foodGroups = matches[name];
-                                    const variantCount = foodGroups.reduce((acc, g) => acc + g.variants.length, 0);
-                                    const prices = foodGroups.flatMap((g) => g.variants.map((v) => v.price_rd)).filter((v) => v !== null && v !== undefined);
+                                    // [P1-BRAND-SIZE-FILTER] variantes efectivas por grupo: las del
+                                    // tamaño de la lista (ordenadas por precio) o fallback a todas.
+                                    const targetG = sizeByKey[norm(name)] || null;
+                                    const effGroups = foodGroups.map((g) => {
+                                        const sized = sizeFilteredVariants(g.variants, targetG, prefs[norm(g.food_name)]);
+                                        return {
+                                            ...g,
+                                            shownVariants: sized ? sized.slice(0, MAX_SIZED_SHOWN) : g.variants.slice(0, MAX_VARIANTS_SHOWN),
+                                            sizedApplied: Boolean(sized),
+                                        };
+                                    });
+                                    const variantCount = effGroups.reduce((acc, g) => acc + g.shownVariants.length, 0);
+                                    const prices = effGroups.flatMap((g) => g.shownVariants.map((v) => v.price_rd)).filter((v) => v !== null && v !== undefined);
                                     const minPrice = prices.length ? Math.min(...prices) : null;
+                                    const sizedAny = effGroups.some((g) => g.sizedApplied);
                                     const isExpanded = expandedItem === name;
                                     const chosen = foodGroups
                                         .map((g) => {
@@ -372,7 +422,9 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
                                                     </span>
                                                 ) : (
                                                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                                                        {variantCount} opci{variantCount === 1 ? 'ón' : 'ones'}
+                                                        {variantCount} {sizedAny
+                                                            ? `marca${variantCount === 1 ? '' : 's'} en tu tamaño`
+                                                            : `opci${variantCount === 1 ? 'ón' : 'ones'}`}
                                                         {minPrice !== null && <> · desde <strong style={{ color: 'var(--text-main)' }}>{formatPrice(minPrice)}</strong></>}
                                                     </span>
                                                 )}
@@ -380,17 +432,17 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
                                             </button>
                                             {isExpanded && (
                                                 <ul style={{ listStyle: 'none', margin: '0.25rem 0 0.15rem', padding: '0 0 0 0.55rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                                                    {foodGroups.map((g) => {
+                                                    {effGroups.map((g) => {
                                                         const foodKey = norm(g.food_name);
                                                         const chosenId = prefs[foodKey];
                                                         return (
                                                             <li key={g.food_name}>
-                                                                {foodGroups.length > 1 && (
+                                                                {effGroups.length > 1 && (
                                                                     <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0.25rem 0 0.15rem' }}>
                                                                         {g.food_name}
                                                                     </div>
                                                                 )}
-                                                                {g.variants.slice(0, MAX_VARIANTS_SHOWN).map((v) => {
+                                                                {g.shownVariants.map((v) => {
                                                                     const isChosen = chosenId === v.id;
                                                                     return (
                                                                         <button
@@ -429,14 +481,14 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied }) => {
                                                                         </button>
                                                                     );
                                                                 })}
-                                                                {g.variants.length > MAX_VARIANTS_SHOWN && (
+                                                                {g.variants.length > g.shownVariants.length && (
                                                                     <a
                                                                         href={`https://mealfitrd.com/supermercado?q=${encodeURIComponent(g.food_name)}`}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
                                                                         style={{ display: 'inline-block', padding: '0.15rem 0.45rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textDecoration: 'underline' }}
                                                                     >
-                                                                        +{g.variants.length - MAX_VARIANTS_SHOWN} más en el catálogo
+                                                                        +{g.variants.length - g.shownVariants.length} {g.sizedApplied ? 'de otros tamaños en el catálogo' : 'más en el catálogo'}
                                                                     </a>
                                                                 )}
                                                             </li>
