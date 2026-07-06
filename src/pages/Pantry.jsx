@@ -9,7 +9,7 @@ import { useAssessment } from '../context/AssessmentContext';
 // datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
 // el backend anterior). Todo el acceso a datos va por los endpoints backend vía
 // fetchWithAuth; el cliente anterior queda solo para Auth (otros archivos).
-import { Search, Plus, Minus, Trash2, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket, RotateCcw, PackageX } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Tag, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket, RotateCcw, PackageX } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth, API_BASE } from '../config/api';
 import { getShelfLifeBadge, getShelfLifeBadgeStyle } from '../utils/shelfLife';
@@ -1855,7 +1855,13 @@ const Pantry = () => {
                 {/* [P2-NEVERA-BRANDS · 2026-07-06] marca comprada (del restock de la
                     lista — brand_product_id → supermarket_products). Manual = sin chip. */}
                 {item.brand && (
-                    <span className={fstyles.unit} title={`Marca comprada: ${item.brand}`}>{item.brand}</span>
+                    <span
+                        className={item.brand === 'Genérico' ? fstyles.brandChipGeneric : fstyles.brandChip}
+                        title={`Marca comprada: ${item.brand}`}
+                    >
+                        <Tag size={9} strokeWidth={2.5} aria-hidden="true" />
+                        {item.brand}
+                    </span>
                 )}
                 {low && (
                     <span className={fstyles.lowtag}><AlertCircle size={11} strokeWidth={2.5} /> Queda poco</span>
@@ -1992,7 +1998,13 @@ const Pantry = () => {
                     <span className={mstyles.unit}>{displayUnit}</span>
                     {/* [P2-NEVERA-BRANDS] marca comprada — espejo del renderRow desktop. */}
                     {item.brand && (
-                        <span className={mstyles.unit} title={`Marca comprada: ${item.brand}`}>{item.brand}</span>
+                        <span
+                            className={item.brand === 'Genérico' ? mstyles.brandChipGeneric : mstyles.brandChip}
+                            title={`Marca comprada: ${item.brand}`}
+                        >
+                            <Tag size={9} strokeWidth={2.5} aria-hidden="true" />
+                            {item.brand}
+                        </span>
                     )}
                     {low && (
                         <span className={mstyles.lowtag}><AlertCircle size={11} strokeWidth={2.5} /> Queda poco</span>
