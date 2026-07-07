@@ -2,7 +2,9 @@
    comidas + detalle (dona de macros, checklist de ingredientes, timeline de
    pasos). Responsive por container query sobre .app. Usa tokens del DS. */
 
-.app { container-type: inline-size; overflow: hidden; background: var(--bg-card); border: 1px solid var(--border); border-radius: 26px; box-shadow: var(--shadow-lg); }
+/* [P2-DESIGN-CONSISTENCY · 2026-07-07] Sin box-shadow: la sombra --shadow-lg se
+   veía sucia debajo de la card. Recuadro limpio (solo borde). Espejo en Nevera .app. */
+.app { container-type: inline-size; overflow: hidden; background: var(--bg-card); border: 1px solid var(--border); border-radius: 26px; }
 
 .top { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .top h1 { margin: 0; font-family: var(--font-heading); font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; color: var(--text-main); }
