@@ -185,6 +185,13 @@ export default function RestockNudge({
                     gap: 0.4rem;
                     white-space: nowrap;
                 }
+                /* [P3-RESTOCK-CTA-DARK · 2026-07-07] En modo oscuro el emerald-500 pleno
+                   (#10B981) queda demasiado brilloso sobre la tarjeta oscura. Bajamos a
+                   emerald-600 (#059669) — sigue leyéndose como CTA verde sin deslumbrar. */
+                html[data-theme="dark"] .restock-nudge-cta {
+                    background: #059669;
+                    color: rgba(255, 255, 255, 0.95);
+                }
                 .restock-nudge-x {
                     background: transparent;
                     border: none;

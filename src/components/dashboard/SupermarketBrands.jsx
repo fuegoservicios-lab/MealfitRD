@@ -285,7 +285,7 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
     };
 
     // [P3-BRANDS-PREFETCH · 2026-07-02] Cargar matches + prefs al montar, no al
-    // primer click: el trigger muestra "· N de M ítems con opciones · N elegidas"
+    // primer click: el trigger muestra "· N/M con opciones · N elegidas"
     // sin tener que abrir el panel. Mismo fetch de siempre, solo adelantado —
     // load() se auto-guarda (matches/loading) así que abrir después no re-fetchea.
     useEffect(() => {
@@ -361,13 +361,13 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
             >
                 <Store size={15} style={{ flexShrink: 0, color: 'var(--text-muted)' }} aria-hidden="true" />
                 {/* [P3-BRANDS-WIDTH-STABLE · 2026-07-02] nowrap+ellipsis: el sufijo
-                    "· N de M ítems · N elegidas" no puede partir la barra en 2 líneas
+                    "· N/M con opciones · N elegidas" no puede partir la barra en 2 líneas
                     ni empujar el ancho de la columna (ahora fija en 420px desktop). */}
                 <span style={{ fontSize: '0.82rem', fontWeight: 700, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    Marcas y precios del súper
+                    Marcas del súper
                     {matches && (
                         <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>
-                            {' '}· {matchedNames.length} de {names.length} ítems con opciones
+                            {' '}· {matchedNames.length}/{names.length} con opciones
                             {selection.length > 0 && <> · {selection.length} elegida{selection.length === 1 ? '' : 's'}</>}
                         </span>
                     )}
