@@ -266,6 +266,24 @@ const ADD_CHIP_STYLE = {
     cursor: 'pointer', touchAction: 'manipulation', transition: 'all 0.15s',
 };
 
+// [P2-NEVERA-BRANDS-MANUAL · 2026-07-07] Normalización simétrica a `_norm_food`
+// del backend (minúsculas + sin acentos + espacios colapsados) para cachear el
+// match contra supermarket_products al elegir marca en el add manual.
+const _normFood = (s) => (s || '')
+    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .trim().toLowerCase().replace(/\s+/g, ' ');
+
+// [P2-NEVERA-BRANDS-MANUAL · 2026-07-07] Pill de marca (índigo para diferenciarla
+// del azul de las unidades — misma identidad visual que el chip de marca de la Nevera).
+const brandPillStyle = (isActive) => ({
+    padding: '0.45rem 0.9rem', borderRadius: '99px',
+    border: isActive ? '2px solid #6366F1' : '1px solid var(--border)',
+    background: isActive ? 'rgba(99, 102, 241, 0.10)' : 'var(--bg-card)',
+    color: isActive ? '#4F46E5' : 'var(--text-main)',
+    fontWeight: isActive ? 700 : 500, fontSize: '0.85rem',
+    cursor: 'pointer', touchAction: 'manipulation', transition: 'all 0.15s',
+});
+
 // [P5-SPEED-CATEGORY-NORMALIZE-HOIST · 2026-06-01] Mapa estático de normalización
 // de categorías izado a module-scope (antes vivía DENTRO del useMemo
 // `filteredInventory`, deps [inventory, searchQuery] → se re-alocaba en cada
@@ -342,6 +360,12 @@ const Pantry = () => {
     const [pickerForId, setPickerForId] = useState(null);   // master_ingredient_id en config
     const [pickerQty, setPickerQty] = useState(1);
     const [pickerUnit, setPickerUnit] = useState('');
+    // [P2-NEVERA-BRANDS-MANUAL · 2026-07-07] Marca elegida en el picker (null = sin
+    // marca, no pinta chip) + cache de variantes del súper por norm(name). El ref
+    // dedup evita re-fetchear el /match al reabrir el mismo alimento.
+    const [pickerBrand, setPickerBrand] = useState(null);
+    const [brandCache, setBrandCache] = useState({});
+    const brandLoadingRef = useRef(new Set());
 
     // [P3-PANTRY-RECENT-ADDS · 2026-07-07] Últimos alimentos añadidos (id+name+unit),
     // mostrados como chips de 1-toque en el estado vacío del modal Añadir → re-añadir
@@ -371,6 +395,39 @@ const Pantry = () => {
             try { safeLocalStorageSet('mealfit_recent_pantry_adds', JSON.stringify(next)); } catch (e) {}
             return next;
         });
+    }, []);
+
+    // [P2-NEVERA-BRANDS-MANUAL · 2026-07-07] Al abrir el picker de un alimento NUEVO,
+    // consulta el súper (POST /api/supermarket/match) por sus variantes y arma la lista
+    // de marcas distintas con precio mínimo. Cache por norm(name) vía ref (fetch una vez
+    // por sesión). Fail-soft: sin catálogo/red/marcas → no se muestra la sección de marca.
+    const _loadBrandsForItem = useCallback(async (item) => {
+        const key = _normFood(item?.name);
+        if (!key || brandLoadingRef.current.has(key)) return;
+        brandLoadingRef.current.add(key);
+        setBrandCache(prev => (prev[key] ? prev : { ...prev, [key]: { loading: true, brands: [] } }));
+        try {
+            const res = await fetchWithAuth('/api/supermarket/match', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ names: [item.name] }),
+            });
+            const data = res.ok ? await res.json() : null;
+            const groups = (data?.matches && data.matches[item.name]) || [];
+            const byBrand = new Map();
+            groups.forEach(g => (g.variants || []).forEach(v => {
+                const b = (v.brand && String(v.brand).trim()) ? String(v.brand).trim() : 'Genérico';
+                const price = (typeof v.price_rd === 'number') ? v.price_rd : null;
+                const cur = byBrand.get(b);
+                if (!cur || (price != null && (cur.price == null || price < cur.price))) {
+                    byBrand.set(b, { brand: b, price });
+                }
+            }));
+            const brands = [...byBrand.values()].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+            setBrandCache(prev => ({ ...prev, [key]: { loading: false, brands } }));
+        } catch {
+            setBrandCache(prev => ({ ...prev, [key]: { loading: false, brands: [] } }));
+        }
     }, []);
 
     // [P3-PANTRY-ADD-MOBILE · 2026-06-19] El add-sheet es bottom-anchored + autoFocus,
@@ -447,6 +504,7 @@ const Pantry = () => {
         setPickerForId(null);
         setPickerQty(1);
         setPickerUnit('');
+        setPickerBrand(null);
     }, [addItemSearch, showAddMenu]);
 
     // [P3-PANTRY-LOCALSTORAGE-LAZY · 2026-05-19] Hidratación lazy-init
@@ -1564,6 +1622,9 @@ const Pantry = () => {
                         master_ingredient_id: masterItem.id,
                         quantity: safeQty,
                         unit: finalUnit,
+                        // [P2-NEVERA-BRANDS-MANUAL · 2026-07-07] marca elegida en el
+                        // picker (null = sin marca). Solo aplica a inserts nuevos.
+                        brand: pickerBrand || null,
                     }),
                 });
                 data = _json?.item;
@@ -1826,6 +1887,9 @@ const Pantry = () => {
                 // [P3-PANTRY-MARKET-CONTAINER · 2026-05-19] prioriza
                 // market_container (curado) sobre default_unit (genérico).
                 setPickerUnit(targetItem.market_container || targetItem.default_unit || 'unidad');
+                setPickerBrand(null);
+                // [P2-NEVERA-BRANDS-MANUAL] carga marcas del súper solo para items nuevos
+                if (!inventory.some(i => i.master_ingredient_id === targetItem.id)) _loadBrandsForItem(targetItem);
             }
         } else if (e.key === 'Escape' && pickerForId) {
             e.preventDefault();
@@ -2627,6 +2691,8 @@ const Pantry = () => {
                                 {suggestedMasterItems.map((item, index) => {
                                     const isPickerOpen = pickerForId === item.id;
                                     const existing = inventory.find(i => i.master_ingredient_id === item.id);
+                                    // [P2-NEVERA-BRANDS-MANUAL] marcas del súper para este item (solo si nuevo).
+                                    const brandInfo = (isPickerOpen && !existing) ? brandCache[_normFood(item.name)] : null;
                                     return (
                                     <div
                                         key={item.id}
@@ -2645,11 +2711,15 @@ const Pantry = () => {
                                             onClick={() => {
                                                 if (isPickerOpen) {
                                                     setPickerForId(null);
+                                                    setPickerBrand(null);
                                                 } else {
                                                     setPickerForId(item.id);
                                                     setPickerQty(1);
                                                     // [P3-PANTRY-MARKET-CONTAINER · 2026-05-19]
                                                     setPickerUnit(item.market_container || item.default_unit || 'unidad');
+                                                    setPickerBrand(null);
+                                                    // [P2-NEVERA-BRANDS-MANUAL] carga marcas del súper solo para items nuevos
+                                                    if (!existing) _loadBrandsForItem(item);
                                                 }
                                             }}
                                             style={{
@@ -2787,6 +2857,41 @@ const Pantry = () => {
                                                                         );
                                                                     })}
                                                                 </div>
+
+                                                                {/* [P2-NEVERA-BRANDS-MANUAL · 2026-07-07] Selector de marca
+                                                                    (variantes reales del Supermercado RD). Solo alimentos con
+                                                                    variantes en el catálogo; fail-soft si no hay ninguna. */}
+                                                                {brandInfo && brandInfo.loading && (
+                                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-light)', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1rem' }}>
+                                                                        <Loader2 size={14} className="spin-fast" /> Buscando marcas…
+                                                                    </div>
+                                                                )}
+                                                                {brandInfo && !brandInfo.loading && brandInfo.brands.length > 0 && (
+                                                                    <>
+                                                                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '0.5rem' }}>
+                                                                            Marca <span style={{ fontWeight: 500, color: 'var(--text-light)' }}>(opcional)</span>
+                                                                        </div>
+                                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1rem' }}>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setPickerBrand(null)}
+                                                                                style={brandPillStyle(pickerBrand === null)}
+                                                                            >
+                                                                                Sin marca
+                                                                            </button>
+                                                                            {brandInfo.brands.map(({ brand, price }) => (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    key={brand}
+                                                                                    onClick={() => setPickerBrand(brand)}
+                                                                                    style={brandPillStyle(pickerBrand === brand)}
+                                                                                >
+                                                                                    {brand}{price != null ? ` · RD$${Number(price).toLocaleString('es-DO', { maximumFractionDigits: 0 })}` : ''}
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
+                                                                    </>
+                                                                )}
                                                             </>
                                                         )}
 
@@ -2813,7 +2918,7 @@ const Pantry = () => {
                                                             ) : existing ? (
                                                                 <><Plus size={18} strokeWidth={3} /> Sumar {pickerQty} {existing.unit} a la nevera</>
                                                             ) : (
-                                                                <><Plus size={18} strokeWidth={3} /> Añadir {pickerQty} {pickerUnit} a la nevera</>
+                                                                <><Plus size={18} strokeWidth={3} /> Añadir {pickerQty} {pickerUnit}{pickerBrand ? ` · ${pickerBrand}` : ''} a la nevera</>
                                                             )}
                                                         </button>
                                                     </div>
