@@ -128,32 +128,70 @@ const _brandNorm = (s) => (s || '')
     .normalize('NFD').replace(/\p{Diacritic}/gu, '')
     .trim().toLowerCase().replace(/\s+/g, ' ');
 
-// Reemplaza el token de marca (lo que va tras el último "·") preservando
-// el sufijo " c/u" y el ")" del label. "16 Oz · Genérico c/u)" → "16 Oz · Jif c/u)".
-const _swapBrandLabel = (s, newBrand) => {
-    if (typeof s !== 'string' || !s.includes('·')) return s;
-    const i = s.lastIndexOf('·');
-    const head = s.slice(0, i);
-    const m = s.slice(i + 1).match(/^\s*(.*?)(\s+c\/u\s*)?(\)\s*)?$/s);
-    if (!m) return s;
-    return `${head}· ${newBrand}${m[2] || ''}${m[3] || ''}`;
+// Match espejo del backend `_resolve_brand_pref`: exacto → singular → contención
+// bidireccional word-boundary. Cubre "aceite de oliva" (pref) ↔ "Aceite de oliva
+// extra virgen" (ítem del plan), donde el nombre del plan difiere del food_name del súper.
+const _brandKeyMatches = (itemNameNorm, foodKey) => {
+    if (!itemNameNorm || !foodKey) return false;
+    if (itemNameNorm === foodKey) return true;
+    const sing = (s) => (s.length > 4 && s.endsWith('es')) ? s.slice(0, -2)
+        : (s.length > 3 && s.endsWith('s') ? s.slice(0, -1) : s);
+    if (sing(itemNameNorm) === foodKey || itemNameNorm === sing(foodKey)) return true;
+    if (foodKey.length >= 4 && itemNameNorm.length >= 4) {
+        const a = ` ${itemNameNorm} `; const b = ` ${foodKey} `;
+        if (a.includes(b) || b.includes(a)) return true;
+    }
+    return false;
 };
 
-const _patchItemForBrand = (it, variant) => {
-    if (!it || typeof it !== 'object') return it;
-    const newBrand = (variant && variant.brand && String(variant.brand).trim()) || 'Genérico';
+// Envases conocidos (espejo de _PRES_CONTAINER_WORDS del backend) para separar
+// "Botella Virgen Extra 125 Ml" → contenedor "botella" + tamaño "Virgen Extra 125 Ml".
+const _BRAND_CONTAINER_WORDS = new Set([
+    'botella', 'funda', 'lata', 'paquete', 'frasco', 'tarro', 'pote', 'caja',
+    'carton', 'carton', 'brik', 'sobre', 'bandeja', 'bolsa', 'galon', 'saco',
+    'malla', 'tetra', 'pieza', 'barra', 'tubo', 'cubo',
+]);
+
+// Reconstruye el ítem desde el variant ELEGIDO: recomputa el conteo (ceil de lo
+// que la lista ya compraba / el tamaño del nuevo envase), el label tamaño·marca y
+// el costo (conteo × precio). Correcto incluso cuando el tamaño difiere (Borges
+// 125ml vs la default Wala 500ml) — antes solo se cambiaba la marca dejando "500ml".
+const _rebuildItemFromVariant = (it, variant) => {
+    if (!it || typeof it !== 'object' || !variant) return it;
     const out = { ...it };
-    if (typeof out.display_qty === 'string') out.display_qty = _swapBrandLabel(out.display_qty, newBrand);
-    if (typeof out.sku_size_label === 'string') out.sku_size_label = _swapBrandLabel(out.sku_size_label, newBrand);
-    if (variant && variant.id) out.brand_product_id = variant.id;
-    // Costo optimista SOLO si el envase elegido es ~del mismo tamaño (el conteo no
-    // cambia → costo = conteo × precio del envase). Si difiere, dejamos el costo y
-    // el recalc lo corrige (evita mostrar un número inventado).
-    const count = parseInt(String(out.display_qty || ''), 10);
+    const brand = (variant.brand && String(variant.brand).trim()) || 'Genérico';
+    const sg = Number(variant.size_g) || 0;
+    const price = Number(variant.price_rd) || 0;
+    const pres = String(variant.presentation || '').trim();
+
+    // contenedor + tamaño desde la presentación del variant
+    let container = ''; let sizeLabel = pres;
+    if (pres) {
+        const first = pres.split(' ')[0];
+        if (_BRAND_CONTAINER_WORDS.has(_brandNorm(first))) {
+            container = first.toLowerCase();
+            sizeLabel = pres.slice(first.length).trim();
+        }
+    }
+    // conteo: ceil(necesidad aprox / tamaño del envase). La necesidad aprox = lo que
+    // la lista ya compra (conteo actual × package_grams). Sin datos → mantiene conteo.
+    const curCount = parseInt(String(out.display_qty || ''), 10) || 1;
     const pg = Number(out.package_grams) || 0;
-    const sg = Number(variant && variant.size_g) || 0;
-    const price = Number(variant && variant.price_rd) || 0;
-    if (count > 0 && price > 0 && pg > 0 && sg > 0 && Math.abs(sg - pg) / pg <= 0.15) {
+    let count = curCount;
+    if (pg > 0 && sg > 0) count = Math.max(1, Math.ceil((curCount * pg) / sg));
+
+    const plural = count > 1;
+    const contDisp = container
+        ? (plural && !container.endsWith('s') ? `${container}s` : container)
+        : (plural ? 'unidades' : 'unidad');
+    const cu = plural ? ' c/u' : '';
+    out.display_qty = sizeLabel
+        ? `${count} ${contDisp} (${sizeLabel} · ${brand}${cu})`
+        : `${count} ${contDisp} (${brand})`;
+    out.sku_size_label = sizeLabel ? `${sizeLabel} · ${brand}` : brand;
+    if (variant.id) out.brand_product_id = variant.id;
+    if (sg > 0) out.package_grams = sg;
+    if (price > 0) {
         const cost = Math.round(count * price);
         out.estimated_cost_rd = cost;
         if (typeof out.estimated_cost === 'number') out.estimated_cost = cost;
@@ -162,8 +200,10 @@ const _patchItemForBrand = (it, variant) => {
 };
 
 // Parchea el ítem que matchea `foodKey` en TODAS las listas por duración del plan.
+// Devuelve el plan nuevo si tocó algo, o `null` si no hubo match (para que el caller
+// sepa si mostrar "aplicada" al instante o "aplicando…" y esperar el recalc).
 const applyBrandToPlanOptimistic = (plan, foodKey, variant) => {
-    if (!plan || !foodKey || !variant) return plan;
+    if (!plan || !foodKey || !variant) return null;
     const keys = [
         'aggregated_shopping_list', 'aggregated_shopping_list_weekly',
         'aggregated_shopping_list_biweekly', 'aggregated_shopping_list_monthly',
@@ -176,12 +216,12 @@ const applyBrandToPlanOptimistic = (plan, foodKey, variant) => {
         let changed = false;
         const nl = list.map((it) => {
             const nm = _brandNorm(it && (it.name || it.display_name || it.item_name));
-            if (nm && nm === foodKey) { changed = true; return _patchItemForBrand(it, variant); }
+            if (_brandKeyMatches(nm, foodKey)) { changed = true; return _rebuildItemFromVariant(it, variant); }
             return it;
         });
         if (changed) { next[k] = nl; touched = true; }
     });
-    return touched ? next : plan;
+    return touched ? next : null;
 };
 
 // [P3-UPDATE-PLATOS-REQUIRES-PANTRY · 2026-05-17] Mínimo de alimentos en la
@@ -5392,11 +5432,19 @@ const DashboardInner = () => {
                                 // toast "Aplicando…" que quedaba girando 15-40s (recalc + cola) con la
                                 // lista aún en "Genérico" — se sentía roto. `variant` null = deselección.
                                 onPrefPending={(foodKey, variant) => {
-                                    if (variant) {
-                                        setPlanData((prev) => applyBrandToPlanOptimistic(prev, foodKey, variant));
+                                    if (!variant) {
+                                        toast.success('Marca quitada — actualizando tu lista…', { id: 'brand-apply', duration: 2200, position: 'top-center' });
+                                        return;
+                                    }
+                                    // Optimista: si el ítem matchea, se reconstruye al instante (marca +
+                                    // conteo + precio). Si no matchea (nombre raro), el recalc de fondo
+                                    // lo aplica igual — feedback honesto "aplicando…".
+                                    const patched = applyBrandToPlanOptimistic(planData, foodKey, variant);
+                                    if (patched) {
+                                        setPlanData(patched);
                                         toast.success('Marca aplicada a tu lista', { id: 'brand-apply', duration: 2200, position: 'top-center' });
                                     } else {
-                                        toast.success('Marca quitada — actualizando tu lista…', { id: 'brand-apply', duration: 2200, position: 'top-center' });
+                                        toast.success('Aplicando tu marca a la lista…', { id: 'brand-apply', duration: 3500, position: 'top-center' });
                                     }
                                 }}
                                 // [P2-BRANDS-APPLY-IMMEDIATE · 2026-07-02 · reconcile silencioso 2026-07-07]

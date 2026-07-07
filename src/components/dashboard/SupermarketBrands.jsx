@@ -187,6 +187,34 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
         return out;
     }, [shoppingList]);
 
+    // [P2-BRANDS-RECONCILE-STALE · 2026-07-07] Reconcile autoritativo al cargar:
+    // si el usuario tiene una preferencia server-side que la lista NO está usando
+    // (pref.product_id ≠ item.brand_product_id — típico cuando un recalc anterior
+    // no completó y plan_data quedó con la marca default), dispara UN recalc para
+    // que el backend reconstruya la lista con la marca elegida. Una sola vez por
+    // montaje (ref guard); si el recalc la aplica, en la próxima carga ya no hay
+    // drift. Sin esto, una marca elegida se quedaba "pegada" en la default (bug
+    // olive oil Wala vs Borges) hasta regenerar el plan a mano.
+    const reconcileFiredRef = useRef(false);
+    useEffect(() => {
+        if (reconcileFiredRef.current) return;
+        if (prefsSource !== 'server' || !matches) return;
+        if (!prefs || !Object.keys(prefs).length) return;
+        let stale = false;
+        for (const name of Object.keys(matches)) {
+            const groups = matches[name] || [];
+            for (const g of groups) {
+                const pid = prefs[norm(g.food_name)];
+                if (pid && defaultIdByKey[norm(name)] !== pid) { stale = true; break; }
+            }
+            if (stale) break;
+        }
+        if (stale && typeof onPrefApplied === 'function') {
+            reconcileFiredRef.current = true;
+            try { onPrefApplied(); } catch { /* fail-open */ }
+        }
+    }, [matches, prefs, prefsSource, defaultIdByKey, onPrefApplied]);
+
     const load = useCallback(async () => {
         if (matches || loading || names.length === 0) return;
         setLoading(true);
