@@ -277,9 +277,11 @@ const _normFood = (s) => (s || '')
 // del azul de las unidades — misma identidad visual que el chip de marca de la Nevera).
 const brandPillStyle = (isActive) => ({
     padding: '0.45rem 0.9rem', borderRadius: '99px',
-    border: isActive ? '2px solid #6366F1' : '1px solid var(--border)',
-    background: isActive ? 'rgba(99, 102, 241, 0.10)' : 'var(--bg-card)',
-    color: isActive ? '#4F46E5' : 'var(--text-main)',
+    // [P2-DESIGN-CONSISTENCY · 2026-07-07] índigo por token --primary (antes #6366F1/
+    // #4F46E5 hardcoded; #4F46E5 era el primary de light-theme → se veía mal en oscuro).
+    border: isActive ? '2px solid var(--primary)' : '1px solid var(--border)',
+    background: isActive ? 'color-mix(in srgb, var(--primary) 12%, transparent)' : 'var(--bg-card)',
+    color: isActive ? 'var(--primary)' : 'var(--text-main)',
     fontWeight: isActive ? 700 : 500, fontSize: '0.85rem',
     cursor: 'pointer', touchAction: 'manipulation', transition: 'all 0.15s',
 });

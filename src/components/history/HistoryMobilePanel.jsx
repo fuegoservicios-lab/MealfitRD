@@ -40,8 +40,10 @@ function normalizePlan(raw, activePlanId) {
 function macroSplit(m) {
   const kc = { p: m.p * 4, c: m.c * 4, g: m.g * 9 };
   const t = kc.p + kc.c + kc.g;
-  if (!t) return [["#60A5FA", 0], ["#34D399", 0], ["#FB7185", 0]];
-  return [["#60A5FA", kc.p / t], ["#34D399", kc.c / t], ["#FB7185", kc.g / t]];
+  // [P2-DESIGN-CONSISTENCY · 2026-07-07] Macros alineados con Recetas/Historial-desktop:
+  // Proteína=verde, Carbos=índigo, Grasa=rosa.
+  if (!t) return [["#34D399", 0], ["#818CF8", 0], ["#FB7185", 0]];
+  return [["#34D399", kc.p / t], ["#818CF8", kc.c / t], ["#FB7185", kc.g / t]];
 }
 
 /* --------------------------------------------------------- piezas */

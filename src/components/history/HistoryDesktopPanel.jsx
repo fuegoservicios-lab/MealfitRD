@@ -90,8 +90,11 @@ function normalizePlan(raw, activePlanId) {
 function macroSplit(m) {
   const kc = { p: m.p * 4, c: m.c * 4, g: m.g * 9 };
   const t = kc.p + kc.c + kc.g;
-  if (!t) return [["#60A5FA", 0], ["#34D399", 0], ["#FB7185", 0]];
-  return [["#60A5FA", kc.p / t], ["#34D399", kc.c / t], ["#FB7185", kc.g / t]];
+  // [P2-DESIGN-CONSISTENCY · 2026-07-07] Paleta de macros alineada con Recetas
+  // (canónica): Proteína=verde --secondary, Carbos=índigo --primary, Grasa=rosa
+  // --accent. Antes P/C estaban intercambiados (P azul, C verde) vs Recetas.
+  if (!t) return [["#34D399", 0], ["#818CF8", 0], ["#FB7185", 0]];
+  return [["#34D399", kc.p / t], ["#818CF8", kc.c / t], ["#FB7185", kc.g / t]];
 }
 
 /* --------------------------------------------------------- piezas */
@@ -105,7 +108,7 @@ function MacroBar({ macros, legend = true }) {
       </span>
       {legend && hasData && (
         <div style={{ display: "flex", gap: 13 }}>
-          {[["#60A5FA", "P", macros.p], ["#34D399", "C", macros.c], ["#FB7185", "G", macros.g]].map(([c, l, v]) => (
+          {[["#34D399", "P", macros.p], ["#818CF8", "C", macros.c], ["#FB7185", "G", macros.g]].map(([c, l, v]) => (
             <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: ".7rem", fontWeight: 700, color: "var(--text-muted)" }}>
               <i style={{ width: 8, height: 8, borderRadius: 3, background: c }} /> {l} <b style={{ color: "var(--text-main)" }}>{v}g</b>
             </span>
@@ -353,9 +356,11 @@ export default function HistoryDesktopPanel({
         ))}
 
         {noResults && (
-          <div style={{ padding: "48px 16px", textAlign: "center", color: "var(--text-light)" }}>
+          /* [P2-DESIGN-CONSISTENCY · 2026-07-07] Empty state = card con borde punteado,
+             mismo lenguaje que Recetas (.empty) y Nevera. */
+          <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted)", border: "1px dashed var(--border)", background: "var(--bg-page)", borderRadius: 16 }}>
             <Icon name="search" size={28} />
-            <p style={{ marginTop: 10 }}>Sin resultados para <strong style={{ color: "var(--text-muted)" }}>“{searchQuery.trim()}”</strong></p>
+            <p style={{ marginTop: 10 }}>Sin resultados para <strong style={{ color: "var(--text-main)" }}>“{searchQuery.trim()}”</strong></p>
             <button type="button" onClick={() => setSearchQuery("")} style={{ ...btn("ghost"), marginTop: 8 }}>Limpiar búsqueda</button>
           </div>
         )}
@@ -371,6 +376,8 @@ const metaRow = { display: "flex", alignItems: "center", gap: 7, fontSize: ".8re
 const kcalBig = { display: "inline-flex", alignItems: "baseline", gap: 5, fontFamily: "var(--font-heading)", fontWeight: 800, color: "var(--text-main)", whiteSpace: "nowrap" };
 function btn(variant) {
   const base = { appearance: "none", cursor: "pointer", font: "inherit", fontWeight: 700, fontSize: ".84rem", display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 13, border: "1px solid transparent", transition: ".15s" };
-  if (variant === "primary") return { ...base, color: "#fff", background: "linear-gradient(120deg, var(--primary), var(--primary-dark))", boxShadow: "0 8px 20px -8px var(--primary)" };
+  // [P2-DESIGN-CONSISTENCY · 2026-07-07] CTA primario igual que Recetas (.primary)
+  // y Nevera (.add): gradiente primary-light→primary con texto oscuro.
+  if (variant === "primary") return { ...base, color: "#0B1120", background: "linear-gradient(120deg, var(--primary-light), var(--primary))", boxShadow: "0 8px 20px -8px var(--primary)" };
   return { ...base, color: "var(--text-main)", background: "var(--bg-muted)", border: "1px solid var(--border)" };
 }
