@@ -83,7 +83,10 @@
 .rdot { flex: none; width: 9px; height: 9px; border-radius: 3px; background: var(--cat); }
 .row.low .rdot { background: #FBBF24; box-shadow: 0 0 8px #FBBF24; }
 .rname { font-size: .92rem; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 38%; }
-.unit { flex: none; font-size: .66rem; font-weight: 700; color: var(--cat); background: color-mix(in srgb, var(--cat) 13%, transparent); border: 1px solid color-mix(in srgb, var(--cat) 28%, transparent); padding: 3px 9px; border-radius: 7px; white-space: nowrap; }
+/* [P3-PANTRY-ADD-UX anchor] text-transform: capitalize presenta la unidad cruda
+   lowercase de la DB ("cartón" → "Cartón") sin tocar el string. Test:
+   test_p3_pantry_add_ux.py::test_unit_chip_uses_clean_copy. */
+.unit { flex: none; font-size: .66rem; font-weight: 700; color: var(--cat); background: color-mix(in srgb, var(--cat) 13%, transparent); border: 1px solid color-mix(in srgb, var(--cat) 28%, transparent); padding: 3px 9px; border-radius: 7px; white-space: nowrap; text-transform: capitalize; }
 .lowtag { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .62rem; font-weight: 800; text-transform: uppercase; color: #FBBF24; }
 .shelf { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .62rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
 .disabledTag { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .62rem; font-weight: 800; text-transform: uppercase; color: var(--danger-text); }
