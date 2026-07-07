@@ -472,7 +472,8 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                             <p style={{ margin: '0.55rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                                 Toca una variante para marcarla como tu preferida
                                 {prefsSource === 'local' && ' (se guarda en este dispositivo)'}.
-                                {' '}El check punteado marca la que tu lista usa por defecto (la más
+                                {' '}El chip <strong style={{ color: '#059669' }}>verde sólido</strong> es tu marca fija;
+                                el <strong>gris punteado</strong> es la que tu lista usa por defecto (la más
                                 económica) — tócala para fijarla. En despensa/duraderos ves todas las
                                 marcas en tamaños que cubren lo que tu plan necesita (los de tu tamaño
                                 primero); en frescos, las del tamaño que usa tu lista — siempre de la
@@ -554,36 +555,39 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                                     {name}
                                                 </span>
                                                 {chosen ? (
+                                                    // [P2-BRANDS-MANUAL-PRONOUNCED · 2026-07-07] Elección MANUAL =
+                                                    // verde SÓLIDO pronunciado (tu marca fija, permanente). Contrasta
+                                                    // fuerte con el chip default (neutro/punteado) de abajo.
                                                     <span style={{
                                                         display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                                                        fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap',
-                                                        color: '#059669', background: 'rgba(16,185,129,0.1)',
-                                                        border: '1px solid rgba(16,185,129,0.3)',
-                                                        padding: '0.1rem 0.45rem', borderRadius: '999px',
-                                                        maxWidth: '46%', overflow: 'hidden', textOverflow: 'ellipsis',
+                                                        fontSize: '0.7rem', fontWeight: 800, whiteSpace: 'nowrap',
+                                                        color: '#fff', background: '#10B981',
+                                                        border: '1px solid #10B981',
+                                                        boxShadow: '0 1px 5px -1px rgba(16,185,129,0.5)',
+                                                        padding: '0.12rem 0.5rem', borderRadius: '999px',
+                                                        maxWidth: '48%', overflow: 'hidden', textOverflow: 'ellipsis',
                                                     }}>
-                                                        <Check size={11} style={{ flexShrink: 0 }} aria-hidden="true" />
+                                                        <Check size={11} strokeWidth={3} style={{ flexShrink: 0 }} aria-hidden="true" />
                                                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                             {chosen.brand || 'Genérico'} · {formatPrice(chosen.price_rd)}
                                                         </span>
                                                     </span>
                                                 ) : defaultVariant ? (
-                                                    // [P2-BRANDS-DEFAULT-FROM-ACTIVE · 2026-07-07] Chip MARCADO
-                                                    // (verde con check) = la marca que tu lista/PDF usa por default.
-                                                    // Borde punteado lo distingue de la elección manual (sólida,
-                                                    // permanente): este se re-elige por precio; tócalo para fijarlo.
+                                                    // [P2-BRANDS-DEFAULT-FROM-ACTIVE · 2026-07-07] Default = chip NEUTRO
+                                                    // discreto (gris + check tenue + punteado): marca la que tu lista usa
+                                                    // por defecto SIN competir con el verde sólido de tu elección manual.
                                                     <span
                                                         title="Marca que tu lista usa ahora (la más económica) — tócala adentro para fijarla como tu preferida"
                                                         style={{
                                                             display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                                                            fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap',
-                                                            color: '#059669', background: 'rgba(16,185,129,0.06)',
-                                                            border: '1px dashed rgba(16,185,129,0.5)',
+                                                            fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap',
+                                                            color: 'var(--text-muted)', background: 'transparent',
+                                                            border: '1px dashed var(--border)',
                                                             padding: '0.1rem 0.45rem', borderRadius: '999px',
                                                             maxWidth: '52%', overflow: 'hidden', textOverflow: 'ellipsis',
                                                         }}
                                                     >
-                                                        <Check size={11} style={{ flexShrink: 0 }} aria-hidden="true" />
+                                                        <Check size={10} style={{ flexShrink: 0, color: 'var(--text-light)' }} aria-hidden="true" />
                                                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                             {defaultVariant.brand || 'Genérico'} · {formatPrice(defaultVariant.price_rd)}
                                                         </span>
@@ -632,11 +636,11 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                                                                 display: 'flex', alignItems: 'center', gap: '0.45rem',
                                                                                 width: '100%', padding: '0.28rem 0.45rem',
                                                                                 borderRadius: '0.45rem', cursor: 'pointer', textAlign: 'left',
-                                                                                border: isChosen ? '1px solid rgba(16,185,129,0.5)'
-                                                                                    : isDefault ? '1px dashed rgba(16,185,129,0.45)'
+                                                                                border: isChosen ? '1px solid rgba(16,185,129,0.55)'
+                                                                                    : isDefault ? '1px dashed var(--border)'
                                                                                         : '1px solid transparent',
-                                                                                background: isChosen ? 'rgba(16,185,129,0.08)'
-                                                                                    : isDefault ? 'rgba(16,185,129,0.04)'
+                                                                                background: isChosen ? 'rgba(16,185,129,0.12)'
+                                                                                    : isDefault ? 'transparent'
                                                                                         : 'transparent',
                                                                             }}
                                                                         >
@@ -645,12 +649,12 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                                                                 borderRadius: '50%', display: 'inline-flex',
                                                                                 alignItems: 'center', justifyContent: 'center',
                                                                                 border: isChosen ? 'none'
-                                                                                    : isDefault ? '1.5px solid #10B981'
+                                                                                    : isDefault ? '1.5px solid var(--text-light)'
                                                                                         : '1.5px solid var(--border)',
                                                                                 background: isChosen ? '#10B981' : 'transparent',
                                                                             }} aria-hidden="true">
                                                                                 {isChosen && <Check size={10} color="#fff" strokeWidth={3} />}
-                                                                                {isDefault && <Check size={10} color="#10B981" strokeWidth={3} />}
+                                                                                {isDefault && <Check size={10} strokeWidth={3} style={{ color: 'var(--text-light)' }} />}
                                                                             </span>
                                                                             <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                                                                                 {v.brand || 'Genérico'}
@@ -660,7 +664,7 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                                                                 <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#fff', background: '#10B981', padding: '0.05rem 0.32rem', borderRadius: '6px', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>TU MARCA</span>
                                                                             )}
                                                                             {isDefault && (
-                                                                                <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#059669', border: '1px dashed rgba(16,185,129,0.55)', padding: '0.05rem 0.32rem', borderRadius: '6px', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>DE TU LISTA</span>
+                                                                                <span style={{ fontSize: '0.58rem', fontWeight: 700, color: 'var(--text-muted)', border: '1px dashed var(--border)', padding: '0.05rem 0.32rem', borderRadius: '6px', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>DE TU LISTA</span>
                                                                             )}
                                                                             <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                                                 {v.presentation || '—'}
