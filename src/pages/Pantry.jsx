@@ -2271,7 +2271,7 @@ const Pantry = () => {
         <section className={mstyles.app} aria-label="Mi Cocina">
             <div className={mstyles.top}>
                 <div className={mstyles.toprow}>
-                    <h1 className={mstyles.title}><FridgeGlyph size={22} />Mi Cocina</h1>
+                    <h1 className={mstyles.title}>Mi Cocina</h1>
                     <span className={mstyles.count}><b>{inventory.length}</b> {inventory.length === 1 ? 'alimento' : 'alimentos'}</span>
                 </div>
                 <div className={mstyles.search}>
@@ -2398,7 +2398,6 @@ const Pantry = () => {
                     {/* ===== Sidebar (escritorio) ===== */}
                     <aside className={fstyles.side}>
                         <div className={fstyles.brand}>
-                            <FridgeGlyph size={22} />
                             <div>
                                 <h1>Mi Cocina</h1>
                                 <small>{inventory.length} {inventory.length === 1 ? 'alimento' : 'alimentos'}</small>
