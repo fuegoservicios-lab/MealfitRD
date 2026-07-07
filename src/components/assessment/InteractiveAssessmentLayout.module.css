@@ -243,6 +243,45 @@
         border-radius: 28px;
         box-shadow: 0 32px 70px -35px rgba(15, 23, 42, 0.35);
         flex: 0 1 auto;
+        /* [FORM-BACK-IN-CARD-PC · 2026-07-07] ancla para la flecha absoluta del recuadro */
+        position: relative;
+    }
+}
+
+/* [FORM-BACK-IN-CARD-PC · 2026-07-07] Flecha "paso anterior" dentro del recuadro (SOLO
+   desktop). En móvil se usa la del header (.backBtn); esta queda oculta. Mismo look que
+   .backBtn (círculo hover, muted). */
+.cardBackBtn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.cardBackBtn:hover {
+    background-color: var(--bg-muted);
+    color: var(--text-main);
+}
+
+@media (min-width: 900px) {
+    /* la flecha vive en el recuadro: esquina superior izquierda, dentro del padding */
+    .cardBackBtn {
+        display: inline-flex;
+        position: absolute;
+        top: 1.15rem;
+        left: 1.5rem;
+    }
+    /* y la del header (paso anterior, NO la de "volver al login") se oculta en desktop.
+       visibility (no display:none) para conservar el slot del grid → el logo sigue centrado. */
+    .backBtn:not(.backToLogin) {
+        visibility: hidden;
+        pointer-events: none;
     }
 }
 

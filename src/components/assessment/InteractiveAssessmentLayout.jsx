@@ -91,6 +91,16 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
 
             <main className={styles.main}>
                 <div className={styles.contentWrapper}>
+                    {/* [FORM-BACK-IN-CARD-PC · 2026-07-07] En DESKTOP la flecha "paso anterior"
+                        vive DENTRO del recuadro (esquina superior izquierda), no en el header —
+                        pedido del owner. En móvil sigue en el header (.backBtn) y esta se oculta
+                        (CSS: display:none base, inline-flex ≥900px). Solo desde el paso 2 (el
+                        paso 1 no tiene "anterior"). El .backBtn del header se oculta ≥900px. */}
+                    {currentStep > 0 && (
+                        <button onClick={prevStep} className={styles.cardBackBtn} aria-label="Paso anterior">
+                            <ChevronLeft size={22} />
+                        </button>
+                    )}
                     <AnimatePresence mode="wait">
                         {/* [P4-LAYOUT-KEY] key primitivo (stepKey) — title es un JSX fragment,
                             así que key={title} se volvía "[object Object]" para todos los steps
