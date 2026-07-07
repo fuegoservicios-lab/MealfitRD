@@ -250,6 +250,12 @@ const COMMON_PURCHASE_UNITS = [
     'lata', 'caja', 'cartón', 'bolsa', 'galón', 'sobre',
 ];
 
+// [P3-PANTRY-ADD-RESPONSIVE · 2026-07-07] Chips de arranque rápido para el
+// estado vacío del modal "Añade a tu Nevera". Rellenan el buscador con un
+// toque (no añaden directo — la unidad/cantidad se elige igual) → cero fricción
+// para el caso común. Staples es-DO casi garantizados en el catálogo verificado.
+const QUICK_ADD_SUGGESTIONS = ['Pollo', 'Arroz', 'Huevos', 'Leche', 'Aceite', 'Cebolla'];
+
 // [P5-SPEED-CATEGORY-NORMALIZE-HOIST · 2026-06-01] Mapa estático de normalización
 // de categorías izado a module-scope (antes vivía DENTRO del useMemo
 // `filteredInventory`, deps [inventory, searchQuery] → se re-alocaba en cada
@@ -2439,14 +2445,17 @@ const Pantry = () => {
             </section>
             )}
 
-            {/* Modal "Nuevo Alimento" Estilo App */}
+            {/* Modal "Nuevo Alimento" — [P3-PANTRY-ADD-RESPONSIVE · 2026-07-07]
+                Bottom-sheet en móvil (con inset de teclado, P3-PANTRY-ADD-MOBILE);
+                diálogo centrado y acotado en desktop (antes el sheet se estiraba a
+                todo el ancho → barra gigante + vacío enorme, poco profesional). */}
             <AnimatePresence>
                 {showAddMenu && (
                     <>
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={() => { setShowAddMenu(false); setAddItemSearch(''); }}
-                            style={{ position: 'fixed', inset: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(4px)', zIndex: 100 }}
+                            style={{ position: 'fixed', inset: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(6px)', zIndex: 100 }}
                         />
                         <motion.div
                             ref={addMenuModalRef}
@@ -2454,8 +2463,19 @@ const Pantry = () => {
                             aria-modal="true"
                             aria-labelledby="pantry-add-title"
                             tabIndex={-1}
-                            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            style={{
+                            initial={isMobileLayout
+                                ? { y: '100%' }
+                                : { opacity: 0, scale: 0.94, x: '-50%', y: '-50%' }}
+                            animate={isMobileLayout
+                                ? { y: 0 }
+                                : { opacity: 1, scale: 1, x: '-50%', y: '-50%' }}
+                            exit={isMobileLayout
+                                ? { y: '100%' }
+                                : { opacity: 0, scale: 0.94, x: '-50%', y: '-50%' }}
+                            transition={isMobileLayout
+                                ? { type: 'spring', damping: 25, stiffness: 200 }
+                                : { type: 'spring', damping: 24, stiffness: 240 }}
+                            style={isMobileLayout ? {
                                 position: 'fixed', bottom: kbInset, left: 0, right: 0, background: 'var(--bg-card)',
                                 // [P3-PANTRY-ADD-MOBILE · 2026-06-19] padding responsive (menos en móvil =
                                 // más espacio útil) + alto adaptado al viewport visible (sobre el teclado).
@@ -2466,11 +2486,25 @@ const Pantry = () => {
                                 boxShadow: '0 -12px 44px rgba(0,0,0,0.22)',
                                 maxHeight: kbInset > 0 ? `${Math.max(300, vvHeight - 10)}px` : `${Math.round(vvHeight * 0.9)}px`,
                                 display: 'flex', flexDirection: 'column',
+                            } : {
+                                // Desktop: diálogo centrado, ancho acotado, alto al contenido
+                                // (hasta un tope) → sin vacío muerto cuando hay pocos resultados.
+                                position: 'fixed', top: '50%', left: '50%', background: 'var(--bg-card)',
+                                width: '92%', maxWidth: '580px',
+                                borderRadius: '1.5rem',
+                                padding: '1.6rem 1.6rem 0.6rem',
+                                zIndex: 101,
+                                border: '1px solid var(--border)',
+                                boxShadow: '0 24px 60px -12px rgba(0,0,0,0.45)',
+                                maxHeight: 'min(84vh, 660px)',
+                                display: 'flex', flexDirection: 'column',
                             }}
                         >
-                            <div style={{ width: '40px', height: '5px', background: 'var(--border)', borderRadius: '10px', margin: '0 auto clamp(0.7rem, 2.5vw, 1.4rem)', opacity: 0.8 }} />
+                            {isMobileLayout && (
+                                <div style={{ width: '40px', height: '5px', background: 'var(--border)', borderRadius: '10px', margin: '0 auto clamp(0.7rem, 2.5vw, 1.4rem)', opacity: 0.8 }} />
+                            )}
 
-                            <h2 id="pantry-add-title" style={{ fontSize: 'clamp(1.3rem, 5vw, 1.5rem)', fontWeight: 800, margin: '0 0 0.3rem 0', color: 'var(--text-main)' }}>Añade a tu Nevera</h2>
+                            <h2 id="pantry-add-title" style={{ fontSize: isMobileLayout ? 'clamp(1.3rem, 5vw, 1.5rem)' : '1.4rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: 'var(--text-main)', letterSpacing: '-0.01em' }}>Añade a tu Nevera</h2>
                             <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '0 0 0.85rem 0', lineHeight: 1.4 }}>
                                 Busca el alimento, ajusta la cantidad y elige cómo viene (botella, libra, paquete…).
                             </p>
@@ -2718,12 +2752,34 @@ const Pantry = () => {
                                     </div>
                                 )}
 
+                                {/* [P3-PANTRY-ADD-RESPONSIVE · 2026-07-07] Estado vacío interactivo:
+                                    chips de arranque rápido en vez de un hint centrado en el vacío. */}
                                 {!addItemSearch.trim() && (
-                                    <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-light)' }}>
-                                        <SearchIcon size={28} style={{ opacity: 0.4, marginBottom: '0.5rem' }} />
-                                        <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>
-                                            Escribe el nombre del alimento para ver opciones.
+                                    <div style={{ padding: '0.6rem 0.15rem 0.5rem', color: 'var(--text-light)' }}>
+                                        <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                                            Sugerencias rápidas
                                         </div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                            {QUICK_ADD_SUGGESTIONS.map(word => (
+                                                <button
+                                                    key={word}
+                                                    type="button"
+                                                    onClick={() => setAddItemSearch(word)}
+                                                    style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                                                        padding: '0.5rem 0.95rem', borderRadius: '99px',
+                                                        border: '1px solid var(--border)', background: 'var(--bg-page)',
+                                                        color: 'var(--text-main)', fontWeight: 600, fontSize: '0.9rem',
+                                                        cursor: 'pointer', touchAction: 'manipulation', transition: 'all 0.15s',
+                                                    }}
+                                                >
+                                                    <SearchIcon size={13} style={{ opacity: 0.45 }} /> {word}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p style={{ fontSize: '0.83rem', color: 'var(--text-light)', margin: '1.1rem 0 0', lineHeight: 1.45 }}>
+                                            …o escribe cualquier alimento arriba para ver opciones.
+                                        </p>
                                     </div>
                                 )}
                             </div>
