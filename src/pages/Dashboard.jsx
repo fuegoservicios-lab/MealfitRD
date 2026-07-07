@@ -2396,7 +2396,11 @@ const DashboardInner = () => {
             // los perecederos se RECOMPRAN cada 7 días (ver `_build_hybrid_shopping_list`
             // en backend/shopping_calculator.py), así que el costo real del ciclo es
             //   estables (1×, compra única) + perecederos × nº de semanas del ciclo.
-            // weeks alineado con el multiplier del backend (biweekly=2×, monthly=4×).
+            // [P1-CYCLE-COVERAGE-FRACTIONAL · 2026-07-06] Espejo del backend (shopping_calculator.py
+            // _cycle_cost_multiplier/_cycle_trip_count). Pre-fix usaba floor(días/7) (monthly=4) →
+            // los días 29-30 del ciclo quedaban sin costear NI mostrar. Ahora:
+            //   - COSTO = perecederos × (días/7) FRACCIONAL (30/7=4.286): honesto, sin sobre-estimar.
+            //   - IDAS mostradas = ceil(días/7) (30d=5, la 5ª parcial): cuántas veces recompra.
             // Pre-fix: el total de 7 y 15 días salía idéntico → el usuario sub-presupuestaba.
             const _sumBucketCost = (dict) => Object.values(dict).reduce((acc, arr) => (
                 acc + (Array.isArray(arr) ? arr.reduce((s, it) => {
@@ -2406,8 +2410,10 @@ const DashboardInner = () => {
             ), 0);
             const _perishableCost = _sumBucketCost(perishables);
             const _stableCost = _sumBucketCost(stables);
-            const _cycleWeeks = duration === 'monthly' ? 4 : duration === 'biweekly' ? 2 : 1;
-            const _fullCycleCost = _stableCost + _perishableCost * _cycleWeeks;
+            const _cycleDays = duration === 'monthly' ? 30 : duration === 'biweekly' ? 15 : 7;
+            const _cycleCostMultiplier = _cycleDays / 7;          // fraccional (4.286 mensual)
+            const _cycleTrips = Math.ceil(_cycleDays / 7);        // idas al súper (5 mensual)
+            const _fullCycleCost = _stableCost + _perishableCost * _cycleCostMultiplier;
             // [P1-BUDGET-COST-SSOT · 2026-07-02] Preferir el resumen del BACKEND (SSOT, mismo número
             // que la reconciliación de presupuesto) cuando el plan lo trae; la re-suma local queda
             // como fallback para planes legacy persistidos antes del fix.
@@ -2730,7 +2736,7 @@ const DashboardInner = () => {
                 : 'COMPRA ESTA SEMANA — PERECEDEROS (REPITE CADA 7 DÍAS)';
             const perishableDesc = isWeekly
                 ? 'Carnes, lácteos, frutas y vegetales frescos. Consume o refrigera pronto.'
-                : `Esta comida fresca alcanza ~7 días: en tu ciclo de ${durationText} la recompras ${_cycleWeeks} veces. Se dañan rápido, por eso no se compran todas de una vez.`;
+                : `Esta comida fresca alcanza ~7 días: en tu ciclo de ${durationText} la compras ${_cycleTrips} veces (cada 7 días). Se dañan rápido, por eso no se compran todas de una vez.`;
             const stableLabel = duration === 'monthly'
                 ? 'DESPENSA DEL MES — ESTABLES (COMPRA UNA SOLA VEZ)'
                 : duration === 'biweekly'
@@ -2792,7 +2798,7 @@ const DashboardInner = () => {
                         <span style="font-size: 19px; font-weight: 800; color: #047857; white-space: nowrap;">RD$${Math.round(_shopTotalCostFinal).toLocaleString('es-DO')}</span>
                     </div>
                     ${_showCycleCost ? `<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155;">
-                        <div style="font-size: 11.5px; font-weight: 800; color: #065f46;">🛒 Costo real del ciclo de ${escapeHtml(durationText)}<div style="font-size: 9px; font-weight: 500; color: #059669; margin-top: 1px; letter-spacing: normal;">Despensa 1× + frescos recomprados ${_cycleWeeks}× (cada 7 días)</div></div>
+                        <div style="font-size: 11.5px; font-weight: 800; color: #065f46;">🛒 Costo real del ciclo de ${escapeHtml(durationText)}<div style="font-size: 9px; font-weight: 500; color: #059669; margin-top: 1px; letter-spacing: normal;">Despensa 1× + perecederos de ${escapeHtml(durationText)} (recompra cada 7 días)</div></div>
                         <span style="font-size: 18px; font-weight: 800; color: #065f46; white-space: nowrap;">RD$${Math.round(_fullCycleCostFinal).toLocaleString('es-DO')}</span>
                     </div>` : ''}
                     ${(() => {
