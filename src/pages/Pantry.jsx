@@ -250,11 +250,21 @@ const COMMON_PURCHASE_UNITS = [
     'lata', 'caja', 'cartón', 'bolsa', 'galón', 'sobre',
 ];
 
-// [P3-PANTRY-ADD-RESPONSIVE · 2026-07-07] Chips de arranque rápido para el
-// estado vacío del modal "Añade a tu Nevera". Rellenan el buscador con un
-// toque (no añaden directo — la unidad/cantidad se elige igual) → cero fricción
-// para el caso común. Staples es-DO casi garantizados en el catálogo verificado.
+// [P3-PANTRY-ADD-RESPONSIVE · 2026-07-07] Chips staple del estado vacío del modal
+// "Añade a tu Nevera". [P3-PANTRY-RECENT-ADDS · 2026-07-07] 1-toque: si la palabra
+// resuelve a un master item ÚNICO se añade directo (unidad recomendada); si es
+// ambigua (varios "aceite"/"pollo") siembra la búsqueda — nunca adivina cuál.
 const QUICK_ADD_SUGGESTIONS = ['Pollo', 'Arroz', 'Huevos', 'Leche', 'Aceite', 'Cebolla'];
+
+// [P3-PANTRY-RECENT-ADDS · 2026-07-07] Estilo compartido de los chips (recientes +
+// sugerencias). Módulo-scope: valores estáticos, evita re-alocar por keystroke.
+const ADD_CHIP_STYLE = {
+    display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+    padding: '0.5rem 0.95rem', borderRadius: '99px',
+    border: '1px solid var(--border)', background: 'var(--bg-page)',
+    color: 'var(--text-main)', fontWeight: 600, fontSize: '0.9rem',
+    cursor: 'pointer', touchAction: 'manipulation', transition: 'all 0.15s',
+};
 
 // [P5-SPEED-CATEGORY-NORMALIZE-HOIST · 2026-06-01] Mapa estático de normalización
 // de categorías izado a module-scope (antes vivía DENTRO del useMemo
@@ -332,6 +342,36 @@ const Pantry = () => {
     const [pickerForId, setPickerForId] = useState(null);   // master_ingredient_id en config
     const [pickerQty, setPickerQty] = useState(1);
     const [pickerUnit, setPickerUnit] = useState('');
+
+    // [P3-PANTRY-RECENT-ADDS · 2026-07-07] Últimos alimentos añadidos (id+name+unit),
+    // mostrados como chips de 1-toque en el estado vacío del modal Añadir → re-añadir
+    // lo que compras seguido sin re-buscar. Cache local puro (no toca BD), mismo
+    // patrón lazy-init que depletedItems. Cap 8, más recientes primero, dedup por id.
+    const [recentAdds, setRecentAdds] = useState(() => {
+        try {
+            const saved = safeLocalStorageGet('mealfit_recent_pantry_adds', null);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) return parsed.slice(0, 8);
+            }
+        } catch (e) {}
+        return [];
+    });
+    const _recordRecentAdd = useCallback((masterItem, unit) => {
+        if (!masterItem || (!masterItem.id && !masterItem.name)) return;
+        const entry = {
+            id: masterItem.id || null,
+            name: masterItem.name || '',
+            unit: unit || 'unidad',
+        };
+        const keyOf = (e) => (e.id ? `m:${e.id}` : `n:${(e.name || '').toLowerCase()}`);
+        setRecentAdds(prev => {
+            const k = keyOf(entry);
+            const next = [entry, ...prev.filter(e => keyOf(e) !== k)].slice(0, 8);
+            try { safeLocalStorageSet('mealfit_recent_pantry_adds', JSON.stringify(next)); } catch (e) {}
+            return next;
+        });
+    }, []);
 
     // [P3-PANTRY-ADD-MOBILE · 2026-06-19] El add-sheet es bottom-anchored + autoFocus,
     // así que en MÓVIL el teclado virtual TAPABA el buscador y los resultados (incómodo).
@@ -1505,6 +1545,7 @@ const Pantry = () => {
             if (existing) {
                 await handleUpdateQuantity(existing.id, existing.quantity + safeQty);
                 toast.success(`+${safeQty} ${existing.unit || ''} a ${masterItem.name}`.trim());
+                _recordRecentAdd(masterItem, existing.unit || finalUnit);
                 setShowAddMenu(false);
                 setAddItemSearch('');
                 return;
@@ -1544,6 +1585,7 @@ const Pantry = () => {
                     } else {
                         toast.success(`${masterItem.name} ya estaba en tu nevera`, { icon: '✅' });
                     }
+                    _recordRecentAdd(masterItem, (dup && dup.unit) || finalUnit);
                     setShowAddMenu(false);
                     setAddItemSearch('');
                     _scheduleRecalcShoppingList();
@@ -1555,6 +1597,7 @@ const Pantry = () => {
 
             toast.success(`${safeQty} ${finalUnit} de ${masterItem.name} en la nevera`);
             setInventory(prev => [...prev, data].sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name)));
+            _recordRecentAdd(masterItem, finalUnit);
             setShowAddMenu(false);
             setAddItemSearch('');
             // [P3-AUDIT-8 · 2026-05-10] Recalcular lista tras add individual.
@@ -1572,6 +1615,43 @@ const Pantry = () => {
             toast.error("Error al añadir alimento.");
         } finally {
             setIsAdding(false);
+        }
+    };
+
+    // [P3-PANTRY-RECENT-ADDS · 2026-07-07] Chips de 1-toque del estado vacío.
+    // `handleRecentAdd` re-añade un item concreto (id+unit guardados) al instante;
+    // si el master ya no existe en el catálogo (re-import / cambio de IDs) cae a la
+    // búsqueda por nombre en vez de arriesgar un INSERT con FK inválido.
+    const handleRecentAdd = (recent) => {
+        if (!recent) return;
+        const full = recent.id ? masterList.find(m => m.id === recent.id) : null;
+        if (full) {
+            handleAddNewItem(full, 1, recent.unit || full.market_container || full.default_unit || 'unidad');
+        } else {
+            setAddItemSearch(recent.name || '');
+        }
+    };
+
+    // `handleChipAdd` resuelve una palabra staple a un master item ÚNICO y lo añade
+    // directo con la unidad recomendada. Si es ambigua (varios "aceite"/"pollo") o
+    // no existe, siembra la búsqueda — nunca adivina cuál item quiso el usuario.
+    const handleChipAdd = (word) => {
+        const q = String(word || '').toLowerCase().trim();
+        if (!q) return;
+        const qs = q.replace(/s$/, ''); // tolerante a plural simple (huevos → huevo)
+        let hit = masterList.find(m => (m.name || '').toLowerCase() === q)
+            || masterList.find(m => (m.name || '').toLowerCase() === qs);
+        if (!hit) {
+            const matches = masterList.filter(m =>
+                (m.name || '').toLowerCase().includes(q)
+                || (m.aliases && m.aliases.some(a => (a || '').toLowerCase().includes(q)))
+            );
+            if (matches.length === 1) hit = matches[0];
+        }
+        if (hit) {
+            handleAddNewItem(hit, 1, hit.market_container || hit.default_unit || 'unidad');
+        } else {
+            setAddItemSearch(word);
         }
     };
 
@@ -2752,10 +2832,34 @@ const Pantry = () => {
                                     </div>
                                 )}
 
-                                {/* [P3-PANTRY-ADD-RESPONSIVE · 2026-07-07] Estado vacío interactivo:
-                                    chips de arranque rápido en vez de un hint centrado en el vacío. */}
+                                {/* [P3-PANTRY-RECENT-ADDS · 2026-07-07] Estado vacío interactivo:
+                                    "Recientes" (1-toque re-añade lo último que compraste) +
+                                    "Sugerencias rápidas" (1-toque añade si resuelve único, si no
+                                    siembra la búsqueda). Rellena el vacío y acelera el caso común. */}
                                 {!addItemSearch.trim() && (
                                     <div style={{ padding: '0.6rem 0.15rem 0.5rem', color: 'var(--text-light)' }}>
+                                        {recentAdds.length > 0 && (
+                                            <div style={{ marginBottom: '1.25rem' }}>
+                                                <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                                                    Recientes
+                                                </div>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                                    {recentAdds.map(r => (
+                                                        <button
+                                                            key={r.id || r.name}
+                                                            type="button"
+                                                            disabled={isAdding}
+                                                            onClick={() => handleRecentAdd(r)}
+                                                            style={ADD_CHIP_STYLE}
+                                                            title={`Añadir 1 ${r.unit || ''} de ${r.name}`.trim()}
+                                                        >
+                                                            <RotateCcw size={13} style={{ opacity: 0.5 }} /> {r.name}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
                                             Sugerencias rápidas
                                         </div>
@@ -2764,21 +2868,16 @@ const Pantry = () => {
                                                 <button
                                                     key={word}
                                                     type="button"
-                                                    onClick={() => setAddItemSearch(word)}
-                                                    style={{
-                                                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                                                        padding: '0.5rem 0.95rem', borderRadius: '99px',
-                                                        border: '1px solid var(--border)', background: 'var(--bg-page)',
-                                                        color: 'var(--text-main)', fontWeight: 600, fontSize: '0.9rem',
-                                                        cursor: 'pointer', touchAction: 'manipulation', transition: 'all 0.15s',
-                                                    }}
+                                                    disabled={isAdding}
+                                                    onClick={() => handleChipAdd(word)}
+                                                    style={ADD_CHIP_STYLE}
                                                 >
-                                                    <SearchIcon size={13} style={{ opacity: 0.45 }} /> {word}
+                                                    <Plus size={13} style={{ opacity: 0.5 }} /> {word}
                                                 </button>
                                             ))}
                                         </div>
-                                        <p style={{ fontSize: '0.83rem', color: 'var(--text-light)', margin: '1.1rem 0 0', lineHeight: 1.45 }}>
-                                            …o escribe cualquier alimento arriba para ver opciones.
+                                        <p style={{ fontSize: '0.83rem', color: 'var(--text-light)', margin: '1.15rem 0 0', lineHeight: 1.45 }}>
+                                            Toca un chip para añadirlo al instante, o escribe cualquier alimento arriba.
                                         </p>
                                     </div>
                                 )}
