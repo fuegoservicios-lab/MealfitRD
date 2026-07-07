@@ -346,31 +346,8 @@ const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
     );
 };
 
-// [P4-AMBIENT-HOIST] Capas de fondo decorativas (premium mobile). Module-scope para
-// identidad estable — definirlo dentro del render remontaba los 3 blur en cada render.
-const AmbientBackground = () => (
-    <div data-html2canvas-ignore="true" style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: '100%',
-        overflow: 'hidden', zIndex: 0, pointerEvents: 'none',
-        opacity: 1
-    }}>
-        <div style={{
-            position: 'absolute', top: '-10%', left: '-10%', width: '60vw', height: '60vw',
-            background: 'radial-gradient(circle at center, var(--primary) 0%, transparent 60%)',
-            filter: 'blur(100px)', transform: 'translateZ(0)', borderRadius: '50%', opacity: 0.15
-        }} />
-        <div style={{
-            position: 'absolute', top: '20%', right: '-10%', width: '40vw', height: '40vw',
-            background: 'radial-gradient(circle at center, var(--secondary) 0%, transparent 60%)',
-            filter: 'blur(100px)', transform: 'translateZ(0)', borderRadius: '50%', opacity: 0.1
-        }} />
-        <div style={{
-            position: 'absolute', top: '60%', left: '10%', width: '50vw', height: '50vw',
-            background: 'radial-gradient(circle at center, var(--accent) 0%, transparent 60%)',
-            filter: 'blur(80px)', transform: 'translateZ(0)', borderRadius: '50%', opacity: 0.05
-        }} />
-    </div>
-);
+// [P2-DESIGN-CONSISTENCY · 2026-07-07] AmbientBackground eliminado (blobs difuminados
+// que velaban el recuadro de Recetas con un halo/sombra) — recuadro limpio.
 
 const Recipes = () => {
     // [P1-HIST-CLOSE-1 · 2026-05-10] `restorePlan` ya NO se importa aquí.
@@ -605,10 +582,6 @@ const Recipes = () => {
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
-
-    // [P4-AMBIENT-HOIST] AmbientBackground se movió a module-scope (arriba de Recipes):
-    // definirlo en el render creaba identidad nueva por render → React remontaba las 3
-    // capas blur en cada tap de ingrediente. Sin props/closure → hoist seguro.
 
     // Protección de Ruta. La computación del chunk se movió arriba del
     // useEffect de clamp (P-RECIPES-CHUNK-WINDOW); la guard sigue funcionando
@@ -876,8 +849,9 @@ const Recipes = () => {
             <div style={{ maxWidth: '1080px', margin: '0 auto', paddingBottom: isMobile ? 0 : '4rem', overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
 
                 <div ref={contentRef} style={{ position: 'relative', zIndex: 1, paddingBottom: isMobile ? '0' : '2rem', overflow: 'hidden', maxWidth: '100%' }}>
-                    <AmbientBackground />
-
+                    {/* [P2-DESIGN-CONSISTENCY · 2026-07-07] AmbientBackground eliminado:
+                        los blobs difuminados creaban un halo/sombra alrededor y DEBAJO
+                        del recuadro de Recetas. Recuadro limpio sobre el fondo plano. */}
                     {(() => {
                         const planDays = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
                         // [P-RECIPES-CHUNK-WINDOW] Clamp al window del chunk.
