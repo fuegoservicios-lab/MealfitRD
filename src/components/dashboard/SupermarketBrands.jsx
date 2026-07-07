@@ -116,7 +116,7 @@ const stableSortedVariants = (variants, targetG, chosenId) => {
     ));
 };
 
-const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
+const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPending }) => {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -177,6 +177,10 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
     // por defecto en arroz blanco, debe verse seleccionado; así no se confunden".
     // Tocarlo lo FIJA como preferencia permanente (deja de moverse si el default
     // más barato cambia con los precios).
+    // [P2-BRANDS-DEFAULT-FROM-ACTIVE · 2026-07-07] La marca que la LISTA usa por ítem
+    // (`brand_product_id`). Se lee de la lista ACTIVA (la que imprime el PDF) para que
+    // el default marcado en el menú coincida con el PDF; la canónica semanal queda de
+    // fallback (ítems que un restock filtró de la activa). La activa OVERRIDE la semanal.
     const defaultIdByKey = useMemo(() => {
         const out = {};
         (shoppingList || []).forEach((item) => {
@@ -184,8 +188,13 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
             const pid = item?.brand_product_id;
             if (name && typeof pid === 'string' && pid) out[norm(name)] = pid;
         });
+        (activeList || []).forEach((item) => {
+            const name = itemDisplayName(item);
+            const pid = item?.brand_product_id;
+            if (name && typeof pid === 'string' && pid) out[norm(name)] = pid; // override
+        });
         return out;
-    }, [shoppingList]);
+    }, [shoppingList, activeList]);
 
     // [P2-BRANDS-RECONCILE-STALE · 2026-07-07] Reconcile autoritativo al cargar:
     // si el usuario tiene una preferencia server-side que la lista NO está usando
@@ -479,15 +488,19 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
                                     const targetG = sizeByKey[norm(name)] || null;
                                     const isStable = stableByKey[norm(name)] === true;
                                     const effGroups = foodGroups.map((g) => {
+                                        // [P2-BRANDS-DEFAULT-FROM-ACTIVE] siempre incluir la variante elegida
+                                        // O la default de la lista (aunque el filtro de tamaño la excluiría),
+                                        // para que el default marcado del PDF SIEMPRE se vea en el menú.
+                                        const keepId = prefs[norm(g.food_name)] || defaultIdByKey[norm(name)];
                                         if (isStable) {
                                             return {
                                                 ...g,
                                                 // [P2-BRAND-SIZE-FLOOR] piso ≥70% del envase de la lista.
-                                                shownVariants: stableSortedVariants(g.variants, targetG, prefs[norm(g.food_name)]).slice(0, MAX_STABLE_SHOWN),
+                                                shownVariants: stableSortedVariants(g.variants, targetG, keepId).slice(0, MAX_STABLE_SHOWN),
                                                 sizedApplied: false,
                                             };
                                         }
-                                        const sized = sizeFilteredVariants(g.variants, targetG, prefs[norm(g.food_name)]);
+                                        const sized = sizeFilteredVariants(g.variants, targetG, keepId);
                                         return {
                                             ...g,
                                             shownVariants: sized ? sized.slice(0, MAX_SIZED_SHOWN) : g.variants.slice(0, MAX_VARIANTS_SHOWN),
@@ -555,17 +568,19 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
                                                         </span>
                                                     </span>
                                                 ) : defaultVariant ? (
-                                                    // [P1-BRAND-DEFAULT-PRESELECTED] chip apagado (no verde):
-                                                    // es la marca que tu lista USA por default, no tu elección.
+                                                    // [P2-BRANDS-DEFAULT-FROM-ACTIVE · 2026-07-07] Chip MARCADO
+                                                    // (verde con check) = la marca que tu lista/PDF usa por default.
+                                                    // Borde punteado lo distingue de la elección manual (sólida,
+                                                    // permanente): este se re-elige por precio; tócalo para fijarlo.
                                                     <span
-                                                        title="Marca predeterminada de tu lista — tócala adentro para fijarla"
+                                                        title="Marca que tu lista usa ahora (la más económica) — tócala adentro para fijarla como tu preferida"
                                                         style={{
                                                             display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
                                                             fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap',
-                                                            color: 'var(--text-muted)', background: 'var(--bg-muted)',
-                                                            border: '1px solid var(--border)',
+                                                            color: '#059669', background: 'rgba(16,185,129,0.06)',
+                                                            border: '1px dashed rgba(16,185,129,0.5)',
                                                             padding: '0.1rem 0.45rem', borderRadius: '999px',
-                                                            maxWidth: '46%', overflow: 'hidden', textOverflow: 'ellipsis',
+                                                            maxWidth: '52%', overflow: 'hidden', textOverflow: 'ellipsis',
                                                         }}
                                                     >
                                                         <Check size={11} style={{ flexShrink: 0 }} aria-hidden="true" />
@@ -640,6 +655,13 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
                                                                             <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                                                                                 {v.brand || 'Genérico'}
                                                                             </span>
+                                                                            {/* [P2-BRANDS-DEFAULT-FROM-ACTIVE] etiqueta clara: manual (permanente) vs default de la lista. */}
+                                                                            {isChosen && (
+                                                                                <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#fff', background: '#10B981', padding: '0.05rem 0.32rem', borderRadius: '6px', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>TU MARCA</span>
+                                                                            )}
+                                                                            {isDefault && (
+                                                                                <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#059669', border: '1px dashed rgba(16,185,129,0.55)', padding: '0.05rem 0.32rem', borderRadius: '6px', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>DE TU LISTA</span>
+                                                                            )}
                                                                             <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                                                 {v.presentation || '—'}
                                                                             </span>
@@ -702,6 +724,7 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
 
 SupermarketBrands.propTypes = {
     shoppingList: PropTypes.array,
+    activeList: PropTypes.array,     // [P2-BRANDS-DEFAULT-FROM-ACTIVE] lista del PDF → default marcado
     onPrefApplied: PropTypes.func,  // [P2-BRANDS-APPLY-IMMEDIATE] re-costeo inmediato (debounced)
     onPrefPending: PropTypes.func,  // [P2-BRAND-APPLY-FEEDBACK] señal instantánea al elegir (toast loading)
 };

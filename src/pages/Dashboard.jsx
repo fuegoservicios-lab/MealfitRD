@@ -1980,6 +1980,18 @@ const DashboardInner = () => {
         return Array.isArray(planData?.aggregated_shopping_list) ? planData.aggregated_shopping_list : [];
     }, [planData]);
 
+    // [P2-BRANDS-DEFAULT-FROM-ACTIVE · 2026-07-07] La lista ACTIVA por duración (la
+    // que el PDF realmente imprime) → el panel usa su `brand_product_id` por ítem
+    // para MARCAR en el menú la marca default que la lista está usando (Wala/Quaker/
+    // etc.), no solo las elegidas a mano. El set de ítems sigue viniendo de la
+    // canónica semanal (brandsPanelList) para que el panel sobreviva a un restock;
+    // esta lista solo alimenta la detección del default (override per-ítem).
+    const brandsActiveList = useMemo(() => {
+        const duration = formData?.groceryDuration || 'weekly';
+        const active = getDeltaSourceList(planData, duration);
+        return Array.isArray(active) ? active : [];
+    }, [planData, formData?.groceryDuration]);
+
     // [P2-NEVERA-DELTA-NOTICE · 2026-06-24] Metadata del delta para el aviso IN-APP de la Nevera
     // Inteligente. computedHasPendingShoppingItems descarta `_itemsRemoved`; este useMemo lo conserva
     // del MISMO buildDeltaShoppingList. Antes el aviso "N ítems ya en tu Nevera / lista vacía" vivía
@@ -5439,6 +5451,9 @@ const DashboardInner = () => {
                                 // [P2-BRANDS-CANONICAL-SOURCE] canónica semanal — el panel de
                                 // marcas vive aunque ya hayas comprado todo el ciclo.
                                 shoppingList={brandsPanelList}
+                                // [P2-BRANDS-DEFAULT-FROM-ACTIVE] la lista activa (la del PDF) →
+                                // marcar el default real que la lista usa por ítem.
+                                activeList={brandsActiveList}
                                 // [P2-BRANDS-OPTIMISTIC · 2026-07-07] Update en TIEMPO REAL: al elegir
                                 // la marca parcheamos la lista mostrada al instante (marca + precio si el
                                 // envase coincide) + toast breve de éxito. Antes esto solo mostraba un
