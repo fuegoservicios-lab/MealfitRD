@@ -2133,6 +2133,19 @@ const DashboardInner = () => {
             // Obtener duración actual desde el formulario para cambiar la cantidad en el PDF sobre la marcha
             const duration = formData?.groceryDuration || 'weekly';
 
+            // [P2-BRANDS-PDF-WAIT · 2026-07-07] Espera a que cualquier recalc en vuelo
+            // termine y PERSISTA a la DB antes del fetch fresco del PDF. El PDF re-lee
+            // plan_data de la DB (P3-PDF-ALWAYS-SYNC); si el reconcile de marcas (o un
+            // pick reciente) aún no persistió, el PDF leería la lista vieja (marca
+            // default) — el bug "PDF muestra Wala aunque elegí Borges". Timeout
+            // defensivo (25s) para no colgar la descarga si un recalc quedó atascado.
+            try {
+                await Promise.race([
+                    withRecalcLock(async () => {}),
+                    new Promise((res) => setTimeout(res, 40000)),
+                ]);
+            } catch { /* best-effort: seguimos con lo que haya en DB */ }
+
             // [P2-NEW-14 · 2026-05-11] Pre-PDF drift detection del plan.
             // Espejo del patrón P2-NEW-4 (Pantry recalc): si chunk worker
             // recalculó `aggregated_shopping_list*` en background mientras
