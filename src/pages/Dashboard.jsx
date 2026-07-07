@@ -115,6 +115,75 @@ import { buildHealthProfilePayload } from '../config/secureFormStorage';
 // en Settings (otra ruta) → no hay caso de cambio en vivo sobre esta vista.
 import { isDarkActive } from '../utils/theme';
 
+// [P2-BRANDS-OPTIMISTIC · 2026-07-07] Update en TIEMPO REAL del brand elegido en
+// "Marcas del súper". El display de cada ítem es un solo string backend
+// (`display_qty` = "2 potes (16 Oz · Genérico c/u)") + el precio en
+// `estimated_cost_rd`. Antes la lista solo cambiaba cuando el recalc
+// (/recalculate-shopping-list, 15-40s + serializado) devolvía y hacía setPlanData
+// → el owner veía el toast girando y la lista en "Genérico" (se sentía roto).
+// Ahora parcheamos el ítem al instante (marca + precio si el envase coincide) y el
+// recalc reconcilia el costo exacto en segundo plano. Reversible: es puramente UI,
+// el recalc sigue siendo la fuente de verdad.
+const _brandNorm = (s) => (s || '')
+    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .trim().toLowerCase().replace(/\s+/g, ' ');
+
+// Reemplaza el token de marca (lo que va tras el último "·") preservando
+// el sufijo " c/u" y el ")" del label. "16 Oz · Genérico c/u)" → "16 Oz · Jif c/u)".
+const _swapBrandLabel = (s, newBrand) => {
+    if (typeof s !== 'string' || !s.includes('·')) return s;
+    const i = s.lastIndexOf('·');
+    const head = s.slice(0, i);
+    const m = s.slice(i + 1).match(/^\s*(.*?)(\s+c\/u\s*)?(\)\s*)?$/s);
+    if (!m) return s;
+    return `${head}· ${newBrand}${m[2] || ''}${m[3] || ''}`;
+};
+
+const _patchItemForBrand = (it, variant) => {
+    if (!it || typeof it !== 'object') return it;
+    const newBrand = (variant && variant.brand && String(variant.brand).trim()) || 'Genérico';
+    const out = { ...it };
+    if (typeof out.display_qty === 'string') out.display_qty = _swapBrandLabel(out.display_qty, newBrand);
+    if (typeof out.sku_size_label === 'string') out.sku_size_label = _swapBrandLabel(out.sku_size_label, newBrand);
+    if (variant && variant.id) out.brand_product_id = variant.id;
+    // Costo optimista SOLO si el envase elegido es ~del mismo tamaño (el conteo no
+    // cambia → costo = conteo × precio del envase). Si difiere, dejamos el costo y
+    // el recalc lo corrige (evita mostrar un número inventado).
+    const count = parseInt(String(out.display_qty || ''), 10);
+    const pg = Number(out.package_grams) || 0;
+    const sg = Number(variant && variant.size_g) || 0;
+    const price = Number(variant && variant.price_rd) || 0;
+    if (count > 0 && price > 0 && pg > 0 && sg > 0 && Math.abs(sg - pg) / pg <= 0.15) {
+        const cost = Math.round(count * price);
+        out.estimated_cost_rd = cost;
+        if (typeof out.estimated_cost === 'number') out.estimated_cost = cost;
+    }
+    return out;
+};
+
+// Parchea el ítem que matchea `foodKey` en TODAS las listas por duración del plan.
+const applyBrandToPlanOptimistic = (plan, foodKey, variant) => {
+    if (!plan || !foodKey || !variant) return plan;
+    const keys = [
+        'aggregated_shopping_list', 'aggregated_shopping_list_weekly',
+        'aggregated_shopping_list_biweekly', 'aggregated_shopping_list_monthly',
+    ];
+    let touched = false;
+    const next = { ...plan };
+    keys.forEach((k) => {
+        const list = plan[k];
+        if (!Array.isArray(list)) return;
+        let changed = false;
+        const nl = list.map((it) => {
+            const nm = _brandNorm(it && (it.name || it.display_name || it.item_name));
+            if (nm && nm === foodKey) { changed = true; return _patchItemForBrand(it, variant); }
+            return it;
+        });
+        if (changed) { next[k] = nl; touched = true; }
+    });
+    return touched ? next : plan;
+};
+
 // [P3-UPDATE-PLATOS-REQUIRES-PANTRY · 2026-05-17] Mínimo de alimentos en la
 // Nevera para desbloquear "Actualizar platos". Con menos ítems el LLM no
 // puede regenerar platos significativos (regeneración usa el inventory real
@@ -5317,22 +5386,26 @@ const DashboardInner = () => {
                                 // [P2-BRANDS-CANONICAL-SOURCE] canónica semanal — el panel de
                                 // marcas vive aunque ya hayas comprado todo el ciclo.
                                 shoppingList={brandsPanelList}
-                                // [P2-BRAND-APPLY-FEEDBACK · 2026-07-06] feedback INSTANTÁNEO al
-                                // elegir: el recalc tarda 15-40s (pipeline + cola tras el
-                                // auto-refresh) y sin señal visible el owner refrescaba la página
-                                // creyendo que no pasó nada (caso Quaker en avena). El toast
-                                // 'brand-apply' vive del pick al resultado (loading→success/error).
-                                onPrefPending={() => {
-                                    toast.loading('Aplicando tu marca a la lista…', { id: 'brand-apply', position: 'top-center' });
+                                // [P2-BRANDS-OPTIMISTIC · 2026-07-07] Update en TIEMPO REAL: al elegir
+                                // la marca parcheamos la lista mostrada al instante (marca + precio si el
+                                // envase coincide) + toast breve de éxito. Antes esto solo mostraba un
+                                // toast "Aplicando…" que quedaba girando 15-40s (recalc + cola) con la
+                                // lista aún en "Genérico" — se sentía roto. `variant` null = deselección.
+                                onPrefPending={(foodKey, variant) => {
+                                    if (variant) {
+                                        setPlanData((prev) => applyBrandToPlanOptimistic(prev, foodKey, variant));
+                                        toast.success('Marca aplicada a tu lista', { id: 'brand-apply', duration: 2200, position: 'top-center' });
+                                    } else {
+                                        toast.success('Marca quitada — actualizando tu lista…', { id: 'brand-apply', duration: 2200, position: 'top-center' });
+                                    }
                                 }}
-                                // [P2-BRANDS-APPLY-IMMEDIATE · 2026-07-02] la marca elegida re-costea el
-                                // plan al instante vía el endpoint canónico (mismo flujo que el cambio de
-                                // duración). El overlay P1-SUPERMARKET-COSTING lee las prefs al recalcular
-                                // → costo del PDF y total del panel dejan de ser números distintos.
+                                // [P2-BRANDS-APPLY-IMMEDIATE · 2026-07-02 · reconcile silencioso 2026-07-07]
+                                // El recalc canónico corre en SEGUNDO PLANO para reconciliar el costo exacto
+                                // (overlay P1-SUPERMARKET-COSTING) — el usuario ya vio el update optimista, así
+                                // que NO mostramos spinner ni error toast que lo tape. Si falla, el update
+                                // optimista se mantiene (marca visible) y la pref quedó guardada server-side.
                                 onPrefApplied={async () => {
                                     if (!userProfile?.id || !planData?.id) return;
-                                    // [P2-BRAND-APPLY-FEEDBACK] un intento + 1 retry (2s): un blip
-                                    // transitorio no puede dejar la lista desactualizada en silencio.
                                     const _applyOnce = async () => {
                                         const r = await fetchWithAuth(`${API_BASE}/api/plans/recalculate-shopping-list`, {
                                             method: 'POST',
@@ -5356,17 +5429,15 @@ const DashboardInner = () => {
                                                 result = await _applyOnce();
                                             }
                                             if (result?.success && result.plan_data) {
+                                                // Reconcilia con el costeo autoritativo (marca + costo exacto).
                                                 setPlanData(result.plan_data);
                                                 safeLocalStorageSet('mealfit_plan', JSON.stringify(result.plan_data));
-                                                toast.success('Lista actualizada con tu marca', { id: 'brand-apply', position: 'top-center' });
-                                            } else {
-                                                toast.error('No se pudo actualizar la lista ahora — tu marca quedó guardada y se aplicará al recargar.', { id: 'brand-apply', position: 'top-center' });
                                             }
+                                            // Fallo: dejamos el update optimista (marca visible); la pref
+                                            // quedó guardada y el próximo recalc/recarga aplica el costo exacto.
                                         });
                                     } catch (e) {
-                                        // Fail-open: la preferencia quedó guardada; el próximo recalc la aplica.
-                                        toast.error('No se pudo actualizar la lista ahora — tu marca quedó guardada y se aplicará al recargar.', { id: 'brand-apply', position: 'top-center' });
-                                        console.error('[P2-BRANDS-APPLY-IMMEDIATE] recalc falló:', e);
+                                        console.error('[P2-BRANDS-APPLY-IMMEDIATE] recalc de reconcile falló (optimista se mantiene):', e);
                                     }
                                 }}
                             />

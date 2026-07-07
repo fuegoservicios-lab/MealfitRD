@@ -229,7 +229,7 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
         setLoading(false);
     }, [matches, loading, names]);
 
-    const persistPref = useCallback(async (foodKey, productId) => {
+    const persistPref = useCallback(async (foodKey, productId, variant = null) => {
         setPrefs((prev) => {
             const next = { ...prev };
             if (productId) next[foodKey] = productId; else delete next[foodKey];
@@ -246,13 +246,14 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
                     body: JSON.stringify({ food_key: foodKey, product_id: productId }),
                 });
                 if (!res.ok) throw new Error(`Error ${res.status}`);
-                // [P2-BRAND-APPLY-FEEDBACK · 2026-07-06] Señal INMEDIATA al padre
-                // (toast "Aplicando tu marca…"): el recalc tarda 15-40s (pipeline +
-                // cola tras el auto-refresh) y sin feedback el owner refrescaba la
-                // página creyendo que no pasó nada (caso Quaker en avena — el 200
-                // llegó, pero el F5 mató el fetch antes).
+                // [P2-BRANDS-OPTIMISTIC · 2026-07-07] Señal INMEDIATA al padre con la
+                // variante elegida → el Dashboard parchea la lista en tiempo real
+                // (marca + precio) sin esperar el recalc (15-40s). Antes esto solo
+                // mostraba un toast "Aplicando…" que quedaba girando y el owner creía
+                // que no pasó nada. El recalc (onPrefApplied) reconcilia el costo exacto
+                // en segundo plano. `variant` = null en deselección → revierte por recalc.
                 if (typeof onPrefPending === 'function') {
-                    try { onPrefPending(); } catch { /* fail-open */ }
+                    try { onPrefPending(foodKey, variant); } catch { /* fail-open */ }
                 }
                 // [P2-BRANDS-APPLY-IMMEDIATE · 2026-07-02] preferencia persistida → re-costear el
                 // plan YA (antes el costo real solo cambiaba al regenerar/recalcular a mano y el
@@ -577,7 +578,7 @@ const SupermarketBrands = ({ shoppingList, onPrefApplied, onPrefPending }) => {
                                                                         <button
                                                                             key={v.id}
                                                                             type="button"
-                                                                            onClick={() => persistPref(foodKey, isChosen ? null : v.id)}
+                                                                            onClick={() => persistPref(foodKey, isChosen ? null : v.id, isChosen ? null : v)}
                                                                             aria-pressed={isChosen}
                                                                             title={isChosen
                                                                                 ? 'Quitar preferencia'
