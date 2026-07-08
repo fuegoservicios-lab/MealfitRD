@@ -1,0 +1,3 @@
+## 2024-06-25 - Single-pass RegExp for HTML escaping
+**Learning:** For hot-path text manipulation like HTML escaping (frequently called during PDF generation or rich text rendering), aggregating multiple static dictionary string replacements into a single pre-compiled `RegExp` object mapped to a replacement dictionary is faster than running sequential `.replace()` operations. Sequential replaces result in O(M*N) passes, whereas a single pass is O(N).
+**Action:** Use a single pre-compiled `RegExp` (e.g., `/[&<>"']/g`) and a lookup dictionary instead of chained `.replace()` calls for multiple target character replacements in hot paths.
