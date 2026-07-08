@@ -106,6 +106,7 @@ export function AccountIdentityButton({
   ariaLabel,
   ariaHasPopup,
   ariaExpanded,
+  ariaControls,
 }) {
   const initial = name?.[0]?.toUpperCase() ?? '?';
   const Chevron = chevron === 'up' ? ChevronUp : ChevronDown;
@@ -118,6 +119,7 @@ export function AccountIdentityButton({
       aria-label={ariaLabel}
       aria-haspopup={ariaHasPopup}
       aria-expanded={ariaExpanded}
+      aria-controls={ariaControls}
     >
       <span className={styles.avatar} aria-hidden="true">{avatar ?? initial}</span>
       <span className={styles.accountText}>
@@ -142,6 +144,7 @@ AccountIdentityButton.propTypes = {
   ariaLabel: PropTypes.string,
   ariaHasPopup: PropTypes.string,
   ariaExpanded: PropTypes.bool,
+  ariaControls: PropTypes.string,
 };
 
 export default function AccountMenu({
@@ -303,6 +306,7 @@ export default function AccountMenu({
           chevron="down"
           onClick={onAccount}
           ariaLabel="Cerrar menú de cuenta"
+          ariaControls="account-menu-popover"
         />
       </footer>
     </div>
