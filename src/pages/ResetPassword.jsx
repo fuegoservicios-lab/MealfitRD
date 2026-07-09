@@ -135,7 +135,8 @@ const ResetPassword = () => {
 
                 {/* [P2-AUDIT-6 · 2026-05-15] role + aria-live para screen readers. */}
                 {error && (
-                    <div className={styles.errorBox} role="alert" aria-live="assertive">
+                    // [P2-13 · 2026-07-09] id para ligar los campos vía aria-describedby.
+                    <div id="reset-error" className={styles.errorBox} role="alert" aria-live="assertive">
                         <AlertCircle size={16} aria-hidden="true" />
                         {error}
                     </div>
@@ -169,6 +170,8 @@ const ResetPassword = () => {
                                     placeholder="••••••••"
                                     className={styles.input}
                                     autoComplete="new-password"
+                                    aria-invalid={!!error}
+                                    aria-describedby={error ? 'reset-error' : undefined}
                                 />
                                 <button
                                     type="button"
@@ -196,6 +199,8 @@ const ResetPassword = () => {
                                     placeholder="••••••••"
                                     className={styles.input}
                                     autoComplete="new-password"
+                                    aria-invalid={!!error}
+                                    aria-describedby={error ? 'reset-error' : undefined}
                                 />
                             </div>
                         </div>

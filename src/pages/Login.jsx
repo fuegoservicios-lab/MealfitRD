@@ -247,7 +247,9 @@ const Login = () => {
                     </p>
 
                     {error && (
-                        <div className="mf-error" role="alert" aria-live="assertive">
+                        // [P2-13 · 2026-07-09] id para que el input activo lo referencie
+                        // vía aria-describedby → el lector de pantalla anuncia QUÉ campo falló.
+                        <div id="login-error" className="mf-error" role="alert" aria-live="assertive">
                             <AlertCircle size={16} aria-hidden="true" />
                             {error}
                         </div>
@@ -271,6 +273,9 @@ const Login = () => {
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="Ingresa tu correo electrónico"
                                     aria-label="Correo electrónico"
+                                    // [P2-13] liga el error al campo para lectores de pantalla.
+                                    aria-invalid={!!error}
+                                    aria-describedby={error ? 'login-error' : undefined}
                                     autoComplete="email"
                                     autoFocus
                                 />
@@ -314,6 +319,9 @@ const Login = () => {
                                 onChange={(e) => setCode(e.target.value.replace(/\s/g, ''))}
                                 placeholder="123456"
                                 aria-label="Código de verificación"
+                                // [P2-13] liga el error al campo para lectores de pantalla.
+                                aria-invalid={!!error}
+                                aria-describedby={error ? 'login-error' : undefined}
                                 maxLength={8}
                             />
 
