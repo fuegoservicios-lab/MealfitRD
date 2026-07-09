@@ -7,6 +7,8 @@ import React, { useMemo, useState } from "react";
 import { CalendarDays, Flame, Search, Pencil, Trash2, Clock, X, Check } from "lucide-react";
 // [P1-CLINICAL-MEAL-COUNT · 2026-06-27] Emoji por SLOT (no por índice) — planes de 3/5/6 comidas.
 import { mealEmojiFor } from "../../utils/mealEmoji";
+// [P1-2 · 2026-07-09] SSOT del coalescing days||meals||perfectDay (reemplaza la copia inline).
+import { firstDayMeals } from "../../utils/normalizePlanDays";
 
 /* --------------------------------------------------------- helpers */
 const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
@@ -21,7 +23,7 @@ const parseGrams = (v) => { const n = parseInt(String(v ?? ""), 10); return Numb
 function normalizePlan(raw, activePlanId) {
   const rawMeals = Array.isArray(raw.preview_meals)
     ? raw.preview_meals
-    : (raw.plan_data?.days?.[0]?.meals || raw.plan_data?.meals || raw.plan_data?.perfectDay || []);
+    : firstDayMeals(raw.plan_data);
   const meals = (Array.isArray(rawMeals) ? rawMeals : [])
     .filter((m) => m && m.name && !m.isSkipped)
     .map((m) => ({ name: m.name, emoji: mealEmojiFor(m.meal) }));

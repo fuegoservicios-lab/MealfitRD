@@ -171,6 +171,30 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     setupFiles: './src/setupTests.js',
     css: true,
+    // [P1-4 · COVERAGE-REPORT-ONLY · 2026-07-09] @vitest/coverage-v8 en modo
+    // REPORT-ONLY: thresholds en 0 → nunca falla CI (informa, no bloquea).
+    // Publica lcov (artefacto CI) + text-summary (consola). Excluye targets no-
+    // ejecutables (tests, config, tipos ambient, scaffolds) para que el % refleje
+    // codigo de producto, no ruido. Correr con `vitest run --coverage`.
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'lcov'],
+      reportsDirectory: './coverage',
+      all: false,
+      thresholds: { lines: 0, functions: 0, branches: 0, statements: 0 },
+      exclude: [
+        'node_modules/**',
+        'dist/**',
+        'e2e/**',
+        'coverage/**',
+        'src/**/*.test.{js,jsx}',
+        'src/**/__tests__/**',
+        'src/setupTests.js',
+        'src/types/**',
+        '**/*.config.{js,mjs,ts}',
+        'scripts/**',
+      ],
+    },
     // [P1-VITEST-EXCLUDE-E2E · 2026-06-25] Los specs de `e2e/` son Playwright
     // (necesitan navegador + servidor levantado) — el glob default de vitest
     // (`**/*.spec.js`) los recogía y fallaban en el run unitario. Se ejecutan

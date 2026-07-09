@@ -1,0 +1,22 @@
+{
+  "//": "[P1-1 · TS Fase 0 · 2026-07-09] Config-only. allowJs+checkJs:false => tsc NO enforza tipos sobre .js/.jsx todavia (cero riesgo runtime, esbuild ignora tipos). Da inferencia en el editor sobre src/types + base para la migracion .ts incremental (P3-3) y api.ts (P2-6). `npm run typecheck` es ADVISORY (no bloquea CI). Rename de nada.",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "e2e", "playwright.config.*"]
+}

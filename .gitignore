@@ -56,3 +56,6 @@ ds-bundle/
 .design-sync/.cache/
 .design-sync/learnings/
 .design-sync/node_modules
+
+# [P1-4] Coverage report output (report-only, no se commitea)
+coverage/

@@ -55,6 +55,67 @@ const _getTokenWithTimeout = async () => {
     }
 };
 
+// [P1-5 · REQUEST-TIMEOUT · 2026-07-09] Timeout a nivel de REQUEST (distinto del
+// timeout del lookup de token de arriba). Sin esto, en una conexión colgada-
+// pero-abierta (típico en móvil es-DO), los callers sin blindar (Recipes
+// expand/consume, useRegeneratePlan, SupermarketPage) quedaban en spinner
+// INFINITO porque `fetch` nunca resuelve ni rechaza. Ahora un AbortController
+// con timeout aborta el request y el caller recibe un rechazo con
+// `err.code === 'request_timeout'` → apaga el spinner y ofrece reintentar.
+//
+// Knob `VITE_FETCH_TIMEOUT_MS` (default 60000; 0 desactiva globalmente sin
+// redeploy — kill switch si abortara requests legítimos lentos). Default
+// generoso (60s) a propósito: el modo de fallo real es "para siempre" (una
+// conexión colgada nunca completa), así que 60s vs 30s solo cambia cuánto tarda
+// en aparecer el retry; un default corto arriesga abortar un LLM legítimamente
+// lento (recipe expand ~30-45s). 60s minimiza falsos positivos.
+const _resolveDefaultRequestTimeout = () => {
+    const raw = import.meta.env.VITE_FETCH_TIMEOUT_MS;
+    if (raw === undefined || raw === null || raw === '') return 60000;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : 60000;
+};
+export const DEFAULT_REQUEST_TIMEOUT_MS = _resolveDefaultRequestTimeout();
+
+// [P1-5] Endpoints EXENTOS del timeout default: corren el pipeline de generación
+// completo (minutos) con su propio `PIPELINE_TIMEOUT_MS` + AbortController en
+// `Plan.jsx::generateAIPlanStream`. Abortarlos con el default rompería la
+// generación de planes. La exención vive AQUÍ (no en Plan.jsx) para contener el
+// cambio en un solo archivo. Match por substring sobre el path relativo.
+export const REQUEST_TIMEOUT_EXEMPT_PATTERNS = ['/plans/analyze'];
+
+// [P1-5] Resolución PURA del timeout de un request (ms; 0 = sin timeout).
+// Precedencia: override explícito del caller > exención por URL > default.
+export const resolveRequestTimeout = (url, options = {}) => {
+    if (options && options.timeout !== undefined) {
+        const n = Number(options.timeout);
+        return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+    if (typeof url === 'string' && REQUEST_TIMEOUT_EXEMPT_PATTERNS.some((p) => url.includes(p))) {
+        return 0;
+    }
+    return DEFAULT_REQUEST_TIMEOUT_MS;
+};
+
+// [P1-5] Compone el signal del caller con el del timeout. Usa `AbortSignal.any`
+// donde exista (Node 22, browsers modernos); fallback manual para navegadores
+// viejos del mercado es-DO.
+const _composeAbortSignals = (a, b) => {
+    if (!a) return b;
+    if (!b) return a;
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function') {
+        return AbortSignal.any([a, b]);
+    }
+    const ctrl = new AbortController();
+    const forward = (src) => {
+        if (src.aborted) { ctrl.abort(src.reason); return; }
+        src.addEventListener('abort', () => ctrl.abort(src.reason), { once: true });
+    };
+    forward(a);
+    forward(b);
+    return ctrl.signal;
+};
+
 // Custom fetch wrapper that includes Neon Auth JWT
 export const fetchWithAuth = async (url, options = {}) => {
     const token = await _getTokenWithTimeout();
@@ -77,10 +138,42 @@ export const fetchWithAuth = async (url, options = {}) => {
     // Envolvemos cualquier ruta relativa (ej. "/api/analyze") con API_BASE
     const finalUrl = url.startsWith('http') ? url : api(url);
 
-    return fetch(finalUrl, {
-        ...options,
-        headers
-    });
+    // [P1-5] Timeout a nivel de request (ver bloque arriba). `rest` = options sin
+    // `timeout`/`signal` (no son init válidos de fetch salvo signal, re-agregado).
+    const callerSignal = options.signal;
+    const timeoutMs = resolveRequestTimeout(url, options);
+    const rest = { ...options };
+    delete rest.timeout;
+    delete rest.signal;
+
+    if (!timeoutMs) {
+        // Exento / desactivado → comportamiento legacy (respeta el signal del caller).
+        return fetch(finalUrl, { ...rest, headers, signal: callerSignal });
+    }
+
+    const timeoutController = new AbortController();
+    let timedOut = false;
+    const timer = setTimeout(() => {
+        timedOut = true;
+        timeoutController.abort();
+    }, timeoutMs);
+    const signal = _composeAbortSignals(callerSignal, timeoutController.signal);
+
+    try {
+        return await fetch(finalUrl, { ...rest, headers, signal });
+    } catch (err) {
+        // Solo re-etiquetamos como request_timeout si el abort fue NUESTRO timer
+        // (no un abort legítimo del caller, que debe propagarse tal cual).
+        if (timedOut && !(callerSignal && callerSignal.aborted)) {
+            const e = new Error(`Request timeout tras ${timeoutMs}ms: ${finalUrl}`);
+            e.code = 'request_timeout';
+            e.url = finalUrl;
+            throw e;
+        }
+        throw err;
+    } finally {
+        clearTimeout(timer);
+    }
 };
 
 // [P1-DASHBOARD-POLLING-ABORT · 2026-05-23] options se forwardea a fetchWithAuth
