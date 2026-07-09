@@ -11,6 +11,10 @@ import RouteTitle from './components/layout/RouteTitle';
 // no romper los CTA "crear cuenta" repartidos por la app (Upgrade/Pricing/etc.).
 import { AssessmentProvider } from './context/AssessmentContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
+// [P1-7 · 2026-07-09] Boundary SCOPED por ruta: contiene un crash de render a la
+// sección sin colapsar el shell (tab bar + keep-alive del chat). Complementa el
+// GlobalErrorBoundary root (que recarga toda la app).
+import { RouteErrorBoundary } from './components/RouteErrorBoundary';
 import IOSInstallPrompt from './components/IOSInstallPrompt';
 import useThemeColor from './components/common/useThemeColor';
 // [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Boot hook que detecta planes pendientes
@@ -152,11 +156,16 @@ const PageLoader = () => <div className="min-h-screen bg-slate-50/50" />;
 // preferible al fade que sumaba delay perceptible.
 const AnimatedLayout = () => {
   useThemeColor();
+  const location = useLocation();
   return (
     <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Suspense fallback={<PageLoader />}>
-        <Outlet />
-      </Suspense>
+      {/* [P1-7] Boundary por ruta FUERA del Suspense: captura tanto crashes de
+          render de la página como fallos de carga del chunk lazy (→ reload). */}
+      <RouteErrorBoundary routeName={location.pathname}>
+        <Suspense fallback={<PageLoader />}>
+          <Outlet />
+        </Suspense>
+      </RouteErrorBoundary>
     </div>
   );
 };
@@ -222,18 +231,23 @@ const DashboardAnimatedLayout = () => {
           NO se desmonta al navegar a otras dashboard routes. */}
       {hasVisitedAgent && (
         <div style={{ display: isAgent ? 'block' : 'none', height: isAgent ? 'auto' : 0, overflow: isAgent ? 'visible' : 'hidden' }}>
-          <Suspense fallback={isAgent ? <PageLoader /> : null}>
-            <AgentPage />
-          </Suspense>
+          {/* [P1-7] Un crash del chat NO debe tumbar el dashboard shell. */}
+          <RouteErrorBoundary routeName="dashboard/agent">
+            <Suspense fallback={isAgent ? <PageLoader /> : null}>
+              <AgentPage />
+            </Suspense>
+          </RouteErrorBoundary>
         </div>
       )}
       {/* Outlet renderiza Dashboard/Pantry/Recipes/Settings/History cuando
           NO estamos en /dashboard/agent. La Route de /dashboard/agent es un
           trampolin vacío (<></>) porque AgentPage ya está residente arriba. */}
       {!isAgent && (
-        <Suspense fallback={<PageLoader />}>
-          <Outlet />
-        </Suspense>
+        <RouteErrorBoundary routeName={location.pathname}>
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
+        </RouteErrorBoundary>
       )}
     </DashboardLayout>
   );
