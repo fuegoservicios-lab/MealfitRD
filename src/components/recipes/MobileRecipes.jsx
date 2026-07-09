@@ -142,11 +142,21 @@ export function MobileRecipes({
         {ingredients.length > 0 && (
           <>
             <h3 className={styles.secHead} style={{ '--accent': 'var(--secondary)' }}>Ingredientes</h3>
+            {/* [P2-RECIPE-HOUSEHOLD-NOTE · 2026-07-01] receta por persona; la lista de compras ya multiplica. */}
+            <p style={{ fontSize: '0.75rem', opacity: 0.65, margin: '0 0 8px' }}>
+              Porciones para 1 persona — si cocinas para tu hogar, multiplica cada cantidad
+              (tu lista de compras ya lo tiene en cuenta).
+            </p>
             <div className={styles.ing}>
               {ingredients.map((s, i) => {
                 const done = !!checkedIngredients[i];
                 return (
-                  <div key={i} className={`${styles.ingItem} ${done ? styles.done : ''}`} onClick={() => onToggleIngredient(i)}>
+                  // [P1-6 · 2026-07-09] a11y: role=checkbox + aria-checked + teclado
+                  // (antes <div onClick> sin acceso por teclado ni estado para lectores).
+                  <div key={i} className={`${styles.ingItem} ${done ? styles.done : ''}`}
+                       role="checkbox" aria-checked={done} tabIndex={0}
+                       onClick={() => onToggleIngredient(i)}
+                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleIngredient(i); } }}>
                     <span className={styles.check}><Svg d={ICONS.check} size={12} /></span>
                     <span className={styles.ingText}>{displayAjiMorron(s)}</span>
                   </div>
