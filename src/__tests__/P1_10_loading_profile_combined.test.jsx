@@ -110,7 +110,12 @@ describe('P1-10 — Defensa contra reintroducción del bug', () => {
         // Tras el fix, el shorthand ya NO debe aparecer en el value del provider.
         // Buscamos el bloque del Provider value y verificamos que NO contiene
         // shorthand `loadingSensitive,` aislado.
-        const providerMatch = codeOnly.match(/<AssessmentContext\.Provider\s+value=\{\{([\s\S]*?)\}\}>/);
+        // [P1-8 · 2026-07-09] El value del Provider se movió a un useMemo
+        // (`const contextValue = useMemo(() => ({ ... }), [deps])`) para cortar el
+        // re-render storm. El objeto del value ahora vive ahí, no inline en el JSX
+        // `value={{...}}`. Anclamos en el useMemo nombrado (contextValue) — específico
+        // para no matchear otros useMemo del provider.
+        const providerMatch = codeOnly.match(/const contextValue = useMemo\(\s*\(\)\s*=>\s*\(\{([\s\S]*?)\}\)\s*,\s*\[/);
         expect(providerMatch).toBeTruthy();
         const providerBlock = providerMatch[1];
         // Buscamos el patrón roto: `loadingSensitive,` (con coma, no como key:value).

@@ -1,4 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+// [P1-8 · 2026-07-09] Estabiliza las funciones plain expuestas (identidad constante,
+// siempre closure fresco) para poder memoizar el value sin re-render storm.
+import { useStableCallback } from '../hooks/useStableCallback';
 import PropTypes from 'prop-types';
 import { authClient } from '../authClient';
 // [P1-FIRST-PARTY-SESSION · 2026-06-16] Cookie de sesión first-party que NUESTRO
@@ -3239,8 +3242,27 @@ export const AssessmentProvider = ({ children }) => {
         ? Math.max(0, GUEST_PLAN_CREDITS - guestCreditsUsed)
         : (typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : '∞');
 
-    return (
-        <AssessmentContext.Provider value={{
+    // [P1-8 · 2026-07-09] Estabilizar las 13 funciones plain expuestas (identidad
+    // constante, siempre ejecutan el closure más reciente vía useStableCallback) para
+    // que el useMemo del value NO se invalide cada render → los 26 consumidores de
+    // useAssessment dejan de re-renderizar ante cada setState del provider (p.ej. una
+    // tecla del wizard). Las otras 9 funciones ya son useCallback; los 3 setters y
+    // PLAN_LIMIT son estables. exhaustive-deps de ESLint verifica el dep-array de abajo.
+    const _updateUserProfile = useStableCallback(updateUserProfile);
+    const _nextStep = useStableCallback(nextStep);
+    const _prevStep = useStableCallback(prevStep);
+    const _updateData = useStableCallback(updateData);
+    const _saveGeneratedPlan = useStableCallback(saveGeneratedPlan);
+    const _toggleMealLike = useStableCallback(toggleMealLike);
+    const _regenerateSingleMeal = useStableCallback(regenerateSingleMeal);
+    const _regenerateDay = useStableCallback(regenerateDay);
+    const _resetApp = useStableCallback(resetApp);
+    const _resetForNewAssessment = useStableCallback(resetForNewAssessment);
+    const _upgradeUserPlan = useStableCallback(upgradeUserPlan);
+    const _restorePlan = useStableCallback(restorePlan);
+    const _restorePlanFromHistory = useStableCallback(restorePlanFromHistory);
+
+    const contextValue = useMemo(() => ({
             session,
             loadingAuth,
             loadingData,
@@ -3268,26 +3290,26 @@ export const AssessmentProvider = ({ children }) => {
             // llegaron al state.
             loadingSensitive: loadingSensitive || loadingProfile,
             userProfile,
-            updateUserProfile,
+            updateUserProfile: _updateUserProfile,
             currentStep,
             setCurrentStep,
             maxReachedStep,
             setMaxReachedStep,
             direction,
-            nextStep,
-            prevStep,
+            nextStep: _nextStep,
+            prevStep: _prevStep,
             formData,
-            updateData,
+            updateData: _updateData,
             planData,
             setPlanData,
-            saveGeneratedPlan,
+            saveGeneratedPlan: _saveGeneratedPlan,
             likedMeals,
-            toggleMealLike,
+            toggleMealLike: _toggleMealLike,
             dislikedMeals,
-            regenerateSingleMeal,
-            regenerateDay,
-            resetApp,
-            resetForNewAssessment,
+            regenerateSingleMeal: _regenerateSingleMeal,
+            regenerateDay: _regenerateDay,
+            resetApp: _resetApp,
+            resetForNewAssessment: _resetForNewAssessment,
             planCount: effectivePlanCount,
             PLAN_LIMIT,
             userPlanLimit: effectivePlanLimit,
@@ -3302,17 +3324,30 @@ export const AssessmentProvider = ({ children }) => {
             activateGuestMode,
             consumeGuestCredit,
             exitGuestSession,
-            upgradeUserPlan,
-            restorePlan,
+            upgradeUserPlan: _upgradeUserPlan,
+            restorePlan: _restorePlan,
             // [P0-HIST-1 · 2026-05-09] Variante atómica para Historial.
             // Caller debe pasar el row completo (con `id`) para que el
             // endpoint pueda autorizar y resolver source/target.
-            restorePlanFromHistory,
+            restorePlanFromHistory: _restorePlanFromHistory,
             refreshProfileAndPlan,
             restoreSessionData,
             setRecalcLock,
-            withRecalcLock
-        }}>
+            withRecalcLock,
+    }), [
+        session, loadingAuth, loadingData, loadingProfile, planSyncFailed, retryPlanSync,
+        loadingSensitive, userProfile, _updateUserProfile, currentStep, setCurrentStep,
+        maxReachedStep, setMaxReachedStep, direction, _nextStep, _prevStep, formData,
+        _updateData, planData, setPlanData, _saveGeneratedPlan, likedMeals, _toggleMealLike,
+        dislikedMeals, _regenerateSingleMeal, _regenerateDay, _resetApp, _resetForNewAssessment,
+        effectivePlanCount, effectivePlanLimit, checkPlanLimit, isPremium, effectiveRemaining,
+        isGuest, activateGuestMode, consumeGuestCredit, exitGuestSession, _upgradeUserPlan,
+        _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, restoreSessionData,
+        setRecalcLock, withRecalcLock,
+    ]);
+
+    return (
+        <AssessmentContext.Provider value={contextValue}>
             {children}
         </AssessmentContext.Provider>
     );
