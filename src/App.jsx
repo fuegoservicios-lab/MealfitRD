@@ -15,6 +15,10 @@ import ProtectedRoute from './components/layout/ProtectedRoute';
 // sección sin colapsar el shell (tab bar + keep-alive del chat). Complementa el
 // GlobalErrorBoundary root (que recarga toda la app).
 import { RouteErrorBoundary } from './components/RouteErrorBoundary';
+// [P1-3 · 2026-07-09] TanStack Query provider (foundation). Habilita el estado de
+// servidor keyed por-usuario + clear() en logout (fix estructural fuga PII).
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './queryClient';
 import IOSInstallPrompt from './components/IOSInstallPrompt';
 import useThemeColor from './components/common/useThemeColor';
 // [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Boot hook que detecta planes pendientes
@@ -287,6 +291,7 @@ function App() {
   }, []);
 
   return (
+    <QueryClientProvider client={queryClient}>
     <AssessmentProvider>
       <Router>
         <ScrollRestoration />
@@ -444,6 +449,7 @@ function App() {
         </Routes>
       </Router>
     </AssessmentProvider>
+    </QueryClientProvider>
   );
 }
 

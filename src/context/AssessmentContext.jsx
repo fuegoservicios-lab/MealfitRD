@@ -94,6 +94,9 @@ const getAlternativeMeal = (mealType, currentMealName, targetCalories, userDietT
 import { toast } from 'sonner';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { fetchWithAuth, restorePlanFromHistory as restorePlanFromHistoryApi } from '../config/api';
+// [P1-3 · 2026-07-09] clear() del estado de servidor de TanStack Query en el
+// teardown SSOT — fix estructural de la clase de fuga PII cross-user.
+import { clearUserQueryCache } from '../queryClient';
 // [P1-XTAB-CACHE-LEAK · 2026-05-30] Invalidadores de caches con KEY GLOBAL
 // (sin user_id) — se limpian en logout / user-switch para evitar leak
 // cross-user en dispositivo compartido (ver _clearUserScopedCaches).
@@ -148,6 +151,11 @@ const _hydrateFieldQualifies = (k, cur, v) => {
 };
 
 const _clearUserScopedCaches = () => {
+    // [P1-3 · 2026-07-09] Fix ESTRUCTURAL de la clase de fuga PII cross-user: un
+    // solo clear() evicta TODO el estado de servidor de TanStack Query (queries
+    // keyed [recurso, userId]). Reemplazará estructuralmente los purgados a mano
+    // de abajo a medida que los surfaces migren a useQuery (P2-1).
+    try { clearUserQueryCache(); } catch { /* noop */ }
     try { invalidateInventoryCache(); } catch { /* noop */ }
     try { invalidateHistoryListCache(); } catch { /* noop */ }
     // [P3-HIST-MODAL-CACHE-XUSER · 2026-05-30] Además del cache del LISTADO,
@@ -1522,7 +1530,15 @@ export const AssessmentProvider = ({ children }) => {
                 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] safeLocalStorageRemove
                 // (iOS Private Mode lanza SecurityError en removeItem y corta la cadena).
                 const _guestActive = isGuestModeActive();
-                const _guestRefresh = _guestActive && isGuestTabAlive();
+                // [P1-GUEST-PLAN-RECOVERY · 2026-07-09] Si el guest cerró la pestaña MID-GENERACIÓN (o el
+                // plan terminó con la pestaña cerrada), el flag `mealfit_plan_in_progress` (lo pone Plan.jsx
+                // al arrancar el SSE; persiste en localStorage hasta ack/complete) sigue presente. Lo
+                // tratamos como refresh → PRESERVAR el modo guest para que `PendingPipelineRecovery` lo lleve
+                // a la pantalla de carga / dashboard con su plan recuperado (deep-search). Sin esto, "tab no
+                // viva" limpiaba la identidad guest → `ProtectedRoute` (!session && !isGuest) → /login.
+                let _guestHasPendingPlan = false;
+                try { _guestHasPendingPlan = !!localStorage.getItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                const _guestRefresh = _guestActive && (isGuestTabAlive() || _guestHasPendingPlan);
                 if (_guestActive && !_guestRefresh) {
                     // Sesión de tab muerta (pestaña cerrada y reabierta = sesión nueva)
                     // → limpiar la identidad efímera del invitado (flag + session_id +
@@ -3228,6 +3244,11 @@ export const AssessmentProvider = ({ children }) => {
             session,
             loadingAuth,
             loadingData,
+            // [P1-RECOVERY-FORM-BOUNCE-FIX · 2026-07-09] Expuesto para que ProtectedRoute NO decida el
+            // rebote a /assessment antes de que el perfil cargue (autenticado). Bug móvil: al reabrir tras
+            // completar un plan, el recovery navegaba a /dashboard pero el perfil/plan aún no había cargado
+            // → `hasCompletedAssessment` false → rebote al FORMULARIO (el user tuvo que reiniciar la app).
+            loadingProfile,
             // [P1-LOGIN-PLAN-SYNC-RETRY · 2026-07-03] fallo de sync del plan ≠ sin plan.
             planSyncFailed,
             retryPlanSync,
