@@ -84,9 +84,13 @@ export const DEFAULT_REQUEST_TIMEOUT_MS = _resolveDefaultRequestTimeout();
 // cambio en un solo archivo. Match por substring sobre el path relativo.
 export const REQUEST_TIMEOUT_EXEMPT_PATTERNS = ['/plans/analyze'];
 
+// [P2-6 · 2026-07-09] Options aceptado por fetchWithAuth: el RequestInit estándar
+// de fetch + `timeout` opcional (knob per-call de P1-5).
+export type ApiRequestOptions = RequestInit & { timeout?: number };
+
 // [P1-5] Resolución PURA del timeout de un request (ms; 0 = sin timeout).
 // Precedencia: override explícito del caller > exención por URL > default.
-export const resolveRequestTimeout = (url, options = {}) => {
+export const resolveRequestTimeout = (url: string, options: { timeout?: number } = {}) => {
     if (options && options.timeout !== undefined) {
         const n = Number(options.timeout);
         return Number.isFinite(n) && n > 0 ? n : 0;
@@ -117,7 +121,7 @@ const _composeAbortSignals = (a, b) => {
 };
 
 // Custom fetch wrapper that includes Neon Auth JWT
-export const fetchWithAuth = async (url, options = {}) => {
+export const fetchWithAuth = async (url: string, options: ApiRequestOptions = {}) => {
     const token = await _getTokenWithTimeout();
 
     const headers = new Headers(options.headers || {});
@@ -165,7 +169,7 @@ export const fetchWithAuth = async (url, options = {}) => {
         // Solo re-etiquetamos como request_timeout si el abort fue NUESTRO timer
         // (no un abort legítimo del caller, que debe propagarse tal cual).
         if (timedOut && !(callerSignal && callerSignal.aborted)) {
-            const e = new Error(`Request timeout tras ${timeoutMs}ms: ${finalUrl}`);
+            const e = new Error(`Request timeout tras ${timeoutMs}ms: ${finalUrl}`) as Error & { code?: string; url?: string };
             e.code = 'request_timeout';
             e.url = finalUrl;
             throw e;

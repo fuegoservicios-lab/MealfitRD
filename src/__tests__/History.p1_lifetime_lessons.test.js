@@ -41,7 +41,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const _HISTORY_PATH = join(__dirname, '..', 'pages', 'History.jsx');
 const _CSS_PATH = join(__dirname, '..', 'pages', 'History.module.css');
-const _API_PATH = join(__dirname, '..', 'config', 'api.js');
+const _API_PATH = join(__dirname, '..', 'config', 'api.ts');
 const _CACHES_PATH = join(__dirname, '..', 'utils', 'historyCaches.js');
 
 const src = readFileSync(_HISTORY_PATH, 'utf8');
