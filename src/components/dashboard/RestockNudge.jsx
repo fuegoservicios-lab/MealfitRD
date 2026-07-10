@@ -192,6 +192,27 @@ export default function RestockNudge({
                     background: #059669;
                     color: rgba(255, 255, 255, 0.95);
                 }
+                /* [P3-RESTOCK-PROMPT-CTA-DARK · 2026-07-10] Mismo ajuste que
+                   .restock-nudge-cta arriba, aplicado al botón del modal (#2), que
+                   seguía hardcodeado a emerald-500 y se veía brilloso en modo oscuro. */
+                .restock-nudge-prompt-cta {
+                    background: #10B981;
+                    color: #fff;
+                    border: none;
+                    padding: 0.8rem 1rem;
+                    border-radius: 0.85rem;
+                    font-weight: 700;
+                    font-size: 0.92rem;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.45rem;
+                }
+                html[data-theme="dark"] .restock-nudge-prompt-cta {
+                    background: #059669;
+                    color: rgba(255, 255, 255, 0.95);
+                }
                 .restock-nudge-x {
                     background: transparent;
                     border: none;
@@ -335,20 +356,7 @@ export default function RestockNudge({
                                 <button
                                     type="button"
                                     onClick={confirm}
-                                    style={{
-                                        background: '#10B981',
-                                        color: '#fff',
-                                        border: 'none',
-                                        padding: '0.8rem 1rem',
-                                        borderRadius: '0.85rem',
-                                        fontWeight: 700,
-                                        fontSize: '0.92rem',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '0.45rem',
-                                    }}
+                                    className="restock-nudge-prompt-cta"
                                 >
                                     <Check size={17} strokeWidth={2.4} />
                                     Sí, ya compré — llenar mi Nevera
