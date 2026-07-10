@@ -104,6 +104,9 @@ import { clearUserQueryCache } from '../queryClient';
 // (sin user_id) — se limpian en logout / user-switch para evitar leak
 // cross-user en dispositivo compartido (ver _clearUserScopedCaches).
 import { invalidateInventoryCache } from '../utils/pantryCache';
+// [P1-CREDITS-LIVE-REFRESH · 2026-07-10] tras consumir crédito (regen-day / swap) el contador
+// se refresca en vivo (invalidate + re-fetch) — antes solo se actualizaba al refrescar la web.
+import { invalidatePlanCountCache } from '../utils/quotaCache';
 import { invalidateHistoryListCache, clearAllModalCaches } from '../utils/historyCaches';
 // [P2-15 · 2026-07-09] Store single-source de la Nevera Virtual: además de
 // borrar la key de localStorage hay que vaciar la copia in-memory del store
@@ -2188,6 +2191,11 @@ export const AssessmentProvider = ({ children }) => {
                 planId,
                 dayIndex,
                 startedAt: Date.now(),
+                // [P2-REGEN-RESUME-NO-CLOCKS · 2026-07-10] baseline server-vs-server: la completion
+                // compara _plan_modified_at contra ESTE valor (¡no contra el reloj del cliente! —
+                // con drift de minutos, un timestamp viejo "superaba" startedAt y el resume
+                // declaraba éxito instantáneo con el plan sin cambiar, visto en vivo).
+                baseModifiedAt: planData?._plan_modified_at || null,
                 names: (planData?.days?.[dayIndex]?.meals || []).map((m) => (m && m.name) || ''),
             });
         } catch (_) { /* no-op */ }
@@ -2329,6 +2337,13 @@ export const AssessmentProvider = ({ children }) => {
                     duration: 6000,
                 });
             }
+            // [P1-CREDITS-LIVE-REFRESH · 2026-07-10] el regen exitoso cobró 1 crédito server-side
+            // → invalidar el cache de cuota y re-fetch para que el CreditsMeter baje EN VIVO
+            // (antes el contador solo se actualizaba al refrescar la web).
+            try {
+                invalidatePlanCountCache(session?.user?.id);
+                checkPlanLimit();
+            } catch (_) { /* no-op */ }
             return { ok: true };
         } catch (_e) {
             toast.error('No se pudo actualizar el día', { description: 'Revisa tu conexión e inténtalo de nuevo.' });
@@ -2380,6 +2395,9 @@ export const AssessmentProvider = ({ children }) => {
                     planId: plan?.id || null,
                     dayIndex: dIdx,
                     startedAt,
+                    // [P2-REGEN-RESUME-NO-CLOCKS] durante el regen el plan aún tiene el
+                    // _plan_modified_at PREVIO → baseline perfecto para detectar el persist.
+                    baseModifiedAt: plan?.plan_data?._plan_modified_at || null,
                     names: (plan?.plan_data?.days?.[dIdx]?.meals || []).map((m) => (m && m.name) || ''),
                 };
             } catch (_) { return null; }
@@ -2408,8 +2426,23 @@ export const AssessmentProvider = ({ children }) => {
             if (!cancelled) setDayRegenInFlight(false);
             if (applied && !cancelled) {
                 toast.success('¡Día actualizado!', { description: 'Tus platos nuevos ya están listos.', icon: '👨‍🍳' });
+                // [P1-CREDITS-LIVE-REFRESH · 2026-07-10] el regen cobró 1 crédito server-side →
+                // refrescar el contador en vivo (antes solo se veía al recargar la web).
+                try {
+                    invalidatePlanCountCache(session?.user?.id);
+                    checkPlanLimit();
+                } catch (_) { /* no-op */ }
             }
         };
+        // [P2-REGEN-RESUME-NO-CLOCKS · 2026-07-10] Señal de completion SIN relojes del cliente:
+        //   1. flag `_day_regen_inflight` PRESENTE y fresco → el backend declara "sigue corriendo".
+        //   2. flag AUSENTE + (_plan_modified_at ≠ baseline || nombres del día cambiaron) → terminó
+        //      y persistió → aplicar + toast. (server-vs-server; el bug anterior comparaba
+        //      startedAt del reloj LOCAL contra _plan_modified_at del servidor → con drift de
+        //      minutos declaraba éxito instantáneo con el plan sin cambiar.)
+        //   3. flag AUSENTE sin cambios: soft-fail del regen (nada persistió) → apagar sin toast
+        //      de éxito. Gracia de 30s por si el remount ganó la carrera al SET inicial del flag.
+        let sawFlag = false;
         const tick = async () => {
             if (cancelled) return;
             try {
@@ -2419,13 +2452,29 @@ export const AssessmentProvider = ({ children }) => {
                     const pdNew = plan?.plan_data;
                     const idOk = !marker.planId || !plan?.id || String(plan.id) === String(marker.planId);
                     if (pdNew && idOk) {
-                        const modifiedAt = pdNew._plan_modified_at ? Date.parse(pdNew._plan_modified_at) : 0;
-                        const namesNow = (pdNew.days?.[marker.dayIndex]?.meals || []).map((m) => (m && m.name) || '');
-                        const changed = JSON.stringify(namesNow) !== JSON.stringify(marker.names || []);
-                        if ((modifiedAt && modifiedAt > marker.startedAt) || changed) {
-                            applyRegenPlan(plan);
-                            finish(true);
-                            return;
+                        const flag = pdNew._day_regen_inflight;
+                        const flagFresh = !!(flag && flag.started_at
+                            && (Date.now() - Date.parse(flag.started_at)) < MAX_AGE_MS);
+                        if (flagFresh) {
+                            sawFlag = true; // sigue corriendo → seguir polleando
+                            // re-capturar el baseline del ESTADO AUTORITATIVO in-flight: si el
+                            // planData local estaba stale al click (recalc previo no aplicado),
+                            // el baseline local produciría un falso "changed" en el soft-fail.
+                            marker.baseModifiedAt = pdNew._plan_modified_at || marker.baseModifiedAt;
+                        } else {
+                            const modNow = pdNew._plan_modified_at || null;
+                            const namesNow = (pdNew.days?.[marker.dayIndex]?.meals || []).map((m) => (m && m.name) || '');
+                            const changed = (modNow && modNow !== (marker.baseModifiedAt || null))
+                                || JSON.stringify(namesNow) !== JSON.stringify(marker.names || []);
+                            if (changed) {
+                                applyRegenPlan(plan);
+                                finish(true);
+                                return;
+                            }
+                            if (sawFlag || (Date.now() - marker.startedAt) > 30000) {
+                                finish(false);
+                                return;
+                            }
                         }
                     }
                 }
