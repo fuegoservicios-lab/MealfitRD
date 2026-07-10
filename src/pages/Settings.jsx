@@ -14,6 +14,8 @@ import { fetchWithAuth } from '../config/api';
 // para los 2 `window.confirm` legacy del flujo Renovar/Cero (líneas ~847,
 // ~862). Modal nativo rompía dark theme + a11y; este helper usa sonner.
 import { confirmToast } from '../utils/confirmToast';
+// [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
+import { getFreshPlanCount } from '../utils/quotaCache';
 import { requestNotificationPermission, subscribeToPushNotifications, unsubscribeFromPushNotifications, isPushSupported } from '../utils/pushNotifications';
 import { trackEvent, ANALYTICS_OPT_OUT_KEY, isAnalyticsOptedOut } from '../utils/analytics';
 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] Helper defensivo para removeItem
@@ -1075,15 +1077,12 @@ const Settings = () => {
         // regeneratePlan emita el toast — igual que el comportamiento
         // pre-fix, pero solo en el camino de network failure.
         try {
-            const _nowQuota = Date.now();
-            let _freshCount = (typeof window !== 'undefined' && window.__cachedQuota) || planCount;
-            if (_nowQuota - ((typeof window !== 'undefined' && window.__lastQuotaCheckTime) || 0) > 5000) {
-                _freshCount = await checkPlanLimit(userProfile?.id);
-                if (typeof window !== 'undefined') {
-                    window.__cachedQuota = _freshCount;
-                    window.__lastQuotaCheckTime = _nowQuota;
-                }
-            }
+            // [P2-3 · 2026-07-09] getFreshPlanCount (queryClient.fetchQuery,
+            // key por usuario, TTL 5s vía staleTime) — antes globals
+            // window.__cachedQuota/__lastQuotaCheckTime sin user_id.
+            const _freshCount = await getFreshPlanCount(
+                userProfile?.id, checkPlanLimit, { ttlMs: 5000 },
+            );
             if (typeof userPlanLimit === 'number' && _freshCount >= userPlanLimit) {
                 toast.error('Límite de regeneraciones alcanzado', {
                     description: 'Tus nuevos datos no se guardaron porque requieren regenerar el plan, y has usado todos tus créditos este mes.',

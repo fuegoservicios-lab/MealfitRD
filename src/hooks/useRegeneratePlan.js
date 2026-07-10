@@ -11,6 +11,9 @@ import { useAssessment } from '../context/AssessmentContext';
 import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation';
 
 import { calculateAllPlanIngredients } from '../utils/shoppingHelpers';
+// [P2-3 · 2026-07-09] Cache del planCount keyed por usuario sobre el
+// queryClient (antes window.__cachedQuota global sin user_id).
+import { getFreshPlanCount } from '../utils/quotaCache';
 
 
 export const useRegeneratePlan = () => {
@@ -83,13 +86,12 @@ export const useRegeneratePlan = () => {
             if (!missingField) {
 
             // GAP 5: Validación de límite fresco (server-side) con caché de 5s
-            const now = Date.now();
-            let freshPlanCount = window.__cachedQuota || 0;
-            if (now - (window.__lastQuotaCheckTime || 0) > 5000) {
-                freshPlanCount = await checkPlanLimit(userProfile?.id);
-                window.__cachedQuota = freshPlanCount;
-                window.__lastQuotaCheckTime = now;
-            }
+            // [P2-3 · 2026-07-09] getFreshPlanCount: TTL 5s preservado vía
+            // staleTime; dedup in-flight + key por usuario (evicta en logout
+            // via clearUserQueryCache — cierra P2-QUOTA-CACHE-XUSER de raíz).
+            const freshPlanCount = await getFreshPlanCount(
+                userProfile?.id, checkPlanLimit, { ttlMs: 5000 },
+            );
 
             const isLimitReached = typeof userPlanLimit === 'number' && freshPlanCount >= userPlanLimit;
             

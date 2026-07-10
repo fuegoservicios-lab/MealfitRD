@@ -16,6 +16,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
+// [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes effect manual).
+import { useLatestRef } from '../../hooks/useLatestRef';
 import styles from './WaterTracker.module.css';
 
 const DEFAULT_GOAL = 8;
@@ -84,8 +86,9 @@ const WaterTracker = ({ userId }) => {
     // y para revertir al ultimo valor confirmado por el servidor.
     const glassesRef = useRef(_cachedState?.glasses ?? 0);
     const lastSavedRef = useRef(_cachedState?.glasses ?? 0);
-    const goalRef = useRef(_cachedState?.goal ?? DEFAULT_GOAL);
-    useEffect(() => { goalRef.current = goal; }, [goal]);
+    // [P3-4 · 2026-07-09] Hook SSOT useLatestRef (antes mirror manual en
+    // effect). Init equivalente: `goal` ya arranca de _cachedState?.goal.
+    const goalRef = useLatestRef(goal);
 
     // Persistir state al cache (key con fecha → TTL implícito 24h + rollover).
     useEffect(() => {

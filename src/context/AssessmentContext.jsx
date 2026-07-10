@@ -109,6 +109,8 @@ import { invalidateHistoryListCache, clearAllModalCaches } from '../utils/histor
 // borrar la key de localStorage hay que vaciar la copia in-memory del store
 // (misma clase que P3-HIST-MODAL-CACHE-XUSER — el logout es SPA, sin reload).
 import { clearDisabledIngredientsStore } from '../hooks/useDisabledIngredients';
+// [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes 2 effects manuales).
+import { useLatestRef } from '../hooks/useLatestRef';
 // [P1-B7] Storage seguro para datos sensibles del formulario.
 import {
     saveFormData as secureSaveFormData,
@@ -210,12 +212,10 @@ const _clearUserScopedCaches = () => {
     // real se enforza server-side (verify_api_quota→402), así que NO es escalada — solo
     // UX del gate. Hermano omitido de la clase P1-XTAB-CACHE-LEAK / P2-CHAT-CACHE-XUSER.
     // `= undefined`/`= 0` basta: el primer lector post-switch ve undefined → fetch fresco.
-    try {
-        if (typeof window !== 'undefined') {
-            window.__cachedQuota = undefined;
-            window.__lastQuotaCheckTime = 0;
-        }
-    } catch { /* noop */ }
+    // [P2-3 · 2026-07-09] Los globals window.__cachedQuota/__lastQuotaCheckTime
+    // fueron reemplazados por utils/quotaCache.js (queryClient.fetchQuery con
+    // key ['plan-quota', userId]) — el clearUserQueryCache() de arriba los
+    // evicta estructuralmente. La purga manual quedó obsoleta.
     // [P2-NOTIF-PII-PURGE · 2026-06-19] (audit fresco P2-10) El store del NotificationCenter
     // ('mealfit_notification_center') guarda PII de salud (gaps de micronutrientes + suplementos del
     // plan del usuario) en una clave GLOBAL (sin user_id) → en dispositivo compartido el usuario B veía
@@ -1227,10 +1227,8 @@ export const AssessmentProvider = ({ children }) => {
     // idéntica" cubría la mayoría pero hay window de race en transiciones
     // (login → token refresh → logout) donde el chequeo pasa y dispara
     // `fetchProfile + checkPlanLimit + restoreSessionData` doblemente.
-    const sessionRef = useRef(null);
-    useEffect(() => {
-        sessionRef.current = session;
-    }, [session]);
+    // [P3-4 · 2026-07-09] Hook SSOT useLatestRef (antes mirror manual en effect).
+    const sessionRef = useLatestRef(session);
 
     // [P2-REALTIME-RESUB-ON-TOKEN-REFRESH · 2026-06-01] Espejo de
     // `refreshProfileAndPlan` en un ref para que el listener de visibilitychange/
@@ -1241,10 +1239,8 @@ export const AssessmentProvider = ({ children }) => {
     // useCallback con dep `[session]` → cada `setSession` de TOKEN_REFRESHED
     // (~cada hora, [P2-TOKEN-REFRESH-SYNC]) recreaba la función → teardown +
     // re-suscripción del listener. Mismo patrón P1-B9.
-    const refreshProfileAndPlanRef = useRef(null);
-    useEffect(() => {
-        refreshProfileAndPlanRef.current = refreshProfileAndPlan;
-    }, [refreshProfileAndPlan]);
+    // [P3-4 · 2026-07-09] Hook SSOT useLatestRef (antes mirror manual en effect).
+    const refreshProfileAndPlanRef = useLatestRef(refreshProfileAndPlan);
 
     // [P2-NEW-13 · 2026-05-11] Sync multi-tab del `mealfit_plan` via
     // storage event.

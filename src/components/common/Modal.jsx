@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 // [P2-14 · 2026-07-09] Hook SSOT de media queries (antes copia local del mismo hook).
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+// [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes effect manual).
+import { useLatestRef } from '../../hooks/useLatestRef';
 
 const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disableClose = false, isBottomSheetOnMobile = false }) => {
     const modalRef = useRef(null);
@@ -24,15 +26,9 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
     // deps del effect de foco. Antes su identidad inline (el padre pasa onClose nuevo cada
     // render) re-ejecutaba el effect en cada re-render → el cleanup restauraba el foco al
     // trigger y el setTimeout re-movía el foco al modal, robándoselo al usuario.
-    const onCloseRef = useRef(onClose);
-    const disableCloseRef = useRef(disableClose);
-    // [P4-MODAL-FOCUS-SPLIT] Sincronizar refs en effect (NO en render: el lint prohíbe
-    // escribir ref.current durante el render). El listener keydown los lee en event-time,
-    // siempre posterior al commit, así que ven el valor vigente sin ser deps del effect de foco.
-    useEffect(() => {
-        onCloseRef.current = onClose;
-        disableCloseRef.current = disableClose;
-    }, [onClose, disableClose]);
+    // [P3-4 · 2026-07-09] Hook SSOT useLatestRef (antes mirror manual en effect).
+    const onCloseRef = useLatestRef(onClose);
+    const disableCloseRef = useLatestRef(disableClose);
 
     useEffect(() => {
         if (isOpen) {

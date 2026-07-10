@@ -105,6 +105,8 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 // [P2-15 · 2026-07-09] Store single-source de la Nevera Virtual (antes 3 copias
 // sincronizadas a mano: localStorage + useState local aquí + useState en Pantry).
 import { useDisabledIngredients } from '../hooks/useDisabledIngredients';
+// [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
+import { getFreshPlanCount } from '../utils/quotaCache';
 import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getMealAdvisories } from '../utils/mealAdvisories';
@@ -1020,20 +1022,21 @@ const DashboardInner = () => {
     // instantáneo.
     const validateCreditsAsync = async () => {
         try {
-            const now = Date.now();
             // Fast path: context tiene planCount fresco (cargado al login).
             // userPlanLimit '∞' o 'Ilimitado' → siempre dejar pasar.
             if (userPlanLimit === '∞' || userPlanLimit === 'Ilimitado' || typeof userPlanLimit !== 'number') {
                 return true;
             }
             // Si el cache local está vigente (<120s), validar SIN fetch.
-            let freshPlanCount = window.__cachedQuota;
-            const _CACHE_TTL_MS = 120 * 1000; // 2 min (era 5s)
-            if (typeof freshPlanCount !== 'number' || now - (window.__lastQuotaCheckTime || 0) > _CACHE_TTL_MS) {
-                freshPlanCount = await checkPlanLimit(userProfile?.id);
-                window.__cachedQuota = freshPlanCount;
-                window.__lastQuotaCheckTime = now;
-            }
+            // [P2-3 · 2026-07-09] getFreshPlanCount (queryClient.fetchQuery,
+            // key por usuario, TTL 120s vía staleTime): antes
+            // window.__cachedQuota global SIN user_id — requería purga manual
+            // en logout (P2-QUOTA-CACHE-XUSER); ahora clearUserQueryCache()
+            // lo evicta estructuralmente + dedup in-flight con los gates de
+            // useRegeneratePlan/Settings (misma key, TTLs propios).
+            const freshPlanCount = await getFreshPlanCount(
+                userProfile?.id, checkPlanLimit, { ttlMs: 120 * 1000 },
+            );
 
             if (freshPlanCount >= userPlanLimit) {
                 toast.error('Sin créditos', { description: 'No tienes créditos de regeneración disponibles.' });
