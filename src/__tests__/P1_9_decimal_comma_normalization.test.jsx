@@ -29,8 +29,10 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
+// [P2-4 · 2026-07-09] QMeasurements vive en su propio archivo tras el split
+// mecánico de InteractiveQuestions.jsx (que quedó como barrel de re-export).
 const QSRC = fs.readFileSync(
-    path.resolve(__dirname, '..', 'components', 'assessment', 'questions', 'InteractiveQuestions.jsx'),
+    path.resolve(__dirname, '..', 'components', 'assessment', 'questions', 'QMeasurements.jsx'),
     'utf-8',
 );
 // Filtrar líneas-comentario para que las explicaciones del bug no

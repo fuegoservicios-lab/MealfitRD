@@ -96,8 +96,11 @@ describe('P0-12 — initialFormData fija householdSize en 1 (decisión de produc
 
 
 describe('P0-12 — QHousehold NO debe tener selector de personas (decisión de producto)', () => {
-    const src = _readFile('components/assessment/questions/InteractiveQuestions.jsx');
-    const qhouseholdMatch = src.match(/export const QHousehold[\s\S]*?(?=\nexport const |\nfunction )/);
+    // [P2-4 · 2026-07-09] QHousehold vive en su propio archivo tras el split
+    // mecánico de InteractiveQuestions.jsx (barrel). El componente es la única
+    // declaración del archivo, así que el extractor matchea hasta EOF.
+    const src = _readFile('components/assessment/questions/QHousehold.jsx');
+    const qhouseholdMatch = src.match(/export const QHousehold[\s\S]*/);
     const qBody = qhouseholdMatch ? qhouseholdMatch[0] : '';
 
     it('QHousehold fue extraído del source', () => {

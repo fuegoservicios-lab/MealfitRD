@@ -18,7 +18,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const CTX_PATH = path.resolve(__dirname, '..', 'context', 'AssessmentContext.jsx');
-const QSRC_PATH = path.resolve(__dirname, '..', 'components', 'assessment', 'questions', 'InteractiveQuestions.jsx');
+// [P2-4 · 2026-07-09] QHousehold vive en su propio archivo tras el split
+// mecánico de InteractiveQuestions.jsx (que quedó como barrel de re-export).
+const QSRC_PATH = path.resolve(__dirname, '..', 'components', 'assessment', 'questions', 'QHousehold.jsx');
 
 const ctxSrc = fs.readFileSync(CTX_PATH, 'utf-8');
 const ctxCode = ctxSrc
