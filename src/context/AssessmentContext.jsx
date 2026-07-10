@@ -2352,17 +2352,38 @@ export const AssessmentProvider = ({ children }) => {
     // (mismo patrón P2-REALTIME-PLAN-ID-GUARD del poller de chunks).
     useEffect(() => {
         if (!session?.user?.id) return undefined;
+        const MAX_AGE_MS = 9 * 60 * 1000;
         const raw = safeLocalStorageGet('mealfit_day_regen_inflight', null);
-        if (!raw) return undefined;
         let marker = null;
         try { marker = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (_) { marker = null; }
-        const MAX_AGE_MS = 9 * 60 * 1000;
-        if (!marker || !marker.startedAt || (Date.now() - marker.startedAt) > MAX_AGE_MS) {
+        if (marker && (!marker.startedAt || (Date.now() - marker.startedAt) > MAX_AGE_MS)) {
             safeLocalStorageRemove('mealfit_day_regen_inflight');
-            return undefined;
+            marker = null;
         }
-        setDayRegenInFlight(true);
         let cancelled = false;
+        // [P1-DAY-REGEN-SERVER-FLAG · 2026-07-10] Sin marker local (bundle stale al momento
+        // del click — SW del PWA pre-deploy, caso vivo 2026-07-10 15:47 — u otro dispositivo),
+        // sondear UNA vez el flag server-side `plan_data._day_regen_inflight` que el backend
+        // setea al arrancar el regen y retira en el persist: si está fresco, armamos el mismo
+        // resume (overlay + poll) construyendo el marker desde el servidor.
+        const armFromServerFlag = async () => {
+            try {
+                const resp = await fetchWithAuth('/api/plans-data/latest');
+                if (cancelled || !resp.ok) return null;
+                const { plan } = await resp.json();
+                const flag = plan?.plan_data?._day_regen_inflight;
+                if (!flag || flag.started_at == null) return null;
+                const startedAt = Date.parse(flag.started_at);
+                if (!startedAt || (Date.now() - startedAt) > MAX_AGE_MS) return null;
+                const dIdx = Number(flag.day_index) || 0;
+                return {
+                    planId: plan?.id || null,
+                    dayIndex: dIdx,
+                    startedAt,
+                    names: (plan?.plan_data?.days?.[dIdx]?.meals || []).map((m) => (m && m.name) || ''),
+                };
+            } catch (_) { return null; }
+        };
         const applyRegenPlan = (plan) => {
             const pdNew = plan?.plan_data;
             if (!pdNew) return;
@@ -2372,6 +2393,7 @@ export const AssessmentProvider = ({ children }) => {
                 const merged = { ...prev, days: pdNew.days };
                 for (const k of ['micronutrient_report', 'dish_quality_report', '_quality_degraded',
                     '_quality_degraded_reason', '_quality_degraded_severity', '_plan_modified_at',
+                    '_day_regen_inflight',
                     'aggregated_shopping_list', 'aggregated_shopping_list_weekly',
                     'aggregated_shopping_list_biweekly', 'aggregated_shopping_list_monthly']) {
                     if (k in pdNew) merged[k] = pdNew[k];
@@ -2412,7 +2434,23 @@ export const AssessmentProvider = ({ children }) => {
             if ((Date.now() - marker.startedAt) > MAX_AGE_MS) { finish(false); return; }
             dayRegenPollRef.current = setTimeout(tick, 8000);
         };
-        dayRegenPollRef.current = setTimeout(tick, 2000);
+        const startPolling = () => {
+            if (cancelled || !marker) return;
+            setDayRegenInFlight(true);
+            dayRegenPollRef.current = setTimeout(tick, 2000);
+        };
+        if (marker) {
+            startPolling();
+        } else {
+            // Sin marker local → sondeo único del flag server-side (bundle stale / otro device).
+            (async () => {
+                const serverMarker = await armFromServerFlag();
+                if (serverMarker && !cancelled) {
+                    marker = serverMarker;
+                    startPolling();
+                }
+            })();
+        }
         return () => {
             cancelled = true;
             if (dayRegenPollRef.current) clearTimeout(dayRegenPollRef.current);
