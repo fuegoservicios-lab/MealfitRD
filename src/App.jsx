@@ -101,6 +101,8 @@ const Engine = lazy(() => import('./pages/Engine'));
 // [P3-PRICING-SEPARATE-PAGE · 2026-06-29] Página de precios (wrapper que reusa el
 // componente del home + arregla la costura del fondo bajo el header). Ver PricingPage.
 const PricingPage = lazy(() => import('./pages/PricingPage'));
+// [P3-10 · 2026-07-09] 404 real (antes el wildcard redirigía a "/" sin feedback).
+const NotFound = lazy(() => import('./pages/NotFound'));
 // [P3-DETAIL-PAGES · 2026-06-29] Páginas de detalle de las 3 secciones del landing.
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
 const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
@@ -447,8 +449,10 @@ function App() {
             <Route path="/funciones" element={<Layout><FeaturesPage /></Layout>} />
             <Route path="/precision" element={<Layout><PrecisionPage /></Layout>} />
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* Fallback — [P3-10 · 2026-07-09] 404 real con navegación de
+                escape (antes: Navigate a "/" sin feedback, que enmascaraba
+                links muertos como el viejo /pricing). */}
+            <Route path="*" element={<Layout><NotFound /></Layout>} />
           </Route>
         </Routes>
       </Router>

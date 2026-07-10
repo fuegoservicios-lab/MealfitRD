@@ -28,6 +28,11 @@ const preloaders = {
     '/dashboard/pantry': () => import('../pages/Pantry'),
     '/dashboard/recipes': () => import('../pages/Recipes'),
     '/dashboard/settings': () => import('../pages/Settings'),
+    // [P3-10 · 2026-07-09] Faltaba: AccountMenu llama prefetchRoute
+    // ('/dashboard/upgrade') en onViewPlansHover desde 2026-05-26 y era un
+    // no-op silencioso (prefetch muerto). Vite dedupea con el lazy() de
+    // App.jsx — mismo path de import, un solo chunk.
+    '/dashboard/upgrade': () => import('../pages/Upgrade'),
     '/history': () => import('../pages/History'),
 };
 
@@ -42,7 +47,15 @@ const _prefetched = new Set();
 export function prefetchRoute(path) {
     if (_prefetched.has(path)) return;
     const fn = preloaders[path];
-    if (!fn) return;
+    if (!fn) {
+        // [P3-10 · 2026-07-09] Un path desconocido era un no-op SILENCIOSO —
+        // así vivió muerto el prefetch de /dashboard/upgrade durante ~6
+        // semanas. En dev avisamos; en prod sigue siendo no-op (best-effort).
+        if (import.meta.env.DEV) {
+            console.warn(`[routePreload] path sin preloader registrado: ${path}`);
+        }
+        return;
+    }
     _prefetched.add(path);
     Promise.resolve()
         .then(fn)

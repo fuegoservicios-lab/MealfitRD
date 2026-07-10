@@ -1,5 +1,12 @@
 import { Fragment, Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
+// [P2-MOTION-REDUCED-USER · 2026-07-09] framer-motion respeta prefers-reduced-
+// motion del SO en TODO el árbol del dashboard (el kill-switch CSS de index.css
+// no cubre animaciones JS-driven que framer escribe inline vía WAAPI).
+// Se monta AQUÍ y no en App.jsx a propósito: App es eager y framer-motion está
+// deliberadamente fuera del critical path (P1-PERF-FRAMER-SPLIT); este layout
+// es lazy y sus páginas ya cargan framer de todos modos.
+import { MotionConfig } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Lock, Info, ChevronRight, ExternalLink, HelpCircle } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
@@ -162,6 +169,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
         : null;
 
     return (
+        <MotionConfig reducedMotion="user">
         <div className={`${styles.container} ${isSettings ? styles.standalonePage : ''}`}>
 
             {/* Mobile Overlay */}
@@ -217,12 +225,17 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                             );
                         }
 
-                        // Si está bloqueado, hacemos que el Link navegue a pricing opcionalmente
-                        // o solo mostramos el ícono de candado.
+                        // Si está bloqueado, hacemos que el Link navegue a la
+                        // comparación de planes opcionalmente o solo mostramos
+                        // el ícono de candado.
+                        // [P3-10 · 2026-07-09] Antes apuntaba a "/pricing", ruta
+                        // INEXISTENTE (la real es /precios, y dentro del app la
+                        // superficie correcta es /dashboard/upgrade) — el wildcard
+                        // soft-404 mandaba al usuario a "/" sin explicación.
                         if (item.locked) {
                             return (
                                 <Link
-                                    to="/pricing"
+                                    to="/dashboard/upgrade"
                                     key={item.path}
                                     className={styles.navItem}
                                     onClick={closeMenu}
@@ -467,6 +480,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 </>
             )}
         </div>
+        </MotionConfig>
     );
 };
 
