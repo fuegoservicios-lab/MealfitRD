@@ -5,6 +5,8 @@ import React, { useState, useEffect, useMemo, useRef, useCallback, useDeferredVa
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
 // [P2-14 · 2026-07-09] Hook SSOT de media queries (antes copia local del mismo hook).
 import { useMediaQuery } from '../hooks/useMediaQuery';
+// [P2-15 · 2026-07-09] Store single-source de la Nevera Virtual (compartido con Dashboard).
+import { useDisabledIngredients } from '../hooks/useDisabledIngredients';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAssessment } from '../context/AssessmentContext';
 // [P1-NEON-DB-MIGRATION · 2026-06-12] el SDK anterior eliminado de Pantry: los
@@ -494,45 +496,12 @@ const Pantry = () => {
         setPickerBrand(null);
     }, [addItemSearch, showAddMenu]);
 
-    // [P3-PANTRY-LOCALSTORAGE-LAZY · 2026-05-19] Hidratación lazy-init
-    // desde localStorage para evitar re-render post-mount. Pre-fix el
-    // useState arrancaba en `[]` y un useEffect[] hacía
-    // `setDisabledIngredients(JSON.parse(saved))` tras montar → re-render
-    // del componente completo (1100 líneas). El user reportó delay
-    // perceptible (~300-500ms) específico a Nevera; uno de los
-    // contribuyentes era esta cascada de setStates al mount. Con lazy
-    // init el valor inicial ya es el correcto desde el primer render.
-    const [disabledIngredients, setDisabledIngredients] = useState(() => {
-        try {
-            const saved = safeLocalStorageGet('mealfit_disabled_ingredients', null);
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed)) return parsed;
-            }
-        } catch(e) {}
-        return [];
-    });
-
-    useEffect(() => {
-        // Solo el listener cross-tab sync — la hidratación inicial ya
-        // ocurrió en el lazy-init de useState. El `storage` event solo
-        // dispara cuando OTRA tab modifica el key.
-        const checkDisabled = () => {
-            const saved = safeLocalStorageGet('mealfit_disabled_ingredients', null);
-            if (saved) {
-                // [P4-PANTRY-ARRAY-GUARD] Array.isArray: un JSON no-array (legacy/corrupto)
-                // rompía renderRow (.includes/.map). Espeja el guard de depletedItems.
-                try {
-                    const _parsed = JSON.parse(saved);
-                    setDisabledIngredients(Array.isArray(_parsed) ? _parsed : []);
-                } catch (e) { setDisabledIngredients([]); }
-            } else {
-                setDisabledIngredients([]);
-            }
-        };
-        window.addEventListener('storage', checkDisabled);
-        return () => window.removeEventListener('storage', checkDisabled);
-    }, []);
+    // [P2-15 · 2026-07-09] Single-source: el store compartido (hidratación
+    // lazy P3-PANTRY-LOCALSTORAGE-LAZY, guard array-de-strings
+    // P4-PANTRY-ARRAY-GUARD y sync cross-tab por 'storage' viven dentro del
+    // hook). Fix del drift same-tab: los cambios hechos en Dashboard ahora se
+    // ven aquí al instante — el evento 'storage' solo disparaba cross-tab.
+    const [disabledIngredients] = useDisabledIngredients();
 
     // Estado "Agotados": items que el usuario marcó como agotados o eliminó
     // manualmente. Se guarda en localStorage (mismo patrón que disabledIngredients)

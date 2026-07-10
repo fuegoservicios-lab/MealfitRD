@@ -105,6 +105,10 @@ import { clearUserQueryCache } from '../queryClient';
 // cross-user en dispositivo compartido (ver _clearUserScopedCaches).
 import { invalidateInventoryCache } from '../utils/pantryCache';
 import { invalidateHistoryListCache, clearAllModalCaches } from '../utils/historyCaches';
+// [P2-15 · 2026-07-09] Store single-source de la Nevera Virtual: además de
+// borrar la key de localStorage hay que vaciar la copia in-memory del store
+// (misma clase que P3-HIST-MODAL-CACHE-XUSER — el logout es SPA, sin reload).
+import { clearDisabledIngredientsStore } from '../hooks/useDisabledIngredients';
 // [P1-B7] Storage seguro para datos sensibles del formulario.
 import {
     saveFormData as secureSaveFormData,
@@ -168,7 +172,9 @@ const _clearUserScopedCaches = () => {
     // usuario anterior — la otra mitad global-keyed de la clase
     // P1-XTAB-CACHE-LEAK.
     try { clearAllModalCaches(); } catch { /* noop */ }
-    safeLocalStorageRemove('mealfit_disabled_ingredients');
+    // [P2-15 · 2026-07-09] Borra key de localStorage + copia in-memory del
+    // store compartido y notifica a los consumidores montados.
+    try { clearDisabledIngredientsStore(); } catch { /* noop */ }
     // [P2-DEPLETED-XUSER · 2026-05-30] `mealfit_depleted_items` (key global,
     // NO user-scoped) cachea los ítems agotados de la despensa del usuario.
     // Su SSOT cross-device es la tabla `user_depleted_items`; el localStorage
@@ -3103,7 +3109,9 @@ export const AssessmentProvider = ({ children }) => {
         safeLocalStorageRemove('mealfit_plan');
         safeLocalStorageRemove('mealfit_likes');
         safeLocalStorageRemove('mealfit_dislikes');
-        safeLocalStorageRemove('mealfit_disabled_ingredients');
+        // [P2-15 · 2026-07-09] Store compartido: borra localStorage + copia
+        // in-memory y notifica a Dashboard/Pantry montados.
+        try { clearDisabledIngredientsStore(); } catch { /* noop */ }
         safeLocalStorageRemove('mealfit_wizard_step'); // [P1-FORM-RESUME · 2026-06-19]
         setPlanData(null);
         setFormData(initialFormData);

@@ -100,6 +100,11 @@ import { INSIGHTS_RESTORE_EVENT, insightsDismissKey } from '../utils/insightsPan
 // Pre-fix el modal era keyboard-inaccesible (Tab escapaba al fondo, ESC no
 // cerraba) y screen readers no lo anunciaban como dialog.
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
+// [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + matchMedia local).
+import { useMediaQuery } from '../hooks/useMediaQuery';
+// [P2-15 · 2026-07-09] Store single-source de la Nevera Virtual (antes 3 copias
+// sincronizadas a mano: localStorage + useState local aquí + useState en Pantry).
+import { useDisabledIngredients } from '../hooks/useDisabledIngredients';
 import { getActiveShoppingList, getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getMealAdvisories } from '../utils/mealAdvisories';
@@ -923,39 +928,17 @@ const DashboardInner = () => {
     // Determina si <WaterTracker /> se renderiza ENCIMA del menu de comidas
     // (mobile) o dentro de la columna derecha junto a Insights (desktop).
     // Una sola instancia activa a la vez evita doble fetch + state divergente.
-    const [isMobileViewport, setIsMobileViewport] = useState(() => {
-        if (typeof window === 'undefined' || !window.matchMedia) return false;
-        return window.matchMedia('(max-width: 768px)').matches;
-    });
-    useEffect(() => {
-        if (typeof window === 'undefined' || !window.matchMedia) return undefined;
-        const mq = window.matchMedia('(max-width: 768px)');
-        const handler = (e) => setIsMobileViewport(e.matches);
-        // Safari < 14 usa addListener/removeListener. Probamos ambas APIs.
-        if (mq.addEventListener) {
-            mq.addEventListener('change', handler);
-            return () => mq.removeEventListener('change', handler);
-        }
-        mq.addListener(handler);
-        return () => mq.removeListener(handler);
-    }, []);
+    // [P2-14 · 2026-07-09] Hook SSOT (antes useState + matchMedia local con
+    // fallback addListener; el hook cubre ambas APIs).
+    const isMobileViewport = useMediaQuery('(max-width: 768px)');
 
     // Estado para "Nevera Virtual" - ingredientes temporalmente marcados como agotados
-    // Persistido en localStorage para sobrevivir recargas de página y navegación
-    const [disabledIngredients, setDisabledIngredients] = useState(() => {
-        // [P2-A · 2026-05-08] SSOT migration de try/catch ad-hoc a safeJSONParse.
-        // Validator estricto: array DE STRINGS (regresión histórica: si entró algún
-        // payload con shape incorrecto, el `every(i => typeof i === 'string')`
-        // lo filtraba; preservamos esa garantía explícitamente).
-        // [P4-LOCALSTORAGE-LAZY-INIT] getItem crudo aquí lanzaba SecurityError
-        // en iOS Private Mode / storage deshabilitado → crash del lazy initializer
-        // → Dashboard al GlobalErrorBoundary. safeLocalStorageGet absorbe el throw
-        // (hermano del P1-AGENT-LAZY-INIT-PRIVATE-MODE). safeJSONParse maneja null→[].
-        const saved = safeLocalStorageGet('mealfit_disabled_ingredients', null);
-        return safeJSONParse(saved, [], {
-            validator: (v) => Array.isArray(v) && v.every(i => typeof i === 'string'),
-        });
-    });
+    // [P2-15 · 2026-07-09] Single-source: el store compartido reemplaza el
+    // useState local + espejo manual a localStorage. Pantry consume el MISMO
+    // store → cero drift same-tab (antes Pantry solo veía cambios cross-tab).
+    // El validator estricto array-de-strings (P2-A) y la lectura defensiva
+    // (P4-LOCALSTORAGE-LAZY-INIT) viven ahora dentro del hook.
+    const [disabledIngredients, setDisabledIngredients] = useDisabledIngredients();
 
     // Estados para Compras con 1 clic
     const [showRestockModal, setShowRestockModal] = useState(false);
@@ -1262,25 +1245,29 @@ const DashboardInner = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [updateUserProfile, userProfile, session]);
 
-    // Hydrate disabledIngredients from DB on first load (merges with localStorage)
+    // Hydrate disabledIngredients from DB (merges with the shared store)
+    // [P2-15 · 2026-07-09] Bug latente cerrado: el dep era [userProfile?.id]
+    // (solo id) → un cambio de CONTENIDO de health_profile.disabled_ingredients
+    // con el mismo id (write desde otro dispositivo + refetch de perfil) NO
+    // re-mergeaba. Ahora depende del contenido serializado. El bail-out
+    // (retornar `prev` si la unión no añade nada) evita re-notificar el store
+    // y re-disparar el sync debounced a DB en un loop.
+    const _dbDisabledKey = JSON.stringify(userProfile?.health_profile?.disabled_ingredients ?? null);
     useEffect(() => {
         if (!userProfile?.id || !userProfile.health_profile) return;
         const dbDisabled = userProfile.health_profile.disabled_ingredients;
         if (Array.isArray(dbDisabled) && dbDisabled.length > 0) {
-            setDisabledIngredients(prev => [...new Set([...dbDisabled, ...prev])]);
+            setDisabledIngredients(prev => {
+                const merged = [...new Set([...dbDisabled, ...prev])];
+                return merged.length === prev.length ? prev : merged;
+            });
         }
-    }, [userProfile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [userProfile?.id, _dbDisabledKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Sync disabledIngredients → localStorage + el backend anterior (debounced) on every change
+    // Sync disabledIngredients → backend (debounced) on every change.
+    // [P2-15] El espejo a localStorage lo hace el store compartido — aquí
+    // queda solo la persistencia a health_profile.
     useEffect(() => {
-        try {
-            if (disabledIngredients.length > 0) {
-                localStorage.setItem('mealfit_disabled_ingredients', JSON.stringify(disabledIngredients));
-            } else {
-                localStorage.removeItem('mealfit_disabled_ingredients');
-            }
-        } catch (e) { /* quota exceeded or private mode */ }
-
         if (!userProfile?.id) return;
         clearTimeout(disabledSyncTimer.current);
         disabledSyncTimer.current = setTimeout(() => {
@@ -2095,6 +2082,13 @@ const DashboardInner = () => {
                 // Pequeño retraso para que la interfaz se asiente primero antes de mostrar el modal
                 const timer = setTimeout(() => {
                     setShowPushOnboarding(true);
+                    // [P1-PUSH-ONBOARDING-SEEN-ON-SHOW · 2026-07-09] Marcar 'visto' al MOSTRARLO, no solo al
+                    // activar/descartar. Bug reportado en iOS (móvil): el user activó las alertas pero el
+                    // modal reapareció al reabrir/reiniciar la app — el flag no se había persistido a tiempo
+                    // o el re-trigger corrió antes del handler. Marcando al mostrar, el onboarding aparece a
+                    // lo sumo UNA vez por dispositivo (activar/descartar/navegar → no reaparece). El usuario
+                    // siempre puede activarlas desde Ajustes si las omitió.
+                    safeLocalStorageSet('mealfit_push_onboarding_seen', 'true');
                 }, 2000);
                 return () => clearTimeout(timer);
             }
