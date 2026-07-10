@@ -369,6 +369,32 @@ const Q_DEGRADED_REASON_MAP = {
     micro_worst_day: 'Un día quedó por debajo del piso en algunos micronutrientes (fibra, potasio, magnesio…). Revisa el panel de micros y usa Cambiar Plato si quieres reforzar ese día.',
 };
 
+// [P3-BANNER-REASON-COPY · 2026-07-10] `low_band_macro:<macros>` (sufijo dinámico, ej.
+// "low_band_macro:carbs" o "low_band_macro:carbs,kcal" tras P2-BAND-GATE-KCAL-SEMANTICS) es un
+// exact-match miss en Q_DEGRADED_REASON_MAP → caía SIEMPRE al genérico "Calidad por debajo del
+// óptimo" sin decir CUÁL macro falló. Forensic corr=d57ffe04 (2026-07-10): el owner vio el banner
+// exacto de este caso (carbs) y preguntó qué significaba.
+const LOW_BAND_MACRO_LABELS = {
+    protein: 'la proteína',
+    carbs: 'los carbohidratos',
+    fats: 'las grasas',
+    kcal: 'las calorías',
+};
+
+export function resolveQualityDegradedLabel(reason) {
+    if (!reason) return null;
+    if (Q_DEGRADED_REASON_MAP[reason]) return Q_DEGRADED_REASON_MAP[reason];
+    if (reason.startsWith('low_band_macro:')) {
+        const macros = reason.slice('low_band_macro:'.length).split(',').filter(Boolean);
+        const names = macros.map((m) => LOW_BAND_MACRO_LABELS[m] || m);
+        const joined = names.length > 1
+            ? `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`
+            : (names[0] || 'algunos macros');
+        return `La precisión de ${joined} de este plan quedó por debajo de la banda objetivo en varios días. Las porciones pueden no ser exactas; ajústalas a tu medida.`;
+    }
+    return 'Calidad por debajo del óptimo.';
+}
+
 // [P3-NOTIF-CENTER-BACKFILL · 2026-06-16] Reconcilia (crea-o-enriquece) una
 // notificación archivada. Helper PURO a nivel de módulo (no cierra sobre estado
 // del componente → identidad estable, sin necesidad de useCallback). Tres casos:
@@ -505,6 +531,41 @@ function RotatingGreeting({ firstName }) {
     );
 }
 
+// [P1-SWAP-LOADING-UX · 2026-07-10] Overlay "cocinando" por meal-card. Antes: el swap
+// individual solo giraba el icono del botón + un toast, y "actualizar día" dejaba las
+// cards CONGELADAS 2-4 minutos con el único feedback en el botón superior ("Actualizando…").
+// Ahora cada card en proceso muestra scrim + shimmer + chip con etapas rotando (el `seed`
+// desfasa la etapa inicial por card para que el modo día no se vea clonado). El overlay
+// además bloquea la interacción con la card mientras carga (pointer-events del scrim).
+const COOKING_STAGES_SINGLE = [
+    'El chef está pensando…',
+    'Buscando en tu Nevera…',
+    'Cuadrando tus macros…',
+    'Escribiendo la receta…',
+];
+const COOKING_STAGES_DAY = [
+    'Rediseñando tu día…',
+    'Variando las proteínas…',
+    'Cuadrando los macros del día…',
+    'Puliendo las recetas…',
+];
+function MealCookingOverlay({ mode = 'single', seed = 0 }) {
+    const stages = mode === 'day' ? COOKING_STAGES_DAY : COOKING_STAGES_SINGLE;
+    const [stageIdx, setStageIdx] = useState(() => Math.abs(seed) % stages.length);
+    useEffect(() => {
+        const id = setInterval(() => setStageIdx((i) => (i + 1) % stages.length), 3500);
+        return () => clearInterval(id);
+    }, [stages.length]);
+    return (
+        <div className="meal-cooking-overlay" role="status" aria-live="polite" aria-label="Actualizando plato con IA">
+            <div className="meal-cooking-chip">
+                <ChefHat size={18} className="cook-icon" aria-hidden="true" />
+                <span key={stageIdx} className="meal-cooking-text">{stages[stageIdx]}</span>
+            </div>
+        </div>
+    );
+}
+
 const DashboardInner = () => {
     // [APPEARANCE-THEME · 2026-05-29] Tema activo para los botones de acción de
     // cada comida (Ver receta / Cambiar Plato / Like): en oscuro sus fondos
@@ -638,9 +699,8 @@ const DashboardInner = () => {
         const _attempts = planData?._quality_degraded_attempts || 3;
         const _reason = planData?._quality_degraded_reason;
         const _sev = planData?._quality_degraded_severity === 'high' ? 'Importante' : 'Menor';
-        const _reasonLabel = _reason
-            ? (Q_DEGRADED_REASON_MAP[_reason] || 'Calidad por debajo del óptimo.')
-            : null;
+        // [P3-BANNER-REASON-COPY · 2026-07-10] prefix-match para low_band_macro:<macros>.
+        const _reasonLabel = _reason ? resolveQualityDegradedLabel(_reason) : null;
         const _reasonText = _reasonLabel
             ? `Motivo (${_sev}): ${_reasonLabel}`
             : 'Te entregamos la mejor versión. Usa Cambiar Plato o regenera el plan completo.';
@@ -3657,6 +3717,85 @@ const DashboardInner = () => {
                     height: 2px;
                     background: rgba(147, 197, 253, 0.3);
                 }
+                /* [P1-SWAP-LOADING-UX · 2026-07-10] Overlay "cocinando" por card:
+                   scrim + blur del contenido, barrido shimmer violeta→cian y chip
+                   pulsante con etapas rotando. Funciona sobre ambos temas (scrim
+                   oscuro estilo modal). Respeta prefers-reduced-motion. */
+                .meal-cooking-overlay {
+                    position: absolute;
+                    inset: 0;
+                    z-index: 5;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: rgba(10, 14, 26, 0.58);
+                    backdrop-filter: blur(3px);
+                    -webkit-backdrop-filter: blur(3px);
+                    overflow: hidden;
+                    animation: cookFadeIn 0.25s ease-out;
+                }
+                .meal-cooking-overlay::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    background: linear-gradient(105deg, transparent 38%,
+                        rgba(139, 92, 246, 0.22) 48%, rgba(34, 211, 238, 0.18) 54%,
+                        transparent 66%);
+                    background-size: 260% 100%;
+                    animation: cookShimmer 2.4s linear infinite;
+                    pointer-events: none;
+                }
+                .meal-cooking-chip {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.6rem;
+                    padding: 0.65rem 1.1rem;
+                    border-radius: 999px;
+                    background: rgba(17, 24, 39, 0.92);
+                    border: 1px solid rgba(139, 92, 246, 0.55);
+                    box-shadow: 0 8px 24px -8px rgba(124, 58, 237, 0.55);
+                    animation: cookPulse 2.6s ease-in-out infinite;
+                    max-width: 92%;
+                }
+                .meal-cooking-chip .cook-icon {
+                    color: #A78BFA;
+                    flex-shrink: 0;
+                    animation: cookBob 1.8s ease-in-out infinite;
+                }
+                .meal-cooking-text {
+                    font-size: 0.85rem;
+                    font-weight: 700;
+                    color: #E5E7EB;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    animation: cookTextIn 0.4s ease-out;
+                }
+                @keyframes cookShimmer {
+                    0% { background-position: 200% 0; }
+                    100% { background-position: -60% 0; }
+                }
+                @keyframes cookPulse {
+                    0%, 100% { box-shadow: 0 8px 24px -8px rgba(124, 58, 237, 0.55); border-color: rgba(139, 92, 246, 0.55); }
+                    50% { box-shadow: 0 8px 30px -6px rgba(34, 211, 238, 0.45); border-color: rgba(34, 211, 238, 0.6); }
+                }
+                @keyframes cookBob {
+                    0%, 100% { transform: translateY(0) rotate(0deg); }
+                    30% { transform: translateY(-2px) rotate(-8deg); }
+                    60% { transform: translateY(1px) rotate(6deg); }
+                }
+                @keyframes cookFadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes cookTextIn {
+                    from { opacity: 0; transform: translateY(4px); }
+                    to { opacity: 1; transform: none; }
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .meal-cooking-overlay,
+                    .meal-cooking-overlay::before,
+                    .meal-cooking-chip,
+                    .meal-cooking-chip .cook-icon,
+                    .meal-cooking-text { animation: none !important; }
+                }
                 .skipped-lunch {
                     padding: 2.5rem 2.5rem 2.5rem 4.5rem;
                     display: flex;
@@ -5876,7 +6015,8 @@ const DashboardInner = () => {
                             <span style={{ color: isDark ? '#FCD34D' : '#92400E', fontSize: '0.72rem', display: 'block', marginTop: '0.3rem', opacity: isDark ? 0.85 : 0.85 }}>
                                 {(() => {
                                     // [P3-NOTIF-CENTER · 2026-06-16] Mapa elevado a módulo (Q_DEGRADED_REASON_MAP).
-                                    const _label = Q_DEGRADED_REASON_MAP[planData._quality_degraded_reason] || 'Calidad por debajo del óptimo.';
+                                    // [P3-BANNER-REASON-COPY · 2026-07-10] prefix-match para low_band_macro:<macros>.
+                                    const _label = resolveQualityDegradedLabel(planData._quality_degraded_reason);
                                     const _sev = planData?._quality_degraded_severity === 'high' ? 'Importante' : 'Menor';
                                     return <>Motivo ({_sev}): {_label}</>;
                                 })()}
@@ -6665,6 +6805,13 @@ const DashboardInner = () => {
                                 // like/foco/receta. Fallback a index si falta name.
                                 return (
                                     <div key={meal.name || `meal-${index}`} className="meal-card">
+
+                                        {/* [P1-SWAP-LOADING-UX · 2026-07-10] Overlay "cocinando": cubre ESTA
+                                            card durante su swap individual, o TODAS durante el update del día
+                                            (seed=index desfasa las etapas para que no se vean clonadas). */}
+                                        {(regeneratingId === index || isDayUpdating) && (
+                                            <MealCookingOverlay mode={isDayUpdating ? 'day' : 'single'} seed={index} />
+                                        )}
 
                                         {/* Meal Info */}
                                         <div>

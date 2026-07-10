@@ -2200,6 +2200,16 @@ export const AssessmentProvider = ({ children }) => {
                         duration: 8000,
                         action: { label: 'Mi Nevera', onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } } },
                     });
+                } else if (data.error_code === 'ai_exhausted_retries') {
+                    // [P2-REGEN-DAY-HONEST-CODE · 2026-07-10] Antes TODO "regenerated=0" llegaba
+                    // como pantry_insufficient_for_goal y mandábamos al usuario a comprar
+                    // ingredientes aunque la causa fuera el guardrail del LLM (visto en vivo
+                    // 2026-07-10 con la Nevera recién restockeada). Copy honesto + Reintentar.
+                    toast.error('El chef no encontró alternativas esta vez', {
+                        description: data.error_message || 'No se descontó tu crédito. Vuelve a intentarlo en un momento.',
+                        duration: 8000,
+                        action: { label: 'Reintentar', onClick: () => { try { regenerateDay(dayIndex, reason); } catch (_) { /* no-op */ } } },
+                    });
                 } else {
                     toast.error('No se pudo actualizar el día', { description: data.error_message || 'Inténtalo de nuevo.' });
                 }
