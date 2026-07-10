@@ -9,6 +9,8 @@ import React from 'react';
 // Named import (P2-SENTRY-TREESHAKE) + captura explicita con tag de ruta: sin la
 // llamada, @sentry/react no ve los errores swalloweados por un boundary.
 import { captureException } from '@sentry/react';
+// [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Anti-loop del auto-reload (ver util).
+import { shouldAutoReloadForChunkError } from '../utils/chunkReloadGuard';
 
 const _isChunkLoadError = (error) => {
   const m = error?.message?.toLowerCase() || '';
@@ -17,6 +19,10 @@ const _isChunkLoadError = (error) => {
     m.includes('valid javascript mime type') ||
     m.includes('importing a module script failed') ||
     m.includes("unexpected token '<'") ||
+    // [P2-CHUNK-RELOAD-GUARD · 2026-07-09] CSS de un chunk stale tras deploy:
+    // Vite lanza "Unable to preload CSS for /assets/…" — sin este matcher la
+    // UI quedaba rota sin auto-reload y "Reintentar" era irrecuperable.
+    m.includes('unable to preload css') ||
     m.includes('loading chunk')
   );
 };
@@ -36,7 +42,19 @@ export class RouteErrorBoundary extends React.Component {
     // reporta a Sentry (falsos positivos que saturan cuota, misma politica que
     // GlobalErrorBoundary).
     if (this.state.isChunk || _isChunkLoadError(error)) {
-      setTimeout(() => window.location.reload(true), 500);
+      // [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Si ya recargamos hace <60s y el
+      // error persiste, NO es el transient post-deploy: index.html stale en un
+      // cache intermedio. Ese caso SI se reporta y cae al fallback con CTA.
+      if (shouldAutoReloadForChunkError()) {
+        setTimeout(() => window.location.reload(true), 500);
+        return;
+      }
+      try {
+        captureException(error, {
+          tags: { error_boundary: 'route', route: this.props.routeName || 'unknown', chunk_reload_loop: 'true' },
+        });
+      } catch { /* noop */ }
+      this.setState({ isChunk: false });
       return;
     }
     if (import.meta.env.DEV) {

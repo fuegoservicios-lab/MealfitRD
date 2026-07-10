@@ -31,24 +31,37 @@ export default function ScrollRestoration() {
     const location = useLocation();
     const storageKey = keyFor(location);
 
-    // --- Guardar la posición de la URL actual (throttle rAF + pagehide/visibility) ---
+    // --- Guardar la posición de la URL actual ---
+    // [P2-SCROLL-SAVE-FLUSH-ONLY · 2026-07-09] Antes cada frame de scroll
+    // escribía sessionStorage (rAF → setItem): trabajo síncrono de storage en
+    // el hot path del scroll de TODAS las páginas, redundante porque el valor
+    // solo se LEE en el próximo refresh/entrada directa. Ahora el scroll solo
+    // anota scrollY en una variable local; la escritura a sessionStorage ocurre
+    // únicamente en los flush points (pagehide, visibility hidden, cambio de
+    // URL) — que ya existían y cubren todos los caminos hacia una recarga.
     useEffect(() => {
         if (typeof window === 'undefined') return undefined;
         let raf = 0;
-        const save = () => {
+        let lastY = null;
+        const record = () => {
             raf = 0;
+            lastY = Math.round(window.scrollY);
+        };
+        const persist = () => {
+            if (raf) { cancelAnimationFrame(raf); raf = 0; }
+            const y = lastY !== null ? lastY : Math.round(window.scrollY);
             try {
-                sessionStorage.setItem(storageKey, String(Math.round(window.scrollY)));
+                sessionStorage.setItem(storageKey, String(y));
             } catch {
                 /* sessionStorage no disponible (modo privado) → no-op */
             }
         };
         const onScroll = () => {
-            if (!raf) raf = requestAnimationFrame(save);
+            if (!raf) raf = requestAnimationFrame(record);
         };
-        const onHide = () => save();
+        const onHide = () => persist();
         const onVisibility = () => {
-            if (document.visibilityState === 'hidden') save();
+            if (document.visibilityState === 'hidden') persist();
         };
         window.addEventListener('scroll', onScroll, { passive: true });
         window.addEventListener('pagehide', onHide);
@@ -57,8 +70,7 @@ export default function ScrollRestoration() {
             window.removeEventListener('scroll', onScroll);
             window.removeEventListener('pagehide', onHide);
             document.removeEventListener('visibilitychange', onVisibility);
-            if (raf) cancelAnimationFrame(raf);
-            save(); // captura la posición saliente al cambiar de URL
+            persist(); // captura la posición saliente al cambiar de URL
         };
     }, [storageKey]);
 

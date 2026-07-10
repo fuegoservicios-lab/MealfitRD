@@ -20,6 +20,27 @@ import { registerSW } from 'virtual:pwa-register'
 import { toast } from 'sonner'
 import './index.css'
 import App from './App.jsx'
+// [P2-SENTRY-RELEASE-ENV · 2026-07-09] release + environment en el init.
+import { APP_VERSION } from './config/appVersion'
+// [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Anti-loop compartido con los boundaries.
+import { shouldAutoReloadForChunkError } from './utils/chunkReloadGuard'
+
+// [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Listener CANONICO de Vite para fallos de
+// preload de chunks/CSS tras un deploy (cubre cualquier formato futuro del
+// mensaje sin depender de substrings). Complementa los matchers de los error
+// boundaries: el evento dispara ANTES de que el error llegue a React (p.ej.
+// modulepreload de un asset con hash viejo). preventDefault evita el throw;
+// recargamos para traer el index.html fresco — con guard anti-loop.
+if (typeof window !== 'undefined') {
+  window.addEventListener('vite:preloadError', (event) => {
+    if (shouldAutoReloadForChunkError()) {
+      event.preventDefault()
+      window.location.reload()
+    }
+    // Si NO recargamos (2º fallo en <60s), dejamos que el error se propague:
+    // los boundaries lo capturan, lo reportan y muestran el CTA manual.
+  })
+}
 
 // [P1-OAUTH-FIRST-PARTY · 2026-07-03] Captura el `neon_auth_session_verifier` (retorno del
 // OAuth de Google) ANTES de que React monte. La ruta '/' del app-host hace
@@ -32,6 +53,20 @@ try {
   const _vv = new URLSearchParams(window.location.search).get('neon_auth_session_verifier')
   if (_vv) sessionStorage.setItem('mf_oauth_verifier', _vv)
 } catch { /* noop: sin storage seguimos con el param de la URL si sobrevive */ }
+
+// [P1-VIEWPORT-ZOOM-LOCK · 2026-07-09] Preventer de gestos de PINCH-ZOOM para iOS Safari, que IGNORA
+// `user-scalable=no`/`maximum-scale` del viewport (Apple lo deshabilitó por a11y desde iOS 10). En el PWA
+// standalone el flag se respeta más, pero para blindar el bloqueo del zoom accidental (pinch de 2 dedos al
+// scrollear carruseles horizontales) capturamos y cancelamos los eventos `gesturestart/change/end`
+// PROPIETARIOS de Safari. El doble-tap-zoom lo mata `touch-action: manipulation` (index.css) y el auto-zoom
+// al enfocar un input lo evita `maximum-scale=1`. Idempotente (corre una vez al boot). passive:false porque
+// necesitamos preventDefault. En navegadores sin estos eventos (Android/desktop) los listeners nunca
+// disparan → inofensivo. Reversión de P2-A11Y-VIEWPORT-ZOOM confirmada con el dueño (ver index.html).
+if (typeof document !== 'undefined') {
+  for (const _evt of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(_evt, (e) => { e.preventDefault() }, { passive: false })
+  }
+}
 
 // Register Service Worker
 // [P2-PWA-SKIPWAITING · 2026-05-30] Flujo "prompt" (registerType:'prompt' en
@@ -211,6 +246,13 @@ const _sentryBeforeBreadcrumb = (crumb) => {
 
 sentryInit({
   dsn: import.meta.env.VITE_SENTRY_DSN,
+  // [P2-SENTRY-RELEASE-ENV · 2026-07-09] Sin `release` los stacks minificados
+  // no se pueden asociar a una versión (ni a source maps si se suben después)
+  // y no hay tracking de regresiones; sin `environment`, eventos dev/preview y
+  // prod caen mezclados en el mismo stream. APP_VERSION es el mismo string que
+  // muestra el footer (config/appVersion.js).
+  release: `mealfitrd@${APP_VERSION}`,
+  environment: import.meta.env.MODE,
   // [P1-PERF-SENTRY-DEFER · 2026-05-31] integrations vacío al boot. browserTracing
   // + replay se adjuntan en idle (ver _attachSentryIntegrations abajo) para no
   // arrastrar ~120KB al entry chunk síncrono. Trade-off aceptado: la transacción

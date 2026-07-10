@@ -1,8 +1,42 @@
 import { precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
+import { CacheFirst } from 'workbox-strategies';
+import { ExpirationPlugin } from 'workbox-expiration';
+
+// [P2-SW-PRECACHE-HOST-SPLIT · 2026-07-09] El mismo build sirve DOS hosts con
+// audiencias disjuntas (apex = marketing, app.* = producto; split
+// P3-APP-SUBDOMAIN-ROUTING) pero el precache descargaba TODOS los chunks en
+// ambos (~3.3MB / 94 entries en el primer install): el visitante del landing
+// pagaba Dashboard/AgentPage/Pantry/… y el usuario del app pagaba
+// Home/News/Legal/…. Filtramos el manifest por hostname ANTES de precachear.
+// Solo se filtran chunks de PÁGINA identificables por nombre — vendor, shell y
+// chunks compartidos se precachean siempre. Un chunk filtrado NO se rompe:
+// simplemente se sirve por red si alguna vez se navega (degradación graciosa).
+// SupermarketPage se deja en ambos (pública, linkeada desde el Footer del app).
+const _IS_APP_HOST = /^app\./i.test(self.location.hostname);
+const _APP_ONLY_CHUNKS = /(?:^|\/)(Dashboard|AgentPage|Pantry|Recipes|Settings|History|Plan|Assessment|AccountSettings|Upgrade|Login|ResetPassword|DashboardLayout|VirtualizedMessageList)-[A-Za-z0-9_-]+\.(?:js|css)$/;
+const _MARKETING_ONLY_CHUNKS = /(?:^|\/)(Home|NewsPage|NewsArticlePage|AboutPage|ResearchPage|Engine|PricingPage|HowItWorksPage|FeaturesPage|PrecisionPage|LegalPages)-[A-Za-z0-9_-]+\.(?:js|css)$/;
 
 // VitePWA inject-manifest will inject '_self.__WB_MANIFEST' here.
-precacheAndRoute(self.__WB_MANIFEST);
+const _manifest = (self.__WB_MANIFEST || []).filter((entry) => {
+    const url = typeof entry === 'string' ? entry : (entry && entry.url) || '';
+    return _IS_APP_HOST ? !_MARKETING_ONLY_CHUNKS.test(url) : !_APP_ONLY_CHUNKS.test(url);
+});
+precacheAndRoute(_manifest);
+
+// [P2-SW-FONTS-CACHE · 2026-07-09] Las fuentes self-hosted (/fonts/*.woff2,
+// P3-SELF-HOST-FONTS) estaban fuera del precache (globPatterns no incluye
+// woff2) y sin runtime caching → offline rompía la tipografía y cada arranque
+// dependía de los headers HTTP del servidor. CacheFirst: inmutables por
+// contenido, se cachean al primer uso (solo las que el navegador realmente
+// pide, no las 6 del dir).
+registerRoute(
+    ({ request, url }) => request.destination === 'font' || url.pathname.startsWith('/fonts/'),
+    new CacheFirst({
+        cacheName: 'mealfit-fonts',
+        plugins: [new ExpirationPlugin({ maxEntries: 12, maxAgeSeconds: 365 * 24 * 60 * 60 })],
+    }),
+);
 
 // [P3-PWA-CLEANUP · 2026-05-30] Purga precaches creados bajo un esquema de
 // Workbox anterior (housekeeping de Cache Storage). injectManifest no lo añade

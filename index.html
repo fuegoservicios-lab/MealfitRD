@@ -4,15 +4,25 @@
 <head>
   <meta charset="UTF-8" />
   <!-- [P6-SPEED-IMG · 2026-06-01] favicon recomprimido 302KB→54.8KB (palette 128c,
-       visualmente idéntico a 16-48px). ?v bump fuerza refetch del nuevo archivo. -->
-  <link rel="icon" type="image/png" href="/favicon-transparent.png?v=16" />
+       visualmente idéntico a 16-48px). ?v bump fuerza refetch del nuevo archivo.
+       [P2-FAVICON-DEDUPE · 2026-07-09] favicon-transparent.png era BYTE-IDÉNTICO
+       a favicon.png (MD5 71c4a858) — 54.8KB duplicados en el precache del SW.
+       Todas las refs apuntan ahora a /favicon.png; el duplicado se eliminó. -->
+  <link rel="icon" type="image/png" href="/favicon.png?v=17" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-  <!-- [P2-A11Y-VIEWPORT-ZOOM · 2026-05-31] Pinch-zoom HABILITADO. Pre-fix usaba
-       maximum-scale=1.0 + user-scalable=0 ("feel" app-like) pero violaba WCAG
-       1.4.4 Resize Text (AA): Android Chrome respeta el bloqueo y el público
-       dominicano es Android-dominante. El requisito de accesibilidad pesa más
-       que el anti-zoom-accidental marginal. Decisión confirmada con el dueño. -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- [P1-VIEWPORT-ZOOM-LOCK · 2026-07-09] Zoom BLOQUEADO (feel de app nativa).
+       SUPERSEDE a P2-A11Y-VIEWPORT-ZOOM (2026-05-31, que habilitó pinch-zoom por
+       WCAG 1.4.4 Resize Text). Reversión confirmada con el dueño: el zoom
+       accidental (pinch de 2 dedos al scrollear carruseles horizontales, doble-tap,
+       auto-zoom de iOS al enfocar campos) se disparaba SIN QUERER y dejaba la UI
+       ampliada/cortada — pésimo UX en un PWA standalone. maximum-scale=1 +
+       user-scalable=no bloquea el pinch en Android Chrome (respeta el flag) y en el
+       PWA standalone de iOS; se complementa con `touch-action: manipulation` (mata
+       doble-tap) y un preventer de gestos iOS en main.jsx (Safari ignora
+       user-scalable=no en browser). Trade-off WCAG aceptado: el texto sigue legible
+       y la escala de fuente a nivel del SO (Dynamic Type / Android font size) sigue
+       funcionando como vía de accesibilidad real. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
   <!-- [APPEARANCE-THEME · 2026-05-28] No-flash theme boot. Corre síncrono en
        <head> ANTES del primer paint (y antes del splash) para que el atributo
@@ -91,7 +101,7 @@
       "@type": "Organization",
       "name": "MealfitRD",
       "url": "https://mealfitrd.com/",
-      "logo": "https://mealfitrd.com/favicon-transparent.png",
+      "logo": "https://mealfitrd.com/favicon.png",
       "description": "Planes de alimentación personalizados con IA, adaptados a tus gustos, presupuesto y estilo de vida.",
       "areaServed": {
         "@type": "Country",
@@ -121,7 +131,18 @@
     }
   </script>
 
+  <!-- [P2-PRECONNECT-AUTH · 2026-07-09] El origen de Neon Auth está en el
+       critical path del boot autenticado (el splash espera la resolución de la
+       sesión): preconnect abre DNS+TCP+TLS en paralelo con la descarga del JS
+       en vez de en serie al primer fetch. Host fijo de .env.production; si el
+       endpoint de Neon cambia, actualizar aquí también. -->
+  <link rel="preconnect" href="https://ep-divine-sun-aiaszh9z.neonauth.c-4.us-east-1.aws.neon.tech" crossorigin />
+  <link rel="dns-prefetch" href="https://ep-divine-sun-aiaszh9z.neonauth.c-4.us-east-1.aws.neon.tech" />
+
   <!-- PWA & Apple iOS Support -->
+  <!-- [P2-MANIFEST-DEDUPE · 2026-07-09] /manifest.json es el SSOT único
+       (VitePWA manifest:false — antes inyectaba un manifest.webmanifest
+       divergente: lang 'en', sin shortcuts ni orientation). -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />

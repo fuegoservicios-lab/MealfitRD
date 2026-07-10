@@ -78,35 +78,15 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       includeAssets: ['favicon.png'],
-      manifest: {
-        name: 'MealfitRD | Nutrición con IA',
-        short_name: 'MealfitRD',
-        description: 'Planes de alimentación personalizados con IA avanzada.',
-        theme_color: '#4F46E5',
-        background_color: '#111827',
-        display: 'standalone',
-        // [P3-PWA-ICON-PADDING · 2026-06-16] Iconos con padding (logo ~66%, fondo
-        // blanco) para el home screen — antes el logo iba a sangre (pegado a los
-        // bordes). El favicon de la web (favicon-transparent.png) NO se toca.
-        icons: [
-          {
-            src: '/apple-touch-icon-192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/apple-touch-icon.png',
-            sizes: '512x512',
-            type: 'image/png'
-          },
-          {
-            src: '/apple-touch-icon.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ]
-      }
+      // [P2-MANIFEST-DEDUPE · 2026-07-09] `manifest: false`. Antes convivían DOS
+      // manifests divergentes en el HTML compilado: el <link rel="manifest"
+      // href="/manifest.json"> manual de index.html (SSOT rico: lang es-DO,
+      // orientation, shortcuts, iconos P3-PWA-ICON-PADDING) y el
+      // manifest.webmanifest que inyectaba este plugin (lang 'en', sin
+      // shortcuts ni orientation). El browser tomaba el primero, pero la
+      // duplicación era ambigua y drift-prone. public/manifest.json queda como
+      // SSOT único; el plugin sigue generando SOLO el service worker.
+      manifest: false,
     })
   ],
   server: {
@@ -136,7 +116,14 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           // Vendor: heavy libs cached separately
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // [P2-VENDOR-REACT-CLIENT · 2026-07-09] 'react-dom/client' añadido:
+          // es un export-path SEPARADO que NO es dependencia de react-dom/index,
+          // así que listar solo 'react-dom' dejaba react-dom-client.production
+          // (~130KB min / ~40KB gzip — el reconciler entero) dentro del ENTRY
+          // chunk, cuyo hash cambia en cada deploy → los usuarios re-descargaban
+          // el framework en cada release en vez de servirlo del cache del vendor
+          // chunk estable. Verificado con rollup-plugin-visualizer 2026-07-09.
+          'vendor-react': ['react', 'react-dom', 'react-dom/client', 'react-router-dom'],
           // [P1-NEON-AUTH-MIGRATION · 2026-06-13] supabase-js → neon-js (Neon Auth).
           'vendor-neon-auth': ['@neondatabase/neon-js'],
           // [P1-PERF-FRAMER-SPLIT · 2026-05-31] framer-motion REMOVIDO de

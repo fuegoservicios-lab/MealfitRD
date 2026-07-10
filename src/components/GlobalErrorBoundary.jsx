@@ -9,6 +9,8 @@ import React from 'react';
 // Tree-shake (P2-SENTRY-TREESHAKE 2026-05-23): named import preserva el
 // patrón ya establecido en main.jsx y AgentPage.jsx.
 import { captureException } from '@sentry/react';
+// [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Anti-loop del auto-reload (ver util).
+import { shouldAutoReloadForChunkError } from '../utils/chunkReloadGuard';
 
 export class GlobalErrorBoundary extends React.Component {
   constructor(props) {
@@ -24,6 +26,9 @@ export class GlobalErrorBoundary extends React.Component {
       errMessage.includes("valid javascript mime type") ||
       errMessage.includes("importing a module script failed") ||
       errMessage.includes("unexpected token '<'") ||
+      // [P2-CHUNK-RELOAD-GUARD · 2026-07-09] CSS de chunk stale tras deploy
+      // ("Unable to preload CSS for …") — mismo transient, misma recovery.
+      errMessage.includes("unable to preload css") ||
       errMessage.includes("loading chunk");
     return { hasError: true, isChunkLoadError };
   }
@@ -52,11 +57,20 @@ export class GlobalErrorBoundary extends React.Component {
       // Chunk-load errors NO se reportan a Sentry: son consecuencia esperada
       // de un deploy nuevo invalidando chunks viejos en el browser del user;
       // el reload los resuelve. Reportarlos satura cuota con falsos positivos.
-      // Small timeout to avoid rapid reload loops in worst case scenarios,
-      // but reload to get the new index.html and fresh chunk names.
-      setTimeout(() => {
-        window.location.reload(true);
-      }, 500);
+      // [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Salvo el SEGUNDO fallo en <60s:
+      // eso ya no es el transient post-deploy (index.html stale en un cache
+      // intermedio) — ese caso SI se reporta y cae al fallback con CTA manual
+      // en vez de entrar en bucle infinito de recargas.
+      if (shouldAutoReloadForChunkError()) {
+        setTimeout(() => {
+          window.location.reload(true);
+        }, 500);
+        return;
+      }
+      try {
+        captureException(error, { tags: { error_boundary: "global", chunk_reload_loop: "true" } });
+      } catch { /* noop */ }
+      this.setState({ isChunkLoadError: false });
       return;
     }
 

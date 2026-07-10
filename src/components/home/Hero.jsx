@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { BookOpen, Stethoscope, HeartPulse, ClipboardCheck, Wallet, Cpu } from 'lucide-react';
@@ -72,6 +72,36 @@ const Hero = () => {
     const ctaRef = useRef(null);
     const reduce = useReducedMotion();
     const V = makeVariants(reduce);
+
+    // [P2-HERO-VIDEO-DEFER · 2026-07-09] El orbe-video (orb.webm 1.16MB /
+    // orb.mp4 2.78MB — el asset más pesado del sitio) se montaba con autoPlay
+    // → descarga completa compitiendo con el critical path en la primera
+    // pantalla, en un mercado móvil con datos caros. Ahora: el poster (27KB)
+    // pinta primero SIEMPRE; el <video> se monta recién cuando (a) el efecto
+    // post-mount corre (fuera del first paint), (b) el stage está en viewport
+    // (IntersectionObserver — cubre aterrizajes con scroll restaurado abajo),
+    // y (c) el usuario NO pidió ahorro de datos (Save-Data). Reduced-motion
+    // sigue mostrando solo el poster, como antes.
+    const stageRef = useRef(null);
+    const [videoOn, setVideoOn] = useState(false);
+    useEffect(() => {
+        if (reduce || videoOn) return undefined;
+        const conn = typeof navigator !== 'undefined' ? navigator.connection : undefined;
+        if (conn && conn.saveData === true) return undefined;
+        const el = stageRef.current;
+        if (!el || typeof IntersectionObserver === 'undefined') {
+            setVideoOn(true);
+            return undefined;
+        }
+        const io = new IntersectionObserver((entries) => {
+            if (entries.some((e) => e.isIntersecting)) {
+                setVideoOn(true);
+                io.disconnect();
+            }
+        }, { rootMargin: '120px' });
+        io.observe(el);
+        return () => io.disconnect();
+    }, [reduce, videoOn]);
 
     // [HEADER-STICKY-CTA · 2026-05-31] Reporta al Header (vía contexto) si el CTA
     // principal del Hero está en pantalla. El rootMargin top negativo ≈ altura del
@@ -181,13 +211,15 @@ const Hero = () => {
                         plano que rota muy sutil (±5°) en loop lento; los hijos se
                         separan con translateZ para profundidad real (parallax al
                         rotar). */}
-                    <div className={styles.stage3d}>
+                    <div className={styles.stage3d} ref={stageRef}>
                         {/* [P3-HERO-ORB-VIDEO · 2026-06-30] La esfera CSS (orb + ring +
                             glow) se reemplazó por un video 3D (orb.webm/mp4) clipeado con
                             máscara radial que funde el borde rectangular y el fondo dot-grid
                             del video con el fondo del hero. Reduced-motion → poster estático.
-                            El landing es dark-only, así que el fondo navy del video coincide. */}
-                        {reduce ? (
+                            El landing es dark-only, así que el fondo navy del video coincide.
+                            [P2-HERO-VIDEO-DEFER · 2026-07-09] El video monta diferido
+                            (post-paint + en viewport + sin Save-Data); poster primero. */}
+                        {(reduce || !videoOn) ? (
                             <img className={styles.orbVideo} src="/orb-poster.jpg" alt="" aria-hidden="true" />
                         ) : (
                             <video

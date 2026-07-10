@@ -99,16 +99,23 @@ const PaymentModal = ({
         vault: true
     };
 
+    // [P2-PAYPAL-PLAN-FAIL-LOUD · 2026-07-09] Env-only, SIN fallbacks hardcoded
+    // ni placeholders: el mismo anti-patrón que P3-NEW-PAYPAL-FALLBACK eliminó
+    // para el client-id. Un fallback silencioso a un plan_id embebido puede
+    // cobrar contra el plan equivocado si el env var cambia/rota; un ID falsy
+    // aborta en handleCreateSubscription con toast (fail-loud en el punto de
+    // acción, sin romper el render del modal). Los 6 IDs reales viven en
+    // .env.production (públicos según PayPal).
     const PLAN_IDS = {
         monthly: {
-            basic: import.meta.env.VITE_PAYPAL_PLAN_BASIC_MONTHLY || import.meta.env.VITE_PAYPAL_PLAN_BASIC || "P-3EC609010T222652UNHGGQSY",
-            plus: import.meta.env.VITE_PAYPAL_PLAN_PLUS_MONTHLY || import.meta.env.VITE_PAYPAL_PLAN_PLUS || "P-2N87184189425672JNHGGS4I",
-            ultra: import.meta.env.VITE_PAYPAL_PLAN_ULTRA_MONTHLY || import.meta.env.VITE_PAYPAL_PLAN_ULTRA || "P-0D041124VT473392JNHGGTUI"
+            basic: import.meta.env.VITE_PAYPAL_PLAN_BASIC_MONTHLY || import.meta.env.VITE_PAYPAL_PLAN_BASIC,
+            plus: import.meta.env.VITE_PAYPAL_PLAN_PLUS_MONTHLY || import.meta.env.VITE_PAYPAL_PLAN_PLUS,
+            ultra: import.meta.env.VITE_PAYPAL_PLAN_ULTRA_MONTHLY || import.meta.env.VITE_PAYPAL_PLAN_ULTRA
         },
         annual: {
-            basic: import.meta.env.VITE_PAYPAL_PLAN_BASIC_ANNUAL || "P-ANNUAL_BASIC_PLACEHOLDER",
-            plus: import.meta.env.VITE_PAYPAL_PLAN_PLUS_ANNUAL || "P-ANNUAL_PLUS_PLACEHOLDER",
-            ultra: import.meta.env.VITE_PAYPAL_PLAN_ULTRA_ANNUAL || "P-ANNUAL_ULTRA_PLACEHOLDER"
+            basic: import.meta.env.VITE_PAYPAL_PLAN_BASIC_ANNUAL,
+            plus: import.meta.env.VITE_PAYPAL_PLAN_PLUS_ANNUAL,
+            ultra: import.meta.env.VITE_PAYPAL_PLAN_ULTRA_ANNUAL
         }
     };
 
@@ -140,12 +147,15 @@ const PaymentModal = ({
 
     const handleCreateSubscription = (data, actions) => {
         const paypalPlanId = PLAN_IDS[isAnnual ? 'annual' : 'monthly'][tier];
-        if (paypalPlanId.includes("PLACEHOLDER")) {
+        // [P2-PAYPAL-PLAN-FAIL-LOUD · 2026-07-09] Env var ausente → abortar la
+        // suscripción con feedback (antes solo cubría el placeholder anual;
+        // el mensual caía en un fallback hardcoded silencioso).
+        if (!paypalPlanId) {
             // [P3-AUDIT-2 · 2026-05-15] `alert()` nativo reemplazado por
             // `toast.error` (sonner). Consistencia UX con el resto de la
             // app + no bloquea el thread durante el flujo de pago.
-            toast.error("Plan ID Anual no configurado.");
-            return Promise.reject(new Error("Missing Plan ID"));
+            toast.error("Plan de pago no configurado. Contacta soporte.");
+            return Promise.reject(new Error("Missing PayPal plan ID"));
         }
 
         const payload = { 'plan_id': paypalPlanId };

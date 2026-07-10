@@ -6,5 +6,9 @@ Disallow: /dashboard
 Disallow: /assessment
 Disallow: /plan
 Disallow: /reset-password
+# [P2-ROBOTS-AUTH-ROUTES · 2026-07-09] Rutas autenticadas que faltaban del
+# mismo criterio (sin valor indexable).
+Disallow: /history
+Disallow: /configuracion
 
 Sitemap: https://mealfitrd.com/sitemap.xml
