@@ -412,9 +412,11 @@ html[data-theme="dark"] {
   --warning-bg: #2A2009;       /* ámbar profundo — fondo de banner sutil sobre oscuro */
   --warning-text: #FCD34D;     /* Amber 300 — legible sobre oscuro (era #78350F invisible) */
   --warning-border: rgba(251, 191, 36, 0.32);  /* borde ámbar sutil sobre oscuro */
-  /* [P2-7 · 2026-07-09] --success*/--info*/--focus-ring en oscuro (espejo del
-     patrón --danger*): elimina la duplicación de verdes que History.module.css
-     re-declaraba a mano en su bloque html[data-theme=dark]. */
+  /* [P2-7 · 2026-07-09] Familias success / info / focus-ring en oscuro
+     (espejo del patrón danger). Elimina la duplicación de verdes que
+     History.module.css re-declaraba a mano en su bloque dark.
+     OJO: no escribir "--success" seguido de asterisco-slash en comentarios
+     CSS — cierra el comentario y rompe postcss (bug real 2026-07-09). */
   --success: #34D399;          /* Emerald 400 */
   --success-bg: #132D25;
   --success-text: #6EE7B7;     /* Emerald 300 */

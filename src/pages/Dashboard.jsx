@@ -2626,7 +2626,7 @@ const DashboardInner = () => {
                             <span style="background-color: #eff6ff; color: #1e40af; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #3b82f640;">Total: ${escapeHtml(_fmtItems(totalItems))}</span>
                         </div>
                     </div>
-                    <img src="/favicon-transparent.png" alt="MealfitRD Logo" style="height: 40px;" />
+                    <img src="/favicon.png" alt="MealfitRD Logo" style="height: 40px;" />
                 </div>
 
                 

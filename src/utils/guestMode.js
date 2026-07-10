@@ -136,11 +136,6 @@ export function incrementGuestCreditsUsed() {
     return next;
 }
 
-/** Créditos que le quedan al invitado. */
-export function getGuestCreditsRemaining() {
-    return Math.max(0, GUEST_PLAN_CREDITS - getGuestCreditsUsed());
-}
-
 /** Desactiva modo invitado (al hacer login real). NO toca el session_id ni
  *  el user_id — el login real reescribe user_id; el session_id puede reusarse
  *  para correlación si hiciera falta. */

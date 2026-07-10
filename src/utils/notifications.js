@@ -147,11 +147,6 @@ export function markAllNotificationsRead() {
     _write(arr.map((n) => (n.read ? n : { ...n, read: true })));
 }
 
-/** Cantidad de no leídas. */
-export function getUnreadCount() {
-    return _read().filter((n) => !n.read).length;
-}
-
 /** Borra una notificación por id. */
 export function removeNotification(id) {
     _write(_read().filter((n) => n.id !== id));
