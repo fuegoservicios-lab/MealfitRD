@@ -578,6 +578,7 @@ const DashboardInner = () => {
         toggleMealLike,
         regenerateSingleMeal, // Ahora esta función es ASYNC (llama a la IA)
         regenerateDay, // [P5-PANTRY-SUFFICIENCY · 2026-06-23] actualizar el día desde la Nevera
+        dayRegenInFlight, // [P1-DAY-REGEN-RESUME · 2026-07-10] regen del día in-flight (sobrevive refresh)
         formData,
         planCount,
         PLAN_LIMIT,
@@ -1255,6 +1256,16 @@ const DashboardInner = () => {
     // spinner + disabled mientras corre regenerateDay (dayUpdateLock es el guard SÍNCRONO; este
     // STATE dispara el re-render del botón para que se vea cargando y no sea clickeable de nuevo).
     const [isDayUpdating, setIsDayUpdating] = useState(false);
+    // [P1-DAY-REGEN-RESUME · 2026-07-10] Espejo del flag del contexto: al REMONTAR tras un
+    // refresh con regen del día in-flight, el resume del contexto pone dayRegenInFlight=true
+    // → re-encendemos el overlay "cocinando" local; cuando el poll detecta el persist (o
+    // agota el timeout), lo apagamos. Solo transiciones (no pisa el set local del click).
+    const _prevDayRegenRef = useRef(false);
+    useEffect(() => {
+        if (dayRegenInFlight && !_prevDayRegenRef.current) setIsDayUpdating(true);
+        if (!dayRegenInFlight && _prevDayRegenRef.current) setIsDayUpdating(false);
+        _prevDayRegenRef.current = dayRegenInFlight;
+    }, [dayRegenInFlight]);
     // Candado SÍNCRONO para el modal de "Cambiar Plato" individual contra doble-tap (mismo bug de
     // doble-cobro que el día: setSwapModal(null) es async → un 2º tap pasaría antes del re-render).
     const swapInFlightLock = useRef(false);

@@ -2150,6 +2150,12 @@ export const AssessmentProvider = ({ children }) => {
     // del día), itera swaps pantry-strict reservando inventario, y persiste days[i].meals
     // atómicamente. Distinto de "Renovar Ciclo" (variety legacy que compra distinto). El
     // crédito lo cobra el backend SOLO si genera (1/día).
+    // [P1-DAY-REGEN-RESUME · 2026-07-10] true durante el request en-sesión Y durante el
+    // resume post-refresh — el Dashboard lo consume para mantener el overlay "cocinando"
+    // encendido sin importar el reload (el backend sigue generando server-side).
+    const [dayRegenInFlight, setDayRegenInFlight] = useState(false);
+    const dayRegenPollRef = useRef(null);
+
     const regenerateDay = async (dayIndex, reason = 'variety') => {
         const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
         if (!userId || userId === 'guest') {
@@ -2161,13 +2167,31 @@ export const AssessmentProvider = ({ children }) => {
             toast.error('No encontramos tu plan activo.');
             return { ok: false };
         }
-        // [P5-DAY-LOADING-UX · 2026-06-23] El día completo es lento (~1 min: 4 swaps
+        // [P5-DAY-LOADING-UX · 2026-06-23] El día completo es lento (3-5 min: 4 swaps
         // secuenciales contra la IA). El caller cierra el modal de inmediato; aquí mostramos
         // el progreso como toast NO-bloqueante para que el usuario ni quede atrapado ni a
         // ciegas. Se descarta en el `finally` (éxito, soft-fail o error).
+        // [P1-DAY-REGEN-RESUME · 2026-07-10] Copy honesto (medido en vivo: ~4.4 min; decía
+        // "~1 minuto") + el marker de abajo hace verdad lo de "puedes salir".
         const _dayLoadingId = toast.loading('Actualizando tu día…', {
-            description: 'Cocinando con lo que tienes en tu Nevera. Puede tomar hasta ~1 minuto.',
+            description: 'Cocinando con lo que tienes en tu Nevera. Puede tomar de 3 a 5 minutos — '
+                + 'puedes salir o refrescar: seguimos cocinando y al volver retomamos el progreso.',
         });
+        // [P1-DAY-REGEN-RESUME · 2026-07-10] Marker persistente del regen in-flight: si el
+        // usuario refresca/cierra, el BACKEND sigue generando (el POST corre server-side hasta
+        // persistir atómicamente); este marker permite al remount retomar el overlay y pollear
+        // /api/plans-data/latest hasta ver el día persistido (señal: _plan_modified_at >
+        // startedAt, con cambio-de-nombres como respaldo). Se limpia en el finally (la ruta
+        // sin-refresh) o al completar/agotar el poll de resume.
+        try {
+            safeLocalStorageSet('mealfit_day_regen_inflight', {
+                planId,
+                dayIndex,
+                startedAt: Date.now(),
+                names: (planData?.days?.[dayIndex]?.meals || []).map((m) => (m && m.name) || ''),
+            });
+        } catch (_) { /* no-op */ }
+        setDayRegenInFlight(true);
         try {
             const resp = await fetchWithAuth(`/api/plans/${planId}/regenerate-day`, {
                 method: 'POST',
@@ -2311,8 +2335,89 @@ export const AssessmentProvider = ({ children }) => {
             return { ok: false };
         } finally {
             toast.dismiss(_dayLoadingId);
+            // [P1-DAY-REGEN-RESUME] Ruta sin-refresh: el request terminó en esta sesión →
+            // limpiar marker + flag. (Con refresh, este finally nunca corre y el marker
+            // sobrevive para que el effect de resume retome el overlay + poll.)
+            safeLocalStorageRemove('mealfit_day_regen_inflight');
+            setDayRegenInFlight(false);
         }
     };
+
+    // [P1-DAY-REGEN-RESUME · 2026-07-10] Resume cross-refresh del "actualizar día": si al
+    // montar (con sesión) existe un marker fresco de regen in-flight, el backend sigue
+    // trabajando server-side → re-encender el overlay (dayRegenInFlight, consumido por el
+    // Dashboard) y pollear /api/plans-data/latest hasta detectar el persist del día
+    // (_plan_modified_at > startedAt, o cambio en los nombres del día como respaldo —
+    // cubre también el caso raro all-slots-conservados vía el timeout). Guard de plan-id
+    // (mismo patrón P2-REALTIME-PLAN-ID-GUARD del poller de chunks).
+    useEffect(() => {
+        if (!session?.user?.id) return undefined;
+        const raw = safeLocalStorageGet('mealfit_day_regen_inflight', null);
+        if (!raw) return undefined;
+        let marker = null;
+        try { marker = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (_) { marker = null; }
+        const MAX_AGE_MS = 9 * 60 * 1000;
+        if (!marker || !marker.startedAt || (Date.now() - marker.startedAt) > MAX_AGE_MS) {
+            safeLocalStorageRemove('mealfit_day_regen_inflight');
+            return undefined;
+        }
+        setDayRegenInFlight(true);
+        let cancelled = false;
+        const applyRegenPlan = (plan) => {
+            const pdNew = plan?.plan_data;
+            if (!pdNew) return;
+            setPlanData((prev) => {
+                if (!prev) return pdNew;
+                if (prev.id && plan.id && prev.id !== plan.id) return prev;
+                const merged = { ...prev, days: pdNew.days };
+                for (const k of ['micronutrient_report', 'dish_quality_report', '_quality_degraded',
+                    '_quality_degraded_reason', '_quality_degraded_severity', '_plan_modified_at',
+                    'aggregated_shopping_list', 'aggregated_shopping_list_weekly',
+                    'aggregated_shopping_list_biweekly', 'aggregated_shopping_list_monthly']) {
+                    if (k in pdNew) merged[k] = pdNew[k];
+                    else delete merged[k];
+                }
+                safeLocalStorageSet('mealfit_plan', merged);
+                return merged;
+            });
+        };
+        const finish = (applied) => {
+            safeLocalStorageRemove('mealfit_day_regen_inflight');
+            if (!cancelled) setDayRegenInFlight(false);
+            if (applied && !cancelled) {
+                toast.success('¡Día actualizado!', { description: 'Tus platos nuevos ya están listos.', icon: '👨‍🍳' });
+            }
+        };
+        const tick = async () => {
+            if (cancelled) return;
+            try {
+                const resp = await fetchWithAuth('/api/plans-data/latest');
+                if (!cancelled && resp.ok) {
+                    const { plan } = await resp.json();
+                    const pdNew = plan?.plan_data;
+                    const idOk = !marker.planId || !plan?.id || String(plan.id) === String(marker.planId);
+                    if (pdNew && idOk) {
+                        const modifiedAt = pdNew._plan_modified_at ? Date.parse(pdNew._plan_modified_at) : 0;
+                        const namesNow = (pdNew.days?.[marker.dayIndex]?.meals || []).map((m) => (m && m.name) || '');
+                        const changed = JSON.stringify(namesNow) !== JSON.stringify(marker.names || []);
+                        if ((modifiedAt && modifiedAt > marker.startedAt) || changed) {
+                            applyRegenPlan(plan);
+                            finish(true);
+                            return;
+                        }
+                    }
+                }
+            } catch (_) { /* red transitoria: probamos en el próximo tick */ }
+            if (cancelled) return;
+            if ((Date.now() - marker.startedAt) > MAX_AGE_MS) { finish(false); return; }
+            dayRegenPollRef.current = setTimeout(tick, 8000);
+        };
+        dayRegenPollRef.current = setTimeout(tick, 2000);
+        return () => {
+            cancelled = true;
+            if (dayRegenPollRef.current) clearTimeout(dayRegenPollRef.current);
+        };
+    }, [session?.user?.id]);
 
     // --- REGENERACIÓN INTELIGENTE CON PERSISTENCIA DE DB ---
     const regenerateSingleMeal = async (dayIndex, mealIndex, mealType, currentName, swapReason = 'dislike', liveInventory = null) => {
@@ -3319,6 +3424,8 @@ export const AssessmentProvider = ({ children }) => {
             dislikedMeals,
             regenerateSingleMeal: _regenerateSingleMeal,
             regenerateDay: _regenerateDay,
+            // [P1-DAY-REGEN-RESUME · 2026-07-10] overlay del día sobrevive al refresh.
+            dayRegenInFlight,
             resetApp: _resetApp,
             resetForNewAssessment: _resetForNewAssessment,
             planCount: effectivePlanCount,
@@ -3350,7 +3457,7 @@ export const AssessmentProvider = ({ children }) => {
         loadingSensitive, userProfile, _updateUserProfile, currentStep, setCurrentStep,
         maxReachedStep, setMaxReachedStep, direction, _nextStep, _prevStep, formData,
         _updateData, planData, setPlanData, _saveGeneratedPlan, likedMeals, _toggleMealLike,
-        dislikedMeals, _regenerateSingleMeal, _regenerateDay, _resetApp, _resetForNewAssessment,
+        dislikedMeals, _regenerateSingleMeal, _regenerateDay, dayRegenInFlight, _resetApp, _resetForNewAssessment,
         effectivePlanCount, effectivePlanLimit, checkPlanLimit, isPremium, effectiveRemaining,
         isGuest, activateGuestMode, consumeGuestCredit, exitGuestSession, _upgradeUserPlan,
         _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, restoreSessionData,
