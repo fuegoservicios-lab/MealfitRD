@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Loader2, Dumbbell, RefreshCw } from 'lucide-react';
+// [P2-LINT-ZERO · 2026-07-09] Hook SSOT reactivo (P2-14) para reduce-motion.
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 /* [P3-LOGIN-SHOWCASE-DEMO · 2026-06-29] Demo de producto del login: loop narrativo de
    4 escenas que enseña qué hace MealfitRD (objetivo → la IA genera → tu plan → ajustas).
@@ -39,10 +41,6 @@ const SCENES = [
 const R = 40;
 const C = 2 * Math.PI * R;
 const TARGET_OFFSET = C * (1 - 0.74);
-
-const prefersReduced = () =>
-    typeof window !== 'undefined' && window.matchMedia &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const fade = {
     initial: { opacity: 0, y: 16 },
@@ -307,10 +305,14 @@ function Cursor({ target }) {
 /* ── Componente principal ─────────────────────────────────────────────────── */
 export default function PlanShowcase() {
     const [idx, setIdx] = useState(0);
-    const reduced = useRef(prefersReduced());
+    // [P2-LINT-ZERO · 2026-07-09] Antes: useRef(prefersReduced()) leído durante
+    // el render (react-hooks/refs) — además el valor quedaba congelado al mount.
+    // El hook SSOT (P2-14) es reactivo: si el usuario activa reduce-motion en el
+    // SO con la página abierta, la animación se detiene de verdad.
+    const reduced = useMediaQuery('(prefers-reduced-motion: reduce)');
 
     useEffect(() => {
-        if (reduced.current) { setIdx(2); return undefined; } // estado "plan", estático
+        if (reduced) { setIdx(2); return undefined; } // estado "plan", estático
         let alive = true;
         let timer;
         const advance = (i) => {
@@ -320,7 +322,7 @@ export default function PlanShowcase() {
         };
         advance(0);
         return () => { alive = false; clearTimeout(timer); };
-    }, []);
+    }, [reduced]);
 
     const scene = SCENES[idx];
     const Body = [SceneObjetivo, SceneGenerando, ScenePlan, SceneAjuste][idx];

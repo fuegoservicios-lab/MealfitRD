@@ -164,7 +164,7 @@ const _AGENT_ERROR_COPY = {
     },
 };
 
-const _buildAgentErrorMessage = ({ status, detail, retryPrompt, retryImageUrl, isAgentError }) => {
+const _buildAgentErrorMessage = ({ status, retryPrompt, retryImageUrl, isAgentError }) => {
     let entry = _AGENT_ERROR_COPY[status];
     if (!entry) {
         // 500/502/otros — copy genérico retryable. Server problem.
@@ -429,7 +429,7 @@ const compressImageFile = (file, maxWidth = 1200, quality = 0.8) => {
 };
 
 const AgentPage = () => {
-    const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, isPremium, checkPlanLimit, restoreSessionData } = useAssessment();
+    const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, checkPlanLimit, restoreSessionData } = useAssessment();
     const navigate = useNavigate();
     const [titlePollCount, setTitlePollCount] = useState(0);
     const [showNavMenu, setShowNavMenu] = useState(false);
@@ -506,7 +506,10 @@ const AgentPage = () => {
         return newId;
     });
 
-    const [guestSessionIds, setGuestSessionIds] = useState(() => {
+    // `_guestSessionIds` (prefijo _): el valor no se lee, pero el lazy initializer
+    // siembra `mealfit_guest_sessions_list` y el setter mantiene la lista viva
+    // (handleNewChat/handleSend). Mismo patrón que ChatWidget.jsx.
+    const [_guestSessionIds, setGuestSessionIds] = useState(() => {
         // [P2-B] try/catch defensivo + validación de tipo: si `mealfit_guest_sessions_list`
         // se corrompe, el throw aquí rompe el render de AgentPage entero. Tras el
         // catch caemos al "initialList" como si nunca hubiera habido storage previo.
@@ -759,8 +762,6 @@ const AgentPage = () => {
     const [abortController, setAbortController] = useState(null);
     const abortControllerRef = useRef(null);
     const [selectedFile, setSelectedFile] = useState(null);
-    const [editingSessionId, setEditingSessionId] = useState(null);
-    const [editTitle, setEditTitle] = useState('');
     const [previewUrl, setPreviewUrl] = useState(null);
     // [P3-CHAT-OBJECTURL-LEAK · 2026-06-01] Ref espejo de previewUrl para que el
     // teardown de unmount (effect deps []) pueda revocar el blob staged sin
@@ -826,11 +827,12 @@ const AgentPage = () => {
     const messagesContainerRef = useRef(null);
     const userScrolledUpRef = useRef(false);
 
-    const [isListening, setIsListening] = useState(false);
-    const [micErrorMsg, setMicErrorMsg] = useState(null);
+    // Setters/refs del dictado eliminados junto con toggleDictation (dead code
+    // post P1-DEADCODE-TTS). Los valores siguen leyéndose en la UI (placeholder
+    // del textarea, gate del botón enviar) con su estado inicial constante.
+    const [isListening] = useState(false);
+    const [micErrorMsg] = useState(null);
     const recognitionRef = useRef(null);
-    const originalInputRef = useRef('');
-    const silenceTimerRef = useRef(null);
 
     // Para Drag & Drop de Imágenes
     const [isDragging, setIsDragging] = useState(false);
@@ -844,7 +846,8 @@ const AgentPage = () => {
     const handleSendRef = useRef(null);
 
     // --- Lógica de Modo Llamada (Voz Nativa) ---
-    const [isCallModeActive, setIsCallModeActive] = useState(false);
+    // (setter eliminado con toggleCallMode — dead code post P1-DEADCODE-TTS)
+    const [isCallModeActive] = useState(false);
     const callModeRef = useRef(false);
     useEffect(() => { callModeRef.current = isCallModeActive; }, [isCallModeActive]);
 
@@ -898,43 +901,16 @@ const AgentPage = () => {
     };
 
     const queueTTS = useCallback((text) => {
-        const cleanText = text.replace(/[*_#\[\]]/g, '').trim();
+        const cleanText = text.replace(/[*_#[\]]/g, '').trim();
         if (!cleanText) return;
         ttsQueue.current.push(cleanText);
         processTTSQueue();
     }, []);
 
-    const toggleCallMode = () => {
-        if (isCallModeActive) {
-            setIsCallModeActive(false);
-            callModeRef.current = false;
-            if (audioPlayerRef.current) {
-                audioPlayerRef.current.pause();
-                audioPlayerRef.current.currentTime = 0;
-            }
-            ttsQueue.current = [];
-            isPlayingAudio.current = false;
-            isSpeakingRef.current = false;
-            setIsSpeaking(false);
-            if (recognitionRef.current) {
-                try { recognitionRef.current.stop(); } catch (e) { }
-            }
-        } else {
-            setIsCallModeActive(true);
-            callModeRef.current = true;
-
-            // Hack para iOS/Móvil: Desbloquear el player único para todo el ciclo de vida de la página
-            try {
-                audioPlayerRef.current.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-                audioPlayerRef.current.volume = 0.01;
-                audioPlayerRef.current.play().catch(() => { });
-            } catch (e) { }
-
-            if (!isListening) {
-                toggleDictation();
-            }
-        }
-    };
+    // [P1-DEADCODE-TTS · seguimiento] `toggleCallMode` y `toggleDictation`
+    // eliminados como dead code (0 callers tras desactivar la VOZ — ver marker
+    // P1-DEADCODE-TTS arriba). Recuperables desde git history si se reactiva
+    // el Modo Llamada/dictado.
 
     // Función para manejar la interrupción táctil (Barge-In interactivo) para evitar la limitante de iOS
     const handleInterruptBargeIn = () => {
@@ -956,131 +932,6 @@ const AgentPage = () => {
         }, 100);
     };
     // -------------------------------------------
-
-    const toggleDictation = () => {
-        if (isListening) {
-            if (recognitionRef.current) {
-                try {
-                    recognitionRef.current.stop();
-                } catch (e) { }
-            }
-            setIsListening(false);
-            return;
-        }
-
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            setMicErrorMsg('Micrófono no soportado en este navegador');
-            setTimeout(() => setMicErrorMsg(null), 3500);
-            return;
-        }
-
-        const recognition = new SpeechRecognition();
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        recognition.continuous = !isIOS; // iOS no soporta continuous=true
-        recognition.interimResults = true;
-        recognition.lang = 'es-DO';
-
-        let finalTranscript = '';
-
-        recognition.onstart = () => {
-            setIsListening(true);
-            finalTranscript = '';
-            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        };
-
-        recognition.onresult = (event) => {
-            let interimTranscript = '';
-            let newTextChunk = '';
-
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                const chunk = event.results[i][0].transcript;
-                newTextChunk += chunk;
-                if (event.results[i].isFinal) {
-                    finalTranscript += chunk + ' ';
-                } else {
-                    interimTranscript += chunk;
-                }
-            }
-
-            // --- BARGE-IN (Interrupción por voz) ---
-            const hasRealLetters = newTextChunk.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, '').length > 0;
-            const isTTSActive = isSpeakingRef.current || ttsQueue.current.length > 0 || isPlayingAudio.current;
-
-            if (callModeRef.current && isTTSActive && hasRealLetters) {
-                // Si estábamos hablando y escuchamos al usuario decir una palabra real, callar IA y cancelar stream actual
-                if (audioPlayerRef.current) {
-                    audioPlayerRef.current.pause();
-                    audioPlayerRef.current.currentTime = 0;
-                }
-                ttsQueue.current = [];
-                isPlayingAudio.current = false;
-                isSpeakingRef.current = false;
-                if (abortControllerRef.current) abortControllerRef.current.abort();
-                setIsSpeaking(false);
-                setIsLoading(false);
-                setStreamingStatus(null);
-            }
-            // ---------------------------------------
-
-            const newText = (originalInputRef.current + ' ' + finalTranscript + interimTranscript).replace(/\s+/g, ' ').trim();
-            setInput(newText);
-
-            if (callModeRef.current) {
-                if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-                silenceTimerRef.current = setTimeout(() => {
-                    // Detenemos manualmente para forzar onend inmediatamente después de 3s de silencio
-                    if (recognitionRef.current) {
-                        try { recognitionRef.current.stop(); } catch (e) { }
-                    }
-                }, 3000);
-            }
-        };
-
-        recognition.onerror = (event) => {
-            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-            console.error("Speech recognition error", event.error);
-            setIsListening(false);
-            if (event.error === 'not-allowed') {
-                setMicErrorMsg('Micrófono inactivo o bloqueado');
-            } else if (event.error === 'network') {
-                setMicErrorMsg('Dictado no compatible en este navegador');
-            } else {
-                setMicErrorMsg('Error al conectar el micrófono');
-            }
-            setTimeout(() => setMicErrorMsg(null), 3500);
-        };
-
-        recognition.onend = () => {
-            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-            setIsListening(false);
-            if (callModeRef.current) {
-                const currentText = latestInputRef.current.trim();
-                if (currentText && !isSpeakingRef.current && !isLoadingRef.current) {
-                    if (handleSendRef.current) {
-                        originalInputRef.current = ''; // Reset buffer on send
-                        handleSendRef.current(currentText);
-                    }
-                } else {
-                    // Mantenemos el ciclo activo para seguir escuchando interrupciones/nuevo texto
-                    originalInputRef.current = latestInputRef.current;
-                    setTimeout(() => {
-                        try { recognitionRef.current?.start(); } catch (e) { }
-                    }, 50);
-                }
-            }
-        };
-
-        recognitionRef.current = recognition;
-        originalInputRef.current = latestInputRef.current;
-
-        try {
-            recognition.start();
-        } catch (e) {
-            console.error("Error starting mic", e);
-            setIsListening(false);
-        }
-    };
 
     const [loadingPhraseIdx, setLoadingPhraseIdx] = useState(0);
     const loadingPhrases = [

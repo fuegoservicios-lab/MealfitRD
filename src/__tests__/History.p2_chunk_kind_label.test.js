@@ -92,13 +92,13 @@ describe('[P2-HIST-NEW-4] catálogo cubre kinds canónicos del backend', () => {
 
 describe('[P2-HIST-NEW-4] calidad de los labels', () => {
     it('labels son cortos (≤20 chars) para chip layout', () => {
-        for (const [code, label] of Object.entries(_CHUNK_KIND_LABELS_MAP)) {
+        for (const label of Object.values(_CHUNK_KIND_LABELS_MAP)) {
             expect(label.length).toBeLessThanOrEqual(20);
         }
     });
 
     it('labels son strings no-vacíos post-trim', () => {
-        for (const [code, label] of Object.entries(_CHUNK_KIND_LABELS_MAP)) {
+        for (const label of Object.values(_CHUNK_KIND_LABELS_MAP)) {
             expect(typeof label).toBe('string');
             expect(label.trim().length).toBeGreaterThan(0);
         }

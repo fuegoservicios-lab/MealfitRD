@@ -105,7 +105,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 // [P2-15 · 2026-07-09] Store single-source de la Nevera Virtual (antes 3 copias
 // sincronizadas a mano: localStorage + useState local aquí + useState en Pantry).
 import { useDisabledIngredients } from '../hooks/useDisabledIngredients';
-import { getActiveShoppingList, getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
+import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getMealAdvisories } from '../utils/mealAdvisories';
 // [P1-FORM-9] Helper que filtra flags internos `_*` y bloquea cuando la
@@ -1060,7 +1060,11 @@ const DashboardInner = () => {
     // Si no, queda en null y el fetchInventory normal lo popula.
     const _cachedInv = getCachedInventory();
     const [liveInventory, setLiveInventory] = useState(_cachedInv || null);
-    const [isLoadingInventory, setIsLoadingInventory] = useState(!_cachedInv);
+    // `_isLoadingInventory` (prefijo _): el valor ya no se lee (el fail-open del
+    // gate migró al null-check de pantryItemCount, P3-PLAN-BTN-STABLE), pero el
+    // initializer `useState(!_cachedInv)` es anchor del test parser-based
+    // backend/tests/test_p1_dashboard_cache_inventory.py — NO eliminar.
+    const [_isLoadingInventory, setIsLoadingInventory] = useState(!_cachedInv);
 
     // [P3-PLAN-BTN-STABLE · 2026-05-19] Cache del último conteo conocido del
     // inventario en localStorage, keyed por user_id. Bootstrap del primer paint
@@ -2197,45 +2201,43 @@ const DashboardInner = () => {
                         // sync incondicionalmente.
                         const latestModified = latestRow.plan_data._plan_modified_at;
                         const localModified = planData._plan_modified_at;
-                        if (true) {  // Siempre sincronizar.
-                            // [P3-CONSOLE-DEMOTE · 2026-05-16] Degradado de warn→log.
-                            // El drift detectado se resuelve EXITOSAMENTE en las 4
-                            // líneas siguientes (sync localStorage + state + setea
-                            // effectivePlanData fresh). El amarillo ⚠ en dev sugería
-                            // un fallo accionable pero es flujo de éxito de P2-NEW-14.
-                            console.log(
-                                '[P2-NEW-14] PDF drift detected: ' +
-                                `local=${localModified}, latest=${latestModified}. ` +
-                                'Sincronizando localStorage + state antes del PDF.'
-                            );
-                            const fresh = {
-                                ...latestRow.plan_data,
-                                id: latestRow.id,
-                                updated_at: latestRow.updated_at,
-                            };
-                            try {
-                                localStorage.setItem('mealfit_plan', JSON.stringify(fresh));
-                            } catch (_lsErr) { /* localStorage best-effort */ }
-                            try { setPlanData(fresh); } catch (_setErr) { /* setter best-effort */ }
-                            effectivePlanData = fresh;
-                            // [P2-PDF-OBS-1 · 2026-05-14] Telemetría del drift
-                            // corregido. El `console.warn` arriba es stripped
-                            // por esbuild en producción (vite.config.js declara
-                            // `pure: ['console.warn', ...]`) → operadores no
-                            // pueden medir cuántas veces el prefetch evita un
-                            // PDF stale. `trackEvent` sobrevive el strip
-                            // (Sentry/PostHog/GA/GTM). Best-effort: cualquier
-                            // fallo de analytics SDK NO debe romper el PDF.
-                            try {
-                                trackEvent('pdf_prefetch_drift_corrected', {
-                                    user_id: userProfile?.id,
-                                    plan_id: planData?.id,
-                                    local_modified_at: typeof localModified === 'string' ? localModified.slice(0, 32) : null,
-                                    latest_modified_at: typeof latestModified === 'string' ? latestModified.slice(0, 32) : null,
-                                });
-                            } catch (_telDriftErr) {
-                                // No-op: telemetría best-effort.
-                            }
+                        // [P3-CONSOLE-DEMOTE · 2026-05-16] Degradado de warn→log.
+                        // El drift detectado se resuelve EXITOSAMENTE en las 4
+                        // líneas siguientes (sync localStorage + state + setea
+                        // effectivePlanData fresh). El amarillo ⚠ en dev sugería
+                        // un fallo accionable pero es flujo de éxito de P2-NEW-14.
+                        console.log(
+                            '[P2-NEW-14] PDF drift detected: ' +
+                            `local=${localModified}, latest=${latestModified}. ` +
+                            'Sincronizando localStorage + state antes del PDF.'
+                        );
+                        const fresh = {
+                            ...latestRow.plan_data,
+                            id: latestRow.id,
+                            updated_at: latestRow.updated_at,
+                        };
+                        try {
+                            localStorage.setItem('mealfit_plan', JSON.stringify(fresh));
+                        } catch (_lsErr) { /* localStorage best-effort */ }
+                        try { setPlanData(fresh); } catch (_setErr) { /* setter best-effort */ }
+                        effectivePlanData = fresh;
+                        // [P2-PDF-OBS-1 · 2026-05-14] Telemetría del drift
+                        // corregido. El `console.warn` arriba es stripped
+                        // por esbuild en producción (vite.config.js declara
+                        // `pure: ['console.warn', ...]`) → operadores no
+                        // pueden medir cuántas veces el prefetch evita un
+                        // PDF stale. `trackEvent` sobrevive el strip
+                        // (Sentry/PostHog/GA/GTM). Best-effort: cualquier
+                        // fallo de analytics SDK NO debe romper el PDF.
+                        try {
+                            trackEvent('pdf_prefetch_drift_corrected', {
+                                user_id: userProfile?.id,
+                                plan_id: planData?.id,
+                                local_modified_at: typeof localModified === 'string' ? localModified.slice(0, 32) : null,
+                                latest_modified_at: typeof latestModified === 'string' ? latestModified.slice(0, 32) : null,
+                            });
+                        } catch (_telDriftErr) {
+                            // No-op: telemetría best-effort.
                         }
                     }
                 }
@@ -3270,7 +3272,7 @@ const DashboardInner = () => {
                     raw = ing.display_string || ing.id_string || `${ing.display_qty || '1'} de ${ing.name || 'Ingrediente'}`;
                 } else {
                     raw = String(ing);
-                    const match = raw.match(/^([\d.,\/\s½¼¾%]+(?:oz|lbs?|g|kg|ml|l|taza[s]?|cda[s]?|cdta[s]?|u|pz[a]?[s]?|dientes?|manojo|piezas?|rebanadas?)\s*(?:de\s*)?)(.*)$/i) || raw.match(/^([\d.,\/\s½¼¾%]+(?:de\s*)?)(.*)$/i);
+                    const match = raw.match(/^([\d.,/\s½¼¾%]+(?:oz|lbs?|g|kg|ml|l|taza[s]?|cda[s]?|cdta[s]?|u|pz[a]?[s]?|dientes?|manojo|piezas?|rebanadas?)\s*(?:de\s*)?)(.*)$/i) || raw.match(/^([\d.,/\s½¼¾%]+(?:de\s*)?)(.*)$/i);
                     name = raw;
                     if (match) name = match[2];
                 }

@@ -588,7 +588,9 @@ const Plan = () => {
         // generar; bloquear nueva generación si ya no quedan.
         isGuest, consumeGuestCredit, remainingCredits } = useAssessment();
     const [status, setStatus] = useState('analyzing'); // analyzing, generating, preview, ready
-    const [tempPlan, setTempPlan] = useState(null); // Nuevo estado para GAP 14
+    // [P2-LINT-ZERO · 2026-07-09] setTempPlan nunca se llamaba (setter muerto)
+    // → tempPlan es constante null; se conserva porque el JSX lo referencia.
+    const [tempPlan] = useState(null); // Nuevo estado para GAP 14
     const [oldPlan, setOldPlan] = useState(null); // Estado para el plan viejo
     const [streamPhase, setStreamPhase] = useState(null); // Fase actual del pipeline SSE
     const [daysCompleted, setDaysCompleted] = useState([]); // Días ya generados [1, 2, 3]
@@ -604,6 +606,116 @@ const Plan = () => {
     const previousMeals = location.state?.previous_meals || location.state?.previousMeals || [];
     const currentIngredients = location.state?.current_pantry_ingredients || location.state?.currentIngredients || [];
     const updateReason = location.state?.update_reason || null;
+
+    // [P1-MOBILE-RECOVERY-RESUME · 2026-07-09] RECONCILIADOR contra la verdad del backend mientras la
+    // pantalla de carga está arriba. Reemplaza la versión previa (gated a streamPhase='recovery_mode'), que
+    // NO cubría la "pantalla ZOMBIE": en iOS el SSE muere en SILENCIO al mandar la app a segundo plano (el
+    // `await reader.read()` queda colgado sin rechazar) → ningún handler de error corre → la pantalla queda
+    // en "Diseñando tu plan" con streamPhase en su último valor (NO recovery_mode) y el cronómetro
+    // avanzando. El plan YA se generó/persistió en el backend y su KV pudo limpiarse (ack) → pending-status
+    // devuelve 'none' o 'complete'. La versión previa (a) no corría fuera de recovery_mode y (b) solo
+    // manejaba 'complete'. Resultado: el user tenía que MATAR y reabrir la app. Ahora:
+    //   • Gate por `status` (loading arriba), NO por streamPhase → cubre el SSE muerto en cualquier fase.
+    //   • Dispara en RESUME real (visibilitychange/focus/pageshow — iOS foreground) + watchdog por elapsed.
+    //   • 'complete' → adopta (guest) + ackea + dashboard. 'none' (KV limpia = zombie) + flag + elapsed>45s
+    //     → dashboard (lo carga; ProtectedRoute maneja el caso sin-plan). 'generating' → sigue esperando.
+    //   • En foreground NORMAL (no-rescue, no-watchdog) NO navega → deja que el SSE muestre preview/ready.
+    // NOTA: no puede curar una página ya cargada con bundle VIEJO (el SW sirve el bundle fresco en el
+    // próximo LANZAMIENTO, no recarga la página en curso) — pero una vez en el bundle nuevo, el resume ya no
+    // requiere matar la app. tooltip-anchor: P1-MOBILE-RECOVERY-RESUME
+    useEffect(() => {
+        const loadingUp = status === 'generating' || status === 'analyzing';
+        if (!loadingUp) return undefined;
+        let done = false;
+        const readElapsedSec = () => {
+            try {
+                const f = JSON.parse(localStorage.getItem('mealfit_plan_in_progress') || 'null');
+                const t = f?.started_at ? new Date(f.started_at).getTime() : NaN;
+                if (Number.isFinite(t)) return (Date.now() - t) / 1000;
+            } catch { /* noop */ }
+            return 0;
+        };
+        const goDashboard = async (sid, qs, planIdFinal) => {
+            done = true;
+            // Guest (sin plan_id_final): recuperar + adoptar el plan del KV antes del dashboard.
+            if (!planIdFinal && sid) {
+                try {
+                    const gr = await fetchWithAuth(`/api/plans/guest-plan?session_id=${encodeURIComponent(sid)}`);
+                    if (gr.ok) {
+                        const gb = await gr.json();
+                        if (gb?.plan && Array.isArray(gb.plan.days) && gb.plan.days.length) saveGeneratedPlan(gb.plan);
+                    }
+                } catch { /* noop */ }
+            }
+            fetchWithAuth(`/api/plans/pending-status/ack${qs}`, { method: 'POST' }).catch(() => {});
+            try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+            navigate('/dashboard', { replace: true });
+        };
+        // Una vez que hubo un RESUME (o el SSE se marcó recovery), el stream SSE está muerto → el intervalo
+        // también debe navegar al completar (no solo los eventos de resume). Cierra el hueco "vuelvo mientras
+        // genera y me quedo MIRANDO la pantalla": sin esto, el intervalo en foreground no navegaba al terminar.
+        let resumed = streamPhase === 'recovery_mode';
+        const reconcile = async (trigger) => {
+            if (done) return;
+            const isResume = trigger === 'resume';
+            // El intervalo mientras la pestaña está OCULTA no hace trabajo (el user no está mirando); los
+            // eventos de resume SIEMPRE corren (el user acaba de volver, aunque visibilityState tarde en fijarse).
+            if (!isResume && typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+            if (isResume) resumed = true;
+            const elapsed = readElapsedSec();
+            const watchdog = elapsed > 13 * 60; // pasó la ETA (9-10min) → el SSE claramente no entregó
+            const act = isResume || resumed || watchdog;
+            try {
+                const sid = safeLocalStorageGet('mealfit_guest_session_id', null);
+                const qs = sid ? `?session_id=${encodeURIComponent(sid)}` : '';
+                const res = await fetchWithAuth(`/api/plans/pending-status${qs}`);
+                if (!res.ok) return;
+                const pd = await res.json();
+                if (pd?.status === 'complete') {
+                    // Completo = listo, vayamos al dashboard. En foreground NORMAL sin resume (act=false)
+                    // dejamos que el SSE muestre preview/ready; tras un resume el SSE está muerto → rescatamos.
+                    if (act) await goDashboard(sid, qs, pd.plan_id_final);
+                    return;
+                }
+                if (pd?.status === 'none') {
+                    // No hay pipeline vivo. Si iniciamos una gen (flag) y ya pasó tiempo suficiente para que la
+                    // KV existiera, es una pantalla ZOMBIE (completó+ackeó, o desapareció) → reconciliar al
+                    // dashboard (carga el último plan; si de verdad no hay, ProtectedRoute lo maneja).
+                    let flag = false;
+                    try { flag = !!localStorage.getItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                    if (act && flag && elapsed > 45) await goDashboard(sid, qs, null);
+                    return;
+                }
+                // 'generating' → pipeline vivo, seguir esperando.
+            } catch { /* red flaky → reintenta en el próximo tick/resume */ }
+        };
+        // RÁFAGA al volver: chequeo inmediato + 2 rechequeos cortos, por si el primer fetch pilla la red de
+        // iOS aún despertando. Hace la navegación casi instantánea sin pollear rápido de forma permanente.
+        const burstTimers = [];
+        const onResume = () => {
+            reconcile('resume');
+            burstTimers.push(setTimeout(() => reconcile('resume'), 500));
+            burstTimers.push(setTimeout(() => reconcile('resume'), 1500));
+        };
+        const interval = setInterval(() => reconcile('interval'), 3000);
+        if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onResume);
+        if (typeof window !== 'undefined') {
+            window.addEventListener('focus', onResume);
+            window.addEventListener('pageshow', onResume);
+        }
+        reconcile('interval'); // check inmediato (solo actúa si resumed/watchdog)
+        return () => {
+            done = true;
+            clearInterval(interval);
+            burstTimers.forEach((t) => clearTimeout(t));
+            if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onResume);
+            if (typeof window !== 'undefined') {
+                window.removeEventListener('focus', onResume);
+                window.removeEventListener('pageshow', onResume);
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [status]);
     // [P1-RENEWAL-PANTRY-AWARE · 2026-06-28] Modo "completar nevera": señal + items de
     // la nevera como candidatos a reuso (el backend filtra perecederos y solo SUGIERE
     // los duraderos, advisory). Solo surte efecto si el knob backend está ON; inofensivo OFF.
@@ -708,7 +820,13 @@ const Plan = () => {
                 // toast + redirige a /dashboard. Plan.jsx solo necesita mostrar
                 // la pantalla de loading mientras tanto.
                 try {
-                    const pendingRes = await fetchWithAuth('/api/plans/pending-status');
+                    // [P1-GUEST-PLAN-RECOVERY · 2026-07-09] Pasar el session_id del guest → el backend
+                    // keyea el KV por session_id para guests. Sin esto el pre-flight devolvía 'none' para
+                    // guests → Plan.jsx creía que no había pipeline → DISPARABA UN SSE NUEVO (duplicado) →
+                    // toasts "Conexión interrumpida" apilados + doble generación. Autenticados: ignorado.
+                    const _preflightSid = safeLocalStorageGet('mealfit_guest_session_id', null);
+                    const _preflightQS = _preflightSid ? `?session_id=${encodeURIComponent(_preflightSid)}` : '';
+                    const pendingRes = await fetchWithAuth(`/api/plans/pending-status${_preflightQS}`);
                     if (pendingRes.ok) {
                         const pendingData = await pendingRes.json();
                         if (pendingData?.status === 'generating') {
@@ -730,6 +848,34 @@ const Plan = () => {
                             // Hint visual: estamos en fase post-skeleton para
                             // que LoadingScreen no muestre "analizando" 1.5s.
                             setStreamPhase('recovery_mode');
+                            return;
+                        }
+                        // [P1-MOBILE-COMPLETE-DIRECT-NAV · 2026-07-09] El plan YA terminó → navegar al
+                        // dashboard DIRECTAMENTE aquí, NO quedarse en loading esperando a
+                        // PendingPipelineRecovery. Bug reportado (móvil): al reabrir tras completar, la KV
+                        // estaba 'complete' desde hacía rato pero la pantalla quedaba colgada en "Diseñando tu
+                        // plan" — PendingPipelineRecovery no re-pooleaba/navegaba tras background y el user
+                        // tenía que REINICIAR la app. Plan.jsx ahora es self-sufficient: adopta el plan (guest)
+                        // + ackea el KV + navega. Fail-safe.
+                        if (pendingData?.status === 'complete') {
+                            try {
+                                const _gsid = safeLocalStorageGet('mealfit_guest_session_id', null);
+                                // Guest (sin plan_id_final): recuperar + adoptar el plan del KV antes del dashboard.
+                                if (!pendingData.plan_id_final && _gsid) {
+                                    const _gr = await fetchWithAuth(`/api/plans/guest-plan?session_id=${encodeURIComponent(_gsid)}`);
+                                    if (_gr.ok) {
+                                        const _gb = await _gr.json();
+                                        if (_gb?.plan && Array.isArray(_gb.plan.days) && _gb.plan.days.length) {
+                                            saveGeneratedPlan(_gb.plan);
+                                        }
+                                    }
+                                }
+                                // Ackear el KV (idempotente, fire-and-forget) para que no re-dispare recovery.
+                                const _aqs = _gsid ? `?session_id=${encodeURIComponent(_gsid)}` : '';
+                                fetchWithAuth(`/api/plans/pending-status/ack${_aqs}`, { method: 'POST' }).catch(() => {});
+                            } catch { /* best-effort — igual navegamos al dashboard */ }
+                            try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                            navigate('/dashboard', { replace: true });
                             return;
                         }
                     }
@@ -1096,12 +1242,37 @@ const Plan = () => {
                     // contexto completo y pueda reintentar (incluyendo refrescar
                     // su perfil si suspendió la PC y la sesión expiró).
                     if (error.code === 'offline_unavailable') {
-                        // [P3-CLEAR-FLAG-ON-FATAL · 2026-05-16] Backend down /
-                        // ERR_CONNECTION_REFUSED. NO hay pipeline procesando
-                        // (todo el backend está caído). Sin clear, al volver el
-                        // backend, el flag local hace que <PendingPipelineRecovery />
-                        // polee un KV row stale del intento anterior y
-                        // redirija al user a /plan SIN que él haya clickeado nada.
+                        // [P1-MOBILE-SSE-DROP-RECOVERY · 2026-07-09] En MÓVIL el SSE puede CAER (app a
+                        // segundo plano / red flaky) aunque el backend + el pipeline deep-search sigan VIVOS
+                        // y el plan se esté generando (o ya esté listo). Antes esto se trataba como "backend
+                        // caído" → limpiaba el flag + rebotaba al FORMULARIO (bug reportado: "Sin conexión
+                        // con la IA" + form PESE a que el plan se generó limpio). Ahora chequeamos
+                        // /pending-status ANTES de asumir lo peor: si hay pipeline vivo, el recovery lo maneja
+                        // (loading si genera, dashboard si completó); SOLO caemos al form si de verdad no hay
+                        // nada (backend realmente caído / pending-status también falla).
+                        try {
+                            const _sid = safeLocalStorageGet('mealfit_guest_session_id', null);
+                            const _qs = _sid ? `?session_id=${encodeURIComponent(_sid)}` : '';
+                            const _pr = await fetchWithAuth(`/api/plans/pending-status${_qs}`);
+                            if (_pr.ok) {
+                                const _pd = await _pr.json();
+                                if (_pd?.status === 'generating') {
+                                    // Pipeline deep-search vivo → quedarse en la pantalla de carga; el
+                                    // recovery poll-ea y redirige al dashboard al completar. NO limpiar flag.
+                                    setStatus('generating');
+                                    setStreamPhase('recovery_mode');
+                                    return;
+                                }
+                                if (_pd?.status === 'complete') {
+                                    // Plan ya listo → al dashboard (el recovery lo adopta/ackea).
+                                    navigate('/dashboard', { replace: true });
+                                    return;
+                                }
+                            }
+                        } catch { /* pending-status también falló → red realmente caída → cae al form abajo */ }
+                        // [P3-CLEAR-FLAG-ON-FATAL · 2026-05-16] Backend REALMENTE caído /
+                        // ERR_CONNECTION_REFUSED y sin pipeline vivo confirmado. Limpiar el flag para que
+                        // <PendingPipelineRecovery /> no poolee un KV stale + rebotar al form para reintentar.
                         try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
                         import('sonner').then(({ toast }) => {
                             toast.error("Sin conexión con la IA", {
@@ -1860,29 +2031,32 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     // completo tarda ~3-5 min (skeleton ~22s + day_gen paralelo ~30s +
     // self-critique ~2min + reviewer + assembly). MUCHO más rápido que los
     // 12-13 min de la era Gemini (free-tier que saturaba pool).
-    // [P2-LOADING-ETA-57 · 2026-07-06] Rango honesto = 5-7 min (pedido del
-    // owner; consistente con prod: la renovación monitoreada de hoy tomó
-    // 5m49s CON un retry quirúrgico — los retries del reviewer son parte
-    // normal del pipeline, no la excepción). Copy adapta:
-    //   - <30s:    "Esto suele tomar entre 5 y 7 minutos."
-    //   - 30s-8m:  "Transcurrido X:XX · estimado 5-7 minutos"
-    //   - 8-12m:   "Transcurrido X:XX · ya casi terminamos, espera un poco más"
-    //   - >12m:    "Transcurrido X:XX · gracias por tu paciencia · cerca del final"
-    // El startTimeRef se inicializa UNA VEZ al mount (useRef no re-init en
-    // re-renders) — incluso si el componente re-renderea por cambios de
-    // status/streamPhase, el contador es continuo desde el primer mount.
+    // [P2-LOADING-ETA-57 · 2026-07-06 · rango subido a 9-10 min 2026-07-09] Rango honesto = 9-10 min
+    // (pedido del owner; consistente con prod: renovaciones monitoreadas 2026-07-09 tomaron 7.5-8.4 min
+    // con 2-3 intentos del reviewer — los retries son parte normal del pipeline, no la excepción). Copy adapta:
+    //   - <30s:    "Esto suele tomar entre 9 y 10 minutos."
+    //   - 30s-10m: "Transcurrido X:XX · estimado 9-10 minutos"
+    //   - 10-13m:  "Transcurrido X:XX · ya casi terminamos, espera un poco más"
+    //   - >13m:    "Transcurrido X:XX · gracias por tu paciencia · cerca del final"
+    // El start time se fija UNA VEZ al mount — incluso si el componente
+    // re-renderea por cambios de status/streamPhase, el contador es continuo
+    // desde el primer mount.
     // [P2-LOADING-ETA-57] Continuidad cross-reentrada: si hay un pipeline
     // pendiente (flag mealfit_plan_in_progress con started_at), el contador
     // arranca desde ESE inicio real — al cerrar la pestaña y volver (modo
     // recovery), "Transcurrido" ya no miente reiniciándose en 0:00.
-    const startTimeRef = useRef((() => {
+    // [P2-LINT-ZERO · 2026-07-09] useState lazy-init (antes useRef con IIFE
+    // invocada inline: el localStorage.getItem + JSON.parse corrían en CADA
+    // re-render del LoadingScreen — cada tick del contador — y el resultado
+    // se descartaba). El initializer lazy corre exactamente una vez.
+    const [startTime] = useState(() => {
         try {
             const f = JSON.parse(localStorage.getItem('mealfit_plan_in_progress') || 'null');
             const t = f?.started_at ? new Date(f.started_at).getTime() : NaN;
             if (Number.isFinite(t) && t < Date.now() && (Date.now() - t) < 6 * 3600 * 1000) return t;
         } catch { /* noop */ }
         return Date.now();
-    })());
+    });
     const [elapsedSec, setElapsedSec] = useState(0);
     // [P3-CANCEL-FORCE-NAVIGATE · 2026-05-16] Hook local del navigate para
     // forzar el redirect al /assessment ANTES de que el SSE catch propague el
@@ -1970,10 +2144,10 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     useEffect(() => {
         if (status === 'ready') return undefined;
         const t = setInterval(() => {
-            setElapsedSec(Math.floor((Date.now() - startTimeRef.current) / 1000));
+            setElapsedSec(Math.floor((Date.now() - startTime) / 1000));
         }, 1000);
         return () => clearInterval(t);
-    }, [status]);
+    }, [status, startTime]);
 
     // Helper local: 125 → "2:05". Soporta horas si elapsed > 1h (edge case
     // de planes muy lentos por retries o Pro escalation).
@@ -1993,12 +2167,12 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     const timeMessage = (() => {
         const transcurrido = formatElapsed(elapsedSec);
         if (elapsedSec < 30) {
-            return 'Esto suele tomar entre 5 y 7 minutos.';
+            return 'Esto suele tomar entre 9 y 10 minutos.';
         }
-        if (elapsedSec < 8 * 60) {
-            return `Transcurrido ${transcurrido} · estimado 5-7 minutos`;
+        if (elapsedSec < 10 * 60) {
+            return `Transcurrido ${transcurrido} · estimado 9-10 minutos`;
         }
-        if (elapsedSec < 12 * 60) {
+        if (elapsedSec < 13 * 60) {
             return `Transcurrido ${transcurrido} · ya casi terminamos, espera un poco más`;
         }
         return `Transcurrido ${transcurrido} · gracias por tu paciencia · cerca del final`;

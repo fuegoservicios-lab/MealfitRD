@@ -120,7 +120,6 @@ describe('[P2-HIST-AUDIT-7] CSS del botón configurable', () => {
     });
 
     it('styles.actionBannerCtaButton tiene focus-visible para a11y', () => {
-        const matchAll = [...cssSrc.matchAll(/\.actionBannerCtaButton[^}]*\{[^}]*\}/g)];
         // Buscamos al menos una regla con `:focus-visible`.
         expect(cssSrc).toMatch(/\.actionBannerCtaButton:focus-visible/);
     });

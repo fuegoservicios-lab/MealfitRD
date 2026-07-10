@@ -29,10 +29,8 @@ import { dirname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const _HISTORY_PATH = join(__dirname, '..', 'pages', 'History.jsx');
 const _CSS_PATH = join(__dirname, '..', 'pages', 'History.module.css');
 
-const src = readFileSync(_HISTORY_PATH, 'utf8');
 const cssSrc = readFileSync(_CSS_PATH, 'utf8');
 
 

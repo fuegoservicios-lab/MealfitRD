@@ -77,8 +77,7 @@ describe('[P0-HIST-LEARN-2] guard _hasContent extiende para counter > 0', () => 
         // lifetime aggregates (todos los chunks corrieron sin signal,
         // sin lecciones que sintetizar) tendría _hasContent=false y
         // el chip del header NUNCA aparecería.
-        const anchorIdx = src.indexOf('Counter\n                                    // de zero-log también cuenta');
-        // Si el comentario no está exacto, ancla por la lógica:
+        // Ancla por la lógica (el comentario inline puede variar):
         const fallbackIdx = src.indexOf('_czl !== null && _czl > 0');
         expect(fallbackIdx).toBeGreaterThan(-1);
     });

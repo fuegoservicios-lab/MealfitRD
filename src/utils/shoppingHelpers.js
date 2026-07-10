@@ -153,7 +153,6 @@ export const getActiveShoppingList = (planData, duration) => {
     // stale; el backend es source-of-truth de qué planes son visibles).
     if (Array.isArray(planData._shopping_coherence_block) && planData._shopping_coherence_block.length > 0) {
         try {
-            // eslint-disable-next-line no-console
             console.warn(
                 '[P3-NEW-1/PDF-RENDER] Plan llegó al frontend con ' +
                 '`_shopping_coherence_block` no vacío — contrato roto entre ' +
@@ -172,7 +171,6 @@ export const getActiveShoppingList = (planData, duration) => {
         // estática del módulo de analytics — usuarios cuyo plan NO viola
         // el contrato no pagan el costo del fetch.
         try {
-            // eslint-disable-next-line no-unused-expressions
             import('./analytics.js')
                 .then(({ trackEvent }) => {
                     try {

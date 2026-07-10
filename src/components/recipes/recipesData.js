@@ -53,3 +53,21 @@ export const MACROS = [
   { k: 'Carbos',    key: 'carbs',   c: '#818CF8', kcal: 4 },
   { k: 'Grasas',    key: 'fats',    c: '#FB7185', kcal: 9 },
 ];
+
+// [P2-LINT-ZERO · 2026-07-09] Segmentos acumulados del conic-gradient de la
+// dona de macros. Extraído del useMemo duplicado en RecipesView/MobileRecipes:
+// la mutación del acumulador dentro de un closure de render disparaba
+// react-hooks/immutability; como función pura module-level no hay closure de
+// render y la lógica queda en un solo sitio.
+export function conicStops(calc) {
+  const tot = calc.reduce((s, x) => s + x.kc, 0) || 1;
+  const stops = [];
+  let acc = 0;
+  for (const x of calc) {
+    const a = (acc / tot) * 100;
+    const b = ((acc + x.kc) / tot) * 100;
+    acc += x.kc;
+    stops.push(`${x.c} ${a.toFixed(1)}% ${b.toFixed(1)}%`);
+  }
+  return stops;
+}

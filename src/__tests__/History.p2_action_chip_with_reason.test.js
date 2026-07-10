@@ -116,13 +116,13 @@ describe('[P2-HIST-NEW-1] helper actionReasons.js', () => {
         // Cap defensivo: si alguien añade un label largo, el chip
         // se desborda en mobile. 25 chars es el ancho típico de
         // un chip antes de truncate visual.
-        for (const [code, label] of Object.entries(_ACTION_REASON_LABELS_MAP)) {
+        for (const label of Object.values(_ACTION_REASON_LABELS_MAP)) {
             expect(label.length).toBeLessThanOrEqual(25);
         }
     });
 
     it('labels son strings no-vacíos post-trim', () => {
-        for (const [code, label] of Object.entries(_ACTION_REASON_LABELS_MAP)) {
+        for (const label of Object.values(_ACTION_REASON_LABELS_MAP)) {
             expect(typeof label).toBe('string');
             expect(label.trim().length).toBeGreaterThan(0);
         }

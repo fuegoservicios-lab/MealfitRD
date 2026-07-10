@@ -3,7 +3,7 @@
 // handlers desde Recipes.jsx (que conserva: modo cocina, PDF, expandir pasos
 // con IA, registrar comida, ventana de días del chunk). Esta capa solo pinta.
 import { useMemo, useState } from 'react';
-import { metaFor, STEP_ICONS, MACROS, ICONS } from './recipesData';
+import { metaFor, STEP_ICONS, MACROS, ICONS, conicStops as _conicStops } from './recipesData';
 import { displayAjiMorron } from '../../utils/ingredientDisplay';
 import styles from './RecipesView.module.css';
 
@@ -116,14 +116,7 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onC
   // Dona de calorías: segmentos conic por aporte calórico de cada macro.
   const { gradient, macroRow } = useMemo(() => {
     const calc = MACROS.map((x) => ({ ...x, g: Number(meal[x.key]) || 0, kc: (Number(meal[x.key]) || 0) * x.kcal }));
-    const tot = calc.reduce((s, x) => s + x.kc, 0) || 1;
-    let acc = 0;
-    const stops = calc.map((x) => {
-      const a = (acc / tot) * 100, b = ((acc + x.kc) / tot) * 100;
-      acc += x.kc;
-      return `${x.c} ${a.toFixed(1)}% ${b.toFixed(1)}%`;
-    });
-    return { gradient: `conic-gradient(${stops.join(',')})`, macroRow: calc };
+    return { gradient: `conic-gradient(${_conicStops(calc).join(',')})`, macroRow: calc };
   }, [meal]);
 
   const ingredients = meal.ingredients || [];

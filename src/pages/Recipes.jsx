@@ -153,7 +153,7 @@ const FormattedRecipeStep = ({ step, index }) => {
                     margin: 0, color: 'var(--text-muted)',
                     fontSize: '0.95rem', lineHeight: 1.7
                 }}>
-                    {parseBold(content.replace(/^\d+[\.\)]\s*/, ''))}
+                    {parseBold(content.replace(/^\d+[.)]\s*/, ''))}
                 </p>
             </div>
         </div>
@@ -207,7 +207,7 @@ const FormattedLargeStep = ({ text, currentStep, isLastStep, isMobile }) => {
                 </div>
             )}
             <p style={{ fontSize: isMobile ? '1.25rem' : '1.5rem', lineHeight: 1.6, color: 'var(--text-main)', fontWeight: 500, margin: 0, maxWidth: '800px', padding: '0 1rem' }}>
-                {parseBold(content.replace(/^\d+[\.\)]\s*/, ''))}
+                {parseBold(content.replace(/^\d+[.)]\s*/, ''))}
             </p>
             {isLastStep && (
                 <motion.div
@@ -629,7 +629,7 @@ const Recipes = () => {
                         </div>
                     `}
                     <div style="font-size: 13pt; line-height: 1.6; color: #334155;">
-                        ${parseBoldEscaped(content.replace(/^\d+[\.\)]\s*/, ''))}
+                        ${parseBoldEscaped(content.replace(/^\d+[.)]\s*/, ''))}
                     </div>
                 </div>
             `;

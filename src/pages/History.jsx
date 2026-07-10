@@ -40,6 +40,10 @@ import { isAnomalousCoherenceAction } from '../utils/coherenceActions';
 // [P2-HIST-NEW-1 · 2026-05-09] Map reason_code → label es-DO para el
 // chip "Acción: <reason>" en cards. Mirror del catálogo de
 // /blocked_reasons (~3670+) con labels más cortos para chip layout.
+// Sin callsite activo tras refactor de cards, pero el import es anchor
+// del test parser-based History.p2_action_chip_with_reason.test.js —
+// NO eliminar sin actualizar ese test.
+// eslint-disable-next-line no-unused-vars
 import { getActionReasonLabel } from '../utils/actionReasons';
 // [P2-HIST-NEW-4 · 2026-05-09] Map chunk_kind → label es-DO. Mirror
 // del enum del backend (`initial_plan` / `rolling_refill` / `catchup`).
@@ -211,6 +215,11 @@ const History = () => {
     // devuelve `counts_by_quality: { "<plan_id>": {high, partial, low} }`.
     // El chip de la card lo usa para mostrar "X high · Y low" en lugar
     // del total plano que mezclaba calidad con proxy degradado.
+    // El valor ya no se lee (chip removido del card layout) pero la
+    // declaración exacta es anchor del test parser-based
+    // History.p2_audit_batch.test.js y el setter sigue hidratándose
+    // desde /lessons-counts (_fetchLessonsCounts) — NO eliminar.
+    // eslint-disable-next-line no-unused-vars
     const [lessonsCountsByQuality, setLessonsCountsByQuality] = useState({});
 
     // [P0-AUDIT-HIST-2 · 2026-05-09] Summary agregado de
@@ -968,11 +977,6 @@ const History = () => {
         }
     };
 
-    const handleDeleteRequest = (e, plan) => {
-        e.stopPropagation();
-        setConfirmDelete(plan);
-    };
-
     const handleDeleteConfirm = async () => {
         const plan = confirmDelete;
         setConfirmDelete(null);
@@ -1012,18 +1016,6 @@ const History = () => {
             console.error('Error deleting plan:', err);
             toast.error('No se pudo eliminar el plan', { id: toastId });
         }
-    };
-
-    const handleEditStart = (e, plan) => {
-        e.stopPropagation();
-        setIsEditing(plan.id);
-        setTempName(plan.name || 'Plan Generado');
-    };
-
-    const handleEditCancel = (e) => {
-        e.stopPropagation();
-        setIsEditing(null);
-        setTempName('');
     };
 
     const handleEditSave = async (e, plan) => {
@@ -1415,6 +1407,13 @@ const History = () => {
     // omite). Para 1-2 semanas listas las numera ("S3 simplif." /
     // "S2, S3 simplif."); para 3+ usa contador agregado
     // ("3 sem. simplif.") para no romper el layout horizontal.
+    //
+    // Sin callsite activo (el chip se retiró del card layout), pero el
+    // helper es anchor de los tests parser-based
+    // History.simplified_weeks_badge.test.js y
+    // History.audit_4_summary_endpoint.test.js — NO eliminar sin
+    // actualizar esos tests.
+    // eslint-disable-next-line no-unused-vars
     const getSimplifiedWeeksLabel = (plan) => {
         if (!plan) return null;
         // [P1-HIST-AUDIT-4 · 2026-05-09] Summary expone
@@ -1481,6 +1480,10 @@ const History = () => {
         return count;
     };
 
+    // Sin callsite activo tras el rediseño de cards, pero anchor del test
+    // parser-based History.audit_4_summary_endpoint.test.js ('const getSmartTags')
+    // — NO eliminar sin actualizar ese test.
+    // eslint-disable-next-line no-unused-vars
     const getSmartTags = (plan) => {
         // [P1-HIST-AUDIT-4 · 2026-05-09] Summary trae goal/diet/
         // allergies pre-extraídos top-level. Legacy los lee del
@@ -1555,6 +1558,10 @@ const History = () => {
         }
     };
 
+    // Sin callsite activo tras el rediseño de cards, pero anchor del test
+    // parser-based History.audit_4_summary_endpoint.test.js
+    // ('const renderMealPreview') — NO eliminar sin actualizar ese test.
+    // eslint-disable-next-line no-unused-vars
     const renderMealPreview = (plan) => {
         // [P1-HIST-AUDIT-4 · 2026-05-09] Summary trae `preview_meals`
         // top-level (max 4, solo {name, meal}). Legacy deriva del
@@ -1589,24 +1596,6 @@ const History = () => {
                 )}
             </div>
         );
-    };
-
-    // Animation Variants
-    const containerVariants = {
-        hidden: { opacity: 0 },
-        visible: {
-            opacity: 1,
-            transition: { staggerChildren: 0.06 }
-        }
-    };
-
-    const itemVariants = {
-        hidden: { y: 20, opacity: 0 },
-        visible: {
-            y: 0,
-            opacity: 1,
-            transition: { type: 'spring', stiffness: 120, damping: 14 }
-        }
     };
 
     // Skeleton Loader
@@ -1661,20 +1650,6 @@ const History = () => {
         </div>
     );
 
-    // Filtrado por nombre del plan (case-insensitive, trim).
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    // [P3-HIST-SEARCH-MEMO · 2026-05-31] useMemo: el filtro solo recomputa
-    // cuando cambian `plans` o la query — no en cada re-render. Pre-fix era un
-    // const plano que re-filtraba toda la lista en cada keystroke (el onChange
-    // del buscador re-renderiza History entero).
-    const filteredPlans = useMemo(
-        () => normalizedQuery
-            ? plans.filter(p => (p.name || 'Plan Generado').toLowerCase().includes(normalizedQuery))
-            : plans,
-        [plans, normalizedQuery],
-    );
-    const isSearchActive = normalizedQuery.length > 0;
-
     // [P1-HIST-ACTIVE-IDENTITY · 2026-05-31] El plan "activo" es EL plan
     // actual (el más reciente por `_effectiveModifiedAt` — mismo criterio
     // que el backend usa para resolver el plan vivo y que el Dashboard
@@ -1695,8 +1670,8 @@ const History = () => {
     // y que el actual recupere "Activo" automáticamente en cuanto se le
     // generen días (req. del usuario: "si se vuelve a generar platos en Tu
     // menú y recetas, ahí sí se debe volver a activar automáticamente").
-    // Se deriva de la lista completa `plans` (no `filteredPlans`) para que
-    // la búsqueda no cambie quién es el plan actual.
+    // Se deriva de la lista completa `plans` (no de la lista filtrada por
+    // búsqueda) para que la búsqueda no cambie quién es el plan actual.
     // [P3-HIST-SEARCH-MEMO · 2026-05-31] useMemo: el reduce + los Date.parse de
     // `_effectiveModifiedAt` (hasta 2-4 por plan por comparación) solo corren
     // cuando `plans` cambia — no en cada keystroke del buscador.
@@ -4487,7 +4462,13 @@ const History = () => {
                                     })}
                                 </div>
 
-                                {/* [P3-HIST-MISSING-DAYS-REMOVED · 2026-05-19]
+                                {/* Bloque desactivado (`false &&`) INTENCIONALMENTE preservado:
+                    los tests parser-based History.audit_hist_8_missing_days_block.test.js
+                    (frontend) y test_p0_hist_fix_{2,3,4}.py / test_p3_hist_chunk_scheduled.py
+                    (backend) anclan markers y variables de su interior — NO borrar
+                    sin actualizar esos tests. El disable cubre el `false &&` de abajo. */}
+                {/* eslint-disable no-constant-binary-expression */}
+                {/* [P3-HIST-MISSING-DAYS-REMOVED · 2026-05-19]
                                     Banner "Faltan X días por generar / X de Y
                                     listos" eliminado del modal del Historial.
                                     Motivo (decisión del user, sesión UX
@@ -4815,6 +4796,7 @@ const History = () => {
                                         </div>
                                     );
                                 })()}
+                                {/* eslint-enable no-constant-binary-expression */}
                                 </>
                                 )}
                                 {/* /P2-HIST-AUDIT-2 tab Menú wrapper */}

@@ -113,7 +113,7 @@ const Settings = () => {
     // Obtenemos userProfile y updateUserProfile del contexto global
     // [P1-FORM-9] `session` necesario para el guard de hidratación cifrada en
     // `buildHealthProfilePayload`.
-    const { planData, formData, resetApp, resetForNewAssessment, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session, isPremium, updateData } = useAssessment();
+    const { planData, formData, resetForNewAssessment, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session, isPremium, updateData } = useAssessment();
 
     // [P1-FORM-9] Wrapper análogo al de Dashboard.jsx: filtra flags `_*` y
     // bloquea si la hidratación cifrada del formData parece estar in-flight.
@@ -507,7 +507,6 @@ const Settings = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState(''); // '', 'success', 'error'
     const [nameError, setNameError] = useState('');
-    const [confirmReset, setConfirmReset] = useState(false);
     // [P3-PROFILE-DISCARD-CONFIRM · 2026-05-20] Modal de confirmación cuando
     // el user click "Volver" con drafts pendientes de peso/altura. El banner
     // amarillo `AlertCircle` ya advierte mientras está en Profile, pero el
@@ -961,24 +960,6 @@ const Settings = () => {
             setPushSubscribeError(errMsg);
             toast.error(`Error inesperado: ${errMsg}`);
             setIsPushLoading(false);
-        }
-    };
-
-    const handleResetApp = async () => {
-        if (confirmReset) {
-            // [P3-RESETAPP-AWAIT · 2026-05-30] await + finally: resetApp es
-            // async (signOut + setters). Sin await, navigate('/') corría antes
-            // del teardown y una rejection quedaba como unhandled promise. El
-            // finally garantiza la navegación aunque resetApp falle (el teardown
-            // de PII ya es síncrono adentro, así que es seguro navegar igual).
-            try {
-                await resetApp();
-            } finally {
-                navigate('/');
-            }
-        } else {
-            setConfirmReset(true);
-            setTimeout(() => setConfirmReset(false), 3000);
         }
     };
 

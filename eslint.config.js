@@ -44,7 +44,12 @@ export default defineConfig([
   // plan_check.js, harnesses de verificación local) que NO se shippea. Sin
   // ignorarlo aportaba ~114 problemas de ruido (89 `React is not defined`) que
   // enmascaraban el lint del código real (318→204). Mismo criterio que `scratch`.
-  globalIgnores(['dist', 'dev-dist', 'scratch', 'tmp']),
+  // [P2-LINT-ZERO · 2026-07-09] `ds-bundle` añadido: bundle generado del design
+  // system (incluye _vendor/react.js compilado) que NO es código fuente del app.
+  // Lintearlo aportaba 575 errores de ruido (356 no-undef, 72
+  // no-prototype-builtins…) que ahogaban los ~63 errores reales de src/ y
+  // volvían `npm run lint` inútil como gate. Mismo criterio que dist/scratch/tmp.
+  globalIgnores(['dist', 'dev-dist', 'scratch', 'tmp', 'ds-bundle']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -109,6 +114,15 @@ export default defineConfig([
       // co-exportan helpers/constantes a propósito (ej. contextos + hooks).
       // Degradado a warn para no bloquear el gate con un concern dev-only.
       'react-refresh/only-export-components': 'warn',
+      // [P2-LINT-ZERO · 2026-07-09] Regla nueva de react-hooks v7. Los sitios
+      // restantes que la disparan son el patrón legacy "sync inicial de estado
+      // externo dentro del effect" (NotificationCenter, ScanMealModal,
+      // SupermarketPage, QMeasurements) — funcional pero con un render extra al
+      // montar. Los casos de media-query ya migraron al SSOT useMediaQuery
+      // (useSyncExternalStore, P2-14). Warn (no error): código nuevo debe
+      // preferir useSyncExternalStore / setState-durante-render sancionado;
+      // el legacy se migra boy-scout al tocar cada archivo.
+      'react-hooks/set-state-in-effect': 'warn',
     },
   },
   // El wrapper SSOT DEBE usar raw localStorage — es el código que la regla

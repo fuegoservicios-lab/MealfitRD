@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Flame, Dumbbell, Wheat, Droplet, Activity, Camera, Flag } from 'lucide-react';
 import PropTypes from 'prop-types';
-import { useAssessment } from '../../context/AssessmentContext';
 import { fetchWithAuth } from '../../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import ProteinIcon from '../icons/ProteinIcon';

@@ -3,7 +3,7 @@
 // Recipes.jsx renderiza `isMobile ? <MobileRecipes/> : <RecipesView/>` con los
 // MISMOS datos reales + handlers (modo cocina, PDF, expandir, registrar, días).
 import { useMemo, useState } from 'react';
-import { metaFor, STEP_ICONS, MACROS, ICONS } from './recipesData';
+import { metaFor, STEP_ICONS, MACROS, ICONS, conicStops as _conicStops } from './recipesData';
 import { displayAjiMorron } from '../../utils/ingredientDisplay';
 import styles from './MobileRecipes.module.css';
 
@@ -51,13 +51,7 @@ export function MobileRecipes({
   const hasMacros = Number(meal.protein) > 0 || Number(meal.carbs) > 0 || Number(meal.fats) > 0;
   const { gradient, macroRow } = useMemo(() => {
     const calc = MACROS.map((x) => ({ ...x, g: Number(meal[x.key]) || 0, kc: (Number(meal[x.key]) || 0) * x.kcal }));
-    const tot = calc.reduce((s, x) => s + x.kc, 0) || 1;
-    let acc = 0;
-    const stops = calc.map((x) => {
-      const a = (acc / tot) * 100, b = ((acc + x.kc) / tot) * 100; acc += x.kc;
-      return `${x.c} ${a.toFixed(1)}% ${b.toFixed(1)}%`;
-    });
-    return { gradient: `conic-gradient(${stops.join(',')})`, macroRow: calc };
+    return { gradient: `conic-gradient(${_conicStops(calc).join(',')})`, macroRow: calc };
   }, [meal]);
 
   const ingredients = meal.ingredients || [];

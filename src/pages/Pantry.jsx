@@ -297,7 +297,6 @@ const Pantry = () => {
     const [inventory, setInventory] = useState(() => getCachedInventory() || []);
     const [masterList, setMasterList] = useState(() => getCachedMasterList() || []);
     const [loading, setLoading] = useState(() => !getCachedInventory());
-    const [savingItem, setSavingItem] = useState(null); // ID of item being saved
     const [searchQuery, setSearchQuery] = useState('');
     // [P3-PANTRY-FRIDGE-REDESIGN · 2026-06-24] Mueble activo (Nevera/Alacena)
     // + filtro de categoría (zona física) del sidebar. 'todos' = todas las
@@ -1250,7 +1249,7 @@ const Pantry = () => {
     // del turbo holdTimeout/holdInterval, no pendingOps). Si el user cambia una
     // cantidad y navega fuera de /pantry dentro de los 500ms del debounce, el
     // setTimeout sobrevive al unmount: dispara el POST de increment (benigno)
-    // y luego setSavingItem(null) + (en fallo) fetchData(false)/toast sobre
+    // y luego (en fallo) fetchData(false)/toast sobre
     // componente desmontado → fetch redundante + toast fantasma en página
     // abandonada. El cleanup cancela los timeouts pendientes. El fetch al
     // re-montar (+ refetch on focus) reconcilia el estado.
@@ -1298,7 +1297,6 @@ const Pantry = () => {
 
         // 2. UI Updates visuales instantáneos
         setInventory(prev => prev.map(item => item.id === id ? { ...item, quantity: roundedQty } : item));
-        setSavingItem(id);
 
         // 3. Limpiar guardado pendiente (Debounce re-trigger)
         if (op.timeout) clearTimeout(op.timeout);
@@ -1327,7 +1325,6 @@ const Pantry = () => {
                 toast.error('Error al actualizar alimento.');
                 fetchData(false); // rollback visual si falla
             } finally {
-                setSavingItem(null);
                 pendingOps.current.delete(id); // Liberamos la ráfaga
             }
         }, 500); 
@@ -1775,10 +1772,7 @@ const Pantry = () => {
 
     // [P3-PANTRY-ACTIVEKEYS-DEDUP · 2026-05-31] Set de claves del inventario
     // activo construido UNA vez (deps [inventory]) y reusado por
-    // visibleDepletedItems + depletedCount, que antes lo reconstruían idéntico
-    // cada uno. `depletedCount` sigue siendo search-independent (el badge total
-    // NO debe encogerse al teclear) → se mantiene como memo separado, NO se
-    // deriva de visibleDepletedItems.length.
+    // visibleDepletedItems (antes lo reconstruía inline en cada memo).
     const activeInventoryKeys = useMemo(
         () => new Set(
             inventory.map(i => i.master_ingredient_id
@@ -1802,11 +1796,6 @@ const Pantry = () => {
             (b.depleted_at || '').localeCompare(a.depleted_at || '')
         );
     }, [depletedItems, activeInventoryKeys, deferredSearchQuery]);
-
-    const depletedCount = useMemo(
-        () => depletedItems.filter(e => !activeInventoryKeys.has(_depletedKey(e))).length,
-        [depletedItems, activeInventoryKeys],
-    );
 
     const suggestedMasterItems = useMemo(() => {
         if (!addItemSearch.trim()) return [];

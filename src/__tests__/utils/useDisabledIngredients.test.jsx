@@ -9,7 +9,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import {
     useDisabledIngredients,
-    setDisabledIngredientsGlobal,
     clearDisabledIngredientsStore,
     _resetDisabledIngredientsForTests,
 } from '../../hooks/useDisabledIngredients';

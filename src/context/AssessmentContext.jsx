@@ -945,11 +945,8 @@ export const AssessmentProvider = ({ children }) => {
                 const _localStr = localSavedParsed ? JSON.stringify(localSavedParsed) : null;
                 const _latestStr = JSON.stringify(latestPlan);
                 if (_localStr === null || _localStr !== _latestStr) {
-
                     setPlanData(latestPlan);
                     safeLocalStorageSet('mealfit_plan', _latestStr);
-                } else {
-
                 }
 
                 // Guardar la fecha en DB para persistencia cruzada (si se inyectó)
