@@ -42,6 +42,8 @@ import EmptyState from '../components/common/EmptyState';
 // (modo cocina, PDF, expandir pasos, registrar, ventana de días) y le pasa datos.
 import { RecipesView } from '../components/recipes/RecipesView';
 import { MobileRecipes } from '../components/recipes/MobileRecipes';
+// [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + resize listener ×2).
+import { useIsMobile } from '../hooks/useMediaQuery';
 // [P3-RECIPE-SAFE-LS · 2026-05-30] Helper SSOT no-throw para localStorage.
 import { safeLocalStorageSet } from '../utils/safeLocalStorage';
 // [P3-AJI-MORRON-DISPLAY · 2026-06-22] Terminología RD: pimiento dulce → "ají morrón"
@@ -225,21 +227,13 @@ const FormattedLargeStep = ({ text, currentStep, isLastStep, isMobile }) => {
 const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    // [P2-14 · 2026-07-09] Hook SSOT (antes useState + resize listener local).
+    const isMobile = useIsMobile();
 
     // [P1-COOKMODE-A11Y · 2026-05-30] Hook declarado ANTES del early-return
     // de abajo para mantener orden de hooks invariante. El hook ya gestiona
-    // body.overflow lock + ESC + focus-trap + restore-focus; por eso el
-    // useEffect de abajo solo conserva el listener de resize.
+    // body.overflow lock + ESC + focus-trap + restore-focus.
     const { containerRef } = useModalAccessibility({ isOpen: !!recipe, onClose });
-
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
-        return () => {
-            window.removeEventListener('resize', handleResize);
-        };
-    }, []);
 
     // [P2-RECIPE-DISCLAIMER-LIST] Coerción defensiva: un `recipe.recipe` string
     // (legacy) indexado como `steps[currentStep]` mostraría caracteres sueltos.
@@ -369,7 +363,8 @@ const Recipes = () => {
     const navigate = useNavigate();
     const contentRef = useRef(null);
     const [activeDayIndex, setActiveDayIndex] = useState(0);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    // [P2-14 · 2026-07-09] Hook SSOT (antes useState + resize listener local).
+    const isMobile = useIsMobile();
     const [cookingRecipe, setCookingRecipe] = useState(null);
     const [isExpanding, setIsExpanding] = useState(false);
     const [checkedIngredients, setCheckedIngredients] = useState({});
@@ -576,12 +571,6 @@ const Recipes = () => {
             return false; // mantener overlay abierto para retry in-place
         }
     };
-
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
 
     // Protección de Ruta. La computación del chunk se movió arriba del
     // useEffect de clamp (P-RECIPES-CHUNK-WINDOW); la guard sigue funcionando

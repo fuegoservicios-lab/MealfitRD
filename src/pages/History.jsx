@@ -19,6 +19,8 @@ import { mealEmojiFor } from '../utils/mealEmoji';
 // outlier respecto a PaymentModal / LogoutConfirmModal / Dashboard restock /
 // los 3 modales de Pantry (P2-PANTRY-MODALS-A11Y), que ya usan este hook.
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
+// [P2-14 · 2026-07-09] Hook SSOT de media queries (antes copia local del mismo hook).
+import { useMediaQuery } from '../hooks/useMediaQuery';
 // [P-HISTORY-CHUNK-WINDOW] Helpers chunk-aware compartidos con Recipes.jsx.
 // Sincronizados con `split_with_absorb` del backend (constants.py:961).
 // [P1-HIST-1 · 2026-05-09] Reintroducimos `splitWithAbsorb` para soportar
@@ -155,23 +157,6 @@ export const _historyLabelStart = (planData, createdAt) => {
         return planData?.cycle_start_date || planData?.grocery_start_date || createdAt;
     }
     return planData?.grocery_start_date || createdAt;
-};
-
-// [P3-HIST-DESKTOP-REDESIGN · 2026-06-24] matchMedia SSR-safe (mismo patrón que
-// components/common/Modal.jsx). Decide PC (panel nuevo) vs móvil (lista compacta).
-const useMediaQuery = (query) => {
-    const [matches, setMatches] = useState(() =>
-        (typeof window !== 'undefined' ? window.matchMedia(query).matches : false),
-    );
-    useEffect(() => {
-        if (typeof window === 'undefined') return undefined;
-        const media = window.matchMedia(query);
-        setMatches(media.matches);
-        const listener = (e) => setMatches(e.matches);
-        media.addEventListener('change', listener);
-        return () => media.removeEventListener('change', listener);
-    }, [query]);
-    return matches;
 };
 
 const History = () => {

@@ -3,6 +3,8 @@ import React, { useState, useEffect, useMemo, useRef, useCallback, useDeferredVa
 // (añadir / ajustar cantidad / vaciar nevera destructivo) eran divs fixed sin
 // role=dialog/focus-trap/ESC/restore-focus. SSOT P2-CUSTOM-MODALS-A11Y.
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
+// [P2-14 · 2026-07-09] Hook SSOT de media queries (antes copia local del mismo hook).
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAssessment } from '../context/AssessmentContext';
 // [P1-NEON-DB-MIGRATION · 2026-06-12] el SDK anterior eliminado de Pantry: los
@@ -177,23 +179,6 @@ const ZONE_DISPLAY_COLOR = {
     pantry:         '#FBBF24',
 };
 const zoneColor = (zoneKey) => ZONE_DISPLAY_COLOR[zoneKey] || '#94A3B8';
-
-// [P3-PANTRY-FRIDGE-REDESIGN · 2026-06-24] matchMedia SSR-safe (mismo patrón
-// que components/common/Modal.jsx). Decide layout desktop vs móvil dedicado.
-const useMediaQuery = (query) => {
-    const [matches, setMatches] = useState(() =>
-        (typeof window !== 'undefined' ? window.matchMedia(query).matches : false),
-    );
-    useEffect(() => {
-        if (typeof window === 'undefined') return undefined;
-        const media = window.matchMedia(query);
-        setMatches(media.matches);
-        const listener = (e) => setMatches(e.matches);
-        media.addEventListener('change', listener);
-        return () => media.removeEventListener('change', listener);
-    }, [query]);
-    return matches;
-};
 
 // Umbral "queda poco" (cantidad). Por debajo se marca la fila + suma al
 // indicador "por reponer" del sidebar. Independiente del badge shelf-life.

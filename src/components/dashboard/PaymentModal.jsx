@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { PayPalScriptProvider, PayPalButtons, FUNDING } from "@paypal/react-paypal-js";
 import { X, CreditCard, Sparkles, Lock, Tag, Check, AlertCircle, Loader2, ChevronRight, Zap, User, Calendar, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,6 +11,8 @@ import { fetchWithAuth } from '../../config/api';
 // full-bleed (100vh × 100vw) NO encaja en Modal.jsx (maxWidth 460px) —
 // el hook aplica las defenses inline sin refactor de layout.
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
+// [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + resize listener).
+import { useIsMobile } from '../../hooks/useMediaQuery';
 
 /* ─── Plan Feature Map ─── */
 // [P2-PAYMENT-FEATURES-ALIGN · 2026-05-31] La pantalla de checkout anunciaba como
@@ -52,20 +54,15 @@ const PaymentModal = ({
     const [couponCode, setCouponCode] = useState('');
     const [couponLoading, setCouponLoading] = useState(false);
     const [couponResult, setCouponResult] = useState(null);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-    
+    // [P2-14 · 2026-07-09] Hook SSOT (antes useState + resize listener local).
+    const isMobile = useIsMobile();
+
     const [paymentMethod, setPaymentMethod] = useState('card');
     // [P3-PAYMENTMODAL-DEADSTATE · 2026-05-30] Eliminados `isProcessing` y
     // `cardDetails` ({name,number,exp,cvc}): estado React nunca leído ni seteado
     // (el flujo delega 100% a <PayPalButtons>; no hay form de tarjeta propio).
     // El shape con number/cvc sugería falsamente que la app toca PAN/CVC crudo
     // (no lo hace — todo es PayPal-hosted).
-
-    useEffect(() => {
-        const handler = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handler);
-        return () => window.removeEventListener('resize', handler);
-    }, []);
 
     // [P2-CUSTOM-MODALS-A11Y · 2026-05-24] focus trap + ESC + restore focus +
     // body overflow lock. `disableClose=false` — el flujo de pago NO bloquea

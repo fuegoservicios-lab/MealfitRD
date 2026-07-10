@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 // muerto. El uso real vive en MessageBubble + ChatWidget vía LazyMarkdown
 // wrapper que mueve la lib a un chunk async separado.
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
+// [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + resize listener).
+import { useMediaQuery } from '../hooks/useMediaQuery';
 // [P3-BOT-AVATAR-3D · 2026-06-19] Avatar del agente = orbe 3D glossy de alto contraste.
 import BotAvatar from '../components/agent/BotAvatar';
 // [P1-CHAT-VIRTUALIZE · 2026-05-19] Lista virtualizada para sesiones
@@ -435,13 +437,9 @@ const AgentPage = () => {
     const inputWrapperRef = useRef(null);
 
     // IsMobile detection para asegurar sobrescritura inline a prueba de fallos de iOS
-    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 1024 : false);
-
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth <= 1024);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+    // [P2-14 · 2026-07-09] Hook SSOT (antes useState + resize listener local).
+    // 1024px es el breakpoint deliberado de esta página (colapso del sidebar).
+    const isMobile = useMediaQuery('(max-width: 1024px)');
 
     // Close nav menu on outside click
     useEffect(() => {

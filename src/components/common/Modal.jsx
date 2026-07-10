@@ -1,31 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-
-const useMediaQuery = (query) => {
-    const [matches, setMatches] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return window.matchMedia(query).matches;
-        }
-        return false;
-    });
-
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        
-        const media = window.matchMedia(query);
-        // [P4-MEDIAQUERY-DEP] sync idempotente (React hace bail-out si el valor es igual).
-        // Sin `matches` en deps el listener no se re-suscribe en cada cambio de breakpoint.
-        setMatches(media.matches);
-
-        const listener = (e) => setMatches(e.matches);
-        media.addEventListener('change', listener);
-        
-        return () => media.removeEventListener('change', listener);
-    }, [query]);
-
-    return matches;
-};
+// [P2-14 · 2026-07-09] Hook SSOT de media queries (antes copia local del mismo hook).
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disableClose = false, isBottomSheetOnMobile = false }) => {
     const modalRef = useRef(null);

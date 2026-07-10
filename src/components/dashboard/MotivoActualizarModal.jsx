@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useModalAccessibility } from "../../hooks/useModalAccessibility";
+// [P2-14 · 2026-07-09] Hook SSOT de media queries (antes copia local del mismo hook).
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 
 /**
  * MotivoActualizarModal — "¿Por qué quieres actualizar?"
@@ -20,22 +22,6 @@ import { useModalAccessibility } from "../../hooks/useModalAccessibility";
  * Props:
  *   open, quota {left,total}, unlimited, options[], coming|null, pickingId, onPick, onClose
  */
-
-/* --------------------------------------------------------- media query (SSR-safe) */
-function useMediaQuery(query) {
-  const [matches, setMatches] = useState(() =>
-    typeof window !== "undefined" ? window.matchMedia(query).matches : false
-  );
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const m = window.matchMedia(query);
-    setMatches(m.matches);
-    const on = (e) => setMatches(e.matches);
-    m.addEventListener("change", on);
-    return () => m.removeEventListener("change", on);
-  }, [query]);
-  return matches;
-}
 
 /* ---------------------------------------------------------------- iconos */
 const PATHS = {
