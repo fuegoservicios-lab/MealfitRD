@@ -2,6 +2,14 @@
    HISTORY PAGE — PREMIUM STYLES
    ============================ */
 
+/* [P2-7 · 2026-07-09] Verdes semánticos (estado éxito/activo) migrados a los
+   tokens --success* de index.css (statusActive). Verdes NO migrados a propósito:
+   editButton (familia green #22C55E/#16A34A, sin token), macroCard/Value/
+   LabelGreen (color-coding decorativo de macros, no estado-éxito), tierBadgeOk
+   (el test parser History.audit_hist_6 ancla sus hex literales — el nombre va
+   sin punto aquí porque ese test usa indexOf sobre el selector), y el ::before
+   de cardActive (gradiente de dos tonos + override dark propio). */
+
 .container {
     margin-bottom: 2rem;
 }
@@ -690,8 +698,12 @@
    importante para el usuario ("¿cuál plan estoy comiendo ahora?")
    antes que el estado de generación. */
 .statusActive {
-    background: #ECFDF5;
-    color: #047857;
+    /* [P2-7 · 2026-07-09] bg/texto → tokens --success* (uso semántico: chip de
+       plan activo). El borde #A7F3D0 (emerald-200) se queda: no tiene token
+       equivalente (--success-border es emerald-300) — por eso el override dark
+       de .statusActive sigue vivo abajo. */
+    background: var(--success-bg);
+    color: var(--success-text);
     border: 1px solid #A7F3D0;
     position: relative;
 }
@@ -701,7 +713,7 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #10B981;
+    background: var(--success);
     box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
     animation: statusActiveDotPulse 2.2s ease-in-out infinite;
     flex-shrink: 0;

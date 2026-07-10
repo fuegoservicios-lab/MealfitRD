@@ -39,7 +39,10 @@
         border: none;
         cursor: pointer;
         position: relative;
-        color: #94A3B8;
+        /* [A11Y-CONTRAST · 2026-07-09] Tab inactivo: #94A3B8 (slate-400, ~2.6:1
+           sobre blanco) → #64748B (slate-500, ~4.7:1) para cumplir WCAG AA.
+           En dark ya usa var(--text-light) (override abajo) — sin cambio. */
+        color: #64748B;
         transition: color 0.2s ease;
         -webkit-tap-highlight-color: transparent;
         min-height: 64px;

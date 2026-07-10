@@ -158,6 +158,45 @@ function IconButton({ name, danger, title, onClick }) {
   );
 }
 
+/* [P2-12 · 2026-07-09] Path de teclado para las cards clickeables (PlanHero +
+   PlanRow): Enter/Espacio disparan onOpen() como el click. Guards:
+   - NO dispara en modo edición (NameEditor abierto — su input maneja Enter/Escape
+     y el keydown del input NO debe abrir el modal aunque burbujee).
+   - NO dispara si el evento nace en un control interno (IconButton, pencil,
+     input, link). Ojo: el currentTarget MISMO tiene role="button", así que el
+     check correcto es `closest(...) !== e.currentTarget` — si el closest
+     interactivo es el propio row, el keydown es "del row" y sí abre.
+   - preventDefault SOLO en Espacio (evita el scroll de página). */
+function handleRowKeyDown(e, editing, onOpen) {
+  if (editing) return;
+  if (e.key !== "Enter" && e.key !== " ") return;
+  if (e.target && e.target.tagName === "INPUT") return;
+  const interactive = typeof e.target.closest === "function"
+    ? e.target.closest('button, input, a, [role="button"]')
+    : null;
+  if (interactive && interactive !== e.currentTarget) return;
+  if (e.key === " ") e.preventDefault();
+  onOpen();
+}
+
+/* [P2-12 · 2026-07-09] Pencil de rename como <button> real (antes <span onClick>
+   sin path de teclado). Mantiene el visual exacto del span (color/cursor/grid)
+   con resets de button; stopPropagation para no abrir el modal del row. */
+function PencilButton({ onEdit, size }) {
+  return (
+    <button
+      type="button"
+      aria-label="Renombrar plan"
+      title="Renombrar"
+      onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }}
+      style={{ appearance: "none", background: "transparent", border: 0, padding: 0, font: "inherit",
+        color: "var(--text-light)", cursor: "pointer", display: "grid" }}
+    >
+      <Icon name="pencil" size={size} />
+    </button>
+  );
+}
+
 /* Rename inline (reusa el flujo real: editingId / tempName / save / cancel) */
 function NameEditor({ tempName, setTempName, onSave, onCancel, big }) {
   return (
@@ -179,7 +218,9 @@ function NameEditor({ tempName, setTempName, onSave, onCancel, big }) {
 
 function PlanHero({ plan, onOpen, onEdit, editing, tempName, setTempName, onEditSave, onEditCancel }) {
   return (
-    <div onClick={onOpen} style={{ position: "relative", overflow: "hidden", borderRadius: 20, padding: 20, cursor: "pointer",
+    // [P2-12 · 2026-07-09] role/tabIndex/onKeyDown: la card activa es operable por teclado.
+    <div onClick={onOpen} role="button" tabIndex={0} onKeyDown={(e) => handleRowKeyDown(e, editing, onOpen)}
+      style={{ position: "relative", overflow: "hidden", borderRadius: 20, padding: 20, cursor: "pointer",
       border: "1px solid color-mix(in srgb, var(--secondary) 40%, var(--border))",
       background: "linear-gradient(135deg, color-mix(in srgb, var(--secondary) 14%, transparent), transparent 55%), var(--bg-page)" }}>
       <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: "linear-gradient(var(--secondary), color-mix(in srgb, var(--secondary) 40%, transparent))" }} />
@@ -197,7 +238,7 @@ function PlanHero({ plan, onOpen, onEdit, editing, tempName, setTempName, onEdit
             ) : (
               <>
                 <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{plan.name}</span>
-                <span onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} title="Renombrar" style={{ color: "var(--text-light)", cursor: "pointer", display: "grid" }}><Icon name="pencil" size={15} /></span>
+                <PencilButton onEdit={onEdit} size={15} />
               </>
             )}
           </div>
@@ -219,7 +260,12 @@ function PlanHero({ plan, onOpen, onEdit, editing, tempName, setTempName, onEdit
 function PlanRow({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempName, onEditSave, onEditCancel }) {
   const [h, setH] = useState(false);
   return (
-    <div onClick={onOpen} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+    // [P2-12 · 2026-07-09] role/tabIndex/onKeyDown: row operable por teclado.
+    // onFocus/onBlur espejan el hover-state `h` para que focus-visible tenga el
+    // mismo affordance (borde primary + lift) que el mouse.
+    <div onClick={onOpen} role="button" tabIndex={0} onKeyDown={(e) => handleRowKeyDown(e, editing, onOpen)}
+      onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      onFocus={() => setH(true)} onBlur={() => setH(false)}
       style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: 16, padding: "14px 16px", borderRadius: 16, cursor: "pointer",
         border: `1px solid ${h ? "color-mix(in srgb, var(--primary) 45%, var(--border))" : "var(--border)"}`,
         background: h ? "color-mix(in srgb, var(--primary) 5%, transparent)" : "var(--bg-page)",
@@ -232,7 +278,7 @@ function PlanRow({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNam
           ) : (
             <>
               <span style={{ fontFamily: "var(--font-heading)", fontSize: "1rem", fontWeight: 800, letterSpacing: "-.01em", color: "var(--text-main)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{plan.name}</span>
-              <span onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} title="Renombrar" style={{ color: "var(--text-light)", cursor: "pointer", display: "grid" }}><Icon name="pencil" size={14} /></span>
+              <PencilButton onEdit={onEdit} size={14} />
               <span style={{ fontSize: ".74rem", color: "var(--text-light)", whiteSpace: "nowrap" }}>· {fmtTime(plan.date)}</span>
             </>
           )}

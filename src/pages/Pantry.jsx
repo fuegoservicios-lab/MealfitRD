@@ -2995,6 +2995,7 @@ const Pantry = () => {
                                     inputMode="numeric"
                                     min="0"
                                     max="999"
+                                    aria-label="Cantidad"
                                     value={qtyEditValue}
                                     onChange={(e) => {
                                         const n = parseInt(e.target.value, 10);

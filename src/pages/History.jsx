@@ -1618,8 +1618,12 @@ const History = () => {
     // [P3-HIST-EMPTY-CTA · 2026-07-02] El estado vacío decía QUÉ hacer ("genera tu
     // primer plan") pero no daba CÓMO — sin acción, en móvil era una caja muerta.
     // CTA directo al formulario, mismo look .emptyCta del SessionExpiredState.
+    // [P3-12 · 2026-07-09] role="status": paridad a11y con el EmptyState común
+    // (components/common/EmptyState.jsx) — el SR anuncia el estado vacío. La
+    // consolidación visual completa queda diferida (los locales usan el look
+    // .emptyState/.emptyCta propio del Historial; unificar es decisión de producto).
     const EmptyState = () => (
-        <div className={styles.emptyState}>
+        <div className={styles.emptyState} role="status">
             <div className={styles.emptyIcon}>
                 <BookOpen size={32} />
             </div>
@@ -1636,7 +1640,7 @@ const History = () => {
     // [P2-HISTORY-401-GRACEFUL · 2026-06-21] Sesión expirada (401): "inicia sesión"
     // en vez del toast rojo "No se pudo cargar el historial".
     const SessionExpiredState = () => (
-        <div className={styles.emptyState}>
+        <div className={styles.emptyState} role="status">
             <div className={styles.emptyIcon}>
                 <AlertTriangle size={36} />
             </div>

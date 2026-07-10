@@ -1671,10 +1671,12 @@ const Settings = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                 {/* Nombre */}
                                 <div style={{ width: '100%' }}>
-                                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                                    {/* [A11Y-FORMS · 2026-07-09] par htmlFor/id: el label anuncia el input. */}
+                                    <label htmlFor="settings-full-name" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
                                         Nombre Completo <span style={{ color: '#EF4444' }}>*</span>
                                     </label>
                                     <input
+                                        id="settings-full-name"
                                         type="text"
                                         value={userName}
                                         onChange={(e) => {
@@ -2053,6 +2055,7 @@ const Settings = () => {
                                         checked={pushEnabled}
                                         onChange={handleTogglePush}
                                         disabled={isPushLoading || isPushBlocked}
+                                        aria-label="Activar avisos de comidas"
                                     />
                                     <span className={styles.toggleSlider} style={{ opacity: isPushLoading ? 0.5 : 1 }}></span>
                                 </label>
@@ -2141,6 +2144,7 @@ const Settings = () => {
                                         checked={loggingPreference === 'auto_proxy'}
                                         onChange={handleToggleLoggingPreference}
                                         disabled={isLoggingPrefLoading}
+                                        aria-label="Modo automático de avisos"
                                     />
                                     <span className={styles.toggleSlider} style={{ opacity: isLoggingPrefLoading ? 0.5 : 1 }}></span>
                                 </label>
