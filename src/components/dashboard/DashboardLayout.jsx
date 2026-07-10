@@ -332,6 +332,8 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 )}
 
                 <main
+                    id="main-content"
+                    tabIndex={-1}
                     className={`${styles.mainContent} ${noPaddingMobile ? styles.noPaddingMobile : ''} ${isSettings ? styles.bottomBarHidden : ''} ${(isRecipes || isPantry || isHistory) ? styles.recipesEdge : ''}`}
                     style={noPaddingMobile ? { padding: 0, maxWidth: '100vw', overflow: 'hidden', margin: 0, width: '100%' } : {}}
                 >

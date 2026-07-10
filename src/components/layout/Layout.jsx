@@ -18,7 +18,7 @@ const Layout = ({ children }) => {
         <HeroCtaProvider>
             <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
                 {!isPlanLoading && <Header />}
-                <main className="main-content" style={isPlanLoading ? { flex: 1, paddingTop: 0 } : { flex: 1 }}>
+                <main id="main-content" tabIndex={-1} className="main-content" style={isPlanLoading ? { flex: 1, paddingTop: 0 } : { flex: 1 }}>
                     <style>{`
                         /* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El header es una barra
                            flotante (wrapper con padding + pastilla). Subimos el offset

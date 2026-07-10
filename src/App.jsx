@@ -19,6 +19,8 @@ import { RouteErrorBoundary } from './components/RouteErrorBoundary';
 // servidor keyed por-usuario + clear() en logout (fix estructural fuga PII).
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './queryClient';
+// [P3-11 · 2026-07-09] Skip-to-content: primer focusable del app-shell.
+import SkipLink from './components/common/SkipLink';
 import IOSInstallPrompt from './components/IOSInstallPrompt';
 import useThemeColor from './components/common/useThemeColor';
 // [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Boot hook que detecta planes pendientes
@@ -294,6 +296,8 @@ function App() {
     <QueryClientProvider client={queryClient}>
     <AssessmentProvider>
       <Router>
+        {/* [P3-11] Primer elemento focusable: salta la navegación al #main-content. */}
+        <SkipLink />
         <ScrollRestoration />
         {/* [P3-LANDING-DARK-ONLY · 2026-06-29] Fuerza oscuro en rutas de marketing. */}
         <PublicThemeLock />
