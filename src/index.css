@@ -302,6 +302,19 @@
   --warning-bg: #FFFBEB;
   --warning-text: #78350F;
   --warning-border: #FDE68A;
+  /* [P2-7 · 2026-07-09] Familia --success* (espejo de --danger*): existía
+     --danger pero NO --success — History solo tenía 10 verdes hardcodeados
+     distintos. --info* para estados informativos (azul, distinto del indigo
+     de marca). --focus-ring: anillo de foco canónico (antes hardcodeado ~10×). */
+  --success: #10B981;
+  --success-bg: #ECFDF5;
+  --success-text: #065F46;
+  --success-border: #6EE7B7;
+  --info: #0EA5E9;
+  --info-bg: #F0F9FF;
+  --info-text: #075985;
+  --info-border: #7DD3FC;
+  --focus-ring: 0 0 0 3px rgba(79, 70, 229, 0.35);
 
   /* Typography */
   --font-heading: 'Outfit', sans-serif;
@@ -368,7 +381,12 @@ html[data-theme="dark"] {
 
   --text-main: #F1F5F9;        /* slate-100 */
   --text-muted: #94A3B8;       /* slate-400 */
-  --text-light: #64748B;       /* slate-500 */
+  /* [P2-CONTRAST-TEXT-LIGHT · 2026-07-09] Era #64748B (slate-500, ~3.7:1
+     sobre --bg-page oscuro) y se usa como color de TEXTO pequeño en varios
+     módulos → fallaba AA (4.5:1). Bump a un slate intermedio (~6:1). El valor
+     claro (#94A3B8 sobre blanco) no cambia — allí solo roza el límite en
+     textos que ya son decorativos. */
+  --text-light: #8B99AD;
 
   --border: #1F2937;           /* slate-800 sutil */
   --border-light: rgba(148, 163, 184, 0.14);
@@ -394,6 +412,18 @@ html[data-theme="dark"] {
   --warning-bg: #2A2009;       /* ámbar profundo — fondo de banner sutil sobre oscuro */
   --warning-text: #FCD34D;     /* Amber 300 — legible sobre oscuro (era #78350F invisible) */
   --warning-border: rgba(251, 191, 36, 0.32);  /* borde ámbar sutil sobre oscuro */
+  /* [P2-7 · 2026-07-09] --success*/--info*/--focus-ring en oscuro (espejo del
+     patrón --danger*): elimina la duplicación de verdes que History.module.css
+     re-declaraba a mano en su bloque html[data-theme=dark]. */
+  --success: #34D399;          /* Emerald 400 */
+  --success-bg: #132D25;
+  --success-text: #6EE7B7;     /* Emerald 300 */
+  --success-border: rgba(52, 211, 153, 0.32);
+  --info: #38BDF8;             /* Sky 400 */
+  --info-bg: #0C2434;
+  --info-text: #7DD3FC;        /* Sky 300 */
+  --info-border: rgba(56, 189, 248, 0.32);
+  --focus-ring: 0 0 0 3px rgba(165, 180, 252, 0.4);
 
   /* Sombras → negras profundas (las grises desaparecen sobre oscuro) */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.45);
@@ -586,6 +616,14 @@ body {
 html,
 body {
   overflow-x: clip;
+  /* [P1-VIEWPORT-ZOOM-LOCK · 2026-07-09] `manipulation` habilita pan (scroll) pero DESHABILITA el
+     doble-tap-zoom y otros gestos no estándar → mata el zoom accidental por doble-tap. El pinch se bloquea
+     además vía viewport (maximum-scale=1) + preventer de gestos iOS (main.jsx). `text-size-adjust:100%`
+     evita que iOS/Android infle el texto por su cuenta al rotar/zoom. Reversión de P2-A11Y-VIEWPORT-ZOOM
+     confirmada con el dueño (feel de app nativa; ver index.html). */
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* Noise Texture Overlay for "Premium/Paper" feel */
@@ -769,6 +807,63 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+/* [P2-10 · 2026-07-09] PageLoader theme-aware — fallback de Suspense de rutas
+   lazy. Antes era `bg-slate-50/50` hardcoded LIGHT: flasheaba blanco en dark
+   mode en cada carga de chunk (routePreload.js documenta 100-400ms visibles).
+   El spinner lo difiere el componente (>250ms) para no parpadear en cargas
+   rápidas; en cargas lentas da señal de vida (antes era indistinguible de un
+   cuelgue en móvil lento). */
+.page-loader {
+  min-height: 100vh;
+  width: 100%;
+  background: var(--bg-page);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.page-loader__spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  animation: spin 0.8s linear infinite;
+}
+
+/* [P2-10 · 2026-07-09] Primitiva Skeleton compartida (components/common/
+   Skeleton.jsx). Un solo shimmer token-aware — las páginas re-implementaban
+   ~6 variantes (History.module.css ×2, Dashboard inline, SidebarRecientes,
+   Login.css, Supermarket.module.css); migración incremental boy-scout. */
+.mf-skeleton {
+  display: block;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--bg-muted) 25%, var(--border) 50%, var(--bg-muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* [P2-8 · 2026-07-09] Banner global "Sin conexión" (components/common/
+   OfflineBanner.jsx). Bottom para no chocar con el Toaster (top-center) ni
+   taparlo; respeta el safe-area de iOS y queda por encima de la bottom nav. */
+.offline-banner {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 9999px;
+  background: var(--text-main);
+  color: var(--bg-card);
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
 }
 
 /* Allow text selection in chat and inputs (safeguard from body user-select: none) */

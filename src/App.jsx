@@ -21,6 +21,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './queryClient';
 // [P3-11 · 2026-07-09] Skip-to-content: primer focusable del app-shell.
 import SkipLink from './components/common/SkipLink';
+// [P2-8 · 2026-07-09] Señal ambiental de conectividad (banner no-bloqueante).
+import OfflineBanner from './components/common/OfflineBanner';
 import IOSInstallPrompt from './components/IOSInstallPrompt';
 import useThemeColor from './components/common/useThemeColor';
 // [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Boot hook que detecta planes pendientes
@@ -142,8 +144,25 @@ const ApexAppRedirect = () => {
   return null;
 };
 
-// --- Minimal loading fallback (Empty to prevent double loading screens) ---
-const PageLoader = () => <div className="min-h-screen bg-slate-50/50" />;
+// --- Loading fallback de rutas lazy ---
+// [P2-10 · 2026-07-09] Theme-aware + spinner diferido. Antes:
+// `bg-slate-50/50` hardcoded LIGHT (flash blanco en dark en cada carga de
+// chunk) y sin señal de vida — en móvil lento (100-400ms documentados en
+// routePreload.js; más en red mala) era indistinguible de un cuelgue. El
+// spinner aparece recién a los 250ms: cargas rápidas no parpadean, cargas
+// lentas muestran progreso.
+const PageLoader = () => {
+  const [showSpinner, setShowSpinner] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setShowSpinner(true), 250);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div className="page-loader">
+      {showSpinner && <div className="page-loader__spinner" role="status" aria-label="Cargando" />}
+    </div>
+  );
+};
 
 // --- Native Style Page Transitions ---
 // [P3-DASH-NO-ANIMATE · 2026-05-19] AnimatePresence + motion.div con
@@ -337,6 +356,8 @@ function App() {
         {/* [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Headless: poll background
             pipeline status si el user tiene plan pendiente en localStorage. */}
         <PendingPipelineRecovery />
+        {/* [P2-8 · 2026-07-09] Banner "Sin conexión" (bottom, no-bloqueante). */}
+        <OfflineBanner />
         <Routes>
           <Route element={<AnimatedLayout />}>
             {/* Public Routes: Auth */}

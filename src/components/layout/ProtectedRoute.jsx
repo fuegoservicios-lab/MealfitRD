@@ -3,14 +3,21 @@ import { Navigate, useLocation, useNavigationType } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
 
 const ProtectedRoute = ({ children, landing = false }) => {
-    const { session, loadingAuth, loadingData, userProfile, planData, isGuest } = useAssessment();
+    const { session, loadingAuth, loadingData, loadingProfile, userProfile, planData, isGuest } = useAssessment();
     const location = useLocation();
     const navigationType = useNavigationType();
 
-    if (loadingAuth || loadingData) {
+    // [P1-RECOVERY-FORM-BOUNCE-FIX · 2026-07-09] Incluir `loadingProfile` en el gate: un usuario
+    // AUTENTICADO que reabre (móvil, tras recuperar un plan) tiene el perfil/plan cargando async. Sin
+    // esperarlo, el guard de assessment de abajo veía `userProfile=null` + `planData=null` →
+    // `hasCompletedAssessment=false` → rebote al FORMULARIO (bug reportado, se arreglaba reiniciando la
+    // app). `loadingProfile` inicia true SOLO para autenticados (guests → false, sin cambio para ellos).
+    if (loadingAuth || loadingData || loadingProfile) {
         // Mantenemos la pantalla limpia mientras auth termina,
-        // asumiendo que un splash screen u 'otro cargando' cubre visualmente
-        return <div className="h-screen w-screen bg-slate-50/50" />;
+        // asumiendo que un splash screen u 'otro cargando' cubre visualmente.
+        // [P2-10 · 2026-07-09] Theme-aware (antes bg-slate-50/50 hardcoded
+        // LIGHT — flash blanco en dark durante el gate de auth).
+        return <div className="page-loader" />;
     }
 
     // [P1-GUEST-MODE · 2026-06-15] Sin sesión Y sin modo invitado → login.
@@ -52,6 +59,19 @@ const ProtectedRoute = ({ children, landing = false }) => {
     // poder ver y manejar su cuenta sin ser forzada al formulario primero. Antes
     // caía al gate de abajo y "Configuración" rebotaba a /assessment.
     const isOnAccountSettings = location.pathname === '/configuracion';
+
+    // [P1-GUEST-PLAN-RECOVERY · 2026-07-09] Recovery en progreso → forzar la pantalla de carga (/plan).
+    // `PendingPipelineRecovery` poll-ea /pending-status desde /plan y navega al dashboard al completar
+    // (limpiando el flag). Sin esto, un GUEST (o autenticado) que reabre con `planData` aún null caía en
+    // los guards de abajo (assessment-incompleto L~66 / landing-POP L~98) → REBOTE AL FORMULARIO
+    // (bug reportado: "me saco al formulario"). El flag `mealfit_plan_in_progress` (Plan.jsx al arrancar el
+    // SSE) es la señal síncrona; se auto-limpia (recovery: none/complete/stale>6h) → sin loop.
+    let _hasPendingPlanRecovery = false;
+    try { _hasPendingPlanRecovery = !!localStorage.getItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+    if (_hasPendingPlanRecovery && !isOnPlan) {
+        return <Navigate to="/plan" replace />;
+    }
+
     const hasHealthProfile = userProfile?.health_profile
         && Object.keys(userProfile.health_profile).length > 0;
     // Acceso garantizado si ya tiene un plan generado (aunque el perfil aún no esté sincronizado)
