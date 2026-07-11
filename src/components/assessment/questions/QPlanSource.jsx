@@ -9,7 +9,10 @@ import { Bot, Refrigerator } from 'lucide-react';
 
 export const QPlanSource = ({ onAutoAdvance }) => {
     const { formData, updateData, userProfile } = useAssessment();
-    const value = formData.planSource || 'scratch';
+    // [feedback owner 2026-07-11] SIN default visual: pre-marcar "Plan completo" parecía
+    // una elección ya tomada y confundía. Sin selección, "Siguiente" continúa y el
+    // backend trata planSource ausente como generación libre (mismo comportamiento).
+    const value = formData.planSource;
     const isAuth = Boolean(userProfile?.id);
 
     const set = (v) => updateData('planSource', v);
