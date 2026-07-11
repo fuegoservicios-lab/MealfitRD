@@ -8,6 +8,10 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 // [P2-15 · 2026-07-09] Store single-source de la Nevera Virtual (compartido con Dashboard).
 import { useDisabledIngredients } from '../hooks/useDisabledIngredients';
 import { motion, AnimatePresence } from 'framer-motion';
+// [P1-PANTRY-BUILDER-FLOW · 2026-07-11] Modo constructor: el wizard desvía aquí
+// cuando planSource='pantry' — el usuario prepara su Nevera y el CTA del banner
+// navega a /plan para disparar la generación.
+import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 // [P1-NEON-DB-MIGRATION · 2026-06-12] el SDK anterior eliminado de Pantry: los
 // datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
@@ -287,7 +291,22 @@ const CATEGORY_NORMALIZE = {
 };
 
 const Pantry = () => {
-    const { session, setPlanData } = useAssessment();
+    const { session, setPlanData, formData, updateData } = useAssessment();  // formData/updateData: [P1-PANTRY-BUILDER-FLOW]
+    const navigate = useNavigate();
+
+    // [P1-PANTRY-BUILDER-FLOW · 2026-07-11] Modo constructor: activo si el wizard
+    // desvió aquí (flag en sessionStorage — sobrevive refresh, muere con la pestaña).
+    const [planFlow, setPlanFlow] = useState(() => {
+        try { return sessionStorage.getItem('mealfit_pantry_plan_flow') === '1'; }
+        catch { return false; }
+    });
+    // Medidor de factibilidad en vivo: null = sin datos aún, {loading:true} = en vuelo.
+    const [planFlowFeas, setPlanFlowFeas] = useState(null);
+
+    const clearPlanFlow = () => {
+        try { sessionStorage.removeItem('mealfit_pantry_plan_flow'); } catch { /* no-op */ }
+        setPlanFlow(false);
+    };
     // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate lazy-init.
     // Si hay cache vigente (inventory TTL 30s, masterList TTL 24h), el
     // primer render tiene rows visibles y skeleton oculto. El fetchData
@@ -325,6 +344,46 @@ const Pantry = () => {
         }, 700);
         return () => { cancelled = true; clearTimeout(t); };
     }, [inventory.length]);
+    // [P1-PANTRY-BUILDER-FLOW · 2026-07-11] Medidor de factibilidad en vivo del modo
+    // constructor: re-consulta el pre-flight determinista (cero costo LLM, RateLimiter
+    // server-side) tras cada cambio de inventario, con debounce para no martillar y para
+    // que el add/delete persista antes de re-contar. Fail-soft: sin medidor si falla.
+    const planFlowDays = (() => {
+        const _gd = formData?.groceryDuration || 'weekly';
+        return _gd === 'monthly' ? 30 : (_gd === 'biweekly' ? 15 : 7);
+    })();
+    useEffect(() => {
+        if (!planFlow) return undefined;
+        if (!formData?.age || !formData?.weight) return undefined;  // wizard incompleto: banner sin medidor
+        let cancelled = false;
+        setPlanFlowFeas((prev) => ({ ...(prev || {}), loading: true }));
+        const t = setTimeout(async () => {
+            try {
+                const resp = await fetchWithAuth('/api/plans/pantry-feasibility', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        days: planFlowDays,
+                        age: formData.age, weight: formData.weight,
+                        weightUnit: formData.weightUnit || 'lb',
+                        height: formData.height, gender: formData.gender,
+                        activityLevel: formData.activityLevel,
+                        mainGoal: formData.mainGoal,
+                    }),
+                });
+                if (resp?.ok) {
+                    const data = await resp.json();
+                    if (!cancelled) setPlanFlowFeas({ ...data, loading: false });
+                } else if (!cancelled) {
+                    setPlanFlowFeas((prev) => (prev ? { ...prev, loading: false } : null));
+                }
+            } catch {
+                if (!cancelled) setPlanFlowFeas((prev) => (prev ? { ...prev, loading: false } : null));
+            }
+        }, 900);
+        return () => { cancelled = true; clearTimeout(t); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planFlow, inventory, planFlowDays]);
     // [P6-SPEED-PANTRY-DEFER · 2026-06-01] El <input> sigue controlado por
     // `searchQuery` (caret instantáneo), pero las vistas pesadas
     // (filteredInventory/visibleDepletedItems → re-filtra+agrupa+mapea todas las
@@ -2337,6 +2396,90 @@ const Pantry = () => {
 
     return (
         <div className={fstyles.page}>
+            {/* [P1-PANTRY-BUILDER-FLOW · 2026-07-11] Banner del modo constructor: el wizard
+                desvió aquí con planSource='pantry'. El usuario prepara su Nevera con medidor
+                de factibilidad en vivo; el CTA navega a /plan (el form completo ya vive en el
+                context) y ahí se dispara la generación Zero-Waste. */}
+            {planFlow && (
+                <div role="region" aria-label="Modo constructor de plan" style={{
+                    margin: '1rem 1rem 0', padding: '1rem 1.25rem',
+                    background: 'var(--bg-card)', border: '1px solid var(--primary)',
+                    borderRadius: '1rem', boxShadow: 'var(--shadow-sm)',
+                    display: 'flex', flexDirection: 'column', gap: '0.6rem',
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
+                        <div>
+                            <strong style={{ color: 'var(--text-main)', fontSize: '1.05rem' }}>
+                                🍳 Tu plan saldrá de esta Nevera
+                            </strong>
+                            <p style={{ margin: '0.25rem 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                                Agrega o ajusta tus alimentos. Cuando estés listo, presiona
+                                “Crear mi plan” y la IA construirá el menú alrededor de lo que tienes.
+                            </p>
+                        </div>
+                        <button type="button" onClick={clearPlanFlow} aria-label="Salir del modo constructor"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.25rem' }}>
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    {inventory.length === 0 ? (
+                        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                            Tu Nevera está vacía — agrega al menos un alimento con el botón
+                            “Añadir” para poder crear tu plan.
+                        </p>
+                    ) : planFlowFeas && !planFlowFeas.loading ? (
+                        <div>
+                            <div aria-hidden="true" style={{ height: '8px', borderRadius: '99px', background: 'var(--bg-muted)', overflow: 'hidden' }}>
+                                <div style={{
+                                    width: `${Math.min(100, Math.round(((planFlowFeas.days_supported || 0) / planFlowDays) * 100))}%`,
+                                    height: '100%', borderRadius: '99px',
+                                    background: planFlowFeas.feasible ? 'var(--primary)' : '#F59E0B',
+                                    transition: 'width 0.4s ease',
+                                }} />
+                            </div>
+                            <p style={{ margin: '0.35rem 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                {planFlowFeas.feasible
+                                    ? `Tu Nevera cubre ≈${planFlowFeas.days_supported} de ${planFlowDays} días de tu objetivo ✓`
+                                    : `Tu Nevera cubre ≈${planFlowFeas.days_supported || 0} de ${planFlowDays} días — puedes crear el plan igual (la lista de compras te dirá lo que falte)${(() => {
+                                        const _sug = (planFlowFeas.gaps || [])
+                                            .flatMap(g => (g.suggestions || []).slice(0, 2))
+                                            .map(x => `${x.name} (~RD$${x.price_per_lb_rd}/lb)`)
+                                            .slice(0, 3).join(', ');
+                                        return _sug ? `. Sugerencias: ${_sug}` : '';
+                                    })()}`}
+                            </p>
+                        </div>
+                    ) : (
+                        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            Calculando cuántos días cubre tu Nevera…
+                        </p>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <button type="button"
+                            disabled={inventory.length === 0}
+                            onClick={() => { clearPlanFlow(); navigate('/plan'); }}
+                            style={{
+                                padding: '0.65rem 1.3rem', borderRadius: '99px', border: 'none',
+                                background: inventory.length === 0 ? 'var(--bg-muted)' : 'var(--primary)',
+                                color: inventory.length === 0 ? 'var(--text-muted)' : '#fff',
+                                fontWeight: 700, fontSize: '0.95rem',
+                                cursor: inventory.length === 0 ? 'not-allowed' : 'pointer',
+                            }}>
+                            Crear mi plan con esta Nevera ({inventory.length} {inventory.length === 1 ? 'alimento' : 'alimentos'})
+                        </button>
+                        <button type="button"
+                            onClick={() => { updateData('planSource', 'scratch'); clearPlanFlow(); navigate('/plan'); }}
+                            style={{
+                                background: 'none', border: 'none', cursor: 'pointer',
+                                color: 'var(--text-muted)', fontSize: '0.85rem', textDecoration: 'underline',
+                            }}>
+                            Prefiero generar libre con IA
+                        </button>
+                    </div>
+                </div>
+            )}
             {isMobileLayout ? renderMobileShell() : (
             <section className={fstyles.app} aria-label="Mi Cocina">
                 <div className={fstyles.shell}>
