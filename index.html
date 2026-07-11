@@ -74,14 +74,19 @@
        Slack, Telegram, Facebook, X) que hace GET a cualquier ruta recibe este
        index.html estático. Sin OG la preview cae a URL cruda sin imagen, lo que
        reduce el CTR de un producto cuyo crecimiento depende de compartir el
-       enlace. La imagen física vive en /public/og-image.png (1200×1200, cuadrada;
-       coincide con og:image:width/height). La CSP de nginx ya la permite. -->
+       enlace. La imagen física vive en /public/og-image-v2.jpg (1200×1200, cuadrada;
+       coincide con og:image:width/height). [BRAND-OG-B · 2026-07-11] Nombre NUEVO
+       (-v2 + .jpg) para romper el cache de LinkPresentation de iOS (share sheet) y
+       de WhatsApp/Facebook, que ignoran el `?v=`. JPEG q90 = 77KB < límite ~300KB
+       de WhatsApp (el PNG con branding nuevo pesaba 800KB y no se unfurleaba). La
+       CSP de nginx ya lo permite. -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="MealfitRD" />
   <meta property="og:title" content="MealfitRD | Nutrición Personalizada con IA" />
   <meta property="og:description" content="Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis." />
   <meta property="og:url" content="https://mealfitrd.com/" />
-  <meta property="og:image" content="https://mealfitrd.com/og-image.png?v=3" />
+  <meta property="og:image" content="https://mealfitrd.com/og-image-v2.jpg" />
+  <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="1200" />
   <meta property="og:image:alt" content="MealfitRD — Nutrición personalizada con IA para República Dominicana" />
@@ -89,7 +94,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="MealfitRD | Nutrición Personalizada con IA" />
   <meta name="twitter:description" content="Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis." />
-  <meta name="twitter:image" content="https://mealfitrd.com/og-image.png?v=3" />
+  <meta name="twitter:image" content="https://mealfitrd.com/og-image-v2.jpg" />
 
   <!-- [P3-SEO-JSONLD · 2026-05-31] Structured data Organization (bajo riesgo,
        alto retorno: elegibilidad para knowledge panel). NO se declara
