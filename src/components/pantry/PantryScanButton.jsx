@@ -159,7 +159,8 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged }) => 
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-card)'; }}
                 style={{
                     display: 'flex', alignItems: 'center', gap: '0.75rem',
-                    width: '100%', padding: '0.6rem 0.9rem', borderRadius: '0.9rem',
+                    // [feedback owner] no a lo ancho completo: fila compacta (~420px).
+                    width: '100%', maxWidth: '420px', padding: '0.6rem 0.9rem', borderRadius: '0.9rem',
                     border: '1px solid var(--border)', background: 'var(--bg-card)',
                     cursor: scanning ? 'wait' : 'pointer', textAlign: 'left',
                     transition: 'border-color 0.15s, background 0.15s',
