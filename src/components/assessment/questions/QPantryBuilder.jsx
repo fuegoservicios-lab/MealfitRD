@@ -209,6 +209,11 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
 
     const count = inventory.length;
     const pct = feas ? Math.min(100, Math.round(((feas.days_supported || 0) / days) * 100)) : 0;
+    // [P1-PANTRY-MIN-ITEMS · 2026-07-11] Piso de alimentos (SSOT server-side vía
+    // /pantry-feasibility → min_items; fallback 5 mientras el medidor no responde).
+    // Con 1-2 items el plan es indistinguible del libre — queja original del owner.
+    const minItems = Number(feas?.min_items) >= 1 ? Number(feas.min_items) : 5;
+    const belowMin = count < minItems;
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -313,13 +318,20 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                 </div>
             )}
 
+            {belowMin && count > 0 && (
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.83rem', textAlign: 'center' }}>
+                    Con menos de {minItems} alimentos el plan sería casi igual al libre —
+                    agrega {minItems - count} más (proteínas, carbohidratos, vegetales) para
+                    que de verdad salga de tu Nevera.
+                </p>
+            )}
             <NextButton
                 onClick={onFinish}
-                disabled={isSubmitting || count === 0}
+                disabled={isSubmitting || belowMin}
                 label={isSubmitting
                     ? 'Generando Plan...'
-                    : (count === 0
-                        ? 'Agrega al menos un alimento'
+                    : (belowMin
+                        ? `Agrega al menos ${minItems} alimentos (${count}/${minItems})`
                         : `Crear mi plan con esta Nevera (${count})`)}
                 icon={Zap}
             />
