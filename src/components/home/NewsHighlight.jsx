@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import styles from './NewsHighlight.module.css';
+import NewsArt from '../news/NewsArt';
 import { makeSectionMotion } from './sectionMotion';
 import { NEWS } from '../../data/news';
 
@@ -14,33 +15,7 @@ import { NEWS } from '../../data/news';
    con thumbnail cuadrado a la izquierda. Se alimenta del SSOT data/news.js.
    [P1-LANDING-MOTION · 2026-07-11] Reveal on-scroll compartido (sectionMotion). */
 
-/* Paleta cíclica para noticias sin `art` propio (índice % length). */
-const FALLBACK_ART = [
-    ['#6366F1', '#A78BFA', '#FB7185'],
-    ['#34D399', '#38BDF8', '#6366F1'],
-    ['#FB923C', '#FB7185', '#A78BFA'],
-    ['#38BDF8', '#6366F1', '#34D399'],
-];
-
-const artVars = (n, i) => {
-    const [a1, a2, a3] = n.art || FALLBACK_ART[i % FALLBACK_ART.length];
-    return { '--a1': a1, '--a2': a2, '--a3': a3 };
-};
-
 const newsTo = (n) => n.href || `/novedades/${n.slug}`;
-
-/* Arte del thumbnail: imagen real del anuncio si la noticia trae `image`
-   (el gradiente queda debajo como placeholder de carga); si no, campos de
-   color + monograma glass del `badge` (solo cuando withBadge). */
-const NewsArt = ({ n, i, className, withBadge = false }) => (
-    <span className={`${styles.art} ${className}`} style={artVars(n, i)} aria-hidden="true">
-        {n.image ? (
-            <img className={styles.artImg} src={n.image} alt="" loading="lazy" decoding="async" />
-        ) : (
-            withBadge && n.badge && <span className={styles.artBadge}>{n.badge}</span>
-        )}
-    </span>
-);
 
 const NewsHighlight = () => {
     const reduce = useReducedMotion();

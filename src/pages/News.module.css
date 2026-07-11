@@ -7,7 +7,11 @@
     position: relative;
     min-height: 70vh;
     color: var(--text-main);
-    background: var(--bg-page);
+    /* [P1-LANDING-BG · 2026-07-11] Anti-flat: tinte radial de marca bajo el hero
+       de la página + fundido a bg-page (misma zona que la banda del landing). */
+    background:
+        radial-gradient(56% 34% at 50% 0%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 70%),
+        var(--bg-page);
     padding: 0 0 clamp(4rem, 10vh, 6.5rem);
 }
 
@@ -166,7 +170,13 @@
 }
 .featured:hover .featuredCta { gap: 0.7rem; }
 
-/* (figura del destacado: componente compartido NewsFigure — components/news/) */
+/* arte del destacado (base compartida en components/news/NewsArt.module.css;
+   aquí solo tamaño + hover — mismas reglas que la banda del landing) */
+.featuredArt {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+}
+.featured:hover .featuredArt { transform: scale(1.015); }
 
 /* ─────────────── separador "Registro" ─────────────── */
 .sep {
@@ -188,71 +198,75 @@
     background: var(--border);
 }
 
-/* ─────────────── registro de anuncios anteriores ─────────────── */
-.archive {
-    margin-top: 1.25rem;
-    border-bottom: 1px solid var(--border);
-}
-.row {
+/* ─────────────── grid de anuncios anteriores (OpenAI-style) ───────────────
+   [P3-NEWS-OPENAI · 2026-07-11] Reemplaza el "registro" de filas hairline:
+   tarjetas con thumbnail de arte cuadrado + título + resumen + tag/fecha. */
+.newsGrid {
+    list-style: none;
     display: grid;
-    grid-template-columns: 3.25rem 10.5rem minmax(0, 1fr) auto;
-    gap: 1.25rem;
-    align-items: start;
-    padding: 1.4rem 0.25rem;
-    border-top: 1px solid var(--border);
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem 1.5rem;
+    margin: 1.25rem 0 0;
+    padding: 0;
+}
+.newsCell { min-width: 0; }
+.newsCard {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.1rem;
+    padding: 0.85rem;
+    border-radius: 18px;
     text-decoration: none;
-    transition: background 0.18s ease;
+    border: 1px solid transparent;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 }
-.row:hover {
-    background: color-mix(in srgb, var(--primary) 4%, transparent);
+.newsCard:hover {
+    background: color-mix(in srgb, var(--bg-card) 70%, transparent);
+    border-color: var(--border);
+    transform: translateY(-2px);
 }
-.rowIndex {
-    font-family: var(--font-heading);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    color: var(--text-light);
-    margin-top: 0.2rem;
+.newsCard:hover .newsThumb { transform: scale(1.03); }
+.newsThumb {
+    width: 128px;
+    aspect-ratio: 1;
 }
-.rowDate {
-    font-family: var(--font-heading);
-    font-size: 0.74rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-top: 0.18rem;
-}
-.rowBody {
+.newsBody {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.5rem;
     min-width: 0;
 }
-.rowTitle {
+.newsTitle {
     font-family: var(--font-heading);
-    font-size: 1.08rem;
     font-weight: 700;
-    letter-spacing: -0.015em;
-    line-height: 1.25;
+    font-size: 1.08rem;
+    line-height: 1.28;
     color: var(--text-main);
     transition: color 0.18s ease;
 }
-.row:hover .rowTitle { color: var(--primary); }
-.rowExcerpt {
-    font-size: 0.92rem;
-    line-height: 1.55;
+.newsCard:hover .newsTitle { color: var(--primary); }
+.newsExcerpt {
+    font-size: 0.88rem;
+    line-height: 1.5;
     color: var(--text-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
-.rowArrow {
-    color: var(--text-light);
-    margin-top: 0.3rem;
-    transition: color 0.18s ease, transform 0.18s ease;
+.newsMeta {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
 }
-.row:hover .rowArrow {
-    color: var(--primary);
-    transform: translateX(3px);
+.newsTag {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-main);
 }
+.newsDate { font-size: 0.8rem; color: var(--text-muted); }
 
 /* ─────────────── artículo ─────────────── */
 .articleMeta {
@@ -403,13 +417,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .featured, .row, .featuredCta, .rowArrow, .ctaPrimary { transition: none; }
+    .featured, .newsCard, .featuredCta, .ctaPrimary { transition: none; }
 }
 
 /* focos accesibles */
 .back:focus-visible,
 .featured:focus-visible,
-.row:focus-visible,
+.newsCard:focus-visible,
 .ctaPrimary:focus-visible,
 .ctaGhost:focus-visible {
     outline: 2px solid var(--primary);
@@ -420,7 +434,10 @@
 /* ─────────────── responsive ─────────────── */
 @media (max-width: 760px) {
     .featured { grid-template-columns: 1fr; gap: 1.35rem; }
-    .row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 0.4rem; }
-    .rowIndex { display: none; }
-    .rowDate { grid-column: 1 / -1; margin-top: 0; }
+    /* arte arriba, texto debajo (patrón OpenAI móvil) */
+    .featuredArt { order: -1; aspect-ratio: 16 / 9; }
+    .newsGrid { grid-template-columns: 1fr; gap: 0.5rem; }
+    .newsThumb { width: 96px; }
+    .newsTitle { font-size: 1rem; }
+    .newsExcerpt { display: none; }
 }

@@ -1,0 +1,75 @@
+/* [P3-NEWS-OPENAI · 2026-07-11] Base del arte de anuncio (ver NewsArt.jsx).
+   El padre fija tamaño/aspect-ratio; aquí vive el lienzo: gradiente + blobs
+   difuminados (blur estático) + imagen real opcional + monograma glass. */
+
+.art {
+    position: relative;
+    display: block;
+    flex: none;
+    border-radius: 16px;
+    overflow: hidden;
+    isolation: isolate;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--a1) 88%, #ffffff), var(--a2));
+    transition: transform 0.25s ease;
+}
+.art::before {
+    content: '';
+    position: absolute;
+    width: 78%;
+    height: 78%;
+    top: -18%;
+    right: -14%;
+    background: radial-gradient(circle at 42% 42%, var(--a3), transparent 70%);
+    filter: blur(26px);
+    opacity: 0.95;
+}
+.art::after {
+    content: '';
+    position: absolute;
+    width: 88%;
+    height: 88%;
+    bottom: -24%;
+    left: -18%;
+    background: radial-gradient(circle at 60% 58%, color-mix(in srgb, var(--a2) 70%, #ffffff), transparent 72%);
+    filter: blur(30px);
+    opacity: 0.85;
+}
+
+/* imagen real del anuncio (campo `image`): cubre el lienzo; el gradiente de
+   abajo actúa como placeholder mientras carga. */
+.artImg {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* monograma glass centrado (identidad Mealfit sobre el arte) */
+.artBadge {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    margin: auto;
+    width: fit-content;
+    height: fit-content;
+    padding: 0.5rem 1.1rem;
+    border-radius: 14px;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+    letter-spacing: -0.02em;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.38);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .art { transition: none; }
+}

@@ -1,16 +1,19 @@
 import { useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import styles from './News.module.css';
-import NewsFigure from '../components/news/NewsFigure';
+import NewsArt from '../components/news/NewsArt';
 import { NEWS } from '../data/news';
 
-/* [P3-NEWS-SCIENTIFIC · 2026-07-02] Índice de Novedades (/novedades) en clave
-   minimalista-científica (lenguaje P3-HOWITWORKS-PAGE-SCIENTIFIC): hero centrado,
-   último anuncio como "figura" line-art sobre papel milimetrado (pie "Fig. 01 —",
-   componente compartido NewsFigure) y registro de anuncios anteriores en filas
-   hairline numeradas. Se alimenta del SSOT data/news.js. `href` → destino propio;
-   `badge` → rótulo central de la figura. El <title>/description los fija RouteTitle. */
+/* [P3-NEWS-SCIENTIFIC · 2026-07-02 · rediseño OpenAI-style 2026-07-11] Índice de
+   Novedades (/novedades) alineado al news grid de OpenAI (mismo lenguaje que la
+   banda del landing): hero centrado, último anuncio destacado con arte abstracto
+   de campos de color (o imagen real vía `image`) + monograma glass del `badge`,
+   y los anteriores en grid de tarjetas con thumbnail cuadrado + título +
+   categoría/fecha + resumen. Arte compartido: components/news/NewsArt. Se
+   alimenta del SSOT data/news.js. El <title>/description los fija RouteTitle. */
+
+const newsTo = (n) => n.href || `/novedades/${n.slug}`;
 
 const NewsPage = () => {
     useLayoutEffect(() => { window.scrollTo(0, 0); }, []);
@@ -39,9 +42,9 @@ const NewsPage = () => {
                     <p className={styles.empty}>Aún no hay novedades. ¡Vuelve pronto!</p>
                 ) : (
                     <>
-                        {/* último anuncio — texto | figura (Fig. 01) */}
+                        {/* último anuncio — texto | arte */}
                         <Link
-                            to={featured.href || `/novedades/${featured.slug}`}
+                            to={newsTo(featured)}
                             className={styles.featured}
                             aria-label={`Leer: ${featured.title}`}
                         >
@@ -64,39 +67,30 @@ const NewsPage = () => {
                                 </span>
                             </div>
 
-                            <NewsFigure
-                                badge={featured.badge}
-                                caption="Fig. 01 — Último anuncio"
-                            />
+                            <NewsArt n={featured} i={0} className={styles.featuredArt} withBadge />
                         </Link>
 
-                        {/* anuncios anteriores — registro en filas hairline */}
+                        {/* anuncios anteriores — grid de tarjetas con arte */}
                         {rest.length > 0 && (
                             <section>
-                                <div className={styles.sep}>Registro</div>
-                                <div className={styles.archive}>
+                                <div className={styles.sep}>Anteriores</div>
+                                <ul className={styles.newsGrid}>
                                     {rest.map((n, i) => (
-                                        <Link
-                                            key={n.slug}
-                                            to={n.href || `/novedades/${n.slug}`}
-                                            className={styles.row}
-                                        >
-                                            <span className={styles.rowIndex}>
-                                                {String(i + 2).padStart(2, '0')}
-                                            </span>
-                                            <span className={styles.rowDate}>{n.dateLabel}</span>
-                                            <span className={styles.rowBody}>
-                                                <span className={styles.rowTitle}>{n.title}</span>
-                                                <span className={styles.rowExcerpt}>{n.excerpt}</span>
-                                            </span>
-                                            <ArrowRight
-                                                size={16}
-                                                strokeWidth={2.2}
-                                                className={styles.rowArrow}
-                                            />
-                                        </Link>
+                                        <li key={n.slug} className={styles.newsCell}>
+                                            <Link to={newsTo(n)} className={styles.newsCard} aria-label={`Leer: ${n.title}`}>
+                                                <NewsArt n={n} i={i + 1} className={styles.newsThumb} />
+                                                <span className={styles.newsBody}>
+                                                    <span className={styles.newsTitle}>{n.title}</span>
+                                                    <span className={styles.newsExcerpt}>{n.excerpt}</span>
+                                                    <span className={styles.newsMeta}>
+                                                        <span className={styles.newsTag}>{n.tag}</span>
+                                                        <span className={styles.newsDate}>{n.dateLabel}</span>
+                                                    </span>
+                                                </span>
+                                            </Link>
+                                        </li>
                                     ))}
-                                </div>
+                                </ul>
                             </section>
                         )}
                     </>
