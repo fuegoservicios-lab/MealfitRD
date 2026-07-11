@@ -34,6 +34,9 @@ import { MORE_INFO_GROUPS, landingUrl } from './moreInfoLinks';
 const HelpChatWidget = lazy(() => import('./HelpChatWidget'));
 // [P1-APP-VERSION · 2026-06-19] Versión visible bajo el wordmark (SSOT en config).
 import { APP_VERSION } from '../../config/appVersion';
+// [BRAND-LOGO-MARK · 2026-07-11] Isotipo + wordmark reutilizable (reemplaza el
+// wordmark de texto inline). Variante dark del símbolo por ahora.
+import { Logo } from '../common/Logo';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatar minimalista elegido en Ajustes, reflejado
 // en el botón de cuenta del sidebar y sincronizado en vivo vía avatarStore.
 import { MinimalAvatar } from '../avatars/minimalAvatars';
@@ -183,7 +186,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div className={styles.brandStack}>
                         <div className={styles.logo}>
-                            Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
+                            <Logo />
                         </div>
                         {/* [P1-APP-VERSION · 2026-06-19] Versión minimalista (estilo Anthropic) bajo el wordmark. */}
                         <span className={styles.version}>v{APP_VERSION}</span>
@@ -332,7 +335,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 {!noPaddingMobile && (
                 <header className={styles.mobileHeader}>
                     <div className={styles.mobileLogo}>
-                        Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
+                        <Logo />
                     </div>
                     <button
                         className={styles.menuBtn}
