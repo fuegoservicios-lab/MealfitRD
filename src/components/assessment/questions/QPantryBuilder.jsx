@@ -428,7 +428,20 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
     const belowMin = count < minItems;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        // colorScheme dark: el wizard es SIEMPRE oscuro (estilo propio, independiente
+        // del toggle global data-theme) pero los POPUPS nativos (options del select
+        // de marca/envase, spinners del input number) renderizaban con el scheme
+        // claro del UA — menú blanco sobre página oscura (feedback owner). El
+        // color-scheme se hereda a todos los controles nativos del paso.
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', colorScheme: 'dark' }}>
+            {/* Fallback explícito del popup para engines que estilan <option>
+                (Firefox); Chrome/Edge usan el colorScheme del contenedor. */}
+            <style>{`
+                .qpb-select option {
+                    background-color: #111827;
+                    color: #d1d5db;
+                }
+            `}</style>
             {/* [P1-PANTRY-SCAN-V0] Escáner por foto — visible solo con provider de
                 visión configurado (photo_scan_enabled del pre-flight). */}
             {feas?.photo_scan_enabled && (
@@ -579,7 +592,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                                 </span>
                                 {/* [P1-PANTRY-ROW-EDIT] Marca por fila: fetch lazy de las marcas
                                     reales del Supermercado RD al abrir el select. */}
-                                <select value={item.brand || ''}
+                                <select value={item.brand || ''} className="qpb-select"
                                     aria-label={`Marca de ${item.ingredient_name}`}
                                     onFocus={() => loadBrandsFor(item)}
                                     onChange={(e) => changeBrand(item, e.target.value)}
@@ -620,7 +633,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                             />
                             {/* [P1-PANTRY-SCAN-V0] Selector de envase (feedback owner:
                                 "no quiero una lata, quiero un paquete de habichuelas"). */}
-                            <select value={item.unit || 'unidad'}
+                            <select value={item.unit || 'unidad'} className="qpb-select"
                                 aria-label={`Envase de ${item.ingredient_name}`}
                                 onChange={(e) => changeUnit(item, e.target.value)}
                                 style={{
