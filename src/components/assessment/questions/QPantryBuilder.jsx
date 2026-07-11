@@ -13,6 +13,7 @@ import { Plus, Minus, Trash2, Search, Zap, Refrigerator } from 'lucide-react';
 // [P1-PANTRY-DASH-PARITY · 2026-07-11] Escáner por foto COMPARTIDO con la página
 // Nevera del dashboard (SSOT del flujo botón→scan→checklist→confirm).
 import { PantryScanButton } from '../../pantry/PantryScanButton';
+import { BrandSelect } from '../../pantry/BrandSelect';
 import { toast } from 'sonner';
 import { NextButton } from './NextButton';
 // Cache singleton compartido con la página Nevera: el catálogo es cuasi-inmutable
@@ -452,26 +453,13 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                                     un menú con solo "Genérico" confunde (feedback owner). Elegirla
                                     persiste la preferencia global además de etiquetar el item. */}
                                 {((brandCache[norm(item.ingredient_name)] || []).length > 0 || item.brand) && (
-                                    <select value={item.brand || ''} className="qpb-select"
-                                        aria-label={`Marca de ${item.ingredient_name}`}
-                                        onChange={(e) => changeBrand(item, e.target.value)}
-                                        style={{
-                                            background: 'transparent', color: 'var(--text-muted)',
-                                            border: 'none', fontSize: '0.75rem', padding: '0 14px 0 0',
-                                            // El popup nativo hereda ~el ancho del control: un cap
-                                            // corto (150px) recortaba "Avena Americana (~RD$52)".
-                                            width: 'fit-content', maxWidth: '100%', cursor: 'pointer',
-                                        }}>
-                                        <option value="">Genérico (sin marca)</option>
-                                        {item.brand && !(brandCache[norm(item.ingredient_name)] || []).some(b => b.brand === item.brand) && (
-                                            <option value={item.brand}>{item.brand}</option>
-                                        )}
-                                        {(brandCache[norm(item.ingredient_name)] || []).map(b => (
-                                            <option key={b.brand} value={b.brand}>
-                                                {b.brand}{b.price != null ? ` (~RD$${Math.round(b.price)})` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <BrandSelect
+                                        inline
+                                        value={item.brand}
+                                        brands={(brandCache[norm(item.ingredient_name)] || [])}
+                                        onSelect={(b) => changeBrand(item, b)}
+                                        ariaLabel={`Marca de ${item.ingredient_name}`}
+                                    />
                                 )}
                             </div>
                             <button type="button" aria-label={`Quitar 1 de ${item.ingredient_name}`}

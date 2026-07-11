@@ -26,6 +26,7 @@ import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getCachedInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache } from '../utils/pantryCache';
 // [P1-PANTRY-DASH-PARITY - 2026-07-11] Escaner por foto compartido con el paso 21.
 import { PantryScanButton } from '../components/pantry/PantryScanButton';
+import { BrandSelect } from '../components/pantry/BrandSelect';
 // [P3-PANTRY-FRIDGE-REDESIGN · 2026-06-24] Rediseño del apartado para
 // escritorio: sidebar de zonas (Nevera/Alacena) + lista densa. CSS scoped
 // (los tokens var(--*) ya existen en index.css). Sustituye la metáfora de
@@ -430,7 +431,7 @@ const Pantry = () => {
     // Función plana (NO useCallback): cierra sobre fetchData/brandCache frescos
     // de cada render — un useCallback([]) capturaría instancias stale.
     const changeItemBrand = async (item, newBrand) => {
-        const _clean = newBrand === 'Genérico' ? '' : (newBrand || '');
+        const _clean = (newBrand === 'Genérico' ? '' : (newBrand || ''));  // BrandSelect manda '' para Genérico
         try {
             await _apiJson(`/api/inventory/items/${item.id}`, {
                 method: 'PATCH',
@@ -2053,31 +2054,13 @@ const Pantry = () => {
                     const _brands = _bEntry?.brands?.filter(b => b.brand !== 'Genérico') || [];
                     if (!_brands.length && !item.brand) return null;
                     return (
-                        <span
+                        <BrandSelect
+                            value={item.brand}
+                            brands={_brands}
+                            onSelect={(b) => changeItemBrand(item, b)}
                             className={item.brand && item.brand !== 'Genérico' ? fstyles.brandChip : fstyles.brandChipGeneric}
-                            title={`Marca: ${item.brand || 'Genérico'} — tocar para cambiar`}
-                        >
-                            <Tag size={9} strokeWidth={2.5} aria-hidden="true" />
-                            <select className="mf-chip-select"
-                                value={item.brand || 'Genérico'}
-                                aria-label={`Marca de ${item.ingredient_name}`}
-                                onChange={(e) => changeItemBrand(item, e.target.value)}
-                                style={{
-                                    appearance: 'none', background: 'transparent', border: 'none',
-                                    font: 'inherit', color: 'inherit', cursor: 'pointer', padding: 0,
-                                }}
-                            >
-                                <option value="Genérico">Genérico</option>
-                                {item.brand && item.brand !== 'Genérico' && !_brands.some(b => b.brand === item.brand) && (
-                                    <option value={item.brand}>{item.brand}</option>
-                                )}
-                                {_brands.map(b => (
-                                    <option key={b.brand} value={b.brand}>
-                                        {b.brand}{b.price != null ? ` (~RD$${Math.round(b.price)})` : ''}
-                                    </option>
-                                ))}
-                            </select>
-                        </span>
+                            ariaLabel={`Marca de ${item.ingredient_name}`}
+                        />
                     );
                 })()}
                 {low && (
@@ -2220,31 +2203,13 @@ const Pantry = () => {
                         const _brands = _bEntry?.brands?.filter(b => b.brand !== 'Genérico') || [];
                         if (!_brands.length && !item.brand) return null;
                         return (
-                            <span
+                            <BrandSelect
+                                value={item.brand}
+                                brands={_brands}
+                                onSelect={(b) => changeItemBrand(item, b)}
                                 className={item.brand && item.brand !== 'Genérico' ? mstyles.brandChip : mstyles.brandChipGeneric}
-                                title={`Marca: ${item.brand || 'Genérico'} — tocar para cambiar`}
-                            >
-                                <Tag size={9} strokeWidth={2.5} aria-hidden="true" />
-                                <select className="mf-chip-select"
-                                    value={item.brand || 'Genérico'}
-                                    aria-label={`Marca de ${item.ingredient_name}`}
-                                    onChange={(e) => changeItemBrand(item, e.target.value)}
-                                    style={{
-                                        appearance: 'none', background: 'transparent', border: 'none',
-                                        font: 'inherit', color: 'inherit', cursor: 'pointer', padding: 0,
-                                    }}
-                                >
-                                    <option value="Genérico">Genérico</option>
-                                    {item.brand && item.brand !== 'Genérico' && !_brands.some(b => b.brand === item.brand) && (
-                                        <option value={item.brand}>{item.brand}</option>
-                                    )}
-                                    {_brands.map(b => (
-                                        <option key={b.brand} value={b.brand}>
-                                            {b.brand}{b.price != null ? ` (~RD$${Math.round(b.price)})` : ''}
-                                        </option>
-                                    ))}
-                                </select>
-                            </span>
+                                ariaLabel={`Marca de ${item.ingredient_name}`}
+                            />
                         );
                     })()}
                     {low && (
