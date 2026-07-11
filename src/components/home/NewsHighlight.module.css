@@ -99,6 +99,17 @@
     opacity: 0.85;
 }
 
+/* imagen real del anuncio (campo `image`): cubre el arte completo; el
+   gradiente de abajo actúa como placeholder mientras carga. */
+.artImg {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
 /* monograma glass centrado (identidad Mealfit sobre el arte, solo destacado) */
 .artBadge {
     position: absolute;

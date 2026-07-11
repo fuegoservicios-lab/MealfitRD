@@ -16,6 +16,10 @@
 //   art       → OPCIONAL. [c1, c2, c3] — tres colores hex del arte abstracto del
 //               thumbnail (estilo OpenAI news: campos de color difuminados). Sin
 //               art → NewsHighlight usa una paleta cíclica por índice.
+//   image     → OPCIONAL. Ruta (public/) de una imagen REAL para el thumbnail
+//               (p.ej. el emblema del anuncio). Si existe, la tarjeta muestra la
+//               imagen (object-fit cover) y el gradiente `art` queda debajo como
+//               placeholder de carga; el `badge` no se superpone (la imagen manda).
 //   href      → OPCIONAL. Ruta INTERNA a la que apunta "Leer el anuncio" en vez de la
 //               página genérica /novedades/<slug> (p.ej. '/motor'). Si se define, la
 //               página /novedades/<slug> redirige a ese destino (útil cuando el anuncio
@@ -76,6 +80,8 @@ export const NEWS = [
         // badge → texto grande del "cover" de la tarjeta destacada (opcional).
         badge: 'v1.0',
         art: ['#6366F1', '#A78BFA', '#FB7185'],
+        // Emblema real del anuncio (mismo asset que usa /motor).
+        image: '/model-v1.webp',
         // El Motor ya tiene su propia página completa → "Leer el anuncio" va ahí.
         href: '/motor',
         content: [

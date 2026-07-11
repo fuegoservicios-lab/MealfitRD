@@ -29,6 +29,19 @@ const artVars = (n, i) => {
 
 const newsTo = (n) => n.href || `/novedades/${n.slug}`;
 
+/* Arte del thumbnail: imagen real del anuncio si la noticia trae `image`
+   (el gradiente queda debajo como placeholder de carga); si no, campos de
+   color + monograma glass del `badge` (solo cuando withBadge). */
+const NewsArt = ({ n, i, className, withBadge = false }) => (
+    <span className={`${styles.art} ${className}`} style={artVars(n, i)} aria-hidden="true">
+        {n.image ? (
+            <img className={styles.artImg} src={n.image} alt="" loading="lazy" decoding="async" />
+        ) : (
+            withBadge && n.badge && <span className={styles.artBadge}>{n.badge}</span>
+        )}
+    </span>
+);
+
 const NewsHighlight = () => {
     const reduce = useReducedMotion();
     const M = makeSectionMotion(reduce);
@@ -63,9 +76,7 @@ const NewsHighlight = () => {
                             <span className={styles.title}>{featured.title}</span>
                             <span className={styles.excerpt}>{featured.excerpt}</span>
                         </span>
-                        <span className={`${styles.art} ${styles.artFeatured}`} style={artVars(featured, 0)} aria-hidden="true">
-                            {featured.badge && <span className={styles.artBadge}>{featured.badge}</span>}
-                        </span>
+                        <NewsArt n={featured} i={0} className={styles.artFeatured} withBadge />
                     </Link>
                 </motion.div>
 
@@ -75,7 +86,7 @@ const NewsHighlight = () => {
                         {rest.map((n, i) => (
                             <motion.li key={n.slug} variants={M.rise} className={styles.cell}>
                                 <Link to={newsTo(n)} className={styles.card} aria-label={`Leer: ${n.title}`}>
-                                    <span className={`${styles.art} ${styles.artThumb}`} style={artVars(n, i + 1)} aria-hidden="true" />
+                                    <NewsArt n={n} i={i + 1} className={styles.artThumb} />
                                     <span className={styles.cardBody}>
                                         <span className={styles.cardTitle}>{n.title}</span>
                                         <span className={styles.cardMeta}>
