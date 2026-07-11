@@ -150,24 +150,51 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged }) => 
             <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
                 style={{ display: 'none' }}
                 onChange={(e) => { handlePhotoSelected(e.target.files?.[0]); e.target.value = ''; }} />
+            {/* [feedback owner 2026-07-11] Fila premium en vez de zona punteada
+                (el dashed leía como placeholder/dropzone): badge circular con el
+                ícono, título + subtítulo, pill BETA y hover con acento. */}
             <button type="button" disabled={scanning}
                 onClick={() => fileInputRef.current?.click()}
+                onMouseEnter={(e) => { if (!scanning) { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.background = 'var(--bg-muted)'; } }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-card)'; }}
                 style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                    padding: '0.75rem 1rem', borderRadius: '0.9rem',
-                    border: '1px dashed var(--primary)', background: 'var(--bg-card)',
-                    color: 'var(--primary)', fontWeight: 600, fontSize: '0.92rem',
-                    cursor: scanning ? 'wait' : 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '0.75rem',
+                    width: '100%', padding: '0.6rem 0.9rem', borderRadius: '0.9rem',
+                    border: '1px solid var(--border)', background: 'var(--bg-card)',
+                    cursor: scanning ? 'wait' : 'pointer', textAlign: 'left',
+                    transition: 'border-color 0.15s, background 0.15s',
                     animation: scanning ? 'qpb-border 2s ease-in-out infinite' : 'none',
                 }}>
-                {scanning
-                    ? (<>
-                        <Loader2 size={16} style={{ animation: 'qpb-spin 1s linear infinite', flexShrink: 0 }} />
-                        <span style={{ animation: 'qpb-pulse 1.8s ease-in-out infinite' }}>
-                            Analizando tu foto… esto toma 1-3 minutos
-                        </span>
-                    </>)
-                    : (<><Camera size={16} /> Escanear mi nevera con una foto (beta)</>)}
+                <span aria-hidden="true" style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                    background: 'color-mix(in srgb, var(--primary) 15%, transparent)',
+                    color: 'var(--primary)',
+                }}>
+                    {scanning
+                        ? <Loader2 size={17} style={{ animation: 'qpb-spin 1s linear infinite' }} />
+                        : <Camera size={17} />}
+                </span>
+                <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                    <span style={{
+                        color: 'var(--text-main)', fontWeight: 600, fontSize: '0.9rem',
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        animation: scanning ? 'qpb-pulse 1.8s ease-in-out infinite' : 'none',
+                    }}>
+                        {scanning ? 'Analizando tu foto…' : 'Escanear mi nevera con una foto'}
+                    </span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.76rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {scanning ? 'Esto toma 1-3 minutos — puedes seguir usando la app' : 'Detecta alimentos, cantidades y marcas automáticamente'}
+                    </span>
+                </span>
+                <span style={{
+                    flexShrink: 0, fontSize: '0.64rem', fontWeight: 700, letterSpacing: '0.08em',
+                    textTransform: 'uppercase', color: 'var(--primary)',
+                    border: '1px solid color-mix(in srgb, var(--primary) 45%, transparent)',
+                    borderRadius: '99px', padding: '2px 8px',
+                }}>
+                    beta
+                </span>
             </button>
 
             {scanResults && (
