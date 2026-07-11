@@ -5,7 +5,7 @@
 // (el backend inyecta tu inventario real server-side).
 import { useAssessment } from '../../../context/AssessmentContext';
 import { RadioCard } from '../../common/FormUI';
-import { ChefHat, Refrigerator } from 'lucide-react';
+import { Bot, Refrigerator } from 'lucide-react';
 
 export const QPlanSource = ({ onAutoAdvance }) => {
     const { formData, updateData, userProfile } = useAssessment();
@@ -17,7 +17,7 @@ export const QPlanSource = ({ onAutoAdvance }) => {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <RadioCard
-                name="planSource" value="scratch" icon={ChefHat}
+                name="planSource" value="scratch" icon={Bot}
                 label="Plan completo con IA"
                 desc="La IA diseña tu plan libre y la lista de compras te dice exactamente qué comprar."
                 checked={value === 'scratch'}
