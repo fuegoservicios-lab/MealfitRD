@@ -30,7 +30,7 @@ import { fetchWithAuth } from '../../config/api';  // [P1-PANTRY-FIRST-PLAN]
 import { buildFieldToStepIndex, FIELD_LABELS, findFirstIncompleteField, minBudgetFor } from '../../config/formValidation';
 
 const InteractiveAssessmentFlow = () => {
-    const { currentStep, setCurrentStep, nextStep, formData, maxReachedStep, planData, loadingSensitive } = useAssessment();
+    const { currentStep, setCurrentStep, nextStep, formData, maxReachedStep, planData, loadingSensitive, updateData } = useAssessment();  // updateData: [feedback owner] bloqueo nevera-vacía
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -406,6 +406,29 @@ const InteractiveAssessmentFlow = () => {
                             });
                             if (_res.ok) {
                                 const _fz = await _res.json();
+                                // [feedback owner 2026-07-11] Nevera VACÍA en modo Nevera = BLOQUEO con
+                                // decisión explícita — el fallback silencioso a generación libre hacía
+                                // que el modo se sintiera idéntico/roto ("es lo mismo que con IA").
+                                if ((_fz.pantry_items_counted || 0) === 0) {
+                                    submittingRef.current = false;
+                                    setIsSubmitting(false);
+                                    toast.warning('Tu Nevera está vacía', {
+                                        description: 'El modo "Desde mi Nevera" construye el plan con TUS alimentos — sin alimentos no hay diferencia con el plan libre. Agrega tu compra a la Nevera y vuelve, o genera libre esta vez.',
+                                        duration: 30000,
+                                        action: {
+                                            label: 'Ir a mi Nevera',
+                                            onClick: () => navigate('/pantry'),
+                                        },
+                                        cancel: {
+                                            label: 'Generar libre',
+                                            onClick: () => {
+                                                updateData('planSource', 'scratch');
+                                                navigate('/plan');
+                                            },
+                                        },
+                                    });
+                                    return;
+                                }
                                 if (_fz.feasible) {
                                     toast.success('Tu Nevera alcanza', {
                                         description: `Cubre ≈${_fz.days_supported} días de tu objetivo. Generando tu plan alrededor de lo que tienes.`,
