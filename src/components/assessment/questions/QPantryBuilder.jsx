@@ -9,7 +9,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAssessment } from '../../../context/AssessmentContext';
 import { fetchWithAuth } from '../../../config/api';
-import { Plus, Minus, Trash2, Search, Zap, Refrigerator, Camera, Loader2 } from 'lucide-react';
+import { Plus, Minus, Trash2, Search, Zap, Refrigerator } from 'lucide-react';
+// [P1-PANTRY-DASH-PARITY · 2026-07-11] Escáner por foto COMPARTIDO con la página
+// Nevera del dashboard (SSOT del flujo botón→scan→checklist→confirm).
+import { PantryScanButton } from '../../pantry/PantryScanButton';
 import { toast } from 'sonner';
 import { NextButton } from './NextButton';
 // Cache singleton compartido con la página Nevera: el catálogo es cuasi-inmutable
@@ -46,26 +49,6 @@ const _daysFor = (groceryDuration) => {
 // /inventory/items/{id}/unit mergea server-side si ya existe nombre+unidad.
 const UNIT_OPTIONS = ['unidad', 'lb', 'g', 'paquete', 'lata', 'botella', 'funda', 'taza'];
 
-// [P1-PANTRY-SCAN-V0] Reescala client-side antes de subir: menos payload y menos
-// tokens de imagen para el modelo de visión (foto de celular 4000px → 1024px).
-const _downscaleToB64 = (file, maxSide = 1024) => new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-        try {
-            const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.round(img.width * scale);
-            canvas.height = Math.round(img.height * scale);
-            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-            resolve(dataUrl.split(',')[1]);
-        } catch (e) { reject(e); } finally { URL.revokeObjectURL(url); }
-    };
-    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
-    img.src = url;
-});
-
 export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
     const { formData } = useAssessment();
     const [inventory, setInventory] = useState(() => getCachedInventory() || []);
@@ -74,11 +57,6 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
     const [loading, setLoading] = useState(true);
     const [feas, setFeas] = useState(null);
     const busyRef = useRef(false);
-    // [P1-PANTRY-SCAN-V0] Escáner por foto: input file oculto + estado del scan
-    // + lista detectada pendiente de confirmación (NUNCA se agrega sin confirmar).
-    const fileInputRef = useRef(null);
-    const [scanning, setScanning] = useState(false);
-    const [scanResults, setScanResults] = useState(null);  // [{...item, selected}]
     // [P1-PANTRY-ROW-EDIT] Cantidad editable en directo (borrador por fila; commit
     // en blur/Enter — "escribir 200 g sin darle al + 200 veces") + marcas por fila
     // (cache por alimento desde /api/supermarket/match, fetch lazy al abrir).
@@ -245,91 +223,6 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
         }
     };
 
-    // [P1-PANTRY-SCAN-V0] Foto → detección (READ-ONLY server-side) → checklist
-    // de confirmación. El usuario decide qué entra; nada se agrega solo.
-    const handlePhotoSelected = async (file) => {
-        if (!file || scanning) return;
-        setScanning(true);
-        setScanResults(null);
-        try {
-            const b64 = await _downscaleToB64(file);
-            const resp = await fetchWithAuth('/api/inventory/photo-scan', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image_b64: b64 }),
-            });
-            const data = await resp.json().catch(() => null);
-            if (!resp.ok) {
-                toast.error(data?.detail || 'No pudimos analizar la foto.');
-                return;
-            }
-            const items = (data?.items || []).map(it => ({
-                ...it,
-                // Preseleccionar solo lo confiable Y mapeado al catálogo verificado.
-                selected: !!it.master_ingredient_id && (it.confidence ?? 0) >= 0.5,
-            }));
-            if (items.length === 0) {
-                toast.info('No se detectaron alimentos en la foto', {
-                    description: 'Intenta con más luz y la nevera abierta de frente.',
-                });
-                return;
-            }
-            setScanResults(items);
-        } catch (e) {
-            console.error('QPantryBuilder scan:', e);
-            toast.error('No pudimos analizar la foto.');
-        } finally {
-            setScanning(false);
-        }
-    };
-
-    const confirmScanItems = async () => {
-        const chosen = (scanResults || []).filter(it => it.selected && it.master_ingredient_id);
-        if (chosen.length === 0) { setScanResults(null); return; }
-        if (busyRef.current) return;
-        busyRef.current = true;
-        try {
-            for (const it of chosen) {
-                const unit = it.catalog_unit || it.unit || 'unidad';
-                const qty = Math.max(1, Math.round(it.quantity || 1));
-                try {
-                    await _apiJson('/api/inventory/items', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            ingredient_name: it.catalog_name,
-                            master_ingredient_id: it.master_ingredient_id,
-                            quantity: qty,
-                            unit,
-                            // [P1-PANTRY-SCAN-BRAND] marca del empaque → etiqueta el item
-                            // (NO la preferencia global — esa es solo manual).
-                            brand: it.detected_brand || null,
-                        }),
-                    });
-                } catch (err) {
-                    if (err?.status === 409) {
-                        const dup = inventory.find(i => i.master_ingredient_id === it.master_ingredient_id);
-                        if (dup) {
-                            await _apiJson('/api/inventory/increment', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ item_id: dup.id, delta: qty }),
-                            });
-                        }
-                    } else {
-                        console.error('QPantryBuilder scan-add:', err);
-                    }
-                }
-            }
-            invalidateInventoryCache();
-            await refetch();
-            toast.success(`${chosen.length} alimento${chosen.length === 1 ? '' : 's'} agregado${chosen.length === 1 ? '' : 's'} desde la foto`);
-            setScanResults(null);
-        } finally {
-            busyRef.current = false;
-        }
-    };
-
     // [P1-PANTRY-ROW-EDIT] Cantidad ABSOLUTA (PATCH, no delta): commit del
     // borrador al salir del input o presionar Enter.
     const commitQty = async (item) => {
@@ -484,96 +377,14 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                     padding: 5px 12px;
                 }
             `}</style>
-            {/* [P1-PANTRY-SCAN-V0] Escáner por foto — visible solo con provider de
-                visión configurado (photo_scan_enabled del pre-flight). */}
-            {feas?.photo_scan_enabled && (
-                <>
-                    {/* [P1-PANTRY-SCAN-QTY] Keyframes autocontenidos: la clase global
-                        `animate-spin` no está disponible en el chunk del wizard — el
-                        spinner se veía congelado (feedback owner). */}
-                    <style>{`
-                        @keyframes qpb-spin { to { transform: rotate(360deg); } }
-                        @keyframes qpb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
-                        @keyframes qpb-border { 0%, 100% { border-color: var(--primary); } 50% { border-color: var(--border); } }
-                    `}</style>
-                    <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
-                        style={{ display: 'none' }}
-                        onChange={(e) => { handlePhotoSelected(e.target.files?.[0]); e.target.value = ''; }} />
-                    <button type="button" disabled={scanning}
-                        onClick={() => fileInputRef.current?.click()}
-                        style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                            padding: '0.75rem 1rem', borderRadius: '0.9rem',
-                            border: '1px dashed var(--primary)', background: 'var(--bg-card)',
-                            color: 'var(--primary)', fontWeight: 600, fontSize: '0.92rem',
-                            cursor: scanning ? 'wait' : 'pointer',
-                            animation: scanning ? 'qpb-border 2s ease-in-out infinite' : 'none',
-                        }}>
-                        {scanning
-                            ? (<>
-                                <Loader2 size={16} style={{ animation: 'qpb-spin 1s linear infinite', flexShrink: 0 }} />
-                                <span style={{ animation: 'qpb-pulse 1.8s ease-in-out infinite' }}>
-                                    Analizando tu foto… esto toma 1-3 minutos
-                                </span>
-                            </>)
-                            : (<><Camera size={16} /> Escanear mi nevera con una foto (beta)</>)}
-                    </button>
-                </>
-            )}
-
-            {/* [P1-PANTRY-SCAN-V0] Checklist de confirmación del escaneo — nada se
-                agrega a la Nevera sin que el usuario lo marque y confirme. */}
-            {scanResults && (
-                <div style={{
-                    padding: '0.9rem', borderRadius: '0.9rem',
-                    border: '1px solid var(--primary)', background: 'var(--bg-card)',
-                    display: 'flex', flexDirection: 'column', gap: '0.5rem',
-                }}>
-                    <strong style={{ color: 'var(--text-main)', fontSize: '0.92rem' }}>
-                        Detectado en tu foto — confirma lo que quieres agregar:
-                    </strong>
-                    {scanResults.map((it, idx) => (
-                        <label key={idx} style={{
-                            display: 'flex', alignItems: 'center', gap: '0.55rem',
-                            fontSize: '0.87rem', color: 'var(--text-main)',
-                            opacity: it.master_ingredient_id ? 1 : 0.55, cursor: 'pointer',
-                        }}>
-                            <input type="checkbox" checked={it.selected} disabled={!it.master_ingredient_id}
-                                onChange={() => setScanResults(prev => prev.map((p, i) =>
-                                    i === idx ? { ...p, selected: !p.selected } : p))} />
-                            <span style={{ flex: 1 }}>
-                                {it.catalog_name || it.detected_name}
-                                {/* [P1-PANTRY-SCAN-BRAND] marca leída del empaque */}
-                                {it.detected_brand && (
-                                    <span style={{ color: 'var(--primary)', fontSize: '0.8rem' }}> · {it.detected_brand}</span>
-                                )}
-                                {!it.master_ingredient_id && ' (sin match en el catálogo)'}
-                            </span>
-                            <span style={{ color: 'var(--text-muted)' }}>
-                                {Math.max(1, Math.round(it.quantity || 1))} {it.catalog_unit || it.unit}
-                                {' · '}{Math.round((it.confidence || 0) * 100)}%
-                            </span>
-                        </label>
-                    ))}
-                    <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.25rem' }}>
-                        <button type="button" onClick={confirmScanItems}
-                            style={{
-                                flex: 1, padding: '0.6rem 1rem', borderRadius: '99px', border: 'none',
-                                background: 'var(--primary)', color: '#fff', fontWeight: 700, cursor: 'pointer',
-                            }}>
-                            Agregar {scanResults.filter(i => i.selected).length} a mi Nevera
-                        </button>
-                        <button type="button" onClick={() => setScanResults(null)}
-                            style={{
-                                padding: '0.6rem 1rem', borderRadius: '99px',
-                                border: '1px solid var(--border)', background: 'none',
-                                color: 'var(--text-muted)', cursor: 'pointer',
-                            }}>
-                            Descartar
-                        </button>
-                    </div>
-                </div>
-            )}
+            {/* [P1-PANTRY-DASH-PARITY] Escáner por foto (componente compartido con la
+                página Nevera). Visible solo con provider de visión configurado
+                (feas?.photo_scan_enabled del pre-flight). */}
+            <PantryScanButton
+                enabled={!!feas?.photo_scan_enabled}
+                inventory={inventory}
+                onInventoryChanged={async () => { invalidateInventoryCache(); await refetch(); }}
+            />
 
             {/* Buscador del catálogo verificado */}
             <div style={{ position: 'relative' }}>

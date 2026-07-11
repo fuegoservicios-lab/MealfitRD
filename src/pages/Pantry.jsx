@@ -24,6 +24,8 @@ import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate del mount de Pantry
 import { getCachedInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache } from '../utils/pantryCache';
+// [P1-PANTRY-DASH-PARITY - 2026-07-11] Escaner por foto compartido con el paso 21.
+import { PantryScanButton } from '../components/pantry/PantryScanButton';
 // [P3-PANTRY-FRIDGE-REDESIGN · 2026-06-24] Rediseño del apartado para
 // escritorio: sidebar de zonas (Nevera/Alacena) + lista densa. CSS scoped
 // (los tokens var(--*) ya existen en index.css). Sustituye la metáfora de
@@ -408,7 +410,9 @@ const Pantry = () => {
                 const price = (typeof v.price_rd === 'number') ? v.price_rd : null;
                 const cur = byBrand.get(b);
                 if (!cur || (price != null && (cur.price == null || price < cur.price))) {
-                    byBrand.set(b, { brand: b, price });
+                    // [P1-PANTRY-DASH-PARITY] productId de la variante más barata de la
+                    // marca — necesario para persistir la preferencia global al elegirla.
+                    byBrand.set(b, { brand: b, price, productId: v.id });
                 }
             }));
             const brands = [...byBrand.values()].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
@@ -417,6 +421,99 @@ const Pantry = () => {
             setBrandCache(prev => ({ ...prev, [key]: { loading: false, brands: [] } }));
         }
     }, []);
+
+    // [P1-PANTRY-DASH-PARITY · 2026-07-11] Cambiar la marca de un item EXISTENTE
+    // (paridad con el paso 21 del wizard): PATCH etiqueta el item Y la elección
+    // manual persiste la preferencia GLOBAL (user_brand_preferences — la lista de
+    // compras y los planes futuros la usan). 'Genérico' limpia ambas. Fail-soft en
+    // la preferencia (el item ya quedó etiquetado).
+    // Función plana (NO useCallback): cierra sobre fetchData/brandCache frescos
+    // de cada render — un useCallback([]) capturaría instancias stale.
+    const changeItemBrand = async (item, newBrand) => {
+        const _clean = newBrand === 'Genérico' ? '' : (newBrand || '');
+        try {
+            await _apiJson(`/api/inventory/items/${item.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ brand: _clean }),
+            });
+            invalidateInventoryCache();
+            fetchData(false);
+        } catch (e) {
+            console.error('Pantry changeItemBrand:', e);
+            toast.error('No se pudo cambiar la marca.');
+            return;
+        }
+        try {
+            const key = _normFood(item.ingredient_name);
+            const entry = (brandCache[key]?.brands || []).find(b => b.brand === newBrand);
+            await fetchWithAuth('/api/supermarket/preferences', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    food_key: item.ingredient_name,
+                    product_id: _clean && entry?.productId ? entry.productId : null,
+                }),
+            });
+        } catch { /* fail-soft */ }
+    };
+
+    // [P1-PANTRY-DASH-PARITY · 2026-07-11] Prefetch de marcas en LOTE para las filas
+    // existentes (un solo POST con todos los nombres no cacheados, debounced): las
+    // filas SIN marcas disponibles no muestran selector (un menú con solo "Genérico"
+    // confunde — mismo contrato que el paso 21 del wizard).
+    useEffect(() => {
+        if (!inventory.length) return undefined;
+        const _names = inventory.map(i => i.ingredient_name)
+            .filter(n => n && !brandCache[_normFood(n)] && !brandLoadingRef.current.has(_normFood(n)));
+        if (!_names.length) return undefined;
+        let cancelled = false;
+        const t = setTimeout(async () => {
+            _names.forEach(n => brandLoadingRef.current.add(_normFood(n)));
+            try {
+                const res = await fetchWithAuth('/api/supermarket/match', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ names: _names }),
+                });
+                const data = res.ok ? await res.json() : null;
+                if (cancelled) return;
+                setBrandCache(prev => {
+                    const p = { ...prev };
+                    for (const n of _names) {
+                        const groups = (data?.matches && data.matches[n]) || [];
+                        const byBrand = new Map();
+                        groups.forEach(g => (g.variants || []).forEach(v => {
+                            const b = (v.brand && String(v.brand).trim()) ? String(v.brand).trim() : null;
+                            if (!b) return;
+                            const price = (typeof v.price_rd === 'number') ? v.price_rd : null;
+                            const cur = byBrand.get(b);
+                            if (!cur || (price != null && (cur.price == null || price < cur.price))) {
+                                byBrand.set(b, { brand: b, price, productId: v.id });
+                            }
+                        }));
+                        p[_normFood(n)] = {
+                            loading: false,
+                            brands: [...byBrand.values()].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity)),
+                        };
+                    }
+                    return p;
+                });
+            } catch {
+                if (!cancelled) {
+                    setBrandCache(prev => {
+                        const p = { ...prev };
+                        _names.forEach(n => { if (!p[_normFood(n)]) p[_normFood(n)] = { loading: false, brands: [] }; });
+                        return p;
+                    });
+                }
+            } finally {
+                _names.forEach(n => brandLoadingRef.current.delete(_normFood(n)));
+            }
+        }, 600);
+        return () => { cancelled = true; clearTimeout(t); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [inventory]);
 
     // [P3-PANTRY-ADD-MOBILE · 2026-06-19] El add-sheet es bottom-anchored + autoFocus,
     // así que en MÓVIL el teclado virtual TAPABA el buscador y los resultados (incómodo).
@@ -1947,17 +2044,42 @@ const Pantry = () => {
                     {item.ingredient_name}
                 </span>
                 <span className={fstyles.unit} title={`Medida: ${displayUnit}`}>{displayUnit}</span>
-                {/* [P2-NEVERA-BRANDS · 2026-07-06] marca comprada (del restock de la
-                    lista — brand_product_id → supermarket_products). Manual = sin chip. */}
-                {item.brand && (
-                    <span
-                        className={item.brand === 'Genérico' ? fstyles.brandChipGeneric : fstyles.brandChip}
-                        title={`Marca comprada: ${item.brand}`}
-                    >
-                        <Tag size={9} strokeWidth={2.5} aria-hidden="true" />
-                        {item.brand}
-                    </span>
-                )}
+                {/* [P2-NEVERA-BRANDS · 2026-07-06 · P1-PANTRY-DASH-PARITY 2026-07-11] Chip de
+                    marca EDITABLE (paridad con el paso 21): select disfrazado de chip con las
+                    marcas reales del súper (prefetch en lote). Solo aparece si hay marcas
+                    disponibles o el item ya trae una. Elegir persiste la preferencia global. */}
+                {(() => {
+                    const _bEntry = brandCache[_normFood(item.ingredient_name)];
+                    const _brands = _bEntry?.brands?.filter(b => b.brand !== 'Genérico') || [];
+                    if (!_brands.length && !item.brand) return null;
+                    return (
+                        <span
+                            className={item.brand && item.brand !== 'Genérico' ? fstyles.brandChip : fstyles.brandChipGeneric}
+                            title={`Marca: ${item.brand || 'Genérico'} — tocar para cambiar`}
+                        >
+                            <Tag size={9} strokeWidth={2.5} aria-hidden="true" />
+                            <select
+                                value={item.brand || 'Genérico'}
+                                aria-label={`Marca de ${item.ingredient_name}`}
+                                onChange={(e) => changeItemBrand(item, e.target.value)}
+                                style={{
+                                    appearance: 'none', background: 'transparent', border: 'none',
+                                    font: 'inherit', color: 'inherit', cursor: 'pointer', padding: 0,
+                                }}
+                            >
+                                <option value="Genérico">Genérico</option>
+                                {item.brand && item.brand !== 'Genérico' && !_brands.some(b => b.brand === item.brand) && (
+                                    <option value={item.brand}>{item.brand}</option>
+                                )}
+                                {_brands.map(b => (
+                                    <option key={b.brand} value={b.brand}>
+                                        {b.brand}{b.price != null ? ` (~RD$${Math.round(b.price)})` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </span>
+                    );
+                })()}
                 {low && (
                     <span className={fstyles.lowtag}><AlertCircle size={11} strokeWidth={2.5} /> Queda poco</span>
                 )}
@@ -2091,16 +2213,40 @@ const Pantry = () => {
                 </div>
                 <div className={mstyles.imeta}>
                     <span className={mstyles.unit}>{displayUnit}</span>
-                    {/* [P2-NEVERA-BRANDS] marca comprada — espejo del renderRow desktop. */}
-                    {item.brand && (
-                        <span
-                            className={item.brand === 'Genérico' ? mstyles.brandChipGeneric : mstyles.brandChip}
-                            title={`Marca comprada: ${item.brand}`}
-                        >
-                            <Tag size={9} strokeWidth={2.5} aria-hidden="true" />
-                            {item.brand}
-                        </span>
-                    )}
+                    {/* [P2-NEVERA-BRANDS · P1-PANTRY-DASH-PARITY] chip de marca EDITABLE —
+                        espejo del renderRow desktop (select disfrazado de chip). */}
+                    {(() => {
+                        const _bEntry = brandCache[_normFood(item.ingredient_name)];
+                        const _brands = _bEntry?.brands?.filter(b => b.brand !== 'Genérico') || [];
+                        if (!_brands.length && !item.brand) return null;
+                        return (
+                            <span
+                                className={item.brand && item.brand !== 'Genérico' ? mstyles.brandChip : mstyles.brandChipGeneric}
+                                title={`Marca: ${item.brand || 'Genérico'} — tocar para cambiar`}
+                            >
+                                <Tag size={9} strokeWidth={2.5} aria-hidden="true" />
+                                <select
+                                    value={item.brand || 'Genérico'}
+                                    aria-label={`Marca de ${item.ingredient_name}`}
+                                    onChange={(e) => changeItemBrand(item, e.target.value)}
+                                    style={{
+                                        appearance: 'none', background: 'transparent', border: 'none',
+                                        font: 'inherit', color: 'inherit', cursor: 'pointer', padding: 0,
+                                    }}
+                                >
+                                    <option value="Genérico">Genérico</option>
+                                    {item.brand && item.brand !== 'Genérico' && !_brands.some(b => b.brand === item.brand) && (
+                                        <option value={item.brand}>{item.brand}</option>
+                                    )}
+                                    {_brands.map(b => (
+                                        <option key={b.brand} value={b.brand}>
+                                            {b.brand}{b.price != null ? ` (~RD$${Math.round(b.price)})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </span>
+                        );
+                    })()}
                     {low && (
                         <span className={mstyles.lowtag}><AlertCircle size={11} strokeWidth={2.5} /> Queda poco</span>
                     )}
@@ -2337,6 +2483,17 @@ const Pantry = () => {
 
     return (
         <div className={fstyles.page}>
+            {/* [P1-PANTRY-DASH-PARITY] Escaner por foto (mismo componente del paso 21).
+                Se oculta solo si no hay provider de vision (photo_scan_enabled). */}
+            {pantryStatus?.photo_scan_enabled && (
+                <div style={{ margin: '1rem 1rem 0' }}>
+                    <PantryScanButton
+                        enabled
+                        inventory={inventory}
+                        onInventoryChanged={() => { invalidateInventoryCache(); fetchData(false); }}
+                    />
+                </div>
+            )}
             {isMobileLayout ? renderMobileShell() : (
             <section className={fstyles.app} aria-label="Mi Cocina">
                 <div className={fstyles.shell}>
