@@ -1928,6 +1928,27 @@ const DashboardInner = () => {
                     }
                     // fail-open: set vacío con ciclo activo = datos raros → no filtrar.
                     remainingNeedsSet = _set.size > 0 ? _set : null;
+                    // [P1-SHOPPING-NEEDS-MATCH · 2026-07-11] El set guarda LÍNEAS de receta
+                    // normalizadas ("1½ tomate", "5 clara de huevo", "½ cdta de aceite de
+                    // oliva") — con cantidades/medidas incrustadas — mientras el check de
+                    // abajo consulta el NOMBRE CANÓNICO de la lista ("tomate"). La igualdad
+                    // exacta casi nunca matchea → el filtro escondía prácticamente TODA la
+                    // lista como "ya no lo necesitas" (caso vivo: primer plan modo-Nevera del
+                    // owner, PDF con 3 ítems "al gusto" y 45 "excluidos"). Match correcto:
+                    // contención con límites de palabra (" tomate " ⊂ " 1½ tomate ") —
+                    // los falsos positivos solo MUESTRAN de más (dirección fail-open del diseño).
+                    if (remainingNeedsSet) {
+                        const _paddedNeeds = [...remainingNeedsSet].map(k => ` ${k} `);
+                        const _exact = remainingNeedsSet;
+                        remainingNeedsSet = {
+                            has: (key) => {
+                                if (!key) return false;
+                                if (_exact.has(key)) return true;
+                                const _pk = ` ${key} `;
+                                return _paddedNeeds.some(line => line.includes(_pk));
+                            },
+                        };
+                    }
                 }
             }
         } catch (_rnErr) { remainingNeedsSet = null; /* ante cualquier error: no filtrar (seguro) */ }
