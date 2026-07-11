@@ -355,6 +355,14 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                 visión configurado (photo_scan_enabled del pre-flight). */}
             {feas?.photo_scan_enabled && (
                 <>
+                    {/* [P1-PANTRY-SCAN-QTY] Keyframes autocontenidos: la clase global
+                        `animate-spin` no está disponible en el chunk del wizard — el
+                        spinner se veía congelado (feedback owner). */}
+                    <style>{`
+                        @keyframes qpb-spin { to { transform: rotate(360deg); } }
+                        @keyframes qpb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+                        @keyframes qpb-border { 0%, 100% { border-color: var(--primary); } 50% { border-color: var(--border); } }
+                    `}</style>
                     <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
                         style={{ display: 'none' }}
                         onChange={(e) => { handlePhotoSelected(e.target.files?.[0]); e.target.value = ''; }} />
@@ -366,9 +374,15 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                             border: '1px dashed var(--primary)', background: 'var(--bg-card)',
                             color: 'var(--primary)', fontWeight: 600, fontSize: '0.92rem',
                             cursor: scanning ? 'wait' : 'pointer',
+                            animation: scanning ? 'qpb-border 2s ease-in-out infinite' : 'none',
                         }}>
                         {scanning
-                            ? (<><Loader2 size={16} className="animate-spin" /> Analizando tu foto… (puede tardar 1-3 min)</>)
+                            ? (<>
+                                <Loader2 size={16} style={{ animation: 'qpb-spin 1s linear infinite', flexShrink: 0 }} />
+                                <span style={{ animation: 'qpb-pulse 1.8s ease-in-out infinite' }}>
+                                    Analizando tu foto… esto toma 1-3 minutos
+                                </span>
+                            </>)
                             : (<><Camera size={16} /> Escanear mi nevera con una foto (beta)</>)}
                     </button>
                 </>
