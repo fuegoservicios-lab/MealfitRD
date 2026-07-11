@@ -79,6 +79,12 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
     const fileInputRef = useRef(null);
     const [scanning, setScanning] = useState(false);
     const [scanResults, setScanResults] = useState(null);  // [{...item, selected}]
+    // [P1-PANTRY-ROW-EDIT] Cantidad editable en directo (borrador por fila; commit
+    // en blur/Enter — "escribir 200 g sin darle al + 200 veces") + marcas por fila
+    // (cache por alimento desde /api/supermarket/match, fetch lazy al abrir).
+    const [qtyDrafts, setQtyDrafts] = useState({});
+    const [brandCache, setBrandCache] = useState({});
+    const brandLoadingRef = useRef(new Set());
 
     const days = _daysFor(formData?.groceryDuration);
 
@@ -322,6 +328,78 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
         }
     };
 
+    // [P1-PANTRY-ROW-EDIT] Cantidad ABSOLUTA (PATCH, no delta): commit del
+    // borrador al salir del input o presionar Enter.
+    const commitQty = async (item) => {
+        const draft = qtyDrafts[item.id];
+        if (draft === undefined) return;
+        const q = parseFloat(String(draft).replace(',', '.'));
+        setQtyDrafts(prev => { const n = { ...prev }; delete n[item.id]; return n; });
+        if (!Number.isFinite(q) || q <= 0 || q === item.quantity) return;
+        try {
+            await _apiJson(`/api/inventory/items/${item.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ quantity: q }),
+            });
+            invalidateInventoryCache();
+            await refetch();
+        } catch (e) {
+            console.error('QPantryBuilder qty-set:', e);
+            toast.error('No se pudo actualizar la cantidad.');
+        }
+    };
+
+    // [P1-PANTRY-ROW-EDIT] Marcas del Supermercado RD para un alimento (mismo
+    // contrato que la página Nevera: POST /api/supermarket/match, cache por
+    // nombre normalizado, fail-soft → solo "Genérico").
+    const loadBrandsFor = async (item) => {
+        const key = norm(item.ingredient_name);
+        if (!key || brandCache[key] || brandLoadingRef.current.has(key)) return;
+        brandLoadingRef.current.add(key);
+        try {
+            const res = await fetchWithAuth('/api/supermarket/match', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ names: [item.ingredient_name] }),
+            });
+            const data = res.ok ? await res.json() : null;
+            const groups = (data?.matches && data.matches[item.ingredient_name]) || [];
+            const byBrand = new Map();
+            groups.forEach(g => (g.variants || []).forEach(v => {
+                const b = (v.brand && String(v.brand).trim()) ? String(v.brand).trim() : null;
+                if (!b) return;
+                const price = (typeof v.price_rd === 'number') ? v.price_rd : null;
+                const cur = byBrand.get(b);
+                if (!cur || (price != null && (cur.price == null || price < cur.price))) {
+                    byBrand.set(b, { brand: b, price });
+                }
+            }));
+            const brands = [...byBrand.values()].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+            setBrandCache(prev => ({ ...prev, [key]: brands }));
+        } catch {
+            setBrandCache(prev => ({ ...prev, [key]: [] }));
+        } finally {
+            brandLoadingRef.current.delete(key);
+        }
+    };
+
+    const changeBrand = async (item, newBrand) => {
+        try {
+            await _apiJson(`/api/inventory/items/${item.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                // '' limpia la marca (Genérico) — el backend la vuelve NULL.
+                body: JSON.stringify({ brand: newBrand }),
+            });
+            invalidateInventoryCache();
+            await refetch();
+        } catch (e) {
+            console.error('QPantryBuilder brand:', e);
+            toast.error('No se pudo cambiar la marca.');
+        }
+    };
+
     const removeItem = async (item) => {
         if (busyRef.current) return;
         busyRef.current = true;
@@ -495,17 +573,51 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                             padding: '0.55rem 0.8rem', borderRadius: '0.75rem',
                             border: '1px solid var(--border)', background: 'var(--bg-card)',
                         }}>
-                            <span style={{ flex: 1, color: 'var(--text-main)', fontSize: '0.9rem' }}>
-                                {item.ingredient_name}
-                            </span>
+                            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <span style={{ color: 'var(--text-main)', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {item.ingredient_name}
+                                </span>
+                                {/* [P1-PANTRY-ROW-EDIT] Marca por fila: fetch lazy de las marcas
+                                    reales del Supermercado RD al abrir el select. */}
+                                <select value={item.brand || ''}
+                                    aria-label={`Marca de ${item.ingredient_name}`}
+                                    onFocus={() => loadBrandsFor(item)}
+                                    onChange={(e) => changeBrand(item, e.target.value)}
+                                    style={{
+                                        background: 'transparent', color: 'var(--text-muted)',
+                                        border: 'none', fontSize: '0.75rem', padding: 0,
+                                        maxWidth: '150px', cursor: 'pointer',
+                                    }}>
+                                    <option value="">Genérico (sin marca)</option>
+                                    {item.brand && !(brandCache[norm(item.ingredient_name)] || []).some(b => b.brand === item.brand) && (
+                                        <option value={item.brand}>{item.brand}</option>
+                                    )}
+                                    {(brandCache[norm(item.ingredient_name)] || []).map(b => (
+                                        <option key={b.brand} value={b.brand}>
+                                            {b.brand}{b.price != null ? ` (~RD$${Math.round(b.price)})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                             <button type="button" aria-label={`Quitar 1 de ${item.ingredient_name}`}
                                 onClick={() => changeQty(item, -1)} disabled={(item.quantity || 0) <= 1}
                                 style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, cursor: (item.quantity || 0) <= 1 ? 'not-allowed' : 'pointer', color: 'var(--text-muted)', padding: '2px 6px' }}>
                                 <Minus size={13} />
                             </button>
-                            <span style={{ minWidth: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                                {item.quantity}
-                            </span>
+                            {/* [P1-PANTRY-ROW-EDIT] Cantidad editable en directo ("escribir 200
+                                sin darle al + 200 veces"): commit en blur / Enter. */}
+                            <input type="number" inputMode="decimal" min="0" step="any"
+                                aria-label={`Cantidad de ${item.ingredient_name}`}
+                                value={qtyDrafts[item.id] !== undefined ? qtyDrafts[item.id] : item.quantity}
+                                onChange={(e) => setQtyDrafts(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                onBlur={() => commitQty(item)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                style={{
+                                    width: '56px', textAlign: 'center', color: 'var(--text-main)',
+                                    fontSize: '0.85rem', background: 'var(--bg-muted)',
+                                    border: '1px solid var(--border)', borderRadius: 8, padding: '2px 4px',
+                                }}
+                            />
                             {/* [P1-PANTRY-SCAN-V0] Selector de envase (feedback owner:
                                 "no quiero una lata, quiero un paquete de habichuelas"). */}
                             <select value={item.unit || 'unidad'}
