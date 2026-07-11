@@ -451,6 +451,40 @@
     50% { transform: rotateY(5deg) rotateX(-2deg); }
 }
 
+/* [P1-HERO-ORB-AUTOPLAY · 2026-07-11] Respiración sutil del orbe cuando el video
+   NO corre (autoplay denegado: Low Power Mode iOS / políticas móviles; o poster
+   pre-mount / Save-Data). Transform+opacity puros (GPU-only) — preserva el
+   centrado base translate(-50%,-50%). Sin esto, el fallback se percibe como un
+   frame congelado (el bug reportado). */
+@keyframes orbBreath {
+    0%, 100% { transform: translate(-50%, -50%) translateZ(0) scale(1); opacity: 1; }
+    50% { transform: translate(-50%, -50%) translateZ(0) scale(1.025); opacity: 0.92; }
+}
+
+.orbBreath {
+    animation: orbBreath 7s ease-in-out infinite;
+}
+
+/* ── MÓVIL: presupuesto de compositing ──────────────────────────────────────
+   [P1-HERO-ORB-AUTOPLAY · 2026-07-11] En ≤767px el tilt 3D (±5°) es imperceptible
+   pero fuerza re-composición por frame del video enmascarado, y las auroras
+   derivando re-rasterizan blur(80px) continuo — en gama baja eso compite con el
+   decode del video (VP9 por software) y produce stutter. Las capas quedan
+   ESTÁTICAS (misma pose visual); el movimiento del hero móvil lo llevan el video
+   y el spotlight (opacity/transform baratos). */
+@media (max-width: 767px) {
+    .stage3d {
+        animation: none;
+        transform: none;
+        will-change: auto;
+    }
+
+    .aurora {
+        animation: none;
+        will-change: auto;
+    }
+}
+
 /* ── DESKTOP ─────────────────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
     .container {
@@ -583,7 +617,8 @@
 @media (prefers-reduced-motion: reduce) {
     .spotlight,
     .aurora,
-    .gradientText {
+    .gradientText,
+    .orbBreath {
         animation: none !important;
     }
 

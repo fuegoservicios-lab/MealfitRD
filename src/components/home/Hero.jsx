@@ -84,6 +84,27 @@ const Hero = () => {
     // sigue mostrando solo el poster, como antes.
     const stageRef = useRef(null);
     const [videoOn, setVideoOn] = useState(false);
+    // [P1-HERO-ORB-AUTOPLAY · 2026-07-11] En móviles el orbe quedaba CONGELADO:
+    // Chrome Android evalúa el content attribute `muted` para permitir autoplay,
+    // pero React solo escribe la PROPIEDAD (bug conocido de React) → el <video>
+    // montaba con autoPlay y jamás arrancaba (reproducido vía CDP: paused=true /
+    // currentTime=0 bajo emulación móvil; desktop sí reproducía). videoAlive=false
+    // marca "autoplay denegado" → el orbe recibe un breath CSS (transform/opacity)
+    // para no verse muerto, y se reintenta play() en el primer gesto (cubre
+    // también iOS Low Power Mode).
+    const videoRef = useRef(null);
+    const [videoAlive, setVideoAlive] = useState(true);
+    // Assets móviles: orb-sm.* es un recorte cuadrado 640² (~2.25× menos costo de
+    // decode que el 1280×720 de desktop — clave en gama baja sin decode VP9 por
+    // hardware, y menos MB en un mercado con datos caros). Se decide una vez al
+    // montar: el breakpoint no cambia en la práctica sin remount del landing.
+    const [smallScreen] = useState(() => {
+        try {
+            return typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+        } catch {
+            return false;
+        }
+    });
     useEffect(() => {
         if (reduce || videoOn) return undefined;
         const conn = typeof navigator !== 'undefined' ? navigator.connection : undefined;
@@ -102,6 +123,52 @@ const Hero = () => {
         io.observe(el);
         return () => io.disconnect();
     }, [reduce, videoOn]);
+
+    // [P1-HERO-ORB-AUTOPLAY · 2026-07-11] Arranque resiliente del video:
+    // 1) muted como attribute+prop+defaultMuted (la política de Chrome Android
+    //    mira el atributo, que React no escribe), 2) play() explícito con catch
+    //    → breath fallback, 3) retry en el primer gesto, 4) pausa fuera de
+    //    viewport (batería) y resume al volver.
+    useEffect(() => {
+        if (!videoOn || reduce) return undefined;
+        const el = videoRef.current;
+        if (!el) return undefined;
+        el.muted = true;
+        el.defaultMuted = true;
+        el.setAttribute('muted', '');
+        let disposed = false;
+        const tryPlay = () => {
+            const p = el.play();
+            if (p && typeof p.then === 'function') {
+                p.then(() => { if (!disposed) setVideoAlive(true); })
+                    .catch((err) => {
+                        // AbortError = play() interrumpido por nuestro propio
+                        // pause() (p.ej. el observer de visibilidad cuando el
+                        // orbe monta bajo el fold en móvil) — NO es un veto de
+                        // autoplay; no degradar a breath. Solo NotAllowedError
+                        // y afines marcan el video como no-vivo.
+                        if (!disposed && (!err || err.name !== 'AbortError')) setVideoAlive(false);
+                    });
+            }
+        };
+        tryPlay();
+        const onFirstGesture = () => tryPlay();
+        window.addEventListener('pointerdown', onFirstGesture, { once: true, passive: true });
+        const io = typeof IntersectionObserver !== 'undefined'
+            ? new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) tryPlay();
+                    else el.pause();
+                });
+            }, { threshold: 0 })
+            : null;
+        if (io) io.observe(el);
+        return () => {
+            disposed = true;
+            window.removeEventListener('pointerdown', onFirstGesture);
+            if (io) io.disconnect();
+        };
+    }, [videoOn, reduce]);
 
     // [HEADER-STICKY-CTA · 2026-05-31] Reporta al Header (vía contexto) si el CTA
     // principal del Hero está en pantalla. El rootMargin top negativo ≈ altura del
@@ -220,10 +287,19 @@ const Hero = () => {
                             [P2-HERO-VIDEO-DEFER · 2026-07-09] El video monta diferido
                             (post-paint + en viewport + sin Save-Data); poster primero. */}
                         {(reduce || !videoOn) ? (
-                            <img className={styles.orbVideo} src="/orb-poster.jpg" alt="" aria-hidden="true" />
+                            // Poster con breath sutil (transform/opacity, GPU-only) para
+                            // que el path sin video (Save-Data, pre-mount) no se vea
+                            // congelado. Reduced-motion → estático puro, como siempre.
+                            <img
+                                className={`${styles.orbVideo}${reduce ? '' : ` ${styles.orbBreath}`}`}
+                                src="/orb-poster.jpg"
+                                alt=""
+                                aria-hidden="true"
+                            />
                         ) : (
                             <video
-                                className={styles.orbVideo}
+                                ref={videoRef}
+                                className={`${styles.orbVideo}${videoAlive ? '' : ` ${styles.orbBreath}`}`}
                                 autoPlay
                                 loop
                                 muted
@@ -231,8 +307,8 @@ const Hero = () => {
                                 poster="/orb-poster.jpg"
                                 aria-hidden="true"
                             >
-                                <source src="/orb.webm" type="video/webm" />
-                                <source src="/orb.mp4" type="video/mp4" />
+                                <source src={smallScreen ? '/orb-sm.webm' : '/orb.webm'} type="video/webm" />
+                                <source src={smallScreen ? '/orb-sm.mp4' : '/orb.mp4'} type="video/mp4" />
                             </video>
                         )}
 
