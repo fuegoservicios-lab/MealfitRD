@@ -1898,6 +1898,27 @@ const DashboardInner = () => {
             }
         });
 
+        // [P1-SHOPPING-PRESENCE-MATCH · 2026-07-11] Lookup de presencia por CONTENCIÓN
+        // con límites de palabra, además del exact-match. Caso vivo (owner): tenía
+        // "Yogurt griego entero" en la Nevera y la lista seguía pidiendo "Yogurt"
+        // (y "Plátano" con "Plátano maduro" en casa) — la igualdad exacta no cruza
+        // nombres parciales. Mín. 4 chars para no cruzar "sal" con nada (el padding
+        // ya evita "sal"⊄"salsa"). Modelo de presencia intacto (P5): presente en
+        // cualquier cantidad → oculto.
+        const _invPadded = [...inventoryMap.entries()].map(([k, v]) => [` ${k} `, v]);
+        const _lookupInventory = (k1, k2) => {
+            const direct = inventoryMap.get(k1) || inventoryMap.get(k2);
+            if (direct) return direct;
+            for (const key of [k1, k2]) {
+                if (!key || key.length < 4) continue;
+                const pk = ` ${key} `;
+                for (const [pkey, v] of _invPadded) {
+                    if (pkey.length >= 6 && (pkey.includes(pk) || pk.includes(pkey))) return v;
+                }
+            }
+            return null;
+        };
+
         // [P5-PRESENCE-FORWARD-LOOKING · 2026-06-23] (decisión confirmada por el owner) Un ítem
         // agotado reaparece SOLO si el PLAN RESTANTE aún lo usa — no por "está ausente" a secas.
         // `remainingNeedsSet` = nombres normalizados de los ingredientes de las comidas de HOY en
@@ -1964,7 +1985,8 @@ const DashboardInner = () => {
 
             const nameKey1 = normalizeName(item.name);
             const nameKey2 = normalizeNameAlt(item.name);
-            const invItem = inventoryMap.get(nameKey1) || inventoryMap.get(nameKey2);
+            // [P1-SHOPPING-PRESENCE-MATCH] exact-match + contención con límites de palabra.
+            const invItem = _lookupInventory(nameKey1, nameKey2);
 
             // ESCALADO POR DEGRADACIÓN (Opción 1)
             // Degradamos la cantidad proyectada basándonos en cuánto tiempo le queda realmente al ciclo.
