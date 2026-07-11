@@ -419,7 +419,7 @@ const InteractiveAssessmentFlow = () => {
         // `fieldToStepIndex`. Guests no lo ven (la Nevera requiere cuenta;
         // QPlanSource ya les bloquea el modo).
         ...(isPantryMode ? [{
-            title: <>Prepara tu Nevera 🧊</>,
+            title: <>Prepara tu Nevera</>,
             subtitle: "Agrega los alimentos que tienes en casa; tu plan se construirá alrededor de ellos y la lista de compras te dirá solo lo que falte.",
             hasInternalNext: true,
             component: <QPantryBuilder onFinish={submitAndGenerate} isSubmitting={isSubmitting} />
