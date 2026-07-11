@@ -65,6 +65,18 @@
     color: var(--text-muted);
 }
 
+/* [P1-LANDING-MOTION · 2026-07-11] Subrayado del título: se dibuja (scaleX 0→1,
+   vía framer-motion) al entrar en viewport. Decorativo, GPU-only. */
+.titleUnderline {
+    display: block;
+    width: 84px;
+    height: 3px;
+    margin: 1.05rem auto 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--primary), #A78BFA);
+    transform-origin: center;
+}
+
 /* ───────────────────────────── panel ──────────────────────────── */
 .panel {
     display: grid;
@@ -146,6 +158,14 @@
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
+}
+/* [P1-LANDING-MOTION · 2026-07-11] Wrapper de entrada por paso (framer escribe el
+   transform aquí; el <button> conserva su translateY de :hover sin conflicto). */
+.stepWrap {
+    display: grid;
+}
+.stepWrap > .step {
+    width: 100%;
 }
 .step {
     position: relative;
@@ -300,6 +320,25 @@
     animation: hiwTokenPulse 2.4s ease-in-out infinite;
     animation-delay: calc(var(--i) * 0.2s);
 }
+/* [P1-AI-CONFIDENTIAL · 2026-07-11] Sheen cónico que orbita el núcleo sellado:
+   cuenta la rotación de modelos confidenciales. Anillo por máscara radial;
+   solo rota transform (GPU). Linear: rotación ambiental continua tipo spinner. */
+.vEngineSheen {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 154px;
+    height: 154px;
+    margin: -77px 0 0 -77px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg,
+        transparent 0deg,
+        color-mix(in srgb, var(--accent) 85%, #ffffff) 55deg,
+        transparent 130deg 360deg);
+    -webkit-mask-image: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 2.5px));
+    mask-image: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 2.5px));
+    animation: hiwSheenSpin 5.5s linear infinite;
+    opacity: 0.9;
+}
 
 /* (3) Calibración — anillos de macros */
 .vMacros {
@@ -354,6 +393,10 @@
     0%, 100% { opacity: 0.3; }
     50% { opacity: 1; }
 }
+@keyframes hiwSheenSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
 
 /* ─────────────────────── responsive ─────────────────────── */
 @media (max-width: 820px) {
@@ -363,5 +406,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .vEngineRing, .vEngineRing2, .vToken { animation: none; }
+    .vEngineRing, .vEngineRing2, .vToken, .vEngineSheen { animation: none; }
 }

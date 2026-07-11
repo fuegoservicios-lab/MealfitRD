@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { Cpu, Target, Layers, Check, X, Minus, TrendingUp, Activity, Gauge, Radio, FlaskConical } from 'lucide-react';
 import { APP_VERSION } from '../../config/appVersion';
 import SeeMoreLink from './SeeMoreLink';
+import { makeSectionMotion } from './sectionMotion';
 import styles from './BenchmarkShowcase.module.css';
 
 /* [P3-BENCHMARK-RADAR · 2026-06-30] Rediseño RADICAL: RADAR DE PRECISIÓN. El corazón es
@@ -164,6 +165,11 @@ const Mark = ({ v }) => (v === 'x'
 const BenchmarkShowcase = () => {
     const stageRef = useRef(null);
     const consoleRef = useRef(null);
+    // [P1-LANDING-MOTION · 2026-07-11] Reveal on-scroll compartido del landing.
+    // El motion vive en el header y en .stage (wrapper): .console conserva su
+    // tilt 3D por inline style sin conflicto de transforms.
+    const reduceMotion = useReducedMotion();
+    const M = makeSectionMotion(reduceMotion);
 
     // Tilt 3D siguiendo el mouse (solo desktop; touch → estático).
     const onMove = (e) => {
@@ -184,22 +190,26 @@ const BenchmarkShowcase = () => {
             <div className={styles.bgGrid} aria-hidden="true" />
 
             <div className={styles.container}>
-                <div className={styles.header}>
-                    <span className={styles.modelBadge}>
+                <motion.div className={styles.header}
+                    variants={M.container} initial="hidden" whileInView="show"
+                    viewport={{ once: true, amount: 0.6 }}>
+                    <motion.span className={styles.modelBadge} variants={M.rise}>
                         <span className={styles.modelDot} aria-hidden="true" />
                         Mealfit {VERSION_SHORT}
-                    </span>
-                    <h2 className={styles.title}>
+                    </motion.span>
+                    <motion.h2 className={styles.title} variants={M.rise}>
                         Precisión que <span className={styles.titleAccent}>puedes medir</span>
-                    </h2>
-                    <p className={styles.subtitle}>
+                    </motion.h2>
+                    <motion.p className={styles.subtitle} variants={M.rise}>
                         No prometemos números — los medimos. Y los comparamos contra lo que hay afuera:
                         pedirle un plan a un LLM, sin un motor que cuadre tus macros.
-                    </p>
-                </div>
+                    </motion.p>
+                </motion.div>
 
                 {/* ── Consola de telemetría (radar) ── */}
-                <div className={styles.stage} ref={stageRef} onMouseMove={onMove} onMouseLeave={onLeave}>
+                <motion.div className={styles.stage} ref={stageRef} onMouseMove={onMove} onMouseLeave={onLeave}
+                    variants={M.rise} initial="hidden" whileInView="show"
+                    viewport={{ once: true, amount: 0.2 }}>
                     <div className={styles.console} ref={consoleRef}>
                         <div className={styles.scanlines} aria-hidden="true" />
 
@@ -290,7 +300,7 @@ const BenchmarkShowcase = () => {
                             })}
                         </div>
                     </div>
-                </div>
+                </motion.div>
 
                 <div className={styles.footnote}>
                     <FlaskConical size={15} strokeWidth={2.25} className={styles.footnoteIcon} aria-hidden="true" />

@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
     CalendarDays, ChefHat, ShoppingCart, Bot, Refrigerator,
     Clock, CheckCircle2, FileDown, Flame, Search, Plus,
     Sparkles, Send, AlertTriangle, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import SeeMoreLink from './SeeMoreLink';
+import { makeSectionMotion } from './sectionMotion';
 import styles from './DashboardShowcase.module.css';
 
 /* [P3-DASHBOARD-3D · 2026-06-29] Rediseño RADICAL: coverflow 3D. Las 5 pantallas
@@ -213,6 +214,9 @@ const RHYTHM = {
 const DashboardShowcase = () => {
     const [active, setActive] = useState(0);
     const tabRefs = useRef([]);
+    // [P1-LANDING-MOTION · 2026-07-11] Reveal on-scroll compartido del landing.
+    const reduce = useReducedMotion();
+    const M = makeSectionMotion(reduce);
     // [P3-DASHBOARD-RHYTHM] Estado del ritmo (persiste entre re-arms del efecto):
     // burst = flips rápidos restantes; cooldown = dwells normales antes de re-armar ráfaga.
     const rhythmRef = useRef({ burst: 0, cooldown: 1 });
@@ -277,21 +281,27 @@ const DashboardShowcase = () => {
             <div className={styles.bgGrid} aria-hidden="true" />
 
             <div className={styles.container}>
-                <div className={styles.header}>
-                    <span className={styles.badge}>Tu Dashboard</span>
-                    <h2 className={styles.title}>
+                <motion.div className={styles.header}
+                    variants={M.container} initial="hidden" whileInView="show"
+                    viewport={{ once: true, amount: 0.6 }}>
+                    <motion.span className={styles.badge} variants={M.rise}>Tu Dashboard</motion.span>
+                    <motion.h2 className={styles.title} variants={M.rise}>
                         Todo lo que necesitas, <br />
                         <span className={styles.titleAccent}>en un solo lugar</span>
-                    </h2>
-                    <p className={styles.subtitle}>
+                    </motion.h2>
+                    <motion.p className={styles.subtitle} variants={M.rise}>
                         Más que un plan: una herramienta diaria que aprende contigo, organiza tus compras y te ahorra tiempo en la cocina.
-                    </p>
-                </div>
+                    </motion.p>
+                </motion.div>
 
                 {/* [P3-DASHBOARD-3D-AUTOCYCLE] Wrapper que pausa el auto-rotado mientras
-                    el usuario interactúa (hover o foco de teclado). */}
-                <div
+                    el usuario interactúa (hover o foco de teclado).
+                    [P1-LANDING-MOTION] Entra con fade-rise; el coverflow interno
+                    conserva sus transforms CSS (el motion vive en el wrapper). */}
+                <motion.div
                     className={styles.carousel}
+                    variants={M.rise} initial="hidden" whileInView="show"
+                    viewport={{ once: true, amount: 0.2 }}
                     onMouseEnter={() => setPaused(true)}
                     onMouseLeave={() => setPaused(false)}
                     onFocusCapture={() => setPaused(true)}
@@ -377,7 +387,7 @@ const DashboardShowcase = () => {
                         );
                     })}
                 </div>
-                </div>
+                </motion.div>
 
                 <SeeMoreLink to="/funciones">Explorar todas las funciones</SeeMoreLink>
             </div>

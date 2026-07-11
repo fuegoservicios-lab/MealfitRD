@@ -112,7 +112,7 @@ const LegalLayout = ({ title, lastUpdated, children }) => {
    POLÍTICA DE PRIVACIDAD
    ============================================================================ */
 export const Privacy = () => (
-    <LegalLayout title="Política de Privacidad" lastUpdated="30 de Junio, 2026">
+    <LegalLayout title="Política de Privacidad" lastUpdated="11 de Julio, 2026">
         <p>En MealfitRD nos tomamos en serio la protección de sus datos. Esta Política describe con precisión técnica qué información recopilamos, cómo la procesamos, dónde la almacenamos, con quién la compartimos, qué cookies y almacenamiento local usamos, y qué derechos tiene usted sobre ella. La transparencia es nuestro principio fundamental.</p>
 
         <h3>1. Identidad del Responsable del Tratamiento</h3>
@@ -141,7 +141,10 @@ export const Privacy = () => (
 
         <h3>4. Cómo Funciona Nuestra Inteligencia Artificial</h3>
         <p>MealfitRD <strong>no es un simple "wrapper" sobre un modelo de IA</strong>. Nuestro sistema combina varios componentes propietarios: un orquestador basado en grafos de estados (LangGraph) que coordina la generación de planes en múltiples pasos validados, un motor propio de coherencia nutricional que verifica que la lista de compras concuerde con las recetas generadas, un sistema de memoria a largo plazo con embeddings vectoriales que aprende de sus interacciones, un agente conversacional con herramientas seguras (no permitimos que la IA acceda a datos de otros usuarios — defensa <code>P0-AGENT-1</code>), un módulo de visión multimodal para analizar fotos de comida, y un circuit breaker que protege contra fallos del proveedor del modelo.</p>
-        <p>Como motor generativo base utilizamos los modelos <strong>DeepSeek V4</strong> (familia <code>deepseek-v4-flash</code> para el plan gratuito y <code>deepseek-v4-pro</code> para los planes de pago), operados por DeepSeek. Esto significa que ciertos datos suyos viajan a la API de DeepSeek para ejecutar la inferencia. Específicamente enviamos al proveedor:</p>
+        {/* [P1-AI-CONFIDENTIAL · 2026-07-11] Las identidades/versiones de los modelos
+            son secreto comercial y rotan; el PROVEEDOR (receptor de datos) sí se
+            divulga — es la parte legalmente relevante bajo la Ley 172-13. */}
+        <p>Como motor generativo utilizamos <strong>modelos de IA de última generación de proveedores externos</strong> — actualmente el proveedor es <strong>DeepSeek</strong>. La identidad, versión y combinación específica de los modelos que orquestamos constituye información confidencial de MealfitRD (secreto comercial) y <strong>puede cambiar sin previo aviso</strong> a medida que evaluamos y adoptamos mejores modelos, siempre manteniendo los mismos estándares de calidad y validación. Si cambiara el <em>proveedor</em> que recibe sus datos, actualizaremos esta política. El uso de un proveedor externo significa que ciertos datos suyos viajan a su API para ejecutar la inferencia. Específicamente enviamos al proveedor:</p>
         <ul>
             <li>Su perfil de salud completo (peso, altura, edad, género, restricciones).</li>
             <li>Sus preferencias y comidas que le gustan/no le gustan.</li>
@@ -173,7 +176,7 @@ export const Privacy = () => (
         <p>Para operar la plataforma compartimos datos estrictamente necesarios con los siguientes proveedores. Todos están bajo contratos de procesamiento de datos:</p>
         <ul>
             <li><strong>Neon, Inc.</strong> — almacenamiento de base de datos y autenticación.</li>
-            <li><strong>DeepSeek (Hangzhou DeepSeek Artificial Intelligence Basic Technology Research Co., Ltd.)</strong> — inferencia con modelos DeepSeek V4 (perfil de salud, conversaciones y, cuando esté habilitado, imágenes).</li>
+            <li><strong>DeepSeek (Hangzhou DeepSeek Artificial Intelligence Basic Technology Research Co., Ltd.)</strong> — inferencia con modelos de IA generativa (perfil de salud, conversaciones y, cuando esté habilitado, imágenes).</li>
             <li><strong>PayPal Holdings, Inc.</strong> — procesamiento de pagos y suscripciones.</li>
             <li><strong>Functional Software, Inc. (Sentry)</strong> — monitoreo de errores técnicos.</li>
             <li><strong>Oracle Corporation (Oracle Cloud Infrastructure)</strong> — infraestructura de hosting (VPS con nginx) del frontend y backend.</li>
@@ -219,12 +222,12 @@ export const Privacy = () => (
    TÉRMINOS DE SERVICIO
    ============================================================================ */
 export const Terms = () => (
-    <LegalLayout title="Términos de Servicio" lastUpdated="26 de Mayo, 2026">
+    <LegalLayout title="Términos de Servicio" lastUpdated="11 de Julio, 2026">
         <p>Bienvenido a MealfitRD. Al acceder o utilizar nuestra plataforma usted acepta los presentes Términos de Servicio, que constituyen un acuerdo legalmente vinculante entre usted y MealfitRD. Por favor léalos con atención.</p>
 
         <h3>1. Naturaleza del Servicio</h3>
         <p>MealfitRD es una plataforma propietaria de nutrición personalizada que integra varias capas tecnológicas desarrolladas internamente: un orquestador determinístico basado en grafos de estados que coordina la generación de planes en múltiples pasos validados, un motor de coherencia nutricional que verifica matemáticamente la consistencia entre recetas y listas de compras, un agente conversacional con herramientas seguras de modificación de datos del usuario, un módulo de visión multimodal para análisis de fotografías de comida, un sistema de memoria a largo plazo con embeddings vectoriales para personalización continua, un programador de tareas (chunks rolling) que regenera porciones de su plan sin interrumpir su uso, y un sistema de auditoría con detección de derivas operativas.</p>
-        <p>Como modelo generativo base utilizamos la familia <strong>DeepSeek V4</strong>. Sin embargo, <strong>MealfitRD no es un wrapper ni un envoltorio simple sobre un modelo de IA</strong>: el valor diferencial reside en nuestros sistemas de orquestación, validación, persistencia y aprendizaje continuo, todos propietarios. El modelo DeepSeek funciona como una pieza dentro de un sistema mucho mayor.</p>
+        <p>Como motor generativo utilizamos modelos de IA de terceros de última generación. La identidad, versión y combinación específica de dichos modelos es <strong>información confidencial de MealfitRD (secreto comercial)</strong> y puede cambiar sin previo aviso a medida que evaluamos y adoptamos mejores modelos, manteniendo siempre los estándares de calidad y validación descritos en estos Términos. <strong>MealfitRD no es un wrapper ni un envoltorio simple sobre un modelo de IA</strong>: el valor diferencial reside en nuestros sistemas de orquestación, validación, persistencia y aprendizaje continuo, todos propietarios. Los modelos generativos funcionan como piezas dentro de un sistema mucho mayor. Los proveedores externos que reciben datos para inferencia se identifican en la <strong>Política de Privacidad</strong> y en la <strong>Política de Uso de Inteligencia Artificial</strong>.</p>
 
         <h3>2. Elegibilidad y Registro</h3>
         <p>Para utilizar MealfitRD usted debe:</p>
@@ -271,7 +274,7 @@ export const Terms = () => (
             <li>Que el servicio funcione sin interrupciones, sin errores, o sin retrasos.</li>
             <li>Que los planes generados produzcan resultados específicos de pérdida de peso, ganancia muscular u otros objetivos.</li>
             <li>La exactitud absoluta de cálculos nutricionales o macronutrientes, dado que la composición real de los alimentos puede variar.</li>
-            <li>La disponibilidad de los modelos de DeepSeek ni de el backend anterior u otros proveedores subcontratados.</li>
+            <li>La disponibilidad de los modelos de IA de terceros ni la de otros proveedores subcontratados.</li>
         </ul>
         <p>En la máxima medida permitida por la ley, MealfitRD no será responsable de daños indirectos, incidentales, especiales, consecuenciales o punitivos, ni de pérdidas de datos, ganancias o oportunidad. Nuestra responsabilidad total agregada por cualquier reclamación no excederá el monto pagado por usted en los últimos doce (12) meses.</p>
         <p><strong>Las recomendaciones nutricionales no constituyen consejo médico.</strong> Consulte el Aviso Médico para detalle.</p>
@@ -298,7 +301,7 @@ export const Terms = () => (
    AVISO MÉDICO
    ============================================================================ */
 export const MedicalDisclaimer = () => (
-    <LegalLayout title="Aviso Médico" lastUpdated="26 de Mayo, 2026">
+    <LegalLayout title="Aviso Médico" lastUpdated="11 de Julio, 2026">
         <div className={styles.alertBox}>
             <p className={styles.alertTitle}>
                 <AlertTriangle size={20} /> IMPORTANTE
@@ -349,7 +352,7 @@ export const MedicalDisclaimer = () => (
             <li>Puede ocasionalmente cometer errores de cálculo nutricional o sugerir combinaciones subóptimas. Validamos automáticamente coherencia entre recetas y lista de compras, pero ningún sistema es infalible.</li>
             <li>Puede no reconocer todas las contraindicaciones específicas de su caso si usted no las declara explícitamente.</li>
             <li>Su capacidad de análisis está acotada a la información provista; no realiza diagnóstico médico subyacente.</li>
-            <li>Los modelos generativos (DeepSeek V4, sobre los cuales operamos) pueden, en raras ocasiones, "alucinar" datos. Nuestros sistemas de validación reducen esto, pero no lo eliminan al 100%.</li>
+            <li>Los modelos generativos sobre los que operamos pueden, en raras ocasiones, "alucinar" datos. Nuestros sistemas de validación reducen esto, pero no lo eliminan al 100%.</li>
         </ul>
 
         <h3>5. No Establecimiento de Relación Médico-Paciente</h3>
@@ -370,7 +373,7 @@ export const MedicalDisclaimer = () => (
    POLÍTICA DE PROTECCIÓN DE DATOS (Ley 172-13)
    ============================================================================ */
 export const DataProtection = () => (
-    <LegalLayout title="Política de Protección de Datos" lastUpdated="30 de Junio, 2026">
+    <LegalLayout title="Política de Protección de Datos" lastUpdated="11 de Julio, 2026">
         <p>Esta Política desarrolla los derechos que la legislación de protección de datos le reconoce sobre su información personal y le explica, paso a paso, cómo ejercerlos en MealfitRD. Complementa nuestra <strong>Política de Privacidad</strong> (qué datos tratamos) centrándose en <strong>sus derechos como titular</strong> de esos datos.</p>
 
         <h3>1. Marco Legal Aplicable</h3>
@@ -405,7 +408,7 @@ export const DataProtection = () => (
         <p>Su perfil incluye datos de salud (peso, condiciones declaradas como diabetes o enfermedad renal, alergias) que la Ley 172-13 considera <strong>datos sensibles</strong>. Los tratamos <strong>exclusivamente</strong> para generar y ajustar su plan nutricional, con la finalidad limitada que usted consiente al completar el formulario, y nunca para publicidad. No los compartimos con terceros salvo el proveedor de inferencia estrictamente necesario para producir su plan (ver Política de Privacidad y Política de Uso de IA).</p>
 
         <h3>6. Transferencias Internacionales</h3>
-        <p>Para generar su plan, parte de su perfil se procesa en servidores de nuestro proveedor de inteligencia artificial (DeepSeek), que pueden ubicarse fuera de República Dominicana, incluida la República Popular China. Esto constituye una transferencia internacional de datos. Nunca enviamos su nombre completo, correo ni datos de pago. El detalle está en la <strong>Política de Uso de Inteligencia Artificial</strong>.</p>
+        <p>Para generar su plan, parte de su perfil se procesa en servidores de nuestro proveedor de inteligencia artificial (actualmente DeepSeek), que pueden ubicarse fuera de República Dominicana, incluida la República Popular China. Esto constituye una transferencia internacional de datos. Nunca enviamos su nombre completo, correo ni datos de pago. El detalle está en la <strong>Política de Uso de Inteligencia Artificial</strong>.</p>
 
         <h3>7. Medidas de Seguridad</h3>
         <p>Aplicamos cifrado en tránsito (TLS) y en reposo, aislamiento estricto por identificador de usuario en cada consulta a la base de datos (con tests automatizados que enforzan que ninguna consulta acceda a datos de otro usuario), autenticación con tokens firmados criptográficamente, y verificación de contraseñas filtradas (HaveIBeenPwned) al registrarse. El detalle técnico está en la Política de Privacidad.</p>
@@ -422,7 +425,7 @@ export const DataProtection = () => (
    POLÍTICA DE USO DE INTELIGENCIA ARTIFICIAL
    ============================================================================ */
 export const AIUse = () => (
-    <LegalLayout title="Política de Uso de Inteligencia Artificial" lastUpdated="30 de Junio, 2026">
+    <LegalLayout title="Política de Uso de Inteligencia Artificial" lastUpdated="11 de Julio, 2026">
         <p>MealfitRD usa inteligencia artificial de forma central en su producto. Creemos que debe saber, con transparencia, dónde interviene la IA, qué datos suyos utiliza, cuáles son sus límites y qué control conserva usted sobre las decisiones. Esta política lo explica.</p>
 
         <h3>1. Dónde Usamos IA</h3>
@@ -432,15 +435,16 @@ export const AIUse = () => (
             <li><strong>Análisis de fotos de comida:</strong> cuando esta función esté disponible, podrás subir una foto para estimar sus macros; revisas y confirmas antes de guardar.</li>
         </ul>
 
-        <h3>2. Qué Modelo Usamos y Qué Datos Viajan</h3>
-        <p>Como modelo generativo base utilizamos la familia <strong>DeepSeek V4</strong> (<code>deepseek-v4-flash</code> en el plan gratuito; <code>deepseek-v4-pro</code> en los planes de pago), operada por DeepSeek. Para producir tu plan enviamos al proveedor únicamente lo necesario:</p>
+        <h3>2. Modelos Confidenciales y en Evolución — y Qué Datos Viajan</h3>
+        <p>Orquestamos <strong>varios modelos de IA de última generación</strong> de proveedores externos. La identidad, versión y combinación exacta de esos modelos es <strong>información confidencial de MealfitRD</strong> (secreto comercial): los evaluamos y rotamos constantemente para darte el mejor resultado, por lo que <strong>pueden cambiar sin previo aviso</strong>. Todo cambio de modelo pasa por la misma barra de calidad, validación determinista y guardas clínicas descritas en esta política.</p>
+        <p>Lo que sí divulgamos siempre es <strong>quién recibe tus datos</strong>: actualmente el proveedor de inferencia es <strong>DeepSeek</strong>. Si el proveedor cambiara, actualizaremos esta política y la Política de Protección de Datos. Para producir tu plan enviamos al proveedor únicamente lo necesario:</p>
         <ul>
             <li>Tu perfil de salud (peso, estatura, edad, género, nivel de actividad, condiciones y restricciones declaradas).</li>
             <li>Tus preferencias y los alimentos que te gustan o no.</li>
             <li>El historial reciente de tu conversación con el asistente.</li>
             <li>Las fotos de comida que decidas compartir (cuando el análisis visual esté habilitado).</li>
         </ul>
-        <p><strong>NUNCA</strong> enviamos al proveedor tu nombre completo, tu correo electrónico ni tus datos de pago. DeepSeek trata estos datos bajo sus propios términos y sus servidores pueden estar fuera de República Dominicana (ver «Transferencias Internacionales» en la Política de Protección de Datos).</p>
+        <p><strong>NUNCA</strong> enviamos al proveedor tu nombre completo, tu correo electrónico ni tus datos de pago. El proveedor trata estos datos bajo sus propios términos y sus servidores pueden estar fuera de República Dominicana (ver «Transferencias Internacionales» en la Política de Protección de Datos).</p>
 
         <h3>3. No Entrenamos Modelos con tus Datos</h3>
         <p>No usamos tus datos personales para entrenar modelos de IA propios ni de terceros, ni los vendemos. La «memoria a largo plazo» del coach se basa en información privada de TU cuenta y no se cruza ni se agrega con la de otros usuarios.</p>

@@ -159,7 +159,8 @@ const Engine = () => {
                 <div className={styles.prose}>
                     <p>
                         MealfitRD v1.0 no es «un LLM y ya»: es un <strong>sistema híbrido</strong>.
-                        Un modelo de lenguaje —DeepSeek V4— propone los platos día por día, y una
+                        Un modelo de lenguaje de última generación —su identidad es confidencial y
+                        rota según rendimiento— propone los platos día por día, y una
                         <strong> capa determinista</strong> (un orquestador por grafos de estados)
                         los valida y corrige. La generación ocurre por <strong>bloques en
                         paralelo</strong>; cada bloque pasa por un revisor que verifica esquema,
@@ -176,9 +177,11 @@ const Engine = () => {
                         ingrediente y reescala las porciones para clavar tus objetivos —con un error
                         medio de apenas <strong>±3.2% en el peor macro</strong>—, compara el plan
                         contra 17 micronutrientes y cuadra la lista de compras con las recetas.
-                        Según tu plan, la generación usa DeepSeek V4 <strong>flash</strong> (gratis)
-                        o <strong>pro</strong> (planes de pago), priorizando siempre el costo más
-                        bajo ante cualquier duda.
+                        Según tu plan, la generación usa un modelo <strong>estándar</strong> (gratis)
+                        o uno <strong>avanzado</strong> (planes de pago), priorizando siempre el costo
+                        más bajo ante cualquier duda. Qué modelos exactos orquestamos es parte de
+                        nuestra receta: los evaluamos y rotamos constantemente para darte el mejor
+                        resultado con la misma barra de validación.
                     </p>
                 </div>
             </section>

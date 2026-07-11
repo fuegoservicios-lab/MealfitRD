@@ -123,7 +123,7 @@ function FigAdaptation() {
 
 const STATS = [
     { num: '20+', label: 'Variables de entrada' },
-    { num: 'V4', label: 'Motor DeepSeek' },
+    { num: '3+', label: 'Modelos IA orquestados' },
     { num: '17', label: 'Micronutrientes vs DRI' },
     { num: '7/15/30', label: 'días · recálculo' },
 ];
@@ -146,14 +146,14 @@ const STAGES = [
     {
         Fig: FigEngine, figLabel: 'Red de inferencia',
         title: 'Motor de inferencia',
-        sub: 'DeepSeek V4 · en minutos',
-        text: 'El modelo resuelve tu plan día por día contra un catálogo de 200+ alimentos verificados, optimizando macronutrientes, coste y adherencia. Clave: el motor solo usa alimentos que existen en el catálogo — nunca inventa comida.',
+        sub: 'IA de frontera · en minutos',
+        text: 'Modelos de IA de última generación —su identidad exacta es confidencial y evoluciona a medida que adoptamos mejores— resuelven tu plan día por día contra un catálogo de 200+ alimentos verificados, optimizando macronutrientes, coste y adherencia. Clave: el motor solo usa alimentos que existen en el catálogo — nunca inventa comida.',
         bullets: [
             ['Generación por chunks', 'el plan se arma por bloques para entregarte resultado rápido y robusto.'],
             ['Solo alimentos verificados', 'cada ingrediente tiene datos nutricionales reales (curados desde USDA).'],
             ['Optimización multi-objetivo', 'equilibra tus macros, tu presupuesto y la variedad a la vez.'],
         ],
-        tags: ['DeepSeek V4', 'Catálogo verificado', 'Minutos'],
+        tags: ['IA confidencial', 'Catálogo verificado', 'Minutos'],
     },
     {
         Fig: FigCalibration, figLabel: 'Cobertura vs DRI',
@@ -184,7 +184,7 @@ const STAGES = [
 const PIPELINE = [
     { title: 'Tu perfil', text: 'Objetivo, datos biométricos, condiciones, alergias, presupuesto y preferencias entran al motor.' },
     { title: 'Cálculo de objetivos', text: 'Estimamos tus calorías diarias y tus macros — proteína, carbohidratos y grasas — según tu meta.' },
-    { title: 'Generación con IA', text: 'DeepSeek V4 arma los platos día por día usando solo alimentos del catálogo verificado.' },
+    { title: 'Generación con IA', text: 'Modelos de IA de frontera arman los platos día por día usando solo alimentos del catálogo verificado.' },
     { title: 'Validación', text: 'Cada comida pasa por guardas: piso de proteína, banda de macros, variedad, coherencia y la capa clínica.' },
     { title: 'Entrega', text: 'Plan completo + lista de compras costeada con precios reales de supermercado dominicano (RD$).' },
 ];

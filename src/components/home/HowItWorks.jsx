@@ -2,10 +2,16 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { ClipboardList, Cpu, Salad, LineChart } from 'lucide-react';
 import SeeMoreLink from './SeeMoreLink';
+import { makeSectionMotion } from './sectionMotion';
 import styles from './HowItWorks.module.css';
 
 /* [P3-HOWITWORKS-AUTOCYCLE · 2026-06-29] Cadencia del auto-avance del paso activo. */
 const AUTO_ADVANCE_MS = 4500;
+
+/* [P1-LANDING-MOTION · 2026-07-11] Entrada orquestada on-scroll: el visual entra
+   desde la izquierda, los pasos en cascada desde la derecha, y el header revela
+   badge → título (con subrayado que se dibuja) → subtítulo. Variants compartidas
+   del landing (sectionMotion.js); reduced-motion → fade puro. */
 
 /* [P3-HOWITWORKS-REDESIGN · 2026-06-29] Panel interactivo (acordeón): a la izquierda
    un visual que cambia según el paso activo; a la derecha la lista de pasos (el activo
@@ -23,8 +29,11 @@ const STEPS = [
     {
         icon: Cpu,
         title: 'Motor de inferencia',
-        desc: 'DeepSeek V4 resuelve tu plan contra el catálogo verificado, optimizando macronutrientes, coste y adherencia — en minutos, no a ojo.',
-        tag: 'DeepSeek V4 · minutos',
+        // [P1-AI-CONFIDENTIAL · 2026-07-11] Sin nombres de modelos: la identidad
+        // de los modelos que orquesta el motor es confidencial y rota según
+        // rendimiento (ver Política de Uso de IA §2).
+        desc: 'Nuestro motor híbrido orquesta modelos de IA de última generación — su identidad es confidencial y evoluciona constantemente — contra el catálogo verificado, optimizando macronutrientes, coste y adherencia en minutos, no a ojo.',
+        tag: 'IA de frontera · minutos',
         color: '#A78BFA',
     },
     {
@@ -71,8 +80,12 @@ function ProfileVisual() {
 }
 
 function EngineVisual() {
+    /* [P1-AI-CONFIDENTIAL · 2026-07-11] "Núcleo sellado": el sheen cónico que
+       orbita el core cuenta la historia de los modelos confidenciales en rotación
+       — sin nombres, solo el motor. Transform-only (GPU). */
     return (
         <div className={styles.vEngine}>
+            <span className={styles.vEngineSheen} aria-hidden="true" />
             <span className={styles.vEngineRing} />
             <span className={styles.vEngineRing2} />
             <span className={styles.vEngineCore}><Cpu size={38} strokeWidth={1.6} /></span>
@@ -142,6 +155,7 @@ const HowItWorks = () => {
     const [active, setActive] = useState(0);
     const [paused, setPaused] = useState(false);
     const reduce = useReducedMotion();
+    const M = makeSectionMotion(reduce);
     const step = STEPS[active];
     const Visual = VISUALS[active];
 
@@ -163,21 +177,23 @@ const HowItWorks = () => {
             <div className={styles.bgGlow} aria-hidden="true" />
             <div className={styles.container}>
                 <motion.div className={styles.header}
-                    initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.6 }} transition={{ duration: 0.5 }}>
-                    <span className={styles.badge}>El método</span>
-                    <h2 className={styles.title}>Así funciona tu transformación</h2>
-                    <p className={styles.subtitle}>
+                    variants={M.container} initial="hidden" whileInView="show"
+                    viewport={{ once: true, amount: 0.6 }}>
+                    <motion.span className={styles.badge} variants={M.rise}>El método</motion.span>
+                    <motion.h2 className={styles.title} variants={M.rise}>Así funciona tu transformación</motion.h2>
+                    <motion.span className={styles.titleUnderline} variants={M.underline} aria-hidden="true" />
+                    <motion.p className={styles.subtitle} variants={M.rise}>
                         Simple por fuera, riguroso por dentro: del dato a tu plato, con método.
-                    </p>
+                    </motion.p>
                 </motion.div>
 
                 <motion.div className={styles.panel}
-                    initial={{ opacity: 0, y: 26 }} whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.55 }}>
+                    variants={M.container} initial="hidden" whileInView="show"
+                    viewport={{ once: true, amount: 0.2 }}>
 
-                    {/* visual (cambia según el paso activo) */}
-                    <div className={styles.visualCol} style={{ '--accent': step.color }}>
+                    {/* visual (cambia según el paso activo) — entra desde la izquierda */}
+                    <motion.div className={styles.visualCol} style={{ '--accent': step.color }}
+                        variants={M.riseLeft}>
                         <div className={styles.visualGlow} aria-hidden="true" />
                         <AnimatePresence mode="wait">
                             <motion.div key={active} className={styles.visualInner}
@@ -191,10 +207,14 @@ const HowItWorks = () => {
                         <div className={styles.visualTag}>
                             <span className={styles.visualDot} /> {step.tag}
                         </div>
-                    </div>
+                    </motion.div>
 
                     {/* acordeón de pasos. Hover/focus dentro pausa el auto-avance
-                        (onFocus/onBlur de React burbujean → cubre teclado). */}
+                        (onFocus/onBlur de React burbujean → cubre teclado).
+                        [P1-LANDING-MOTION] Cada paso entra en cascada desde la derecha.
+                        El wrapper motion.div lleva la entrada; el <button> conserva su
+                        transform de :hover en CSS (un motion.button dejaría transform
+                        inline y anularía el hover). */}
                     <div className={styles.steps}
                         onMouseEnter={() => setPaused(true)}
                         onMouseLeave={() => setPaused(false)}
@@ -204,7 +224,8 @@ const HowItWorks = () => {
                             const Icon = s.icon;
                             const isActive = i === active;
                             return (
-                                <button type="button" key={s.title}
+                                <motion.div key={s.title} variants={M.riseRight} className={styles.stepWrap}>
+                                <button type="button"
                                     className={`${styles.step} ${isActive ? styles.stepActive : ''}`}
                                     style={{ '--accent': s.color }}
                                     onClick={() => setActive(i)}
@@ -236,6 +257,7 @@ const HowItWorks = () => {
                                             transition={{ duration: AUTO_ADVANCE_MS / 1000, ease: 'linear' }} />
                                     )}
                                 </button>
+                                </motion.div>
                             );
                         })}
                     </div>
