@@ -8,7 +8,9 @@
     position: relative;
     padding: 6rem 0 7rem;
     overflow: hidden;
-    background: linear-gradient(180deg, #FAFAFA 0%, #FFFFFF 100%);
+    /* [P1-LANDING-BG · 2026-07-11] Zona SKY del landing en claro (hint de azul
+       cielo a mitad de banda); el override dark de abajo lleva su propio wash. */
+    background: linear-gradient(180deg, #FAFAFA 0%, #F2F8FF 55%, #FFFFFF 100%);
 }
 
 /* [P3-DASHBOARD-POLISH · 2026-07-02] El glow radial ambiental se reemplaza por la
@@ -1134,7 +1136,12 @@
 
 /* section: gradiente #FAFAFA→#FFFFFF (fondo muy claro) → bg-page oscuro */
 :global(html[data-theme="dark"]) .section {
-    background: var(--bg-page);
+    /* [P1-LANDING-BG · 2026-07-11] Zona SKY/CYAN en oscuro — wash 5% del hue de
+       la Nevera/Dashboard sobre bg-page, fundido a bg-page en los bordes. */
+    background: linear-gradient(180deg,
+        var(--bg-page) 0%,
+        color-mix(in srgb, #38BDF8 7%, var(--bg-page)) 45%,
+        var(--bg-page) 100%);
 }
 
 /* featureItem (mobile pill / desktop card base):

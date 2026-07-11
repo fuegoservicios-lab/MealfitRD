@@ -1,33 +1,46 @@
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, ArrowUpRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import styles from './NewsHighlight.module.css';
-import NewsFigure from '../news/NewsFigure';
 import { makeSectionMotion } from './sectionMotion';
 import { NEWS } from '../../data/news';
 
-/* [P3-NEWS-1 · 2026-07-01 · rediseño científico 2026-07-02] Banda de "Novedades" del
-   landing en clave minimalista-científica (mismo lenguaje que /novedades): tarjeta
-   hairline a dos columnas (editorial + figura de calibración compartida NewsFigure
-   con pie "Fig. 01 —") + lista compacta de anteriores + enlace al índice. Se alimenta
-   del SSOT data/news.js (añadir noticia = actualiza solo). `href` → destino propio;
-   `badge` → rótulo central de la figura.
-   [P1-LANDING-MOTION · 2026-07-11] Reveal on-scroll (head → destacado → lista en
-   cascada), mismo lenguaje de motion que Hero/HowItWorks. Reduced-motion → fade puro. */
+/* [P3-NEWS-1 · 2026-07-01 · rediseño OpenAI-style 2026-07-11] Banda de "Novedades"
+   del landing al estilo del news grid de OpenAI: cada anuncio lleva un ARTE
+   ABSTRACTO de campos de color difuminados (CSS puro — tres blobs radiales con
+   blur sobre un gradiente base, colores por noticia vía `art` en data/news.js) +
+   título + categoría/fecha. El más reciente va destacado a dos columnas (texto |
+   arte grande con monograma glass del `badge`); el resto en grid de dos columnas
+   con thumbnail cuadrado a la izquierda. Se alimenta del SSOT data/news.js.
+   [P1-LANDING-MOTION · 2026-07-11] Reveal on-scroll compartido (sectionMotion). */
+
+/* Paleta cíclica para noticias sin `art` propio (índice % length). */
+const FALLBACK_ART = [
+    ['#6366F1', '#A78BFA', '#FB7185'],
+    ['#34D399', '#38BDF8', '#6366F1'],
+    ['#FB923C', '#FB7185', '#A78BFA'],
+    ['#38BDF8', '#6366F1', '#34D399'],
+];
+
+const artVars = (n, i) => {
+    const [a1, a2, a3] = n.art || FALLBACK_ART[i % FALLBACK_ART.length];
+    return { '--a1': a1, '--a2': a2, '--a3': a3 };
+};
+
+const newsTo = (n) => n.href || `/novedades/${n.slug}`;
 
 const NewsHighlight = () => {
     const reduce = useReducedMotion();
     const M = makeSectionMotion(reduce);
     const featured = NEWS[0];
-    const rest = NEWS.slice(1, 3);
+    const rest = NEWS.slice(1, 5);
     if (!featured) return null;
-    const featuredTo = featured.href || `/novedades/${featured.slug}`;
 
     return (
         <section className={styles.section} id="news">
             <motion.div className={styles.inner}
                 variants={M.container} initial="hidden" whileInView="show"
-                viewport={{ once: true, amount: 0.25 }}>
+                viewport={{ once: true, amount: 0.2 }}>
                 <motion.div className={styles.head} variants={M.rise}>
                     <span className={styles.eyebrow}>
                         <span className={styles.pulse} aria-hidden="true" />
@@ -38,43 +51,38 @@ const NewsHighlight = () => {
                     </Link>
                 </motion.div>
 
-                {/* anuncio destacado (el más reciente). El wrapper motion lleva la
-                    entrada; el Link conserva sus estados hover del CSS. */}
+                {/* destacado: texto | arte grande con monograma */}
                 <motion.div variants={M.rise}>
-                    <Link to={featuredTo} className={styles.feature} aria-label={`Leer: ${featured.title}`}>
-                        <div className={styles.body}>
-                            <div className={styles.meta}>
+                    <Link to={newsTo(featured)} className={styles.feature} aria-label={`Leer: ${featured.title}`}>
+                        <span className={styles.body}>
+                            <span className={styles.meta}>
                                 <span className={styles.tag}>{featured.tag}</span>
-                                <span className={styles.metaSep} aria-hidden="true" />
                                 <span className={styles.date}>{featured.dateLabel}</span>
-                                {featured.readTime && (
-                                    <>
-                                        <span className={styles.metaSep} aria-hidden="true" />
-                                        <span className={styles.date}>{featured.readTime}</span>
-                                    </>
-                                )}
-                            </div>
-                            <h2 className={styles.title}>{featured.title}</h2>
-                            <p className={styles.excerpt}>{featured.excerpt}</p>
-                            <span className={styles.cta}>
-                                Leer el anuncio <ArrowUpRight size={16} strokeWidth={2.5} />
+                                {featured.readTime && <span className={styles.date}>· {featured.readTime}</span>}
                             </span>
-                        </div>
-
-                        <NewsFigure badge={featured.badge} caption="Fig. 01 — Último anuncio" />
+                            <span className={styles.title}>{featured.title}</span>
+                            <span className={styles.excerpt}>{featured.excerpt}</span>
+                        </span>
+                        <span className={`${styles.art} ${styles.artFeatured}`} style={artVars(featured, 0)} aria-hidden="true">
+                            {featured.badge && <span className={styles.artBadge}>{featured.badge}</span>}
+                        </span>
                     </Link>
                 </motion.div>
 
-                {/* anuncios anteriores (si los hay) — cascada */}
+                {/* anteriores: grid estilo OpenAI (thumb cuadrado + título + tag/fecha) */}
                 {rest.length > 0 && (
-                    <ul className={styles.list}>
-                        {rest.map((n) => (
-                            <motion.li key={n.slug} variants={M.rise}>
-                                <Link to={n.href || `/novedades/${n.slug}`} className={styles.listItem}>
-                                    <span className={styles.listDate}>{n.dateLabel}</span>
-                                    <span className={styles.listTag}>{n.tag}</span>
-                                    <span className={styles.listTitle}>{n.title}</span>
-                                    <ArrowUpRight size={16} strokeWidth={2.5} className={styles.listArrow} />
+                    <ul className={styles.grid}>
+                        {rest.map((n, i) => (
+                            <motion.li key={n.slug} variants={M.rise} className={styles.cell}>
+                                <Link to={newsTo(n)} className={styles.card} aria-label={`Leer: ${n.title}`}>
+                                    <span className={`${styles.art} ${styles.artThumb}`} style={artVars(n, i + 1)} aria-hidden="true" />
+                                    <span className={styles.cardBody}>
+                                        <span className={styles.cardTitle}>{n.title}</span>
+                                        <span className={styles.cardMeta}>
+                                            <span className={styles.cardTag}>{n.tag}</span>
+                                            <span className={styles.cardDate}>{n.dateLabel}</span>
+                                        </span>
+                                    </span>
                                 </Link>
                             </motion.li>
                         ))}

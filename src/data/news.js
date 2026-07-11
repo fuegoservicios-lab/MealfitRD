@@ -13,6 +13,9 @@
 //   title     → titular del anuncio.
 //   excerpt   → resumen de 1–2 líneas (landing + índice + meta description).
 //   readTime  → opcional, p.ej. "3 min de lectura".
+//   art       → OPCIONAL. [c1, c2, c3] — tres colores hex del arte abstracto del
+//               thumbnail (estilo OpenAI news: campos de color difuminados). Sin
+//               art → NewsHighlight usa una paleta cíclica por índice.
 //   href      → OPCIONAL. Ruta INTERNA a la que apunta "Leer el anuncio" en vez de la
 //               página genérica /novedades/<slug> (p.ej. '/motor'). Si se define, la
 //               página /novedades/<slug> redirige a ese destino (útil cuando el anuncio
@@ -30,6 +33,7 @@ export const NEWS = [
         excerpt: 'Casi 2,000 productos reales de supermercados dominicanos, conectados a más de 200 alimentos verificados de nuestro catálogo. Ya puedes explorarla en Supermercados RD.',
         readTime: '2 min de lectura',
         badge: '≈2K',
+        art: ['#34D399', '#38BDF8', '#6366F1'],
         content: [
             {
                 body: [
@@ -71,6 +75,7 @@ export const NEWS = [
         readTime: '3 min de lectura',
         // badge → texto grande del "cover" de la tarjeta destacada (opcional).
         badge: 'v1.0',
+        art: ['#6366F1', '#A78BFA', '#FB7185'],
         // El Motor ya tiene su propia página completa → "Leer el anuncio" va ahí.
         href: '/motor',
         content: [

@@ -9,7 +9,12 @@
     position: relative;
     padding: 5rem 0 6rem;
     overflow: hidden;
-    background: var(--bg-page);
+    /* [P1-LANDING-BG · 2026-07-11] Zona VIOLETA del landing (instrumento/radar):
+       wash 5% fundido a bg-page — ver P1-LANDING-BG en HowItWorks.module.css. */
+    background: linear-gradient(180deg,
+        var(--bg-page) 0%,
+        color-mix(in srgb, #A78BFA 7%, var(--bg-page)) 48%,
+        var(--bg-page) 100%);
 }
 /* [P3-BENCHMARK-POLISH · 2026-07-02] El glow radial ambiental se reemplaza por la
    cuadrícula "papel milimetrado" del lenguaje minimalista-científico (misma firma que

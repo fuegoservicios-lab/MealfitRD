@@ -4,7 +4,15 @@
 .section {
     position: relative;
     padding: 6rem 0;
-    background: var(--bg-page);
+    /* [P1-LANDING-BG · 2026-07-11] Zona INDIGO del landing (anti-flat): cada
+       sección lleva un wash de su hue de acento a 4-6% sobre bg-page — zonas de
+       color que se funden entre sí en vez de un negro plano continuo.
+       Theme-aware vía color-mix con el token. */
+    background: linear-gradient(180deg,
+        var(--bg-page) 0%,
+        color-mix(in srgb, #6366F1 9%, var(--bg-page)) 42%,
+        color-mix(in srgb, #8B5CF6 6%, var(--bg-page)) 78%,
+        var(--bg-page) 100%);
     overflow: hidden;
 }
 

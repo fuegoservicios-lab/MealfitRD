@@ -1,15 +1,26 @@
-/* [P3-NEWS-1 · rediseño científico 2026-07-02] Banda de "Novedades" del landing en clave
-   minimalista-científica (P3-NEWS-SCIENTIFIC, mismo lenguaje que /novedades): una sola
-   gama (indigo + neutros), hairlines, figura compartida NewsFigure. Sin glows, glass ni
-   gradientes. Theme-aware. */
+/* [P3-NEWS-1 · rediseño OpenAI-style 2026-07-11] Banda de "Novedades" del landing
+   al estilo del news grid de OpenAI: arte abstracto de campos de color difuminados
+   (CSS puro, sin imágenes raster) + título + categoría/fecha. Theme-aware.
+
+   Arte: cada tarjeta define --a1/--a2/--a3 (data/news.js `art`). El bloque .art
+   pinta un gradiente base y dos blobs radiales con blur — blur ESTÁTICO (se
+   rasteriza una vez, costo runtime ≈0; la lección de perf del hero aplica a
+   blur ANIMADO, no a este). El hover solo mueve transform (GPU). */
+
 .section {
     position: relative;
     padding: 5rem 1.5rem 6rem;
-    background: var(--bg-page);
+    /* [P1-LANDING-BG · 2026-07-11] Banda elevada anti-flat: lift de slate sobre
+       bg-page + tinte radial de marca arriba-centro + hairline superior que
+       delimita la zona. Theme-aware vía color-mix con tokens. */
+    background:
+        radial-gradient(58% 42% at 50% 0%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 72%),
+        linear-gradient(180deg, color-mix(in srgb, var(--text-main) 5%, var(--bg-page)) 0%, var(--bg-page) 100%);
+    border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
 }
 
 .inner {
-    max-width: 960px;
+    max-width: 1020px;
     margin: 0 auto;
 }
 
@@ -54,22 +65,88 @@
 }
 .allLink:hover { color: var(--primary); gap: 0.6rem; }
 
-/* ───────── tarjeta destacada — texto | figura ───────── */
+/* ───────── arte abstracto (OpenAI-style color fields) ───────── */
+.art {
+    position: relative;
+    display: block;
+    flex: none;
+    border-radius: 16px;
+    overflow: hidden;
+    isolation: isolate;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--a1) 88%, #ffffff), var(--a2));
+    transition: transform 0.25s ease;
+}
+.art::before {
+    content: '';
+    position: absolute;
+    width: 78%;
+    height: 78%;
+    top: -18%;
+    right: -14%;
+    background: radial-gradient(circle at 42% 42%, var(--a3), transparent 70%);
+    filter: blur(26px);
+    opacity: 0.95;
+}
+.art::after {
+    content: '';
+    position: absolute;
+    width: 88%;
+    height: 88%;
+    bottom: -24%;
+    left: -18%;
+    background: radial-gradient(circle at 60% 58%, color-mix(in srgb, var(--a2) 70%, #ffffff), transparent 72%);
+    filter: blur(30px);
+    opacity: 0.85;
+}
+
+/* monograma glass centrado (identidad Mealfit sobre el arte, solo destacado) */
+.artBadge {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    align-self: center;
+    justify-self: center;
+    margin: auto;
+    width: fit-content;
+    height: fit-content;
+    padding: 0.5rem 1.1rem;
+    border-radius: 14px;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+    letter-spacing: -0.02em;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.38);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.25);
+}
+
+/* ───────── tarjeta destacada — texto | arte grande ───────── */
 .feature {
     display: grid;
-    grid-template-columns: 1.15fr 0.85fr;
+    grid-template-columns: 1.1fr 0.9fr;
     gap: clamp(1.5rem, 3.2vw, 2.75rem);
     align-items: center;
-    padding: clamp(1.5rem, 3vw, 2.25rem);
+    padding: clamp(1.25rem, 2.6vw, 1.9rem);
     border: 1px solid var(--border);
-    border-radius: 18px;
+    border-radius: 20px;
     text-decoration: none;
-    background: transparent;
+    background: color-mix(in srgb, var(--bg-card) 55%, transparent);
     transition: border-color 0.2s ease, transform 0.2s ease;
 }
 .feature:hover {
     border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
     transform: translateY(-2px);
+}
+.feature:hover .art { transform: scale(1.015); }
+
+.artFeatured {
+    width: 100%;
+    aspect-ratio: 16 / 10;
 }
 
 .body {
@@ -80,8 +157,8 @@
 .meta {
     display: flex;
     align-items: center;
-    gap: 0.65rem;
-    margin-bottom: 1.05rem;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
     flex-wrap: wrap;
 }
 .tag {
@@ -91,106 +168,99 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--primary);
-    background: transparent;
     border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
     padding: 0.26rem 0.62rem;
     border-radius: 999px;
     white-space: nowrap;
 }
-.metaSep {
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: color-mix(in srgb, var(--text-main) 32%, transparent);
-    flex: none;
-}
 .date { font-size: 0.82rem; color: var(--text-muted); }
 .title {
     font-family: var(--font-heading);
-    font-size: clamp(1.7rem, 3.2vw, 2.4rem);
+    font-size: clamp(1.55rem, 3vw, 2.2rem);
     font-weight: 800;
     letter-spacing: -0.03em;
-    line-height: 1.08;
-    margin: 0;
+    line-height: 1.1;
     color: var(--text-main);
     transition: color 0.18s ease;
 }
 .feature:hover .title { color: var(--primary); }
 .excerpt {
-    margin: 0.85rem 0 0;
-    font-size: clamp(0.98rem, 1.4vw, 1.05rem);
+    margin-top: 0.85rem;
+    font-size: clamp(0.95rem, 1.4vw, 1.02rem);
     line-height: 1.6;
     color: var(--text-muted);
 }
-.cta {
-    align-self: flex-start;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    margin-top: 1.5rem;
-    font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 0.95rem;
-    color: var(--primary);
-    transition: gap 0.18s ease;
-}
-.feature:hover .cta { gap: 0.7rem; }
 
-/* ───────── lista compacta de anuncios anteriores ───────── */
-.list {
+/* ───────── grid de anteriores (OpenAI-style: thumb | texto) ───────── */
+.grid {
     list-style: none;
-    margin: 1.25rem 0 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem 1.5rem;
+    margin: 1.5rem 0 0;
     padding: 0;
 }
-.listItem {
-    display: grid;
-    grid-template-columns: auto auto 1fr auto;
+.cell { min-width: 0; }
+.card {
+    display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 1.15rem 0.5rem;
-    border-top: 1px solid var(--border);
+    gap: 1.1rem;
+    padding: 0.85rem;
+    border-radius: 18px;
     text-decoration: none;
-    transition: background 0.18s ease;
+    border: 1px solid transparent;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 }
-.listItem:hover { background: color-mix(in srgb, var(--primary) 4%, transparent); }
-.listDate {
+.card:hover {
+    background: color-mix(in srgb, var(--bg-card) 70%, transparent);
+    border-color: var(--border);
+    transform: translateY(-2px);
+}
+.card:hover .art { transform: scale(1.03); }
+.artThumb {
+    width: 118px;
+    aspect-ratio: 1;
+}
+.cardBody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    min-width: 0;
+}
+.cardTitle {
     font-family: var(--font-heading);
-    font-size: 0.74rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    white-space: nowrap;
-}
-.listTag {
-    font-size: 0.68rem;
     font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--primary);
-    white-space: nowrap;
-}
-.listTitle {
-    font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 1rem;
+    font-size: 1.05rem;
+    line-height: 1.3;
     color: var(--text-main);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     transition: color 0.18s ease;
 }
-.listItem:hover .listTitle { color: var(--primary); }
-.listArrow { color: var(--text-light); flex: none; transition: color 0.18s ease; }
-.listItem:hover .listArrow { color: var(--primary); }
+.card:hover .cardTitle { color: var(--primary); }
+.cardMeta {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+.cardTag {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-main);
+}
+.cardDate { font-size: 0.8rem; color: var(--text-muted); }
 
 @media (prefers-reduced-motion: reduce) {
-    .feature, .cta, .allLink, .listItem { transition: none; }
+    .feature, .card, .art, .allLink { transition: none; }
 }
 
 /* focos accesibles */
 .feature:focus-visible,
-.listItem:focus-visible,
+.card:focus-visible,
 .allLink:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 3px;
@@ -199,12 +269,10 @@
 
 /* ───────── responsive ───────── */
 @media (max-width: 760px) {
-    .feature { grid-template-columns: 1fr; gap: 1.35rem; }
-}
-@media (max-width: 620px) {
-    .listItem { grid-template-columns: 1fr auto; grid-auto-rows: auto; gap: 0.35rem 0.75rem; }
-    .listDate { order: 1; }
-    .listTag { order: 2; text-align: right; }
-    .listTitle { order: 3; grid-column: 1 / -1; white-space: normal; }
-    .listArrow { display: none; }
+    .feature { grid-template-columns: 1fr; gap: 1.25rem; }
+    /* arte arriba, texto debajo (patrón OpenAI móvil) */
+    .artFeatured { order: -1; aspect-ratio: 16 / 9; }
+    .grid { grid-template-columns: 1fr; gap: 0.5rem; }
+    .artThumb { width: 92px; }
+    .cardTitle { font-size: 0.98rem; }
 }
