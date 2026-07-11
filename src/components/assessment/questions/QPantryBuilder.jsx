@@ -350,40 +350,65 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
         }
     };
 
-    // [P1-PANTRY-ROW-EDIT] Marcas del Supermercado RD para un alimento (mismo
-    // contrato que la página Nevera: POST /api/supermarket/match, cache por
-    // nombre normalizado, fail-soft → solo "Genérico").
-    const loadBrandsFor = async (item) => {
-        const key = norm(item.ingredient_name);
-        if (!key || brandCache[key] || brandLoadingRef.current.has(key)) return;
-        brandLoadingRef.current.add(key);
-        try {
-            const res = await fetchWithAuth('/api/supermarket/match', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ names: [item.ingredient_name] }),
-            });
-            const data = res.ok ? await res.json() : null;
-            const groups = (data?.matches && data.matches[item.ingredient_name]) || [];
-            const byBrand = new Map();
-            groups.forEach(g => (g.variants || []).forEach(v => {
-                const b = (v.brand && String(v.brand).trim()) ? String(v.brand).trim() : null;
-                if (!b) return;
-                const price = (typeof v.price_rd === 'number') ? v.price_rd : null;
-                const cur = byBrand.get(b);
-                if (!cur || (price != null && (cur.price == null || price < cur.price))) {
-                    byBrand.set(b, { brand: b, price });
+    // [P1-PANTRY-BRAND-FOREVER · 2026-07-11] Marcas del Supermercado RD en LOTE
+    // (un solo POST /api/supermarket/match con todos los nombres del inventario).
+    // Con el cache lleno, las filas SIN marcas disponibles no muestran menú alguno
+    // (feedback owner: "ni siquiera debería verse el menú, confunde"). Guarda el
+    // product_id por marca para poder persistir la preferencia global.
+    useEffect(() => {
+        if (loading) return undefined;
+        const names = inventory
+            .map(i => i.ingredient_name)
+            .filter(n => n && brandCache[norm(n)] === undefined && !brandLoadingRef.current.has(norm(n)));
+        if (names.length === 0) return undefined;
+        names.forEach(n => brandLoadingRef.current.add(norm(n)));
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetchWithAuth('/api/supermarket/match', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ names }),
+                });
+                const data = res.ok ? await res.json() : null;
+                if (cancelled) return;
+                const patch = {};
+                for (const n of names) {
+                    const groups = (data?.matches && data.matches[n]) || [];
+                    const byBrand = new Map();
+                    groups.forEach(g => (g.variants || []).forEach(v => {
+                        const b = (v.brand && String(v.brand).trim()) ? String(v.brand).trim() : null;
+                        if (!b) return;
+                        const price = (typeof v.price_rd === 'number') ? v.price_rd : null;
+                        const cur = byBrand.get(b);
+                        if (!cur || (price != null && (cur.price == null || price < cur.price))) {
+                            byBrand.set(b, { brand: b, price, productId: v.id });
+                        }
+                    }));
+                    patch[norm(n)] = [...byBrand.values()]
+                        .sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
                 }
-            }));
-            const brands = [...byBrand.values()].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
-            setBrandCache(prev => ({ ...prev, [key]: brands }));
-        } catch {
-            setBrandCache(prev => ({ ...prev, [key]: [] }));
-        } finally {
-            brandLoadingRef.current.delete(key);
-        }
-    };
+                setBrandCache(prev => ({ ...prev, ...patch }));
+            } catch {
+                if (!cancelled) {
+                    setBrandCache(prev => {
+                        const p = { ...prev };
+                        names.forEach(n => { if (p[norm(n)] === undefined) p[norm(n)] = []; });
+                        return p;
+                    });
+                }
+            } finally {
+                names.forEach(n => brandLoadingRef.current.delete(norm(n)));
+            }
+        })();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loading, inventory]);
 
+    // [P1-PANTRY-BRAND-FOREVER] Elegir marca = (1) etiqueta el item de la Nevera
+    // Y (2) persiste la preferencia GLOBAL (user_brand_preferences, mismo sistema
+    // que "Marcas del súper" del dashboard) — la lista de compras y los planes
+    // futuros usarán esa marca hasta que el usuario la cambie. Genérico limpia ambas.
     const changeBrand = async (item, newBrand) => {
         try {
             await _apiJson(`/api/inventory/items/${item.id}`, {
@@ -397,7 +422,21 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
         } catch (e) {
             console.error('QPantryBuilder brand:', e);
             toast.error('No se pudo cambiar la marca.');
+            return;
         }
+        // Preferencia global: fail-soft (el item ya quedó etiquetado; la pref es
+        // el extra "para siempre"). product_id de la variante más barata de la marca.
+        try {
+            const entry = (brandCache[norm(item.ingredient_name)] || []).find(b => b.brand === newBrand);
+            await fetchWithAuth('/api/supermarket/preferences', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    food_key: item.ingredient_name,
+                    product_id: newBrand && entry?.productId ? entry.productId : null,
+                }),
+            });
+        } catch { /* fail-soft */ }
     };
 
     const removeItem = async (item) => {
@@ -590,27 +629,30 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                                 <span style={{ color: 'var(--text-main)', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {item.ingredient_name}
                                 </span>
-                                {/* [P1-PANTRY-ROW-EDIT] Marca por fila: fetch lazy de las marcas
-                                    reales del Supermercado RD al abrir el select. */}
-                                <select value={item.brand || ''} className="qpb-select"
-                                    aria-label={`Marca de ${item.ingredient_name}`}
-                                    onFocus={() => loadBrandsFor(item)}
-                                    onChange={(e) => changeBrand(item, e.target.value)}
-                                    style={{
-                                        background: 'transparent', color: 'var(--text-muted)',
-                                        border: 'none', fontSize: '0.75rem', padding: 0,
-                                        maxWidth: '150px', cursor: 'pointer',
-                                    }}>
-                                    <option value="">Genérico (sin marca)</option>
-                                    {item.brand && !(brandCache[norm(item.ingredient_name)] || []).some(b => b.brand === item.brand) && (
-                                        <option value={item.brand}>{item.brand}</option>
-                                    )}
-                                    {(brandCache[norm(item.ingredient_name)] || []).map(b => (
-                                        <option key={b.brand} value={b.brand}>
-                                            {b.brand}{b.price != null ? ` (~RD$${Math.round(b.price)})` : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                {/* [P1-PANTRY-BRAND-FOREVER] Marca por fila SOLO si el Supermercado
+                                    RD tiene marcas para este alimento (o si ya trae una que limpiar) —
+                                    un menú con solo "Genérico" confunde (feedback owner). Elegirla
+                                    persiste la preferencia global además de etiquetar el item. */}
+                                {((brandCache[norm(item.ingredient_name)] || []).length > 0 || item.brand) && (
+                                    <select value={item.brand || ''} className="qpb-select"
+                                        aria-label={`Marca de ${item.ingredient_name}`}
+                                        onChange={(e) => changeBrand(item, e.target.value)}
+                                        style={{
+                                            background: 'transparent', color: 'var(--text-muted)',
+                                            border: 'none', fontSize: '0.75rem', padding: 0,
+                                            maxWidth: '150px', cursor: 'pointer',
+                                        }}>
+                                        <option value="">Genérico (sin marca)</option>
+                                        {item.brand && !(brandCache[norm(item.ingredient_name)] || []).some(b => b.brand === item.brand) && (
+                                            <option value={item.brand}>{item.brand}</option>
+                                        )}
+                                        {(brandCache[norm(item.ingredient_name)] || []).map(b => (
+                                            <option key={b.brand} value={b.brand}>
+                                                {b.brand}{b.price != null ? ` (~RD$${Math.round(b.price)})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
                             <button type="button" aria-label={`Quitar 1 de ${item.ingredient_name}`}
                                 onClick={() => changeQty(item, -1)} disabled={(item.quantity || 0) <= 1}
