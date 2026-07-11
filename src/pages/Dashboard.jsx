@@ -5988,6 +5988,37 @@ const DashboardInner = () => {
                 saber que el sistema "se rindió" y que puede usar Cambiar Plato
                 para iterar manualmente. Flag viene de `plan_data._quality_degraded`
                 seteado en `should_retry` cuando `attempt >= MAX_ATTEMPTS=3`. */}
+            {/* [P1-PLAN-FREEZE · 2026-07-11] Plan congelado por Nevera vacía: banner
+                persistente (sin X — el estado es accionable, no descartable). Tus días
+                NO corren mientras esté congelado; el restock lo reanuda solo. */}
+            {planData?._frozen_at && (
+                <div style={{
+                    background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.35)',
+                    borderRadius: 14, padding: '14px 18px', margin: '0 0 14px',
+                    display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+                }}>
+                    <div style={{ fontSize: 26 }}>🧊</div>
+                    <div style={{ flex: 1, minWidth: 220 }}>
+                        <div style={{ fontWeight: 800, color: '#7dd3fc', fontSize: 14 }}>
+                            Plan congelado — tu Nevera está vacía
+                        </div>
+                        <div style={{ fontSize: 12.5, color: '#9fb3c8', marginTop: 3, lineHeight: 1.45 }}>
+                            Tus días NO están corriendo: no pierdes nada. Transfiere tu compra a la
+                            Nevera y el plan se reanuda solo, retomando exactamente donde quedó.
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/pantry')}
+                        style={{
+                            padding: '9px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                            background: '#38bdf8', color: '#082f49', fontWeight: 800, fontSize: 13,
+                        }}
+                    >
+                        Reponer mi Nevera →
+                    </button>
+                </div>
+            )}
             {planData?._quality_degraded && !qDegradedHidden && (
                 <motion.div
                     initial={{ opacity: 0, y: -8 }}
