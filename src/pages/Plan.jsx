@@ -1912,7 +1912,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                             {/* [P4-PLAN-SPA-NAV] <Link> en vez de <a href> evita full page reload
                                 (re-descarga del bundle + pérdida de estado de PreviewScreen). */}
                             <Link
-                                to="/pantry"
+                                to="/dashboard/pantry"
                                 style={{
                                     flex: '1 1 140px', padding: '0.75rem 1rem', background: 'transparent', color: '#F59E0B',
                                     borderRadius: '0.5rem', border: '1px solid rgba(245, 158, 11, 0.5)', fontWeight: 600,

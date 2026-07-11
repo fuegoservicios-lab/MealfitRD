@@ -397,7 +397,7 @@ const InteractiveAssessmentFlow = () => {
                             description: 'Agrega o confirma los alimentos que tienes; tu plan se construirá con ellos cuando presiones "Crear mi plan".',
                             duration: 7000,
                         });
-                        navigate('/pantry');
+                        navigate('/dashboard/pantry');  // [P1-PANTRY-ROUTE-ALIAS] ruta canónica ('/pantry' era 404)
                         return;
                     }
 

@@ -6009,7 +6009,7 @@ const DashboardInner = () => {
                     </div>
                     <button
                         type="button"
-                        onClick={() => navigate('/pantry')}
+                        onClick={() => navigate('/dashboard/pantry')}
                         style={{
                             padding: '9px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
                             background: '#38bdf8', color: '#082f49', fontWeight: 800, fontSize: 13,

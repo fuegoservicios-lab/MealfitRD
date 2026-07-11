@@ -401,6 +401,13 @@ function App() {
               </ProtectedRoute>
             } />
 
+            {/* [P1-PANTRY-ROUTE-ALIAS · 2026-07-11] Aliases canónicos de la Nevera. La ruta
+                real es /dashboard/pantry, pero código histórico, pushes YA entregadas y
+                deep-links del backend usaban '/pantry' o '/mi-nevera' — sin estos redirects
+                caían al catch-all 404 (visto en vivo con el modo constructor). */}
+            <Route path="/pantry" element={<Navigate to="/dashboard/pantry" replace />} />
+            <Route path="/mi-nevera" element={<Navigate to="/dashboard/pantry" replace />} />
+
             {/* Rutas con Tabs Fijos (Dashboard) */}
             <Route element={<ProtectedRoute><DashboardAnimatedLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
