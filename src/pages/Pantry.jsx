@@ -2384,6 +2384,16 @@ const Pantry = () => {
                         <Plus size={16} />Añadir alimento
                     </button>
                 </div>
+                {/* [P1-PANTRY-DASH-PARITY] Escaner por foto — integrado al topbar movil. */}
+                {pantryStatus?.photo_scan_enabled && (
+                    <div style={{ marginTop: '0.6rem' }}>
+                        <PantryScanButton
+                            enabled
+                            inventory={inventory}
+                            onInventoryChanged={() => { invalidateInventoryCache(); fetchData(false); }}
+                        />
+                    </div>
+                )}
             </div>
 
             <div className={mstyles.bar}>
@@ -2483,17 +2493,6 @@ const Pantry = () => {
 
     return (
         <div className={fstyles.page}>
-            {/* [P1-PANTRY-DASH-PARITY] Escaner por foto (mismo componente del paso 21).
-                Se oculta solo si no hay provider de vision (photo_scan_enabled). */}
-            {pantryStatus?.photo_scan_enabled && (
-                <div style={{ margin: '1rem 1rem 0' }}>
-                    <PantryScanButton
-                        enabled
-                        inventory={inventory}
-                        onInventoryChanged={() => { invalidateInventoryCache(); fetchData(false); }}
-                    />
-                </div>
-            )}
             {isMobileLayout ? renderMobileShell() : (
             <section className={fstyles.app} aria-label="Mi Cocina">
                 <div className={fstyles.shell}>
@@ -2608,6 +2607,18 @@ const Pantry = () => {
                                 <Plus size={16} /> Añadir
                             </button>
                         </div>
+
+                        {/* [P1-PANTRY-DASH-PARITY] Escaner por foto (componente compartido
+                            con el paso 21) — integrado al card, bajo el toolbar. */}
+                        {pantryStatus?.photo_scan_enabled && (
+                            <div style={{ margin: '0.75rem 0' }}>
+                                <PantryScanButton
+                                    enabled
+                                    inventory={inventory}
+                                    onInventoryChanged={() => { invalidateInventoryCache(); fetchData(false); }}
+                                />
+                            </div>
+                        )}
 
                         {/* Chips de categoría (solo móvil) */}
                         <div className={fstyles.chips}>
