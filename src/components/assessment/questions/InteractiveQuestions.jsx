@@ -29,3 +29,4 @@ export { QStruggles } from './QStruggles';
 export { QMotivation } from './QMotivation';
 export { QHousehold } from './QHousehold';
 export { QSupplements } from './QSupplements';
+export { QPlanSource } from './QPlanSource';

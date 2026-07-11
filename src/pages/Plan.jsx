@@ -7,6 +7,7 @@ import PropTypes from 'prop-types';
 
 import { useAssessment } from '../context/AssessmentContext';
 import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api';
+import RenewalCheckinModal from '../components/plan/RenewalCheckinModal';
 import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation';
 import { stripInternalFlags } from '../config/secureFormStorage';
 import { trackEvent } from '../utils/analytics';
@@ -722,6 +723,22 @@ const Plan = () => {
     const renewalPantryAware = location.state?.renewal_pantry_aware || false;
     const durablePantryIngredients = location.state?.durable_pantry_ingredients || [];
 
+    // [P1-ADAPTIVE-RENEWAL · 2026-07-11] Check-in de renovación: SOLO renovaciones de
+    // usuarios autenticados (guests sin health_profile) y NUNCA en recovery (el backend
+    // ya está generando). Mientras checkinPending=true, el effect del SSE NO dispara —
+    // el usuario registra peso/señales (o pulsa Omitir) y recién entonces se genera.
+    const [checkinPending, setCheckinPending] = useState(() => {
+        try {
+            if (localStorage.getItem('mealfit_plan_in_progress')) return false;
+        } catch { /* noop */ }
+        const _isRenewal = Boolean(
+            (location.state?.previous_meals && location.state.previous_meals.length)
+            || location.state?.is_plan_expired
+            || location.state?.update_reason
+        );
+        return _isRenewal && !isGuest;
+    });
+
     // 2. USEEFFECT
     useEffect(() => {
         // [P1-3] Si el descifrado del sensitive cifrado todavía está en
@@ -733,6 +750,10 @@ const Plan = () => {
         // dependencia explícita en el deps array re-dispara el effect en ese
         // momento.
         if (loadingSensitive) return;
+
+        // [P1-ADAPTIVE-RENEWAL · 2026-07-11] Check-in de renovación pendiente → no
+        // disparar el SSE todavía (el deps array re-dispara al completarse/omitirse).
+        if (checkinPending) return;
 
         // [P3-RECOVERY-BYPASS-FORM-CHECK · 2026-05-16] Si hay un pipeline
         // pendiente del backend (flag `mealfit_plan_in_progress` en localStorage),
@@ -1388,7 +1409,7 @@ const Plan = () => {
         // location, etc.) siguen siendo stale-by-design — el effect solo debe
         // correr una vez por mount efectivo, no por cada keystroke del form.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [loadingSensitive]);
+    }, [loadingSensitive, checkinPending]);  // [P1-ADAPTIVE-RENEWAL] re-dispara al cerrar el check-in
 
     // [P3-BEFOREUNLOAD-NO-CANCEL · 2026-05-16] El handler `beforeunload` que
     // disparaba `cancelGeneration()` al cerrar la tab fue REMOVIDO porque
@@ -1503,6 +1524,16 @@ const Plan = () => {
                 // el usuario no clicó "Aceptar" — `oldPlan` permanece intacto
                 // en localStorage.
                 onRegenerate={() => { window.location.reload(); }}
+            />
+        );
+    }
+
+    // [P1-ADAPTIVE-RENEWAL · 2026-07-11] Check-in ANTES de la pantalla de carga.
+    if (checkinPending) {
+        return (
+            <RenewalCheckinModal
+                defaultWeight={formData?.weight}
+                onDone={() => setCheckinPending(false)}
             />
         );
     }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import InteractiveAssessmentLayout from './InteractiveAssessmentLayout';
 import {
+    QPlanSource,
     QGender, QMeasurements, QActivityLevel, QSchedule,
     QSleep, QStress, QHabits, QCookingTime, QBudget, QHousehold,
     QDietType, QAllergies, QDislikes, QMedical, QMainGoal, QGoalTarget, QStruggles,
@@ -13,6 +14,7 @@ import {
 // que renderiza distinto por plataforma; lucide es consistente con el resto).
 import { ChevronsRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { fetchWithAuth } from '../../config/api';  // [P1-PANTRY-FIRST-PLAN]
 // [P1-B6] Validación cliente-side centralizada. El módulo
 // `config/formValidation` mantiene las constantes y el helper alineadas con
 // `_REQUIRED_FORM_FIELDS` del backend (`routers/plans.py:155`). Antes este
@@ -120,6 +122,16 @@ const InteractiveAssessmentFlow = () => {
     // abajo) construye el mapping `field → step index` en runtime. Reordenar
     // o insertar steps no rompe la navegación a campo faltante.
     const steps = [
+        // [P1-PANTRY-FIRST-PLAN · 2026-07-11] F3: primera decisión del formulario —
+        // plan libre vs construido desde la Nevera. Campo `planSource` viaja en el
+        // payload del SSE (spread de formData); el backend inyecta el inventario
+        // server-side cuando planSource='pantry'. Sin `fields` requeridos (default
+        // 'scratch' → usuarios existentes/guests no se bloquean).
+        {
+            title: <>¿Cómo quieres crear tu plan?</>,
+            subtitle: "Diseño libre con IA, o un plan construido alrededor de lo que ya tienes en tu Nevera.",
+            component: <QPlanSource onAutoAdvance={handleAutoAdvance} />
+        },
         {
             title: <>¿Eres hombre o mujer?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Las necesidades nutricionales varían según tu sexo biológico.",
@@ -368,6 +380,52 @@ const InteractiveAssessmentFlow = () => {
                             const _budgetIdx = fieldToStepIndex['budget'];
                             if (typeof _budgetIdx === 'number') setCurrentStep(_budgetIdx);
                             return;
+                        }
+                    }
+
+                    // [P1-PANTRY-FIRST-PLAN · 2026-07-11] Pre-flight determinista del modo
+                    // "desde mi Nevera": factibilidad (kcal/proteína disponibles vs N días del
+                    // objetivo) + sugerencias de compra con precio. NUNCA bloquea (best-effort):
+                    // si no alcanza, avisa honesto y el plan usará lo que hay + la lista cubre
+                    // el resto; si el endpoint falla, seguimos.
+                    if (formData.planSource === 'pantry') {
+                        try {
+                            const _gd = formData.groceryDuration || 'weekly';
+                            const _days = _gd === 'monthly' ? 30 : (_gd === 'biweekly' ? 15 : 7);
+                            const _res = await fetchWithAuth('/api/plans/pantry-feasibility', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    days: _days,
+                                    age: formData.age, weight: formData.weight,
+                                    weightUnit: formData.weightUnit || 'lb',
+                                    height: formData.height, gender: formData.gender,
+                                    activityLevel: formData.activityLevel,
+                                    mainGoal: formData.mainGoal,
+                                }),
+                            });
+                            if (_res.ok) {
+                                const _fz = await _res.json();
+                                if (_fz.feasible) {
+                                    toast.success('Tu Nevera alcanza', {
+                                        description: `Cubre ≈${_fz.days_supported} días de tu objetivo. Generando tu plan alrededor de lo que tienes.`,
+                                        duration: 5000,
+                                    });
+                                } else {
+                                    const _sug = (_fz.gaps || [])
+                                        .flatMap(g => (g.suggestions || []).slice(0, 2))
+                                        .map(x => `${x.name} (~RD$${x.price_per_lb_rd}/lb)`)
+                                        .slice(0, 4).join(', ');
+                                    toast.warning(`Tu Nevera cubre ≈${_fz.days_supported} de ${_days} días`, {
+                                        description: _sug
+                                            ? `Sugerencias para completar: ${_sug}. El plan usará lo que tienes y la lista de compras te dirá el resto.`
+                                            : 'El plan usará lo que tienes y la lista de compras te dirá el resto.',
+                                        duration: 9000,
+                                    });
+                                }
+                            }
+                        } catch (e) {
+                            console.error('pantry-feasibility failed:', e);
                         }
                     }
 
