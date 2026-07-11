@@ -44,7 +44,10 @@ if (import.meta.env?.MODE === 'development') {
     }
 }
 
-export const QSupplements = ({ onFinish, isSubmitting }) => {
+// [P1-PANTRY-WIZARD-STEP · 2026-07-11] `finishLabel` opcional: en modo pantry este
+// step ya no es el final del wizard (avanza al paso "Prepara tu Nevera") y el botón
+// dice "Siguiente" en vez de "Finalizar y Generar".
+export const QSupplements = ({ onFinish, isSubmitting, finishLabel }) => {
     const { formData, updateData } = useAssessment();
 
     return (
@@ -127,7 +130,7 @@ export const QSupplements = ({ onFinish, isSubmitting }) => {
                 </div>
             )}
 
-            <NextButton onClick={onFinish} disabled={isSubmitting} label={isSubmitting ? "Generando Plan..." : "Finalizar y Generar"} icon={Zap} />
+            <NextButton onClick={onFinish} disabled={isSubmitting} label={isSubmitting ? "Generando Plan..." : (finishLabel || "Finalizar y Generar")} icon={Zap} />
         </div>
     );
 };

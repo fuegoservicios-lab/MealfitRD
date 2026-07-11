@@ -10,6 +10,9 @@ import {
     QMotivation, QSupplements,
     NextButton
 } from './questions/InteractiveQuestions';
+// [P1-PANTRY-WIZARD-STEP · 2026-07-11] Import directo (convención del barrel:
+// imports nuevos NO pasan por InteractiveQuestions.jsx).
+import { QPantryBuilder } from './questions/QPantryBuilder';
 // [FORM-CTA-UNIFY · 2026-07-02] Icono del botón "Saltar" (antes glyph ⏭ de texto,
 // que renderiza distinto por plataforma; lucide es consistente con el resto).
 import { ChevronsRight } from 'lucide-react';
@@ -113,6 +116,98 @@ const InteractiveAssessmentFlow = () => {
     useEffect(() => {
         setIsAutoAdvancing(false);
     }, [currentStep]);
+
+    // [P1-PANTRY-WIZARD-STEP · 2026-07-11] Modo "Desde mi Nevera": añade el paso
+    // final "Prepara tu Nevera" DENTRO del wizard. Guests excluidos: la Nevera
+    // requiere cuenta (user_inventory persistente); un guest solo puede traer
+    // planSource='pantry' stale de una sesión autenticada previa → flujo libre.
+    const isPantryMode = formData.planSource === 'pantry' && !isGuest;
+
+    // [P1-PANTRY-WIZARD-STEP] Submit único del wizard (extraído del onFinish inline
+    // de QSupplements): en modo libre lo dispara QSupplements ("Finalizar y Generar");
+    // en modo pantry lo dispara el CTA del paso Nevera ("Crear mi plan con esta
+    // Nevera"). Toda la lógica previa (guards P1-FORM-4/P1-3, validación P0-B3,
+    // piso de presupuesto) corre idéntica en ambos caminos.
+    const submitAndGenerate = async () => {
+        // [P1-FORM-4] Guard síncrono PRIMERO (ref), luego state. El ref captura
+        // clicks dentro de la misma React frame; el state captura el caso (raro
+        // pero posible) donde la ref se reinició pero el state aún muestra el
+        // botón disabled (transición de unmount→remount).
+        if (submittingRef.current || isSubmitting) return;
+
+        // [P1-3] Si el descifrado del sensitive cifrado todavía está en vuelo
+        // (caso raro: usuario que loggea en otro tab mientras este wizard corre,
+        // o token refresh disparado durante el flow), no validamos contra campos
+        // sensibles potencialmente vacíos. Toast neutral y NO tocamos
+        // `submittingRef` — el usuario puede reintentar en <1s.
+        if (loadingSensitive) {
+            toast.info('Cargando tus datos…', {
+                description: 'Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.',
+                duration: 3000,
+            });
+            return;
+        }
+
+        // CRITICAL: setear el ref ANTES de cualquier validación o async. Si el
+        // segundo click llega después de este punto pero antes de setIsSubmitting
+        // (varios ms de gap por React batching), el ref ya está true y returna.
+        submittingRef.current = true;
+
+        // [P0-B3] Validación de campos requeridos ANTES de navegar. Si falta
+        // alguno, llevamos al usuario al step correspondiente y mostramos un
+        // toast accionable — preferible a quemar el check de cuota + recibir
+        // 422 genérico desde el backend.
+        const missing = findFirstIncompleteField(formData);
+        if (missing) {
+            // [P1-FORM-4] Liberar el lock: la validación falló, el usuario debe
+            // poder reintentar tras corregir el campo faltante.
+            submittingRef.current = false;
+            const stepIdx = fieldToStepIndex[missing];
+            const label = FIELD_LABELS[missing] || missing;
+            toast.error(`Falta completar: ${label}`, {
+                description: 'Te llevamos al paso correspondiente.',
+                duration: 4000,
+            });
+            if (typeof stepIdx === 'number') {
+                setCurrentStep(stepIdx);
+            }
+            return;
+        }
+
+        // [P1-FORM-AUDIT-BATCH · 2026-07-03] Piso de presupuesto custom TAMBIÉN
+        // en el submit: el validateExtra del step 10 solo corre al pasar por ese
+        // paso — un usuario returning que usa "Saltar a la última pregunta" con
+        // un budgetAmount stale bajo el piso llegaba al backend y quemaba una
+        // ida/vuelta para recibir el 422 budget_below_goal_floor. Mismo SSOT del
+        // validateExtra (piso personalizado _budgetFloorMin → estático).
+        if (formData.budget === 'custom') {
+            const _floor = Number(formData._budgetFloorMin)
+                || minBudgetFor(formData.budgetCurrency || 'DOP', formData.groceryDuration);
+            if (!(Number(formData.budgetAmount) >= _floor)) {
+                submittingRef.current = false;
+                toast.error('Tu presupuesto quedó por debajo del mínimo para tu plan.', {
+                    description: 'Te llevamos al paso de presupuesto para ajustarlo.',
+                    duration: 4000,
+                });
+                const _budgetIdx = fieldToStepIndex['budget'];
+                if (typeof _budgetIdx === 'number') setCurrentStep(_budgetIdx);
+                return;
+            }
+        }
+
+        // [P0-B3] Sin setTimeout artificial: navegamos directo; `Plan.jsx`
+        // muestra su propio LoadingScreen mientras corre la generación SSE real.
+        setIsSubmitting(true);
+        try {
+            navigate('/plan');
+        } catch (error) {
+            // [P1-FORM-4] Liberar ambos lock + state en el path de error. El
+            // cleanup del unmount cubre el caso de navegación exitosa.
+            submittingRef.current = false;
+            toast.error('Ocurrió un error al iniciar la generación');
+            setIsSubmitting(false);
+        }
+    };
 
     // The sequence of steps
     // [P1-FORM-1] Cada step que captura campos `REQUIRED_FORM_FIELDS` declara
@@ -308,123 +403,27 @@ const InteractiveAssessmentFlow = () => {
             title: "Suplementación (Opcional)",
             subtitle: "¿Te gustaría incluir suplementos profesionales en tu plan?",
             hasInternalNext: true,
+            // [P1-PANTRY-WIZARD-STEP · 2026-07-11] En modo pantry este step ya NO es el
+            // final: avanza al paso "Prepara tu Nevera" (abajo) y el submit vive allí.
             component: <QSupplements
-                onFinish={async () => {
-                    // [P1-FORM-4] Guard síncrono PRIMERO (ref), luego state.
-                    // El ref captura clicks dentro de la misma React frame;
-                    // el state captura el caso (raro pero posible) donde la
-                    // ref se reinició pero el state aún muestra el botón
-                    // disabled (transición de unmount→remount).
-                    if (submittingRef.current || isSubmitting) return;
-
-                    // [P1-3] Si el descifrado del sensitive cifrado todavía
-                    // está en vuelo (caso raro: usuario que loggea en otro
-                    // tab mientras este wizard corre, o token refresh
-                    // disparado durante el flow), no validamos contra campos
-                    // sensibles potencialmente vacíos. Toast neutral y NO
-                    // tocamos `submittingRef` — el usuario puede reintentar
-                    // en <1s una vez termine la hidratación.
-                    if (loadingSensitive) {
-                        toast.info('Cargando tus datos…', {
-                            description: 'Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.',
-                            duration: 3000,
-                        });
-                        return;
-                    }
-
-                    // CRITICAL: setear el ref ANTES de cualquier validación
-                    // o async. Si el segundo click llega después de este
-                    // punto pero antes de setIsSubmitting (varios ms de
-                    // gap por React batching), el ref ya está true y returna.
-                    submittingRef.current = true;
-
-                    // [P0-B3] Validación de campos requeridos ANTES de navegar.
-                    // Si falta alguno, llevamos al usuario al step correspondiente
-                    // y mostramos un toast accionable — preferible a quemar el
-                    // check de cuota + recibir 422 genérico desde el backend.
-                    const missing = findFirstIncompleteField(formData);
-                    if (missing) {
-                        // [P1-FORM-4] Liberar el lock: la validación falló,
-                        // el usuario debe poder reintentar tras corregir el
-                        // campo faltante. Sin esto, el botón quedaría
-                        // permanentemente disabled hasta unmount.
-                        submittingRef.current = false;
-                        const stepIdx = fieldToStepIndex[missing];
-                        const label = FIELD_LABELS[missing] || missing;
-                        toast.error(`Falta completar: ${label}`, {
-                            description: 'Te llevamos al paso correspondiente.',
-                            duration: 4000,
-                        });
-                        if (typeof stepIdx === 'number') {
-                            setCurrentStep(stepIdx);
-                        }
-                        return;
-                    }
-
-                    // [P1-FORM-AUDIT-BATCH · 2026-07-03] Piso de presupuesto custom TAMBIÉN
-                    // en el submit: el validateExtra del step 10 solo corre al pasar por ese
-                    // paso — un usuario returning que usa "Saltar a la última pregunta" con
-                    // un budgetAmount stale bajo el piso llegaba al backend y quemaba una
-                    // ida/vuelta para recibir el 422 budget_below_goal_floor. Mismo SSOT del
-                    // validateExtra (piso personalizado _budgetFloorMin → estático).
-                    if (formData.budget === 'custom') {
-                        const _floor = Number(formData._budgetFloorMin)
-                            || minBudgetFor(formData.budgetCurrency || 'DOP', formData.groceryDuration);
-                        if (!(Number(formData.budgetAmount) >= _floor)) {
-                            submittingRef.current = false;
-                            toast.error('Tu presupuesto quedó por debajo del mínimo para tu plan.', {
-                                description: 'Te llevamos al paso de presupuesto para ajustarlo.',
-                                duration: 4000,
-                            });
-                            const _budgetIdx = fieldToStepIndex['budget'];
-                            if (typeof _budgetIdx === 'number') setCurrentStep(_budgetIdx);
-                            return;
-                        }
-                    }
-
-                    // [P1-PANTRY-BUILDER-FLOW · 2026-07-11] Modo "desde mi Nevera" v2
-                    // (feedback owner: "el usuario debe tocar la nevera antes de crear el
-                    // plan"). El submit ya NO genera: desvía a /pantry en modo constructor —
-                    // ahí el usuario agrega/ajusta sus alimentos con un medidor de
-                    // factibilidad en vivo y un CTA "Crear mi plan con esta Nevera" que
-                    // dispara la generación cuando ÉL decide (navega a /plan con el form
-                    // completo ya persistido en el context). El flag vive en sessionStorage:
-                    // sobrevive refresh dentro de la pestaña, muere al cerrarla.
-                    // [P1-PANTRY-BUILDER-GATE] Guests NO entran al desvío: la Nevera requiere
-                    // cuenta (user_inventory persistente) y ProtectedRoute los rebotaría. Un
-                    // guest solo puede traer planSource='pantry' stale de una sesión autenticada
-                    // previa en el mismo navegador → cae al flujo libre normal.
-                    if (formData.planSource === 'pantry' && !isGuest) {
-                        submittingRef.current = false;
-                        try { sessionStorage.setItem('mealfit_pantry_plan_flow', '1'); } catch { /* no-op */ }
-                        toast.info('Último paso: prepara tu Nevera', {
-                            description: 'Agrega o confirma los alimentos que tienes; tu plan se construirá con ellos cuando presiones "Crear mi plan".',
-                            duration: 7000,
-                        });
-                        navigate('/dashboard/pantry');  // [P1-PANTRY-ROUTE-ALIAS] ruta canónica ('/pantry' era 404)
-                        return;
-                    }
-
-                    // [P0-B3] Sin setTimeout artificial: el toast "Analizando..."
-                    // del código anterior era engañoso (no analizaba nada, solo
-                    // dormía 1.5s antes de navegar). Ahora navegamos directo;
-                    // `Plan.jsx` muestra su propio LoadingScreen mientras corre
-                    // la generación SSE real.
-                    setIsSubmitting(true);
-                    try {
-                        navigate('/plan');
-                    } catch (error) {
-                        // [P1-FORM-4] Liberar ambos lock + state en el path
-                        // de error. El cleanup del unmount cubre el caso de
-                        // navegación exitosa (componente se desmonta).
-                        submittingRef.current = false;
-                        toast.error('Ocurrió un error al iniciar la generación');
-                        setIsSubmitting(false);
-                    }
-                }}
+                onFinish={isPantryMode ? () => nextStep() : submitAndGenerate}
                 isSubmitting={isSubmitting}
+                finishLabel={isPantryMode ? 'Siguiente' : undefined}
             />
-        }
+        },
+        // [P1-PANTRY-WIZARD-STEP · 2026-07-11] Paso final condicional del modo
+        // "Desde mi Nevera" (feedback owner: "mejor hacerlo directo en el formulario,
+        // como la pregunta 21" — reemplaza el desvío a /dashboard/pantry). El array
+        // `steps` se rearma en cada render, así que el paso aparece/desaparece
+        // reactivo a planSource; va al FINAL para no mover los índices de
+        // `fieldToStepIndex`. Guests no lo ven (la Nevera requiere cuenta;
+        // QPlanSource ya les bloquea el modo).
+        ...(isPantryMode ? [{
+            title: <>Prepara tu Nevera 🧊</>,
+            subtitle: "Agrega los alimentos que tienes en casa; tu plan se construirá alrededor de ellos y la lista de compras te dirá solo lo que falte.",
+            hasInternalNext: true,
+            component: <QPantryBuilder onFinish={submitAndGenerate} isSubmitting={isSubmitting} />
+        }] : [])
     ];
 
     // [P1-FORM-1] Mapping `field → step index` derivado del array `steps` en

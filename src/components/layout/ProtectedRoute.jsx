@@ -77,17 +77,13 @@ const ProtectedRoute = ({ children, landing = false }) => {
     // Acceso garantizado si ya tiene un plan generado (aunque el perfil aún no esté sincronizado)
     const hasCompletedAssessment = hasHealthProfile || !!planData;
 
-    // [P1-PANTRY-BUILDER-GATE · 2026-07-11] El modo constructor ("Desde mi Nevera")
-    // lleva a un usuario que AÚN NO tiene plan a /dashboard/pantry ANTES de generar
-    // (flag sessionStorage seteado por el wizard). Sin esta excepción, el guard de
-    // assessment-incompleto de abajo lo rebotaba al formulario justo después del
-    // desvío (bug visto en vivo: toast "prepara tu Nevera" + rebote a /assessment).
-    const isOnPantry = location.pathname === '/dashboard/pantry';
-    let _pantryBuilderFlow = false;
-    try { _pantryBuilderFlow = sessionStorage.getItem('mealfit_pantry_plan_flow') === '1'; } catch { /* noop */ }
-
-    if (!hasCompletedAssessment && !isOnAssessment && !isOnPlan && !isOnLanding && !isOnAccountSettings
-        && !(isOnPantry && _pantryBuilderFlow)) {
+    // [P1-PANTRY-WIZARD-STEP · 2026-07-11] Nota histórica: el modo "Desde mi Nevera"
+    // tuvo por unas horas un desvío a /dashboard/pantry ANTES de generar (excepción
+    // aquí gateada por sessionStorage, P1-PANTRY-BUILDER-GATE). Superseded el mismo
+    // día: la Nevera se prepara DENTRO del wizard (paso final QPantryBuilder), así
+    // que ningún usuario sin plan necesita entrar al dashboard y el guard vuelve a
+    // ser uniforme.
+    if (!hasCompletedAssessment && !isOnAssessment && !isOnPlan && !isOnLanding && !isOnAccountSettings) {
         return <Navigate to="/assessment" replace />;
     }
 
