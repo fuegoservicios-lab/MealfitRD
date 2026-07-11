@@ -953,3 +953,16 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
     scroll-behavior: auto !important;
   }
 }
+
+/* [P1-PANTRY-DASH-PARITY · 2026-07-11] Popup nativo de los chips-select de marca
+   (Nevera). El color-scheme a nivel de ELEMENTO es lo que Chrome consulta para
+   pintar el menú del <select> (lección del paso 21: el heredado del html se
+   pierde en estos contextos) — se fija explícito y mapeado al tema. La regla de
+   <option> cubre engines que sí estilan opciones (Firefox). */
+.mf-chip-select { color-scheme: light; }
+html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
+.mf-chip-select option {
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  padding: 5px 12px;
+}

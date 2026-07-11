@@ -2058,7 +2058,7 @@ const Pantry = () => {
                             title={`Marca: ${item.brand || 'Genérico'} — tocar para cambiar`}
                         >
                             <Tag size={9} strokeWidth={2.5} aria-hidden="true" />
-                            <select
+                            <select className="mf-chip-select"
                                 value={item.brand || 'Genérico'}
                                 aria-label={`Marca de ${item.ingredient_name}`}
                                 onChange={(e) => changeItemBrand(item, e.target.value)}
@@ -2225,7 +2225,7 @@ const Pantry = () => {
                                 title={`Marca: ${item.brand || 'Genérico'} — tocar para cambiar`}
                             >
                                 <Tag size={9} strokeWidth={2.5} aria-hidden="true" />
-                                <select
+                                <select className="mf-chip-select"
                                     value={item.brand || 'Genérico'}
                                     aria-label={`Marca de ${item.ingredient_name}`}
                                     onChange={(e) => changeItemBrand(item, e.target.value)}
