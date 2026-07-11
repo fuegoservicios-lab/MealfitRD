@@ -35,6 +35,7 @@
     letter-spacing: -0.035em;
     line-height: 1.04;
     margin: 1.2rem 0 0;
+    text-wrap: balance;
 }
 .accent {
     background: linear-gradient(110deg, var(--primary), var(--accent));
@@ -48,6 +49,9 @@
     font-size: 1.06rem;
     line-height: 1.62;
     color: var(--text-muted);
+    /* [P3-ENGINE-AXIS · 2026-07-11] Texto centrado multilínea: balancear el
+       quiebre de líneas (sin esto las 3 líneas salen desiguales/"dobladas"). */
+    text-wrap: balance;
 }
 
 /* ---------------------------------------------------------------- stats */
@@ -85,6 +89,15 @@
 /* ------------------------------------------------------------- sections */
 .section {
     margin-top: 4rem;
+    /* [P3-ENGINE-AXIS · 2026-07-11] La columna narrativa comparte el EJE del
+       hero centrado: antes las secciones ocupaban los 1000px del page con la
+       prosa (720px) pegada a la izquierda → el centro de lectura quedaba ~120px
+       corrido vs el hero ("doblado"). Ahora toda la sección es una columna de
+       720px centrada (mismo ancho que .prose → un solo eje vertical). La tabla
+       comparativa y las barras caben perfectamente en 720. */
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
 }
 .sectionTitle {
     font-family: var(--font-heading);
@@ -233,12 +246,14 @@
     font-weight: 800;
     letter-spacing: -0.025em;
     margin: 0;
+    text-wrap: balance;
 }
 .finalText {
     color: var(--text-muted);
     margin: 0.75rem auto 1.7rem;
     max-width: 460px;
     line-height: 1.55;
+    text-wrap: balance;
 }
 .ctaRow {
     display: flex;
