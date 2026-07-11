@@ -301,7 +301,9 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                             master_ingredient_id: it.master_ingredient_id,
                             quantity: qty,
                             unit,
-                            brand: null,
+                            // [P1-PANTRY-SCAN-BRAND] marca del empaque → etiqueta el item
+                            // (NO la preferencia global — esa es solo manual).
+                            brand: it.detected_brand || null,
                         }),
                     });
                 } catch (err) {
@@ -541,6 +543,10 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                                     i === idx ? { ...p, selected: !p.selected } : p))} />
                             <span style={{ flex: 1 }}>
                                 {it.catalog_name || it.detected_name}
+                                {/* [P1-PANTRY-SCAN-BRAND] marca leída del empaque */}
+                                {it.detected_brand && (
+                                    <span style={{ color: 'var(--primary)', fontSize: '0.8rem' }}> · {it.detected_brand}</span>
+                                )}
                                 {!it.master_ingredient_id && ' (sin match en el catálogo)'}
                             </span>
                             <span style={{ color: 'var(--text-muted)' }}>
