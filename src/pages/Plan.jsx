@@ -736,7 +736,19 @@ const Plan = () => {
             || location.state?.is_plan_expired
             || location.state?.update_reason
         );
-        return _isRenewal && !isGuest;
+        // [P1-RENEWAL-CHECKIN-FRESH · 2026-07-11] Plan RECIENTE (<4 días) → sin check-in:
+        // renovar el mismo día (test/variedad) = mismas características físicas y el
+        // calibrador de metabolismo no tiene delta de peso que medir. Sin fecha en el
+        // state (entry-points legacy) se conserva el comportamiento previo (mostrar).
+        let _freshPlan = false;
+        try {
+            const _pc = location.state?.plan_created_at;
+            if (_pc) {
+                const _ageDays = (Date.now() - new Date(_pc).getTime()) / 86400000;
+                _freshPlan = Number.isFinite(_ageDays) && _ageDays < 4;
+            }
+        } catch { /* noop */ }
+        return _isRenewal && !isGuest && !_freshPlan;
     });
 
     // 2. USEEFFECT

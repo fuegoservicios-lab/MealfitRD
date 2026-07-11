@@ -256,7 +256,10 @@ export const useRegeneratePlan = () => {
             }
 
             if (toastId) toast.dismiss(toastId);
-            navigate('/plan', { state: { previous_meals: previousMeals, current_pantry_ingredients: typeof currentIngredients !== 'undefined' ? currentIngredients : [], update_reason: reason, renewal_pantry_aware: renewalPantryAware, durable_pantry_ingredients: durablePantryIngredients, is_plan_expired: actualIsPlanExpired, entry_point, disliked_meals: Object.keys(dislikedMeals || {}) } });
+            // [P1-RENEWAL-CHECKIN-FRESH · 2026-07-11] fecha del plan renovado → Plan.jsx salta el
+            // check-in "Antes de tu nuevo ciclo" cuando el plan es reciente (renovar el mismo día
+            // por variedad/test = mismas características físicas, cero señal que medir).
+            navigate('/plan', { state: { previous_meals: previousMeals, current_pantry_ingredients: typeof currentIngredients !== 'undefined' ? currentIngredients : [], update_reason: reason, renewal_pantry_aware: renewalPantryAware, durable_pantry_ingredients: durablePantryIngredients, is_plan_expired: actualIsPlanExpired, entry_point, disliked_meals: Object.keys(dislikedMeals || {}), plan_created_at: planData?.created_at || planData?.plan_start_date || null } });
         } else {
             // [P1-B6] Falta algún campo requerido. Toast informativo + redirect
             // a /assessment (antes el redirect era silencioso y el usuario no
