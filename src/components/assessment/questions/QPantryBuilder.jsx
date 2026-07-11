@@ -479,6 +479,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                 .qpb-select option {
                     background-color: #111827;
                     color: #d1d5db;
+                    padding: 5px 12px;
                 }
             `}</style>
             {/* [P1-PANTRY-SCAN-V0] Escáner por foto — visible solo con provider de
@@ -639,8 +640,10 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                                         onChange={(e) => changeBrand(item, e.target.value)}
                                         style={{
                                             background: 'transparent', color: 'var(--text-muted)',
-                                            border: 'none', fontSize: '0.75rem', padding: 0,
-                                            maxWidth: '150px', cursor: 'pointer',
+                                            border: 'none', fontSize: '0.75rem', padding: '0 14px 0 0',
+                                            // El popup nativo hereda ~el ancho del control: un cap
+                                            // corto (150px) recortaba "Avena Americana (~RD$52)".
+                                            width: 'fit-content', maxWidth: '100%', cursor: 'pointer',
                                         }}>
                                         <option value="">Genérico (sin marca)</option>
                                         {item.brand && !(brandCache[norm(item.ingredient_name)] || []).some(b => b.brand === item.brand) && (
