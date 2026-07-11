@@ -77,7 +77,17 @@ const ProtectedRoute = ({ children, landing = false }) => {
     // Acceso garantizado si ya tiene un plan generado (aunque el perfil aún no esté sincronizado)
     const hasCompletedAssessment = hasHealthProfile || !!planData;
 
-    if (!hasCompletedAssessment && !isOnAssessment && !isOnPlan && !isOnLanding && !isOnAccountSettings) {
+    // [P1-PANTRY-BUILDER-GATE · 2026-07-11] El modo constructor ("Desde mi Nevera")
+    // lleva a un usuario que AÚN NO tiene plan a /dashboard/pantry ANTES de generar
+    // (flag sessionStorage seteado por el wizard). Sin esta excepción, el guard de
+    // assessment-incompleto de abajo lo rebotaba al formulario justo después del
+    // desvío (bug visto en vivo: toast "prepara tu Nevera" + rebote a /assessment).
+    const isOnPantry = location.pathname === '/dashboard/pantry';
+    let _pantryBuilderFlow = false;
+    try { _pantryBuilderFlow = sessionStorage.getItem('mealfit_pantry_plan_flow') === '1'; } catch { /* noop */ }
+
+    if (!hasCompletedAssessment && !isOnAssessment && !isOnPlan && !isOnLanding && !isOnAccountSettings
+        && !(isOnPantry && _pantryBuilderFlow)) {
         return <Navigate to="/assessment" replace />;
     }
 

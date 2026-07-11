@@ -291,7 +291,7 @@ const CATEGORY_NORMALIZE = {
 };
 
 const Pantry = () => {
-    const { session, setPlanData, formData, updateData } = useAssessment();  // formData/updateData: [P1-PANTRY-BUILDER-FLOW]
+    const { session, setPlanData, formData, updateData, planData } = useAssessment();  // formData/updateData/planData: [P1-PANTRY-BUILDER-FLOW]
     const navigate = useNavigate();
 
     // [P1-PANTRY-BUILDER-FLOW · 2026-07-11] Modo constructor: activo si el wizard
@@ -2417,7 +2417,13 @@ const Pantry = () => {
                                 “Crear mi plan” y la IA construirá el menú alrededor de lo que tienes.
                             </p>
                         </div>
-                        <button type="button" onClick={clearPlanFlow} aria-label="Salir del modo constructor"
+                        <button type="button" aria-label="Salir del modo constructor"
+                            onClick={() => {
+                                clearPlanFlow();
+                                // [P1-PANTRY-BUILDER-GATE] Sin plan aún, la Nevera fuera del modo
+                                // constructor está gateada (ProtectedRoute) → destino determinista.
+                                if (!planData) navigate('/assessment');
+                            }}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.25rem' }}>
                             <X size={18} />
                         </button>

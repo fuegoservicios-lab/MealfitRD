@@ -29,7 +29,7 @@ import { toast } from 'sonner';
 import { buildFieldToStepIndex, FIELD_LABELS, findFirstIncompleteField, minBudgetFor } from '../../config/formValidation';
 
 const InteractiveAssessmentFlow = () => {
-    const { currentStep, setCurrentStep, nextStep, formData, maxReachedStep, planData, loadingSensitive } = useAssessment();
+    const { currentStep, setCurrentStep, nextStep, formData, maxReachedStep, planData, loadingSensitive, isGuest } = useAssessment();  // isGuest: [P1-PANTRY-BUILDER-GATE]
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -390,7 +390,11 @@ const InteractiveAssessmentFlow = () => {
                     // dispara la generación cuando ÉL decide (navega a /plan con el form
                     // completo ya persistido en el context). El flag vive en sessionStorage:
                     // sobrevive refresh dentro de la pestaña, muere al cerrarla.
-                    if (formData.planSource === 'pantry') {
+                    // [P1-PANTRY-BUILDER-GATE] Guests NO entran al desvío: la Nevera requiere
+                    // cuenta (user_inventory persistente) y ProtectedRoute los rebotaría. Un
+                    // guest solo puede traer planSource='pantry' stale de una sesión autenticada
+                    // previa en el mismo navegador → cae al flujo libre normal.
+                    if (formData.planSource === 'pantry' && !isGuest) {
                         submittingRef.current = false;
                         try { sessionStorage.setItem('mealfit_pantry_plan_flow', '1'); } catch { /* no-op */ }
                         toast.info('Último paso: prepara tu Nevera', {
