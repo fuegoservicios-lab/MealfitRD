@@ -19,7 +19,11 @@ export const NextButton = ({ onClick, disabled, label = "Siguiente", icon: Icon 
         className="mf-cta-btn"
         style={{
             padding: '1rem 3rem',
-            background: disabled ? 'var(--bg-muted)' : 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
+            // [FORM-CTA-CALM-GRADIENT · 2026-07-11] A pedido del usuario ("los siento
+            // muy brillosos"): gradiente a las variantes `-dark` de marca (indigo/emerald
+            // 500) en vez de las aclaradas 400 — menos neón en modo oscuro, look más
+            // sobrio en claro. Scoped al CTA del formulario; no toca las vars globales.
+            background: disabled ? 'var(--bg-muted)' : 'linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%)',
             color: disabled ? '#94A3B8' : 'white',
             border: 'none',
             borderRadius: '1rem',
