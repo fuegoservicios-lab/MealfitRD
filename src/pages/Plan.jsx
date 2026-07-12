@@ -182,6 +182,17 @@ const PIPELINE_TIMEOUT_MS = (() => {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 990000;
 })();
 
+// [P1-SSE-IDLE-WATCHDOG · 2026-07-12] Timeout de INACTIVIDAD del stream SSE (distinto
+// del PIPELINE_TIMEOUT_MS de arriba, que solo cubre hasta los headers). El backend
+// emite un heartbeat cada ~5s (routers/plans.py) → 75s = 15 heartbeats perdidos, sin
+// falsos positivos. Si el backend cambia el intervalo de heartbeat a >75s, subir este
+// knob. Override en prod con VITE_SSE_IDLE_TIMEOUT_MS.
+const SSE_IDLE_TIMEOUT_MS = (() => {
+    const raw = import.meta.env.VITE_SSE_IDLE_TIMEOUT_MS;
+    const parsed = parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 75000;
+})();
+
 // --- GENERACIÓN DE PLAN CON STREAMING SSE ---
 let globalGenerationPromise = null;
 let globalAbortController = null;
@@ -252,6 +263,25 @@ export const generateAIPlanStream = async (formData, onProgress) => {
             if (globalAbortController) globalAbortController.abort();
         }, PIPELINE_TIMEOUT_MS);
 
+        // [P1-SSE-IDLE-WATCHDOG · 2026-07-12] Watchdog de inactividad del stream. El
+        // `timeoutId` de arriba se limpia al llegar los headers (L~264), así que durante
+        // el `while(reader.read())` no había timeout: un SSE que muere en silencio en
+        // desktop dejaba el read colgado y el spinner vivo ~16min. Este timer se re-arma
+        // en CADA frame leído (el heartbeat del backend cuenta como señal de vida); si
+        // pasan SSE_IDLE_TIMEOUT_MS sin bytes, aborta el reader con reason 'IdleWatchdog'
+        // → el catch propaga code='sse_idle' → el caller reconcilia vía pending-status.
+        // Declarado aquí (no dentro del try) para que catch/finally puedan limpiarlo.
+        let idleTimer = null;
+        const armIdleWatchdog = () => {
+            if (idleTimer) clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => {
+                // localAbortController (no el global, que cancelGeneration nulifica).
+                if (localAbortController && !localAbortController.signal.aborted) {
+                    localAbortController.abort('IdleWatchdog');
+                }
+            }, SSE_IDLE_TIMEOUT_MS);
+        };
+
         try {
             // Intentar endpoint SSE streaming
             const response = await fetchWithRetry(STREAM_URL, {
@@ -293,9 +323,13 @@ export const generateAIPlanStream = async (formData, onProgress) => {
             let buffer = '';
             let finalResult = null;
 
+            armIdleWatchdog(); // arma antes del primer read
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
+                // [P1-SSE-IDLE-WATCHDOG] Re-armar en CADA frame (incl. heartbeat cada
+                // ~5s) → mientras el stream tenga vida el timer nunca dispara.
+                armIdleWatchdog();
 
                 buffer += decoder.decode(value, { stream: true });
 
@@ -378,6 +412,24 @@ export const generateAIPlanStream = async (formData, onProgress) => {
             ) {
                 console.warn("🚫 Generación cancelada por el usuario (signal abortado).");
                 throw new Error("UserCancelled");
+            }
+
+            // [P1-SSE-IDLE-WATCHDOG · 2026-07-12] Abort por INACTIVIDAD del stream
+            // (reason 'IdleWatchdog'). DEBE ir tras el check UserCancelled (arriba: el
+            // cancel del usuario siempre gana) y ANTES del check genérico de AbortError
+            // (abajo), que lo trataría como "Timeout total excedido" → fallback síncrono
+            // → offline_unavailable. Propagamos code='sse_idle' para que el caller
+            // reconcilie vía pending-status (el backend probablemente sigue generando)
+            // en vez de reintentar/rebotar al formulario.
+            if (
+                localAbortController &&
+                localAbortController.signal.aborted &&
+                localAbortController.signal.reason === 'IdleWatchdog'
+            ) {
+                console.warn("⏱️ SSE inactivo — abortando reader colgado (watchdog de inactividad).");
+                const idleErr = new Error("El stream se quedó en silencio.");
+                idleErr.code = 'sse_idle';
+                throw idleErr;
             }
 
             if (error.name === 'AbortError' || error === 'UserCancelled') {
@@ -534,6 +586,9 @@ export const generateAIPlanStream = async (formData, onProgress) => {
             offlineErr.code = 'offline_unavailable';
             throw offlineErr;
         } finally {
+            // [P1-SSE-IDLE-WATCHDOG] Limpiar el watchdog en TODOS los exits (return
+            // normal, throw→catch→rethrow, fallback). Punto único de limpieza.
+            if (idleTimer) clearTimeout(idleTimer);
             globalGenerationPromise = null;
             globalAbortController = null;
             // [P1-16] Limpiar session_id de cancelación al completar
@@ -594,6 +649,12 @@ const Plan = () => {
     const [tempPlan] = useState(null); // Nuevo estado para GAP 14
     const [oldPlan, setOldPlan] = useState(null); // Estado para el plan viejo
     const [streamPhase, setStreamPhase] = useState(null); // Fase actual del pipeline SSE
+    // [P1-SSE-IDLE-WATCHDOG · 2026-07-12] Ref al `reconcile` del reconciliador de
+    // recovery (definido dentro de su useEffect). Permite que el handler de 'sse_idle'
+    // en processPlan dispare una reconciliación inmediata vía pending-status SIN
+    // duplicar la lógica (goDashboard/adopt/ack). null mientras el reconciliador no
+    // está montado (status != generating/analyzing).
+    const reconcileRef = useRef(null);
     const [daysCompleted, setDaysCompleted] = useState([]); // Días ya generados [1, 2, 3]
     // [P0-13] Dedupea el toast "Falta completar X" para que NO se emita más
     // de una vez por mount, incluso bajo StrictMode o re-renders provocados
@@ -659,10 +720,14 @@ const Plan = () => {
         const reconcile = async (trigger) => {
             if (done) return;
             const isResume = trigger === 'resume';
+            // [P1-SSE-IDLE-WATCHDOG · 2026-07-12] El trigger 'watchdog' (SSE murió en
+            // silencio en desktop) corre SIEMPRE (aunque la pestaña esté visible) y
+            // fuerza act=true — sin esto el desktop esperaría hasta elapsed>13min.
+            const isWatchdog = trigger === 'watchdog';
             // El intervalo mientras la pestaña está OCULTA no hace trabajo (el user no está mirando); los
             // eventos de resume SIEMPRE corren (el user acaba de volver, aunque visibilityState tarde en fijarse).
-            if (!isResume && typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-            if (isResume) resumed = true;
+            if (!isResume && !isWatchdog && typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+            if (isResume || isWatchdog) resumed = true;
             const elapsed = readElapsedSec();
             const watchdog = elapsed > 13 * 60; // pasó la ETA (9-10min) → el SSE claramente no entregó
             const act = isResume || resumed || watchdog;
@@ -690,6 +755,9 @@ const Plan = () => {
                 // 'generating' → pipeline vivo, seguir esperando.
             } catch { /* red flaky → reintenta en el próximo tick/resume */ }
         };
+        // [P1-SSE-IDLE-WATCHDOG · 2026-07-12] Expone el reconcile actual para que el
+        // handler de 'sse_idle' lo dispare con trigger='watchdog'.
+        reconcileRef.current = reconcile;
         // RÁFAGA al volver: chequeo inmediato + 2 rechequeos cortos, por si el primer fetch pilla la red de
         // iOS aún despertando. Hace la navegación casi instantánea sin pollear rápido de forma permanente.
         const burstTimers = [];
@@ -707,6 +775,7 @@ const Plan = () => {
         reconcile('interval'); // check inmediato (solo actúa si resumed/watchdog)
         return () => {
             done = true;
+            reconcileRef.current = null;
             clearInterval(interval);
             burstTimers.forEach((t) => clearTimeout(t));
             if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onResume);
@@ -1274,6 +1343,22 @@ const Plan = () => {
                     // toast + redirect al formulario para que el user vea el
                     // contexto completo y pueda reintentar (incluyendo refrescar
                     // su perfil si suspendió la PC y la sesión expiró).
+                    if (error.code === 'sse_idle') {
+                        // [P1-SSE-IDLE-WATCHDOG · 2026-07-12] El SSE murió en SILENCIO
+                        // (watchdog de inactividad; típico en desktop: proxy idle-timeout,
+                        // cambio de red sin RST). A diferencia de offline_unavailable, el
+                        // backend PROBABLEMENTE sigue generando (solo se perdió el stream).
+                        // Reconciliar YA vía el reconciliador de recovery (reusa
+                        // goDashboard/adopt/ack; con trigger='watchdog' fuerza act=true y
+                        // marca resumed=true en el closure vivo, así el poll de 3s navega
+                        // al completar). Si el KV dice complete → dashboard; si generating →
+                        // deja el spinner. NO limpiar el flag ni rebotar al formulario.
+                        setStreamPhase('recovery_mode');
+                        try {
+                            await reconcileRef.current?.('watchdog');
+                        } catch { /* el reconciliador maneja sus errores de red; el poll de 3s reintenta */ }
+                        return;
+                    }
                     if (error.code === 'offline_unavailable') {
                         // [P1-MOBILE-SSE-DROP-RECOVERY · 2026-07-09] En MÓVIL el SSE puede CAER (app a
                         // segundo plano / red flaky) aunque el backend + el pipeline deep-search sigan VIVOS
