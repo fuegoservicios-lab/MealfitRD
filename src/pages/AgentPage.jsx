@@ -1542,7 +1542,7 @@ const AgentPage = () => {
             st.sig = _sig;
             st.attempts = 0;
         }
-        if (st.attempts > 6) return; // episodio ya agotado para este huérfano
+        if (st.attempts > 30) return; // episodio ya agotado para este huérfano
 
         st.active = true;
         setRecoveringTurn(true);
@@ -1551,7 +1551,7 @@ const AgentPage = () => {
             const cur = _recoveryRef.current;
             if (!cur.active) return;
             cur.attempts += 1;
-            if (cur.attempts > 6) {
+            if (cur.attempts > 30) {
                 cur.active = false;
                 cur.doneSig = cur.sig; // episodio agotado — no relanzar este huérfano
                 // [P1-CHAT-STOP-POWER v2] Persistir el agotamiento: sin esto un
@@ -1601,7 +1601,7 @@ const AgentPage = () => {
                     }
                 }
             } catch { /* red inestable — seguir sondeando */ }
-            cur.timer = setTimeout(_poll, 4000);
+            cur.timer = setTimeout(_poll, 8000);
         };
         st.timer = setTimeout(_poll, 2500);
         // eslint-disable-next-line react-hooks/exhaustive-deps
