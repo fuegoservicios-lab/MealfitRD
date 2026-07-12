@@ -247,6 +247,16 @@ const Recipes = () => {
             `;
         }).join('') : '';
 
+        // [P2-PDF-FINISH-ROW · 2026-07-12] Cierre "¡Listo para disfrutar!" —
+        // mismo remate que el timeline de la vista (nodo verde + texto), para
+        // que el lector sepa que la preparación termina ahí. Solo si hay pasos.
+        const finishHTML = _recipeSteps.length ? `
+            <div style="display: flex; gap: 0.6em; align-items: center; margin-top: 0.15em;">
+                <div style="flex: none; width: 1.5em; height: 1.5em; border-radius: 50%; background: #10B981; color: #ffffff; font-size: 0.72em; font-weight: 800; display: flex; align-items: center; justify-content: center;">&#10003;</div>
+                <div style="font-size: 0.78em; font-weight: 800; color: #10B981;">¡Listo para disfrutar!</div>
+            </div>
+        ` : '';
+
         const ingredientsHTML = meal.ingredients ? meal.ingredients.map(ing => `
             <div style="display: flex; align-items: flex-start; gap: 0.45em; margin-bottom: 0.5em; font-size: 0.72em; line-height: 1.4; color: #334155;">
                 <span style="flex: none; width: 0.5em; height: 0.5em; border-radius: 50%; background: #10B981; margin-top: 0.42em;"></span>
@@ -304,7 +314,7 @@ const Recipes = () => {
                     </div>
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 0.8em; font-weight: 800; margin: 0 0 0.7em; padding-bottom: 0.4em; border-bottom: 2px solid #E2E8F0; text-transform: uppercase; letter-spacing: 0.06em; color: #0F172A;">Preparación</div>
-                        ${stepsHTML || `<div style="font-size: 0.74em; color: #64748B;">Guíate de la descripción general del plato.</div>`}
+                        ${stepsHTML ? `${stepsHTML}${finishHTML}` : `<div style="font-size: 0.74em; color: #64748B;">Guíate de la descripción general del plato.</div>`}
                     </div>
                 </div>
 
