@@ -1452,6 +1452,94 @@ const AgentPage = () => {
         fetchSessionMessages(currentSessionId);
     }, [currentSessionId, fetchSessionMessages, session?.user?.id]);
 
+    // [P1-CHAT-REFRESH-RECOVER · 2026-07-12] Turno huérfano tras un refresh:
+    // el usuario envió, recargó a mitad de la respuesta y el estado del turno
+    // murió con la página — su mensaje quedaba MUDO para siempre (sin
+    // indicador "pensando", sin respuesta, sin retry). Al detectar "último
+    // mensaje = user y nada en vuelo": mostramos el indicador, sondeamos el
+    // historial (si el server alcanzó a completar y persistir, la respuesta
+    // aparece) y si tras ~26s no llegó, dejamos una burbuja retryable. Mismo
+    // espíritu que el spinner del swap que sobrevive refresh (P1-SWAP-REGEN-
+    // RESUME). El sondeo es CONSERVADOR: solo rehidrata del server cuando este
+    // va igual o adelante del estado local (no pierde la burbuja huérfana).
+    const [recoveringTurn, setRecoveringTurn] = useState(false);
+    const _recoveryRef = useRef({ active: false, attempts: 0, timer: null });
+
+    useEffect(() => () => {
+        const st = _recoveryRef.current;
+        if (st.timer) { clearTimeout(st.timer); st.timer = null; }
+        st.active = false;
+    }, []);
+
+    useEffect(() => {
+        const last = messages[messages.length - 1];
+        const orphan = Boolean(
+            last && last.role === 'user' && !isLoading && !isLoadingHistory
+        );
+        const st = _recoveryRef.current;
+        if (!orphan) {
+            if (st.active) {
+                st.active = false;
+                st.attempts = 0;
+                if (st.timer) { clearTimeout(st.timer); st.timer = null; }
+                setRecoveringTurn(false);
+            }
+            return;
+        }
+        if (st.active) return; // ya sondeando este huérfano
+
+        st.active = true;
+        st.attempts = 0;
+        setRecoveringTurn(true);
+
+        const _poll = async () => {
+            const cur = _recoveryRef.current;
+            if (!cur.active) return;
+            cur.attempts += 1;
+            if (cur.attempts > 6) {
+                cur.active = false;
+                setRecoveringTurn(false);
+                setMessages(prev => {
+                    const lastPrev = prev[prev.length - 1];
+                    if (!lastPrev || lastPrev.role !== 'user') return prev;
+                    const canRetry = Boolean((lastPrev.content || '').trim()) && !lastPrev.isImage;
+                    return [...prev, {
+                        role: 'model',
+                        content: canRetry
+                            ? '⚠ La página se recargó antes de que llegara la respuesta. Puedes reintentar.'
+                            : '⚠ La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).',
+                        errorType: 'refresh_orphan',
+                        retryable: canRetry,
+                        retryPrompt: canRetry ? lastPrev.content : null,
+                        retryImageUrl: null,
+                        _isErrorBubble: true,
+                    }];
+                });
+                return;
+            }
+            try {
+                const res = await fetchWithAuth(`/api/chat/history/${currentSessionId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const serverCount = (data?.messages || []).length;
+                    const localCount = (messagesRef.current || [])
+                        .filter(m => !m.isWelcome && !m._isErrorBubble).length;
+                    // Server igual o adelante → el turno persistió: rehidratar
+                    // (fetchSessionMessages limpia wrappers y conserva thumbs).
+                    if (serverCount >= localCount + 1) {
+                        cur.active = false;
+                        setRecoveringTurn(false);
+                        fetchSessionMessages(currentSessionId);
+                        return;
+                    }
+                }
+            } catch { /* red inestable — seguir sondeando */ }
+            cur.timer = setTimeout(_poll, 4000);
+        };
+        st.timer = setTimeout(_poll, 2500);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [messages, isLoading, isLoadingHistory, currentSessionId]);
+
     const handleNewChat = () => {
         const newId = crypto.randomUUID();
         setGuestSessionIds(prev => {
@@ -2966,7 +3054,7 @@ const AgentPage = () => {
                                         />
                                     ))
                                 )}
-                                {isLoading && (
+                                {(isLoading || recoveringTurn) && (
                                     <div style={{
                                         display: 'flex',
                                         gap: '0.75rem',
@@ -2995,9 +3083,11 @@ const AgentPage = () => {
                                             WebkitTextFillColor: 'transparent',
                                             animation: 'shimmer 2s linear infinite',
                                             transition: 'opacity 0.3s ease-in-out'
-                                        }}>{streamingStatus && streamingStatus.startsWith('Analizando tu foto')
-                                            ? streamingStatus
-                                            : (streamingStatus ? loadingPhrases[loadingPhraseIdx] : 'Pensando...')}</span>
+                                        }}>{recoveringTurn && !isLoading
+                                            ? 'Recuperando tu respuesta…'
+                                            : (streamingStatus && streamingStatus.startsWith('Analizando tu foto')
+                                                ? streamingStatus
+                                                : (streamingStatus ? loadingPhrases[loadingPhraseIdx] : 'Pensando...'))}</span>
                                     </div>
                                 )}
                                 <div ref={messagesEndRef} />
