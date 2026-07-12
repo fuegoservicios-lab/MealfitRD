@@ -314,7 +314,16 @@ const Pantry = () => {
     // CHUNK_MIN_FRESH_PANTRY_ITEMS) → cero drift. Debounce 700ms tras cada cambio de inventario
     // para que el delete/add persista server-side antes de re-consultar (evita conteo stale).
     // Cero costo LLM; fail-soft (sin aviso si falla). Guests → safe defaults (sin aviso).
-    const [pantryStatus, setPantryStatus] = useState(null);
+    // [P2-SCAN-BTN-STABLE · 2026-07-12] Bootstrap del último `photo_scan_enabled`
+    // conocido (patrón P3-RESTOCK-BTN-STABLE): el fetch de pantry-status se difiere
+    // 700ms a propósito → el botón "Escanear mi nevera" desaparecía ~1s en cada
+    // mount/refresh (feedback owner). Primer paint desde cache; el resto de keys
+    // (is_below, meaningful_count) siguen esperando al fetch real — sus banners ya
+    // eran fetch-gated y no parpadean como CTA.
+    const [pantryStatus, setPantryStatus] = useState(() => {
+        const v = safeLocalStorageGet('mealfit_scan_btn', null);
+        return v === '1' ? { photo_scan_enabled: true } : null;
+    });
     useEffect(() => {
         let cancelled = false;
         const t = setTimeout(async () => {
@@ -322,7 +331,11 @@ const Pantry = () => {
                 const resp = await fetchWithAuth('/api/plans/pantry-status');
                 if (resp?.ok) {
                     const data = await resp.json();
-                    if (!cancelled) setPantryStatus(data);
+                    if (!cancelled) {
+                        setPantryStatus(data);
+                        // [P2-SCAN-BTN-STABLE] persistir para el próximo primer paint.
+                        safeLocalStorageSet('mealfit_scan_btn', data?.photo_scan_enabled ? '1' : '0');
+                    }
                 }
             } catch { /* fail-soft: sin aviso */ }
         }, 700);
