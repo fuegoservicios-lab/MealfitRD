@@ -16,6 +16,9 @@ import { mintFirstPartySession, checkFirstPartySession, logoutFirstPartySession,
 // para los reads en el initializer del provider (líneas 88+) donde un
 // throw de localStorage congela el provider entero.
 import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
+// [POSTHOG-ANALYTICS · 2026-07-12] identify/reset per-usuario + trackEvent del embudo.
+import { identifyPostHog, resetPostHog } from '../utils/posthogClient';
+import { trackEvent } from '../utils/analytics';
 // [P1-GUEST-MODE · 2026-06-15] Helpers del modo invitado (funnel del plan
 // gratuito sin cuenta). Ver utils/guestMode.js.
 import {
@@ -1750,6 +1753,11 @@ export const AssessmentProvider = ({ children }) => {
                 if (await _resolveViaFirstParty()) return;
             }
             handleAuthChange(newSession);
+            // [POSTHOG-ANALYTICS · 2026-07-12] Asocia/desasocia los eventos al usuario.
+            // No-op sin window.posthog (sin key o opt-out). El caso first-party (return
+            // arriba) ya quedó identificado en su sesión previa (identify persiste).
+            if (newSession?.user?.id) identifyPostHog(newSession.user.id);
+            else resetPostHog();
         });
 
         return () => subscription.unsubscribe();
@@ -3206,6 +3214,9 @@ export const AssessmentProvider = ({ children }) => {
         // useEffect re-escribe el mismo valor en el próximo commit). `data` ya trae
         // `cycle_start_date`/`grocery_start_date` inyectados por Plan.jsx.
         safeLocalStorageSet('mealfit_plan', data);
+        // [POSTHOG-ANALYTICS · 2026-07-12] Evento del embudo: plan generado con éxito
+        // (post-SSE-success, backend ya persistió). No-op sin PostHog inicializado.
+        trackEvent('plan_generated', { days: Array.isArray(data?.days) ? data.days.length : undefined });
         // [P1-B8] NO limpiar likedMeals al aceptar un plan nuevo. Los likes son
         // meta-state user-level que se construye con el tiempo y persiste server-side
         // (vía `/api/plans/like`). Antes este `setLikedMeals({})` provocaba:

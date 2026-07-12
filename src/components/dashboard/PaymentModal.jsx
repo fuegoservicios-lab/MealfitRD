@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
+// [POSTHOG-ANALYTICS · 2026-07-12] Evento del embudo de pago.
+import { trackEvent } from '../../utils/analytics';
 // [P2-CUSTOM-MODALS-A11Y · 2026-05-24] Hook SSOT de defenses a11y mínimas.
 // PaymentModal es CRÍTICO: surface de pago PayPal sin focus trap dejaba
 // Tab escapar al fondo durante el flujo de checkout. Layout split-screen
@@ -330,7 +332,7 @@ const PaymentModal = ({
                                                 fundingSource={FUNDING.CARD}
                                                 style={{ shape: "rect", color: "black", label: "subscribe", height: 50, tagline: false }}
                                                 createSubscription={handleCreateSubscription}
-                                                onApprove={async (data) => { try { onSuccess(data.subscriptionID, couponResult?.valid ? couponCode.trim().toUpperCase() : null); } catch (err) { console.error(err); } }}
+                                                onApprove={async (data) => { try { trackEvent('subscription_activated', { tier, isAnnual, coupon: !!(couponResult?.valid) }); onSuccess(data.subscriptionID, couponResult?.valid ? couponCode.trim().toUpperCase() : null); } catch (err) { console.error(err); } }}
                                                 onError={(err) => {
                                                     // [P2-PAYPAL-ONERROR-TOAST · 2026-05-30] El SDK puede
                                                     // fallar mid-checkout (5xx PayPal, red, popup bloqueado,
@@ -372,7 +374,7 @@ const PaymentModal = ({
                                                 fundingSource={FUNDING.PAYPAL}
                                                 style={{ shape: "rect", color: "gold", label: "subscribe", height: 50, tagline: false }}
                                                 createSubscription={handleCreateSubscription}
-                                                onApprove={async (data) => { try { onSuccess(data.subscriptionID, couponResult?.valid ? couponCode.trim().toUpperCase() : null); } catch (err) { console.error(err); } }}
+                                                onApprove={async (data) => { try { trackEvent('subscription_activated', { tier, isAnnual, coupon: !!(couponResult?.valid) }); onSuccess(data.subscriptionID, couponResult?.valid ? couponCode.trim().toUpperCase() : null); } catch (err) { console.error(err); } }}
                                                 onError={(err) => {
                                                     // [P2-PAYPAL-ONERROR-TOAST · 2026-05-30] Ver nota en el
                                                     // botón de tarjeta arriba — mismo feedback al usuario.

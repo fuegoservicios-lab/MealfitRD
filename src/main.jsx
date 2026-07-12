@@ -24,6 +24,8 @@ import App from './App.jsx'
 import { APP_VERSION } from './config/appVersion'
 // [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Anti-loop compartido con los boundaries.
 import { shouldAutoReloadForChunkError } from './utils/chunkReloadGuard'
+// [POSTHOG-ANALYTICS · 2026-07-12] Analítica de producto (gated por VITE_POSTHOG_KEY).
+import { initPostHog } from './utils/posthogClient'
 
 // [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Listener CANONICO de Vite para fallos de
 // preload de chunks/CSS tras un deploy (cubre cualquier formato futuro del
@@ -285,6 +287,18 @@ if (typeof window !== 'undefined') {
     window.requestIdleCallback(_attachSentryIntegrations, { timeout: 4000 });
   } else {
     setTimeout(_attachSentryIntegrations, 2000);
+  }
+}
+
+// [POSTHOG-ANALYTICS · 2026-07-12] Init de PostHog en idle, mismo patrón diferido que
+// Sentry arriba (fuera del critical-path entry). No-op total sin VITE_POSTHOG_KEY.
+// Al inicializar expone window.posthog → trackEvent (analytics.js) enruta solo, y
+// autocapture da usuarios activos / pageviews / retención sin más código.
+if (typeof window !== 'undefined') {
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(() => initPostHog(), { timeout: 4000 });
+  } else {
+    setTimeout(() => initPostHog(), 2000);
   }
 }
 
