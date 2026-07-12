@@ -67,14 +67,15 @@
   font-size: 12px;
   cursor: pointer;
   box-shadow: 0 5px 14px -8px color-mix(in srgb, var(--primary) 70%, transparent);
-  transition: background 0.16s, transform 0.16s, box-shadow 0.16s;
+  /* [P3-VERBTN-NO-MOTION · 2026-07-12] Sin movimiento: se retiró el
+     `transform: translateY(-1px)` (lift) y el crecimiento de sombra al hover
+     por pedido del owner. El botón queda fijo; solo cambia el fondo al hover
+     como feedback (no es desplazamiento). */
+  transition: background 0.16s;
 }
 .verBtn:hover {
   background: var(--primary-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 11px 22px -9px color-mix(in srgb, var(--primary) 78%, transparent);
 }
-.verBtn:active { transform: translateY(0); }
 .verChevron { width: 13px; height: 13px; }
 /* En oscuro el primary es claro → texto oscuro para contraste (idéntico al DS) */
 :global(html[data-theme='dark']) .verBtn { color: #0b1120; }
