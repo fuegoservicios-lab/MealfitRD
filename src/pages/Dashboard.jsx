@@ -4137,6 +4137,7 @@ const DashboardInner = () => {
                 .restock-modal-confirm:hover:not(:disabled) {
                     background: #1E293B; /* slate-800 — sutilmente más claro */
                     box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.3);
+                    transform: translateY(-1px); /* [P3-RESTOCK-MODAL-POLISH] lift de familia */
                 }
                 .restock-modal-confirm:hover:not(:disabled) .restock-modal-arrow {
                     transform: translateX(4px);
@@ -4201,6 +4202,45 @@ const DashboardInner = () => {
                     color: var(--text-main);
                 }
 
+                /* [P3-RESTOCK-MODAL-POLISH · 2026-07-12] Familia de diálogos pulidos
+                   (mismo lenguaje que la confirmación destructiva de la Nevera, en
+                   clave POSITIVA): icono con gradiente emerald + halo concéntrico +
+                   glow, chips con tinte sutil. Theme-aware vía tokens --success*. */
+                .restock-modal-icon {
+                    position: relative;
+                    width: 60px;
+                    height: 60px;
+                    border-radius: 18px;
+                    margin: 0 auto 1.25rem;
+                    display: grid;
+                    place-items: center;
+                    color: var(--success-text);
+                    background: linear-gradient(160deg,
+                        color-mix(in srgb, var(--success) 20%, var(--bg-card)),
+                        color-mix(in srgb, var(--success) 7%, var(--bg-card)));
+                    border: 1px solid color-mix(in srgb, var(--success) 35%, transparent);
+                    box-shadow: 0 10px 28px -8px color-mix(in srgb, var(--success) 40%, transparent);
+                }
+                .restock-modal-icon::after {
+                    content: '';
+                    position: absolute;
+                    inset: -9px;
+                    border-radius: 24px;
+                    border: 1px solid color-mix(in srgb, var(--success) 16%, transparent);
+                    pointer-events: none;
+                }
+                .restock-modal-chip {
+                    font-size: 0.72rem;
+                    color: var(--text-muted);
+                    border: 1px solid var(--border);
+                    border-radius: 999px;
+                    padding: 0.24rem 0.68rem;
+                    white-space: nowrap;
+                    max-width: 140px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    background: color-mix(in srgb, var(--text-main) 4%, transparent);
+                }
                 @media (max-width: 768px) {
                     .dashboard-header {
                         padding: 1.25rem;
@@ -7543,9 +7583,14 @@ const DashboardInner = () => {
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                             style={{
-                                background: 'var(--bg-card)', borderRadius: '1.5rem', padding: '2rem',
+                                /* [P3-RESTOCK-MODAL-POLISH · 2026-07-12] Tinte radial emerald
+                                   arriba + sombra en capas + highlight interior (familia de
+                                   diálogos pulidos, clave positiva). */
+                                background: 'radial-gradient(130% 75% at 50% 0%, color-mix(in srgb, var(--success) 8%, transparent), transparent 55%), var(--bg-card)',
+                                border: '1px solid var(--border)',
+                                borderRadius: '24px', padding: '2rem',
                                 width: '100%', maxWidth: '400px', textAlign: 'center',
-                                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                                boxShadow: '0 32px 80px -16px rgba(0, 0, 0, 0.5), inset 0 1px 0 color-mix(in srgb, #ffffff 7%, transparent)',
                                 overflow: 'hidden', position: 'relative'
                             }}
                         >
@@ -7563,46 +7608,27 @@ const DashboardInner = () => {
                                         exit={{ opacity: 0, y: -10 }}
                                         transition={{ duration: 0.2 }}
                                     >
-                                        {/* Icon outline sin background — flotante, minimal.
-                                            Ring slate-200 alrededor en lugar del cuadro verde
-                                            saturado. Dot emerald pequeño tipo "status" en la
-                                            esquina inferior derecha — preserva semántica
-                                            "ready/success" del verde sin saturar. */}
-                                        <div style={{
-                                            position: 'relative',
-                                            width: '56px', height: '56px',
-                                            borderRadius: '16px',
-                                            border: '1.5px solid var(--border)',
-                                            background: 'var(--bg-card)',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            margin: '0 auto 1.5rem auto',
-                                            boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)'
-                                        }}>
-                                            <ShoppingCart size={24} color="var(--text-main)" strokeWidth={1.75} />
-                                            {/* Status dot — emerald punto pequeño, lateral */}
-                                            <span style={{
-                                                position: 'absolute',
-                                                bottom: '-3px', right: '-3px',
-                                                width: '14px', height: '14px',
-                                                borderRadius: '50%',
-                                                background: '#10B981',
-                                                border: '2.5px solid var(--bg-card)',
-                                                boxShadow: '0 1px 2px rgba(16, 185, 129, 0.4)'
-                                            }} aria-hidden="true" />
+                                        {/* [P3-RESTOCK-MODAL-POLISH · 2026-07-12] Icono con
+                                            gradiente emerald + halo concéntrico + glow (clase
+                                            .restock-modal-icon — el ::after del halo requiere
+                                            CSS, no inline). El dot de status quedó redundante:
+                                            el contenedor ya carga la semántica emerald. */}
+                                        <div className="restock-modal-icon">
+                                            <ShoppingCart size={26} strokeWidth={1.9} />
                                         </div>
 
                                         <h2
                                             id="restock-modal-title"
                                             style={{
-                                                fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-main)',
-                                                marginBottom: '0.5rem', letterSpacing: '-0.015em'
+                                                fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)',
+                                                marginBottom: '0.5rem', letterSpacing: '-0.02em', textWrap: 'balance'
                                             }}
                                         >
                                             Confirmar compra
                                         </h2>
                                         <p style={{
                                             color: 'var(--text-muted)', fontSize: '0.92rem', lineHeight: '1.55',
-                                            maxWidth: '320px',
+                                            maxWidth: '320px', textWrap: 'balance',
                                             margin: restockPreview.sample.length > 0
                                                 ? '0 auto 1rem'
                                                 : (isShoppingListStale ? '0 auto 1.25rem' : '0 auto 1.75rem'),
@@ -7621,13 +7647,7 @@ const DashboardInner = () => {
                                                 margin: isShoppingListStale ? '0 auto 1.25rem' : '0 auto 1.6rem',
                                             }} aria-hidden="true">
                                                 {restockPreview.sample.map((nm, i) => (
-                                                    <span key={i} style={{
-                                                        fontSize: '0.72rem', color: 'var(--text-muted)',
-                                                        border: '1px solid var(--border)', borderRadius: '999px',
-                                                        padding: '0.2rem 0.65rem', whiteSpace: 'nowrap',
-                                                        maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis',
-                                                        background: 'var(--bg-card)',
-                                                    }}>{nm}</span>
+                                                    <span key={i} className="restock-modal-chip">{nm}</span>
                                                 ))}
                                                 {restockPreview.count > restockPreview.sample.length && (
                                                     <span style={{
