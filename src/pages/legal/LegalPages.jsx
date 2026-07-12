@@ -112,7 +112,7 @@ const LegalLayout = ({ title, lastUpdated, children }) => {
    POLÍTICA DE PRIVACIDAD
    ============================================================================ */
 export const Privacy = () => (
-    <LegalLayout title="Política de Privacidad" lastUpdated="11 de Julio, 2026">
+    <LegalLayout title="Política de Privacidad" lastUpdated="12 de Julio, 2026">
         <p>En MealfitRD nos tomamos en serio la protección de sus datos. Esta Política describe con precisión técnica qué información recopilamos, cómo la procesamos, dónde la almacenamos, con quién la compartimos, qué cookies y almacenamiento local usamos, y qué derechos tiene usted sobre ella. La transparencia es nuestro principio fundamental.</p>
 
         <h3>1. Identidad del Responsable del Tratamiento</h3>
@@ -121,7 +121,7 @@ export const Privacy = () => (
         <h3>2. Información que Recopilamos</h3>
         <p>Recopilamos únicamente la información necesaria para personalizar su plan nutricional y operar la plataforma. Las categorías exactas son:</p>
         <ul>
-            <li><strong>Datos de cuenta:</strong> nombre, correo electrónico, contraseña (hasheada con bcrypt vía el backend anterior Auth — nunca almacenamos contraseñas en texto plano).</li>
+            <li><strong>Datos de cuenta:</strong> nombre, correo electrónico, contraseña (gestionada de forma segura mediante Neon Auth con hashing y sal — nunca almacenamos contraseñas en texto plano).</li>
             <li><strong>Perfil de salud (<code>health_profile</code>):</strong> peso actual, estatura, edad, género, nivel de actividad física, objetivo (perder peso, ganar músculo, mantener), restricciones dietéticas, alergias alimentarias, condiciones de salud declaradas y preferencias culinarias.</li>
             <li><strong>Histórico nutricional:</strong> comidas registradas (<code>consumed_meals</code>), hidratación diaria, peso histórico (<code>weight_history</code>), inventario de despensa (<code>user_inventory</code>) e ítems agotados.</li>
             <li><strong>Datos de interacción con IA:</strong> mensajes con el asistente conversacional (<code>agent_messages</code>), planes generados (<code>meal_plans</code>), recetas expandidas, "lecciones aprendidas" derivadas de su uso (<code>user_facts</code>) almacenadas como embeddings vectoriales para personalización a largo plazo.</li>
@@ -157,10 +157,9 @@ export const Privacy = () => (
         <h3>5. Infraestructura y Seguridad Técnica</h3>
         <p>Su información se almacena en infraestructura administrada:</p>
         <ul>
-            <li><strong>Base de datos:</strong> el backend anterior (PostgreSQL gestionado sobre Amazon Web Services), con cifrado en reposo AES-256 a nivel de disco y cifrado en tránsito TLS 1.2 o superior.</li>
-            <li><strong>Row Level Security (RLS):</strong> todas las tablas con datos personales tienen políticas RLS activadas — la base de datos rechaza consultas que intenten acceder a información de otro usuario, incluso si fallara la capa de aplicación.</li>
-            <li><strong>Aislamiento por <code>user_id</code>:</strong> cada consulta del backend incluye un filtro explícito de <code>user_id</code>. Hemos publicado tests automatizados que enforzan este contrato en cada cambio (invariantes I2/I6 del código).</li>
-            <li><strong>Autenticación:</strong> el backend anterior Auth con JWT firmado HMAC-SHA256, validación server-side en cada petición. Tokens de sesión en cookies HttpOnly + SameSite.</li>
+            <li><strong>Base de datos:</strong> Neon (PostgreSQL serverless gestionado por Neon, Inc.), con cifrado en reposo AES-256 y cifrado en tránsito TLS 1.2 o superior.</li>
+            <li><strong>Aislamiento por <code>user_id</code>:</strong> cada consulta a la base de datos incluye un filtro explícito por su <code>user_id</code>, de modo que ninguna consulta puede acceder a información de otro usuario. Publicamos tests automatizados que verifican este contrato en cada cambio del código (invariantes I2/I6).</li>
+            <li><strong>Autenticación:</strong> Neon Auth (Better Auth), con tokens JWT firmados mediante EdDSA y validados en el servidor —contra el JWKS de Neon Auth— en cada petición. Tokens de sesión en cookies HttpOnly + SameSite.</li>
             <li><strong>Protección de contraseñas:</strong> verificación contra la base de datos HaveIBeenPwned al registrarse (k-anonymity) — si su contraseña aparece en una filtración pública conocida, le pedimos elegir otra.</li>
             <li><strong>Headers de seguridad web:</strong> HSTS, X-Frame-Options DENY, Content Security Policy, Referrer-Policy estrictos.</li>
         </ul>
@@ -180,6 +179,7 @@ export const Privacy = () => (
             <li><strong>PayPal Holdings, Inc.</strong> — procesamiento de pagos y suscripciones.</li>
             <li><strong>Functional Software, Inc. (Sentry)</strong> — monitoreo de errores técnicos.</li>
             <li><strong>Oracle Corporation (Oracle Cloud Infrastructure)</strong> — infraestructura de hosting (VPS con nginx) del frontend y backend.</li>
+            <li><strong>Cohere Inc.</strong> — generación de embeddings vectoriales para la memoria a largo plazo del asistente (a partir de las "lecciones" derivadas de su uso, cuando esta función está habilitada).</li>
         </ul>
 
         <h3>9. Retención de Datos</h3>
@@ -200,7 +200,7 @@ export const Privacy = () => (
         <p>MealfitRD está destinada a personas mayores de 18 años. Aunque actualmente solicitamos la edad como dato declarativo del usuario, no realizamos verificación de identidad. Si descubrimos que un menor ha creado una cuenta sin consentimiento parental, eliminaremos la cuenta y sus datos asociados de inmediato. Padres o tutores pueden notificarnos en fuego.servicios@gmail.com.</p>
 
         <h3>12. Transferencias Internacionales</h3>
-        <p>Dado que nuestros proveedores (el backend anterior, Google, PayPal, Sentry, AWS) operan globalmente, sus datos pueden procesarse fuera de República Dominicana, principalmente en Estados Unidos. Estos proveedores están adheridos a marcos de privacidad reconocidos (Cláusulas Contractuales Estándar y/o Data Privacy Framework UE-EEUU).</p>
+        <p>Dado que algunos de nuestros proveedores (Neon, DeepSeek, PayPal, Sentry, Oracle Cloud y Cohere) operan globalmente, sus datos pueden procesarse fuera de República Dominicana — principalmente en Estados Unidos y, en el caso de <strong>DeepSeek</strong>, en la <strong>República Popular China</strong> (ver Sección 4). Exigimos a estos proveedores marcos de protección reconocidos (Cláusulas Contractuales Estándar y/o equivalentes). Nunca enviamos a estos proveedores su nombre completo, correo electrónico ni datos de pago.</p>
 
         <h3>13. Cookies y Almacenamiento Local</h3>
         <p>Aplicamos un principio de minimalismo: solo usamos los almacenamientos estrictamente necesarios para que el servicio funcione y para recordar sus preferencias entre visitas. <strong>No utilizamos cookies de publicidad, marketing ni rastreadores de terceros</strong> — sin Google Analytics, Meta/TikTok Pixel, retargeting, identificadores publicitarios (IDFA, GAID) ni fingerprinting del navegador.</p>
@@ -301,7 +301,7 @@ export const Terms = () => (
    AVISO MÉDICO
    ============================================================================ */
 export const MedicalDisclaimer = () => (
-    <LegalLayout title="Aviso Médico" lastUpdated="11 de Julio, 2026">
+    <LegalLayout title="Aviso Médico" lastUpdated="12 de Julio, 2026">
         <div className={styles.alertBox}>
             <p className={styles.alertTitle}>
                 <AlertTriangle size={20} /> IMPORTANTE
@@ -335,7 +335,7 @@ export const MedicalDisclaimer = () => (
             <li>Tiene <strong>enfermedad cardiovascular</strong>, hipertensión, hipercolesterolemia, o usa medicación cardiovascular.</li>
             <li>Está <strong>embarazada, amamantando o planificando un embarazo</strong>.</li>
             <li>Tiene historial actual o pasado de <strong>trastornos alimentarios</strong> (anorexia, bulimia, atracones, ARFID, ortorexia).</li>
-            <li>Tiene <strong>enfermedad celíaca</strong>, intolerancia severa al gluten, intolerancia confirmada a la lactosa, o cualquier alergia alimentaria diagnosticada (incluyendo frutos secos, mariscos, soya, mariscos, sulfitos, etc.).</li>
+            <li>Tiene <strong>enfermedad celíaca</strong>, intolerancia severa al gluten, intolerancia confirmada a la lactosa, o cualquier alergia alimentaria diagnosticada (incluyendo frutos secos, maní, mariscos, pescado, soya, huevo, sulfitos, etc.).</li>
             <li>Tiene enfermedades hepáticas, problemas de tiroides, síndrome de ovario poliquístico, problemas digestivos crónicos (Crohn, colitis, SII) o cualquier condición metabólica.</li>
             <li>Toma <strong>medicación regular</strong> (anticoagulantes, antidepresivos, inmunosupresores, antibióticos prolongados, anticonvulsivos, tratamientos hormonales) — pueden existir interacciones con ciertos alimentos.</li>
             <li>Tiene historial de <strong>cirugía bariátrica</strong>, gastroplastía, o intervenciones quirúrgicas digestivas.</li>
@@ -517,7 +517,7 @@ export const Research = () => (
    POLÍTICA DE REEMBOLSOS Y CANCELACIONES
    ============================================================================ */
 export const Refunds = () => (
-    <LegalLayout title="Política de Reembolsos y Cancelaciones" lastUpdated="1 de Julio, 2026">
+    <LegalLayout title="Política de Reembolsos y Cancelaciones" lastUpdated="12 de Julio, 2026">
         <p>Esta Política detalla cómo funcionan las cancelaciones y los reembolsos de tu suscripción a MealfitRD. Queremos que sea clara y justa, conforme a la Ley No. 358-05 de Protección al Consumidor de República Dominicana. En resumen: puedes <strong>probar gratis</strong> antes de pagar y <strong>cancelar cuando quieras</strong>; las suscripciones <strong>no son reembolsables</strong>, salvo donde la ley lo exija.</p>
 
         <h3>1. Plan Gratis</h3>
@@ -532,7 +532,7 @@ export const Refunds = () => (
         </ul>
 
         <h3>3. Reembolsos</h3>
-        <p>Las suscripciones de MealfitRD (Básico, Plus y Ultra) <strong>no son reembolsables</strong>, salvo donde la ley aplicable lo exija. Esto aplica tanto a la compra inicial como a las renovaciones. En lugar de reembolsos ofrecemos:</p>
+        <p>Las suscripciones de MealfitRD (Básico, Plus y Max) <strong>no son reembolsables</strong>, salvo donde la ley aplicable lo exija. Esto aplica tanto a la compra inicial como a las renovaciones. En lugar de reembolsos ofrecemos:</p>
         <ul>
             <li>Un <strong>Plan Gratis</strong> para que evalúes la plataforma sin costo ni tarjeta antes de suscribirte.</li>
             <li><strong>Cancelar cuando quieras</strong> para detener cobros futuros: conservas el acceso hasta el final del período ya pagado y no cobramos renovaciones posteriores.</li>
