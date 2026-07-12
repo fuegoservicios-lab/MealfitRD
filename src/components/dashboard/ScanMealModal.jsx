@@ -322,9 +322,10 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                     </button>
                 </div>
 
-                {/* Preview de la foto (si hay) */}
+                {/* Preview de la foto (si hay). [P1-MEAL-SCAN-POLISH] En revisión
+                    pasa a banner compacto para que todo quepa sin scroll. */}
                 {preview && (
-                    <div className={styles.previewWrap}>
+                    <div className={`${styles.previewWrap} ${(phase === 'review' || phase === 'saving') ? styles.previewCompact : ''}`}>
                         <img src={preview} alt="Foto de la comida" className={styles.previewImg} />
                         {phase === 'scanning' && (
                             <div className={styles.scanningOverlay}>
@@ -400,33 +401,36 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                             />
                         </label>
 
-                        <label className={styles.field}>
-                            <span className={styles.fieldLabel}>Tipo de comida</span>
-                            <select
-                                value={form.meal_type}
-                                onChange={(e) => setForm((p) => ({ ...p, meal_type: e.target.value }))}
-                                className={styles.selectInput}
-                            >
-                                {_MEAL_TYPES.map((t) => (
-                                    <option key={t.value} value={t.value}>{t.label}</option>
-                                ))}
-                            </select>
-                        </label>
+                        {/* [P1-MEAL-SCAN-POLISH] Tipo + Porción en una fila. */}
+                        <div className={styles.fieldRow}>
+                            <label className={styles.field}>
+                                <span className={styles.fieldLabel}>Tipo de comida</span>
+                                <select
+                                    value={form.meal_type}
+                                    onChange={(e) => setForm((p) => ({ ...p, meal_type: e.target.value }))}
+                                    className={styles.selectInput}
+                                >
+                                    {_MEAL_TYPES.map((t) => (
+                                        <option key={t.value} value={t.value}>{t.label}</option>
+                                    ))}
+                                </select>
+                            </label>
 
-                        <div className={styles.field}>
-                            <span className={styles.fieldLabel}>Porción</span>
-                            <div className={styles.portionRow}>
-                                {_PORTIONS.map((p) => (
-                                    <button
-                                        key={p}
-                                        type="button"
-                                        className={`${styles.portionBtn} ${multiplier === p ? styles.portionActive : ''}`}
-                                        onClick={() => applyPortion(p)}
-                                    >
-                                        {p === 0.5 ? '½×' : `${p}×`}
-                                    </button>
-                                ))}
-                                <span className={styles.portionHint}>o edita los valores abajo</span>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>Porción</span>
+                                <div className={styles.portionRow}>
+                                    {_PORTIONS.map((p) => (
+                                        <button
+                                            key={p}
+                                            type="button"
+                                            className={`${styles.portionBtn} ${multiplier === p ? styles.portionActive : ''}`}
+                                            onClick={() => applyPortion(p)}
+                                            title="Multiplica las macros estimadas; también puedes editarlas abajo"
+                                        >
+                                            {p === 0.5 ? '½×' : `${p}×`}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
@@ -443,6 +447,13 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
 
                         <div className={styles.actions}>
                             <button
+                                className={styles.retakeBtn}
+                                onClick={() => { _setPreviewUrl(null); setPhase('select'); setError(null); }}
+                                disabled={phase === 'saving'}
+                            >
+                                Volver a escanear
+                            </button>
+                            <button
                                 className={styles.saveBtn}
                                 onClick={handleSave}
                                 disabled={phase === 'saving'}
@@ -450,13 +461,6 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                                 {phase === 'saving'
                                     ? <><Loader2 size={16} className={styles.spinner} /> Registrando…</>
                                     : <><Check size={16} /> Registrar comida</>}
-                            </button>
-                            <button
-                                className={styles.retakeBtn}
-                                onClick={() => { _setPreviewUrl(null); setPhase('select'); setError(null); }}
-                                disabled={phase === 'saving'}
-                            >
-                                Volver a escanear
                             </button>
                         </div>
                     </div>
