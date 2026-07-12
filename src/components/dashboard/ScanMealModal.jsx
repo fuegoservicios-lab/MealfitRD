@@ -58,6 +58,32 @@ const _clampMacro = (key, raw) => {
 const _ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 const _MAX_BYTES = 20 * 1024 * 1024;
 
+// [P1-MEAL-SCAN-GEMMA · 2026-07-12] Reescala client-side antes de subir —
+// mismo patrón que el escáner de Nevera (PantryScanButton): el análisis corre
+// en gemma local vía túnel SSH, así que una foto de celular de 4000px (~8MB)
+// tardaría minutos solo en viajar. 1024px JPEG ~150KB analiza igual de bien.
+// Si el browser no puede decodificar el formato (HEIC en Chrome desktop), el
+// caller cae al archivo original (el backend lo acepta).
+const _downscaleToJpegFile = (file, maxSide = 1024) => new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+        try {
+            const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+                if (!blob) { reject(new Error('toBlob null')); return; }
+                resolve(new File([blob], 'meal.jpg', { type: 'image/jpeg' }));
+            }, 'image/jpeg', 0.82);
+        } catch (e) { reject(e); } finally { URL.revokeObjectURL(url); }
+    };
+    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+});
+
 const ScanMealModal = ({ isOpen, onClose, userId }) => {
     // phase: 'select' (elegir foto) | 'scanning' | 'review' | 'saving'
     const [phase, setPhase] = useState('select');
@@ -139,8 +165,15 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
         setPhase('scanning');
 
         try {
+            // [P1-MEAL-SCAN-GEMMA] Reescala a ≤1024px JPEG; si el browser no
+            // decodifica el formato (HEIC/desktop), sube el original tal cual.
+            let uploadFile = file;
+            try {
+                uploadFile = await _downscaleToJpegFile(file);
+            } catch (_e) { /* fallback al original */ }
+
             const fd = new FormData();
-            fd.append('file', file);
+            fd.append('file', uploadFile, uploadFile.name || 'meal.jpg');
             fd.append('user_id', userId);
             fd.append('tz_offset_mins', String(new Date().getTimezoneOffset()));
 
@@ -151,6 +184,14 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
 
             if (!res.ok || !data.success) {
                 throw new Error(data?.detail || 'No se pudo analizar la imagen.');
+            }
+            // [P1-MEAL-SCAN-GEMMA · 2026-07-12] La GPU local es single-flight:
+            // "ocupado" se resuelve en segundos — mensaje distinto de "caído".
+            if (data.busy) {
+                _setPreviewUrl(null);
+                setPhase('select');
+                setError('El escáner está procesando otra foto — dale unos segundos e intenta de nuevo.');
+                return;
             }
             // [P2-DIARY-SCAN-MACROS · 2026-05-30] Distingue "analizador caído"
             // (timeout / límite de la IA / sin saldo) de "no es comida" — antes
@@ -288,7 +329,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                         {phase === 'scanning' && (
                             <div className={styles.scanningOverlay}>
                                 <Loader2 size={28} className={styles.spinner} />
-                                <span>Analizando tu plato…</span>
+                                <span>Analizando tu plato… puede tardar un minuto</span>
                             </div>
                         )}
                     </div>
