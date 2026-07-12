@@ -3841,37 +3841,46 @@ const DashboardInner = () => {
                     -webkit-backdrop-filter: blur(3px);
                     overflow: hidden;
                     animation: cookFadeIn 0.25s ease-out;
+                    /* [v2] track de la barra de progreso (el segmento de color vive en ::after) */
+                    border-bottom: 3px solid rgba(255, 255, 255, 0.07);
                 }
+                /* [P2-DAYREGEN-LOADING-POLISH v2 · 2026-07-12] Ola + barra COORDINADAS
+                   (feedback owner: "la primera ola es lenta y la otra rápida, se siente
+                   lagueada"): un solo ritmo compartido (2.2s, mismo easing, misma fase) y
+                   transform/GPU en vez de background-position (que repintaba cada frame —
+                   el origen del lag). La ola diagonal y el segmento de la barra cruzan la
+                   card JUNTOS de izquierda a derecha. */
                 .meal-cooking-overlay::before {
                     content: '';
                     position: absolute;
                     inset: 0;
-                    background: linear-gradient(105deg, transparent 38%,
+                    background: linear-gradient(105deg, transparent 40%,
                         rgba(139, 92, 246, 0.22) 48%, rgba(34, 211, 238, 0.18) 54%,
-                        transparent 66%);
-                    background-size: 260% 100%;
-                    animation: cookShimmer 2.4s linear infinite;
+                        transparent 62%);
+                    transform: translateX(-70%);
+                    animation: cookSweep 2.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+                    will-change: transform;
                     pointer-events: none;
                 }
-                /* [P2-DAYREGEN-LOADING-POLISH · 2026-07-12] Barra de progreso indeterminada
-                   al pie del overlay — la señal clásica de "esto avanza" que el shimmer +
-                   chip no comunicaban (feedback del owner sobre el regen del día). */
                 .meal-cooking-overlay::after {
                     content: '';
                     position: absolute;
-                    left: 0; right: 0; bottom: 0;
+                    left: 0; bottom: -3px;
+                    width: 45%;
                     height: 3px;
-                    background:
-                        linear-gradient(90deg, transparent 0%, #8B5CF6 30%, #22D3EE 50%, #8B5CF6 70%, transparent 100%)
-                        no-repeat,
-                        rgba(255, 255, 255, 0.07);
-                    background-size: 45% 100%;
-                    animation: cookBar 1.6s ease-in-out infinite;
+                    background: linear-gradient(90deg, transparent 0%, #8B5CF6 30%, #22D3EE 55%, transparent 100%);
+                    transform: translateX(-100%);
+                    animation: cookBarSlide 2.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+                    will-change: transform;
                     pointer-events: none;
                 }
-                @keyframes cookBar {
-                    0% { background-position: -60% 0; }
-                    100% { background-position: 165% 0; }
+                @keyframes cookSweep {
+                    0% { transform: translateX(-70%); }
+                    100% { transform: translateX(70%); }
+                }
+                @keyframes cookBarSlide {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(240%); }
                 }
                 .meal-cooking-chip {
                     display: flex;
@@ -3882,7 +3891,7 @@ const DashboardInner = () => {
                     background: rgba(17, 24, 39, 0.92);
                     border: 1px solid rgba(139, 92, 246, 0.55);
                     box-shadow: 0 8px 24px -8px rgba(124, 58, 237, 0.55);
-                    animation: cookPulse 2.6s ease-in-out infinite;
+                    animation: cookPulse 2.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
                     max-width: 92%;
                 }
                 .meal-cooking-chip .cook-icon {
@@ -3898,10 +3907,6 @@ const DashboardInner = () => {
                     overflow: hidden;
                     text-overflow: ellipsis;
                     animation: cookTextIn 0.4s ease-out;
-                }
-                @keyframes cookShimmer {
-                    0% { background-position: 200% 0; }
-                    100% { background-position: -60% 0; }
                 }
                 @keyframes cookPulse {
                     0%, 100% { box-shadow: 0 8px 24px -8px rgba(124, 58, 237, 0.55); border-color: rgba(139, 92, 246, 0.55); }
