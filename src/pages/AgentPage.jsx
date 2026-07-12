@@ -1488,8 +1488,20 @@ const AgentPage = () => {
         }
         if (st.active) return; // ya sondeando este huérfano
 
+        // [P1-CHAT-STOP-POWER · 2026-07-12] Firma del episodio: mismo huérfano
+        // = mismos intentos (sin resets infinitos), y un huérfano descartado
+        // con el botón Stop (doneSig) no relanza el episodio. Pre-fix, una
+        // rehidratación prematura reiniciaba attempts=0 en bucle → el
+        // "Recuperando tu respuesta…" quedaba TRABADO para siempre.
+        const _sig = `${messages.length}:${String(last.content || '').slice(0, 48)}`;
+        if (st.doneSig === _sig) return;
+        if (st.sig !== _sig) {
+            st.sig = _sig;
+            st.attempts = 0;
+        }
+        if (st.attempts > 6) return; // episodio ya agotado para este huérfano
+
         st.active = true;
-        st.attempts = 0;
         setRecoveringTurn(true);
 
         const _poll = async () => {
@@ -1498,6 +1510,7 @@ const AgentPage = () => {
             cur.attempts += 1;
             if (cur.attempts > 6) {
                 cur.active = false;
+                cur.doneSig = cur.sig; // episodio agotado — no relanzar este huérfano
                 setRecoveringTurn(false);
                 setMessages(prev => {
                     const lastPrev = prev[prev.length - 1];
@@ -1521,13 +1534,21 @@ const AgentPage = () => {
                 const res = await fetchWithAuth(`/api/chat/history/${currentSessionId}`);
                 if (res.ok) {
                     const data = await res.json();
-                    const serverCount = (data?.messages || []).length;
+                    // [P1-CHAT-STOP-POWER] Filtrar como el display (fuera títulos
+                    // de sistema y vacíos) y exigir que el ÚLTIMO sea del modelo:
+                    // "hay respuesta nueva de verdad". Pre-fix contaba filas de
+                    // sistema → rehidratación prematura sin respuesta → el
+                    // huérfano renacía y el episodio se reiniciaba en bucle.
+                    const srv = (data?.messages || []).filter(m => (
+                        m && m.content
+                        && !(m.role === 'model' && String(m.content).startsWith('[SYSTEM_TITLE]'))
+                    ));
+                    const srvLast = srv[srv.length - 1];
                     const localCount = (messagesRef.current || [])
                         .filter(m => !m.isWelcome && !m._isErrorBubble).length;
-                    // Server igual o adelante → el turno persistió: rehidratar
-                    // (fetchSessionMessages limpia wrappers y conserva thumbs).
-                    if (serverCount >= localCount + 1) {
+                    if (srv.length >= localCount + 1 && srvLast && srvLast.role === 'model') {
                         cur.active = false;
+                        cur.doneSig = cur.sig; // respuesta encontrada — episodio cerrado
                         setRecoveringTurn(false);
                         fetchSessionMessages(currentSessionId);
                         return;
@@ -1680,6 +1701,13 @@ const AgentPage = () => {
         let uploadedImageUrl = null;
 
         try {
+            // [P1-CHAT-STOP-POWER · 2026-07-12] El AbortController nace ANTES
+            // del análisis de foto: el botón Detener cancela también la fase
+            // "Analizando tu foto…" (gemma 30-90s), no solo el stream.
+            const controller = new AbortController();
+            setAbortController(controller);
+            abortControllerRef.current = controller;
+
             let visionDescription = null;
             // [P1-CHAT-VISION-GEMMA · 2026-07-12] Clasificación de la foto que
             // devuelve el análisis: 'plato' (registrar macros) | 'items'
@@ -1706,7 +1734,9 @@ const AgentPage = () => {
 
                 const uploadRes = await fetchWithAuth('/api/diary/upload', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    // [P1-CHAT-STOP-POWER] Detener cancela también esta fase.
+                    signal: controller.signal
                 });
 
                 const uploadData = await uploadRes.json();
@@ -1807,9 +1837,8 @@ const AgentPage = () => {
                 const now = new Date();
                 const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-                const controller = new AbortController();
-                setAbortController(controller);
-                abortControllerRef.current = controller;
+                // [P1-CHAT-STOP-POWER · 2026-07-12] El controller ya nació al
+                // inicio del try (cubre también el análisis de foto).
 
                 // [P3-CHAT-FOCUS-TELEM · 2026-05-19] Performance markers
                 // del stream. `_streamStartedAt` baseline para TTFB +
@@ -2162,6 +2191,17 @@ const AgentPage = () => {
             setIsLoading(false);
             setStreamingStatus(null);
         }
+        // [P1-CHAT-STOP-POWER · 2026-07-12] El stop también cancela la
+        // recuperación de un turno huérfano ("Recuperando tu respuesta…"):
+        // marca el huérfano como descartado (doneSig) para que el efecto no
+        // relance el episodio, limpia timers y libera la UI.
+        const _st = _recoveryRef.current;
+        if (_st.active || recoveringTurn) {
+            _st.active = false;
+            _st.doneSig = _st.sig;
+            if (_st.timer) { clearTimeout(_st.timer); _st.timer = null; }
+            setRecoveringTurn(false);
+        }
     };
 
     const handleRegenerate = (modelMsgIndex) => {
@@ -2414,7 +2454,7 @@ const AgentPage = () => {
                                 maxHeight: '120px'
                             }}
                         />
-                        {isLoading ? (
+                        {(isLoading || recoveringTurn) ? (
                             <button
                                 type="button"
                                 aria-label="Detener generación"
