@@ -2122,6 +2122,26 @@ const DashboardInner = () => {
         return Array.isArray(planData?.aggregated_shopping_list) ? planData.aggregated_shopping_list : [];
     }, [planData]);
 
+    // [P2-RESTOCK-MODAL-PREVIEW · 2026-07-12] El modal "Confirmar compra" era abstracto
+    // ("agregaremos todos los ingredientes…" sin decir cuántos ni cuáles). Preview honesto:
+    // MISMA fuente + MISMO delta que handleRestock (getDeltaSourceList + buildDeltaShoppingList
+    // contra liveInventory) → el número que ves es lo que realmente se añade, no la lista bruta.
+    const restockPreview = useMemo(() => {
+        try {
+            const duration = formData?.groceryDuration || 'weekly';
+            const raw = getDeltaSourceList(planData, duration) || allPlanIngredients || [];
+            const delta = buildDeltaShoppingList(raw, Array.isArray(liveInventory) ? liveInventory : []);
+            const names = delta
+                .map((it) => (it && typeof it === 'object' ? (it.name || it.item || '') : String(it || '')))
+                .map((s) => String(s).trim())
+                .filter(Boolean);
+            const durationLabel = { weekly: 'semanal', biweekly: 'quincenal', monthly: 'mensual' }[duration] || duration;
+            return { count: names.length, sample: names.slice(0, 4), durationLabel };
+        } catch {
+            return { count: 0, sample: [], durationLabel: 'semanal' };
+        }
+    }, [planData, formData?.groceryDuration, allPlanIngredients, liveInventory, buildDeltaShoppingList]);
+
     // [P2-BRANDS-DEFAULT-FROM-ACTIVE · 2026-07-07] La lista ACTIVA por duración (la
     // que el PDF realmente imprime) → el panel usa su `brand_product_id` por ítem
     // para MARCAR en el menú la marca default que la lista está usando (Wala/Quaker/
@@ -7582,11 +7602,41 @@ const DashboardInner = () => {
                                         </h2>
                                         <p style={{
                                             color: 'var(--text-muted)', fontSize: '0.92rem', lineHeight: '1.55',
-                                            marginBottom: isShoppingListStale ? '1.25rem' : '1.75rem',
-                                            maxWidth: '320px', margin: isShoppingListStale ? '0 auto 1.25rem' : '0 auto 1.75rem',
+                                            maxWidth: '320px',
+                                            margin: restockPreview.sample.length > 0
+                                                ? '0 auto 1rem'
+                                                : (isShoppingListStale ? '0 auto 1.25rem' : '0 auto 1.75rem'),
                                         }}>
-                                            Agregaremos todos los ingredientes de tu lista a la Nevera Virtual.
+                                            {restockPreview.count > 0
+                                                ? <>Agregaremos <strong style={{ color: 'var(--text-main)', fontWeight: 600 }}>{restockPreview.count} ingrediente{restockPreview.count === 1 ? '' : 's'}</strong> de tu lista {restockPreview.durationLabel} a la Nevera Virtual.</>
+                                                : 'Agregaremos todos los ingredientes de tu lista a la Nevera Virtual.'}
                                         </p>
+
+                                        {/* [P2-RESTOCK-MODAL-PREVIEW · 2026-07-12] Chips line-art con los primeros
+                                            ítems del delta real — el modal deja de ser abstracto sin saturar. */}
+                                        {restockPreview.sample.length > 0 && (
+                                            <div style={{
+                                                display: 'flex', flexWrap: 'wrap', justifyContent: 'center',
+                                                gap: '0.35rem', maxWidth: '340px',
+                                                margin: isShoppingListStale ? '0 auto 1.25rem' : '0 auto 1.6rem',
+                                            }} aria-hidden="true">
+                                                {restockPreview.sample.map((nm, i) => (
+                                                    <span key={i} style={{
+                                                        fontSize: '0.72rem', color: 'var(--text-muted)',
+                                                        border: '1px solid var(--border)', borderRadius: '999px',
+                                                        padding: '0.2rem 0.65rem', whiteSpace: 'nowrap',
+                                                        maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis',
+                                                        background: 'var(--bg-card)',
+                                                    }}>{nm}</span>
+                                                ))}
+                                                {restockPreview.count > restockPreview.sample.length && (
+                                                    <span style={{
+                                                        fontSize: '0.72rem', color: 'var(--text-muted)',
+                                                        padding: '0.2rem 0.4rem', fontWeight: 600,
+                                                    }}>+{restockPreview.count - restockPreview.sample.length} más</span>
+                                                )}
+                                            </div>
+                                        )}
 
                                         {isShoppingListStale && (
                                             <div style={{
