@@ -21,15 +21,18 @@ import { useIsMobile } from '../../hooks/useMediaQuery';
 // Seguimiento de Progreso, Analizador de Macros). En el momento de mayor fricción
 // eso degrada credibilidad. Ahora cada tier muestra solo lo que AÑADE sobre el
 // inferior, espejando Pricing.jsx.
+/* [P3-PRICING-HONEST-COPY · 2026-07-12] Directiva del owner: los tiers se
+   diferencian SOLO por créditos (Gratis accede a todo por ahora); Max no
+   cambia. Se retiran los claims de "Memoria" como exclusivas de pago. */
 const PLAN_FEATURES = {
     basic: [
         { icon: "⚡", text: "50 Créditos de IA al mes" },
-        { icon: "🧠", text: "Memoria a Largo Plazo" },
+        { icon: "📈", text: "3× más que Gratis" },
         { icon: "✅", text: "Todo lo incluido en Gratis" },
     ],
     plus: [
         { icon: "⚡", text: "200 Créditos de IA al mes" },
-        { icon: "🧠", text: "Memoria Infinita" },
+        { icon: "📈", text: "13× más que Gratis" },
         { icon: "✅", text: "Todo lo incluido en Básico" },
     ],
     ultra: [
@@ -327,7 +330,7 @@ const PaymentModal = ({
                                                 fundingSource={FUNDING.CARD}
                                                 style={{ shape: "rect", color: "black", label: "subscribe", height: 50, tagline: false }}
                                                 createSubscription={handleCreateSubscription}
-                                                onApprove={async (data) => { try { onSuccess(data.subscriptionID); } catch (err) { console.error(err); } }}
+                                                onApprove={async (data) => { try { onSuccess(data.subscriptionID, couponResult?.valid ? couponCode.trim().toUpperCase() : null); } catch (err) { console.error(err); } }}
                                                 onError={(err) => {
                                                     // [P2-PAYPAL-ONERROR-TOAST · 2026-05-30] El SDK puede
                                                     // fallar mid-checkout (5xx PayPal, red, popup bloqueado,
@@ -369,7 +372,7 @@ const PaymentModal = ({
                                                 fundingSource={FUNDING.PAYPAL}
                                                 style={{ shape: "rect", color: "gold", label: "subscribe", height: 50, tagline: false }}
                                                 createSubscription={handleCreateSubscription}
-                                                onApprove={async (data) => { try { onSuccess(data.subscriptionID); } catch (err) { console.error(err); } }}
+                                                onApprove={async (data) => { try { onSuccess(data.subscriptionID, couponResult?.valid ? couponCode.trim().toUpperCase() : null); } catch (err) { console.error(err); } }}
                                                 onError={(err) => {
                                                     // [P2-PAYPAL-ONERROR-TOAST · 2026-05-30] Ver nota en el
                                                     // botón de tarjeta arriba — mismo feedback al usuario.

@@ -79,31 +79,37 @@ const NAME_BY_TIER = {
     ultra: 'Suscripción Max',
 };
 
+/* [P3-PRICING-HONEST-COPY · 2026-07-12] Directiva del owner: el plan Gratis
+   tiene acceso a TODAS las funciones (por ahora) — lo único que diferencia los
+   tiers son los CRÉDITOS. Se eliminan los falsos diferenciadores ("Memoria a
+   Largo Plazo"/"Memoria Infinita" como exclusivas de pago) y las descripciones
+   se resumen en clave vendedora. Max NO cambia (exclusivas reales: ilimitado,
+   acceso anticipado, VIP). */
 const PLAN_SUMMARY = {
     gratis: {
-        description: 'Descubre el poder de la IA. Plan personalizado con aprendizaje continuo.',
+        description: 'Empieza con todo: plan completo, recetas, asistente y nevera. Gratis.',
         features: [
             '15 Créditos al mes',
+            'Todas las funciones incluidas',
             'Plan de Comidas con IA',
-            'Recetas Paso a Paso',
-            'Lista de Compras PDF',
+            'Recetas + Lista de Compras PDF',
             'Asistente IA con Visión',
             'Nevera Inteligente',
         ],
     },
     basic: {
-        description: 'Para quienes quieren más capacidad. Más créditos y memoria a largo plazo.',
+        description: 'Más créditos para regenerar platos y días sin miedo a quedarte corto.',
         features: [
             '50 Créditos al mes',
-            'Memoria a Largo Plazo',
+            '3× más que Gratis',
             'Todo lo incluido en Gratis',
         ],
     },
     plus: {
-        description: 'Tu nutricionista IA en tiempo real, con métricas avanzadas.',
+        description: 'Combustible de sobra: ajusta, regenera y experimenta toda la semana.',
         features: [
             '200 Créditos al mes',
-            'Memoria Infinita',
+            '13× más que Gratis',
             'Todo lo incluido en Básico',
         ],
     },
@@ -117,6 +123,15 @@ const PLAN_SUMMARY = {
             'Todo lo incluido en Plus',
         ],
     },
+};
+
+/* [P3-PRICING-CARD-TONE · 2026-07-12] Hue de acento por tier (barra superior,
+   glow de hover, iconos de features). Max en ámbar premium. */
+const TIER_TONE = {
+    gratis: '#38BDF8',
+    basic: '#34D399',
+    plus: '#8B5CF6',
+    ultra: '#F59E0B',
 };
 
 /* ============================================================
@@ -153,14 +168,11 @@ const COMP_FEATURES = [
                 values: { gratis: true, basic: true, plus: true, ultra: true },
             },
             {
+                /* [P3-PRICING-HONEST-COPY · 2026-07-12] Incluida en TODOS los
+                   tiers (directiva del owner: Gratis accede a todo por ahora). */
                 name: 'Memoria a Largo Plazo',
                 desc: 'El agente recuerda tus preferencias y ajustes',
-                values: { gratis: false, basic: true, plus: true, ultra: true },
-            },
-            {
-                name: 'Memoria Infinita',
-                desc: 'Sin truncamiento del historial conversacional',
-                values: { gratis: false, basic: false, plus: true, ultra: true },
+                values: { gratis: true, basic: true, plus: true, ultra: true },
             },
         ],
     },
@@ -368,7 +380,7 @@ const Upgrade = () => {
         }, { replace: true });
     };
 
-    const handlePaymentSuccess = async (tier, subscriptionId) => {
+    const handlePaymentSuccess = async (tier, subscriptionId, couponCode = null) => {
         // [P1-PAY-LIMBO · 2026-05-30] NO cerrar el modal ni navegar antes de
         // saber el resultado. Antes: `setIsPaymentOpen(false)` + navigate
         // incondicional, ignorando el retorno de upgradeUserPlan. Si
@@ -379,7 +391,7 @@ const Upgrade = () => {
         // P2 de "modal desaparece a mitad de verify") y solo navegamos en
         // éxito; en fallo cerramos el modal y dejamos al usuario en esta página
         // con el toast.error de upgradeUserPlan para reintentar.
-        const ok = await upgradeUserPlan(tier, subscriptionId);
+        const ok = await upgradeUserPlan(tier, subscriptionId, couponCode);
         if (ok) {
             navigate('/dashboard'); // el cambio de ruta descarta los params
         } else {
@@ -471,7 +483,7 @@ const Upgrade = () => {
         ].filter(Boolean).join(' ');
 
         return (
-            <div key={tier} className={cardClass}>
+            <div key={tier} className={cardClass} style={{ '--tone': TIER_TONE[tier] || '#94A3B8' }}>
                 {isPopular && (
                     <div className={`${styles.planCardBadge} ${styles.planCardBadgePopular}`}>
                         Más Popular
@@ -534,7 +546,7 @@ const Upgrade = () => {
                     <PaymentModal
                         isOpen={isPaymentOpen}
                         onClose={closePayment}
-                        onSuccess={(subId) => handlePaymentSuccess(selectedPlan?.tier, subId)}
+                        onSuccess={(subId, coupon) => handlePaymentSuccess(selectedPlan?.tier, subId, coupon)}
                         price={selectedPlan?.price || '9.99'}
                         planName={selectedPlan?.name || 'Suscripción Básico'}
                         tier={selectedPlan?.tier || 'basic'}

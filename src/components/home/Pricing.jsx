@@ -164,14 +164,14 @@ const Pricing = () => {
     };
 
     // Callback que se ejecuta cuando PayPal confirma el pago exitoso (Suscripciones)
-    const handlePaymentSuccess = async (tier, subscriptionId) => {
+    const handlePaymentSuccess = async (tier, subscriptionId, couponCode = null) => {
         // [P1-PAY-LIMBO · 2026-05-30] Esperar el resultado antes de cerrar el
         // modal y navegar. Si /subscription/verify falla tras un cobro PayPal
         // real, navegar incondicionalmente dejaba al usuario como gratis pero
         // suscrito (limbo). El modal queda visible durante la verificación
         // (cierra el P2 de timing) y solo navegamos en éxito; en fallo el
         // toast.error de upgradeUserPlan informa y el usuario reintenta.
-        const ok = await upgradeUserPlan(tier, subscriptionId);
+        const ok = await upgradeUserPlan(tier, subscriptionId, couponCode);
         if (ok) {
             // Éxito: el cambio de ruta a /dashboard descarta los params de '/'.
             navigate('/dashboard');
@@ -289,7 +289,7 @@ const Pricing = () => {
                     <PaymentModal
                         isOpen={isPaymentOpen}
                         onClose={closePayment}
-                        onSuccess={(subId) => handlePaymentSuccess(selectedPlan?.tier, subId)}
+                        onSuccess={(subId, coupon) => handlePaymentSuccess(selectedPlan?.tier, subId, coupon)}
                         price={selectedPlan?.price || "9.99"}
                         planName={selectedPlan?.name || "Suscripción Básico"}
                         tier={selectedPlan?.tier || "basic"}
@@ -342,8 +342,11 @@ const Pricing = () => {
                                 <span className={styles.currency}>USD$</span>
                                 <span className={styles.amount}>0</span>
                             </div>
+                            {/* [P3-PRICING-HONEST-COPY · 2026-07-12] Directiva del owner:
+                                Gratis accede a TODAS las funciones (por ahora) — los tiers
+                                se diferencian solo por créditos; Max no cambia. */}
                             <p className={styles.description}>
-                                Descubre el poder de la IA. Plan personalizado con aprendizaje continuo y recetas paso a paso.
+                                Empieza con todo: plan completo, recetas, asistente y nevera. Gratis.
                             </p>
 
                             <ul className={styles.features}>
@@ -354,9 +357,8 @@ const Pricing = () => {
                                 <li><Check size={18} className={styles.check} /> <strong>Analizador de Macros</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Asistente IA con Visión</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Nevera Inteligente</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Aprendizaje a Corto Plazo</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Seguimiento de Progreso</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Historial de Planes</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>Todas las funciones incluidas</strong></li>
                             </ul>
 
                             <button
@@ -384,12 +386,12 @@ const Pricing = () => {
                             )}
 
                             <p className={styles.description}>
-                                Para quienes quieren más capacidad. Más créditos al mes y memoria a largo plazo para escalar tu progreso.
+                                Más créditos para regenerar platos y días sin miedo a quedarte corto.
                             </p>
 
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>50 Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Memoria a Largo Plazo</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>3× más que Gratis</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Gratis</strong></li>
                             </ul>
 
@@ -419,12 +421,12 @@ const Pricing = () => {
                             )}
 
                             <p className={styles.description}>
-                                Tu nutricionista IA en tiempo real, disponible 24/7, con métricas de salud avanzadas.
+                                Combustible de sobra: ajusta, regenera y experimenta toda la semana.
                             </p>
 
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>200 Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Memoria Infinita</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>13× más que Gratis</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Básico</strong></li>
                             </ul>
 

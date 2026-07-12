@@ -304,8 +304,16 @@
     }
 }
 
+/* [P3-PRICING-CARD-TONE · 2026-07-12] Cada tier lleva su hue (--tone, inline
+   desde renderPlanCard: sky/emerald/violet/ámbar): barra de acento superior,
+   tinte radial sutil e iconos de features. Mismo lenguaje de zonas de color del
+   landing — las 4 tarjetas dejan de ser clones grises. Estático a propósito
+   (P3-PRICING-CARDS-STATIC: sin lift ni glow en hover). */
 .planCard {
-    background: white;
+    --tone: #94A3B8;
+    background:
+        radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, var(--tone) 6%, transparent), transparent 60%),
+        white;
     border: 1.5px solid #E2E8F0;
     border-radius: 1.25rem;
     padding: 1.75rem 1.5rem;
@@ -313,7 +321,19 @@
     flex-direction: column;
     gap: 1rem;
     position: relative;
+    overflow: hidden;
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.planCard::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--tone), transparent);
+    opacity: 0.75;
+    pointer-events: none;
 }
 
 /* [P3-PRICING-CARDS-STATIC · 2026-05-30] Cards ESTÁTICAS: hover sin lift
@@ -418,6 +438,7 @@
     color: #64748B;
     line-height: 1.5;
     min-height: 4em;
+    text-wrap: pretty;
 }
 
 .planFeatures {
@@ -439,8 +460,16 @@
     line-height: 1.4;
 }
 
+/* [P3-PRICING-CARD-TONE · 2026-07-12] La primera feature (los CRÉDITOS) es el
+   diferenciador real entre tiers → énfasis: bold + tinta principal. */
+.planFeatureItem:first-child {
+    font-weight: 800;
+    font-size: 0.92rem;
+    color: #0F172A;
+}
+
 .planFeatureIcon {
-    color: #10B981;
+    color: var(--tone, #10B981);
     flex-shrink: 0;
     margin-top: 0.1rem;
 }
@@ -1325,8 +1354,16 @@
 
 /* --- PLAN CARDS --- */
 :global(html[data-theme="dark"]) .planCard {
-    background: var(--bg-card);
+    /* [P3-PRICING-CARD-TONE · 2026-07-12] Conserva el tinte radial del tono
+       sobre el fondo oscuro (un pelo más presente que en claro). */
+    background:
+        radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, var(--tone) 8%, transparent), transparent 60%),
+        var(--bg-card);
     border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .planFeatureItem:first-child {
+    color: var(--text-main);
 }
 
 /* [PRICING-POPULAR-GLOW · 2026-05-31] El override de .planCard de arriba pisa el
