@@ -2158,6 +2158,11 @@ export const AssessmentProvider = ({ children }) => {
     // encendido sin importar el reload (el backend sigue generando server-side).
     const [dayRegenInFlight, setDayRegenInFlight] = useState(false);
     const dayRegenPollRef = useRef(null);
+    // [P1-SWAP-REGEN-RESUME · 2026-07-11] Swap INDIVIDUAL in-flight ({dayIndex, mealIndex} |
+    // null) — espejo de dayRegenInFlight para que el spinner del plato sobreviva el refresh
+    // (pedido del owner: "cuando actualizo un plato individual y refresco, la animación
+    // desaparece"). El Dashboard lo consume para re-encender el spinner del card.
+    const [mealRegenInFlight, setMealRegenInFlight] = useState(null);
 
     const regenerateDay = async (dayIndex, reason = 'variety') => {
         const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
@@ -2506,6 +2511,127 @@ export const AssessmentProvider = ({ children }) => {
         };
     }, [session?.user?.id]);
 
+    // [P1-SWAP-REGEN-RESUME · 2026-07-11] Resume cross-refresh del swap INDIVIDUAL — espejo
+    // de P1-DAY-REGEN-RESUME. El backend setea plan_data._meal_regen_inflight al arrancar el
+    // swap y PERSISTE el plato server-side al terminar (persisted:true en el response), así
+    // que refrescar no pierde nada: si al montar hay marker local fresco (o flag server-side
+    // — bundle stale / otro device), re-encendemos el spinner del plato (mealRegenInFlight,
+    // consumido por el Dashboard) y polleamos plans-data/latest hasta ver el persist
+    // (_plan_modified_at ≠ baseline o nombre del plato cambiado — server-vs-server, sin
+    // relojes del cliente).
+    useEffect(() => {
+        if (!session?.user?.id) return undefined;
+        const MAX_AGE_MS = 6 * 60 * 1000;
+        const raw = safeLocalStorageGet('mealfit_meal_regen_inflight', null);
+        let marker = null;
+        try { marker = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (_) { marker = null; }
+        if (marker && (!marker.startedAt || (Date.now() - marker.startedAt) > MAX_AGE_MS)) {
+            safeLocalStorageRemove('mealfit_meal_regen_inflight');
+            marker = null;
+        }
+        let cancelled = false;
+        let timer = null;
+        const armFromServerFlag = async () => {
+            try {
+                const resp = await fetchWithAuth('/api/plans-data/latest');
+                if (cancelled || !resp.ok) return null;
+                const { plan } = await resp.json();
+                const flag = plan?.plan_data?._meal_regen_inflight;
+                if (!flag || flag.started_at == null) return null;
+                const startedAt = Date.parse(flag.started_at);
+                if (!startedAt || (Date.now() - startedAt) > MAX_AGE_MS) return null;
+                const dIdx = Number(flag.day_index) || 0;
+                const mIdx = Number(flag.meal_index) || 0;
+                return {
+                    planId: plan?.id || null,
+                    dayIndex: dIdx,
+                    mealIndex: mIdx,
+                    startedAt,
+                    baseModifiedAt: plan?.plan_data?._plan_modified_at || null,
+                    name: (((plan?.plan_data?.days?.[dIdx]?.meals || [])[mIdx]) || {}).name || '',
+                };
+            } catch (_) { return null; }
+        };
+        const applySwappedPlan = (plan) => {
+            const pdNew = plan?.plan_data;
+            if (!pdNew) return;
+            setPlanData((prev) => {
+                if (!prev) return pdNew;
+                if (prev.id && plan.id && prev.id !== plan.id) return prev;
+                const merged = { ...prev, days: pdNew.days };
+                for (const k of ['micronutrient_report', 'dish_quality_report', '_plan_modified_at',
+                    '_meal_regen_inflight',
+                    'aggregated_shopping_list', 'aggregated_shopping_list_weekly',
+                    'aggregated_shopping_list_biweekly', 'aggregated_shopping_list_monthly']) {
+                    if (k in pdNew) merged[k] = pdNew[k];
+                    else delete merged[k];
+                }
+                safeLocalStorageSet('mealfit_plan', merged);
+                return merged;
+            });
+        };
+        const finish = (applied) => {
+            safeLocalStorageRemove('mealfit_meal_regen_inflight');
+            if (!cancelled) setMealRegenInFlight(null);
+            if (applied && !cancelled) {
+                toast.success('¡Plato actualizado!', { description: 'Tu plato nuevo ya está listo.', icon: '👨‍🍳' });
+            }
+        };
+        let sawFlag = false;
+        const startedPollAt = Date.now();
+        const tick = async (mk) => {
+            if (cancelled) return;
+            try {
+                const resp = await fetchWithAuth('/api/plans-data/latest');
+                if (!cancelled && resp.ok) {
+                    const { plan } = await resp.json();
+                    const pdNew = plan?.plan_data;
+                    const idOk = !mk.planId || !plan?.id || String(plan.id) === String(mk.planId);
+                    if (pdNew && idOk) {
+                        const flag = pdNew._meal_regen_inflight;
+                        const flagFresh = !!(flag && flag.started_at
+                            && (Date.now() - Date.parse(flag.started_at)) < MAX_AGE_MS);
+                        if (flagFresh) {
+                            sawFlag = true; // el backend sigue generando → seguir polleando
+                        } else {
+                            const modChanged = mk.baseModifiedAt
+                                ? (pdNew._plan_modified_at && pdNew._plan_modified_at !== mk.baseModifiedAt)
+                                : !!pdNew._plan_modified_at;
+                            const newName = ((((pdNew.days || [])[mk.dayIndex] || {}).meals || [])[mk.mealIndex] || {}).name || '';
+                            const nameChanged = !!(newName && mk.name && newName !== mk.name);
+                            if (modChanged || nameChanged) {
+                                applySwappedPlan(plan);
+                                finish(true);
+                                return;
+                            }
+                            // Gracia de 30s por si el remount ganó la carrera al SET inicial del
+                            // flag; tras verla (o vencida la gracia) sin cambios → soft-fail del
+                            // swap (nada persistió) → apagar sin toast de éxito.
+                            if (sawFlag || (Date.now() - startedPollAt) > 30 * 1000) {
+                                finish(false);
+                                return;
+                            }
+                        }
+                    }
+                }
+            } catch (_) { /* transient — reintenta el próximo tick */ }
+            if (!cancelled && (Date.now() - (mk.startedAt || startedPollAt)) < MAX_AGE_MS) {
+                timer = setTimeout(() => tick(mk), 5000);
+            } else if (!cancelled) {
+                finish(false);
+            }
+        };
+        (async () => {
+            let mk = marker;
+            if (!mk) mk = await armFromServerFlag();
+            if (!mk || cancelled) return;
+            setMealRegenInFlight({ dayIndex: mk.dayIndex, mealIndex: mk.mealIndex });
+            tick(mk);
+        })();
+        return () => { cancelled = true; if (timer) clearTimeout(timer); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session?.user?.id]);
+
     // --- REGENERACIÓN INTELIGENTE CON PERSISTENCIA DE DB ---
     const regenerateSingleMeal = async (dayIndex, mealIndex, mealType, currentName, swapReason = 'dislike', liveInventory = null) => {
         const planDays = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
@@ -2536,6 +2662,27 @@ export const AssessmentProvider = ({ children }) => {
             });
         });
 
+        // [P1-SWAP-REGEN-RESUME · 2026-07-11] Marker persistente del swap in-flight (espejo
+        // de mealfit_day_regen_inflight): con plan_id/day_index/meal_index en el body, el
+        // BACKEND setea el flag server-side, genera Y PERSISTE el plato aunque este tab
+        // muera — el marker permite al remount retomar el spinner y pollear hasta ver el
+        // persist. Solo autenticados (guest = plan localStorage-only, sin persist server).
+        const _swapPlanId = planData?.id || planData?.plan_id || null;
+        const _swapResumable = !!(userId && userId !== 'guest' && _swapPlanId);
+        if (_swapResumable) {
+            try {
+                safeLocalStorageSet('mealfit_meal_regen_inflight', {
+                    planId: _swapPlanId,
+                    dayIndex,
+                    mealIndex,
+                    startedAt: Date.now(),
+                    // [P2-REGEN-RESUME-NO-CLOCKS] baseline server-vs-server (no reloj cliente).
+                    baseModifiedAt: planData?._plan_modified_at || null,
+                    name: currentName || '',
+                });
+            } catch (_) { /* no-op */ }
+            setMealRegenInFlight({ dayIndex, mealIndex });
+        }
         try {
             // 1. LLAMADA A LA IA
             const API_SWAP_URL = '/api/plans/swap-meal';
@@ -2564,7 +2711,12 @@ export const AssessmentProvider = ({ children }) => {
                     dislikes: formData.dislikes || [],
                     liked_meals: Object.keys(likedMeals || {}),
                     disliked_meals: Object.keys(dislikedMeals || {}),
-                    current_pantry_ingredients: currentIngredients
+                    current_pantry_ingredients: currentIngredients,
+                    // [P1-SWAP-REGEN-RESUME] contexto de persistencia server-side (authed):
+                    // el backend setea _meal_regen_inflight + persiste el plato él mismo.
+                    plan_id: _swapResumable ? _swapPlanId : undefined,
+                    day_index: _swapResumable ? dayIndex : undefined,
+                    meal_index: _swapResumable ? mealIndex : undefined
                 })
             });
 
@@ -2932,6 +3084,12 @@ export const AssessmentProvider = ({ children }) => {
 
             setPlanData(updatedPlan);
             return localFallback.name;
+        } finally {
+            // [P1-SWAP-REGEN-RESUME] Ruta sin-refresh: el request terminó en esta sesión →
+            // limpiar marker + estado. (Con refresh, este finally nunca corre y el marker
+            // sobrevive para que el effect de resume retome el spinner + poll.)
+            safeLocalStorageRemove('mealfit_meal_regen_inflight');
+            setMealRegenInFlight(null);
         }
     };
 
@@ -3513,6 +3671,8 @@ export const AssessmentProvider = ({ children }) => {
             regenerateDay: _regenerateDay,
             // [P1-DAY-REGEN-RESUME · 2026-07-10] overlay del día sobrevive al refresh.
             dayRegenInFlight,
+            // [P1-SWAP-REGEN-RESUME · 2026-07-11] spinner del plato individual también.
+            mealRegenInFlight,
             resetApp: _resetApp,
             resetForNewAssessment: _resetForNewAssessment,
             planCount: effectivePlanCount,
@@ -3544,7 +3704,7 @@ export const AssessmentProvider = ({ children }) => {
         loadingSensitive, userProfile, _updateUserProfile, currentStep, setCurrentStep,
         maxReachedStep, setMaxReachedStep, direction, _nextStep, _prevStep, formData,
         _updateData, planData, setPlanData, _saveGeneratedPlan, likedMeals, _toggleMealLike,
-        dislikedMeals, _regenerateSingleMeal, _regenerateDay, dayRegenInFlight, _resetApp, _resetForNewAssessment,
+        dislikedMeals, _regenerateSingleMeal, _regenerateDay, dayRegenInFlight, mealRegenInFlight, _resetApp, _resetForNewAssessment,
         effectivePlanCount, effectivePlanLimit, checkPlanLimit, isPremium, effectiveRemaining,
         isGuest, activateGuestMode, consumeGuestCredit, exitGuestSession, _upgradeUserPlan,
         _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, restoreSessionData,

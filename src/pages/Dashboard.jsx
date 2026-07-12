@@ -579,6 +579,7 @@ const DashboardInner = () => {
         regenerateSingleMeal, // Ahora esta función es ASYNC (llama a la IA)
         regenerateDay, // [P5-PANTRY-SUFFICIENCY · 2026-06-23] actualizar el día desde la Nevera
         dayRegenInFlight, // [P1-DAY-REGEN-RESUME · 2026-07-10] regen del día in-flight (sobrevive refresh)
+        mealRegenInFlight, // [P1-SWAP-REGEN-RESUME · 2026-07-11] swap individual in-flight (sobrevive refresh)
         formData,
         planCount,
         PLAN_LIMIT,
@@ -1266,6 +1267,18 @@ const DashboardInner = () => {
         if (!dayRegenInFlight && _prevDayRegenRef.current) setIsDayUpdating(false);
         _prevDayRegenRef.current = dayRegenInFlight;
     }, [dayRegenInFlight]);
+    // [P1-SWAP-REGEN-RESUME · 2026-07-11] Espejo para el swap INDIVIDUAL: al remontar tras
+    // un refresh con swap in-flight, el resume del contexto pone mealRegenInFlight →
+    // re-encendemos el spinner del card (regeneratingId), escopado al día VISIBLE
+    // (regeneratingId es un índice dentro de currentDayMeals — sin el guard de
+    // activeDayIndex el spinner aparecería en el card equivocado de otro día).
+    const _prevMealRegenRef = useRef(false);
+    useEffect(() => {
+        const inFlight = !!mealRegenInFlight && mealRegenInFlight.dayIndex === activeDayIndex;
+        if (inFlight && !_prevMealRegenRef.current) setRegeneratingId(mealRegenInFlight.mealIndex);
+        if (!inFlight && _prevMealRegenRef.current) setRegeneratingId(null);
+        _prevMealRegenRef.current = inFlight;
+    }, [mealRegenInFlight, activeDayIndex]);
     // Candado SÍNCRONO para el modal de "Cambiar Plato" individual contra doble-tap (mismo bug de
     // doble-cobro que el día: setSwapModal(null) es async → un 2º tap pasaría antes del re-render).
     const swapInFlightLock = useRef(false);
