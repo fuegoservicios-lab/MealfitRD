@@ -1854,6 +1854,12 @@ export const AssessmentProvider = ({ children }) => {
                 if (incomingStatus !== 'partial' && incomingStatus !== 'complete') return;
 
                 setPlanData(prev => {
+                    // [P1-PLANDATA-ID-HYDRATE · 2026-07-12] plan_data del servidor NO trae el
+                    // id (vive en la columna) — devolverlo pelado deja planData SIN id y los
+                    // guards downstream fallan ("No encontramos tu plan activo" al Actualizar
+                    // Día, vivo 2026-07-12 tras el merge nocturno del chunk con la pestaña
+                    // abierta). Adjuntarlo SIEMPRE desde el row.
+                    if (newPlanData.id == null && plan?.id != null) newPlanData.id = plan.id;
                     if (!prev) return newPlanData;
                     // [P2-REALTIME-PLAN-ID-GUARD · 2026-05-30] El poll trae el
                     // plan MÁS RECIENTE del usuario, que puede NO ser el plan
@@ -1876,6 +1882,8 @@ export const AssessmentProvider = ({ children }) => {
                         days: newPlanData.days,
                         generation_status: incomingStatus,
                         total_days_requested: newPlanData.total_days_requested ?? prev.total_days_requested,
+                        // [P1-PLANDATA-ID-HYDRATE] repara estados previos que quedaron sin id.
+                        id: prev.id ?? plan?.id,
                     };
                     safeLocalStorageSet('mealfit_plan', merged);
                     return merged;
@@ -2411,9 +2419,12 @@ export const AssessmentProvider = ({ children }) => {
             const pdNew = plan?.plan_data;
             if (!pdNew) return;
             setPlanData((prev) => {
+                // [P1-PLANDATA-ID-HYDRATE · 2026-07-12] adjuntar SIEMPRE el id del row
+                // (plan_data no lo trae; sin id, los guards downstream fallan).
+                if (pdNew.id == null && plan?.id != null) pdNew.id = plan.id;
                 if (!prev) return pdNew;
                 if (prev.id && plan.id && prev.id !== plan.id) return prev;
-                const merged = { ...prev, days: pdNew.days };
+                const merged = { ...prev, days: pdNew.days, id: prev.id ?? plan?.id };
                 for (const k of ['micronutrient_report', 'dish_quality_report', '_quality_degraded',
                     '_quality_degraded_reason', '_quality_degraded_severity', '_plan_modified_at',
                     '_day_regen_inflight',
@@ -2556,9 +2567,12 @@ export const AssessmentProvider = ({ children }) => {
             const pdNew = plan?.plan_data;
             if (!pdNew) return;
             setPlanData((prev) => {
+                // [P1-PLANDATA-ID-HYDRATE · 2026-07-12] adjuntar SIEMPRE el id del row
+                // (plan_data no lo trae; sin id, los guards downstream fallan).
+                if (pdNew.id == null && plan?.id != null) pdNew.id = plan.id;
                 if (!prev) return pdNew;
                 if (prev.id && plan.id && prev.id !== plan.id) return prev;
-                const merged = { ...prev, days: pdNew.days };
+                const merged = { ...prev, days: pdNew.days, id: prev.id ?? plan?.id };
                 for (const k of ['micronutrient_report', 'dish_quality_report', '_plan_modified_at',
                     '_meal_regen_inflight',
                     'aggregated_shopping_list', 'aggregated_shopping_list_weekly',
