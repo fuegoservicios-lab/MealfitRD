@@ -18,9 +18,10 @@
 
 /* Top fijo */
 .top { position: sticky; top: 0; z-index: 5; background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 16px 12px; }
+/* [P3-RECIPES-NO-TITLE · 2026-07-12] h1 "Recetario" eliminado (pedido del owner,
+   sin sinónimo) — la meta del día ocupa la fila. */
 .topRow { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.topRow h1 { margin: 0; font-family: var(--font-heading); font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; color: var(--text-main); }
-.sum { font-size: .76rem; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+.sum { font-size: .8rem; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
 .sum b { color: var(--text-main); font-weight: 800; }
 .days { display: flex; gap: 6px; margin-top: 11px; background: var(--bg-muted); border: 1px solid var(--border); border-radius: 12px; padding: 4px; overflow-x: auto; scrollbar-width: none; }
 .days::-webkit-scrollbar { display: none; }

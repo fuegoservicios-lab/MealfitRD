@@ -6,14 +6,9 @@
    veía sucia debajo de la card. Recuadro limpio (solo borde). Espejo en Nevera .app. */
 .app { container-type: inline-size; overflow: hidden; background: var(--bg-card); border: 1px solid var(--border); border-radius: 26px; }
 
-.top { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.top h1 { margin: 0; font-family: var(--font-heading); font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; color: var(--text-main); }
-/* PC: "Recetario"; móvil (≤880px): "Recetas" — ver [P3-RECIPES-TITLE]. */
-.titleShort { display: none; }
-@media (max-width: 880px) {
-  .titleFull { display: none; }
-  .titleShort { display: inline; }
-}
+/* [P3-RECIPES-NO-TITLE · 2026-07-12] El título "Recetario"/"Recetas" se eliminó
+   (pedido del owner, sin sinónimo): el selector de días ancla el header. */
+.top { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .sum { margin-left: auto; font-size: .8rem; color: var(--text-muted); font-weight: 600; }
 .sum b { color: var(--text-main); font-weight: 800; }
 .days { display: inline-flex; gap: 6px; background: var(--bg-muted); border: 1px solid var(--border); border-radius: 12px; padding: 4px; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
@@ -41,7 +36,10 @@
 .detail { padding: 20px; min-width: 0; }
 .head2 { position: relative; overflow: hidden; border-radius: 20px; border: 1px solid color-mix(in srgb, var(--tone) 34%, var(--border)); padding: 22px; display: flex; gap: 17px; align-items: flex-start;
   background: radial-gradient(120% 130% at 100% -10%, color-mix(in srgb, var(--tone) 26%, transparent), transparent 60%), linear-gradient(135deg, color-mix(in srgb, var(--tone) 13%, var(--bg-page)), var(--bg-page)); }
-.head2::before { content: ""; position: absolute; right: -30px; top: -30px; width: 160px; height: 160px; border-radius: 50%; background: color-mix(in srgb, var(--tone) 14%, transparent); filter: blur(8px); }
+/* [P3-RECIPES-POLISH · 2026-07-12] El blob de la esquina se veía como una mancha
+   recortada (blur corto + borde duro contra el radius). Ahora es un glow ambiental
+   amplio y suave que muere dentro de la tarjeta. */
+.head2::before { content: ""; position: absolute; right: -60px; top: -70px; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--tone) 18%, transparent), transparent 68%); filter: blur(24px); pointer-events: none; }
 .emblem { flex: none; width: 54px; height: 54px; border-radius: 16px; display: grid; place-items: center; color: #05080f; background: linear-gradient(150deg, color-mix(in srgb, var(--tone) 85%, #fff), var(--tone)); box-shadow: 0 10px 24px -10px var(--tone); }
 .h2body { flex: 1; min-width: 0; position: relative; }
 .badge { display: inline-flex; align-items: center; gap: 6px; font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--tone); background: color-mix(in srgb, var(--tone) 18%, transparent); border: 1px solid color-mix(in srgb, var(--tone) 38%, transparent); padding: 4px 10px; border-radius: 99px; }
@@ -63,7 +61,9 @@
 .macVal { font-family: var(--font-heading); font-weight: 800; font-size: 1.1rem; color: var(--text-main); line-height: 1; }
 .macVal small { font-size: .66rem; color: var(--text-light); }
 
-.desc { margin: 18px 2px 0; font-size: .86rem; line-height: 1.55; color: var(--text-muted); font-style: italic; }
+/* [P3-RECIPES-POLISH · 2026-07-12] La descripción pasa de párrafo suelto a CITA
+   con barra de acento del tono de la comida — jerarquía clara vs ingredientes. */
+.desc { margin: 18px 2px 0; padding: 2px 0 2px 14px; border-left: 3px solid color-mix(in srgb, var(--tone, var(--primary)) 45%, transparent); font-size: .86rem; line-height: 1.55; color: var(--text-muted); font-style: italic; }
 /* [P-RECIPES-COOK-REMOVED · 2026-07-12] Acción única: descargar PDF. */
 .actions { display: flex; gap: 10px; margin: 16px 2px 0; }
 .btn { appearance: none; cursor: pointer; font: inherit; font-size: .84rem; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 20px; border-radius: 14px; border: 1px solid transparent; transition: transform .15s ease-out, box-shadow .15s ease-out; }
@@ -105,6 +105,13 @@
 .finishText { font-family: var(--font-heading); font-size: .92rem; font-weight: 800; letter-spacing: -.01em; color: var(--secondary); }
 
 .empty { text-align: center; padding: 3rem 1.5rem; background: var(--bg-page); border: 1px dashed var(--border); border-radius: 16px; color: var(--text-muted); font-size: .9rem; }
+
+/* [P3-RECIPES-POLISH · 2026-07-12] Focos visibles de teclado en los controles
+   interactivos (antes ninguno los tenía). */
+.day:focus-visible, .meal:focus-visible, .btn:focus-visible, .ingItem:focus-visible, .step:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 
 /* Responsive según ancho del contenedor (container query) Y del viewport
    (@media, fallback fiable). [P3-RECIPES-MOBILE-FIX · 2026-06-24] El container

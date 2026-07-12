@@ -61,9 +61,10 @@ export function MobileRecipes({
     <section className={styles.app} style={{ '--tone': t.tone }} aria-label="Recetas">
       {/* Barra superior fija */}
       <header className={styles.top}>
+        {/* [P3-RECIPES-NO-TITLE · 2026-07-12] "Recetario" eliminado (pedido del
+            owner, sin sinónimo). La meta del día ocupa la fila. */}
         <div className={styles.topRow}>
-          <h1>Recetario</h1>
-          <span className={styles.sum}>Meta · <b>{Number(dayKcal || 0).toLocaleString('es-DO')}</b> kcal</span>
+          <span className={styles.sum}>Meta del día · <b>{Number(dayKcal || 0).toLocaleString('es-DO')}</b> kcal</span>
         </div>
         {days.length > 1 && (
           <div className={styles.days} role="tablist">
