@@ -3864,8 +3864,16 @@ const DashboardInner = () => {
                     position: relative;
                     z-index: 1;
                 }
-                .meal-card:not(:last-child)::after,
-                .skipped-lunch:not(:last-child)::after {
+                /* [P3-DASH-LAST-SEPARATOR-FIX · 2026-07-12] :last-child → :last-of-type.
+                   El wrapper de comidas termina con un nodo <style> inline (hover de
+                   .meal-act-btn): con :last-child la ÚLTIMA comida nunca era "última"
+                   → pintaba un separador de más, clavado contra el borde inferior
+                   redondeado del cuaderno (la "franja gris" reportada, se curvaba con
+                   la esquina por el overflow:hidden). :last-of-type cuenta solo DIVs
+                   → inmune a <style>/<script> hermanos. Si añades un DIV al FINAL del
+                   wrapper que no sea comida, el bug vuelve — añádelo antes del map. */
+                .meal-card:not(:last-of-type)::after,
+                .skipped-lunch:not(:last-of-type)::after {
                     content: '';
                     display: block;
                     position: absolute;
@@ -4399,8 +4407,8 @@ const DashboardInner = () => {
                     .meals-container::before {
                         left: 0.5rem;
                     }
-                    .meal-card:not(:last-child)::after,
-                    .skipped-lunch:not(:last-child)::after {
+                    .meal-card:not(:last-of-type)::after,
+                    .skipped-lunch:not(:last-of-type)::after {
                         left: 0.5rem;
                         display: block;
                     }
@@ -4499,8 +4507,8 @@ const DashboardInner = () => {
                     .meals-container::before {
                         left: 0.5rem;
                     }
-                    .meal-card:not(:last-child)::after,
-                    .skipped-lunch:not(:last-child)::after {
+                    .meal-card:not(:last-of-type)::after,
+                    .skipped-lunch:not(:last-of-type)::after {
                         left: 0.5rem;
                     }
                     .menu-section-header {
@@ -4892,8 +4900,8 @@ const DashboardInner = () => {
                     .skipped-lunch {
                         padding-left: 1.25rem !important;
                     }
-                    .meal-card:not(:last-child)::after,
-                    .skipped-lunch:not(:last-child)::after {
+                    .meal-card:not(:last-of-type)::after,
+                    .skipped-lunch:not(:last-of-type)::after {
                         left: 1.25rem !important;
                         right: 1.25rem !important;
                     }
