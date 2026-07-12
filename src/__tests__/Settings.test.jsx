@@ -86,11 +86,10 @@ describe('Settings Plan Regeneration', () => {
         await user.click(confirmBtn);
 
         // Verify regeneratePlan was called.
-        // [APPEARANCE-THEME · 2026-05-28] El handler 'renovar' ahora pasa
-        // props extra ({ toastId, entry_point: 'settings_renovar' }) además de
-        // { reason, isPlanExpired }. `toastId` es un id dinámico de sonner, así
-        // que asertamos con objectContaining sobre el contrato estable en vez
-        // de un match exacto.
+        // El handler 'renovar' (Settings.jsx) llama regeneratePlan con
+        // { reason: 'variety', isPlanExpired: false, entry_point: 'settings_renovar' }.
+        // Asertamos con objectContaining sobre ese contrato estable (por si el handler
+        // añade props extra en el futuro, el test no se rompe por un match exacto).
         await waitFor(() => {
             expect(mockRegeneratePlan).toHaveBeenCalledWith(
                 expect.objectContaining({

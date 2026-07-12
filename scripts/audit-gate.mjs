@@ -35,6 +35,22 @@ try {
   report = JSON.parse(e.stdout);
 }
 
+// [P1-CI-FAIL-CLOSED · 2026-07-12] FAIL-CLOSED ante un audit inválido. Si el
+// endpoint de `npm audit` cae, npm emite `{ error: {...} }` en stdout (o un objeto
+// sin `vulnerabilities`); parsearlo dejaba `report.vulnerabilities` undefined →
+// `Object.entries({})` → 0 offenders → el gate imprimía ✓ y salía 0 (fail-OPEN: un
+// gate de seguridad que se abre justo cuando NO pudo auditar). Un audit que no
+// produce el mapa de vulnerabilidades NO es un pase — es un fallo del gate.
+if (!report || typeof report !== 'object' || report.error || !report.vulnerabilities) {
+  console.error(
+    '[audit-gate] ❌ npm audit no devolvió un reporte de vulnerabilidades válido ' +
+    '(endpoint caído / red / formato inesperado). FAIL-CLOSED: el gate NO puede ' +
+    'garantizar ausencia de vulns → falla en vez de pasar en silencio.' +
+    (report && report.error ? ' error=' + JSON.stringify(report.error).slice(0, 200) : '')
+  );
+  process.exit(2);
+}
+
 const offenders = [];
 for (const [name, adv] of Object.entries(report.vulnerabilities || {})) {
   if (!['high', 'critical'].includes(adv.severity)) continue;
