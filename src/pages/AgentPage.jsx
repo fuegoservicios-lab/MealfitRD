@@ -779,6 +779,10 @@ const AgentPage = () => {
     }, [planData, formData, userProfile]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    // [P2-CHAT-HISTORY-CLEAN · 2026-07-12] Espejo-ref para que callbacks con
+    // deps estables (fetchSessionMessages) lean el valor fresco sin re-crearse.
+    const isLoadingRef = useRef(false);
+    useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
     const [streamingStatus, setStreamingStatus] = useState(null);
     const [abortController, setAbortController] = useState(null);
     const abortControllerRef = useRef(null);
@@ -1242,6 +1246,14 @@ const AgentPage = () => {
         if (!_hasAnyContent) {
             setIsLoadingHistory(true);
         }
+        // [P2-CHAT-HISTORY-CLEAN · 2026-07-12] Con un turno EN VUELO el estado
+        // local va adelante del server (el mensaje se persiste recién al
+        // /stream). Sobrescribir aquí pisaba la burbuja de la foto recién
+        // enviada con el prompt enriquecido crudo persistido — vivo: la imagen
+        // "aparecía unos segundos y al cargar la respuesta se volvía texto".
+        if (isLoadingRef.current) {
+            return;
+        }
         let response;
         try {
             response = await fetchWithAuth(`/api/chat/history/${sessionId}`);
@@ -1256,6 +1268,17 @@ const AgentPage = () => {
                         if (m.role === 'model' && m.content.includes('Son las ') && (m.content.includes('de tu súper)') || m.content.includes('especialista para guiarte') || m.content.includes('enfocados en tu meta'))) return false;
                         return true;
                     });
+                    // [P2-CHAT-HISTORY-CLEAN · 2026-07-12] Miniaturas locales:
+                    // el server NO persiste la imagen (sin object storage) —
+                    // si el estado local actual tiene el thumb dataURL del
+                    // n-ésimo mensaje de usuario, conservarlo al rehidratar.
+                    // Solo si los conteos coinciden (alineación segura).
+                    const _localUsers = (Array.isArray(messagesRef.current) ? messagesRef.current : [])
+                        .filter(x => x.role === 'user');
+                    const _serverUserCount = filteredMessages.filter(x => x.role === 'user').length;
+                    const _canMergeThumbs = _localUsers.length === _serverUserCount;
+                    let _userOrdinal = 0;
+
                     setMessages(filteredMessages.map(m => {
                         let content = m.content;
                         let isImage = false;
@@ -1269,28 +1292,29 @@ const AgentPage = () => {
                             content = content.replace(/\[IMAGE:\s*.+?\]\n?/, '');
                         }
 
-                        // Limpiar prefijo de visión y contexto enriquecido del historial
+                        // [P2-CHAT-HISTORY-CLEAN] Limpiar el andamiaje interno del
+                        // prompt enriquecido. El historial persiste el prompt
+                        // COMPLETO (el LLM necesita el análisis en turnos futuros),
+                        // pero el usuario solo debe VER su propio texto. Un solo
+                        // detector cubre TODAS las variantes de wrapper (plato,
+                        // items, otro, analizador caído) — pre-fix solo 2 variantes
+                        // viejas matcheaban y las nuevas mostraban el prompt crudo.
                         if (m.role === 'user') {
-                            // Limpiar hora del usuario
-                            content = content.replace(/\[\(Hora actual del usuario:.*?\)\]\n?/gi, '');
-
-                            if (content.includes('[El usuario subió una imagen.')) {
-                                const userMsgMatch = content.match(/Mensaje del usuario:\s*(.+)$/s);
-                                if (userMsgMatch) {
-                                    content = userMsgMatch[1].trim();
-                                } else {
-                                    content = content.replace(/\[El usuario subió una imagen\..+?\]\n\n?/s, '');
-                                }
-                            } else if (content.includes('[Sistema: El usuario acaba de subir una imagen')) {
-                                // En este caso NO HAY mensaje del usuario original, todo era un prompt de sistema
+                            const _hadPhotoWrapper = /\[(?:Sistema: )?El usuario (?:acaba de subir|subió) (?:una imagen|una foto)/i.test(content);
+                            const userMsgMatch = content.match(/Mensaje del usuario:\s*([\s\S]*)$/);
+                            if (userMsgMatch) {
+                                content = userMsgMatch[1].trim();
+                            } else if (_hadPhotoWrapper) {
+                                // Envío solo-foto: todo el contenido es andamiaje.
                                 content = '';
                             }
-
-                            // Limpiar "Mensaje del usuario:" que inyecta el backend para darle contexto al LLM
-                            content = content.replace(/Mensaje del usuario:\s*/gi, '');
-
-                            // Remover la sección de <dietary_context>
-                            content = content.replace(/<dietary_context>[\s\S]*?<\/dietary_context>/, '').trim();
+                            content = content
+                                .replace(/\[?\(Hora actual del usuario:.*?\)\]?\n?/gi, '')
+                                .replace(/Instrucción:[\s\S]*$/i, '')
+                                .replace(/Mensaje del usuario:\s*/gi, '')
+                                .replace(/<dietary_context>[\s\S]*?<\/dietary_context>/, '')
+                                .trim();
+                            isImage = isImage || _hadPhotoWrapper;
                         }
 
                         // Si el bot genera el system title, lo ocultamos
@@ -1298,10 +1322,20 @@ const AgentPage = () => {
                             return null;
                         }
 
+                        if (m.role === 'user') {
+                            const _ord = _userOrdinal++;
+                            if (isImage && !imageUrl && _canMergeThumbs) {
+                                const _localImg = _localUsers[_ord]?.imageUrl;
+                                if (_localImg && !String(_localImg).startsWith('blob:')) {
+                                    imageUrl = _localImg;
+                                }
+                            }
+                        }
+
                         return {
                             role: m.role,
                             content: content || '',
-                            isImage: isImage || (m.role === 'user' && (m.content || '').includes('[El usuario subió una imagen.') || (m.content || '').includes('[Sistema: El usuario acaba de subir una imagen')),
+                            isImage,
                             imageUrl: imageUrl
                         };
                     }));
