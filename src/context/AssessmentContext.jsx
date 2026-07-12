@@ -2165,6 +2165,10 @@ export const AssessmentProvider = ({ children }) => {
     // resume post-refresh — el Dashboard lo consume para mantener el overlay "cocinando"
     // encendido sin importar el reload (el backend sigue generando server-side).
     const [dayRegenInFlight, setDayRegenInFlight] = useState(false);
+    // [P2-DAYREGEN-OVERLAY-SCOPE · 2026-07-12] índice del día EN regen (null = ninguno): el
+    // overlay "cocinando" se veía en TODOS los tabs (vivo: regen del domingo con la animación
+    // también en lunes y martes) — el boolean no decía CUÁL día era. El Dashboard escopa con esto.
+    const [dayRegenIndex, setDayRegenIndex] = useState(null);
     const dayRegenPollRef = useRef(null);
     // [P1-SWAP-REGEN-RESUME · 2026-07-11] Swap INDIVIDUAL in-flight ({dayIndex, mealIndex} |
     // null) — espejo de dayRegenInFlight para que el spinner del plato sobreviva el refresh
@@ -2213,6 +2217,7 @@ export const AssessmentProvider = ({ children }) => {
             });
         } catch (_) { /* no-op */ }
         setDayRegenInFlight(true);
+        setDayRegenIndex(dayIndex);  // [P2-DAYREGEN-OVERLAY-SCOPE]
         try {
             const resp = await fetchWithAuth(`/api/plans/${planId}/regenerate-day`, {
                 method: 'POST',
@@ -2368,6 +2373,7 @@ export const AssessmentProvider = ({ children }) => {
             // sobrevive para que el effect de resume retome el overlay + poll.)
             safeLocalStorageRemove('mealfit_day_regen_inflight');
             setDayRegenInFlight(false);
+            setDayRegenIndex(null);  // [P2-DAYREGEN-OVERLAY-SCOPE]
         }
     };
 
@@ -2439,7 +2445,7 @@ export const AssessmentProvider = ({ children }) => {
         };
         const finish = (applied) => {
             safeLocalStorageRemove('mealfit_day_regen_inflight');
-            if (!cancelled) setDayRegenInFlight(false);
+            if (!cancelled) { setDayRegenInFlight(false); setDayRegenIndex(null); }  // [P2-DAYREGEN-OVERLAY-SCOPE]
             if (applied && !cancelled) {
                 toast.success('¡Día actualizado!', { description: 'Tus platos nuevos ya están listos.', icon: '👨‍🍳' });
                 // [P1-CREDITS-LIVE-REFRESH · 2026-07-10] el regen cobró 1 crédito server-side →
@@ -2502,6 +2508,7 @@ export const AssessmentProvider = ({ children }) => {
         const startPolling = () => {
             if (cancelled || !marker) return;
             setDayRegenInFlight(true);
+            setDayRegenIndex(Number(marker?.dayIndex ?? 0) || 0);  // [P2-DAYREGEN-OVERLAY-SCOPE]
             dayRegenPollRef.current = setTimeout(tick, 2000);
         };
         if (marker) {
@@ -3685,6 +3692,8 @@ export const AssessmentProvider = ({ children }) => {
             regenerateDay: _regenerateDay,
             // [P1-DAY-REGEN-RESUME · 2026-07-10] overlay del día sobrevive al refresh.
             dayRegenInFlight,
+            // [P2-DAYREGEN-OVERLAY-SCOPE · 2026-07-12] qué día está en regen (escopa el overlay).
+            dayRegenIndex,
             // [P1-SWAP-REGEN-RESUME · 2026-07-11] spinner del plato individual también.
             mealRegenInFlight,
             resetApp: _resetApp,
@@ -3718,7 +3727,7 @@ export const AssessmentProvider = ({ children }) => {
         loadingSensitive, userProfile, _updateUserProfile, currentStep, setCurrentStep,
         maxReachedStep, setMaxReachedStep, direction, _nextStep, _prevStep, formData,
         _updateData, planData, setPlanData, _saveGeneratedPlan, likedMeals, _toggleMealLike,
-        dislikedMeals, _regenerateSingleMeal, _regenerateDay, dayRegenInFlight, mealRegenInFlight, _resetApp, _resetForNewAssessment,
+        dislikedMeals, _regenerateSingleMeal, _regenerateDay, dayRegenInFlight, dayRegenIndex, mealRegenInFlight, _resetApp, _resetForNewAssessment,
         effectivePlanCount, effectivePlanLimit, checkPlanLimit, isPremium, effectiveRemaining,
         isGuest, activateGuestMode, consumeGuestCredit, exitGuestSession, _upgradeUserPlan,
         _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, restoreSessionData,

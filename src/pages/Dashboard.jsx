@@ -579,6 +579,7 @@ const DashboardInner = () => {
         regenerateSingleMeal, // Ahora esta función es ASYNC (llama a la IA)
         regenerateDay, // [P5-PANTRY-SUFFICIENCY · 2026-06-23] actualizar el día desde la Nevera
         dayRegenInFlight, // [P1-DAY-REGEN-RESUME · 2026-07-10] regen del día in-flight (sobrevive refresh)
+        dayRegenIndex, // [P2-DAYREGEN-OVERLAY-SCOPE · 2026-07-12] qué día está en regen (escopa el overlay al tab)
         mealRegenInFlight, // [P1-SWAP-REGEN-RESUME · 2026-07-11] swap individual in-flight (sobrevive refresh)
         formData,
         planCount,
@@ -6907,7 +6908,10 @@ const DashboardInner = () => {
                                         {/* [P1-SWAP-LOADING-UX · 2026-07-10] Overlay "cocinando": cubre ESTA
                                             card durante su swap individual, o TODAS durante el update del día
                                             (seed=index desfasa las etapas para que no se vean clonadas). */}
-                                        {(regeneratingId === index || isDayUpdating) && (
+                                        {/* [P2-DAYREGEN-OVERLAY-SCOPE] el overlay del día solo en SU tab —
+                                            se veía también en lunes/martes durante el regen del domingo. */}
+                                        {(regeneratingId === index || (isDayUpdating
+                                            && (dayRegenIndex == null || dayRegenIndex === activeDayIndex))) && (
                                             <MealCookingOverlay mode={isDayUpdating ? 'day' : 'single'} seed={index} />
                                         )}
 
