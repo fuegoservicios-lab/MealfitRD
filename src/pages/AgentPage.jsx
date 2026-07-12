@@ -384,6 +384,27 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
     return `${timeGreeting}${firstName}! ${goalContext}${mealContext}`.trim().replace(/\s+/g, ' ');
 };
 
+// [P1-CHAT-PHOTO-UX · 2026-07-12] Miniatura dataURL (~30KB @360px) para la
+// burbuja del mensaje: los blob: URLs mueren en cada reload y su lifecycle
+// (revoke) ya produjo 2 bugs; el dataURL vive dentro del objeto-mensaje y
+// sobrevive el cache localStorage del chat.
+const fileToThumbDataUrl = (file, maxSide = 360, quality = 0.72) => new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+        try {
+            const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch (e) { reject(e); } finally { URL.revokeObjectURL(url); }
+    };
+    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+});
+
 const compressImageFile = (file, maxWidth = 1200, quality = 0.8) => {
     return new Promise((resolve) => {
         const objectUrl = URL.createObjectURL(file);
@@ -1177,6 +1198,17 @@ const AgentPage = () => {
     const _WELCOME_REFRESH_MS = 30 * 60 * 1000;
     const _setWelcomeIfAbsent = useCallback(() => {
         setMessages(prev => {
+            // [P1-CHAT-PHOTO-UX · 2026-07-12] Guard CRÍTICO: si hay CUALQUIER
+            // mensaje real (no-welcome), NO tocar el estado. Pre-fix el
+            // fall-through devolvía [{welcome}] y BORRABA la conversación:
+            // con [welcome, msg-del-user] (foto recién enviada, aún no
+            // persistida al server porque el análisis gemma tarda 30-90s),
+            // cualquier invocación en esa ventana pisaba el mensaje del user
+            // — vivo: la burbuja con la foto desaparecía dejando solo el
+            // saludo. Antes (visión cloud ~3s) la ventana era invisible.
+            if (Array.isArray(prev) && prev.some(m => !m.isWelcome)) {
+                return prev;
+            }
             if (Array.isArray(prev) && prev.length === 1 && prev[0]?.isWelcome) {
                 const ageMs = Date.now() - (prev[0]?.welcomeAt || 0);
                 if (ageMs < _WELCOME_REFRESH_MS) {
@@ -1478,13 +1510,22 @@ const AgentPage = () => {
             }, 0);
         }
 
-        const newMessages = options.truncateIndex !== undefined
+        // [P1-CHAT-PHOTO-UX · 2026-07-12] El saludo automático se retira EN el
+        // envío (no después del análisis/stream como hacía el shift tardío):
+        // el usuario escribió — el welcome ya cumplió. El filter también evita
+        // mutar con .shift() el mismo array que ya es state.
+        const newMessages = (options.truncateIndex !== undefined
             ? messages.slice(0, options.truncateIndex)
-            : [...messages];
+            : [...messages]
+        ).filter(m => !m.isWelcome);
 
-        // Agregar mensaje visual si hay imagen
+        // Agregar mensaje visual si hay imagen. Fallback de blob: la burbuja
+        // JAMÁS debe quedar sin imageUrl teniendo archivo (burbuja fantasma).
+        const bubbleBlobUrl = currentFile
+            ? (currentPreview || URL.createObjectURL(currentFile))
+            : null;
         if (currentFile) {
-            newMessages.push({ role: 'user', content: userMsg || '', isImage: true, imageUrl: currentPreview });
+            newMessages.push({ role: 'user', content: userMsg || '', isImage: true, imageUrl: bubbleBlobUrl });
         } else if (options.overrideImageUrl) {
             newMessages.push({ role: 'user', content: userMsg || '', isImage: true, imageUrl: options.overrideImageUrl });
         } else {
@@ -1492,6 +1533,25 @@ const AgentPage = () => {
         }
 
         setMessages(newMessages);
+
+        // [P1-CHAT-PHOTO-UX] La burbuja migra a miniatura dataURL apenas está
+        // lista (~100ms): inmune al lifecycle de blobs (revokes/reloads — ya
+        // causó P2-CHAT-IMG-SWAP-RERENDER y P3-CHAT-OBJECTURL-LEAK) y viaja
+        // con el mensaje al cache localStorage, así la foto sigue visible tras
+        // un refresh aunque no haya object storage.
+        if (currentFile && bubbleBlobUrl) {
+            fileToThumbDataUrl(currentFile).then((thumb) => {
+                setMessages(prev => prev.map(m => (
+                    m.role === 'user' && m.isImage && m.imageUrl === bubbleBlobUrl
+                        ? { ...m, imageUrl: thumb }
+                        : m
+                )));
+                // Revoke diferido: deja que el <img> re-renderice al dataURL.
+                setTimeout(() => {
+                    try { URL.revokeObjectURL(bubbleBlobUrl); } catch { /* noop */ }
+                }, 1500);
+            }).catch(() => { /* la burbuja conserva el blob como fallback */ });
+        }
 
         // [P1-CHAT-ERROR-DIFF · 2026-05-19] Declarados arriba del try para que
         // el catch outer (network error) pueda referenciarlos al construir el
@@ -1513,7 +1573,9 @@ const AgentPage = () => {
             // Manejar subida de imagen si existe
             if (currentFile) {
                 // gemma local tarda 30-90s: sin señal el usuario mira la nada.
-                setStreamingStatus('Analizando tu foto…');
+                // El render especial-casea este texto (literal, no frases
+                // rotativas de "genética" que confunden durante una foto).
+                setStreamingStatus('Analizando tu foto… puede tardar un minuto');
                 const formData = new FormData();
                 formData.append('file', currentFile);
                 formData.append('user_id', session?.user?.id || userProfile?.id || localSessionId);
@@ -1609,11 +1671,9 @@ const AgentPage = () => {
                 }
 
                 setStreamingStatus('Conectando...');
-
-                // Limpiar mensaje de bienvenida si es el primero del usuario
-                if (newMessages.length > 0 && newMessages[0].isWelcome) {
-                    newMessages.shift();
-                }
+                // [P1-CHAT-PHOTO-UX] El welcome ya se filtró al construir
+                // newMessages en el send — el shift tardío (que además mutaba
+                // el array-state en sitio) se eliminó.
 
                 setChatSessions((prev) => {
                     const exists = prev.some(s => s.id === currentSessionId);
@@ -2902,7 +2962,9 @@ const AgentPage = () => {
                                             WebkitTextFillColor: 'transparent',
                                             animation: 'shimmer 2s linear infinite',
                                             transition: 'opacity 0.3s ease-in-out'
-                                        }}>{streamingStatus ? loadingPhrases[loadingPhraseIdx] : 'Pensando...'}</span>
+                                        }}>{streamingStatus && streamingStatus.startsWith('Analizando tu foto')
+                                            ? streamingStatus
+                                            : (streamingStatus ? loadingPhrases[loadingPhraseIdx] : 'Pensando...')}</span>
                                     </div>
                                 )}
                                 <div ref={messagesEndRef} />
