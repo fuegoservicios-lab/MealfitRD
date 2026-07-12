@@ -1,14 +1,23 @@
 import { useAssessment } from '../context/AssessmentContext';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Utensils, ArrowLeft, Clock, ChefHat, Share2, Flame, CheckCircle2, Download, Leaf, Play, X, ChevronRight, ChevronLeft } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { ChefHat } from 'lucide-react';
 import { toast } from 'sonner';
-import React, { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 // [P2-LAZY-PDF · 2026-05-13] html2pdf.js (976 KB) importado dinámico
 // dentro del handler `handleDownloadPDF` — ver `await import('html2pdf.js')`
 // más abajo. Mismo patrón que Dashboard.jsx para evitar eager load del
 // chunk a usuarios que solo navegan recetas sin descargar PDF.
-import { fetchWithAuth } from '../config/api';
+//
+// [P-RECIPES-COOK-REMOVED · 2026-07-12] El flujo "Cocinar" completo se retiró
+// del producto: botón en las vistas, CookingModeOverlay (modo cocina paso a
+// paso), expansión LLM vía `/api/plans/recipe/expand` y registro de consumo.
+// La única acción de la página es descargar el PDF de la receta. Con ello se
+// fueron: fetchWithAuth, framer-motion, invalidateCachesForPlan,
+// safeLocalStorageSet y useModalAccessibility (solo los usaba ese flujo).
+// Se preserva el guard [P1-HIST-CLOSE-1 · 2026-05-10]: Recipes.jsx NO usa
+// `restorePlan` ni ningún write client-side de plan_data — el server-side
+// persist siempre fue el SSOT y ahora no queda ningún write path aquí.
+//
 // [P-RECIPES-CHUNK-WINDOW] Helpers chunk-aware extraídos a utils para
 // reutilizar desde otras páginas (Plan.jsx, Dashboard.jsx) y testear
 // independientemente. Sincronizados con `split_with_absorb` del backend.
@@ -27,33 +36,17 @@ import { escapeHtml } from '../utils/escapeHtml';
 // event — operador no podía distinguir "feature no usado" de "feature
 // roto" (ambos producen 0 success events). Anchor: P3-AUDIT-1.
 import { trackEvent } from '../utils/analytics';
-// [P2-NEW-3 · 2026-05-11] Tras `/api/plans/recipe/expand` exitoso, el
-// backend persiste `expanded_recipe` en `plan_data` (vía
-// `update_meal_plan_data` server-side). Los caches del Historial
-// (lessonsDetail, coherenceHistory, blockedReasons, chunkMetrics) NO
-// se enteran del cambio porque su TTL=30min — el modal del Historial
-// seguiría mostrando data pre-expand por hasta 30min. Invalidamos
-// caches per-plan para que el próximo render del modal refetchee.
-// Mismo helper SSOT que usa History.jsx en sus mutaciones.
-import { invalidateCachesForPlan } from '../utils/historyCaches';
 import EmptyState from '../components/common/EmptyState';
 // [P3-RECIPES-REDESIGN · 2026-06-24] Vista rediseñada (riel de comidas + detalle
-// con dona de macros, checklist y timeline). Recipes.jsx conserva toda la lógica
-// (modo cocina, PDF, expandir pasos, registrar, ventana de días) y le pasa datos.
+// con dona de macros, checklist y timeline). Recipes.jsx conserva la lógica
+// (PDF, ventana de días) y le pasa datos.
 import { RecipesView } from '../components/recipes/RecipesView';
 import { MobileRecipes } from '../components/recipes/MobileRecipes';
 // [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + resize listener ×2).
 import { useIsMobile } from '../hooks/useMediaQuery';
-// [P3-RECIPE-SAFE-LS · 2026-05-30] Helper SSOT no-throw para localStorage.
-import { safeLocalStorageSet } from '../utils/safeLocalStorage';
 // [P3-AJI-MORRON-DISPLAY · 2026-06-22] Terminología RD: pimiento dulce → "ají morrón"
 // en el texto del ingrediente mostrado (conservador; no toca cubanela/pimienta/paprika).
 import { displayAjiMorron } from '../utils/ingredientDisplay';
-// [P1-COOKMODE-A11Y · 2026-05-30] Hook SSOT de a11y para el overlay
-// full-screen del modo "Cocinar" (role=dialog + ESC + focus-trap + restore).
-// Pre-fix solo tenía aria-label en la X; un usuario keyboard-only no podía
-// cerrar con ESC ni quedaba atrapado el focus → Tab escapaba al fondo oculto.
-import useModalAccessibility from '../hooks/useModalAccessibility';
 
 // [P2-RECIPE-DISCLAIMER-LIST · 2026-05-30] Coerción defensiva de `recipe` a
 // array de pasos. El contrato es `List[str]` (MealModel.recipe) y todo el
@@ -66,307 +59,70 @@ import useModalAccessibility from '../hooks/useModalAccessibility';
 const toRecipeSteps = (r) =>
     Array.isArray(r) ? r : (typeof r === 'string' && r.trim() ? [r] : []);
 
-const FormattedRecipeStep = ({ step, index }) => {
-    // 1. Identificar si es una sección especial (Mise en place, Fuego, Montaje)
-    const getSectionInfo = (text) => {
-        const lowerText = text.toLowerCase();
-        if (lowerText.startsWith("mise en place:")) return { title: "Mise en place", color: "#00B4D8", icon: <ChefHat /> };
-        if (lowerText.startsWith("el toque de fuego:") || lowerText.startsWith("toque de fuego:")) return { title: "El Toque de Fuego", color: "#F97316", icon: <Flame /> };
-        if (lowerText.startsWith("montaje:")) return { title: "Montaje", color: "#8B5CF6", icon: <Utensils /> };
-        return null;
-    };
+// [P1-PDF-ONE-PAGE · 2026-07-12] El PDF de receta cabe SIEMPRE en una sola
+// página carta. Cómo: html2pdf renderiza el htmlString en un contenedor de
+// ancho `pageSize.inner.width` en mm CSS (worker.js:111 `containerCSS.width`)
+// y pagina con `nPages = ceil(canvasH / floor(canvasW × inner.ratio))`
+// (worker.js:184-186). Replicamos ese entorno en un probe offscreen con el
+// MISMO ancho en mm y buscamos (búsqueda binaria) el font-size raíz más
+// grande cuyo scrollHeight quepa en la altura útil de UNA página. Como todo
+// `generateRecipeHTML` está en `em`, un solo font-size escala el documento
+// completo con reflow real (el texto se recompone, no se aplasta como
+// imagen). Pre-fix: 26pt de título + 13pt de pasos desbordaban a 2-3 páginas
+// con cortes de html2canvas a mitad de línea — el "se ve raro".
+const PDF_PAGE_MM = { width: 215.9, height: 279.4, margin: 10 }; // carta + margen de opt.margin
+const PDF_FONT_MAX_PX = 15;  // receta corta → tipografía cómoda de imprimir
+const PDF_FONT_MIN_PX = 8.5; // piso legible; por debajo aceptamos 2da página (nunca visto en recetas reales)
 
-    const sectionInfo = getSectionInfo(step);
-    const sectionTitle = sectionInfo ? sectionInfo.title : null;
-    const sectionColor = sectionInfo ? sectionInfo.color : null;
-    const icon = sectionInfo ? sectionInfo.icon : null;
-
-    // 2. Extraer el contenido real del paso (quitando el título de la sección y los números iniciales)
-    let content = step;
-    if (sectionTitle) {
-        // Remover el título de la sección (ej. "Mise en place:", "El Toque de Fuego:")
-        // Usamos una Regex para ser flexibles con espacios o minúsculas/mayúsculas
-        const prefixRegex = sectionTitle.toLowerCase() === "toque de fuego" || sectionTitle.toLowerCase() === "el toque de fuego"
-            ? /(el )?toque de fuego:\s*/i
-            : new RegExp(`${sectionTitle}:\\s*`, 'i');
-        content = content.replace(prefixRegex, '');
+const fitRecipeBaseFontPx = (htmlString) => {
+    const innerWmm = PDF_PAGE_MM.width - 2 * PDF_PAGE_MM.margin;
+    const innerHmm = PDF_PAGE_MM.height - 2 * PDF_PAGE_MM.margin;
+    const probe = document.createElement('div');
+    probe.style.cssText = `position:absolute; left:-10000px; top:0; width:${innerWmm}mm; background:#ffffff;`;
+    // innerHTML seguro aquí: `htmlString` viene de generateRecipeHTML, donde
+    // TODO texto del LLM ya pasó por escapeHtml (contrato P2-AUDIT-2). Es el
+    // mismo string que html2pdf inyecta a su propio contenedor en el DOM.
+    probe.innerHTML = htmlString;
+    document.body.appendChild(probe);
+    try {
+        const root = probe.firstElementChild;
+        if (!root) return PDF_FONT_MAX_PX;
+        // 0.985: colchón para el floor() de html2pdf en pxPageHeight y el
+        // redondeo del canvas de html2canvas — evita la "2da página sliver".
+        const availHpx = probe.getBoundingClientRect().width * (innerHmm / innerWmm) * 0.985;
+        const fits = (px) => { root.style.fontSize = `${px}px`; return probe.scrollHeight <= availHpx; };
+        if (fits(PDF_FONT_MAX_PX)) return PDF_FONT_MAX_PX;
+        let lo = PDF_FONT_MIN_PX;
+        let hi = PDF_FONT_MAX_PX;
+        let best = PDF_FONT_MIN_PX;
+        for (let i = 0; i < 8; i++) {
+            const mid = (lo + hi) / 2;
+            if (fits(mid)) { best = mid; lo = mid; } else { hi = mid; }
+        }
+        // Floor a cuartos de px: conservador (nunca por encima de `best`).
+        return Math.max(PDF_FONT_MIN_PX, Math.floor(best * 4) / 4);
+    } finally {
+        probe.remove();
     }
-
-    // Parse bold text
-    const parseBold = (text) => {
-        const parts = text.split(/(\*\*.*?\*\*)/g);
-        return parts.map((part, i) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-                return <strong key={i} style={{ color: 'var(--text-main)', fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
-            }
-            return part;
-        });
-    };
-
-    return (
-        <div style={{
-            display: 'flex', gap: '1rem',
-            padding: sectionTitle ? '1.25rem' : '1rem 0.5rem',
-            background: sectionTitle ? 'var(--bg-card)' : 'transparent',
-            borderRadius: sectionTitle ? '0.75rem' : '0',
-            border: sectionTitle ? `1px solid ${sectionColor}30` : 'none',
-            boxShadow: sectionTitle ? `0 4px 12px -2px ${sectionColor}15` : 'none',
-            pageBreakInside: 'avoid',
-            breakInside: 'avoid',
-            position: 'relative',
-            zIndex: sectionTitle ? 2 : 1
-        }}>
-            {/* Step Number Badge or Section Icon */}
-            <div style={{
-                width: '32px', height: '32px',
-                background: sectionTitle ? sectionColor : 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
-                borderRadius: '50%',
-                color: 'var(--bg-card)', fontWeight: 700, fontSize: '0.9rem',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-                border: 'none',
-                boxShadow: 'none',
-                marginTop: '0.2rem'
-            }}>
-                {sectionTitle ? (
-                    icon && React.cloneElement(icon, { size: 16, strokeWidth: 2.5 })
-                ) : (
-                    index + 1
-                )}
-            </div>
-
-            {/* Step Text */}
-            <div style={{ paddingTop: '0', flex: 1 }}>
-                {sectionTitle && (
-                    <h4 style={{
-                        margin: '0 0 0.25rem 0',
-                        color: sectionColor,
-                        fontWeight: 800,
-                        fontSize: '0.95rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em'
-                    }}>
-                        {sectionTitle}
-                    </h4>
-                )}
-                <p style={{
-                    margin: 0, color: 'var(--text-muted)',
-                    fontSize: '0.95rem', lineHeight: 1.7
-                }}>
-                    {parseBold(content.replace(/^\d+[.)]\s*/, ''))}
-                </p>
-            </div>
-        </div>
-    );
-};
-
-const FormattedLargeStep = ({ text, currentStep, isLastStep, isMobile }) => {
-    const getSectionInfo = (t) => {
-        const lowerT = t.toLowerCase();
-        if (lowerT.startsWith("mise en place:")) return { title: "Mise en place", color: "#00B4D8", icon: <ChefHat size={32} /> };
-        if (lowerT.startsWith("el toque de fuego:") || lowerT.startsWith("toque de fuego:")) return { title: "El Toque de Fuego", color: "#F97316", icon: <Flame size={32} /> };
-        if (lowerT.startsWith("montaje:")) return { title: "Montaje", color: "#8B5CF6", icon: <Utensils size={32} /> };
-        return null;
-    };
-
-    const sectionInfo = getSectionInfo(text);
-    const sectionTitle = sectionInfo ? sectionInfo.title : null;
-    let content = text;
-    if (sectionTitle) {
-        const prefixRegex = sectionTitle.toLowerCase() === "toque de fuego" || sectionTitle.toLowerCase() === "el toque de fuego"
-            ? /(el )?toque de fuego:\s*/i : new RegExp(`${sectionTitle}:\\s*`, 'i');
-        content = content.replace(prefixRegex, '');
-    }
-
-    const parseBold = (str) => {
-        const parts = str.split(/(\*\*.*?\*\*)/g);
-        return parts.map((part, i) => {
-            if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} style={{ color: 'var(--text-main)', fontWeight: 800 }}>{part.slice(2, -2)}</strong>;
-            return part;
-        });
-    };
-
-    return (
-        <motion.div
-            key={currentStep}
-            initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? '1.5rem' : '2rem' }}
-        >
-            {sectionTitle ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', borderRadius: '50%', background: `${sectionInfo.color}15`, color: sectionInfo.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {React.cloneElement(sectionInfo.icon, { size: isMobile ? 28 : 32 })}
-                    </div>
-                    <h2 style={{ color: sectionInfo.color, fontSize: isMobile ? '1.25rem' : '1.5rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>
-                        {sectionTitle}
-                    </h2>
-                </div>
-            ) : (
-                <div style={{ width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', color: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? '2rem' : '2.5rem', fontWeight: 900, boxShadow: '0 10px 25px -5px rgba(79, 70, 229, 0.4)' }}>
-                    {currentStep + 1}
-                </div>
-            )}
-            <p style={{ fontSize: isMobile ? '1.25rem' : '1.5rem', lineHeight: 1.6, color: 'var(--text-main)', fontWeight: 500, margin: 0, maxWidth: '800px', padding: '0 1rem' }}>
-                {parseBold(content.replace(/^\d+[.)]\s*/, ''))}
-            </p>
-            {isLastStep && (
-                <motion.div
-                    initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }}
-                    style={{ marginTop: isMobile ? '1rem' : '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}
-                >
-                    <div style={{ width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', background: 'rgba(16, 185, 129, 0.15)', borderRadius: '50%', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <CheckCircle2 size={isMobile ? 32 : 40} strokeWidth={3} />
-                    </div>
-                    <h3 style={{ color: 'var(--secondary)', fontSize: isMobile ? '1.5rem' : '1.8rem', fontWeight: 900, margin: 0 }}>¡Plato Terminado!</h3>
-                </motion.div>
-            )}
-        </motion.div>
-    );
-};
-
-const CookingModeOverlay = ({ recipe, onClose, onComplete }) => {
-    const [currentStep, setCurrentStep] = useState(0);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    // [P2-14 · 2026-07-09] Hook SSOT (antes useState + resize listener local).
-    const isMobile = useIsMobile();
-
-    // [P1-COOKMODE-A11Y · 2026-05-30] Hook declarado ANTES del early-return
-    // de abajo para mantener orden de hooks invariante. El hook ya gestiona
-    // body.overflow lock + ESC + focus-trap + restore-focus.
-    const { containerRef } = useModalAccessibility({ isOpen: !!recipe, onClose });
-
-    // [P2-RECIPE-DISCLAIMER-LIST] Coerción defensiva: un `recipe.recipe` string
-    // (legacy) indexado como `steps[currentStep]` mostraría caracteres sueltos.
-    const steps = toRecipeSteps(recipe?.recipe);
-    if (!recipe || steps.length === 0) return null;
-
-    const isFirstStep = currentStep === 0;
-    const isLastStep = currentStep === steps.length - 1;
-
-    const handleNext = () => { if (!isLastStep) setCurrentStep(prev => prev + 1); };
-    const handlePrev = () => { if (!isFirstStep) setCurrentStep(prev => prev - 1); };
-
-
-    return (
-        <motion.div
-            ref={containerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="cooking-mode-title"
-            tabIndex={-1}
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            style={{
-                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                background: 'var(--bg-page)', zIndex: 9999, display: 'flex', flexDirection: 'column',
-                backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(10px)',
-                outline: 'none',
-            }}
-        >
-            {/* [P3-COOKING-MODE-SAFE-AREA · 2026-06-01] Header del overlay full-screen
-                (position:fixed, top:0): el padding-top suma env(safe-area-inset-top) para
-                que el título + la X no queden bajo la barra de estado / notch en iOS.
-                env()=0 sin notch → padding original, sin regresión. */}
-            <div style={{ padding: isMobile ? 'calc(1.25rem + env(safe-area-inset-top, 0px)) 1rem 1.25rem' : 'calc(1.5rem + env(safe-area-inset-top, 0px)) 2rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border)', gap: '1rem' }}>
-                <div style={{ flex: 1, paddingRight: isMobile ? '0' : '1rem' }}>
-                    <h3 id="cooking-mode-title" style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.25rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.3 }}>{recipe.name}</h3>
-                    <p style={{ margin: 0, color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.9rem', marginTop: '0.25rem' }}>Paso {currentStep + 1} de {steps.length}</p>
-                </div>
-                <button
-                    onClick={onClose}
-                    aria-label="Cerrar receta"
-                    style={{ flexShrink: 0, background: 'var(--bg-page)', border: 'none', width: isMobile ? '40px' : '48px', height: isMobile ? '40px' : '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', transition: 'all 0.2s' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--border)'; e.currentTarget.style.color = 'var(--text-main)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-page)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-                >
-                    <X size={isMobile ? 20 : 24} strokeWidth={2.5} aria-hidden="true" />
-                </button>
-            </div>
-
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '1.5rem 1rem' : '2rem', overflowY: 'auto' }}>
-                <AnimatePresence mode="wait">
-                    <FormattedLargeStep text={steps[currentStep]} currentStep={currentStep} isLastStep={isLastStep} isMobile={isMobile} />
-                </AnimatePresence>
-            </div>
-
-            <div style={{ padding: isMobile ? '1rem' : '2rem', display: 'flex', gap: '1rem', justifyContent: 'center', alignItems: 'stretch', background: 'var(--bg-card)', borderTop: '1px solid var(--border)', boxShadow: '0 -10px 20px rgba(0,0,0,0.02)' }}>
-                <button
-                    onClick={handlePrev} disabled={isFirstStep}
-                    style={{
-                        opacity: isFirstStep ? 0.3 : 1, pointerEvents: isFirstStep ? 'none' : 'auto',
-                        padding: isMobile ? '1rem 0.5rem' : '1rem 1.5rem', background: 'var(--bg-page)', border: '1px solid var(--border)', borderRadius: '1rem',
-                        display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontWeight: 700, fontSize: isMobile ? '1rem' : '1.1rem', cursor: 'pointer', transition: 'all 0.2s',
-                        maxWidth: isMobile ? 'none' : '200px'
-                    }}
-                >
-                    <ChevronLeft size={isMobile ? 20 : 24} /> Anterior
-                </button>
-                {isLastStep ? (
-                    <button
-                        onClick={async () => {
-                            if (onComplete) {
-                                setIsSubmitting(true);
-                                await onComplete(recipe);
-                                setIsSubmitting(false);
-                            } else {
-                                onClose();
-                            }
-                        }}
-                        disabled={isSubmitting}
-                        style={{
-                            padding: isMobile ? '1rem 0.5rem' : '1rem 2rem', background: 'var(--secondary)', border: 'none', borderRadius: '1rem',
-                            display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'var(--bg-card)', fontWeight: 800, fontSize: isMobile ? '1rem' : '1.1rem', cursor: isSubmitting ? 'wait' : 'pointer',
-                            boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.4)',
-                            opacity: isSubmitting ? 0.7 : 1,
-                            maxWidth: isMobile ? 'none' : '300px'
-                        }}
-                    >
-                        <CheckCircle2 size={isMobile ? 20 : 24} /> {isSubmitting ? "Cargando..." : "Terminar"}
-                    </button>
-                ) : (
-                    <button
-                        onClick={handleNext}
-                        style={{
-                            padding: isMobile ? '1rem 0.5rem' : '1rem 2rem', background: 'var(--primary)', border: 'none', borderRadius: '1rem',
-                            display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'var(--bg-card)', fontWeight: 800, fontSize: isMobile ? '1rem' : '1.1rem', cursor: 'pointer',
-                            boxShadow: '0 10px 25px -5px rgba(79, 70, 229, 0.4)',
-                            maxWidth: isMobile ? 'none' : '200px'
-                        }}
-                    >
-                        Siguiente <ChevronRight size={isMobile ? 20 : 24} />
-                    </button>
-                )}
-            </div>
-        </motion.div>
-    );
 };
 
 // [P2-DESIGN-CONSISTENCY · 2026-07-07] AmbientBackground eliminado (blobs difuminados
 // que velaban el recuadro de Recetas con un halo/sombra) — recuadro limpio.
 
 const Recipes = () => {
-    // [P1-HIST-CLOSE-1 · 2026-05-10] `restorePlan` ya NO se importa aquí.
-    // El callsite legacy (`if (restorePlan) restorePlan(planData)` tras
-    // expandir una receta, línea ~368 pre-fix) duplicaba el write que ya
-    // hace `/api/plans/recipe/expand` server-side (plans.py:2860 →
-    // `update_meal_plan_data`). Peor aún: el path legacy de
-    // `restorePlan` re-emite `name/calories/macros` desde `planData` en
-    // memoria del cliente, valores que NO cambian al expandir una
-    // receta y que pueden estar stale (e.g., un chunk worker añadió
-    // días entre page-load y cook-click → kcal/macros recalculados
-    // server-side; el client write los pisa con el snapshot viejo).
-    // El fix es sólo droppear la llamada — el server ya persiste, y
-    // localStorage update sigue para consistencia inmediata UI. El
-    // mismo bug que P0-HIST-2 cerró para el path Historial (drift
-    // top-level cols ↔ plan_data) se reintroducía aquí cada vez que un
-    // usuario abría una receta.
-    const { planData, formData } = useAssessment();
+    // [P1-HIST-CLOSE-1 · 2026-05-10] `restorePlan` NO se importa aquí — el
+    // persist server-side siempre fue el SSOT y el write client-side
+    // duplicado producía drift (mismo bug que P0-HIST-2 cerró en Historial).
+    // [P-RECIPES-COOK-REMOVED · 2026-07-12] Con el retiro del flujo "Cocinar"
+    // (expansión LLM vía /api/plans/recipe/expand + modo cocina + registro),
+    // esta página ya no tiene NINGÚN write path de plan_data: es read-only
+    // sobre el plan + generación local del PDF.
+    const { planData } = useAssessment();
     const navigate = useNavigate();
     const contentRef = useRef(null);
     const [activeDayIndex, setActiveDayIndex] = useState(0);
     // [P2-14 · 2026-07-09] Hook SSOT (antes useState + resize listener local).
     const isMobile = useIsMobile();
-    const [cookingRecipe, setCookingRecipe] = useState(null);
-    const [isExpanding, setIsExpanding] = useState(false);
     const [checkedIngredients, setCheckedIngredients] = useState({});
     const [activeMealIndex, setActiveMealIndex] = useState(0);
 
@@ -422,156 +178,6 @@ const Recipes = () => {
         setCheckedIngredients(prev => ({ ...prev, [idx]: !prev[idx] }));
     };
 
-    // [P3-RECIPE-COOK-CLAMPED-IDX · 2026-05-30] Recibe los índices CLAMPED al
-    // chunk window (`currentDayIndex`/`currentMealIndex`) desde el callsite, con
-    // fallback al state crudo. Pre-fix leía `activeDayIndex`/`activeMealIndex`
-    // crudos (pre-clamp) → en un deep-link/refresh con `/shift-plan` reindexando
-    // en background, un tick podía escribir la expansión sobre un meal con el
-    // mismo nombre en el día equivocado (el match por `name` server-side lo
-    // mitiga, pero pasar el índice clamped cierra la ventana).
-    const handleCookClick = async (meal, dayIndex = activeDayIndex, mealIndex = activeMealIndex) => {
-        setCheckedIngredients({});
-        // Si la receta ya fue expandida previamente (usamos recipeExpandedFlag) la abrimos de una
-        if (meal.isExpanded) {
-            setCookingRecipe(meal);
-            return;
-        }
-
-        setIsExpanding(true);
-        const loadingToast = toast.loading(`El Chef AI está detallando los pasos para ${meal.name}...`);
-
-        try {
-            const userId = formData?.id !== "guest" ? formData?.id : "guest";
-            // [P1-HIST-RECIPE-1 · 2026-05-10] Pasar plan_id + (day_index,
-            // meal_index) para que el backend persista al plan correcto y
-            // a la posición exacta. Sin estos identificadores el backend
-            // cae a `get_latest_meal_plan(user_id)` y a match por `name`
-            // (legacy), lo que (a) puede persistir al plan equivocado si
-            // un chunk worker insertó uno nuevo entre cook-click y request,
-            // y (b) en planes con la misma receta repetida solo expandía
-            // la primera ocurrencia, quemando cuota LLM en clicks
-            // posteriores. Los 3 campos son OPCIONALES y el backend tiene
-            // fallback a la lógica legacy.
-            const planId = planData?.id;
-            const response = await fetchWithAuth('/api/plans/recipe/expand', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...meal,
-                    user_id: userId,
-                    plan_id: planId,
-                    day_index: typeof dayIndex === 'number' ? dayIndex : undefined,
-                    meal_index: typeof mealIndex === 'number' ? mealIndex : undefined,
-                })
-            });
-
-            const data = await response.json();
-            if (response.ok && data.success && data.expanded_recipe) {
-                // Mutamos el objeto de manera local para no tener que llamar a un dispatch del contexto
-                // (O podríamos simplemente pasarle el override al modal)
-                const expandedMeal = { ...meal, recipe: data.expanded_recipe, isExpanded: true };
-                // Mutamos también el objeto in-place para que React lo vea a lo largo del árbol
-                meal.recipe = data.expanded_recipe;
-                meal.isExpanded = true;
-
-                // [P1-HIST-CLOSE-1 · 2026-05-10] Solo localStorage. El
-                // server-side persist lo hace `/api/plans/recipe/expand`
-                // (plans.py:2860 → `update_meal_plan_data`) en la MISMA
-                // request que devolvió `expanded_recipe`. Antes este
-                // bloque llamaba `restorePlan(planData)` adicionalmente,
-                // duplicando el write y arrastrando `name/calories/
-                // macros` posiblemente stale del cliente al server (un
-                // chunk worker que añadió días entre page-load y
-                // cook-click recalcula kcal; el client write los pisa).
-                if (planData) {
-                    // [P3-RECIPE-SAFE-LS · 2026-05-30] Vía el helper SSOT
-                    // safeLocalStorageSet (P2-AUDIT-3) — único holdout raw
-                    // `localStorage.setItem` de la página. No-throw en iOS
-                    // Private Mode / QuotaExceededError. Serializa internamente.
-                    safeLocalStorageSet('mealfit_plan', planData);
-                }
-
-                // [P2-NEW-3 · 2026-05-11] Invalidar caches del Historial para
-                // este plan_id. Sin esto, el modal del Historial podría
-                // mostrar receta pre-expand hasta 30min (TTL del cache).
-                // Solo se invoca cuando hay `planId` real — guest plans
-                // ni planes legacy no tienen caches asociados.
-                if (planId) {
-                    try {
-                        invalidateCachesForPlan(planId);
-                    } catch (e) {
-                        console.warn('[P2-NEW-3] invalidate cache falló:', e);
-                    }
-                }
-
-                toast.success('¡Instrucciones de chef listas!', { id: loadingToast });
-                setCookingRecipe(expandedMeal);
-            } else {
-                toast.error(data.detail || 'No se pudo expandir la receta. Abriendo original.', { id: loadingToast });
-                setCookingRecipe(meal);
-            }
-        } catch (error) {
-            console.error("Error expanding recipe:", error);
-            toast.error('Hubo un error de conexión.', { id: loadingToast });
-            setCookingRecipe(meal);
-        } finally {
-            setIsExpanding(false);
-        }
-    };
-
-    // [P3-RECIPE-LOG-RETRY · 2026-05-30] Retorna boolean (éxito/fallo). El
-    // overlay solo se cierra cuando el registro tuvo éxito; en fallo se queda
-    // abierto para reintentar in-place. Pre-fix: el `finally` cerraba el
-    // overlay SIEMPRE, dejando el toast "Intenta de nuevo" sin forma de
-    // reintentar desde la misma pantalla.
-    const handleLogConsumption = async (recipe) => {
-        if (!formData || !formData.id || formData.id === 'guest') {
-            toast.error("Inicia sesión para registrar tus comidas.");
-            setCookingRecipe(null);
-            return true; // cerrar: el guest no puede registrar (acción terminal)
-        }
-
-        const toastId = toast.loading(`Registrando ${recipe.name}...`);
-        try {
-            // [P1-FRONTEND-RECIPES-LEGACY-AUTH · 2026-05-23] Reemplazado el
-            // fetch manual + token extraction legacy por fetchWithAuth (SSOT
-            // en config/api.js).
-            //
-            // Pre-fix: leía una key del el backend anterior JS v1 que ya no existe en v2
-            // (v2 usa sb-<project-ref>-auth-token con shape distinto), así
-            // que el access_token quedaba undefined → Bearer vacío → backend
-            // 401 silencioso → user veía "Error registrando" sin diagnóstico.
-            // fetchWithAuth obtiene el access_token vía el cliente anterior.auth.getSession()
-            // y maneja el timeout P0-FETCH-AUTH-TIMEOUT.
-            const response = await fetchWithAuth('/api/diary/consumed', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    user_id: formData.id,
-                    meal_name: recipe.name,
-                    calories: recipe.cals || 0,
-                    protein: recipe.protein || 0,
-                    carbs: recipe.carbs || 0,
-                    healthy_fats: recipe.fats || 0
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error("Error on API");
-            }
-
-            toast.success(`¡"${recipe.name}" registrada exitosamente!`, { id: toastId });
-            setCookingRecipe(null);
-            return true;
-        } catch (error) {
-            console.error(error);
-            toast.error("No se pudo registrar la comida. Intenta de nuevo.", { id: toastId });
-            return false; // mantener overlay abierto para retry in-place
-        }
-    };
-
     // Protección de Ruta. La computación del chunk se movió arriba del
     // useEffect de clamp (P-RECIPES-CHUNK-WINDOW); la guard sigue funcionando
     // igual porque chunkStart/Size/Days tienen defaults seguros para planData=null.
@@ -583,20 +189,28 @@ const Recipes = () => {
         return <Navigate to="/assessment" replace />;
     }
 
-    const generateRecipeHTML = (meal) => {
+    const generateRecipeHTML = (meal, basePx = PDF_FONT_MAX_PX) => {
         // [P2-AUDIT-2 · 2026-05-15] `escapeHtml` aplicado a TODAS las
         // interpolaciones de texto proveniente del LLM (meal.name, meal.desc,
-        // meal.meal, meal.cals, recipe steps, ingredients). `parseBold`
-        // post-escape convierte el patrón **bold** del LLM en `<strong>` —
-        // hacer el bold DESPUÉS del escape garantiza que `<strong>` legítimo
-        // queda intacto pero cualquier `<script>` adversarial ya fue
-        // escapado a `&lt;script&gt;`. `color` (sectionTitle determinístico
-        // de mapping local) NO escapado intencionalmente; los demás
-        // `${...}` ahora pasan por `escapeHtml`.
+        // meal.meal, meal.cals, prep_time, difficulty, recipe steps,
+        // ingredients). `parseBoldEscaped` post-escape convierte el patrón
+        // **bold** del LLM en `<strong>` — hacer el bold DESPUÉS del escape
+        // garantiza que `<strong>` legítimo queda intacto pero cualquier
+        // `<script>` adversarial ya fue escapado a `&lt;script&gt;`. `color`
+        // (sectionTitle determinístico de mapping local) NO escapado
+        // intencionalmente; los demás `${...}` pasan por `escapeHtml`.
+        //
+        // [P1-PDF-ONE-PAGE · 2026-07-12] TODAS las medidas tipográficas van
+        // en `em` relativas al `font-size:${basePx}px` del wrapper raíz: así
+        // `_fitRecipeBaseFontPx` puede escalar el documento completo con un
+        // solo knob hasta que quepa en UNA página carta (sin cortes feos de
+        // html2pdf a mitad de paso, que era el "se ve raro" original).
         const _recipeSteps = toRecipeSteps(meal.recipe);
+        const parseBoldEscaped = (raw) => escapeHtml(raw).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
         const stepsHTML = _recipeSteps.length ? _recipeSteps.map((step, i) => {
             let sectionTitle = "";
-            let color = "#475569";
+            let color = "#4F46E5";
             let content = step;
             const lowerT = (typeof step === 'string' ? step : '').toLowerCase();
             if (lowerT.startsWith("mise en place:")) { sectionTitle = "Mise en place"; color = "#00B4D8"; }
@@ -609,93 +223,80 @@ const Recipes = () => {
                 content = content.replace(prefixRegex, '');
             }
 
-            // [P2-AUDIT-2] Bold parser opera sobre el texto YA escapado:
-            // `**foo**` → `<strong>foo</strong>`. Si la LLM hubiera emitido
-            // `**<script>**`, el escape previo lo convirtió en
-            // `**&lt;script&gt;**` → bold parser produce
-            // `<strong>&lt;script&gt;</strong>` — visible como texto, no
-            // ejecutado.
-            const parseBoldEscaped = (raw) => escapeHtml(raw).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
             return `
-                <div style="margin-bottom: 20px; page-break-inside: avoid;">
-                    ${sectionTitle ? `
-                        <div style="color: ${color}; font-size: 14pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">
-                            ${escapeHtml(sectionTitle)}
-                        </div>
-                    ` : `
-                        <div style="color: #4F46E5; font-size: 14pt; font-weight: bold; margin-bottom: 8px;">
-                            Paso ${i + 1}
-                        </div>
-                    `}
-                    <div style="font-size: 13pt; line-height: 1.6; color: #334155;">
-                        ${parseBoldEscaped(content.replace(/^\d+[.)]\s*/, ''))}
+                <div style="display: flex; gap: 0.6em; margin-bottom: 0.7em;">
+                    <div style="flex: none; width: 1.5em; height: 1.5em; border-radius: 50%; background: ${color}; color: #ffffff; font-size: 0.72em; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-top: 0.1em;">${i + 1}</div>
+                    <div style="flex: 1; min-width: 0;">
+                        ${sectionTitle ? `<div style="color: ${color}; font-size: 0.62em; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.2em;">${escapeHtml(sectionTitle)}</div>` : ''}
+                        <div style="font-size: 0.74em; line-height: 1.5; color: #334155;">${parseBoldEscaped(String(content).replace(/^\d+[.)]\s*/, ''))}</div>
                     </div>
                 </div>
             `;
         }).join('') : '';
 
         const ingredientsHTML = meal.ingredients ? meal.ingredients.map(ing => `
-            <li style="margin-bottom: 8px; font-size: 12pt; color: #475569; display: flex; align-items: flex-start; line-height: 1.4;">
-                <span style="color: #10B981; margin-right: 8px; font-weight: bold;">•</span> ${escapeHtml(displayAjiMorron(ing))}
+            <li style="display: flex; align-items: flex-start; gap: 0.45em; margin-bottom: 0.5em; font-size: 0.72em; line-height: 1.4; color: #334155;">
+                <span style="flex: none; width: 0.5em; height: 0.5em; border-radius: 50%; background: #10B981; margin-top: 0.42em;"></span>
+                <span>${escapeHtml(displayAjiMorron(ing))}</span>
             </li>
         `).join('') : '';
 
+        // Chips de metadata (tiempo/dificultad opcionales — mismos datos que
+        // los chips de la vista).
+        const _chip = (label) => `<span style="display: inline-block; background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 2em; padding: 0.28em 0.85em; font-size: 0.68em; font-weight: 700; color: #334155; white-space: nowrap;">${label}</span>`;
+        const metaChips = [
+            _chip(`🔥 ${escapeHtml(meal.cals)} kcal`),
+            meal.prep_time ? _chip(`⏱ ${escapeHtml(meal.prep_time)}`) : '',
+            meal.difficulty ? _chip(escapeHtml(meal.difficulty)) : '',
+        ].filter(Boolean).join('');
+
+        // [P2-PDF-RECIPE-MACROS · 2026-06-22] P/C/G con guards de presencia
+        // (pre-fix solo se imprimía kcal — 3 de 4 macros perdidos).
+        const _macro = (dotColor, label, value) => `
+            <div style="display: flex; align-items: center; gap: 0.4em;">
+                <span style="width: 0.6em; height: 0.6em; border-radius: 0.2em; background: ${dotColor};"></span>
+                <span style="font-size: 0.68em; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.04em;">${label}</span>
+                <span style="font-size: 0.8em; font-weight: 800; color: #0F172A;">${value}g</span>
+            </div>`;
+        const macrosHTML = [
+            (meal.protein != null && meal.protein !== '') ? _macro('#10B981', 'Proteínas', escapeHtml(meal.protein)) : '',
+            (meal.carbs != null && meal.carbs !== '') ? _macro('#8B5CF6', 'Carbos', escapeHtml(meal.carbs)) : '',
+            (meal.fats != null && meal.fats !== '') ? _macro('#F43F5E', 'Grasas', escapeHtml(meal.fats)) : '',
+        ].filter(Boolean).join('');
+
         return `
-            <div style="width: 100%; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; padding: 0; box-sizing: border-box;">
+            <div style="width: 100%; box-sizing: border-box; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: ${basePx}px; color: #0F172A; background: #ffffff;">
                 <!-- HEADER -->
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #4F46E5; padding-bottom: 15px; margin-bottom: 25px;">
-                    <div>
-                        <div style="font-size: 24pt; font-weight: 900; color: #0F172A; letter-spacing: -0.5px;">
-                            Mealfit<span style="color: #4F46E5;">R</span><span style="color: #F43F5E;">D</span>
-                        </div>
-                        <div style="font-size: 11pt; color: #64748B; margin-top: 4px; font-weight: 500;">Receta Exclusiva</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 0.18em solid #4F46E5; padding-bottom: 0.55em; margin-bottom: 0.9em;">
+                    <div style="font-size: 1.15em; font-weight: 900; letter-spacing: -0.02em;">
+                        Mealfit<span style="color: #4F46E5;">R</span><span style="color: #F43F5E;">D</span>
+                        <span style="font-size: 0.6em; font-weight: 600; color: #64748B;">&nbsp;·&nbsp;Receta&nbsp;·&nbsp;${escapeHtml(meal.meal)}</span>
                     </div>
-                    <div style="text-align: right;">
-                        <div style="background: #EEF2FF; color: #4F46E5; padding: 6px 14px; border-radius: 20px; font-size: 11pt; font-weight: 700; display: inline-block; margin-bottom: 6px;">
-                            ${escapeHtml(meal.meal)}
-                        </div>
-                        <div style="color: #F97316; font-size: 11pt; font-weight: bold;">
-                            🔥 ${escapeHtml(meal.cals)} kcal
-                        </div>
-                        ${(() => {
-                            // [P2-PDF-RECIPE-MACROS · 2026-06-22] (audit fresco P2-21) El PDF de receta solo
-                            // interpolaba kcal; P/C/G existen en `meal` pero no aparecían (3 de 4 macros perdidos
-                            // en el impreso). Mini-línea con guards de presencia.
-                            const _macros = [
-                                (meal.protein != null && meal.protein !== '') ? `P: ${escapeHtml(meal.protein)}g` : '',
-                                (meal.carbs != null && meal.carbs !== '') ? `C: ${escapeHtml(meal.carbs)}g` : '',
-                                (meal.fats != null && meal.fats !== '') ? `G: ${escapeHtml(meal.fats)}g` : '',
-                            ].filter(Boolean).join('&nbsp;·&nbsp;');
-                            return _macros ? `<div style="color: #475569; font-size: 9pt; font-weight: 600; margin-top: 5px;">${_macros}</div>` : '';
-                        })()}
-                    </div>
+                    <div style="display: flex; gap: 0.4em; align-items: center;">${metaChips}</div>
                 </div>
 
-                <!-- TITLE & DESC -->
-                <div style="margin-bottom: 30px;">
-                    <h1 style="font-size: 26pt; font-weight: 900; color: #0F172A; margin: 0 0 10px 0; line-height: 1.2;">${escapeHtml(meal.name)}</h1>
-                    <p style="font-size: 13pt; color: #64748B; margin: 0; line-height: 1.5;">${escapeHtml(meal.desc || '')}</p>
-                </div>
+                <!-- TITLE + DESC -->
+                <h1 style="font-size: 1.55em; font-weight: 900; margin: 0 0 0.25em; line-height: 1.15; letter-spacing: -0.01em;">${escapeHtml(meal.name)}</h1>
+                ${meal.desc ? `<p style="font-size: 0.76em; font-style: italic; color: #64748B; margin: 0 0 1em; line-height: 1.5;">${escapeHtml(meal.desc)}</p>` : '<div style="height: 0.8em;"></div>'}
 
-                <div style="display: flex; gap: 30px; align-items: flex-start;">
-                    <!-- INGREDIENTS SIDEBAR -->
-                    <div style="flex: 0 0 250px; background: #F8FAFC; padding: 25px; border-radius: 16px; border: 1px solid #E2E8F0;">
-                        <h3 style="font-size: 14pt; font-weight: 800; color: #0F172A; margin: 0 0 15px 0; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px;">Ingredientes</h3>
-                        <ul style="list-style: none; padding: 0; margin: 0;">
-                            ${ingredientsHTML}
-                        </ul>
+                <!-- MACROS -->
+                ${macrosHTML ? `<div style="display: flex; gap: 1.4em; align-items: center; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 0.6em; padding: 0.55em 0.9em; margin-bottom: 1.1em;">${macrosHTML}</div>` : ''}
+
+                <!-- COLUMNS -->
+                <div style="display: flex; gap: 1.1em; align-items: flex-start;">
+                    <div style="flex: 0 0 33%; box-sizing: border-box; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 0.6em; padding: 0.9em;">
+                        <h3 style="font-size: 0.8em; font-weight: 800; margin: 0 0 0.7em; padding-bottom: 0.4em; border-bottom: 2px solid #E2E8F0; text-transform: uppercase; letter-spacing: 0.06em; color: #0F172A;">Ingredientes</h3>
+                        <div style="font-size: 0.62em; color: #94A3B8; line-height: 1.4; margin-bottom: 0.8em;">Porciones para 1 persona — si cocinas para tu hogar, multiplica cada cantidad.</div>
+                        <ul style="list-style: none; padding: 0; margin: 0;">${ingredientsHTML}</ul>
                     </div>
-
-                    <!-- PREPARATION STEPS -->
-                    <div style="flex: 1;">
-                        <h3 style="font-size: 16pt; font-weight: 800; color: #0F172A; margin: 0 0 20px 0; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px;">Preparación</h3>
-                        ${stepsHTML}
+                    <div style="flex: 1; min-width: 0;">
+                        <h3 style="font-size: 0.8em; font-weight: 800; margin: 0 0 0.7em; padding-bottom: 0.4em; border-bottom: 2px solid #E2E8F0; text-transform: uppercase; letter-spacing: 0.06em; color: #0F172A;">Preparación</h3>
+                        ${stepsHTML || `<div style="font-size: 0.74em; color: #64748B;">Guíate de la descripción general del plato.</div>`}
                     </div>
                 </div>
 
                 <!-- FOOTER -->
-                <div style="margin-top: 40px; padding-top: 15px; border-top: 1px solid #E2E8F0; text-align: center; color: #94A3B8; font-size: 10pt;">
+                <div style="margin-top: 1.2em; padding-top: 0.6em; border-top: 1px solid #E2E8F0; text-align: center; color: #94A3B8; font-size: 0.62em;">
                     Disfruta de tu comida. Generado automáticamente por MealfitRD.
                 </div>
             </div>
@@ -705,7 +306,24 @@ const Recipes = () => {
     const handleDownloadPDF = async (meal) => {
         const toastId = toast.loading('Generando PDF de alta calidad...');
         try {
-            const htmlString = generateRecipeHTML(meal);
+            // [P1-PDF-ONE-PAGE · 2026-07-12] Espera a que las fuentes de la
+            // página estén listas antes de medir (una fuente que carga tarde
+            // cambia el reflow y falsea el fit). Best-effort: a esta altura
+            // de la sesión ya suelen estar cargadas.
+            try {
+                if (document.fonts?.ready) await document.fonts.ready;
+            } catch { /* no-op: medición best-effort */ }
+            // Fit a UNA página: medimos con la tipografía máxima; si no cabe,
+            // la búsqueda binaria del helper encuentra el font-size raíz más
+            // grande que sí cabe y regeneramos el HTML con él.
+            const _htmlAtMax = generateRecipeHTML(meal, PDF_FONT_MAX_PX);
+            let _fitPx = PDF_FONT_MAX_PX;
+            try {
+                _fitPx = fitRecipeBaseFontPx(_htmlAtMax);
+            } catch { _fitPx = PDF_FONT_MAX_PX; /* sin fit: html2pdf pagina como fallback */ }
+            const htmlString = _fitPx === PDF_FONT_MAX_PX
+                ? _htmlAtMax
+                : generateRecipeHTML(meal, _fitPx);
             // [P3-AUDIT-1 · 2026-05-15] Filename con discriminador único:
             // `Receta_<meal-name-slug>_<plan_id[:8]>_<YYYY-MM-DD>.pdf`.
             // Pre-fix `Receta-${meal.name}.pdf` colisionaba para 2 recetas
@@ -719,7 +337,9 @@ const Recipes = () => {
             const _today = new Date().toISOString().slice(0, 10);
             const _mealSlug = String(meal?.name || 'receta').replace(/\s+/g, '-');
             const opt = {
-                margin: [15, 15, 15, 15],
+                // [P1-PDF-ONE-PAGE] margin DEBE coincidir con PDF_PAGE_MM.margin
+                // — el fit del probe se calcula contra esa área útil.
+                margin: [PDF_PAGE_MM.margin, PDF_PAGE_MM.margin, PDF_PAGE_MM.margin, PDF_PAGE_MM.margin],
                 filename: `Receta_${_mealSlug}_${_planIdPrefix}_${_today}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2.5, useCORS: true, letterRendering: true, backgroundColor: '#ffffff' },
@@ -801,6 +421,10 @@ const Recipes = () => {
                     recipe_steps: Array.isArray(meal?.recipe) ? meal.recipe.length : 0,
                     ingredients_count: Array.isArray(meal?.ingredients) ? meal.ingredients.length : 0,
                     is_expanded: !!meal?.isExpanded,
+                    // [P1-PDF-ONE-PAGE] Distribución del fit: si la mayoría
+                    // de descargas cae cerca de PDF_FONT_MIN_PX, las recetas
+                    // reales están más densas de lo previsto — revisar layout.
+                    fit_font_px: _fitPx,
                 });
             } catch (_telSuccessErr) {
                 // No-op: telemetría best-effort.
@@ -831,11 +455,7 @@ const Recipes = () => {
     };
 
     return (
-        <>
-            <AnimatePresence>
-                {cookingRecipe && <CookingModeOverlay recipe={cookingRecipe} onClose={() => setCookingRecipe(null)} onComplete={handleLogConsumption} />}
-            </AnimatePresence>
-            <div style={{ maxWidth: '1080px', margin: '0 auto', paddingBottom: isMobile ? 0 : '4rem', overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
+        <div style={{ maxWidth: '1080px', margin: '0 auto', paddingBottom: isMobile ? 0 : '4rem', overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
 
                 <div ref={contentRef} style={{ position: 'relative', zIndex: 1, paddingBottom: isMobile ? '0' : '2rem', overflow: 'hidden', maxWidth: '100%' }}>
                     {/* [P2-DESIGN-CONSISTENCY · 2026-07-07] AmbientBackground eliminado:
@@ -896,78 +516,14 @@ const Recipes = () => {
                             dayKcal,
                             checkedIngredients,
                             onToggleIngredient: toggleIngredient,
-                            onCook: () => handleCookClick(activeMeal, currentDayIndex, currentMealIndex),
                             onPDF: () => handleDownloadPDF(activeMeal),
-                            isExpanding,
                         };
                         return isMobile
                             ? <MobileRecipes {...viewProps} />
                             : <RecipesView {...viewProps} />;
                     })()}
                 </div>
-            </div>
-
-            <style>{`
-                .recipe-book-wrapper {
-                    background-color: var(--bg-card);
-                    border-radius: 0.5rem 1.75rem 1.75rem 0.5rem;
-                    border: 1px solid var(--border-light);
-                    border-left: 20px solid #1E293B;
-                    box-shadow: 4px 4px 0px rgba(0,0,0,0.02), 8px 8px 0px rgba(0,0,0,0.01), 0 25px 50px -12px rgba(0,0,0,0.15), inset 8px 0px 8px -4px rgba(0,0,0,0.2);
-                    display: flex;
-                    flex-direction: column;
-                    gap: 2rem;
-                    position: relative;
-                    z-index: 2;
-                    overflow: hidden;
-                    max-width: 100%;
-                }
-
-                .recipe-book-wrapper::before {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    bottom: 0;
-                    left: 2.5rem;
-                    width: 3px;
-                    border-left: 1px solid rgba(248, 113, 113, 0.4);
-                    border-right: 1px solid rgba(248, 113, 113, 0.4);
-                    z-index: 0;
-                    pointer-events: none;
-                }
-
-                @media (max-width: 768px) {
-                    .recipe-book-wrapper {
-                        border-left: none;
-                        border-radius: 1.25rem;
-                        gap: 1rem;
-                        box-shadow: 0 4px 20px -4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
-                        border: 1px solid var(--border);
-                    }
-                    .recipe-book-wrapper::before {
-                        display: none;
-                    }
-                }
-
-                /* [APPEARANCE-THEME · 2026-05-29] TEMA OSCURO — mismo cuaderno
-                   que .meals-container del Dashboard. En claro el lomo es
-                   #1E293B (oscuro) sobre papel crema; en oscuro ese lomo se
-                   fundía con el papel var(--bg-card)=#111827 y el cuaderno
-                   quedaba plano. Lomo a slate visible + hairline de luz en el
-                   pliegue + sombra de valle + elevación profunda. */
-                html[data-theme="dark"] .recipe-book-wrapper {
-                    border-left-color: #3A4358;
-                    box-shadow:
-                        inset 1px 0 0 0 rgba(148, 163, 184, 0.22),
-                        inset 10px 0 12px -7px rgba(0, 0, 0, 0.6),
-                        0 24px 50px -12px rgba(0, 0, 0, 0.7);
-                }
-                html[data-theme="dark"] .recipe-book-wrapper::before {
-                    border-left-color: rgba(251, 113, 133, 0.55);
-                    border-right-color: rgba(251, 113, 133, 0.55);
-                }
-            `}</style>
-        </>
+        </div>
     );
 };
 

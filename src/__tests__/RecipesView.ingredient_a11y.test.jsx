@@ -22,9 +22,9 @@ const baseProps = {
     dayKcal: 400,
     checkedIngredients: {},
     onToggleIngredient: () => {},
-    onCook: () => {},
+    // [P-RECIPES-COOK-REMOVED · 2026-07-12] onCook/isExpanding retirados:
+    // la única acción de la vista es onPDF.
     onPDF: () => {},
-    isExpanding: false,
 };
 
 describe('RecipesView · a11y del checklist de ingredientes (P1-6)', () => {

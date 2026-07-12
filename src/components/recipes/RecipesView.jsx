@@ -1,7 +1,8 @@
 // [P3-RECIPES-REDESIGN · 2026-06-24] Vista presentacional de Recetas (diseño
 // MicronutrientGaps→RecipesView del owner). Recibe datos REALES del plan +
-// handlers desde Recipes.jsx (que conserva: modo cocina, PDF, expandir pasos
-// con IA, registrar comida, ventana de días del chunk). Esta capa solo pinta.
+// handlers desde Recipes.jsx (que conserva: PDF y ventana de días del chunk;
+// el modo cocina/expandir con IA se retiró — P-RECIPES-COOK-REMOVED
+// 2026-07-12). Esta capa solo pinta.
 import { useMemo, useState } from 'react';
 import { metaFor, STEP_ICONS, MACROS, ICONS, conicStops as _conicStops } from './recipesData';
 import { displayAjiMorron } from '../../utils/ingredientDisplay';
@@ -13,7 +14,7 @@ const Svg = ({ d, size = 18 }) => (
        dangerouslySetInnerHTML={{ __html: d }} />
 );
 
-// Secciones especiales del paso (mismo contrato que FormattedRecipeStep en
+// Secciones especiales del paso (mismo contrato que generateRecipeHTML en
 // Recipes.jsx): "Mise en place:", "El Toque de Fuego:", "Montaje:".
 const SECTIONS = [
   { rx: /^mise en place:\s*/i, title: 'Mise en place' },
@@ -41,7 +42,7 @@ export function RecipesView({
   meals, activeMealIndex, onSelectMeal,
   meal, steps = [], dayKcal,
   checkedIngredients = {}, onToggleIngredient,
-  onCook, onPDF, isExpanding,
+  onPDF,
 }) {
   return (
     <section className={styles.app} aria-label="Recetas">
@@ -71,9 +72,7 @@ export function RecipesView({
           steps={steps}
           checkedIngredients={checkedIngredients}
           onToggleIngredient={onToggleIngredient}
-          onCook={onCook}
           onPDF={onPDF}
-          isExpanding={isExpanding}
         />
       </div>
     </section>
@@ -102,7 +101,7 @@ function MealRail({ meals, active, onSelect }) {
   );
 }
 
-function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onCook, onPDF, isExpanding }) {
+function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onPDF }) {
   const t = metaFor(meal.meal);
   const [doneSteps, setDoneSteps] = useState(() => new Set());
   const toggleStep = (i) => setDoneSteps((prev) => {
@@ -157,14 +156,12 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onC
 
       {meal.desc && <p className={styles.desc}>“{meal.desc}”</p>}
 
+      {/* [P-RECIPES-COOK-REMOVED · 2026-07-12] Botón "Cocinar" (modo cocina +
+          expansión LLM) retirado del producto — la única acción es descargar
+          el PDF, que ahora lleva el estilo primary. */}
       <div className={styles.actions} data-html2canvas-ignore="true">
-        {steps.length > 0 && (
-          <button className={`${styles.btn} ${styles.primary}`} onClick={onCook} disabled={isExpanding}>
-            <Svg d={isExpanding ? ICONS.loader : ICONS.play} size={17} /> {isExpanding ? 'Generando…' : 'Cocinar'}
-          </button>
-        )}
-        <button className={`${styles.btn} ${styles.ghost}`} onClick={onPDF}>
-          <Svg d={ICONS.pdf} size={17} /> PDF
+        <button className={`${styles.btn} ${styles.primary}`} onClick={onPDF}>
+          <Svg d={ICONS.pdf} size={17} /> Descargar PDF
         </button>
       </div>
 

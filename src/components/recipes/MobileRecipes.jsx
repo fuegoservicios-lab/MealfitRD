@@ -1,7 +1,8 @@
 // [P3-RECIPES-MOBILE-DEDICATED · 2026-06-24] Vista de Recetas dedicada a móvil
 // (diseño MobileRecipes del owner). Misma interfaz de props que RecipesView —
 // Recipes.jsx renderiza `isMobile ? <MobileRecipes/> : <RecipesView/>` con los
-// MISMOS datos reales + handlers (modo cocina, PDF, expandir, registrar, días).
+// MISMOS datos reales + handlers (PDF, días; el modo cocina se retiró —
+// P-RECIPES-COOK-REMOVED 2026-07-12).
 import { useMemo, useState } from 'react';
 import { metaFor, STEP_ICONS, MACROS, ICONS, conicStops as _conicStops } from './recipesData';
 import { displayAjiMorron } from '../../utils/ingredientDisplay';
@@ -38,7 +39,7 @@ export function MobileRecipes({
   meals, activeMealIndex, onSelectMeal,
   meal, steps = [], dayKcal,
   checkedIngredients = {}, onToggleIngredient,
-  onCook, onPDF, isExpanding,
+  onPDF,
 }) {
   const t = metaFor(meal.meal);
   const [doneSteps, setDoneSteps] = useState(() => new Set());
@@ -122,14 +123,11 @@ export function MobileRecipes({
 
         {meal.desc && <p className={styles.desc}>“{meal.desc}”</p>}
 
+        {/* [P-RECIPES-COOK-REMOVED · 2026-07-12] Botón "Cocinar" retirado —
+            única acción: descargar PDF (estilo primary). */}
         <div className={styles.actions} data-html2canvas-ignore="true">
-          {steps.length > 0 && (
-            <button className={`${styles.btn} ${styles.primary}`} onClick={onCook} disabled={isExpanding}>
-              <Svg d={isExpanding ? ICONS.loader : ICONS.play} size={17} /> {isExpanding ? 'Generando…' : 'Cocinar'}
-            </button>
-          )}
-          <button className={`${styles.btn} ${styles.ghost}`} onClick={onPDF}>
-            <Svg d={ICONS.pdf} size={17} /> PDF
+          <button className={`${styles.btn} ${styles.primary}`} onClick={onPDF}>
+            <Svg d={ICONS.pdf} size={17} /> Descargar PDF
           </button>
         </div>
 
