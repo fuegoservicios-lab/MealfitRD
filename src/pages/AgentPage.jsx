@@ -1228,6 +1228,22 @@ const AgentPage = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setMessages, userProfile, formData, planData]);
 
+    // [P1-CHAT-STOP-POWER v2 · 2026-07-12] Firma del huérfano sobre los
+    // mensajes REALES (sin welcome/burbujas de error/stop): estable ante
+    // refetches que quitan burbujas locales. El descarte se PERSISTE en
+    // localStorage — pre-fix vivía en un ref y un refresh lo resucitaba
+    // ("cuando la detengo y refresco vuelve a estar igual"). Definidos ANTES
+    // de fetchSessionMessages, que los usa para reconstruir la burbuja ⏹.
+    const _orphanSig = useCallback((msgs) => {
+        const real = (msgs || []).filter(m => m && !m.isWelcome && !m._isErrorBubble && !m._stoppedByUser);
+        const lastReal = real[real.length - 1];
+        return `${real.length}:${String(lastReal?.content || '').slice(0, 48)}`;
+    }, []);
+    const _orphanDismissKey = useCallback(
+        (sid) => `mealfit_orphan_dismissed_${sid}`,
+        []
+    );
+
     const fetchSessionMessages = useCallback(async (sessionId, retryCount = 0) => {
         // [P1-AGENT-LOADING-SKIP-IF-FRESH · 2026-05-20] Solo mostrar
         // loading si NO hay NADA en memoria. Pre-fix: cada vez que el
@@ -1278,7 +1294,7 @@ const AgentPage = () => {
                     const _canMergeThumbs = _localUsers.length === _serverUserCount;
                     let _userOrdinal = 0;
 
-                    setMessages(filteredMessages.map(m => {
+                    const _mappedMsgs = filteredMessages.map(m => {
                         let content = m.content;
                         let isImage = false;
                         let imageUrl = null;
@@ -1337,7 +1353,28 @@ const AgentPage = () => {
                             isImage,
                             imageUrl: imageUrl
                         };
-                    }));
+                    }).filter(Boolean);
+                    // [P1-CHAT-STOP-POWER v3 · 2026-07-12] Reconstruir la burbuja
+                    // "⏹ Detenido" tras rehidratar del server: es CLIENT-ONLY (el
+                    // server nunca la tuvo) y el replace la borraba — vivo: "el
+                    // mensaje de que está detenido desapareció". La fuente de
+                    // verdad es el marcador persistente de descarte: si el último
+                    // mensaje real es del user Y su firma coincide con el descarte
+                    // guardado, el turno fue detenido por el usuario → re-anexar.
+                    const _lastMapped = _mappedMsgs[_mappedMsgs.length - 1];
+                    if (
+                        _lastMapped && _lastMapped.role === 'user'
+                        && safeLocalStorageGet(_orphanDismissKey(sessionId), null) === _orphanSig(_mappedMsgs)
+                    ) {
+                        _mappedMsgs.push({
+                            role: 'model',
+                            content: '⏹ Detenido. Cuando quieras, vuelve a enviar tu mensaje.',
+                            _stoppedByUser: true,
+                            _isErrorBubble: true,
+                            retryable: false,
+                        });
+                    }
+                    setMessages(_mappedMsgs);
                 } else {
                     // [P1-AGENT-WELCOME-STABLE · 2026-05-20] Preservar welcome
                     // existente — evita regenerar la hora visible.
@@ -1464,21 +1501,6 @@ const AgentPage = () => {
     // va igual o adelante del estado local (no pierde la burbuja huérfana).
     const [recoveringTurn, setRecoveringTurn] = useState(false);
     const _recoveryRef = useRef({ active: false, attempts: 0, timer: null });
-
-    // [P1-CHAT-STOP-POWER v2 · 2026-07-12] Firma del huérfano sobre los
-    // mensajes REALES (sin welcome/burbujas de error/stop): estable ante
-    // refetches que quitan burbujas locales. El descarte se PERSISTE en
-    // localStorage — pre-fix vivía en un ref y un refresh lo resucitaba
-    // ("cuando la detengo y refresco vuelve a estar igual").
-    const _orphanSig = useCallback((msgs) => {
-        const real = (msgs || []).filter(m => m && !m.isWelcome && !m._isErrorBubble && !m._stoppedByUser);
-        const lastReal = real[real.length - 1];
-        return `${real.length}:${String(lastReal?.content || '').slice(0, 48)}`;
-    }, []);
-    const _orphanDismissKey = useCallback(
-        (sid) => `mealfit_orphan_dismissed_${sid}`,
-        []
-    );
 
     useEffect(() => () => {
         const st = _recoveryRef.current;
