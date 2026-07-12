@@ -834,18 +834,6 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   animation: spin 0.8s linear infinite;
 }
 
-/* [P2-10 · 2026-07-09] Primitiva Skeleton compartida (components/common/
-   Skeleton.jsx). Un solo shimmer token-aware — las páginas re-implementaban
-   ~6 variantes (History.module.css ×2, Dashboard inline, SidebarRecientes,
-   Login.css, Supermarket.module.css); migración incremental boy-scout. */
-.mf-skeleton {
-  display: block;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, var(--bg-muted) 25%, var(--border) 50%, var(--bg-muted) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.4s ease-in-out infinite;
-}
-
 /* [P2-8 · 2026-07-09] Banner global "Sin conexión" (components/common/
    OfflineBanner.jsx). Bottom para no chocar con el Toaster (top-center) ni
    taparlo; respeta el safe-area de iOS y queda por encima de la bottom nav. */

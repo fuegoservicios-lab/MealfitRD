@@ -59,11 +59,12 @@ export default defineConfig(({ mode }) => ({
         // (costoso en datos móviles del mercado es-DO). Excluidos:
         //   - html2pdf-*.js (~976KB): lazy `await import()` on-demand (P2-LAZY-PDF);
         //     se baja solo cuando el usuario exporta el PDF, no en el install.
-        //   - auth_bg_new.png (~655KB) / dashboard_bg.png (~560KB): fondos CSS
-        //     que el navegador pide por red al renderizar; degradan a fondo
-        //     liso sin red (no hay requisito offline-first cosmético). [P6-SPEED-IMG]
-        //     Ahora sirven .webp (18.9/43.6KB) vía image-set; estos .png son solo
-        //     fallback y los .webp NO están en globPatterns → ninguno se precachea.
+        //   - dashboard_bg.png (~560KB): fondo CSS que el navegador pide por red al
+        //     renderizar; degrada a fondo liso sin red (no hay requisito offline-first
+        //     cosmético). [P6-SPEED-IMG] Sirve .webp (43.6KB) vía image-set; el .png es
+        //     solo fallback y el .webp NO está en globPatterns → ninguno se precachea.
+        //     (auth_bg_new.png/.webp eliminados en P2-DEAD-CODE-SAFE — el fondo de Auth
+        //     es ahora un gradient CSS.)
         //   - og-image.png (~174KB) [P6-SPEED-IMG · 2026-06-01]: imagen Open Graph
         //     que SOLO piden los unfurlers de redes sociales (WhatsApp/Slack/X) al
         //     hacer GET al index.html. NUNCA se renderiza en la app → no necesita
@@ -72,7 +73,6 @@ export default defineConfig(({ mode }) => ({
         // offline-load.
         globIgnores: [
           'assets/html2pdf-*.js',
-          'auth_bg_new.png',
           'dashboard_bg.png',
           'og-image.png',
         ],

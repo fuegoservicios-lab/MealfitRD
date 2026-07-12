@@ -6,7 +6,7 @@ import DashboardShowcase from '../components/home/DashboardShowcase';
 import BenchmarkShowcase from '../components/home/BenchmarkShowcase';
 // [P3-NEWS-1 · 2026-07-01] La banda de precios del landing se reemplazó por la banda de
 // "Novedades" (anuncios de MealfitRD, estilo Anthropic/OpenAI). El detalle de planes sigue
-// en /precios (link en la nav). PricingCta queda disponible por si se reintroduce.
+// en /precios (link en la nav).
 import NewsHighlight from '../components/home/NewsHighlight';
 
 function Home() {
