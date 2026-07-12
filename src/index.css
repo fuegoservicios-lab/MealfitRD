@@ -923,6 +923,19 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   outline-offset: 2px;
 }
 
+/* [P3-MAIN-FOCUS-RING · 2026-07-12] El target del skip-link (<main
+ * id="main-content" tabIndex={-1}> en Layout/DashboardLayout/NotFound) es
+ * click-focusable: al hacer clic dentro del contenido y scrollear con teclado,
+ * el navegador dibujaba el focus ring alrededor de TODO el contenido (el
+ * "recuadro blanco" que rodeaba Mi Plan, reportado por el owner). El target de
+ * un skip-link NO es un control interactivo — WCAG no exige ring visible ahí;
+ * se suprime en todos los estados de foco. El <a> del skip-link conserva su
+ * propio :focus-visible (SkipLink.module.css), que es lo que sí debe verse. */
+#main-content:focus,
+#main-content:focus-visible {
+  outline: none;
+}
+
 /* [P2-REDUCED-MOTION · 2026-05-19] Respetar el setting del SO/browser
  * `prefers-reduced-motion: reduce`. WCAG 2.3.3 (AAA) y Apple/Microsoft
  * accessibility guidelines: usuarios con vestibular disorders o
