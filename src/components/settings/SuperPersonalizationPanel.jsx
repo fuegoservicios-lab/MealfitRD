@@ -125,29 +125,43 @@ export default function SuperPersonalizationPanel({ onSaved }) {
     const [sp, setSp] = useState(EMPTY);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    // [P2-SUPERPERS-FAIL-CLOSED · 2026-07-12] Pre-fix, una carga fallida (red
+    // caída, 5xx — el 4xx/5xx ni siquiera mostraba toast) dejaba el panel
+    // VACÍO en silencio: si el usuario guardaba en ese estado, sobrescribía
+    // sus datos reales con vacío. Ahora: (a) HTTP no-ok también es fallo,
+    // (b) 1 reintento automático a los 800ms, (c) si falla, el panel bloquea
+    // el Guardar y ofrece Reintentar — fail-closed, jamás save-sobre-vacío.
+    const [loadFailed, setLoadFailed] = useState(false);
 
-    const load = useCallback(async () => {
+    const load = useCallback(async (attempt = 0) => {
         setLoading(true);
+        setLoadFailed(false);
+        let willRetry = false;
         try {
             const res = await fetchWithAuth(ENDPOINT);
-            if (res.ok) {
-                const data = await res.json();
-                const payload = data?.super_personalization || {};
-                setSp({
-                    ...EMPTY,
-                    ...payload,
-                    foodLikes: Array.isArray(payload.foodLikes) ? payload.foodLikes : [],
-                    cuisines: Array.isArray(payload.cuisines) ? payload.cuisines : [],
-                    kitchenEquipment: Array.isArray(payload.kitchenEquipment) ? payload.kitchenEquipment : [],
-                    flavorProfile: (payload.flavorProfile && typeof payload.flavorProfile === 'object') ? payload.flavorProfile : {},
-                    freeText: typeof payload.freeText === 'string' ? payload.freeText : '',
-                    religiousRestrictionOther: typeof payload.religiousRestrictionOther === 'string' ? payload.religiousRestrictionOther : '',
-                });
-            }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const payload = data?.super_personalization || {};
+            setSp({
+                ...EMPTY,
+                ...payload,
+                foodLikes: Array.isArray(payload.foodLikes) ? payload.foodLikes : [],
+                cuisines: Array.isArray(payload.cuisines) ? payload.cuisines : [],
+                kitchenEquipment: Array.isArray(payload.kitchenEquipment) ? payload.kitchenEquipment : [],
+                flavorProfile: (payload.flavorProfile && typeof payload.flavorProfile === 'object') ? payload.flavorProfile : {},
+                freeText: typeof payload.freeText === 'string' ? payload.freeText : '',
+                religiousRestrictionOther: typeof payload.religiousRestrictionOther === 'string' ? payload.religiousRestrictionOther : '',
+            });
         } catch {
-            toast.error('No se pudo cargar tu súper personalización.');
+            if (attempt < 1) {
+                willRetry = true;
+                setTimeout(() => load(attempt + 1), 800);
+            } else {
+                setLoadFailed(true);
+                toast.error('No se pudo cargar tu súper personalización.');
+            }
         } finally {
-            setLoading(false);
+            if (!willRetry) setLoading(false);
         }
     }, []);
 
@@ -166,6 +180,12 @@ export default function SuperPersonalizationPanel({ onSaved }) {
     );
 
     const save = async () => {
+        // [P2-SUPERPERS-FAIL-CLOSED] Sin una carga exitosa, guardar pisaría
+        // los datos reales con el estado vacío del panel.
+        if (loading || loadFailed) {
+            toast.error('Primero deben cargar tus datos actuales — usa "Reintentar".');
+            return;
+        }
         setSaving(true);
         try {
             const body = {
@@ -202,6 +222,19 @@ export default function SuperPersonalizationPanel({ onSaved }) {
             <div className={styles.loading}>
                 <Loader2 size={22} className={styles.spin} />
                 <span>Cargando tu súper personalización…</span>
+            </div>
+        );
+    }
+
+    // [P2-SUPERPERS-FAIL-CLOSED] Carga fallida → panel bloqueado con retry,
+    // NUNCA formulario vacío editable (guardarlo pisaría los datos reales).
+    if (loadFailed) {
+        return (
+            <div className={styles.loading}>
+                <span>No pudimos cargar tu súper personalización. Revisa tu conexión.</span>
+                <button type="button" className={styles.save} onClick={() => load()}>
+                    Reintentar
+                </button>
             </div>
         );
     }
