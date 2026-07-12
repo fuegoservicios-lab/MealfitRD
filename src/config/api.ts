@@ -120,6 +120,20 @@ const _composeAbortSignals = (a, b) => {
     return ctrl.signal;
 };
 
+// [P2-401-CENTRAL · 2026-07-12] Señal global de sesión expirada. Un 401 en una ruta
+// autenticada (no de auth) emite `mealfit:session-expired`; el listener global
+// (AssessmentContext) hace toast + teardown UNA vez, en vez del manejo per-caller
+// inconsistente (unos mostraban "Error al actualizar…", otros quedaban mudos). NO
+// cambia el valor de retorno — los callers conservan su manejo local (no-breaking).
+const _signalIfSessionExpired = (res: Response, url: string): Response => {
+    try {
+        if (res && res.status === 401 && typeof window !== 'undefined' && !/\/auth(\/|$)/.test(url)) {
+            window.dispatchEvent(new CustomEvent('mealfit:session-expired', { detail: { url } }));
+        }
+    } catch { /* dispatch best-effort; nunca romper el fetch */ }
+    return res;
+};
+
 // Custom fetch wrapper that includes Neon Auth JWT
 export const fetchWithAuth = async (url: string, options: ApiRequestOptions = {}) => {
     const token = await _getTokenWithTimeout();
@@ -152,7 +166,9 @@ export const fetchWithAuth = async (url: string, options: ApiRequestOptions = {}
 
     if (!timeoutMs) {
         // Exento / desactivado → comportamiento legacy (respeta el signal del caller).
-        return fetch(finalUrl, { ...rest, headers, signal: callerSignal });
+        // await para poder inspeccionar el status (401); resuelve en headers → no
+        // rompe streaming SSE (el body sigue siendo un stream leído aparte).
+        return _signalIfSessionExpired(await fetch(finalUrl, { ...rest, headers, signal: callerSignal }), url);
     }
 
     const timeoutController = new AbortController();
@@ -164,7 +180,7 @@ export const fetchWithAuth = async (url: string, options: ApiRequestOptions = {}
     const signal = _composeAbortSignals(callerSignal, timeoutController.signal);
 
     try {
-        return await fetch(finalUrl, { ...rest, headers, signal });
+        return _signalIfSessionExpired(await fetch(finalUrl, { ...rest, headers, signal }), url);
     } catch (err) {
         // Solo re-etiquetamos como request_timeout si el abort fue NUESTRO timer
         // (no un abort legítimo del caller, que debe propagarse tal cual).

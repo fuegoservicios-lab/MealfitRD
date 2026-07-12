@@ -1433,8 +1433,15 @@ const Pantry = () => {
                 }
             } catch (error) {
                 console.error("Error updating quantity:", error);
-                toast.error('Error al actualizar alimento.');
-                fetchData(false); // rollback visual si falla
+                // [P2-401-CENTRAL · 2026-07-12] En 401 el handler global
+                // (AssessmentContext) ya muestra el toast de sesión expirada + teardown;
+                // NO mostrar el error local (confuso: "Error al actualizar alimento"
+                // cuando en realidad expiró la sesión) ni fetchData (que también 401ea →
+                // parecía vaciar la Nevera).
+                if (error?.status !== 401) {
+                    toast.error('Error al actualizar alimento.');
+                    fetchData(false); // rollback visual si falla
+                }
             } finally {
                 pendingOps.current.delete(id); // Liberamos la ráfaga
             }

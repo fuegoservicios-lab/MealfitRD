@@ -1762,6 +1762,36 @@ export const AssessmentProvider = ({ children }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [checkPlanLimit, restoreSessionData]);
 
+    // [P2-401-CENTRAL · 2026-07-12] Listener global de sesión expirada. Un 401 en una
+    // ruta autenticada emite `mealfit:session-expired` (config/api.ts::fetchWithAuth);
+    // aquí hacemos toast + teardown UNA vez — en vez del manejo per-caller inconsistente
+    // (Pantry mostraba "Error al actualizar…", otros quedaban mudos y parecían vaciarse).
+    // Teardown esencial (paridad con el logout, SIN el signOut del SDK que ya no aplica
+    // —la sesión YA expiró—): sesión first-party + caches PII + estado de usuario.
+    // session=null → ProtectedRoute redirige a /login (soft, sin reload → el toast
+    // persiste). El guard temporal de 5s absorbe la ráfaga de 401 de varios polls que
+    // fallan a la vez, sin deshabilitar el manejo de una expiración futura tras re-login.
+    const _sessionExpiredAtRef = useRef(0);
+    useEffect(() => {
+        const onExpired = () => {
+            const now = Date.now();
+            if (now - _sessionExpiredAtRef.current < 5000) return; // ráfaga → maneja una vez
+            _sessionExpiredAtRef.current = now;
+            import('sonner')
+                .then(({ toast }) => toast.error('Tu sesión expiró', {
+                    description: 'Vuelve a iniciar sesión para continuar.',
+                }))
+                .catch(() => { /* toast best-effort */ });
+            try { logoutFirstPartySession(); } catch { /* best-effort */ }
+            try { _clearUserScopedCaches(); } catch { /* best-effort */ }
+            setSession(null);
+            setUserProfile(null);
+            setPlanData(null);
+        };
+        window.addEventListener('mealfit:session-expired', onExpired);
+        return () => window.removeEventListener('mealfit:session-expired', onExpired);
+    }, []);
+
     // --- REFETCH DE PERFIL AL VOLVER A LA PESTAÑA ---
     // [P1-NEON-DB-MIGRATION · 2026-06-12] Reemplaza el canal Realtime
     // `public:user_profiles` (la publicación Realtime murió con el cutover a
