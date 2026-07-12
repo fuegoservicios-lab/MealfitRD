@@ -4913,8 +4913,10 @@ const History = () => {
                             exit={{ scale: 0.85, opacity: 0, y: 20 }}
                             transition={{ type: 'spring', stiffness: 350, damping: 28 }}
                         >
+                            {/* [P3-HISTORY-CONFIRM-POLISH · 2026-07-12] Tono warning por
+                                default del box; el icono hereda color del wrapper. */}
                             <div className={styles.confirmIconWrapper}>
-                                <AlertTriangle size={28} color="#D97706" />
+                                <AlertTriangle size={26} />
                             </div>
                             <h3 id="history-restore-confirm-title" className={styles.confirmTitle}>¿Reactivar este plan?</h3>
                             <p id="history-restore-confirm-desc" className={styles.confirmText}>
@@ -4956,15 +4958,18 @@ const History = () => {
                             aria-labelledby="history-delete-confirm-title"
                             aria-describedby="history-delete-confirm-desc"
                             tabIndex={-1}
-                            className={styles.confirmBox}
+                            className={`${styles.confirmBox} ${styles.confirmDanger}`}
                             onClick={e => e.stopPropagation()}
                             initial={{ scale: 0.85, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.85, opacity: 0, y: 20 }}
                             transition={{ type: 'spring', stiffness: 350, damping: 28 }}
                         >
-                            <div className={styles.confirmIconWrapper} style={{ background: '#FEF2F2', borderColor: '#FECACA' }}>
-                                <Trash2 size={28} color="#DC2626" />
+                            {/* [P3-HISTORY-CONFIRM-POLISH · 2026-07-12] Variante danger via
+                                clase (antes colores light hardcodeados inline que flotaban
+                                pálidos sobre el theme oscuro). */}
+                            <div className={styles.confirmIconWrapper}>
+                                <Trash2 size={26} />
                             </div>
                             <h3 id="history-delete-confirm-title" className={styles.confirmTitle}>¿Eliminar este plan?</h3>
                             <p id="history-delete-confirm-desc" className={styles.confirmText}>
@@ -4979,7 +4984,6 @@ const History = () => {
                                 </button>
                                 <button
                                     className={styles.confirmAcceptBtn}
-                                    style={{ background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)', boxShadow: '0 4px 12px -2px rgba(220, 38, 38, 0.35)' }}
                                     onClick={handleDeleteConfirm}
                                 >
                                     <Trash2 size={16} /> Eliminar

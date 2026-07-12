@@ -346,9 +346,9 @@ export default function HistoryDesktopPanel({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: "var(--font-body)", color: "var(--text-main)", paddingBottom: 40 }}>
-      {/* Header: título + pastilla + búsqueda */}
+      {/* [P3-HISTORY-NO-TITLE · 2026-07-12] "Mi Bitácora" eliminado a pedido del
+          owner (sin sinónimo de reemplazo) — la pastilla de conteo ancla el header. */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-        <h1 style={{ fontFamily: "var(--font-heading)", fontSize: "1.5rem", fontWeight: 800, letterSpacing: "-.02em", margin: 0 }}>Mi Bitácora</h1>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 7, whiteSpace: "nowrap", fontFamily: "var(--font-heading)", fontSize: ".74rem", fontWeight: 700,
           color: "var(--primary)", background: "color-mix(in srgb, var(--primary) 13%, transparent)", border: "1px solid color-mix(in srgb, var(--primary) 28%, transparent)", padding: "5px 12px", borderRadius: 99 }}>
           <Icon name="cal" size={13} /> {total} {total === 1 ? "plan nutricional" : "planes nutricionales"}
