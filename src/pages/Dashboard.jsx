@@ -2718,11 +2718,29 @@ const DashboardInner = () => {
             // [P1-BUDGET-COST-SSOT · 2026-07-02] Preferir el resumen del BACKEND (SSOT, mismo número
             // que la reconciliación de presupuesto) cuando el plan lo trae; la re-suma local queda
             // como fallback para planes legacy persistidos antes del fix.
+            //
+            // [P1-PDF-COST-DELTA-AWARE · 2026-07-12] EXCEPCIÓN al SSOT: cuando la Nevera excluyó
+            // ítems (deltaItemsRemoved > 0), el resumen del backend describe el plan COMPLETO,
+            // NO esta compra (vivo: PDF con 8 ítems visibles que suman ~RD$1,270 mostraba
+            // "Esta compra RD$5,989" — el costo de los 44). Delta-aware:
+            //   - "Esta compra" = suma LOCAL de lo realmente impreso (delta).
+            //   - "Ciclo real"  = delta de HOY + perecederos COMPLETOS × (semanas − 1): lo que
+            //     tienes en la Nevera solo te ahorra la semana 1 — los frescos de las semanas
+            //     2..N se recompran completos (el resumen backend aporta perishable_rd full).
             const _backendCostSummary = planData?.shopping_cost_summary?.by_duration?.[duration] || null;
-            const _shopTotalCostFinal = (_backendCostSummary && typeof _backendCostSummary.trip_total_rd === 'number' && _backendCostSummary.trip_total_rd > 0)
+            const _deltaAware = (deltaItemsRemoved || 0) > 0;
+            const _shopTotalCostFinal = (!_deltaAware && _backendCostSummary && typeof _backendCostSummary.trip_total_rd === 'number' && _backendCostSummary.trip_total_rd > 0)
                 ? _backendCostSummary.trip_total_rd : _shopTotalCost;
-            const _fullCycleCostFinal = (_backendCostSummary && typeof _backendCostSummary.cycle_total_rd === 'number' && _backendCostSummary.cycle_total_rd > 0)
-                ? _backendCostSummary.cycle_total_rd : _fullCycleCost;
+            let _fullCycleCostFinal;
+            if (_deltaAware) {
+                const _fullPerishableRd = (typeof _backendCostSummary?.perishable_rd === 'number' && _backendCostSummary.perishable_rd > 0)
+                    ? _backendCostSummary.perishable_rd : _perishableCost;
+                _fullCycleCostFinal = _stableCost + _perishableCost
+                    + _fullPerishableRd * Math.max(0, _cycleCostMultiplier - 1);
+            } else {
+                _fullCycleCostFinal = (_backendCostSummary && typeof _backendCostSummary.cycle_total_rd === 'number' && _backendCostSummary.cycle_total_rd > 0)
+                    ? _backendCostSummary.cycle_total_rd : _fullCycleCost;
+            }
             // Solo mostramos el segundo número cuando aporta info (ciclo > 1 semana y
             // de hecho cuesta más que la compra de esta semana).
             const _showCycleCost = duration !== 'weekly' && _fullCycleCostFinal > _shopTotalCostFinal + 1;
