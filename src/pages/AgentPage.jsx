@@ -779,10 +779,9 @@ const AgentPage = () => {
     }, [planData, formData, userProfile]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    // [P2-CHAT-HISTORY-CLEAN · 2026-07-12] Espejo-ref para que callbacks con
-    // deps estables (fetchSessionMessages) lean el valor fresco sin re-crearse.
-    const isLoadingRef = useRef(false);
-    useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
+    // [P2-CHAT-HISTORY-CLEAN · 2026-07-12] El guard del refetch usa el
+    // isLoadingRef pre-existente (declarado más abajo junto a los refs del
+    // stream) — NO redeclarar aquí.
     const [streamingStatus, setStreamingStatus] = useState(null);
     const [abortController, setAbortController] = useState(null);
     const abortControllerRef = useRef(null);
