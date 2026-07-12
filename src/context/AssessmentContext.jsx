@@ -3533,7 +3533,7 @@ export const AssessmentProvider = ({ children }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const upgradeUserPlan = async (tier = 'plus', subscriptionId = null) => {
+    const upgradeUserPlan = async (tier = 'plus', subscriptionId = null, couponCode = null) => {
         try {
             const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
             if (!userId) throw new Error("No user ID");
@@ -3548,7 +3548,12 @@ export const AssessmentProvider = ({ children }) => {
                     body: JSON.stringify({
                         user_id: userId,
                         subscriptionID: subscriptionId,
-                        tier: tier
+                        tier: tier,
+                        // [P1-BILLING-AMOUNT · 2026-07-12] Cupón aplicado para que el
+                        // backend RE-VALIDE el descuento server-side y verifique que el
+                        // monto cobrado no fue manipulado. El discount_percent del cliente
+                        // NO se envía (no se confía).
+                        coupon_code: couponCode || null
                     })
                 });
 
