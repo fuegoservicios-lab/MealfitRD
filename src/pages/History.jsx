@@ -1070,15 +1070,27 @@ const History = () => {
             // renombrado a la cabeza sin esperar al próximo
             // fetchHistory. Re-sort post-map para que la card se
             // mueva visualmente.
+            // [P2-HIST-RENAME-NO-PROMOTE · 2026-07-12] Espejo del guard backend: el sello
+            // optimista de `plan_modified_at` aplica SOLO si el plan renombrado YA es el
+            // activo (cabeza del sort). Sellar un ARCHIVADO lo subía a "PLAN ACTIVO"
+            // visualmente (vivo: el owner renombró 'barniel' en un archivado y la card
+            // activa cambió al instante — el backend ya NO sella, pero este optimistic
+            // update replicaba el comportamiento viejo hasta el próximo refetch).
             const _modIso = new Date().toISOString();
+            const _isActiveRename = Array.isArray(plans) && plans.length > 0
+                && plans[0]?.id === plan.id;
             setPlans(prev => prev.map(p => {
                 if (p.id !== plan.id) return p;
                 return {
                     ...p,
                     name: trimmed,
-                    plan_modified_at: _modIso,
+                    ...(_isActiveRename ? { plan_modified_at: _modIso } : {}),
                     plan_data: p.plan_data
-                        ? { ...p.plan_data, name: trimmed, _plan_modified_at: _modIso }
+                        ? {
+                            ...p.plan_data,
+                            name: trimmed,
+                            ...(_isActiveRename ? { _plan_modified_at: _modIso } : {}),
+                        }
                         : p.plan_data,
                 };
             }).sort((a, b) => _effectiveModifiedAt(b) - _effectiveModifiedAt(a)));
@@ -1091,9 +1103,13 @@ const History = () => {
                 setSelectedPlan({
                     ...selectedPlan,
                     name: trimmed,
-                    plan_modified_at: _modIso,
+                    ...(_isActiveRename ? { plan_modified_at: _modIso } : {}),
                     plan_data: selectedPlan.plan_data
-                        ? { ...selectedPlan.plan_data, name: trimmed, _plan_modified_at: _modIso }
+                        ? {
+                            ...selectedPlan.plan_data,
+                            name: trimmed,
+                            ...(_isActiveRename ? { _plan_modified_at: _modIso } : {}),
+                        }
                         : selectedPlan.plan_data,
                 });
             }
