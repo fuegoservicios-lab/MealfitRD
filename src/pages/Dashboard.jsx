@@ -3853,6 +3853,26 @@ const DashboardInner = () => {
                     animation: cookShimmer 2.4s linear infinite;
                     pointer-events: none;
                 }
+                /* [P2-DAYREGEN-LOADING-POLISH · 2026-07-12] Barra de progreso indeterminada
+                   al pie del overlay — la señal clásica de "esto avanza" que el shimmer +
+                   chip no comunicaban (feedback del owner sobre el regen del día). */
+                .meal-cooking-overlay::after {
+                    content: '';
+                    position: absolute;
+                    left: 0; right: 0; bottom: 0;
+                    height: 3px;
+                    background:
+                        linear-gradient(90deg, transparent 0%, #8B5CF6 30%, #22D3EE 50%, #8B5CF6 70%, transparent 100%)
+                        no-repeat,
+                        rgba(255, 255, 255, 0.07);
+                    background-size: 45% 100%;
+                    animation: cookBar 1.6s ease-in-out infinite;
+                    pointer-events: none;
+                }
+                @keyframes cookBar {
+                    0% { background-position: -60% 0; }
+                    100% { background-position: 165% 0; }
+                }
                 .meal-cooking-chip {
                     display: flex;
                     align-items: center;
@@ -3900,6 +3920,7 @@ const DashboardInner = () => {
                 @media (prefers-reduced-motion: reduce) {
                     .meal-cooking-overlay,
                     .meal-cooking-overlay::before,
+                    .meal-cooking-overlay::after,
                     .meal-cooking-chip,
                     .meal-cooking-chip .cook-icon,
                     .meal-cooking-text { animation: none !important; }
@@ -6570,6 +6591,12 @@ const DashboardInner = () => {
                                                 // Marcar el d\u00eda de hoy y d\u00edas pasados
                                                 const isToday = globalIdx === todayPlanDayIndex;
                                                 const isPastDay = globalIdx < todayPlanDayIndex;
+                                                // [P2-DAYREGEN-TAB-SPINNER \u00b7 2026-07-12] El tab del d\u00eda en regen
+                                                // muestra spinner junto al nombre (feedback owner: "Domingo" se
+                                                // ve\u00eda est\u00e1tico mientras sus platos cargaban). Mismo gate scoped
+                                                // que el overlay (P2-DAYREGEN-OVERLAY-SCOPE): solo SU tab.
+                                                const isTabRegenerating = isDayUpdating
+                                                    && ((dayRegenIndex ?? activeDayIndex) === globalIdx);
                                                 return (
                                                     <motion.button
                                                         key={globalIdx}
@@ -6615,6 +6642,14 @@ const DashboardInner = () => {
                                                             display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
                                                         }}
                                                     >
+                                                        {isTabRegenerating && (
+                                                            <Loader2
+                                                                size={13}
+                                                                strokeWidth={2.75}
+                                                                style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }}
+                                                                aria-hidden="true"
+                                                            />
+                                                        )}
                                                         {(() => {
                                                             // [P3-DAY-LABEL-FROM-PLAN · 2026-05-17] Usar
                                                             // `day.day_name` que el backend inyecta en
