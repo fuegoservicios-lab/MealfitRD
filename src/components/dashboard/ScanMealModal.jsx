@@ -202,6 +202,15 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                 setError('El analizador de imágenes no está disponible ahora mismo. Intenta de nuevo en unos minutos.');
                 return;
             }
+            // [P1-CHAT-VISION-GEMMA · 2026-07-12] La foto es una COMPRA o
+            // alimentos sueltos, no un plato — registrar 0 kcal contaminaría
+            // el tracking. Redirigir a los flujos de Nevera.
+            if (data.photo_kind === 'items') {
+                _setPreviewUrl(null);
+                setPhase('select');
+                setError('Esto parece una compra o alimentos sueltos, no un plato servido. Para llevarlos a tu Nevera usa "Escanear mi nevera" (página Nevera) o mándale la foto al Agente.');
+                return;
+            }
             if (!data.is_food) {
                 _setPreviewUrl(null);
                 setPhase('select');

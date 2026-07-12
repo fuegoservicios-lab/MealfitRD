@@ -1500,9 +1500,20 @@ const AgentPage = () => {
 
         try {
             let visionDescription = null;
+            // [P1-CHAT-VISION-GEMMA · 2026-07-12] Clasificación de la foto que
+            // devuelve el análisis: 'plato' (registrar macros) | 'items'
+            // (compra → ofrecer meterla a la Nevera) | 'otro'. `visionFailed`/
+            // `visionBusy` separan "analizador caído/ocupado" de un análisis
+            // real — antes la description de error ("Error analizando imagen.")
+            // se inyectaba al agente como si fuera un análisis legítimo.
+            let visionKind = null;
+            let visionFailed = false;
+            let visionBusy = false;
 
             // Manejar subida de imagen si existe
             if (currentFile) {
+                // gemma local tarda 30-90s: sin señal el usuario mira la nada.
+                setStreamingStatus('Analizando tu foto…');
                 const formData = new FormData();
                 formData.append('file', currentFile);
                 formData.append('user_id', session?.user?.id || userProfile?.id || localSessionId);
@@ -1517,8 +1528,11 @@ const AgentPage = () => {
 
                 const uploadData = await uploadRes.json();
 
-                if (uploadData.success && uploadData.description) {
+                visionFailed = Boolean(uploadData.analysis_failed);
+                visionBusy = Boolean(uploadData.busy);
+                if (uploadData.success && uploadData.description && !visionFailed) {
                     visionDescription = uploadData.description;
+                    visionKind = uploadData.photo_kind || 'plato';
                     uploadedImageUrl = uploadData.image_url;
                 }
 
@@ -1571,12 +1585,25 @@ const AgentPage = () => {
                 const currentTime = new Date().toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true });
                 const timeContext = `(Hora actual del usuario: ${currentTime})`;
 
-                // Si hay una descripción de visión, enriquecer el prompt con contexto de tiempo
+                // [P1-CHAT-VISION-GEMMA · 2026-07-12] Instrucción POR MODO según
+                // la clasificación del análisis (plato/items/fallo) — el modo lo
+                // decide gemma determinísticamente, no el LLM del chat.
                 let enrichedPrompt = promptToSend;
-                if (!userMsg && currentFile) {
-                    enrichedPrompt = `${promptToSend}\n[Sistema: El usuario acaba de subir una imagen de comida. Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nInstrucción: Actúa proactivamente. Menciona amigablemente lo que ves en la foto. REGLA VISUAL DE FORMATO: Usa SIEMPRE una lista con viñetas para desglosar sus macros y usa **negritas** para resaltarlos. Revisa detalladamente tu 'DIARIO DE HOY' en el system prompt: SI el usuario YA tiene registrada la comida principal de esta hora (ej: si ya cenó), NO le preguntes si esto es su cena, asume que es un snack extra o pregúntale por qué está comiendo algo adicional; si NO tiene nada registrado para esta hora, entonces SÍ pregúntale brevemente si esta foto corresponde a su comida del momento (ej: su cena). No pongas el prefijo [Sistema]. Sólo responde directo y conversacional.`;
+                if (currentFile && !visionDescription) {
+                    // Analizador caído u ocupado: honestidad > inventar análisis.
+                    const motivo = visionBusy
+                        ? 'el escáner está procesando otra foto en este momento'
+                        : 'el analizador de imágenes no está disponible ahora mismo';
+                    enrichedPrompt = `${promptToSend}\n[Sistema: El usuario subió una foto pero ${motivo}, así que NO tienes análisis de la imagen. Discúlpate brevemente, pídele que lo intente de nuevo en un momento o que te describa la comida por texto${userMsg ? ', y responde a su mensaje' : ''}. No pongas el prefijo [Sistema].]\n\n${timeContext}${userMsg ? `\nMensaje del usuario: ${userMsg}` : ''}`;
+                } else if (!userMsg && currentFile && visionKind === 'otro') {
+                    enrichedPrompt = `${promptToSend}\n[Sistema: El usuario subió una imagen pero el análisis NO detectó comida en ella. Lo que se vio: "${visionDescription}"]\n\n${timeContext}\nInstrucción: Dile amablemente que no reconociste comida en la foto (menciona brevemente lo que sí se ve) y pídele otra toma del plato o de los alimentos. No pongas el prefijo [Sistema].`;
+                } else if (!userMsg && currentFile && visionKind === 'items') {
+                    enrichedPrompt = `${promptToSend}\n[Sistema: El usuario subió una foto de ALIMENTOS SUELTOS o una COMPRA (no un plato servido). Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nInstrucción: Lista con viñetas los alimentos detectados (cantidad + nombre en **negritas**) y pregúntale si quiere que los agregues a su Nevera. SOLO cuando el usuario confirme, usa la herramienta modify_pantry_inventory con items_to_add copiando el formato del análisis (ej: '2 unidades de Manzana', '1 lb de Pollo'); si corrige cantidades o quita items, ajusta la lista antes de ejecutar. NO registres esto como comida consumida (no es un plato). No pongas el prefijo [Sistema]. Responde directo y conversacional.`;
+                } else if (!userMsg && currentFile) {
+                    enrichedPrompt = `${promptToSend}\n[Sistema: El usuario acaba de subir una imagen de comida. Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nInstrucción: Actúa proactivamente. Menciona amigablemente lo que ves en la foto. REGLA VISUAL DE FORMATO: Usa SIEMPRE una lista con viñetas para desglosar sus macros y usa **negritas** para resaltarlos. Revisa detalladamente tu 'DIARIO DE HOY' en el system prompt: SI el usuario YA tiene registrada la comida principal de esta hora (ej: si ya cenó), NO le preguntes si esto es su cena, asume que es un snack extra o pregúntale por qué está comiendo algo adicional; si NO tiene nada registrado para esta hora, entonces SÍ pregúntale brevemente si esta foto corresponde a su comida del momento (ej: su cena). Si el usuario confirma que se la comió, registra con log_consumed_meal usando los macros del análisis. No pongas el prefijo [Sistema]. Sólo responde directo y conversacional.`;
                 } else if (visionDescription) {
-                    enrichedPrompt = `[El usuario subió una imagen. Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nMensaje del usuario: ${promptToSend}`;
+                    const kindHint = visionKind === 'items' ? 'alimentos sueltos/compra — si el usuario quiere, agrégalos a su Nevera con modify_pantry_inventory tras su confirmación' : 'plato de comida';
+                    enrichedPrompt = `[El usuario subió una imagen (${kindHint}). Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nMensaje del usuario: ${promptToSend}`;
                 } else {
                     enrichedPrompt = `[${timeContext}]\nMensaje del usuario: ${promptToSend}`;
                 }
