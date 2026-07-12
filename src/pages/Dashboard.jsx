@@ -2166,11 +2166,36 @@ const DashboardInner = () => {
             const currentDelta = buildDeltaShoppingList(rawList);
             const itemsRemoved = currentDelta._itemsRemoved || 0;
             const hasItems = currentDelta.length > 0;
+            // [P1-PDF-COST-DELTA-AWARE · 2026-07-12] Costos del DELTA para el banner de
+            // presupuesto y la línea "esta ida al súper" (paridad con el recuadro del PDF):
+            //   - deltaTripRd: lo que realmente compras HOY (suma de lo no-excluido).
+            //   - deltaCycleRd: hoy + perecederos COMPLETOS × (semanas−1) — la Nevera solo
+            //     ahorra la semana 1; los frescos futuros se recompran completos.
+            let deltaTripRd = 0, deltaCount = 0;
+            currentDelta.forEach((it) => {
+                if (!it || typeof it !== 'object') return;
+                deltaCount++;
+                const c = it.estimated_cost_rd ?? it.estimated_cost;
+                if (typeof c === 'number' && c > 0) deltaTripRd += c;
+            });
+            const _cycleDays = duration === 'monthly' ? 30 : duration === 'biweekly' ? 15 : 7;
+            const _mult = _cycleDays / 7;
+            const _bs = planData?.shopping_cost_summary?.by_duration?.[duration];
+            const _fullPerishRd = (typeof _bs?.perishable_rd === 'number' && _bs.perishable_rd > 0)
+                ? _bs.perishable_rd
+                : rawList.reduce((s, it) => {
+                    const c = it?.estimated_cost_rd ?? it?.estimated_cost;
+                    return s + (it?.is_perishable === true && typeof c === 'number' && c > 0 ? c : 0);
+                }, 0);
+            const deltaCycleRd = deltaTripRd + _fullPerishRd * Math.max(0, _mult - 1);
             return {
                 itemsRemoved,
                 isAdjusted: !!currentDelta._isAdjusted || itemsRemoved > 0,
                 hasItems,
                 isEmptyDueToPantry: !hasItems && itemsRemoved > 0,
+                deltaTripRd,
+                deltaCycleRd,
+                deltaCount,
             };
         }
         return null;
@@ -3127,7 +3152,14 @@ const DashboardInner = () => {
                         // internos (sin texto user-controlled) → sin riesgo XSS.
                         const _br = planData?.budget_reconciliation;
                         if (!_br || !_br.status || _br.status === 'sin_limite' || !_br.reference_rd) return '';
-                        const _est = Math.round(_br.estimated_cycle_rd || 0).toLocaleString('es-DO');
+                        // [P1-PDF-COST-DELTA-AWARE · 2026-07-12] La línea de presupuesto del PDF
+                        // debe usar el MISMO ciclo delta-aware del recuadro de arriba (vivo: el
+                        // recuadro decía RD$12,053 y esta línea RD$16,771 — incoherencia interna).
+                        // Status monótono: el estimado solo baja → ≤ ref ⇒ dentro; si no, el del backend.
+                        const _estCycleRdPdf = _deltaAware ? _fullCycleCostFinal : (_br.estimated_cycle_rd || 0);
+                        const _brStatusEff = (_deltaAware && _estCycleRdPdf <= _br.reference_rd)
+                            ? 'dentro' : _br.status;
+                        const _est = Math.round(_estCycleRdPdf).toLocaleString('es-DO');
                         // [P2-AUDIT-V6-BATCH · 2026-07-03] (P2-I) tiers categóricos → RD$Y es piso×banda
                         // (número no declarado por el usuario) → etiquetado "referencia estimada" (paridad app).
                         const _ref = Math.round(_br.reference_rd).toLocaleString('es-DO')
@@ -3136,13 +3168,13 @@ const DashboardInner = () => {
                         const _pp = _br.partial_pricing
                             ? `<span style="font-weight:600; color:#92400e;"> · estimado parcial (${Math.round((_br.price_coverage || 0) * 100)}% con precio)</span>`
                             : '';
-                        if (_br.status === 'dentro') {
+                        if (_brStatusEff === 'dentro') {
                             return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155; font-size: 11px; font-weight: 700; color: #047857;">✓ Dentro de tu presupuesto — RD$${_est} de RD$${_ref}${_pp}</div>`;
                         }
-                        if (_br.status === 'cerca') {
+                        if (_brStatusEff === 'cerca') {
                             return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f59e0b55; font-size: 11px; font-weight: 700; color: #92400e;">≈ Al límite de tu presupuesto — RD$${_est} de RD$${_ref}${_pp}</div>`;
                         }
-                        const _delta = Math.round(Math.max(0, _br.delta_rd || 0)).toLocaleString('es-DO');
+                        const _delta = Math.round(Math.max(0, _estCycleRdPdf - _br.reference_rd)).toLocaleString('es-DO');
                         return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f8717155; font-size: 11px; font-weight: 700; color: #b91c1c;">▲ Supera tu presupuesto por RD$${_delta} — RD$${_est} de RD$${_ref}${_br.adjusted ? '<span style="font-weight:600; color:#92400e;"> · ya ajustamos ingredientes premium a equivalentes económicos</span>' : ''}${_pp}</div>`;
                     })()}
                 </div>` : ''}
@@ -5681,9 +5713,21 @@ const DashboardInner = () => {
                                 || budgetBannerHidden || _restockedNow
                                 || isPlanExpired || planFinished || isPlanCorrupted) return null;
                             const _fmtRD = (v) => `RD$${Math.round(v || 0).toLocaleString('es-DO')}`;
-                            const _palette = _br.status === 'dentro'
+                            // [P1-PDF-COST-DELTA-AWARE · 2026-07-12] Con Nevera descontando ítems, el
+                            // estimado del backend describe el plan COMPLETO — usar el ciclo delta-aware
+                            // (paridad con el recuadro del PDF). El estimado solo BAJA → el status solo
+                            // puede mejorar: re-derivación monótona (≤ ref ⇒ dentro; si no, se conserva
+                            // el status del backend — sin adivinar la tolerancia del knob client-side).
+                            const _deltaAwareBanner = (shoppingDeltaMeta?.itemsRemoved || 0) > 0
+                                && typeof shoppingDeltaMeta?.deltaCycleRd === 'number'
+                                && shoppingDeltaMeta.deltaCycleRd > 0;
+                            const _estCycleRd = _deltaAwareBanner
+                                ? shoppingDeltaMeta.deltaCycleRd : _br.estimated_cycle_rd;
+                            const _statusEff = (_deltaAwareBanner && _estCycleRd <= _br.reference_rd)
+                                ? 'dentro' : _br.status;
+                            const _palette = _statusEff === 'dentro'
                                 ? { icon: '✓', bg: isDark ? 'rgba(16,185,129,0.10)' : '#ECFDF5', border: isDark ? 'rgba(52,211,153,0.35)' : '#A7F3D0', fg: isDark ? '#6EE7B7' : '#065F46' }
-                                : _br.status === 'cerca'
+                                : _statusEff === 'cerca'
                                     ? { icon: '≈', bg: isDark ? 'rgba(245,158,11,0.10)' : '#FFFBEB', border: isDark ? 'rgba(251,191,36,0.35)' : '#FDE68A', fg: isDark ? '#FCD34D' : '#92400E' }
                                     : { icon: '▲', bg: isDark ? 'rgba(244,63,94,0.10)' : '#FEF2F2', border: isDark ? 'rgba(251,113,133,0.35)' : '#FECACA', fg: isDark ? '#FDA4AF' : '#991B1B' };
                             // [P2-AUDIT-V6-BATCH · 2026-07-03] (P2-I) para tiers categóricos (low/medium/high)
@@ -5691,11 +5735,11 @@ const DashboardInner = () => {
                             // "referencia estimada" evita que se lea como un techo que él puso. Custom = su monto.
                             const _refIsEstimated = _br.basis && _br.basis !== 'custom';
                             const _refLabel = `${_fmtRD(_br.reference_rd)}${_refIsEstimated ? ' (referencia estimada)' : ''}`;
-                            const _headline = _br.status === 'dentro'
-                                ? `Dentro de tu presupuesto: ${_fmtRD(_br.estimated_cycle_rd)} de ${_refLabel} por ciclo`
-                                : _br.status === 'cerca'
-                                    ? `Al límite de tu presupuesto: ${_fmtRD(_br.estimated_cycle_rd)} de ${_refLabel} por ciclo`
-                                    : `Tu lista supera tu presupuesto por ${_fmtRD(Math.max(0, _br.delta_rd || 0))} (${_fmtRD(_br.estimated_cycle_rd)} de ${_refLabel})`;
+                            const _headline = _statusEff === 'dentro'
+                                ? `Dentro de tu presupuesto: ${_fmtRD(_estCycleRd)} de ${_refLabel} por ciclo`
+                                : _statusEff === 'cerca'
+                                    ? `Al límite de tu presupuesto: ${_fmtRD(_estCycleRd)} de ${_refLabel} por ciclo`
+                                    : `Tu lista supera tu presupuesto por ${_fmtRD(Math.max(0, _estCycleRd - _br.reference_rd))} (${_fmtRD(_estCycleRd)} de ${_refLabel})`;
                             const _subs = Array.isArray(_br.substitutions) ? _br.substitutions.slice(0, 3) : [];
                             const _sugs = Array.isArray(_br.suggestions) ? _br.suggestions.slice(0, 3) : [];
                             return (
@@ -5756,6 +5800,17 @@ const DashboardInner = () => {
                                         semana + despensa) — convive con el total del CICLO de
                                         arriba; se actualiza en vivo al cambiar marcas/duración. */}
                                     {(() => {
+                                        // [P1-PDF-COST-DELTA-AWARE · 2026-07-12] Con Nevera descontando,
+                                        // "esta ida" es el DELTA real (paridad con el PDF), no la lista
+                                        // completa (vivo: toast decía RD$5,989 · 44 ítems con 8 por comprar).
+                                        if (_deltaAwareBanner && typeof shoppingDeltaMeta?.deltaTripRd === 'number'
+                                            && shoppingDeltaMeta.deltaTripRd > 0) {
+                                            return (
+                                                <p style={{ margin: '0.35rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                                                    Esta ida al súper: <strong style={{ color: _palette.fg }}>{_fmtRD(shoppingDeltaMeta.deltaTripRd)}</strong> · {shoppingDeltaMeta.deltaCount} ítems (tu Nevera ya cubre {shoppingDeltaMeta.itemsRemoved}) — el detalle está en el PDF.
+                                                </p>
+                                            );
+                                        }
                                         const _trItems = (planData?.aggregated_shopping_list || []).filter((it) => it && typeof it === 'object');
                                         if (!_trItems.length) return null;
                                         let _tripCost = 0;
