@@ -66,7 +66,74 @@ function Icon({ name, size = 20, fill = "none" }) {
 }
 
 const DANGER = "#F87171";
+// [P3-MOTIVO-MODAL-REDESIGN] Acento sobre superficie OSCURA: aclara el color
+// mezclándolo con blanco para que resalte sobre el card oscuro.
 const brightOf = (c) => `color-mix(in srgb, ${c}, #fff 42%)`;
+// [P2-MOTIVO-LIGHT-CONTRAST · 2026-07-12] Espejo de brightOf para tema CLARO:
+// oscurece el acento hacia el charcoal de marca para que TEXTO/iconos sean
+// legibles sobre un tinte pálido (el color-math original estaba afinado solo
+// para oscuro → en claro el texto salía pálido-sobre-pálido, ilegible).
+const deepOf = (c) => `color-mix(in srgb, ${c}, #0B1120 34%)`;
+// Tinte suave del acento sobre blanco (fondos/bordes de card en claro).
+const mixW = (c, p) => `color-mix(in srgb, ${c} ${p}%, #fff)`;
+
+/* [P2-MOTIVO-LIGHT-CONTRAST · 2026-07-12] Paleta derivada del acento, sensible
+   al tema. La rama `isDark` devuelve los valores ORIGINALES (aprobados por el
+   owner — el modo oscuro no debe cambiar); la rama clara sustituye los tintes
+   translúcidos sobre-blanco y usa `deepOf` para el texto/iconos accionables. */
+function accentTokens(c, isDark) {
+  return isDark
+    ? {
+        cardBg: `linear-gradient(155deg, ${c}26, ${c}0D)`,
+        cardBorder: `${c}3D`,
+        cardBorderHover: `${c}8C`,
+        accentText: brightOf(c),
+        badgeBg: `${c}40`,
+        badgeBorder: `${c}85`,
+        tileColor: c,
+        tileBg: `${c}33`,
+        tileBorder: `${c}52`,
+        heroTileColor: "#0B1120",
+        heroTileBg: `linear-gradient(150deg, ${c}, ${c})`,
+        chevBaseColor: `${c}AD`,
+      }
+    : {
+        cardBg: `linear-gradient(160deg, ${mixW(c, 16)}, ${mixW(c, 6)})`,
+        cardBorder: mixW(c, 42),
+        cardBorderHover: mixW(c, 70),
+        accentText: deepOf(c),
+        badgeBg: mixW(c, 20),
+        badgeBorder: mixW(c, 52),
+        tileColor: deepOf(c),
+        tileBg: mixW(c, 18),
+        tileBorder: mixW(c, 40),
+        heroTileColor: "#fff",
+        heroTileBg: `linear-gradient(150deg, ${c}, ${deepOf(c)})`,
+        chevBaseColor: deepOf(c),
+      };
+}
+
+/* [P2-MOTIVO-LIGHT-CONTRAST · 2026-07-12] Lee el tema activo (html[data-theme],
+   SSOT de utils/theme.js) reactivamente: reacciona al toggle de Settings
+   (evento `mealfit-theme-change`) y a cualquier mutación directa del atributo. */
+function useIsDark() {
+  const read = () =>
+    typeof document !== "undefined" &&
+    document.documentElement.getAttribute("data-theme") === "dark";
+  const [isDark, setIsDark] = useState(read);
+  useEffect(() => {
+    const update = () => setIsDark(read());
+    update();
+    window.addEventListener("mealfit-theme-change", update);
+    const mo = typeof MutationObserver !== "undefined" ? new MutationObserver(update) : null;
+    if (mo) mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => {
+      window.removeEventListener("mealfit-theme-change", update);
+      if (mo) mo.disconnect();
+    };
+  }, []);
+  return isDark;
+}
 
 /* ---------------------------------------------------------- spinner inline */
 function Spinner({ size = 20 }) {
@@ -100,8 +167,9 @@ function LoadingOverlay() {
 }
 
 /* etiqueta "Más elegida" — reutilizada por bento + lista móvil */
-function RecommendedBadge({ c, size = "md" }) {
-  const accent = brightOf(c);
+function RecommendedBadge({ c, size = "md", isDark = true }) {
+  const tk = accentTokens(c, isDark);
+  const accent = tk.accentText;
   const small = size === "sm";
   return (
     <span
@@ -119,8 +187,8 @@ function RecommendedBadge({ c, size = "md" }) {
         textTransform: "uppercase",
         whiteSpace: "nowrap",
         color: accent,
-        background: `${c}40`,
-        border: `1px solid ${c}85`,
+        background: tk.badgeBg,
+        border: `1px solid ${tk.badgeBorder}`,
       }}
     >
       <Icon name="star" size={small ? 10 : 11} fill={accent} /> Más elegida
@@ -129,9 +197,10 @@ function RecommendedBadge({ c, size = "md" }) {
 }
 
 /* --------------------------------------------------------------- tile / hero (bento, escritorio) */
-function OptionTile({ option, hero, faded, loading, onPick }) {
+function OptionTile({ option, hero, faded, loading, onPick, isDark = true }) {
   const [hover, setHover] = useState(false);
   const c = option.color;
+  const tk = accentTokens(c, isDark);
 
   return (
     <button
@@ -154,8 +223,8 @@ function OptionTile({ option, hero, faded, loading, onPick }) {
         gridRow: hero ? "span 2" : undefined,
         padding: hero ? 16 : 14,
         borderRadius: 18,
-        background: `linear-gradient(155deg, ${c}26, ${c}0D)`,
-        border: `1.5px solid ${hover ? `${c}8C` : `${c}3D`}`,
+        background: tk.cardBg,
+        border: `1.5px solid ${hover ? tk.cardBorderHover : tk.cardBorder}`,
         opacity: faded ? 0.42 : 1,
         filter: faded ? "saturate(.6)" : "none",
         transform: hover && !faded ? "translateY(-2px)" : "none",
@@ -163,7 +232,7 @@ function OptionTile({ option, hero, faded, loading, onPick }) {
         transition: "transform .14s, border-color .14s, box-shadow .14s, opacity .15s",
       }}
     >
-      {option.recommended && <RecommendedBadge c={c} />}
+      {option.recommended && <RecommendedBadge c={c} isDark={isDark} />}
 
       <span
         style={{
@@ -174,8 +243,8 @@ function OptionTile({ option, hero, faded, loading, onPick }) {
           placeItems: "center",
           flex: "none",
           ...(hero
-            ? { color: "#0B1120", background: `linear-gradient(150deg, ${c}, ${c})`, boxShadow: `0 10px 22px -10px ${c}` }
-            : { color: c, background: `${c}33`, border: `1px solid ${c}52` }),
+            ? { color: tk.heroTileColor, background: tk.heroTileBg, boxShadow: `0 10px 22px -10px ${c}` }
+            : { color: tk.tileColor, background: tk.tileBg, border: `1px solid ${tk.tileBorder}` }),
         }}
       >
         <Icon name={option.icon} size={hero ? 25 : 22} />
@@ -217,9 +286,9 @@ function OptionTile({ option, hero, faded, loading, onPick }) {
             borderRadius: "50%",
             display: "grid",
             placeItems: "center",
-            color: hover ? "#0B1120" : c,
-            background: hover ? c : `${c}1A`,
-            border: `1.5px solid ${hover ? c : `${c}59`}`,
+            color: hover ? (isDark ? "#0B1120" : "#fff") : (isDark ? c : deepOf(c)),
+            background: hover ? c : (isDark ? `${c}1A` : mixW(c, 12)),
+            border: `1.5px solid ${hover ? c : (isDark ? `${c}59` : mixW(c, 42))}`,
             transform: hover ? "translateX(2px)" : "none",
             transition: ".16s",
           }}
@@ -234,10 +303,11 @@ function OptionTile({ option, hero, faded, loading, onPick }) {
 }
 
 /* --------------------------------------------------------- fila horizontal (lista móvil) */
-function OptionRow({ option, faded, loading, onPick }) {
+function OptionRow({ option, faded, loading, onPick, isDark = true }) {
   const [hover, setHover] = useState(false);
   const c = option.color;
   const rec = !!option.recommended;
+  const tk = accentTokens(c, isDark);
 
   return (
     <button
@@ -261,8 +331,8 @@ function OptionRow({ option, faded, loading, onPick }) {
         width: "100%",
         padding: "13px 14px",
         borderRadius: 16,
-        background: `linear-gradient(155deg, ${c}26, ${c}0D)`,
-        border: `1.5px solid ${hover ? `${c}8C` : `${c}3D`}`,
+        background: tk.cardBg,
+        border: `1.5px solid ${hover ? tk.cardBorderHover : tk.cardBorder}`,
         opacity: faded ? 0.42 : 1,
         transform: hover && !faded ? "translateY(-2px)" : "none",
         boxShadow: hover && !faded ? `0 14px 30px -16px ${c}D9` : "none",
@@ -278,15 +348,15 @@ function OptionRow({ option, faded, loading, onPick }) {
           display: "grid",
           placeItems: "center",
           ...(rec
-            ? { color: "#0B1120", background: `linear-gradient(150deg, ${c}, ${c})`, boxShadow: `0 10px 22px -10px ${c}` }
-            : { color: c, background: `${c}33`, border: `1px solid ${c}52` }),
+            ? { color: tk.heroTileColor, background: tk.heroTileBg, boxShadow: `0 10px 22px -10px ${c}` }
+            : { color: tk.tileColor, background: tk.tileBg, border: `1px solid ${tk.tileBorder}` }),
         }}
       >
         <Icon name={option.icon} size={23} />
       </span>
 
       <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-        {rec && <RecommendedBadge c={c} size="sm" />}
+        {rec && <RecommendedBadge c={c} size="sm" isDark={isDark} />}
         <span style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: "1rem", lineHeight: 1.2, color: "var(--text-main)", letterSpacing: "-.01em" }}>
           {option.label}
         </span>
@@ -295,7 +365,7 @@ function OptionRow({ option, faded, loading, onPick }) {
         </span>
       </span>
 
-      <span style={{ flex: "none", display: "grid", color: hover ? brightOf(c) : `${c}AD` }}>
+      <span style={{ flex: "none", display: "grid", color: hover ? tk.accentText : tk.chevBaseColor }}>
         <Icon name="chevron" size={18} />
       </span>
 
@@ -305,11 +375,16 @@ function OptionRow({ option, faded, loading, onPick }) {
 }
 
 /* ------------------------------------------------------------- banner / fila "fin de semana" */
-function ComingBanner({ coming, faded, loading, onPick }) {
+function ComingBanner({ coming, faded, loading, onPick, isDark = true }) {
   const c = coming.color;
   const unlocked = !!coming.unlocked;
   const [hover, setHover] = useState(false);
   const interactive = unlocked && typeof onPick === "function";
+  // [P2-MOTIVO-LIGHT-CONTRAST · 2026-07-12] Banner ámbar: tinte translúcido en
+  // oscuro (original), tinte sobre-blanco + icono `deepOf` en claro.
+  const b = isDark
+    ? { bg: `${c}14`, dash: `${c}66`, icoColor: c, icoBg: `${c}29`, icoBorder: `${c}4D`, pillBg: `${c}2E`, pillBorder: `${c}57` }
+    : { bg: mixW(c, 16), dash: mixW(c, 52), icoColor: deepOf(c), icoBg: mixW(c, 22), icoBorder: mixW(c, 44), pillBg: mixW(c, 26), pillBorder: mixW(c, 48) };
 
   return (
     <button
@@ -334,8 +409,8 @@ function ComingBanner({ coming, faded, loading, onPick }) {
         marginTop: 10,
         padding: "13px 14px",
         borderRadius: 16,
-        background: `${c}14`,
-        border: `1.5px dashed ${c}66`,
+        background: b.bg,
+        border: `1.5px dashed ${b.dash}`,
         cursor: interactive ? "pointer" : "default",
         opacity: faded ? 0.42 : 1,
         transform: interactive && hover ? "translateY(-2px)" : "none",
@@ -352,9 +427,9 @@ function ComingBanner({ coming, faded, loading, onPick }) {
           borderRadius: 12,
           display: "grid",
           placeItems: "center",
-          color: c,
-          background: `${c}29`,
-          border: `1px solid ${c}4D`,
+          color: b.icoColor,
+          background: b.icoBg,
+          border: `1px solid ${b.icoBorder}`,
         }}
       >
         <Icon name={coming.icon} size={20} />
@@ -397,8 +472,8 @@ function ComingBanner({ coming, faded, loading, onPick }) {
           fontWeight: 800,
           whiteSpace: "nowrap",
           color: "var(--warning-text)",
-          background: `${c}2E`,
-          border: `1px solid ${c}57`,
+          background: b.pillBg,
+          border: `1px solid ${b.pillBorder}`,
         }}
       >
         <Icon name={unlocked ? "check" : "calendar"} size={12} /> {unlocked ? "Hoy" : coming.unlockLabel}
@@ -410,8 +485,12 @@ function ComingBanner({ coming, faded, loading, onPick }) {
 }
 
 /* -------------------------------------------------------------- fila destructiva */
-function DislikeRow({ faded, loading, onPick, heading, label = "No me gustan estos platos", desc = "Evitar sugerencias similares" }) {
+function DislikeRow({ faded, loading, onPick, heading, label = "No me gustan estos platos", desc = "Evitar sugerencias similares", isDark = true }) {
   const [hover, setHover] = useState(false);
+  // [P2-MOTIVO-LIGHT-CONTRAST · 2026-07-12] Icono rojo legible en claro (deepOf).
+  const dz = isDark
+    ? { icoColor: DANGER, icoBg: `${DANGER}24`, icoBorder: `${DANGER}42`, hoverBorder: `${DANGER}73` }
+    : { icoColor: deepOf(DANGER), icoBg: mixW(DANGER, 16), icoBorder: mixW(DANGER, 38), hoverBorder: mixW(DANGER, 58) };
   return (
     <div style={{ marginTop: 14, ...(heading ? {} : { paddingTop: 13, borderTop: "1px solid var(--border)" }) }}>
       {heading && (
@@ -444,7 +523,7 @@ function DislikeRow({ faded, loading, onPick, heading, label = "No me gustan est
           borderRadius: 14,
           color: "inherit",
           background: hover ? `${DANGER}14` : "transparent",
-          border: `1px solid ${hover ? `${DANGER}73` : "var(--border)"}`,
+          border: `1px solid ${hover ? dz.hoverBorder : "var(--border)"}`,
           opacity: faded ? 0.42 : 1,
           transition: ".15s",
         }}
@@ -457,9 +536,9 @@ function DislikeRow({ faded, loading, onPick, heading, label = "No me gustan est
             borderRadius: 11,
             display: "grid",
             placeItems: "center",
-            color: DANGER,
-            background: `${DANGER}24`,
-            border: `1px solid ${DANGER}42`,
+            color: dz.icoColor,
+            background: dz.icoBg,
+            border: `1px solid ${dz.icoBorder}`,
           }}
         >
           <Icon name="thumbDown" size={18} />
@@ -495,6 +574,10 @@ export default function MotivoActualizarModal({
   onClose = () => {},
 }) {
   const isMobile = useMediaQuery("(max-width: 768px)");
+  // [P2-MOTIVO-LIGHT-CONTRAST · 2026-07-12] Tema activo para el color-math
+  // sensible al tema (accentTokens): oscuro = valores originales, claro = acento
+  // oscurecido legible sobre tinte pálido.
+  const isDark = useIsDark();
   const busy = pickingId != null;
   const handleClose = useCallback(() => {
     if (pickingId == null) onClose();
@@ -675,41 +758,41 @@ export default function MotivoActualizarModal({
               /* ---- lista vertical (bottom-sheet móvil) ---- */
               <>
                 <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-                  <OptionRow option={hero} faded={busy && pickingId !== hero.id} loading={pickingId === hero.id} onPick={onPick} />
+                  <OptionRow option={hero} faded={busy && pickingId !== hero.id} loading={pickingId === hero.id} onPick={onPick} isDark={isDark} />
                   {minis.map((o) => (
-                    <OptionRow key={o.id} option={o} faded={busy && pickingId !== o.id} loading={pickingId === o.id} onPick={onPick} />
+                    <OptionRow key={o.id} option={o} faded={busy && pickingId !== o.id} loading={pickingId === o.id} onPick={onPick} isDark={isDark} />
                   ))}
                 </div>
                 {coming && (
-                  <ComingBanner coming={coming} faded={busy && pickingId !== coming.id} loading={pickingId === coming.id} onPick={onPick} />
+                  <ComingBanner coming={coming} faded={busy && pickingId !== coming.id} loading={pickingId === coming.id} onPick={onPick} isDark={isDark} />
                 )}
                 {extraRows.length > 0 && (
                   <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
                     {extraRows.map((o) => (
-                      <OptionRow key={o.id} option={o} faded={busy && pickingId !== o.id} loading={pickingId === o.id} onPick={onPick} />
+                      <OptionRow key={o.id} option={o} faded={busy && pickingId !== o.id} loading={pickingId === o.id} onPick={onPick} isDark={isDark} />
                     ))}
                   </div>
                 )}
-                <DislikeRow heading="¿No es lo que buscas?" label={dislike.label} desc={dislike.desc} faded={busy && pickingId !== "dislike"} loading={pickingId === "dislike"} onPick={onPick} />
+                <DislikeRow heading="¿No es lo que buscas?" label={dislike.label} desc={dislike.desc} faded={busy && pickingId !== "dislike"} loading={pickingId === "dislike"} onPick={onPick} isDark={isDark} />
               </>
             ) : (
               /* ---- bento (escritorio) ---- */
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 18 }}>
-                  <OptionTile option={hero} hero faded={busy && pickingId !== hero.id} loading={pickingId === hero.id} onPick={onPick} />
+                  <OptionTile option={hero} hero faded={busy && pickingId !== hero.id} loading={pickingId === hero.id} onPick={onPick} isDark={isDark} />
                   {minis.map((o) => (
-                    <OptionTile key={o.id} option={o} faded={busy && pickingId !== o.id} loading={pickingId === o.id} onPick={onPick} />
+                    <OptionTile key={o.id} option={o} faded={busy && pickingId !== o.id} loading={pickingId === o.id} onPick={onPick} isDark={isDark} />
                   ))}
                 </div>
                 {coming && (
-                  <ComingBanner coming={coming} faded={busy && pickingId !== coming.id} loading={pickingId === coming.id} onPick={onPick} />
+                  <ComingBanner coming={coming} faded={busy && pickingId !== coming.id} loading={pickingId === coming.id} onPick={onPick} isDark={isDark} />
                 )}
                 {extraRows.map((o) => (
                   <div key={o.id} style={{ marginTop: 10 }}>
-                    <OptionRow option={o} faded={busy && pickingId !== o.id} loading={pickingId === o.id} onPick={onPick} />
+                    <OptionRow option={o} faded={busy && pickingId !== o.id} loading={pickingId === o.id} onPick={onPick} isDark={isDark} />
                   </div>
                 ))}
-                <DislikeRow label={dislike.label} desc={dislike.desc} faded={busy && pickingId !== "dislike"} loading={pickingId === "dislike"} onPick={onPick} />
+                <DislikeRow label={dislike.label} desc={dislike.desc} faded={busy && pickingId !== "dislike"} loading={pickingId === "dislike"} onPick={onPick} isDark={isDark} />
               </>
             )}
           </motion.div>
