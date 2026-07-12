@@ -91,6 +91,7 @@ export function setFormCryptoSecret(secret) {
     const next = (typeof secret === 'string' && secret.length >= 16) ? secret : null;
     if (next === _formSecret) return false;
     _formSecret = next;
+    _invalidateAesKeyCache(); // [P2-FORM-SAVE-DEBOUNCE] el secret cambió → clave cacheada inválida
     return true;
 }
 
@@ -203,6 +204,21 @@ const deriveAesKey = async (secret) => {
     );
 };
 
+// [P2-FORM-SAVE-DEBOUNCE · 2026-07-12] Cache de la CryptoKey derivada por secret. La
+// derivación HKDF (importKey + deriveKey) se invocaba en CADA save (cada keystroke
+// del wizard) y cada decrypt; como la clave es DETERMINISTA por secret, se cachea la
+// última. Se invalida al cambiar el secret (setFormCryptoSecret) y en clearFormStorage.
+let _cachedKey = null;
+let _cachedKeyForSecret = null;
+const _getAesKey = async (secret) => {
+    if (_cachedKey && _cachedKeyForSecret === secret) return _cachedKey;
+    const k = await deriveAesKey(secret);
+    _cachedKey = k;
+    _cachedKeyForSecret = secret;
+    return k;
+};
+const _invalidateAesKeyCache = () => { _cachedKey = null; _cachedKeyForSecret = null; };
+
 /**
  * Cifra `obj` (JSON-serializable) y devuelve base64 string `iv(12) || ciphertext`.
  */
@@ -298,7 +314,7 @@ export const saveFormData = async (formData, session) => {
             return;
         }
         try {
-            const key = await deriveAesKey(secret);
+            const key = await _getAesKey(secret);
             const ciphertext = await encryptObject(sensitiveData, key);
             localStorage.setItem(SECURE_KEY, ciphertext);
         } catch (e) {
@@ -375,7 +391,7 @@ export const loadFormData = async (session) => {
             const blob = localStorage.getItem(SECURE_KEY);
             if (blob) {
                 for (const secret of candidates) {
-                    const key = await deriveAesKey(secret);
+                    const key = await _getAesKey(secret);
                     const decrypted = await decryptObject(blob, key);
                     if (decrypted && typeof decrypted === 'object') {
                         sensitiveData = decrypted;
@@ -437,6 +453,7 @@ export const migrateLegacyFormStorage = () => {
 export const clearFormStorage = () => {
     try { localStorage.removeItem(PUBLIC_KEY); } catch { /* noop */ }
     try { localStorage.removeItem(SECURE_KEY); } catch { /* noop */ }
+    _invalidateAesKeyCache(); // [P2-FORM-SAVE-DEBOUNCE] no retener la clave tras limpiar
 };
 
 // ============================================================

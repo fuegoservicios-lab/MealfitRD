@@ -1969,6 +1969,29 @@ export const AssessmentProvider = ({ children }) => {
     // cifrado AES-GCM en `mealfit_form_secure` con clave HKDF derivada del
     // access_token. Para guests, sensitive solo en memoria. Async — fire-and-
     // forget; errores se loguean a consola dentro de `secureSaveFormData`.
+    // [P2-FORM-SAVE-DEBOUNCE · 2026-07-12] Guardado con debounce del wizard. El effect
+    // disparaba en CADA keystroke (formData nuevo por tecla) → un localStorage.setItem
+    // síncrono del form completo + una re-derivación HKDF de la CryptoKey por tecla
+    // (jank en móvil gama baja, mercado es-DO). Ahora se coalescen a 400ms; el flush
+    // (pagehide/unmount, abajo) garantiza no perder el último edit dentro de la ventana.
+    const _saveDataRef = useRef({ formData: null, session: null });
+    const _savePendingRef = useRef(false);
+    const _flushFormSave = useCallback(() => {
+        if (!_savePendingRef.current) return;
+        _savePendingRef.current = false;
+        // `session` aquí es el snapshot capturado al programar el save (no el state
+        // vivo) — shadowing intencional; el gate de seguridad es idéntico.
+        const { formData, session } = _saveDataRef.current;
+        if (!formData) return;
+        secureSaveFormData(formData, session).catch(() => { /* logged dentro */ });
+        // [P1-GUEST-FORM-PERSIST · 2026-06-21] Solo el INVITADO (sin sesión + modo
+        // invitado activo) persiste sus campos sensibles a sessionStorage — no hay
+        // token para cifrar. saveGuestSensitiveFields SALTA si todo está vacío.
+        if (!session && isGuestModeActive()) {
+            saveGuestSensitiveFields(formData);
+        }
+    }, []);
+
     useEffect(() => {
         // [P1-PII-SAVE-RACE · 2026-05-31] NO persistir mientras la hidratación
         // del sensitive cifrado está en vuelo. Al llegar la session (login o page
@@ -1981,18 +2004,26 @@ export const AssessmentProvider = ({ children }) => {
         // este effect re-dispara (loadingSensitive ∈ deps) ya con el formData
         // hidratado y persiste lo correcto. Defensa-en-profundidad junto al
         // filtro `editedFieldsRef` que ya preserva edits in-flight del usuario.
-        if (formData && !loadingSensitive) {
-            secureSaveFormData(formData, session).catch(() => { /* logged dentro */ });
-            // [P1-GUEST-FORM-PERSIST · 2026-06-21] Solo el INVITADO (sin sesión + modo
-            // invitado activo) persiste sus campos sensibles a sessionStorage — no hay
-            // token para cifrar. saveGuestSensitiveFields SALTA si todo está vacío (defensa
-            // anti-clobber en mount). Un usuario con sesión los cifra arriba; jamás se
-            // persiste copia plana para un usuario logueado.
-            if (!session && isGuestModeActive()) {
-                saveGuestSensitiveFields(formData);
-            }
-        }
-    }, [formData, session, loadingSensitive]);
+        if (!formData || loadingSensitive) return undefined;
+        _saveDataRef.current = { formData, session };
+        _savePendingRef.current = true;
+        const t = setTimeout(_flushFormSave, 400);
+        return () => clearTimeout(t);
+    }, [formData, session, loadingSensitive, _flushFormSave]);
+
+    // [P2-FORM-SAVE-DEBOUNCE · 2026-07-12] Flush del guardado pendiente al ocultar/
+    // cerrar la pestaña o desmontar el provider, para no perder el último edit dentro
+    // de la ventana de debounce de 400ms.
+    useEffect(() => {
+        const onHide = () => _flushFormSave();
+        window.addEventListener('pagehide', onHide);
+        window.addEventListener('beforeunload', onHide);
+        return () => {
+            window.removeEventListener('pagehide', onHide);
+            window.removeEventListener('beforeunload', onHide);
+            _flushFormSave();
+        };
+    }, [_flushFormSave]);
 
     // [P1-FORM-KEY · 2026-06-21] La llave ESTABLE de cifrado del form llega async del
     // backend (firstPartySession → /api/auth/session|/me). Cuando llega, bumpeamos este
