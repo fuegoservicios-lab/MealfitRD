@@ -262,9 +262,14 @@ const WaterTracker = ({ userId }) => {
                                 </svg>
                             </div>
                         </div>
+                        {/* [P2-WATER-LIGHT-CONTRAST · 2026-07-12] `onWater` cuando el
+                            número queda sumergido (≥60% de llenado). En tema claro el
+                            CSS usa texto blanco sobre agua y texto azul-oscuro sobre el
+                            vidrio vacío (antes: blanco fijo → "0%" invisible sobre vidrio
+                            pálido). En oscuro no cambia (siempre blanco). */}
                         <div className={styles.glassCenter}>
-                            <span className={styles.pct}>{pct}%</span>
-                            <span className={styles.pctSub}>{fmtGlasses} / {goal}</span>
+                            <span className={`${styles.pct} ${pct >= 60 ? styles.onWater : ''}`}>{pct}%</span>
+                            <span className={`${styles.pctSub} ${pct >= 60 ? styles.onWater : ''}`}>{fmtGlasses} / {goal}</span>
                         </div>
                     </div>
                     <p className={styles.meta}>

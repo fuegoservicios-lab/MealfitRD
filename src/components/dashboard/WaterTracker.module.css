@@ -158,6 +158,61 @@
 }
 @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
 
+/* ---------- Tema CLARO (P2-WATER-LIGHT-CONTRAST · 2026-07-12) ----------
+   El diseño base está afinado para oscuro: `.pct` es blanco (invisible sobre el
+   vidrio vacío pálido en claro), los vasos/vidrio usan tintes translúcidos de
+   `--text-light` (casi invisibles sobre blanco) y los chips usan `--water-2`
+   (cyan-400) como TEXTO (bajo contraste sobre blanco). En claro:
+   - vidrio/vasos: tinte azul con presencia + rim visible,
+   - `--water-ink` (cyan-600) para chip/sub/racha (legible sobre blanco),
+   - `.pct` azul-oscuro sobre vidrio vacío, blanco cuando queda sumergido.
+   `:not([data-theme='dark'])` cubre light explícito y el fallback sin atributo. */
+:global(html:not([data-theme='dark'])) .card { --water-ink: #0891B2; }
+
+:global(html:not([data-theme='dark'])) .glass {
+  background: color-mix(in srgb, var(--water-3) 12%, #fff);
+  box-shadow:
+    inset 0 0 0 3px color-mix(in srgb, var(--water-3) 34%, #fff),
+    inset 0 -10px 24px rgba(2, 132, 199, .10);
+}
+:global(html:not([data-theme='dark'])) .pct {
+  color: #0C4A6E;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, .55);
+}
+:global(html:not([data-theme='dark'])) .pctSub {
+  color: #0E7490;
+  text-shadow: none;
+}
+:global(html:not([data-theme='dark'])) .pct.onWater {
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(2, 40, 60, .45);
+}
+:global(html:not([data-theme='dark'])) .pctSub.onWater {
+  color: rgba(255, 255, 255, .95);
+  text-shadow: 0 1px 3px rgba(2, 40, 60, .4);
+}
+:global(html:not([data-theme='dark'])) .cup {
+  background: color-mix(in srgb, var(--water-3) 8%, #fff);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--water-3) 34%, #fff);
+}
+:global(html:not([data-theme='dark'])) .cup:hover {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--water-2) 65%, #fff);
+}
+:global(html:not([data-theme='dark'])) .cupFull {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--water-3) 55%, #fff), 0 4px 14px -6px rgba(14, 165, 233, .45);
+}
+:global(html:not([data-theme='dark'])) .chip {
+  color: var(--water-ink);
+  background: color-mix(in srgb, var(--water-2) 14%, #fff);
+  border-color: color-mix(in srgb, var(--water-2) 46%, #fff);
+}
+:global(html:not([data-theme='dark'])) .chip:hover {
+  background: color-mix(in srgb, var(--water-2) 24%, #fff);
+}
+:global(html:not([data-theme='dark'])) .sub b,
+:global(html:not([data-theme='dark'])) .streak,
+:global(html:not([data-theme='dark'])) .streak svg { color: var(--water-ink); }
+
 /* ---------- Responsive (por ancho del contenedor) ---------- */
 @container (max-width: 540px) {
   .inner { grid-template-columns: 1fr; padding: 18px; }

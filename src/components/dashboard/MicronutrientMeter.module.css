@@ -185,6 +185,17 @@
 
 .foot { margin: 15px 2px 2px; font-size: .68rem; line-height: 1.5; color: var(--text-light); opacity: .9; }
 
+/* ---------- Tema CLARO: tonos cálidos legibles (P2-MICRO-LIGHT-CONTRAST · 2026-07-12) ----------
+   Los tonos `--tone` son shades -400 (brillantes) afinados para resaltar sobre
+   el card OSCURO. Usados como TEXTO (%, pill, "faltan X") sobre el card claro
+   pálido, el ámbar `#FBBF24` casi no contrasta (amarillo sobre crema, ~1.6:1) y
+   naranja/rosa quedan borderline. En claro los bajamos a -600: legibles como
+   texto Y más ricos como relleno de barra. El teal `.ok` NO se toca (aceptable).
+   Dark intacto (rama por defecto). */
+:global(html:not([data-theme='dark'])) .amber { --tone: #D97706; }
+:global(html:not([data-theme='dark'])) .far   { --tone: #EA580C; }
+:global(html:not([data-theme='dark'])) .over  { --tone: #E11D48; }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 560px) {
   .grid2 { grid-template-columns: 1fr; }
