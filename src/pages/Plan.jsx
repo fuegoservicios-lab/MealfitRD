@@ -393,6 +393,11 @@ export const generateAIPlanStream = async (formData, onProgress) => {
 
         } catch (error) {
             clearTimeout(timeoutId);
+            // [P1-SSE-IDLE-WATCHDOG] Limpiar el watchdog al tope del catch (además del
+            // finally): evita que dispare durante el fallback síncrono (hasta ~990s),
+            // donde su abort sería inerte (el fallback usa otro controller) pero
+            // desperdicia el callback.
+            if (idleTimer) clearTimeout(idleTimer);
 
             // [P6-CANCEL-SIGNAL-CHECK] FIRST PRIORITY: si el signal está
             // abortado por el usuario, NO importa qué error se haya levantado
