@@ -549,18 +549,38 @@ const COOKING_STAGES_DAY = [
     'Cuadrando los macros del día…',
     'Puliendo las recetas…',
 ];
+// [P2-COOKING-OVERLAY-PROGRESS · 2026-07-12] Cola de "paciencia" post-etapas: frases variadas
+// a ritmo calmado (8s) para regens largos — antes las 4 etapas rotaban en círculo cada 3.5s
+// y "se sentía como bucle" (feedback del owner). La marcha principal ahora es ÚNICA
+// (sensación de progreso real) y la cola tarda ~64s en repetirse.
+const COOKING_STAGES_TAIL = [
+    'Ajustando las porciones…',
+    'Afinando sabores criollos…',
+    'Revisando la lista de compras…',
+    'Cuidando tus macros…',
+    'Un plato bueno toma su tiempo…',
+    'Emplatando los detalles…',
+    'Verificando cada ingrediente…',
+    'Ya casi está…',
+];
 function MealCookingOverlay({ mode = 'single', seed = 0 }) {
     const stages = mode === 'day' ? COOKING_STAGES_DAY : COOKING_STAGES_SINGLE;
-    const [stageIdx, setStageIdx] = useState(() => Math.abs(seed) % stages.length);
+    const [tick, setTick] = useState(0);
     useEffect(() => {
-        const id = setInterval(() => setStageIdx((i) => (i + 1) % stages.length), 3500);
+        const id = setInterval(() => setTick((t) => t + 1), 4000);
         return () => clearInterval(id);
-    }, [stages.length]);
+    }, []);
+    // Marcha única (offset 0/1 por seed para que las cards del modo día no se vean clonadas,
+    // clamp en la última etapa) → luego cola de paciencia (8s por frase, offset por seed).
+    const _mainIdx = Math.min((Math.abs(seed) % 2) + tick, stages.length - 1);
+    const _inMain = tick < stages.length + 1;
+    const _tailIdx = Math.abs(seed + Math.floor(Math.max(0, tick - stages.length) / 2)) % COOKING_STAGES_TAIL.length;
+    const label = _inMain ? stages[_mainIdx] : COOKING_STAGES_TAIL[_tailIdx];
     return (
         <div className="meal-cooking-overlay" role="status" aria-live="polite" aria-label="Actualizando plato con IA">
             <div className="meal-cooking-chip">
                 <ChefHat size={18} className="cook-icon" aria-hidden="true" />
-                <span key={stageIdx} className="meal-cooking-text">{stages[stageIdx]}</span>
+                <span key={label} className="meal-cooking-text">{label}</span>
             </div>
         </div>
     );
