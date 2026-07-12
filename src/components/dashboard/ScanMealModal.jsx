@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { Camera, Image as ImageIcon, Loader2, Check, X, AlertTriangle } from 'lucide-react';
+import { Camera, Image as ImageIcon, Loader2, Check, X, AlertTriangle, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
@@ -308,8 +308,12 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                 className={styles.card}
             >
                 <div className={styles.header}>
+                    {/* [P3-SCAN-MODAL-POLISH · 2026-07-12] Icono como tile con
+                        gradiente (lenguaje de la familia de diálogos pulidos). */}
                     <h2 id="scan-meal-title" className={styles.title}>
-                        <Camera size={20} strokeWidth={2.5} />
+                        <span className={styles.titleIco}>
+                            <Camera size={17} strokeWidth={2.25} />
+                        </span>
                         Escanear comida
                     </h2>
                     <button
@@ -350,20 +354,36 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                             Toma una foto de tu plato y la IA estimará las macros. Podrás
                             revisarlas antes de registrar.
                         </p>
+                        {/* [P3-SCAN-MODAL-POLISH · 2026-07-12] De dos botones apilados a
+                            OPTION-CARDS estilo action-sheet: icono en tile + label +
+                            sublabel + chevron. La cámara lleva el tile primary (acción
+                            recomendada); galería en tile neutro. */}
                         <div className={styles.pickRow}>
                             <button
-                                className={styles.pickBtn}
+                                className={styles.optionCard}
                                 onClick={() => cameraInputRef.current?.click()}
                             >
-                                <Camera size={22} />
-                                Tomar foto
+                                <span className={`${styles.optionIco} ${styles.optionIcoPrimary}`}>
+                                    <Camera size={20} strokeWidth={2.1} />
+                                </span>
+                                <span className={styles.optionTxt}>
+                                    <span className={styles.optionLabel}>Tomar foto</span>
+                                    <span className={styles.optionSub}>Usa la cámara de tu dispositivo</span>
+                                </span>
+                                <ChevronRight size={18} className={styles.optionChev} aria-hidden="true" />
                             </button>
                             <button
-                                className={styles.pickBtnSecondary}
+                                className={styles.optionCard}
                                 onClick={() => galleryInputRef.current?.click()}
                             >
-                                <ImageIcon size={22} />
-                                Elegir de galería
+                                <span className={styles.optionIco}>
+                                    <ImageIcon size={20} strokeWidth={2.1} />
+                                </span>
+                                <span className={styles.optionTxt}>
+                                    <span className={styles.optionLabel}>Elegir de galería</span>
+                                    <span className={styles.optionSub}>Sube una foto que ya tengas</span>
+                                </span>
+                                <ChevronRight size={18} className={styles.optionChev} aria-hidden="true" />
                             </button>
                         </div>
                         <input
