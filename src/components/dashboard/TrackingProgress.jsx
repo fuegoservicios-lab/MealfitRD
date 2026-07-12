@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Flame, Dumbbell, Wheat, Droplet, Activity, Camera, Flag } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { fetchWithAuth } from '../../config/api';
@@ -33,11 +33,70 @@ import styles from './TrackingProgress.module.css';
 const _CONSUMED_CACHE_KEY_PREFIX = 'mealfit_tracking_consumed_';
 const _CONSUMED_DEFAULT = { calories: 0, protein: 0, carbs: 0, fats: 0, meals: [] };
 
-const _getConsumedCacheKey = (userId) => {
+const _parseDate = (value) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const _getPlanTrackingStartIso = (planData) => {
+    const raw = planData?.cycle_start_date || planData?.created_at || planData?.plan_start_date || null;
+    const parsed = _parseDate(raw);
+    return parsed ? parsed.toISOString() : null;
+};
+
+const _getConsumedCacheKey = (userId, planTrackingStartIso) => {
     if (!userId) return null;
     const now = new Date();
     const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    return `${_CONSUMED_CACHE_KEY_PREFIX}${userId}_${dateStr}`;
+    const planSegment = planTrackingStartIso ? encodeURIComponent(planTrackingStartIso) : 'no-plan-cycle';
+    return `${_CONSUMED_CACHE_KEY_PREFIX}${userId}_${dateStr}_${planSegment}`;
+};
+
+const _readConsumedCache = (key) => {
+    if (!key) return null;
+    const raw = safeLocalStorageGet(key, null);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.calories !== 'number') return null;
+    return { ...parsed, _cacheKey: key };
+};
+
+const _macroNumber = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const _buildConsumedSnapshot = ({ meals, totals, planTrackingStartIso, cacheKey }) => {
+    if (!Array.isArray(meals)) {
+        return {
+            calories: _macroNumber(totals?.calories),
+            protein: _macroNumber(totals?.protein),
+            carbs: _macroNumber(totals?.carbs),
+            fats: _macroNumber(totals?.healthy_fats ?? totals?.fats),
+            meals: [],
+            _fetched: true,
+            _cacheKey: cacheKey,
+        };
+    }
+
+    const cycleStart = _parseDate(planTrackingStartIso);
+    const cycleMeals = cycleStart
+        ? meals.filter((meal) => {
+            const consumedAt = _parseDate(meal?.consumed_at);
+            return !consumedAt || consumedAt >= cycleStart;
+        })
+        : meals;
+
+    return {
+        calories: Math.round(cycleMeals.reduce((sum, meal) => sum + _macroNumber(meal?.calories), 0)),
+        protein: Math.round(cycleMeals.reduce((sum, meal) => sum + _macroNumber(meal?.protein), 0)),
+        carbs: Math.round(cycleMeals.reduce((sum, meal) => sum + _macroNumber(meal?.carbs), 0)),
+        fats: Math.round(cycleMeals.reduce((sum, meal) => sum + _macroNumber(meal?.healthy_fats ?? meal?.fats), 0)),
+        meals: cycleMeals,
+        _fetched: true,
+        _cacheKey: cacheKey,
+    };
 };
 
 const TrackingProgress = ({ planData, userId }) => {
@@ -47,6 +106,11 @@ const TrackingProgress = ({ planData, userId }) => {
     // el effect de abajo ya escucha → las barras se actualizan solas.
     const [scanOpen, setScanOpen] = useState(false);
     const isLoggedIn = !!userId && userId !== 'guest';
+    const planTrackingStartIso = useMemo(() => _getPlanTrackingStartIso(planData), [planData]);
+    const consumedCacheKey = useMemo(
+        () => _getConsumedCacheKey(userId, planTrackingStartIso),
+        [userId, planTrackingStartIso]
+    );
 
     // [P2-DASH-SCAN-ONCLOSE-MEMO · 2026-05-30] `onClose` memoizado. Pre-fix se
     // pasaba un arrow inline `() => setScanOpen(false)` a <ScanMealModal>, que
@@ -70,18 +134,10 @@ const TrackingProgress = ({ planData, userId }) => {
         // `_fetched` para distinguir "datos fetcheados que dan 0" vs "default
         // initial state pre-fetch".
         try {
-            const key = _getConsumedCacheKey(userId);
-            if (key) {
-                const raw = safeLocalStorageGet(key, null);
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (parsed && typeof parsed.calories === 'number') {
-                        return parsed;
-                    }
-                }
-            }
+            const cached = _readConsumedCache(consumedCacheKey);
+            if (cached) return cached;
         } catch (_e) { /* fail-open al default */ }
-        return _CONSUMED_DEFAULT;
+        return { ..._CONSUMED_DEFAULT, _cacheKey: consumedCacheKey };
     });
     // Loading inicial false si hidratamos del cache (no mostrar spinner si
     // ya hay datos visibles); true solo si arrancamos con default vacío.
@@ -90,17 +146,24 @@ const TrackingProgress = ({ planData, userId }) => {
     // para hoy, no muestro loading".
     const [loading, setLoading] = useState(() => {
         try {
-            const key = _getConsumedCacheKey(userId);
-            if (key) {
-                const raw = safeLocalStorageGet(key, null);
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (parsed && parsed._fetched) return false;
-                }
-            }
+            const cached = _readConsumedCache(consumedCacheKey);
+            if (cached?._fetched) return false;
         } catch (_e) { /* ignore */ }
         return true;
     });
+
+    useEffect(() => {
+        try {
+            const cached = _readConsumedCache(consumedCacheKey);
+            if (cached) {
+                setConsumed(cached);
+                setLoading(!cached._fetched);
+                return;
+            }
+        } catch (_e) { /* ignore */ }
+        setConsumed({ ..._CONSUMED_DEFAULT, _cacheKey: consumedCacheKey });
+        setLoading(true);
+    }, [consumedCacheKey]);
 
     // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20]
     // [P3-TRACKING-CACHE-EMPTY-FETCH · 2026-05-27]
@@ -109,13 +172,14 @@ const TrackingProgress = ({ planData, userId }) => {
     // state NO tiene ese flag → no se persiste → no se sobreescribe el cache
     // real con un placeholder vacío.
     useEffect(() => {
-        const key = _getConsumedCacheKey(userId);
+        const key = consumedCacheKey;
         if (!key) return;
         if (!consumed || !consumed._fetched) return;
+        if (consumed._cacheKey !== key) return;
         try {
             safeLocalStorageSet(key, JSON.stringify(consumed));
         } catch (_e) { /* ignore */ }
-    }, [consumed, userId]);
+    }, [consumed, consumedCacheKey]);
 
     useEffect(() => {
         let isMounted = true;
@@ -138,17 +202,17 @@ const TrackingProgress = ({ planData, userId }) => {
                 const data = await res.json();
                 
                 if (isMounted && data.totals) {
-                    setConsumed({
-                        calories: data.totals.calories || 0,
-                        protein: data.totals.protein || 0,
-                        carbs: data.totals.carbs || 0,
-                        fats: data.totals.healthy_fats || 0,
-                        meals: data.meals || [],
-                        // [P3-TRACKING-CACHE-EMPTY-FETCH · 2026-05-27] Marker
-                        // que distingue "datos fetcheados (aunque sean 0)" del
-                        // default initial state. El persist effect lo respeta.
-                        _fetched: true,
-                    });
+                    // [P1-TRACKING-NEW-PLAN-ZERO · 2026-07-12]
+                    // Un plan renovado es un ciclo nuevo: el endpoint devuelve
+                    // todas las comidas de "hoy", pero la card debe contar solo
+                    // lo registrado DESPUÉS del cycle_start_date/created_at del
+                    // plan actual. Así el medidor no hereda barras del plan previo.
+                    setConsumed(_buildConsumedSnapshot({
+                        meals: data.meals,
+                        totals: data.totals,
+                        planTrackingStartIso,
+                        cacheKey: consumedCacheKey,
+                    }));
                 }
             } catch (err) {
                 console.error("Error fetching consumed meals:", err);
@@ -193,13 +257,16 @@ const TrackingProgress = ({ planData, userId }) => {
             window.removeEventListener('mealfit:refresh-inventory', onAgentRefreshInventory);
             document.removeEventListener('visibilitychange', onVisibilityChange);
         };
-    }, [userId]);
+    }, [userId, planTrackingStartIso, consumedCacheKey]);
 
     // Funciones Helper para calcular Progreso
     const goalCal = parseInt(planData?.calories) || 2000;
     const goalPro = parseInt(planData?.macros?.protein) || 150;
     const goalCarb = parseInt(planData?.macros?.carbs) || 200;
     const goalFat = parseInt(planData?.macros?.fats) || 60;
+    const displayedConsumed = consumed?._cacheKey === consumedCacheKey
+        ? consumed
+        : { ..._CONSUMED_DEFAULT, _cacheKey: consumedCacheKey };
 
     // [P3-TRACKING-OVER-LIMIT · 2026-05-20] Pre-fix `calcPerc` capeaba al 100%
     // con `Math.min(..., 100)` — ocultaba visualmente cuando el usuario excedía
@@ -208,10 +275,10 @@ const TrackingProgress = ({ planData, userId }) => {
     // exceso (gradient rojo + número rojo + badge "+excess unit").
     const calcPerc = (val, max) => Math.round((val / max) * 100) || 0;
 
-    const percCal = calcPerc(consumed.calories, goalCal);
-    const percPro = calcPerc(consumed.protein, goalPro);
-    const percCarb = calcPerc(consumed.carbs, goalCarb);
-    const percFat = calcPerc(consumed.fats, goalFat);
+    const percCal = calcPerc(displayedConsumed.calories, goalCal);
+    const percPro = calcPerc(displayedConsumed.protein, goalPro);
+    const percCarb = calcPerc(displayedConsumed.carbs, goalCarb);
+    const percFat = calcPerc(displayedConsumed.fats, goalFat);
 
     return (
         <div className={styles.card}>
@@ -224,7 +291,7 @@ const TrackingProgress = ({ planData, userId }) => {
                     <div>
                         <h2 className={styles.title}>Progreso en Tiempo Real</h2>
                         <p className={styles.subtitle}>
-                            {loading ? 'Cargando registros...' : `${consumed.meals.length} ${consumed.meals.length === 1 ? 'comida registrada' : 'comidas registradas'} hoy`}
+                            {loading ? 'Cargando registros...' : `${displayedConsumed.meals.length} ${displayedConsumed.meals.length === 1 ? 'comida registrada' : 'comidas registradas'} hoy`}
                         </p>
                         {/* [P1-GOAL-ETA · 2026-07-03] Plazo estimado hasta la meta de peso —
                             plan_data.goal_eta lo calcula el backend con el déficit REAL
@@ -261,7 +328,7 @@ const TrackingProgress = ({ planData, userId }) => {
                 {/* Calorías (Main Bar) */}
                 <ProgressBar
                     label="Calorías"
-                    consumed={consumed.calories} goal={goalCal} unit="kcal"
+                    consumed={displayedConsumed.calories} goal={goalCal} unit="kcal"
                     perc={percCal} icon={Flame} darkIcon={FlameMacroIcon}
                     color="#F59E0B" lightColor="#FCD34D" gradient="linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%)"
                     fillIcon
@@ -278,21 +345,21 @@ const TrackingProgress = ({ planData, userId }) => {
                         desentonando con los demás macros outline. */}
                     <ProgressBar
                         label="Proteína"
-                        consumed={consumed.protein} goal={goalPro} unit="g"
+                        consumed={displayedConsumed.protein} goal={goalPro} unit="g"
                         perc={percPro} icon={Dumbbell} darkIcon={ProteinIcon}
                         color="#3B82F6" lightColor="#93C5FD" gradient="linear-gradient(90deg, #93C5FD 0%, #3B82F6 100%)"
                     />
                     {/* Carbohidratos */}
                     <ProgressBar
                         label="Carbohidratos"
-                        consumed={consumed.carbs} goal={goalCarb} unit="g"
+                        consumed={displayedConsumed.carbs} goal={goalCarb} unit="g"
                         perc={percCarb} icon={Wheat} color="#10B981" lightColor="#6EE7B7" gradient="linear-gradient(90deg, #6EE7B7 0%, #10B981 100%)"
                         fillWhiteStroke
                     />
                     {/* Grasas */}
                     <ProgressBar
                         label="Grasas"
-                        consumed={consumed.fats} goal={goalFat} unit="g"
+                        consumed={displayedConsumed.fats} goal={goalFat} unit="g"
                         perc={percFat} icon={Droplet} darkIcon={FatDropIcon}
                         color="#EC4899" lightColor="#F9A8D4" gradient="linear-gradient(90deg, #F9A8D4 0%, #EC4899 100%)"
                         fillIcon
