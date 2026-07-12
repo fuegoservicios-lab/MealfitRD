@@ -1,0 +1,37 @@
+# [P1-2 · CI · 2026-07-12] Gate de calidad + seguridad para el repo frontend.
+# El repo es standalone (github.com/fuegoservicios-lab/MealfitRD) — antes NADA
+# corría en push. `quality` cubre lint+typecheck+test+build; `audit` gatea vulns
+# high/critical de prod fuera de la allowlist (scripts/audit-gate.mjs).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Tope = estado actual (P2-LINT-ZERO lo baja a 0). Bloquea warnings NUEVOS.
+      - run: npx eslint . --max-warnings 148
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/audit-gate.mjs
