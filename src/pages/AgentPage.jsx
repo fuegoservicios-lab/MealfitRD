@@ -1465,6 +1465,21 @@ const AgentPage = () => {
     const [recoveringTurn, setRecoveringTurn] = useState(false);
     const _recoveryRef = useRef({ active: false, attempts: 0, timer: null });
 
+    // [P1-CHAT-STOP-POWER v2 · 2026-07-12] Firma del huérfano sobre los
+    // mensajes REALES (sin welcome/burbujas de error/stop): estable ante
+    // refetches que quitan burbujas locales. El descarte se PERSISTE en
+    // localStorage — pre-fix vivía en un ref y un refresh lo resucitaba
+    // ("cuando la detengo y refresco vuelve a estar igual").
+    const _orphanSig = useCallback((msgs) => {
+        const real = (msgs || []).filter(m => m && !m.isWelcome && !m._isErrorBubble && !m._stoppedByUser);
+        const lastReal = real[real.length - 1];
+        return `${real.length}:${String(lastReal?.content || '').slice(0, 48)}`;
+    }, []);
+    const _orphanDismissKey = useCallback(
+        (sid) => `mealfit_orphan_dismissed_${sid}`,
+        []
+    );
+
     useEffect(() => () => {
         const st = _recoveryRef.current;
         if (st.timer) { clearTimeout(st.timer); st.timer = null; }
@@ -1493,8 +1508,14 @@ const AgentPage = () => {
         // con el botón Stop (doneSig) no relanza el episodio. Pre-fix, una
         // rehidratación prematura reiniciaba attempts=0 en bucle → el
         // "Recuperando tu respuesta…" quedaba TRABADO para siempre.
-        const _sig = `${messages.length}:${String(last.content || '').slice(0, 48)}`;
+        const _sig = _orphanSig(messages);
         if (st.doneSig === _sig) return;
+        // [P1-CHAT-STOP-POWER v2] Descarte persistente: si este huérfano fue
+        // detenido/agotado en una sesión anterior de la página, no relanzar.
+        if (safeLocalStorageGet(_orphanDismissKey(currentSessionId), null) === _sig) {
+            st.doneSig = _sig;
+            return;
+        }
         if (st.sig !== _sig) {
             st.sig = _sig;
             st.attempts = 0;
@@ -1511,6 +1532,9 @@ const AgentPage = () => {
             if (cur.attempts > 6) {
                 cur.active = false;
                 cur.doneSig = cur.sig; // episodio agotado — no relanzar este huérfano
+                // [P1-CHAT-STOP-POWER v2] Persistir el agotamiento: sin esto un
+                // refresh re-sondeaba 26s más por el mismo huérfano.
+                safeLocalStorageSet(_orphanDismissKey(currentSessionId), cur.sig);
                 setRecoveringTurn(false);
                 setMessages(prev => {
                     const lastPrev = prev[prev.length - 1];
@@ -2193,15 +2217,32 @@ const AgentPage = () => {
         }
         // [P1-CHAT-STOP-POWER · 2026-07-12] El stop también cancela la
         // recuperación de un turno huérfano ("Recuperando tu respuesta…"):
-        // marca el huérfano como descartado (doneSig) para que el efecto no
-        // relance el episodio, limpia timers y libera la UI.
+        // marca el huérfano como descartado (doneSig + localStorage — el ref
+        // muere con el refresh y la recuperación resucitaba), limpia timers,
+        // libera la UI y deja constancia VISIBLE de que el usuario detuvo.
         const _st = _recoveryRef.current;
-        if (_st.active || recoveringTurn) {
+        const _wasRecovering = _st.active || recoveringTurn;
+        if (_wasRecovering) {
             _st.active = false;
-            _st.doneSig = _st.sig;
             if (_st.timer) { clearTimeout(_st.timer); _st.timer = null; }
             setRecoveringTurn(false);
         }
+        // Firma calculada ANTES de añadir la burbuja (sobre mensajes reales).
+        const _sig = _orphanSig(messagesRef.current);
+        _st.doneSig = _sig;
+        safeLocalStorageSet(_orphanDismissKey(currentSessionId), _sig);
+        // [P1-CHAT-STOP-POWER v2] Feedback visible del stop (pedido del owner).
+        setMessages(prev => {
+            const lastPrev = prev[prev.length - 1];
+            if (lastPrev && lastPrev._stoppedByUser) return prev; // sin duplicar
+            return [...prev, {
+                role: 'model',
+                content: '⏹ Detenido. Cuando quieras, vuelve a enviar tu mensaje.',
+                _stoppedByUser: true,
+                _isErrorBubble: true,
+                retryable: false,
+            }];
+        });
     };
 
     const handleRegenerate = (modelMsgIndex) => {
