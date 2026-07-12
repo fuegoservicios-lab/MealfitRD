@@ -89,6 +89,34 @@ describe('[P-RECIPES-COOK-REMOVED] Recipes.jsx es read-only sobre el plan', () =
     });
 });
 
+describe('[P1-PDF-CSS-ISOLATION] el HTML del PDF no usa etiquetas con estilos globales', () => {
+    // html2pdf inserta el htmlString en el DOM VIVO (worker.js:125), así que
+    // el CSS global del app aplica: `index.css` estila h1..h6 con
+    // `color: var(--text-main)` (≈ blanco en dark theme) → título fantasma
+    // sobre el fondo blanco del PDF (bug observado en prod 2026-07-12).
+    // Contrato: generateRecipeHTML emite SOLO <div>/<span> con estilos
+    // inline. Una regla dirigida a etiqueta SIEMPRE gana sobre el color
+    // heredado del wrapper — no hay inline style que salve un <h1> desnudo.
+    it('generateRecipeHTML no emite h1-h6/p/ul/li/strong (solo div/span)', () => {
+        const fnMatch = src.match(/const\s+generateRecipeHTML\s*=\s*\(([\s\S]*?)\n\x20{4}\};/);
+        expect(fnMatch).not.toBeNull();
+        const body = stripComments(fnMatch[0]);
+        expect(body).not.toMatch(/<h[1-6][\s>]/i);
+        expect(body).not.toMatch(/<p[\s>]/i);
+        expect(body).not.toMatch(/<(ul|ol|li)[\s>]/i);
+        expect(body).not.toMatch(/<strong[\s>]/i);
+    });
+
+    it('el título del PDF lleva color inline explícito (no herencia)', () => {
+        const fnMatch = src.match(/const\s+generateRecipeHTML\s*=\s*\(([\s\S]*?)\n\x20{4}\};/);
+        // La línea del título interpola meal.name con font-size 1.55em y
+        // DEBE declarar color:#0F172A en su propio style.
+        const titleLine = fnMatch[0].split('\n').find((l) => l.includes('1.55em'));
+        expect(titleLine).toBeTruthy();
+        expect(titleLine).toMatch(/color:\s*#0F172A/);
+    });
+});
+
 describe('[P-RECIPES-COOK-REMOVED] las vistas no reintroducen el botón "Cocinar"', () => {
     it.each([
         ['RecipesView.jsx', viewSrc],

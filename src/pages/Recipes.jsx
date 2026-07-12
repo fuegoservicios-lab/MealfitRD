@@ -205,8 +205,21 @@ const Recipes = () => {
         // `_fitRecipeBaseFontPx` puede escalar el documento completo con un
         // solo knob hasta que quepa en UNA página carta (sin cortes feos de
         // html2pdf a mitad de paso, que era el "se ve raro" original).
+        //
+        // [P1-PDF-CSS-ISOLATION · 2026-07-12] SOLO <div>/<span> con estilos
+        // 100% inline — NADA de h1/h3/p/ul/li/strong desnudos. html2pdf
+        // inserta este HTML en el DOM VIVO de la página (worker.js:125
+        // `document.body.appendChild(overlay)`), así que el CSS global del
+        // app aplica: `index.css` estila h1..h6 con `color: var(--text-main)`
+        // (≈ blanco en dark theme) → título fantasma sobre el fondo blanco
+        // del PDF (bug observado en prod 2026-07-12). Una regla dirigida a
+        // etiqueta SIEMPRE gana sobre el color heredado del wrapper; los
+        // divs/spans genéricos no tienen reglas globales dirigidas.
         const _recipeSteps = toRecipeSteps(meal.recipe);
-        const parseBoldEscaped = (raw) => escapeHtml(raw).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        const parseBoldEscaped = (raw) => escapeHtml(raw).replace(
+            /\*\*(.*?)\*\*/g,
+            '<span style="font-weight: 800; color: #0F172A;">$1</span>',
+        );
 
         const stepsHTML = _recipeSteps.length ? _recipeSteps.map((step, i) => {
             let sectionTitle = "";
@@ -235,10 +248,10 @@ const Recipes = () => {
         }).join('') : '';
 
         const ingredientsHTML = meal.ingredients ? meal.ingredients.map(ing => `
-            <li style="display: flex; align-items: flex-start; gap: 0.45em; margin-bottom: 0.5em; font-size: 0.72em; line-height: 1.4; color: #334155;">
+            <div style="display: flex; align-items: flex-start; gap: 0.45em; margin-bottom: 0.5em; font-size: 0.72em; line-height: 1.4; color: #334155;">
                 <span style="flex: none; width: 0.5em; height: 0.5em; border-radius: 50%; background: #10B981; margin-top: 0.42em;"></span>
                 <span>${escapeHtml(displayAjiMorron(ing))}</span>
-            </li>
+            </div>
         `).join('') : '';
 
         // Chips de metadata (tiempo/dificultad opcionales — mismos datos que
@@ -265,19 +278,19 @@ const Recipes = () => {
         ].filter(Boolean).join('');
 
         return `
-            <div style="width: 100%; box-sizing: border-box; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: ${basePx}px; color: #0F172A; background: #ffffff;">
+            <div style="width: 100%; box-sizing: border-box; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: ${basePx}px; line-height: 1.45; color: #0F172A; background: #ffffff;">
                 <!-- HEADER -->
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 0.18em solid #4F46E5; padding-bottom: 0.55em; margin-bottom: 0.9em;">
-                    <div style="font-size: 1.15em; font-weight: 900; letter-spacing: -0.02em;">
+                    <div style="font-size: 1.15em; font-weight: 900; letter-spacing: -0.02em; color: #0F172A;">
                         Mealfit<span style="color: #4F46E5;">R</span><span style="color: #F43F5E;">D</span>
                         <span style="font-size: 0.6em; font-weight: 600; color: #64748B;">&nbsp;·&nbsp;Receta&nbsp;·&nbsp;${escapeHtml(meal.meal)}</span>
                     </div>
                     <div style="display: flex; gap: 0.4em; align-items: center;">${metaChips}</div>
                 </div>
 
-                <!-- TITLE + DESC -->
-                <h1 style="font-size: 1.55em; font-weight: 900; margin: 0 0 0.25em; line-height: 1.15; letter-spacing: -0.01em;">${escapeHtml(meal.name)}</h1>
-                ${meal.desc ? `<p style="font-size: 0.76em; font-style: italic; color: #64748B; margin: 0 0 1em; line-height: 1.5;">${escapeHtml(meal.desc)}</p>` : '<div style="height: 0.8em;"></div>'}
+                <!-- TITLE + DESC (divs, no h1/p — ver P1-PDF-CSS-ISOLATION) -->
+                <div style="font-size: 1.55em; font-weight: 900; margin: 0 0 0.25em; line-height: 1.15; letter-spacing: -0.01em; color: #0F172A;">${escapeHtml(meal.name)}</div>
+                ${meal.desc ? `<div style="font-size: 0.76em; font-style: italic; color: #64748B; margin: 0 0 1em; line-height: 1.5;">${escapeHtml(meal.desc)}</div>` : '<div style="height: 0.8em;"></div>'}
 
                 <!-- MACROS -->
                 ${macrosHTML ? `<div style="display: flex; gap: 1.4em; align-items: center; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 0.6em; padding: 0.55em 0.9em; margin-bottom: 1.1em;">${macrosHTML}</div>` : ''}
@@ -285,12 +298,12 @@ const Recipes = () => {
                 <!-- COLUMNS -->
                 <div style="display: flex; gap: 1.1em; align-items: flex-start;">
                     <div style="flex: 0 0 33%; box-sizing: border-box; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 0.6em; padding: 0.9em;">
-                        <h3 style="font-size: 0.8em; font-weight: 800; margin: 0 0 0.7em; padding-bottom: 0.4em; border-bottom: 2px solid #E2E8F0; text-transform: uppercase; letter-spacing: 0.06em; color: #0F172A;">Ingredientes</h3>
+                        <div style="font-size: 0.8em; font-weight: 800; margin: 0 0 0.7em; padding-bottom: 0.4em; border-bottom: 2px solid #E2E8F0; text-transform: uppercase; letter-spacing: 0.06em; color: #0F172A;">Ingredientes</div>
                         <div style="font-size: 0.62em; color: #94A3B8; line-height: 1.4; margin-bottom: 0.8em;">Porciones para 1 persona — si cocinas para tu hogar, multiplica cada cantidad.</div>
-                        <ul style="list-style: none; padding: 0; margin: 0;">${ingredientsHTML}</ul>
+                        <div>${ingredientsHTML}</div>
                     </div>
                     <div style="flex: 1; min-width: 0;">
-                        <h3 style="font-size: 0.8em; font-weight: 800; margin: 0 0 0.7em; padding-bottom: 0.4em; border-bottom: 2px solid #E2E8F0; text-transform: uppercase; letter-spacing: 0.06em; color: #0F172A;">Preparación</h3>
+                        <div style="font-size: 0.8em; font-weight: 800; margin: 0 0 0.7em; padding-bottom: 0.4em; border-bottom: 2px solid #E2E8F0; text-transform: uppercase; letter-spacing: 0.06em; color: #0F172A;">Preparación</div>
                         ${stepsHTML || `<div style="font-size: 0.74em; color: #64748B;">Guíate de la descripción general del plato.</div>`}
                     </div>
                 </div>
