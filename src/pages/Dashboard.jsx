@@ -5387,7 +5387,9 @@ const DashboardInner = () => {
                                             whiteSpace: 'nowrap'
                                         }}
                                     >
-                                        {isDayUpdating
+                                        {/* [P2-DAYREGEN-OVERLAY-SCOPE v2] spinner/label del botón del día
+                                            solo en el tab del día en regen; disabled queda global. */}
+                                        {(isDayUpdating && (dayRegenIndex == null || dayRegenIndex === activeDayIndex))
                                             ? <Loader2 size={18} className="spin-fast" />
                                             : isLimitReached
                                                 ? <AlertCircle size={18} />
@@ -5397,7 +5399,7 @@ const DashboardInner = () => {
                                                         ? <Refrigerator size={18} />
                                                         : <Wand2 size={18} />}
                                         <span style={{ fontSize: '0.85rem' }}>
-                                            {isDayUpdating
+                                            {(isDayUpdating && (dayRegenIndex == null || dayRegenIndex === activeDayIndex))
                                                 ? 'Actualizando…'
                                                 : isLimitReached
                                                     ? 'Límite'
@@ -7075,7 +7077,11 @@ const DashboardInner = () => {
                                                     <RefreshCw
                                                         size={18}
                                                         color={isDark ? '#FFFFFF' : '#EA580C'}
-                                                        className={(regeneratingId === index || isDayUpdating) ? "spin-fast" : ""}
+                                                        // [P2-DAYREGEN-OVERLAY-SCOPE v2] el giro del ícono también se escopa
+                                                        // al tab del día en regen (quedaba girando en los otros tabs como
+                                                        // residual visual); el disabled sí queda global (protege créditos).
+                                                        className={(regeneratingId === index || (isDayUpdating
+                                                            && (dayRegenIndex == null || dayRegenIndex === activeDayIndex))) ? "spin-fast" : ""}
                                                     />
                                                     <span style={{ whiteSpace: 'nowrap' }}>Cambiar Plato</span>
                                                 </button>
