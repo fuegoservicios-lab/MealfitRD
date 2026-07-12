@@ -87,9 +87,9 @@ const ResetPassword = () => {
             // [P1-RESET-PASSWORD-FIX] Método soportado por Better Auth (vía
             // getBetterAuthInstance). El adapter SupabaseAuthAdapter.updateUser rechaza
             // password; getBetterAuthInstance() expone el cliente Better Auth real.
-            const ba = typeof authClient.auth.getBetterAuthInstance === 'function'
-                ? authClient.auth.getBetterAuthInstance()
-                : null;
+            // [P2-NEON-LAZY] getBetterAuthInstance es ahora async (facade lazy); devuelve
+            // null si el SDK no lo expone (el guard de abajo lo cubre).
+            const ba = await authClient.auth.getBetterAuthInstance();
             if (!ba || typeof ba.resetPassword !== 'function') {
                 throw new Error('No pudimos procesar el restablecimiento. Solicita un nuevo enlace desde el inicio de sesión.');
             }

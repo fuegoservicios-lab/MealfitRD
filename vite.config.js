@@ -124,8 +124,13 @@ export default defineConfig(({ mode }) => ({
           // el framework en cada release en vez de servirlo del cache del vendor
           // chunk estable. Verificado con rollup-plugin-visualizer 2026-07-09.
           'vendor-react': ['react', 'react-dom', 'react-dom/client', 'react-router-dom'],
-          // [P1-NEON-AUTH-MIGRATION · 2026-06-13] supabase-js → neon-js (Neon Auth).
-          'vendor-neon-auth': ['@neondatabase/neon-js'],
+          // [P2-NEON-LAZY · 2026-07-12] `vendor-neon-auth` REMOVIDO de manualChunks
+          // (misma lección que framer, abajo): un vendor chunk NOMBRADO recibe
+          // <link modulepreload> eager de Vite aunque solo se alcance por dynamic
+          // import. authClient.js ahora carga el SDK vía import() → sin nombrarlo,
+          // Rollup lo auto-divide en un chunk async on-demand (vía __vitePreload),
+          // fuera del critical path. El SDK (~89KB gzip) solo se descarga al primer
+          // uso de auth (getSession/login), no en la landing pública.
           // [P1-PERF-FRAMER-SPLIT · 2026-05-31] framer-motion REMOVIDO de
           // vendor-ui y SIN manualChunk propio. Antes vivía junto a lucide-react +
           // sonner; como ambos se importan EAGER (lucide en Login/Register/Header/

@@ -17,7 +17,13 @@
 // Anchor: P1-NEON-AUTH
 // Tests: frontend/src/__tests__/authclient_env_vars.test.js
 
-import { createClient, SupabaseAuthAdapter as AuthAdapter } from '@neondatabase/neon-js';
+// [P2-NEON-LAZY · 2026-07-12] El SDK (~89KB gzip) se carga vía dynamic import()
+// dentro de `_getClient()`, NO estático top-level. Antes viajaba EAGER en el entry
+// (con modulepreload) porque AssessmentContext —eager— importa este módulo. Ahora
+// el SDK cae en un chunk async on-demand: la primera llamada a cualquier método de
+// `authClient.auth.*` (o getBackendToken) lo descarga; la landing de marketing y
+// las rutas públicas ya no lo pagan. Ver también vite.config (vendor-neon-auth
+// removido de manualChunks — un chunk nombrado recibe modulepreload eager igual).
 
 const neonAuthUrl = import.meta.env.VITE_NEON_AUTH_URL;
 
@@ -34,11 +40,6 @@ if (!neonAuthUrl) {
 // auth URL para que sea un URL válido sintácticamente.
 const _dataApiUrl = neonAuthUrl.replace(/\/auth\/?$/, '') + '/rest/v1';
 
-const _client = createClient({
-    auth: { url: neonAuthUrl, adapter: AuthAdapter() },
-    dataApi: { url: _dataApiUrl },
-});
-
 // [P1-NEON-AUTH-OAUTH-FIX · 2026-06-13] El `AuthAdapter` de
 // @neondatabase/neon-js@0.6.2-beta implementa `signInWithPassword` pero NO
 // `signInWithOAuth` (Google) — el botón de Google quedaba sin handler real
@@ -53,7 +54,8 @@ async function _signInWithOAuth({ provider = 'google', options } = {}) {
         || (typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : '/dashboard');
     // 1) Método nativo del SDK (Better Auth) si está disponible.
     try {
-        const a = _client.auth;
+        const c = await _getClient();
+        const a = c.auth;
         if (a?.signIn && typeof a.signIn.social === 'function') {
             const r = await a.signIn.social({ provider, callbackURL });
             const url = r?.data?.url || r?.url;
@@ -85,18 +87,63 @@ async function _signInWithOAuth({ provider = 'google', options } = {}) {
     }
 }
 
-// Inyecta signInWithOAuth en el adapter si falta (preserva `this` del cliente).
-try {
-    if (_client?.auth && typeof _client.auth.signInWithOAuth !== 'function') {
-        _client.auth.signInWithOAuth = _signInWithOAuth;
+// [P2-NEON-LAZY · 2026-07-12] Singleton lazy del cliente SDK. La primera llamada a
+// cualquier método de la facade dispara el dynamic import del SDK (~89KB) UNA vez;
+// las siguientes reutilizan la promesa cacheada. La inyección de signInWithOAuth
+// (P1-NEON-AUTH-OAUTH-FIX) se hace aquí, tras createClient.
+let _clientPromise = null;
+function _getClient() {
+    if (!_clientPromise) {
+        _clientPromise = import('@neondatabase/neon-js').then(({ createClient, SupabaseAuthAdapter }) => {
+            const c = createClient({
+                auth: { url: neonAuthUrl, adapter: SupabaseAuthAdapter() },
+                dataApi: { url: _dataApiUrl },
+            });
+            try {
+                if (c?.auth && typeof c.auth.signInWithOAuth !== 'function') {
+                    c.auth.signInWithOAuth = _signInWithOAuth;
+                }
+            } catch (e) {
+                console.error('[P1-NEON-AUTH-OAUTH-FIX] no se pudo inyectar signInWithOAuth:', e);
+            }
+            return c;
+        });
     }
-} catch (e) {
-    // auth inmutable: improbable; el botón mostraría el error de su try/catch.
-    console.error('[P1-NEON-AUTH-OAUTH-FIX] no se pudo inyectar signInWithOAuth:', e);
+    return _clientPromise;
 }
 
-// Cliente de auth Neon Auth (Better Auth) — el resto del frontend usa `authClient.auth.X`.
-export const authClient = _client;
+// [P2-NEON-LAZY] Facade estática con el shape que el frontend ya usa
+// (`authClient.auth.X`). Cada método resuelve el cliente lazy y delega. Excepción:
+// onAuthStateChange DEBE devolver SÍNCRONO `{data:{subscription:{unsubscribe}}}`
+// (AssessmentContext lo destructura al instante y hace unsubscribe en cleanup) →
+// registra el listener real cuando la promesa resuelve; si el effect se desmonta
+// antes, `cancelled` evita un listener huérfano. El estado inicial de sesión NO
+// depende de este listener (el boot usa getSession por separado).
+export const authClient = {
+    auth: {
+        getSession: (...a) => _getClient().then((c) => c.auth.getSession(...a)),
+        signOut: (...a) => _getClient().then((c) => c.auth.signOut(...a)),
+        signUp: (...a) => _getClient().then((c) => c.auth.signUp(...a)),
+        signInWithPassword: (...a) => _getClient().then((c) => c.auth.signInWithPassword(...a)),
+        updateUser: (...a) => _getClient().then((c) => c.auth.updateUser(...a)),
+        signInWithOAuth: (...a) => _getClient().then((c) => c.auth.signInWithOAuth(...a)),
+        getBetterAuthInstance: async () => {
+            const c = await _getClient();
+            return typeof c.auth.getBetterAuthInstance === 'function' ? c.auth.getBetterAuthInstance() : null;
+        },
+        onAuthStateChange: (cb) => {
+            let realSub = null;
+            let cancelled = false;
+            _getClient()
+                .then((c) => {
+                    if (cancelled) return;
+                    realSub = c.auth.onAuthStateChange(cb)?.data?.subscription ?? null;
+                })
+                .catch(() => { /* sin SDK no hay listener; el getSession del boot cubre el estado inicial */ });
+            return { data: { subscription: { unsubscribe() { cancelled = true; realSub?.unsubscribe?.(); } } } };
+        },
+    },
+};
 
 // [P1-NEON-AUTH] Token EdDSA para autenticar contra el backend. El backend
 // (neon_auth.verify_neon_jwt) valida este JWT contra el JWKS de Neon Auth.
@@ -105,6 +152,9 @@ export const authClient = _client;
 // bajo el adapter de Neon Auth también es el JWT). Retorna null si no hay
 // sesión — el caller maneja el 401.
 export async function getBackendToken() {
+    // [P2-NEON-LAZY] Resolver el cliente lazy (primer fetch autenticado descarga el
+    // SDK; config/api.ts ya envuelve esto en Promise.race 10s→null→401).
+    const _client = await _getClient();
     try {
         if (typeof _client.auth.getJWTToken === 'function') {
             const r = await _client.auth.getJWTToken();
