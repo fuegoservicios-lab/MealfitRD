@@ -20,10 +20,12 @@
 
 /* ===== Sidebar ===== */
 .side { border-right: 1px solid var(--border); padding: 18px 14px; display: flex; flex-direction: column; gap: 16px; background: color-mix(in srgb, var(--bg-page) 55%, var(--bg-card)); }
-.brand { display: flex; align-items: center; gap: 10px; padding: 2px 6px; }
-.brand svg { color: var(--primary); }
-.brand h1 { margin: 0; font-family: var(--font-heading); font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; color: var(--text-main); }
-.brand small { display: block; font-size: .68rem; font-weight: 600; color: var(--text-muted); }
+/* [P3-PANTRY-NO-TITLE · 2026-07-12] El título "Mi Cocina" se eliminó (pedido
+   del owner, sin sinónimo). El bloque ahora es un STAT: conteo total grande +
+   etiqueta uppercase — dato útil que ancla el tope del sidebar. */
+.brand { display: flex; align-items: baseline; gap: 8px; padding: 4px 8px 0; }
+.brand b { font-family: var(--font-heading); font-size: 1.65rem; font-weight: 800; letter-spacing: -.03em; line-height: 1; color: var(--text-main); font-variant-numeric: tabular-nums; }
+.brand small { font-size: .68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .09em; }
 
 .zones { display: inline-flex; gap: 4px; background: var(--bg-muted); border: 1px solid var(--border); border-radius: 11px; padding: 4px; }
 .zone { flex: 1; appearance: none; border: 0; cursor: pointer; font: inherit; font-size: .76rem; font-weight: 700; padding: 8px; border-radius: 8px; color: var(--text-muted); background: transparent; transition: .16s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
@@ -74,13 +76,22 @@
 
 .list { padding: 8px 12px 18px; overflow-y: auto; flex: 1; }
 .group { margin-top: 12px; }
-.gh { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--cat); }
+/* [P3-PANTRY-FRIDGE-POLISH · 2026-07-12] Headers de grupo STICKY: al scrollear
+   la lista larga siempre sabes en qué categoría estás. Fondo casi-opaco + blur
+   para que las filas no se transparenten debajo. */
+.gh { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 8px; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--cat); background: color-mix(in srgb, var(--bg-card) 90%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-radius: 8px; }
 .gh .ln { flex: 1; height: 1px; background: color-mix(in srgb, var(--cat) 22%, var(--border)); }
 
 /* Fila densa */
-.row { --cat: var(--primary); display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; transition: background .14s, opacity .2s; }
-.row:hover { background: var(--bg-muted); }
+.row { --cat: var(--primary); display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; transition: background .14s, box-shadow .14s, opacity .2s; }
+/* [P3-PANTRY-FRIDGE-POLISH · 2026-07-12] El hover revela el color de la
+   categoría como barra izquierda — orienta sin ruido permanente. */
+.row:hover { background: var(--bg-muted); box-shadow: inset 3px 0 0 color-mix(in srgb, var(--cat) 65%, transparent); }
 .row.out { opacity: .55; }
+/* Fila con poco stock: lavado ámbar tenue SIEMPRE visible (antes solo el dot
+   y el tag lo señalaban — al escanear la lista se perdía). */
+.row.low { background: color-mix(in srgb, #FBBF24 5%, transparent); }
+.row.low:hover { background: color-mix(in srgb, #FBBF24 9%, transparent); box-shadow: inset 3px 0 0 color-mix(in srgb, #FBBF24 70%, transparent); }
 .rdot { flex: none; width: 9px; height: 9px; border-radius: 3px; background: var(--cat); }
 .row.low .rdot { background: #FBBF24; box-shadow: 0 0 8px #FBBF24; }
 .rname { font-size: .92rem; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 38%; }
@@ -92,7 +103,9 @@
 .shelf { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .62rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
 .disabledTag { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: .62rem; font-weight: 800; text-transform: uppercase; color: var(--danger-text); }
 .sp { flex: 1; }
-.stepper { flex: none; display: inline-flex; align-items: center; background: var(--bg-card); border: 1px solid var(--border); border-radius: 11px; overflow: hidden; }
+/* [P3-PANTRY-FRIDGE-POLISH · 2026-07-12] Stepper sobre bg-page (antes bg-card
+   sobre bg-card: el control se fundía con la tarjeta). */
+.stepper { flex: none; display: inline-flex; align-items: center; background: var(--bg-page); border: 1px solid var(--border); border-radius: 11px; overflow: hidden; }
 .stepBtn { appearance: none; border: 0; cursor: pointer; width: 34px; height: 36px; background: transparent; color: var(--text-main); display: grid; place-items: center; transition: .14s; touch-action: manipulation; user-select: none; }
 .stepBtn:hover:not(:disabled) { background: var(--bg-muted); }
 .stepBtn:disabled { opacity: .3; cursor: default; }
@@ -149,6 +162,15 @@
   .agotar { grid-area: 2 / 4 / 3 / 5; }
   .sp { display: none; }
   .depRow { background: var(--bg-page); border: 1px solid var(--border); margin-bottom: 8px; }
+}
+
+/* [P3-PANTRY-FRIDGE-POLISH · 2026-07-12] Focos visibles de teclado en todos
+   los controles de fila y sidebar (antes solo el input de búsqueda los tenía). */
+.zone:focus-visible, .navitem:focus-visible, .stepBtn:focus-visible, .qty:focus-visible,
+.agotar:focus-visible, .del:focus-visible, .reponer:focus-visible, .dismiss:focus-visible,
+.btn:focus-visible, .fchip:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
 }
 
 @media (prefers-reduced-motion: reduce) {

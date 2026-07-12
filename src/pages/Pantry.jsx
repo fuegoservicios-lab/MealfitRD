@@ -2337,10 +2337,12 @@ const Pantry = () => {
     // apilado + zonas + chips + tarjeta por alimento). Usa los MISMOS
     // derivados y handlers que el desktop; solo cambia la composición visual.
     const renderMobileShell = () => (
-        <section className={mstyles.app} aria-label="Mi Cocina">
+        <section className={mstyles.app} aria-label="Inventario de alimentos">
+            {/* [P3-PANTRY-NO-TITLE · 2026-07-12] "Mi Cocina" eliminado a pedido del
+                owner (sin sinónimo de reemplazo). Queda el conteo como status chip;
+                el aria-label pasa a descriptor funcional (solo lector de pantalla). */}
             <div className={mstyles.top}>
                 <div className={mstyles.toprow}>
-                    <h1 className={mstyles.title}>Mi Cocina</h1>
                     <span className={mstyles.count}><b>{inventory.length}</b> {inventory.length === 1 ? 'alimento' : 'alimentos'}</span>
                 </div>
                 <div className={mstyles.search}>
@@ -2472,15 +2474,16 @@ const Pantry = () => {
     return (
         <div className={fstyles.page}>
             {isMobileLayout ? renderMobileShell() : (
-            <section className={fstyles.app} aria-label="Mi Cocina">
+            <section className={fstyles.app} aria-label="Inventario de alimentos">
                 <div className={fstyles.shell}>
                     {/* ===== Sidebar (escritorio) ===== */}
                     <aside className={fstyles.side}>
+                        {/* [P3-PANTRY-NO-TITLE · 2026-07-12] "Mi Cocina" eliminado a
+                            pedido del owner (sin sinónimo). El bloque pasa a ser un
+                            stat: conteo total prominente + etiqueta. */}
                         <div className={fstyles.brand}>
-                            <div>
-                                <h1>Mi Cocina</h1>
-                                <small>{inventory.length} {inventory.length === 1 ? 'alimento' : 'alimentos'}</small>
-                            </div>
+                            <b>{inventory.length}</b>
+                            <small>{inventory.length === 1 ? 'alimento' : 'alimentos'}</small>
                         </div>
 
                         <div className={fstyles.zones} role="tablist" aria-label="Mueble">
