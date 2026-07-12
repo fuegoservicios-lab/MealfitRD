@@ -3285,6 +3285,10 @@ const Pantry = () => {
                             onClick={() => setShowDeleteConfirm(false)}
                             style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(8px)', zIndex: 200 }}
                         />
+                        {/* [P3-PANTRY-CONFIRM-POLISH · 2026-07-12] Estilos migrados a
+                            Pantry.fridge.module.css (hover/press/focus imposibles inline).
+                            Icono Trash2 (específico a la acción) con halo de peligro;
+                            botón destructivo sólido. */}
                         <motion.div
                             ref={deleteConfirmModalRef}
                             role="dialog"
@@ -3293,38 +3297,24 @@ const Pantry = () => {
                             tabIndex={-1}
                             initial={{ opacity: 0, scale: 0.95, y: '-48%', x: '-50%' }} animate={{ opacity: 1, scale: 1, y: '-50%', x: '-50%' }} exit={{ opacity: 0, scale: 0.95, y: '-48%', x: '-50%' }}
                             transition={{ type: 'spring', damping: 24, stiffness: 260 }}
-                            style={{
-                                position: 'fixed', top: '50%', left: '50%', zIndex: 201,
-                                width: '90%', maxWidth: '400px',
-                                background: 'var(--bg-card)', border: '1px solid var(--border)',
-                                borderRadius: '20px', padding: '1.75rem 1.6rem',
-                                boxShadow: '0 24px 60px rgba(0,0,0,0.45)', textAlign: 'center',
-                            }}
+                            className={fstyles.confirmCard}
                         >
-                            <div style={{
-                                width: '60px', height: '60px', borderRadius: '16px', margin: '0 auto 1rem',
-                                display: 'grid', placeItems: 'center', color: 'var(--danger-text)',
-                                background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
-                            }}>
-                                <AlertCircle size={30} strokeWidth={2} />
+                            <div className={fstyles.confirmIcon}>
+                                <Trash2 size={28} strokeWidth={2} />
                             </div>
 
-                            <h2 id="pantry-delete-title" style={{ margin: '0 0 0.5rem 0', fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.01em' }}>
+                            <h2 id="pantry-delete-title" className={fstyles.confirmTitle}>
                                 ¿Vaciar la Nevera?
                             </h2>
-                            <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-muted)', lineHeight: 1.5, fontSize: '0.92rem' }}>
-                                Vas a borrar <strong style={{ color: 'var(--text-main)' }}>todos los alimentos</strong> de la despensa. Esta acción no se puede deshacer.
+                            <p className={fstyles.confirmText}>
+                                Vas a borrar <strong>todos los alimentos</strong> de la despensa. Esta acción no se puede deshacer.
                             </p>
-                            <div style={{ display: 'flex', gap: '0.65rem' }}>
+                            <div className={fstyles.confirmActions}>
                                 <button
                                     type="button"
                                     onClick={() => setShowDeleteConfirm(false)}
                                     disabled={isDeletingAll}
-                                    style={{
-                                        flex: 1, minHeight: '46px', borderRadius: '12px', border: '1px solid var(--border)',
-                                        background: 'var(--bg-muted)', color: 'var(--text-main)', fontWeight: 700,
-                                        fontSize: '0.9rem', cursor: isDeletingAll ? 'not-allowed' : 'pointer',
-                                    }}
+                                    className={fstyles.confirmGhost}
                                 >
                                     Cancelar
                                 </button>
@@ -3332,13 +3322,7 @@ const Pantry = () => {
                                     type="button"
                                     onClick={confirmDeleteAll}
                                     disabled={isDeletingAll}
-                                    style={{
-                                        flex: 1.3, minHeight: '46px', borderRadius: '12px', border: '1px solid var(--danger-border)',
-                                        background: 'var(--danger-bg)', color: 'var(--danger-text)', fontWeight: 800,
-                                        fontSize: '0.9rem', cursor: isDeletingAll ? 'wait' : 'pointer',
-                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem',
-                                        opacity: isDeletingAll ? 0.7 : 1,
-                                    }}
+                                    className={fstyles.confirmDanger}
                                 >
                                     {isDeletingAll ? <Loader2 size={16} className="spin-fast" /> : <Trash2 size={16} strokeWidth={2.5} />} Sí, vaciar
                                 </button>
