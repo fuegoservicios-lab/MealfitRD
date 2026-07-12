@@ -63,16 +63,27 @@ describe('Settings Plan Regeneration', () => {
         const planNavItem = screen.getByText('Plan & Objetivo');
         await user.click(planNavItem.closest('button'));
 
-        // Click on "Evaluar de Nuevo"
-        const evaluarBtn = screen.getByText(/Evaluar de Nuevo/i);
+        // [P3-PLANOBJETIVO-MOBILE · 2026-06-29] Settings monta DOS CTAs en el DOM a
+        // la vez: el PlanObjetivo mobile ("Evaluar de nuevo") y el card desktop
+        // ("Evaluar de Nuevo"), alternados solo por CSS media-query (jsdom no la aplica
+        // → ambos existen). Targeteamos el desktop por su accessible name EXACTO
+        // (case-sensitive) para desambiguar del mobile en minúscula.
+        const evaluarBtn = screen.getByRole('button', { name: 'Evaluar de Nuevo' });
         await user.click(evaluarBtn);
 
         // Modal should open
         expect(screen.getByRole('heading', { name: /Evaluar de Nuevo/i })).toBeInTheDocument();
 
-        // Select Renovar option
-        const renovarOption = screen.getByText(/Renovar Plan Actual/i);
+        // Select Renovar option (ya es el default del modal; lo seleccionamos explícito)
+        const renovarOption = screen.getByText(/Renovar plan actual/i);
         await user.click(renovarOption.closest('button'));
+
+        // [P3-EVALUATE-MODAL-REDESIGN · 2026-06-28] El modal es "elige y confirma":
+        // la fila (ChoiceRow) SOLO selecciona la opción; regeneratePlan se dispara
+        // con el botón de confirmación único, cuyo label es "Generar plan" cuando la
+        // opción NO es destructiva (renovar). Sin este click el onConfirm nunca corre.
+        const confirmBtn = screen.getByRole('button', { name: 'Generar plan' });
+        await user.click(confirmBtn);
 
         // Verify regeneratePlan was called.
         // [APPEARANCE-THEME · 2026-05-28] El handler 'renovar' ahora pasa

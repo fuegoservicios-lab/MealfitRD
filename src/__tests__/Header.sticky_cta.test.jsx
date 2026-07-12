@@ -1,85 +1,64 @@
-/* [HEADER-STICKY-CTA · 2026-05-31] El Header del landing revela un CTA "Crear mi
- * Plan Ahora" cuando el CTA del Hero sale de vista al hacer scroll, y lo oculta al
- * volver arriba. La señal viaja por HeroCtaContext (heroCtaVisible). Aquí mockeamos
- * ese contexto para verificar la lógica de visibilidad del Header sin depender del
- * IntersectionObserver real del Hero. */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+/* [HEADER-STICKY-CTA · actualizado 2026-07-12] El Header del landing muestra un CTA
+ * "Crear mi Plan Ahora" (o "Ver mi Plan" si hay plan). Contrato ACTUAL tras dos
+ * rediseños commiteados:
+ *   - [P3-HEADER-FLOAT-REDESIGN] El CTA es SIEMPRE visible en rutas landing-like
+ *     (ya NO se gatea por scroll vía heroCtaVisible; Header dejó de consumir ese
+ *     contexto — Header.jsx:10-12,72).
+ *   - [P3-LANDING-NO-SESSION-CHROME] El menú de cuenta (avatar + Configuración +
+ *     Cerrar Sesión) se oculta en TODAS las superficies públicas landing-like y
+ *     vive SOLO en rutas de app (p.ej. /configuracion) — Header.jsx:91.
+ * Consecuencia: CTA sticky y menú de cuenta son ahora MUTUAMENTE EXCLUYENTES (CTA
+ * solo en landing, menú solo fuera). Este test verifica ese contrato sin depender
+ * del IntersectionObserver del Hero. */
+import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from './utils/test-utils';
 import { MemoryRouter } from 'react-router-dom';
 import Header from '../components/layout/Header';
-import * as heroCtaModule from '../context/HeroCtaContext';
-
-const mockHeroCta = (heroCtaVisible) => {
-    vi.spyOn(heroCtaModule, 'useHeroCta').mockReturnValue({
-        heroCtaVisible,
-        setHeroCtaVisible: vi.fn(),
-    });
-};
 
 describe('[HEADER-STICKY-CTA] CTA sticky del header en el landing', () => {
-    beforeEach(() => {
-        vi.restoreAllMocks();
-    });
-
-    it('en home, NO muestra el CTA sticky mientras el del Hero está visible', () => {
-        mockHeroCta(true); // CTA del Hero en pantalla
-        render(<Header />, { customContext: { planData: null, session: null } });
-        expect(screen.queryByText('Crear mi Plan Ahora')).not.toBeInTheDocument();
-    });
-
-    it('en home, REVELA el CTA sticky cuando el del Hero sale de vista', () => {
-        mockHeroCta(false); // CTA del Hero fuera de pantalla (scrolled)
+    it('en home (landing), el CTA sticky es SIEMPRE visible → /assessment [P3-HEADER-FLOAT-REDESIGN]', () => {
         render(<Header />, { customContext: { planData: null, session: null } });
         const cta = screen.getByText('Crear mi Plan Ahora');
         expect(cta).toBeInTheDocument();
         expect(cta.closest('a')).toHaveAttribute('href', '/assessment');
     });
 
-    it('con plan activo, el CTA sticky refleja "Ver mi Plan" → /dashboard', () => {
-        mockHeroCta(false);
+    it('en home con plan activo, el CTA sticky refleja "Ver mi Plan" → /dashboard', () => {
         render(<Header />, { customContext: { planData: { id: 'plan-1' }, session: null } });
         const cta = screen.getByText('Ver mi Plan');
         expect(cta).toBeInTheDocument();
         expect(cta.closest('a')).toHaveAttribute('href', '/dashboard');
     });
 
-    it('fuera del landing (p.ej. /privacy) NUNCA aparece, aunque el Hero esté fuera de vista', () => {
-        mockHeroCta(false);
+    it('fuera del landing (ruta de app, p.ej. /configuracion) el CTA sticky NO aparece', () => {
+        // /privacy YA es landing-like (P3-LEGAL-HEADER-PARITY) y muestra el CTA; usamos
+        // una ruta de app real (no marketing/legal/novedades/supermercado).
         render(<Header />, {
             customContext: { planData: null, session: null },
             wrapper: ({ children }) => (
-                <MemoryRouter initialEntries={['/privacy']}>{children}</MemoryRouter>
+                <MemoryRouter initialEntries={['/configuracion']}>{children}</MemoryRouter>
             ),
         });
         expect(screen.queryByText('Crear mi Plan Ahora')).not.toBeInTheDocument();
+        expect(screen.queryByText('Ver mi Plan')).not.toBeInTheDocument();
     });
 
-    it('el menú de cuenta va DESPUÉS del CTA del plan en el DOM (CTA a la izquierda, cuenta a la derecha)', () => {
-        // [ACCOUNT-MENU · 2026-06-01] "Configuración" + "Cerrar Sesión" se fusionaron
-        // en un menú de cuenta (avatar + chevron). Home + sesión + plan + scrolleado:
-        // conviven el CTA sticky ("Ver mi Plan") y el trigger del menú de cuenta. El
-        // usuario pidió el CTA a la izquierda y los controles de cuenta a la derecha.
-        // Sin CSS `order`, el orden del DOM == orden visual en el cluster.
-        mockHeroCta(false);
+    it('[P3-LANDING-NO-SESSION-CHROME] en landing con sesión, el menú de cuenta NO aparece', () => {
+        // En el landing el chrome de sesión vive en el DashboardLayout, no en el Header.
         render(<Header />, {
             customContext: { planData: { id: 'plan-1' }, session: { user: { id: 'u-1', email: 'a@b.com' } } },
         });
-        const cta = screen.getByText('Ver mi Plan').closest('a');
-        const accountBtn = screen.getByLabelText('Abrir menú de cuenta');
-        expect(cta).toBeTruthy();
-        expect(accountBtn).toBeTruthy();
-        // El menú de cuenta DEBE seguir al CTA en el documento (CTA primero = izquierda).
-        // eslint-disable-next-line no-bitwise
-        const accountFollowsCta = cta.compareDocumentPosition(accountBtn) & Node.DOCUMENT_POSITION_FOLLOWING;
-        expect(accountFollowsCta).toBeTruthy();
+        expect(screen.queryByLabelText('Abrir menú de cuenta')).not.toBeInTheDocument();
     });
 
-    it('[ACCOUNT-MENU] fusiona "Configuración" + "Cerrar Sesión" en un menú desplegable', () => {
-        // Cerrado por defecto: ninguna de las dos acciones ocupa espacio en el header.
-        mockHeroCta(true); // sin CTA sticky → en el cluster solo vive el trigger de cuenta
+    it('[ACCOUNT-MENU] en ruta de app con sesión, el menú agrupa "Configuración" + "Cerrar Sesión" (cerrado por defecto)', () => {
         render(<Header />, {
             customContext: { planData: { id: 'plan-1' }, session: { user: { id: 'u-1', email: 'a@b.com' } } },
+            wrapper: ({ children }) => (
+                <MemoryRouter initialEntries={['/configuracion']}>{children}</MemoryRouter>
+            ),
         });
+        // Cerrado por defecto: ninguna acción ocupa espacio en el header.
         expect(screen.queryByText('Configuración')).not.toBeInTheDocument();
         expect(screen.queryByText('Cerrar Sesión')).not.toBeInTheDocument();
         // Al abrir el menú, ambas acciones aparecen agrupadas.

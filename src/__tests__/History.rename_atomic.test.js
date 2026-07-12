@@ -106,7 +106,10 @@ describe('[P1-HIST-5] state mirror — plan_data.name también se actualiza', ()
         // sella `_plan_modified_at` para que el sort client-side
         // suba el plan post-rename (ya no esperamos al next fetch).
         const handlerIdx = src.indexOf('const handleEditSave = async');
-        const block = src.slice(handlerIdx, handlerIdx + 3000);
+        // [P2-HIST-RENAME-NO-PROMOTE · 2026-07-12] El comment block + el spread
+        // condicional `...(_isActiveRename ? {...} : {})` corrieron el mirror ~300
+        // chars (fin del patrón en offset 3105). Ventana 3000→3400.
+        const block = src.slice(handlerIdx, handlerIdx + 3400);
 
         // Mirror sobre `plans` array.
         expect(block).toMatch(/setPlans\(/);
@@ -123,7 +126,9 @@ describe('[P1-HIST-5] state mirror — plan_data.name también se actualiza', ()
         // [P4] Ventana 3000→3300: el setPlans funcional (`prev => prev.map`, P4-HIST-EDITSAVE-STALE,
         // cierra lost-update vs refetch concurrente) corrió el mirror de selectedPlan ~7 chars.
         // El assert del shape sigue intacto; solo la ventana de bytes necesitaba headroom.
-        const block = src.slice(handlerIdx, handlerIdx + 3300);
+        // [P2-HIST-RENAME-NO-PROMOTE · 2026-07-12] NO-PROMOTE empujó setSelectedPlan a
+        // offset 3699 y el mirror termina en 4136. Ventana 3300→4400.
+        const block = src.slice(handlerIdx, handlerIdx + 4400);
 
         expect(block).toMatch(/setSelectedPlan\(/);
         // El selectedPlan también necesita el mirror del plan_data.
@@ -138,7 +143,12 @@ describe('[P1-HIST-5] state mirror — plan_data.name también se actualiza', ()
         // legacy sin plan_data. Si alguien lo cambia a `?? { name }`,
         // creamos un plan_data hueco con solo name — drift opuesto.
         const handlerIdx = src.indexOf('const handleEditSave = async');
-        const block = src.slice(handlerIdx, handlerIdx + 2500);
-        expect(block).toMatch(/p\.plan_data\s*\?\s*\{[^}]*\}\s*:\s*p\.plan_data/);
+        // [P2-HIST-RENAME-NO-PROMOTE · 2026-07-12] El plan_data ahora contiene un spread
+        // condicional anidado (llaves internas), así que `[^}]*` (sin llaves internas) dejó
+        // de matchear. `[\s\S]*?` (non-greedy) tolera el anidamiento y sigue anclando en
+        // `: p.plan_data` (rama else devuelve p.plan_data, no un {name} fresco). Ventana
+        // 2500→3400 (el patrón termina en offset 3178).
+        const block = src.slice(handlerIdx, handlerIdx + 3400);
+        expect(block).toMatch(/p\.plan_data\s*\?\s*\{[\s\S]*?\}\s*:\s*p\.plan_data/);
     });
 });

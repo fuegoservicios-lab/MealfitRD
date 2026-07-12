@@ -218,10 +218,13 @@ describe('[P2-HIST-AUDIT-10] render del tab "metrics"', () => {
         // `metrics.was_degraded`) NO cambian — solo los labels visibles.
         // [P0-HIST-FIX-7] Slice ampliado a 42000 tras filter de
         // chunks fantasma (week_number > weeks_in_plan).
+        // [P1-BASELINE-GREEN · 2026-07-12] Ampliado 42000→44000: el bloque del tab
+        // creció y el label "Calidad reducida" (was_degraded) quedó en offset ~42288
+        // desde el 2º ancla, justo fuera de la ventana anterior.
         const _allMatches = [...src.matchAll(/activeModalTab === 'metrics'/g)];
         expect(_allMatches.length).toBeGreaterThanOrEqual(2);
         const tabIdx = _allMatches[1].index;
-        const block = src.slice(tabIdx, tabIdx + 42000);
+        const block = src.slice(tabIdx, tabIdx + 44000);
         expect(block).toMatch(/Duraci[oó]n/);
         expect(block).toMatch(/Espera:/);
         expect(block).toMatch(/Intentos/);
