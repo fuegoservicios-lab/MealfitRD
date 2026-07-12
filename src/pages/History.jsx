@@ -952,7 +952,22 @@ const History = () => {
         const toastId = toast.loading('Restaurando plan...');
 
         try {
-            await restorePlanFromHistory(planRow);
+            // [P2-HIST-RESTORE-ROW-UID · 2026-07-12] restorePlanFromHistory NO lanza en sus
+            // fallos controlados (guard de ownership P1-NEW-8, endpoint no-ok) — RETORNA
+            // {success:false,...}. Antes este handler mostraba "¡Plan reactivado!" + navigate
+            // incondicionalmente → toasts contradictorios ("sesión inválida" + éxito) con el
+            // dashboard sin restaurar (vivo 08:35Z). Ahora el resultado manda.
+            const result = await restorePlanFromHistory(planRow);
+            if (result && result.success === false) {
+                console.error('Restore rechazado:', result);
+                toast.error('No se pudo reactivar el plan', {
+                    id: toastId,
+                    description: result.error === 'ownership_mismatch'
+                        ? 'Sesión inválida — recarga la página e intenta de nuevo.'
+                        : 'Intenta de nuevo en unos segundos.'
+                });
+                return;
+            }
             // [P0-HIST-CACHE-INVALIDATION · 2026-05-09] El plan source
             // post-restore tiene chunks pending/processing cancelados
             // por el endpoint atómico (P0-HIST-1) — los caches
