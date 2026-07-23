@@ -2352,7 +2352,7 @@ const AgentPage = () => {
             transition: 'transform 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
             willChange: 'transform',
         }}>
-            <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', position: 'relative' }}>
+            <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', minWidth: 0, position: 'relative' }}>
 
                 {isSpeaking && (
                     <div style={{
@@ -2401,6 +2401,8 @@ const AgentPage = () => {
                     boxShadow: 'none',
                     border: isCentered ? '1px solid var(--border)' : '1px solid var(--border)',
                     transition: 'all 0.2s ease',
+                    minWidth: 0,
+                    maxWidth: '100%'
                 }}>
                     {/* Image Preview Area - Integrated inside the input container */}
                     {previewUrl && (
@@ -2444,7 +2446,9 @@ const AgentPage = () => {
                         display: 'flex',
                         alignItems: 'center',
                         flexWrap: 'nowrap',
-                        width: '100%'
+                        width: '100%',
+                        minWidth: 0,
+                        maxWidth: '100%'
                     }}>
                         <input
                             type="file"
@@ -2512,9 +2516,12 @@ const AgentPage = () => {
                                 color: 'var(--text-main)',
                                 fontFamily: 'inherit',
                                 minWidth: 0,
+                                maxWidth: '100%',
                                 resize: 'none',
                                 overflow: 'auto',
-                                maxHeight: '120px'
+                                maxHeight: '120px',
+                                overflowWrap: 'break-word',
+                                wordBreak: 'break-word'
                             }}
                         />
                         {(isLoading || recoveringTurn) ? (
@@ -2746,6 +2753,8 @@ const AgentPage = () => {
                     margin: isMobile ? '0' : '2.25rem auto 0',
                     maxWidth: isMobile ? '100vw' : '1200px',
                     width: '100%',
+                    minWidth: 0,
+                    boxSizing: 'border-box',
                     position: 'relative'
                 }}>
                 {/* Overlay Drag & Drop */}
@@ -2813,8 +2822,10 @@ const AgentPage = () => {
                     display: 'flex',
                     flexDirection: 'column',
                     minWidth: 0, // previene overflow en flex
+                    maxWidth: '100%',
                     position: 'relative',
-                    background: 'var(--bg-card)'
+                    background: 'var(--bg-card)',
+                    overflow: 'hidden'
                 }}>
                     {/* Chat Header */}
                     <div className="mobile-chat-header" style={{
@@ -2967,6 +2978,8 @@ const AgentPage = () => {
                             padding: messages.length === 0 ? 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 1.5rem 0 1.5rem' : 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 2rem 0.5rem 2rem',
                             overflowY: messages.length > VIRTUALIZE_THRESHOLD ? 'hidden' : 'auto',
                             minHeight: 0,
+                            minWidth: 0,
+                            maxWidth: '100%',
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'flex-start',
@@ -3209,13 +3222,17 @@ const AgentPage = () => {
             </div>
 
             <style>{`
-                .markdown-chat { font-size: 0.95rem; line-height: 1.6; }
-                .markdown-chat p { margin-top: 0; margin-bottom: 0.75rem; }
+                .markdown-chat { font-size: 0.95rem; line-height: 1.6; max-width: 100%; overflow-wrap: break-word; word-break: break-word; }
+                .markdown-chat p { margin-top: 0; margin-bottom: 0.75rem; max-width: 100%; overflow-wrap: break-word; word-break: break-word; }
                 .markdown-chat p:last-child { margin-bottom: 0; }
-                .markdown-chat ul, .markdown-chat ol { margin-top: 0; margin-bottom: 0.75rem; padding-left: 1.5rem; }
+                .markdown-chat ul, .markdown-chat ol { margin-top: 0; margin-bottom: 0.75rem; padding-left: 1.5rem; max-width: 100%; }
                 .markdown-chat ul:last-child, .markdown-chat ol:last-child { margin-bottom: 0; }
-                .markdown-chat li { margin-bottom: 0.25rem; }
+                .markdown-chat li { margin-bottom: 0.25rem; max-width: 100%; overflow-wrap: break-word; word-break: break-word; }
                 .markdown-chat strong { font-weight: 700; color: inherit; }
+                .markdown-chat pre { max-width: 100%; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+                .markdown-chat code { max-width: 100%; overflow-wrap: break-word; word-break: break-word; }
+                .markdown-chat table { max-width: 100%; display: block; overflow-x: auto; }
+                .markdown-chat img { max-width: 100%; height: auto; }
 
                 .spin-fast { animation: spin 1s linear infinite; }
                 .spin-slow { animation: spin 4s linear infinite; }

@@ -19,6 +19,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../config/api';
+import { useAssessment } from '../context/AssessmentContext';
 
 const LS_KEY = 'mealfit_plan_in_progress';
 const POLL_INTERVAL_MS = 10_000; // 10s
@@ -74,9 +75,21 @@ function isStale(startedAtIso) {
     } catch { return true; }
 }
 
+// [P1-GUEST-PLAN-RECOVERY · 2026-07-09] Session_id del guest (persistido por Plan.jsx al generar). Se
+// pasa como query param a /pending-status + /ack + /guest-plan → el backend keyea el KV por session_id
+// para guests (para autenticados, verified_user_id gana y el session_id se ignora). Ver backend.
+function getGuestSessionId() {
+    try { return localStorage.getItem('mealfit_guest_session_id') || null; } catch { return null; }
+}
+
+function _withSessionQS(path) {
+    const sid = getGuestSessionId();
+    return sid ? `${path}?session_id=${encodeURIComponent(sid)}` : path;
+}
+
 async function fetchPendingStatus() {
     try {
-        const res = await fetchWithAuth('/api/plans/pending-status', { method: 'GET' });
+        const res = await fetchWithAuth(_withSessionQS('/api/plans/pending-status'), { method: 'GET' });
         if (!res.ok) return null;
         return await res.json();
     } catch { return null; }
@@ -84,13 +97,32 @@ async function fetchPendingStatus() {
 
 async function ackPendingStatus() {
     try {
-        await fetchWithAuth('/api/plans/pending-status/ack', { method: 'POST' });
+        await fetchWithAuth(_withSessionQS('/api/plans/pending-status/ack'), { method: 'POST' });
     } catch { /* best-effort */ }
+}
+
+// [P1-GUEST-PLAN-RECOVERY · 2026-07-09] Recupera el plan guardado de un guest desde el KV backend.
+// Los guests NO persisten en meal_plans → su plan vive en `guest_plan:<session_id>`.
+async function fetchGuestPlan(sid) {
+    if (!sid) return null;
+    try {
+        const res = await fetchWithAuth(`/api/plans/guest-plan?session_id=${encodeURIComponent(sid)}`, { method: 'GET' });
+        if (!res.ok) return null;
+        const body = await res.json();
+        const plan = body && body.plan;
+        if (plan && Array.isArray(plan.days) && plan.days.length > 0) return plan;
+        return null;
+    } catch { return null; }
 }
 
 export default function PendingPipelineRecovery() {
     const location = useLocation();
     const navigate = useNavigate();
+    // [P1-GUEST-PLAN-RECOVERY · 2026-07-09] `saveGeneratedPlan` para adoptar el plan recuperado del guest
+    // (mismo path que el success normal). Ref para acceso estable dentro de closures async del effect.
+    const { saveGeneratedPlan } = useAssessment() || {};
+    const saveGeneratedPlanRef = useRef(saveGeneratedPlan);
+    saveGeneratedPlanRef.current = saveGeneratedPlan;
     const pollTimerRef = useRef(null);
     const handledRef = useRef(false);
     // [P3-RECOVERY-NO-REDIRECT-LOOP · 2026-05-16] Toast informativo "una vez"
@@ -162,17 +194,30 @@ export default function PendingPipelineRecovery() {
                             }
                             navigate('/plan', { replace: true });
                         }
-                    } else if (status.status === 'complete' && status.plan_id_final) {
+                    } else if (status.status === 'complete') {
                         handledRef.current = true;
+                        // [P1-GUEST-PLAN-RECOVERY · 2026-07-09] Guest (sin plan_id_final): recuperar el
+                        // plan del KV backend y adoptarlo (mismo path que el success normal) antes de
+                        // ir al dashboard. Autenticado (con plan_id_final): el dashboard lo carga solo.
+                        let _guestPlan = null;
+                        if (!status.plan_id_final) {
+                            _guestPlan = await fetchGuestPlan(getGuestSessionId());
+                            if (_guestPlan && saveGeneratedPlanRef.current) {
+                                try { saveGeneratedPlanRef.current(_guestPlan); } catch { /* noop */ }
+                            }
+                        }
                         await ackPendingStatus();
-                        try {
-                            const { toast } = await import('sonner');
-                            toast.success('Tu plan está listo 🎉', {
-                                description: 'Te llevamos al dashboard.',
-                                duration: 3500,
-                            });
-                        } catch { /* noop */ }
-                        navigate('/dashboard', { replace: true });
+                        if (status.plan_id_final || _guestPlan) {
+                            try {
+                                const { toast } = await import('sonner');
+                                toast.success('Tu plan está listo 🎉', {
+                                    description: 'Te llevamos al dashboard.',
+                                    duration: 3500,
+                                });
+                            } catch { /* noop */ }
+                            navigate('/dashboard', { replace: true });
+                        }
+                        // guest sin plan recuperable → no forzar navegación (evita loop).
                     }
                     // 'none' / 'failed' → no auto-redirect (el user no estaba esperando).
                 })();
@@ -222,19 +267,31 @@ export default function PendingPipelineRecovery() {
             // Reset counter on success (backend volvió a responder).
             consecutiveFailuresRef.current = 0;
 
-            if (status.status === 'complete' && status.plan_id_final) {
+            if (status.status === 'complete') {
                 handledRef.current = true;
                 clearPendingFlag();
+                // [P1-GUEST-PLAN-RECOVERY · 2026-07-09] Guest (sin plan_id_final): recuperar + adoptar el
+                // plan del KV backend antes del dashboard. Autenticado: el dashboard lo carga por id.
+                let _guestPlan = null;
+                if (!status.plan_id_final) {
+                    _guestPlan = await fetchGuestPlan(getGuestSessionId());
+                    if (_guestPlan && saveGeneratedPlanRef.current) {
+                        try { saveGeneratedPlanRef.current(_guestPlan); } catch { /* noop */ }
+                    }
+                }
                 await ackPendingStatus();
-                // Toast informativo + redirect.
-                try {
-                    const { toast } = await import('sonner');
-                    toast.success('Tu plan está listo 🎉', {
-                        description: 'Te llevamos al dashboard.',
-                        duration: 3500,
-                    });
-                } catch { /* sonner no disponible — silencioso */ }
-                navigate('/dashboard', { replace: true });
+                if (status.plan_id_final || _guestPlan) {
+                    // Toast informativo + redirect.
+                    try {
+                        const { toast } = await import('sonner');
+                        toast.success('Tu plan está listo 🎉', {
+                            description: 'Te llevamos al dashboard.',
+                            duration: 3500,
+                        });
+                    } catch { /* sonner no disponible — silencioso */ }
+                    navigate('/dashboard', { replace: true });
+                }
+                // guest sin plan recuperable → no forzar navegación (evita loop).
             } else if (status.status === 'failed') {
                 handledRef.current = true;
                 clearPendingFlag();
