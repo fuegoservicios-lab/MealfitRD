@@ -492,16 +492,27 @@ const AgentPage = () => {
             // más pequeño que window.innerHeight). vv.offsetTop captura el caso
             // de scroll dentro del visual viewport (raro pero defensivo).
             const offsetBottom = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-            if (offsetBottom > 0) {
-                // Keyboard abierto: elevar Y colapsar el padding-bottom para
-                // que el input quede pegado al accessory bar (sin gap visual).
-                wrapper.style.transform = `translateY(-${offsetBottom}px)`;
-                wrapper.style.paddingBottom = '0.5rem';
-            } else {
-                // Keyboard cerrado: restaurar a los valores definidos en style inline.
-                wrapper.style.transform = '';
-                wrapper.style.paddingBottom = '';
-            }
+            // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] Este handler escribe SOLO
+            // `transform` — propiedad que React NO declara en el prop `style` del
+            // wrapper, así que no hay dos dueños.
+            //
+            // Antes también hacía `paddingBottom='0.5rem'` con el teclado abierto y
+            // `paddingBottom=''` al cerrarlo. Ese "restaurar" era falso: React pone
+            // el padding con el SHORTHAND (`padding: 1.5rem 3rem …`), y limpiar el
+            // longhand no devuelve el valor del shorthand — lo ELIMINA (verificado:
+            // 24px → 0px). Como el handler corre también al montar, el wrapper se
+            // quedaba sin padding-bottom en desktop (rompía en silencio el centrado
+            // de P3-AGENT-INPUT-CENTER) y sólo volvía cuando React reescribía el
+            // shorthand por un flip de `isCentered`/`isMobile` — hasta el siguiente
+            // evento de visualViewport. Misma clase de fallo que el alto del
+            // textarea: inline style imperativo peleando con el que React posee.
+            //
+            // El colapso del padding con teclado abierto ya lo cubre CSS sin tocar
+            // el inline: `.input-wrapper:focus-within { padding-bottom: 0.8rem
+            // !important }` en el bloque `@media (max-width: 1024px)` — el teclado
+            // sólo se abre con el foco dentro del wrapper, y ese breakpoint es el
+            // mismo `isMobile` de esta página.
+            wrapper.style.transform = offsetBottom > 0 ? `translateY(-${offsetBottom}px)` : '';
         };
 
         vv.addEventListener('resize', updateInputPosition);
