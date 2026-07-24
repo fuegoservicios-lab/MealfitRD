@@ -70,6 +70,39 @@ describe('[P1-PLAN-HYDRATE-ON-COMPLETE] SSOT de hidratación', () => {
         expect(CTX.slice(start, end)).not.toMatch(/fetchWithAuth/);
     });
 
+    it('con `expectPlanId` adopta el plan aunque el local TENGA días', () => {
+        // [P1-HYDRATE-EXPECTED-PLAN · 2026-07-24] Evidencia del servidor (generación
+        // corr=34e518af): tras crear el plan 134591d5, el cliente seguía pidiendo
+        // `chunk-status` de a060108b — el plan VIEJO. Pedía /plans-data/latest 39 veces y
+        // descartaba la respuesta: el guard de plan-id devolvía `prev` porque los ids
+        // difieren, y el escape que añadí solo cubría el placeholder SIN días. Aquí el
+        // plan local tenía 3 días → bloqueado para siempre → "sigo teniendo que refrescar".
+        //
+        // Cuando el backend nos DICE cuál es el plan resultante (`plan_id_final` de
+        // /pending-status) no hay que adivinar: ese plan reemplaza al local.
+        const i = CTX.indexOf('const hydrateLatestPlan = useCallback(');
+        const body = CTX.slice(i, i + 5200);
+        expect(body).toMatch(/expectPlanId/);
+        // El guard de id se salta SOLO cuando el servidor devuelve el plan esperado.
+        expect(body).toMatch(/expectPlanId && plan\.id === expectPlanId/);
+    });
+
+    it('con `expectPlanId` que NO coincide, no injerta nada', () => {
+        const i = CTX.indexOf('const hydrateLatestPlan = useCallback(');
+        const body = CTX.slice(i, i + 5200);
+        // Si el más reciente no es el que esperamos, salir sin mezclar (el plan que
+        // buscamos puede no estar persistido todavía).
+        expect(body).toMatch(/expectPlanId && plan\??\.id && plan\.id !== expectPlanId/);
+    });
+
+    it('el recuperador pasa el plan_id_final que le da el backend', () => {
+        const calls = [...REC.matchAll(/hydrateLatestPlanRef\.current\?\.\(\{([^}]*)\}\)/g)];
+        expect(calls.length).toBe(2);
+        for (const c of calls) {
+            expect(c[1]).toMatch(/expectPlanId:\s*status\.plan_id_final/);
+        }
+    });
+
     it('un placeholder sin días NO bloquea la adopción del plan del servidor', () => {
         const i = CTX.indexOf('const hydrateLatestPlan = useCallback(');
         const body = CTX.slice(i, i + 4200);
@@ -93,7 +126,7 @@ describe('[P1-PLAN-HYDRATE-ON-COMPLETE] el recuperador hidrata antes de navegar'
         const navs = REC.match(/navigate\('\/dashboard', \{ replace: true \}\)/g) || [];
         expect(navs.length).toBe(2);
 
-        const hydrates = [...REC.matchAll(/hydrateLatestPlanRef\.current\?\.\(\{ force: true \}\)/g)];
+        const hydrates = [...REC.matchAll(/hydrateLatestPlanRef\.current\?\.\(\{[^}]*force: true[^}]*\}\)/g)];
         expect(hydrates.length).toBe(2);
 
         // Orden: cada hidratación precede a su navigate.

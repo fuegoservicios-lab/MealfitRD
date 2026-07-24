@@ -177,7 +177,7 @@ export default function PendingPipelineRecovery() {
                             // en /dashboard, y sin traer el plan la UI se queda con el
                             // placeholder vacío ("Tu plan quedó incompleto") hasta un reload.
                             if (status.plan_id_final) {
-                                try { await hydrateLatestPlanRef.current?.({ force: true }); } catch { /* noop */ }
+                                try { await hydrateLatestPlanRef.current?.({ force: true, expectPlanId: status.plan_id_final }); } catch { /* noop */ }
                             }
                             try {
                                 const { toast } = await import('sonner');
@@ -257,7 +257,7 @@ export default function PendingPipelineRecovery() {
                     // ya estamos en /dashboard). Este es el camino que corre cuando el
                     // pipeline termina con la pestaña abierta — el caso reportado en vivo.
                     if (status.plan_id_final) {
-                        try { await hydrateLatestPlanRef.current?.({ force: true }); } catch { /* noop */ }
+                        try { await hydrateLatestPlanRef.current?.({ force: true, expectPlanId: status.plan_id_final }); } catch { /* noop */ }
                     }
                     // Toast informativo + redirect.
                     try {

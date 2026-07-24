@@ -1864,7 +1864,16 @@ export const AssessmentProvider = ({ children }) => {
     // estaba en /dashboard**, así que no re-renderizaba ni re-pedía nada. Resultado: el
     // banner "Tu plan quedó incompleto" (que exige `partial` + 0 días) se quedaba fijo
     // hasta que el usuario refrescaba a mano.
-    const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false } = {}) => {
+    // [P1-HYDRATE-EXPECTED-PLAN · 2026-07-24] `expectPlanId`: id que el BACKEND declaró como
+    // resultado del pipeline (`plan_id_final` de /pending-status). Cuando viene, no hay que
+    // adivinar nada — ese plan reemplaza al local aunque el local tenga días.
+    //
+    // Sin esto el fix anterior seguía sin llegar al usuario. Evidencia del servidor
+    // (generación corr=34e518af): tras persistirse el plan 134591d5, el cliente pidió
+    // /plans-data/latest 39 veces y siguió pidiendo `chunk-status` de a060108b — el plan
+    // VIEJO. Pedía los datos y los tiraba: el guard de plan-id devolvía `prev` porque los
+    // ids difieren, y el escape que había añadido solo cubría el placeholder SIN días.
+    const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expectPlanId = null } = {}) => {
         // Pausar con la pestaña oculta (mismo patrón P2-DASH-POLL-VISIBILITY); `force`
         // lo salta para el camino "el pipeline acaba de terminar", que no puede esperar
         // al siguiente tick.
@@ -1884,6 +1893,9 @@ export const AssessmentProvider = ({ children }) => {
             // Solo reaccionar si el plan tiene semanas siendo generadas o acaba de
             // completarse (paridad con el handler del canal Realtime original).
             if (incomingStatus !== 'partial' && incomingStatus !== 'complete') return false;
+            // [P1-HYDRATE-EXPECTED-PLAN] Esperábamos un plan concreto y el más reciente NO es
+            // ese (todavía no persiste, o nació otro en paralelo): no injertar nada.
+            if (expectPlanId && plan?.id && plan.id !== expectPlanId) return false;
 
             setPlanData(prev => {
                 // [P1-PLANDATA-ID-HYDRATE · 2026-07-12] plan_data del servidor NO trae el
@@ -1898,6 +1910,15 @@ export const AssessmentProvider = ({ children }) => {
                 // el usuario restauró un plan del Historial, o un plan nuevo nació en otra
                 // pestaña). Sin este guard, los `days` de ese otro plan se injertaban
                 // sobre el plan activo y el estado fusionado corrupto se persistía.
+                // [P1-HYDRATE-EXPECTED-PLAN · 2026-07-24] El backend confirmó que ESTE es el
+                // plan que salió del pipeline → adoptar entero. El guard de abajo existe para
+                // cuando ADIVINAMOS ("el más reciente" puede ser de otra pestaña o del
+                // Historial); acá no adivinamos, y un plan nuevo REEMPLAZA al anterior.
+                if (expectPlanId && plan.id === expectPlanId) {
+                    const adopted = { ...newPlanData, id: plan.id ?? newPlanData.id };
+                    safeLocalStorageSet('mealfit_plan', adopted);
+                    return adopted;
+                }
                 if (prev.id && plan.id && prev.id !== plan.id) {
                     // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] …pero si el plan local NO
                     // tiene días, no hay nada que proteger: es el placeholder que deja un
