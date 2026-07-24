@@ -7,6 +7,8 @@ import { useMemo, useState } from 'react';
 import { metaFor, STEP_ICONS, MACROS, ICONS, conicStops as _conicStops } from './recipesData';
 import { displayAjiMorron } from '../../utils/ingredientDisplay';
 import styles from './RecipesView.module.css';
+// [P2-RECIPE-NOTES-NOT-STEPS · 2026-07-24] anotaciones sin número (ver util).
+import { numberRecipeSteps } from '../../utils/recipeSteps';
 
 const Svg = ({ d, size = 18 }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
@@ -196,14 +198,14 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
           <h3 className={styles.secHead} style={{ '--accent': t.tone }}>Instrucciones</h3>
           {steps.length > 0 ? (
             <div className={styles.steps}>
-              {steps.map((raw, i) => {
+              {numberRecipeSteps(steps).map(({ raw, annotation, number }, i) => {
                 const si = STEP_ICONS[i % STEP_ICONS.length];
                 const done = doneSteps.has(i);
                 const { title, body } = parseStep(raw);
                 return (
                   <div key={i} className={`${styles.step} ${done ? styles.done : ''}`}
                        style={{ '--stone': si.c }} onClick={() => toggleStep(i)}>
-                    <span className={styles.node}>{done ? <Svg d={ICONS.check} size={18} /> : i + 1}</span>
+                    <span className={styles.node}>{done ? <Svg d={ICONS.check} size={18} /> : (annotation ? '•' : number)}</span>
                     <div className={styles.stepCard}>
                       {title && <div className={styles.stepTitle}>{title}</div>}
                       <div className={styles.stepText}>{renderBold(body)}</div>

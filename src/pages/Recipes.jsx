@@ -47,6 +47,7 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 // [P3-AJI-MORRON-DISPLAY · 2026-06-22] Terminología RD: pimiento dulce → "ají morrón"
 // en el texto del ingrediente mostrado (conservador; no toca cubanela/pimienta/paprika).
 import { displayAjiMorron } from '../utils/ingredientDisplay';
+import { isRecipeAnnotation } from '../utils/recipeSteps';
 
 // [P2-RECIPE-DISCLAIMER-LIST · 2026-05-30] Coerción defensiva de `recipe` a
 // array de pasos. El contrato es `List[str]` (MealModel.recipe) y todo el
@@ -221,7 +222,13 @@ const Recipes = () => {
             '<span style="font-weight: 800; color: #0F172A;">$1</span>',
         );
 
-        const stepsHTML = _recipeSteps.length ? _recipeSteps.map((step, i) => {
+        // [P2-RECIPE-NOTES-NOT-STEPS · 2026-07-24] Las anotaciones (nota del nutricionista,
+        // seguridad alimentaria, ajuste de porciones) NO son acciones de cocina: no consumen
+        // número. Antes inflaban el conteo y podían pedir 'sirve' antes del montaje.
+        let _stepNo = 0;
+        const stepsHTML = _recipeSteps.length ? _recipeSteps.map((step) => {
+            const _isNote = isRecipeAnnotation(step);
+            if (!_isNote) _stepNo += 1;
             let sectionTitle = "";
             let color = "#4F46E5";
             let content = step;
@@ -238,7 +245,7 @@ const Recipes = () => {
 
             return `
                 <div style="display: flex; gap: 0.6em; margin-bottom: 0.7em;">
-                    <div style="flex: none; width: 1.5em; height: 1.5em; border-radius: 50%; background: ${color}; color: #ffffff; font-size: 0.72em; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-top: 0.1em;">${i + 1}</div>
+                    <div style="flex: none; width: 1.5em; height: 1.5em; border-radius: 50%; background: ${color}; color: #ffffff; font-size: 0.72em; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-top: 0.1em;">${_isNote ? '&bull;' : _stepNo}</div>
                     <div style="flex: 1; min-width: 0;">
                         ${sectionTitle ? `<div style="color: ${color}; font-size: 0.62em; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.2em;">${escapeHtml(sectionTitle)}</div>` : ''}
                         <div style="font-size: 0.74em; line-height: 1.5; color: #334155;">${parseBoldEscaped(String(content).replace(/^\d+[.)]\s*/, ''))}</div>
