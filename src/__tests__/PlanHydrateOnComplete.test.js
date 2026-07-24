@@ -55,8 +55,8 @@ describe('[P1-PLAN-HYDRATE-ON-COMPLETE] SSOT de hidratación', () => {
 
     it('pide el plan al backend y solo adopta estados vivos', () => {
         const i = CTX.indexOf('const hydrateLatestPlan = useCallback(');
-        const body = CTX.slice(i, i + 4200);
-        expect(body).toMatch(/fetchWithAuth\('\/api\/plans-data\/latest'\)/);
+        const body = CTX.slice(i, i + 6500);
+        expect(body).toMatch(/fetchWithAuth\(`\/api\/plans-data\/latest\?src=/);
         expect(body).toMatch(/incomingStatus !== 'partial' && incomingStatus !== 'complete'/);
     });
 
@@ -81,7 +81,7 @@ describe('[P1-PLAN-HYDRATE-ON-COMPLETE] SSOT de hidratación', () => {
         // Cuando el backend nos DICE cuál es el plan resultante (`plan_id_final` de
         // /pending-status) no hay que adivinar: ese plan reemplaza al local.
         const i = CTX.indexOf('const hydrateLatestPlan = useCallback(');
-        const body = CTX.slice(i, i + 5200);
+        const body = CTX.slice(i, i + 6500);
         expect(body).toMatch(/expectPlanId/);
         // El guard de id se salta SOLO cuando el servidor devuelve el plan esperado.
         expect(body).toMatch(/expectPlanId && plan\.id === expectPlanId/);
@@ -89,7 +89,7 @@ describe('[P1-PLAN-HYDRATE-ON-COMPLETE] SSOT de hidratación', () => {
 
     it('con `expectPlanId` que NO coincide, no injerta nada', () => {
         const i = CTX.indexOf('const hydrateLatestPlan = useCallback(');
-        const body = CTX.slice(i, i + 5200);
+        const body = CTX.slice(i, i + 6500);
         // Si el más reciente no es el que esperamos, salir sin mezclar (el plan que
         // buscamos puede no estar persistido todavía).
         expect(body).toMatch(/expectPlanId && plan\??\.id && plan\.id !== expectPlanId/);
@@ -105,7 +105,7 @@ describe('[P1-PLAN-HYDRATE-ON-COMPLETE] SSOT de hidratación', () => {
 
     it('un placeholder sin días NO bloquea la adopción del plan del servidor', () => {
         const i = CTX.indexOf('const hydrateLatestPlan = useCallback(');
-        const body = CTX.slice(i, i + 4200);
+        const body = CTX.slice(i, i + 6500);
         // El guard de id sigue existiendo…
         expect(body).toMatch(/if \(prev\.id && plan\.id && prev\.id !== plan\.id\)/);
         // …pero con la salida para el caso "no hay días que proteger".
@@ -159,5 +159,43 @@ describe('[P1-PLAN-HYDRATE-ON-COMPLETE] el banner no miente durante la generaci�
         expect(DASH).not.toMatch(/mealfit_plan_in_progress/);
         expect(REC).not.toMatch(/const LS_KEY/);
         expect(REC).toMatch(/from '\.\.\/utils\/pendingPipelineFlag'/);
+    });
+});
+
+
+describe('[P1-HYDRATE-ON-WAKE · 2026-07-24] volver a la pestaña también trae el plan', () => {
+    it('el handler de visibilidad hidrata el plan, no solo el perfil', () => {
+        const i = CTX.indexOf('const refreshProfileOnWake');
+        const body = CTX.slice(i, CTX.indexOf('const handleVisibilityChange', i));
+        // Medido en vivo: el navegador pasó 20 min sin una sola petición (pestaña oculta);
+        // el plan se guardó en ese hueco y al volver la pantalla seguía mostrando el anterior.
+        expect(body).toMatch(/refreshProfileAndPlanRef\.current\?\.\(\)/);   // perfil (lo que ya hacía)
+        expect(body).toMatch(/hydrateLatestPlanRef\.current\?\.\(\{[^}]*src: 'wake'/); // …y el plan
+    });
+
+    it('el despertar usa el camino CONSERVADOR (sin expectPlanId)', () => {
+        const i = CTX.indexOf('const refreshProfileOnWake');
+        const body = CTX.slice(i, CTX.indexOf('const handleVisibilityChange', i));
+        // Adoptar a ciegas el "más reciente" pisaría un plan restaurado del Historial.
+        // Se afirma sobre la LLAMADA, no sobre el texto del bloque: el comentario que explica
+        // la decisión menciona `expectPlanId` y un `not.toMatch` sobre todo el cuerpo lo leería
+        // como si fuera código.
+        const llamada = body.match(/hydrateLatestPlanRef\.current\?\.\(\{([^}]*)\}\)/);
+        expect(llamada).not.toBeNull();
+        expect(llamada[1]).not.toMatch(/expectPlanId/);
+    });
+});
+
+
+describe('[P1-HYDRATE-OBSERVABLE · 2026-07-24] cada camino declara su origen', () => {
+    it('la petición lleva `src` para que el log del servidor lo distinga', () => {
+        expect(CTX).toMatch(/plans-data\/latest\?src=\$\{encodeURIComponent\(src\)\}/);
+    });
+
+    it('los tres orígenes están cableados', () => {
+        expect(CTX).toMatch(/src = 'poll'/);            // default de la firma
+        expect(CTX).toMatch(/src: 'poll'/);             // poll de 25s
+        expect(CTX).toMatch(/src: 'wake'/);             // volver a la pestaña
+        expect(REC).toMatch(/src: 'recovery'/);         // recuperador de pipeline
     });
 });

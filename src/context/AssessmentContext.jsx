@@ -1247,6 +1247,8 @@ export const AssessmentProvider = ({ children }) => {
     // re-suscripción del listener. Mismo patrón P1-B9.
     // [P3-4 · 2026-07-09] Hook SSOT useLatestRef (antes mirror manual en effect).
     const refreshProfileAndPlanRef = useLatestRef(refreshProfileAndPlan);
+    // [P1-HYDRATE-ON-WAKE · 2026-07-24] Mismo patrón para la hidratación del plan.
+    const hydrateLatestPlanRef = useRef(null);
 
     // [P2-NEW-13 · 2026-05-11] Sync multi-tab del `mealfit_plan` via
     // storage event.
@@ -1823,6 +1825,14 @@ export const AssessmentProvider = ({ children }) => {
             // [P2-REALTIME-RESUB-ON-TOKEN-REFRESH · 2026-06-01] Vía ref para
             // no listar refreshProfileAndPlan en deps (ver nota arriba).
             refreshProfileAndPlanRef.current?.();
+            // [P1-HYDRATE-ON-WAKE · 2026-07-24] …y el PLAN. `refreshProfileAndPlan` solo trae el
+            // perfil pese al nombre, así que al volver a la pestaña el plan seguía siendo el de
+            // antes: si el pipeline terminó mientras estabas fuera, la pantalla mentía hasta que
+            // refrescabas a mano. Medido en vivo (24-jul): 20 min sin una sola petición del
+            // navegador — el plan se guardó con la pestaña oculta y nadie fue a buscarlo.
+            // Camino CONSERVADOR (sin expectPlanId): mezcla cuando es el mismo plan y se abstiene
+            // si el servidor tiene otro — adoptar a ciegas pisaría un plan restaurado del Historial.
+            hydrateLatestPlanRef.current?.({ force: true, src: 'wake' });
         };
         const handleVisibilityChange = () => {
             // visibilitychange también dispara al OCULTAR la pestaña: ignorar.
@@ -1873,7 +1883,8 @@ export const AssessmentProvider = ({ children }) => {
     // /plans-data/latest 39 veces y siguió pidiendo `chunk-status` de a060108b — el plan
     // VIEJO. Pedía los datos y los tiraba: el guard de plan-id devolvía `prev` porque los
     // ids difieren, y el escape que había añadido solo cubría el placeholder SIN días.
-    const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expectPlanId = null } = {}) => {
+    const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expectPlanId = null,
+                                               src = 'poll' } = {}) => {
         // Pausar con la pestaña oculta (mismo patrón P2-DASH-POLL-VISIBILITY); `force`
         // lo salta para el camino "el pipeline acaba de terminar", que no puede esperar
         // al siguiente tick.
@@ -1882,7 +1893,11 @@ export const AssessmentProvider = ({ children }) => {
         // restoreSessionData).
         if (recalcLockRef.current) return false;
         try {
-            const resp = await fetchWithAuth('/api/plans-data/latest');
+            // [P1-HYDRATE-OBSERVABLE · 2026-07-24] `src` viaja en la query SOLO para que el
+            // log del servidor diga QUÉ camino pidió el plan. Diagnosticar esto a ciegas costó
+            // dos intentos fallidos: el cliente pedía /latest y no se sabía si era el poll de
+            // 25s, el recuperador o el despertar de la pestaña. El backend ignora el param.
+            const resp = await fetchWithAuth(`/api/plans-data/latest?src=${encodeURIComponent(src)}`);
             if (shouldAbort?.() || !resp.ok) return false;
             const { plan } = await resp.json();
             if (shouldAbort?.()) return false;
@@ -1950,6 +1965,9 @@ export const AssessmentProvider = ({ children }) => {
             return false;
         }
     }, []);
+    // [P1-HYDRATE-ON-WAKE · 2026-07-24] El listener de visibilidad se declara ANTES que esta
+    // función (vive más arriba en el provider); la ref las conecta sin re-armar el listener.
+    hydrateLatestPlanRef.current = hydrateLatestPlan;
 
     useEffect(() => {
         const userId = session?.user?.id;
@@ -1969,7 +1987,7 @@ export const AssessmentProvider = ({ children }) => {
         // marcó 'complete') — evita re-injertar un snapshot viejo.
         let cancelled = false;
 
-        const pollLatestPlan = () => hydrateLatestPlan({ shouldAbort: () => cancelled });
+        const pollLatestPlan = () => hydrateLatestPlan({ shouldAbort: () => cancelled, src: 'poll' });
 
         const intervalId = setInterval(pollLatestPlan, 25000);
         // Primer tick inmediato: el canal push entregaba el chunk sin espera;
