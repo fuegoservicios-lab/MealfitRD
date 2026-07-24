@@ -1852,6 +1852,84 @@ export const AssessmentProvider = ({ children }) => {
     // el effect se desarma solo (generation_status ∈ deps) → cero polling
     // permanente. Se preserva el merge-al-state del canal original, incluido
     // el guard P2-REALTIME-PLAN-ID-GUARD.
+    // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] SSOT de "traer el plan del servidor y
+    // adoptarlo". Lo usan DOS caminos: el poll de 25s de abajo y `PendingPipelineRecovery`
+    // cuando el backend reporta que el pipeline terminó.
+    //
+    // Bug cerrado (reportado en vivo, generación corr=3cd0baa9 del 2026-07-24): si el SSE
+    // se corta (refresh, navegación, red), el pipeline SIGUE corriendo en el backend y
+    // termina bien — el plan quedó con banda 1.00 y 51 ítems de lista. Pero el frontend se
+    // quedaba con el placeholder `partial` + `days: []`, y el recuperador, al ver
+    // `status='complete'`, solo hacía `navigate('/dashboard')`: **no-op si el usuario YA
+    // estaba en /dashboard**, así que no re-renderizaba ni re-pedía nada. Resultado: el
+    // banner "Tu plan quedó incompleto" (que exige `partial` + 0 días) se quedaba fijo
+    // hasta que el usuario refrescaba a mano.
+    const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false } = {}) => {
+        // Pausar con la pestaña oculta (mismo patrón P2-DASH-POLL-VISIBILITY); `force`
+        // lo salta para el camino "el pipeline acaba de terminar", que no puede esperar
+        // al siguiente tick.
+        if (!force && typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+        // 🔒 No pisar planData mientras un recalc local está en vuelo (paridad con
+        // restoreSessionData).
+        if (recalcLockRef.current) return false;
+        try {
+            const resp = await fetchWithAuth('/api/plans-data/latest');
+            if (shouldAbort?.() || !resp.ok) return false;
+            const { plan } = await resp.json();
+            if (shouldAbort?.()) return false;
+            const newPlanData = plan?.plan_data;
+            if (!newPlanData) return false;
+
+            const incomingStatus = newPlanData.generation_status;
+            // Solo reaccionar si el plan tiene semanas siendo generadas o acaba de
+            // completarse (paridad con el handler del canal Realtime original).
+            if (incomingStatus !== 'partial' && incomingStatus !== 'complete') return false;
+
+            setPlanData(prev => {
+                // [P1-PLANDATA-ID-HYDRATE · 2026-07-12] plan_data del servidor NO trae el
+                // id (vive en la columna) — devolverlo pelado deja planData SIN id y los
+                // guards downstream fallan ("No encontramos tu plan activo" al Actualizar
+                // Día, vivo 2026-07-12 tras el merge nocturno del chunk con la pestaña
+                // abierta). Adjuntarlo SIEMPRE desde el row.
+                if (newPlanData.id == null && plan?.id != null) newPlanData.id = plan.id;
+                if (!prev) return newPlanData;
+                // [P2-REALTIME-PLAN-ID-GUARD · 2026-05-30] El poll trae el plan MÁS
+                // RECIENTE del usuario, que puede NO ser el plan activo en memoria (e.g.
+                // el usuario restauró un plan del Historial, o un plan nuevo nació en otra
+                // pestaña). Sin este guard, los `days` de ese otro plan se injertaban
+                // sobre el plan activo y el estado fusionado corrupto se persistía.
+                if (prev.id && plan.id && prev.id !== plan.id) {
+                    // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] …pero si el plan local NO
+                    // tiene días, no hay nada que proteger: es el placeholder que deja un
+                    // SSE cortado. Bloquear ahí dejaba al usuario con el banner "quedó
+                    // incompleto" de forma PERMANENTE (solo un reload lo sacaba), que es
+                    // justo el síntoma reportado. Adoptamos el plan del servidor entero.
+                    const prevHasDays = Array.isArray(prev.days) && prev.days.length > 0;
+                    if (prevHasDays) return prev;
+                    const adopted = { ...newPlanData, id: plan.id ?? newPlanData.id };
+                    safeLocalStorageSet('mealfit_plan', adopted);
+                    return adopted;
+                }
+                // Mezclar: preservar campos locales (grocery_start_date, is_restocked, etc.)
+                // pero actualizar los días con el valor más reciente del servidor
+                const merged = {
+                    ...prev,
+                    days: newPlanData.days,
+                    generation_status: incomingStatus,
+                    total_days_requested: newPlanData.total_days_requested ?? prev.total_days_requested,
+                    // [P1-PLANDATA-ID-HYDRATE] repara estados previos que quedaron sin id.
+                    id: prev.id ?? plan?.id,
+                };
+                safeLocalStorageSet('mealfit_plan', merged);
+                return merged;
+            });
+            return true;
+        } catch (e) {
+            // Blip de red — no es accionable; el próximo tick (o el caller) reintenta.
+            return false;
+        }
+    }, []);
+
     useEffect(() => {
         const userId = session?.user?.id;
         if (!userId) return;
@@ -1870,66 +1948,7 @@ export const AssessmentProvider = ({ children }) => {
         // marcó 'complete') — evita re-injertar un snapshot viejo.
         let cancelled = false;
 
-        const pollLatestPlan = async () => {
-            // Pausar el poll con la pestaña oculta (mismo patrón
-            // P2-DASH-POLL-VISIBILITY del Dashboard); el tick siguiente
-            // post-visibilidad recupera la frescura.
-            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-            // 🔒 No pisar planData mientras un recalc local está en vuelo
-            // (paridad con restoreSessionData).
-            if (recalcLockRef.current) return;
-            try {
-                const resp = await fetchWithAuth('/api/plans-data/latest');
-                if (cancelled || !resp.ok) return;
-                const { plan } = await resp.json();
-                if (cancelled) return;
-                const newPlanData = plan?.plan_data;
-                if (!newPlanData) return;
-
-                const incomingStatus = newPlanData.generation_status;
-                // Solo reaccionar si el plan tiene semanas siendo generadas
-                // o acaba de completarse (paridad con el handler del canal).
-                if (incomingStatus !== 'partial' && incomingStatus !== 'complete') return;
-
-                setPlanData(prev => {
-                    // [P1-PLANDATA-ID-HYDRATE · 2026-07-12] plan_data del servidor NO trae el
-                    // id (vive en la columna) — devolverlo pelado deja planData SIN id y los
-                    // guards downstream fallan ("No encontramos tu plan activo" al Actualizar
-                    // Día, vivo 2026-07-12 tras el merge nocturno del chunk con la pestaña
-                    // abierta). Adjuntarlo SIEMPRE desde el row.
-                    if (newPlanData.id == null && plan?.id != null) newPlanData.id = plan.id;
-                    if (!prev) return newPlanData;
-                    // [P2-REALTIME-PLAN-ID-GUARD · 2026-05-30] El poll trae el
-                    // plan MÁS RECIENTE del usuario, que puede NO ser el plan
-                    // activo en memoria (e.g. el usuario restauró un plan del
-                    // Historial, o un plan nuevo nació en otra pestaña). Sin
-                    // este guard, los `days` de ese otro plan se injertaban
-                    // sobre el plan activo (que conserva su id/grocery_start_date/
-                    // macros) y el estado fusionado corrupto se persistía a
-                    // localStorage, sobreviviendo al reload. Solo cortocircuitamos
-                    // cuando AMBOS ids existen y difieren, para que la ventana
-                    // post-generación (donde prev.id aún es undefined) siga
-                    // mezclando los chunks legítimos del plan activo.
-                    if (prev.id && plan.id && prev.id !== plan.id) {
-                        return prev;
-                    }
-                    // Mezclar: preservar campos locales (grocery_start_date, is_restocked, etc.)
-                    // pero actualizar los días con el valor más reciente del servidor
-                    const merged = {
-                        ...prev,
-                        days: newPlanData.days,
-                        generation_status: incomingStatus,
-                        total_days_requested: newPlanData.total_days_requested ?? prev.total_days_requested,
-                        // [P1-PLANDATA-ID-HYDRATE] repara estados previos que quedaron sin id.
-                        id: prev.id ?? plan?.id,
-                    };
-                    safeLocalStorageSet('mealfit_plan', merged);
-                    return merged;
-                });
-            } catch (e) {
-                // Blip de red — no es accionable; el próximo tick reintenta.
-            }
-        };
+        const pollLatestPlan = () => hydrateLatestPlan({ shouldAbort: () => cancelled });
 
         const intervalId = setInterval(pollLatestPlan, 25000);
         // Primer tick inmediato: el canal push entregaba el chunk sin espera;
@@ -1943,7 +1962,7 @@ export const AssessmentProvider = ({ children }) => {
         // Deps: uid + status del plan en memoria (gate del polling) + id del
         // plan activo (re-armar al cambiar de plan). El handler usa la forma
         // funcional de setPlanData + refs → sin closures stale sobre planData.
-    }, [session?.user?.id, planData?.generation_status, planData?.id]);
+    }, [session?.user?.id, planData?.generation_status, planData?.id, hydrateLatestPlan]);
 
     // --- FUNCIÓN PARA ACTUALIZAR PERFIL EN DB ---
     // [P1-NEON-DB-MIGRATION · 2026-06-12] UN SOLO `PATCH /api/profile`
@@ -3796,6 +3815,9 @@ export const AssessmentProvider = ({ children }) => {
             // endpoint pueda autorizar y resolver source/target.
             restorePlanFromHistory: _restorePlanFromHistory,
             refreshProfileAndPlan,
+            // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] Ojo con el nombre de arriba:
+            // `refreshProfileAndPlan` refresca SOLO el perfil. Esta es la que trae el plan.
+            hydrateLatestPlan,
             restoreSessionData,
             setRecalcLock,
             withRecalcLock,
@@ -3807,7 +3829,7 @@ export const AssessmentProvider = ({ children }) => {
         dislikedMeals, _regenerateSingleMeal, _regenerateDay, dayRegenInFlight, dayRegenIndex, mealRegenInFlight, _resetApp, _resetForNewAssessment,
         effectivePlanCount, effectivePlanLimit, checkPlanLimit, isPremium, effectiveRemaining,
         isGuest, activateGuestMode, consumeGuestCredit, exitGuestSession, _upgradeUserPlan,
-        _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, restoreSessionData,
+        _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, hydrateLatestPlan, restoreSessionData,
         setRecalcLock, withRecalcLock,
     ]);
 

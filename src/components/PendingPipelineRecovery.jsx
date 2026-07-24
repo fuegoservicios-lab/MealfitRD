@@ -20,8 +20,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchWithAuth } from '../config/api';
 import { useAssessment } from '../context/AssessmentContext';
+// [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] El flag vive en su propio modulo
+// (lo comparte el Dashboard; exportar funciones desde un componente rompe fast-refresh).
+import { readPendingFlag, clearPendingFlag, writePendingFlag, isStale } from '../utils/pendingPipelineFlag';
 
-const LS_KEY = 'mealfit_plan_in_progress';
 const POLL_INTERVAL_MS = 10_000; // 10s
 // [P3-RECOVERY-BACKEND-DOWN-EXIT · 2026-05-16] Threshold de fallos
 // consecutivos antes de asumir backend muerto. 6 polls × 10s = 60s.
@@ -29,55 +31,11 @@ const POLL_INTERVAL_MS = 10_000; // 10s
 // el backend probablemente está caído o el user perdió sesión. Cortar
 // el loading screen y notificar.
 const _FAIL_THRESHOLD = 6;
-// [P1-RECOVERY-SUSPEND-FIX · 2026-05-16] El cap inicial era 15 min (igual que
-// el guardrail backend). Pero el cap del guardrail backend bloquea la creación
-// de un SEGUNDO plan mientras hay uno generando — su escenario son 2 starts
-// rápidos del mismo user. El RECOVERY es distinto: si el user suspende su PC
-// 8 horas y vuelve, el pipeline backend SÍ terminó y el row del KV está en
-// `status='complete'`. Cortar por timestamp local pierde ese caso.
-// Subimos el cap a 6h (margen amplio para PC suspendida overnight); el
-// backend cron `_finalize_zombie_partial_plans` limpia rows >24h.
-const MAX_AGE_MIN = 360;         // 6h — cubre suspend overnight
 
-function readPendingFlag() {
-    try {
-        const raw = localStorage.getItem(LS_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== 'object') return null;
-        return parsed;
-    } catch { return null; }
-}
-
-function clearPendingFlag() {
-    try { localStorage.removeItem(LS_KEY); } catch { /* noop */ }
-}
-
-// [P1-RECOVERY-BACKEND-TRUTH · 2026-06-26] Escribe el flag local sintetizándolo desde la
-// verdad del backend (KV). Se usa cuando el user vuelve SIN flag local (otro dispositivo,
-// móvil, storage limpiado) pero el backend SÍ tiene un pipeline 'generating' → al escribir
-// el flag, el flujo de polling existente (flag-gated) toma el control normalmente.
-function writePendingFlag(startedAtIso) {
-    try {
-        let uid = null;
-        try { uid = localStorage.getItem('mealfit_user_id') || null; } catch { /* noop */ }
-        localStorage.setItem(LS_KEY, JSON.stringify({
-            user_id: uid,
-            started_at: startedAtIso || new Date().toISOString(),
-        }));
-    } catch { /* noop */ }
-}
-
-function isStale(startedAtIso) {
-    try {
-        const ageMin = (Date.now() - new Date(startedAtIso).getTime()) / 60_000;
-        return ageMin > MAX_AGE_MIN;
-    } catch { return true; }
-}
-
-// [P1-GUEST-PLAN-RECOVERY · 2026-07-09] Session_id del guest (persistido por Plan.jsx al generar). Se
-// pasa como query param a /pending-status + /ack + /guest-plan → el backend keyea el KV por session_id
-// para guests (para autenticados, verified_user_id gana y el session_id se ignora). Ver backend.
+// [P1-GUEST-PLAN-RECOVERY · 2026-07-09] Session_id del guest (persistido por Plan.jsx al
+// generar). Se pasa como query param a /pending-status + /ack + /guest-plan → el backend
+// keyea el KV por session_id para guests (para autenticados, verified_user_id gana y el
+// session_id se ignora). Ver backend.
 function getGuestSessionId() {
     try { return localStorage.getItem('mealfit_guest_session_id') || null; } catch { return null; }
 }
@@ -120,9 +78,15 @@ export default function PendingPipelineRecovery() {
     const navigate = useNavigate();
     // [P1-GUEST-PLAN-RECOVERY · 2026-07-09] `saveGeneratedPlan` para adoptar el plan recuperado del guest
     // (mismo path que el success normal). Ref para acceso estable dentro de closures async del effect.
-    const { saveGeneratedPlan } = useAssessment() || {};
+    const { saveGeneratedPlan, hydrateLatestPlan } = useAssessment() || {};
     const saveGeneratedPlanRef = useRef(saveGeneratedPlan);
     saveGeneratedPlanRef.current = saveGeneratedPlan;
+    // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] Traer el plan del servidor al detectar
+    // que el pipeline terminó. Sin esto, un usuario que YA está en /dashboard se queda
+    // con el placeholder vacío (el `navigate('/dashboard')` de abajo es no-op) y ve
+    // "Tu plan quedó incompleto" hasta refrescar a mano.
+    const hydrateLatestPlanRef = useRef(hydrateLatestPlan);
+    hydrateLatestPlanRef.current = hydrateLatestPlan;
     const pollTimerRef = useRef(null);
     const handledRef = useRef(false);
     // [P3-RECOVERY-NO-REDIRECT-LOOP · 2026-05-16] Toast informativo "una vez"
@@ -208,6 +172,13 @@ export default function PendingPipelineRecovery() {
                         }
                         await ackPendingStatus();
                         if (status.plan_id_final || _guestPlan) {
+                            // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] Hidratar ANTES de
+                            // navegar: el `navigate` de abajo es no-op si el usuario ya está
+                            // en /dashboard, y sin traer el plan la UI se queda con el
+                            // placeholder vacío ("Tu plan quedó incompleto") hasta un reload.
+                            if (status.plan_id_final) {
+                                try { await hydrateLatestPlanRef.current?.({ force: true }); } catch { /* noop */ }
+                            }
                             try {
                                 const { toast } = await import('sonner');
                                 toast.success('Tu plan está listo 🎉', {
@@ -281,6 +252,13 @@ export default function PendingPipelineRecovery() {
                 }
                 await ackPendingStatus();
                 if (status.plan_id_final || _guestPlan) {
+                    // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] Mismo motivo que en el
+                    // camino de boot: hidratar antes de navegar (el navigate es no-op si
+                    // ya estamos en /dashboard). Este es el camino que corre cuando el
+                    // pipeline termina con la pestaña abierta — el caso reportado en vivo.
+                    if (status.plan_id_final) {
+                        try { await hydrateLatestPlanRef.current?.({ force: true }); } catch { /* noop */ }
+                    }
                     // Toast informativo + redirect.
                     try {
                         const { toast } = await import('sonner');

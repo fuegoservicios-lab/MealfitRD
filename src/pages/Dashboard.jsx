@@ -121,6 +121,8 @@ import { buildHealthProfilePayload } from '../config/secureFormStorage';
 // (no es keep-alive), así que el snapshot siempre está fresco; el toggle vive
 // en Settings (otra ruta) → no hay caso de cambio en vivo sobre esta vista.
 import { isDarkActive } from '../utils/theme';
+// [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] Dueño del flag de "generación en vuelo".
+import { hasPendingPipelineInFlight } from '../utils/pendingPipelineFlag';
 
 // [P2-BRANDS-OPTIMISTIC · 2026-07-07] Update en TIEMPO REAL del brand elegido en
 // "Marcas del súper". El display de cada ítem es un solo string backend
@@ -1710,12 +1712,20 @@ const DashboardInner = () => {
     //       falla silente porque `aggregated_shopping_list*` está vacío.
     // El banner ofrece CTA directo a /assessment para regenerar — más eficaz
     // que un toast que aparece solo al clickear PDF.
+    // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] `partial` + 0 días NO es corrupción
+    // mientras haya una generación en vuelo: es el estado normal de un plan recién
+    // nacido cuyo SSE se cortó (refresh/navegación) mientras el backend sigue
+    // trabajando. Reportado en vivo el 2026-07-24: el plan terminó perfecto (banda
+    // 1.00, 51 ítems de lista) y el usuario igual vio "Tu plan quedó incompleto" con
+    // CTA a regenerar — que además cancela los chunks encolados del plan bueno.
+    // `failed` sí se muestra siempre (es veredicto del backend, no una ventana de carrera).
     const isPlanCorrupted = !!planData && (
         planData.generation_status === 'failed'
         || (
             planData.generation_status === 'partial'
             && Array.isArray(planData.days)
             && planData.days.length === 0
+            && !hasPendingPipelineInFlight()
         )
     );
 
