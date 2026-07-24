@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+// [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] SSOT del alto del textarea.
+import { useAutosizeTextarea, CHAT_TEXTAREA_MAX_HEIGHT_PX } from '../utils/autosizeTextarea';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator } from 'lucide-react';
@@ -799,6 +801,26 @@ const AgentPage = () => {
     // donde tap del botón send NO debe abrir keyboard).
     const chatInputRef = useRef(null);
 
+    // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El alto del textarea es FUNCIÓN
+    // del estado, no efecto colateral del evento `onInput`.
+    //
+    // Bug cerrado (reportado 2026-07-24): "el chat se pone ancho a veces y hay
+    // que refrescar la página". El `onInput` escribía `style.height` a mano;
+    // React no es dueño de ese inline style (no viaja en el prop `style`), así
+    // que NO lo revertía al re-renderizar. Todo cambio de `input` que no venía
+    // de una tecla dejaba pegado el alto del mensaje anterior:
+    //   handleSend → setInput('')      (el caso del screenshot: caja inflada
+    //                                   MOSTRANDO el placeholder)
+    //   handleNewChat → setInput('')
+    //   pill de sugerencia → setInput(texto)
+    // Y como AgentPage es keep-alive (App.jsx lo oculta con display:none en
+    // vez de desmontarlo), el alto stale sobrevivía a la navegación — solo un
+    // reload lo reseteaba, que es exactamente lo que el usuario tenía que hacer.
+    //
+    // La firma incluye lo que cambia el ANCHO disponible (isMobile, sidebar,
+    // preview de imagen): el mismo texto ocupa distintas líneas según el ancho.
+    useAutosizeTextarea(chatInputRef, `${input}|${isMobile}|${showSidebar}|${previewUrl ? 1 : 0}`);
+
     // [P3-AGENT-PREFILL · 2026-06-15] Consumir una pregunta pre-cargada desde
     // otra parte del dashboard (p.ej. tocar un micronutriente en
     // MicronutrientPanel). Keep-alive-safe: se aplica al MONTAR (primera visita,
@@ -815,8 +837,8 @@ const AgentPage = () => {
                     const el = chatInputRef.current;
                     if (!el) return;
                     el.focus();
-                    el.style.height = 'auto';
-                    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+                    // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El resize ya lo
+                    // hizo el layout effect del hook al commitear setInput(text).
                     el.setSelectionRange(text.length, text.length);
                 } catch { /* noop */ }
             }, 120);
@@ -2498,11 +2520,15 @@ const AgentPage = () => {
                             onPaste={handlePaste}
                             placeholder={micErrorMsg || "Pregúntale a MealfitRD"}
                             onFocus={() => setTimeout(scrollToBottom, 300)}
-                            onInput={(e) => {
-                                // Auto-resize hasta 120px (≈5 líneas), después scroll interno
-                                e.target.style.height = 'auto';
-                                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-                            }}
+                            // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El
+                            // auto-resize NO vive aquí: `onInput` solo se
+                            // dispara al teclear, así que no veía los cambios
+                            // programáticos de `input` (enviar, chat nuevo,
+                            // pill, prefill) y la caja quedaba inflada con el
+                            // placeholder visible hasta refrescar la página.
+                            // Ahora lo hace `useAutosizeTextarea` (arriba),
+                            // que corre en CADA commit donde cambia el valor
+                            // o el ancho disponible.
                             enterKeyHint="send"
                             style={{
                                 flex: 1,
@@ -2519,7 +2545,7 @@ const AgentPage = () => {
                                 maxWidth: '100%',
                                 resize: 'none',
                                 overflow: 'auto',
-                                maxHeight: '120px',
+                                maxHeight: `${CHAT_TEXTAREA_MAX_HEIGHT_PX}px`,
                                 overflowWrap: 'break-word',
                                 wordBreak: 'break-word'
                             }}
