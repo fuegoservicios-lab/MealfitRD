@@ -80,12 +80,45 @@ if (typeof document !== 'undefined') {
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
+    // [P1-SW-AUTO-APPLY-SAFE · 2026-07-25] El toast por sí solo NO basta: si el usuario no lo
+    // pulsa, sigue con el bundle viejo INDEFINIDAMENTE. Medido en vivo el 25/07: el navegador
+    // pidió TRES hashes distintos de `Plan-*.js` en dos horas y sólo uno existía en el servidor
+    // — los otros los servía el SW desde caché. Consecuencia real: tres arreglos del bug
+    // "tengo que refrescar el dashboard" estaban desplegados y NINGUNO llegó al navegador,
+    // así que para el usuario el bug seguía intacto y con razón.
+    //
+    // Ahora se auto-aplica cuando es SEGURO hacerlo, y sólo entonces: pestaña oculta (nadie
+    // está mirando) y sin generación en vuelo (no interrumpimos un plan a medias). Si no es
+    // seguro, se mantiene el toast de siempre y se reintenta al ocultar la pestaña. Eso
+    // preserva la razón por la que se eligió 'prompt' (no recargar a mitad de un formulario
+    // largo) sin pagar su coste (quedarse en una versión vieja para siempre).
+    const _safeToApply = () => {
+      try {
+        if (document.visibilityState !== 'hidden') return false;
+        // El flag de generación en vuelo vive en localStorage (utils/pendingPipelineFlag).
+        const raw = localStorage.getItem('mealfit_plan_in_progress');
+        if (raw) {
+          const started = Number(JSON.parse(raw)?.startedAt || 0);
+          // Sólo bloquea si la generación es RECIENTE (< 30 min); un flag viejo es basura.
+          if (started && Date.now() - started < 30 * 60 * 1000) return false;
+        }
+        return true;
+      } catch { return false; }
+    };
+    const _applyIfSafe = () => {
+      if (_safeToApply()) {
+        document.removeEventListener('visibilitychange', _applyIfSafe);
+        updateSW(true);
+      }
+    };
+    if (_safeToApply()) { updateSW(true); return; }
+    document.addEventListener('visibilitychange', _applyIfSafe);
     toast('Nueva versión disponible', {
       description: 'Recarga para obtener las últimas mejoras.',
       duration: Infinity,
       action: {
         label: 'Actualizar',
-        onClick: () => updateSW(true),
+        onClick: () => { document.removeEventListener('visibilitychange', _applyIfSafe); updateSW(true); },
       },
     })
   },

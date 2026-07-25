@@ -622,12 +622,52 @@ const DashboardInner = () => {
         // helper desactiva el gate y deja pasar el update.
         session,
         // [P1-GUEST-MODE · 2026-06-15] Invitado del funnel del plan gratuito.
-        isGuest
+        isGuest,
+        // [P1-DASHBOARD-PLAN-SELFHEAL · 2026-07-25] Ver el efecto de auto-sanación abajo.
+        hydrateLatestPlan
     } = useAssessment();
 
     const { regeneratePlan } = useRegeneratePlan();
 
     const navigate = useNavigate();
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // [P1-DASHBOARD-PLAN-SELFHEAL · 2026-07-25] "Sigo teniendo que refrescar."
+    //
+    // Cuarta vez que se reporta el mismo síntoma. Las tres correcciones anteriores parchearon
+    // CAMINOS (el recuperador, y dos sitios de Plan.jsx) y siempre apareció otro. Este efecto
+    // deja de contar caminos y pone la comprobación en el DESTINO: da igual quién navegue al
+    // dashboard, al llegar se pregunta si el backend tiene un plan que el usuario aún no ve.
+    //
+    // Contrato: `/pending-status` devuelve `plan_id_final` cuando el pipeline terminó. Si ese id
+    // no es el del plan local, se adopta y RECIÉN ENTONCES se ackea. **El ack es el recibo de que
+    // el usuario recibió el plan, no de que navegamos** — mientras no se adopte, el KV sigue vivo
+    // y cualquier montaje posterior vuelve a intentarlo. Eso es lo que lo hace auto-sanante.
+    //
+    // Por qué no basta con "adoptar el más reciente": rompería restaurar un plan del Historial
+    // (ahí el usuario elige a propósito uno más viejo). Por eso el discriminante es el
+    // `plan_id_final` que el BACKEND declara, no una comparación de fechas.
+    const selfHealRef = useRef(false);
+    useEffect(() => {
+        if (selfHealRef.current || isGuest) return;
+        selfHealRef.current = true;
+        (async () => {
+            try {
+                const r = await fetchWithAuth('/api/plans/pending-status');
+                if (!r.ok) return;
+                const st = await r.json();
+                if (st?.status !== 'complete' || !st?.plan_id_final) return;
+                if (planData?.id && planData.id === st.plan_id_final) return;  // ya lo tiene
+                await hydrateLatestPlan?.({
+                    force: true, expectPlanId: st.plan_id_final, src: 'dashboard-selfheal',
+                });
+                await fetchWithAuth('/api/plans/pending-status/ack', { method: 'POST' });
+            } catch { /* silencioso: es una red de seguridad, no un camino crítico */ }
+        })();
+        // Sin dependencias: corre UNA vez por montaje del dashboard. El guard `selfHealRef`
+        // evita re-disparos por re-render; volver a /dashboard remonta y vuelve a comprobar.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Piso de presupuesto personalizado por las metas
     // del usuario (calorías × hogar × ciclo) — el editor de presupuesto del dashboard muestra el
