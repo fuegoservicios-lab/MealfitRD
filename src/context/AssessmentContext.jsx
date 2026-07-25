@@ -1253,6 +1253,12 @@ export const AssessmentProvider = ({ children }) => {
     // re-suscripción del listener. Mismo patrón P1-B9.
     // [P3-4 · 2026-07-09] Hook SSOT useLatestRef (antes mirror manual en effect).
     const refreshProfileAndPlanRef = useLatestRef(refreshProfileAndPlan);
+    // [P1-CREDITS-REFRESH-ON-ADOPT · 2026-07-25] El contador de créditos sólo se pedía al
+    // montar. Tras generar, el plan SÍ se adoptaba (verificado en el log:
+    // `planwrite-adopt-plan-page` con el id nuevo) pero la cabecera seguía mostrando el
+    // crédito anterior — 5/15 en pantalla, 4/15 tras refrescar. Eso es lo que quedaba del
+    // síntoma "tengo que refrescar": no el plan, el contador.
+    const checkPlanLimitRef = useLatestRef(checkPlanLimit);
     // [P1-HYDRATE-ON-WAKE · 2026-07-24] Mismo patrón para la hidratación del plan.
     const hydrateLatestPlanRef = useRef(null);
 
@@ -1989,6 +1995,8 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 // usuario acaba de generar, y perdérselo le costaba un refresco manual.
                 if (expectPlanId && plan.id && (plan.id === expectPlanId || plan.id !== prev.id)) {
                     _tracePlanWrite(`adopt-${src}`, plan.id);
+                    // Un plan nuevo implica un crédito consumido: refrescar el contador.
+                    try { checkPlanLimitRef.current?.(); } catch { /* noop */ }
                     const adopted = { ...newPlanData, id: plan.id ?? newPlanData.id };
                     safeLocalStorageSet('mealfit_plan', adopted);
                     return adopted;
