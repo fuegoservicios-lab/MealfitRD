@@ -55,7 +55,7 @@ describe('[P1-PLAN-HYDRATE-ON-COMPLETE] SSOT de hidratación', () => {
 
     it('pide el plan al backend y solo adopta estados vivos', () => {
         const i = CTX.indexOf('const hydrateLatestPlan = useCallback(');
-        const body = CTX.slice(i, i + 6500);
+        const body = CTX.slice(i, i + 9000);
         expect(body).toMatch(/fetchWithAuth\(`\/api\/plans-data\/latest\?src=/);
         expect(body).toMatch(/incomingStatus !== 'partial' && incomingStatus !== 'complete'/);
     });
@@ -81,18 +81,21 @@ describe('[P1-PLAN-HYDRATE-ON-COMPLETE] SSOT de hidratación', () => {
         // Cuando el backend nos DICE cuál es el plan resultante (`plan_id_final` de
         // /pending-status) no hay que adivinar: ese plan reemplaza al local.
         const i = CTX.indexOf('const hydrateLatestPlan = useCallback(');
-        const body = CTX.slice(i, i + 6500);
+        const body = CTX.slice(i, i + 9000);
         expect(body).toMatch(/expectPlanId/);
-        // El guard de id se salta SOLO cuando el servidor devuelve el plan esperado.
-        expect(body).toMatch(/expectPlanId && plan\.id === expectPlanId/);
+        // [P1-HYDRATE-MISMATCH-ADOPT · 2026-07-25] El contrato se ENSANCHÓ: ya no se exige que
+        // el id coincida, basta con venir de un camino de pipeline completado y que el plan del
+        // servidor sea distinto del local. Un `plan_id_final` desfasado costaba un refresco manual.
+        expect(body).toMatch(/plan\.id === expectPlanId \|\| plan\.id !== prev\.id/);
     });
 
-    it('con `expectPlanId` que NO coincide, no injerta nada', () => {
+    it('con `expectPlanId` que NO coincide, ADOPTA igual y deja rastro medible', () => {
         const i = CTX.indexOf('const hydrateLatestPlan = useCallback(');
-        const body = CTX.slice(i, i + 6500);
-        // Si el más reciente no es el que esperamos, salir sin mezclar (el plan que
-        // buscamos puede no estar persistido todavía).
-        expect(body).toMatch(/expectPlanId && plan\??\.id && plan\.id !== expectPlanId/);
+        const body = CTX.slice(i, i + 9000);
+        // Antes se salía sin mezclar; medido en vivo (18:16:44, src=plan-page tras el guardado)
+        // ese veto era el único camino que explicaba "tuve que refrescar" con todo lo demás OK.
+        expect(body).toMatch(/_idMismatch = true/);
+        expect(body).toMatch(/src=hydrate-id-mismatch/);   // telemetría visible en nginx
     });
 
     it('el recuperador pasa el plan_id_final que le da el backend', () => {
@@ -105,7 +108,7 @@ describe('[P1-PLAN-HYDRATE-ON-COMPLETE] SSOT de hidratación', () => {
 
     it('un placeholder sin días NO bloquea la adopción del plan del servidor', () => {
         const i = CTX.indexOf('const hydrateLatestPlan = useCallback(');
-        const body = CTX.slice(i, i + 6500);
+        const body = CTX.slice(i, i + 9000);
         // El guard de id sigue existiendo…
         expect(body).toMatch(/if \(prev\.id && plan\.id && prev\.id !== plan\.id\)/);
         // …pero con la salida para el caso "no hay días que proteger".

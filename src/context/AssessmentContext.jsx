@@ -1908,9 +1908,35 @@ export const AssessmentProvider = ({ children }) => {
             // Solo reaccionar si el plan tiene semanas siendo generadas o acaba de
             // completarse (paridad con el handler del canal Realtime original).
             if (incomingStatus !== 'partial' && incomingStatus !== 'complete') return false;
-            // [P1-HYDRATE-EXPECTED-PLAN] Esperábamos un plan concreto y el más reciente NO es
-            // ese (todavía no persiste, o nació otro en paralelo): no injertar nada.
-            if (expectPlanId && plan?.id && plan.id !== expectPlanId) return false;
+            // [P1-HYDRATE-EXPECTED-PLAN] Esperábamos un plan concreto y el más reciente NO es ese.
+            //
+            // [P1-HYDRATE-MISMATCH-ADOPT · 2026-07-25] Antes esto era un `return false` seco, y ahí
+            // se perdía todo: quinta vez que el owner reporta "tuve que refrescar". Medido en vivo
+            // (generación 18:16): el plan se persistió a las 18:16:41, la hidratación disparó a las
+            // 18:16:44 con `src=plan-page` — o sea DESPUÉS y por el camino correcto — y aun así la
+            // pantalla no cambió. El único camino que explica eso es este veto.
+            //
+            // El veto se diseñó contra "adivinar" cuál es el plan. Pero `expectPlanId` sólo lo
+            // pasan los caminos de PIPELINE COMPLETADO (recuperador, página de plan, red del
+            // dashboard) — nunca el poll ni el wake. En ese contexto, si el servidor tiene un plan
+            // distinto del LOCAL, el más reciente es inequívocamente el que el usuario espera:
+            // acaba de generarlo en este dispositivo. Un `plan_id_final` desfasado (KV de una
+            // corrida anterior, reintento que insertó con otro id) no puede costarle el plan.
+            //
+            // La protección real —no pisar un plan restaurado del Historial— se mantiene intacta,
+            // porque ese caso llega por poll/wake, SIN `expectPlanId`, y sigue vetado más abajo
+            // por el guard de plan-id.
+            //
+            // Se marca `_hydrateIdMismatch` para poder medir en el log cuánto pasa de verdad.
+            let _idMismatch = false;
+            if (expectPlanId && plan?.id && plan.id !== expectPlanId) {
+                _idMismatch = true;
+                try {
+                    // Telemetría barata: una petición marcada que se ve en el access log de nginx
+                    // sin necesitar consola del navegador (así se diagnosticó todo este hilo).
+                    fetchWithAuth('/api/plans-data/latest?src=hydrate-id-mismatch').catch(() => {});
+                } catch { /* noop */ }
+            }
 
             setPlanData(prev => {
                 // [P1-PLANDATA-ID-HYDRATE · 2026-07-12] plan_data del servidor NO trae el
@@ -1929,7 +1955,12 @@ export const AssessmentProvider = ({ children }) => {
                 // plan que salió del pipeline → adoptar entero. El guard de abajo existe para
                 // cuando ADIVINAMOS ("el más reciente" puede ser de otra pestaña o del
                 // Historial); acá no adivinamos, y un plan nuevo REEMPLAZA al anterior.
-                if (expectPlanId && plan.id === expectPlanId) {
+                // [P1-HYDRATE-MISMATCH-ADOPT · 2026-07-25] La adopción ya no exige que el id
+                // COINCIDA, sólo que venga de un camino de pipeline completado (`expectPlanId`
+                // presente) y que el servidor tenga un plan DISTINTO del local. Con el id
+                // coincidiendo es el caso ideal; con el id desfasado sigue siendo el plan que el
+                // usuario acaba de generar, y perdérselo le costaba un refresco manual.
+                if (expectPlanId && plan.id && (plan.id === expectPlanId || plan.id !== prev.id)) {
                     const adopted = { ...newPlanData, id: plan.id ?? newPlanData.id };
                     safeLocalStorageSet('mealfit_plan', adopted);
                     return adopted;
