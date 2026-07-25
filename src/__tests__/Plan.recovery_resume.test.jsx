@@ -23,7 +23,10 @@ const _src = readFileSync(join(_here, '..', 'pages', 'Plan.jsx'), 'utf-8');
 
 // Aísla el bloque del reconciliador para que los asserts no matcheen otras partes del archivo.
 const _idx = _src.indexOf('P1-MOBILE-RECOVERY-RESUME');
-const _block = _idx > -1 ? _src.slice(_idx, _idx + 8000) : '';
+// [P1-PLANPAGE-HYDRATE-ON-ACK · 2026-07-25] Ventana 8000 → 9500: el bloque creció al añadir la
+// hidratación previa al `ack` y el cleanup quedaba fuera del corte. Un slice fijo caduca cada vez
+// que el bloque gana comportamiento; si vuelve a fallar por esto, ensanchar (no recortar el código).
+const _block = _idx > -1 ? _src.slice(_idx, _idx + 9500) : '';
 
 describe('P1-MOBILE-RECOVERY-RESUME — reconciliador de pantalla de carga', () => {
     it('el marker/tooltip-anchor está presente', () => {

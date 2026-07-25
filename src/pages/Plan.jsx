@@ -647,7 +647,9 @@ const Plan = () => {
     const { formData, saveGeneratedPlan, restorePlan, setCurrentStep, loadingSensitive,
         // [P1-GUEST-MODE · 2026-06-15] Créditos del invitado: consumir 1 al
         // generar; bloquear nueva generación si ya no quedan.
-        isGuest, consumeGuestCredit, remainingCredits } = useAssessment();
+        isGuest, consumeGuestCredit, remainingCredits,
+        // [P1-PLANPAGE-HYDRATE-ON-ACK · 2026-07-25] Ver los dos call sites de `ack` abajo.
+        hydrateLatestPlan } = useAssessment();
     const [status, setStatus] = useState('analyzing'); // analyzing, generating, preview, ready
     // [P2-LINT-ZERO · 2026-07-09] setTempPlan nunca se llamaba (setter muerto)
     // → tempPlan es constante null; se conserva porque el JSX lo referencia.
@@ -713,6 +715,14 @@ const Plan = () => {
                         if (gb?.plan && Array.isArray(gb.plan.days) && gb.plan.days.length) saveGeneratedPlan(gb.plan);
                     }
                 } catch { /* noop */ }
+            }
+            // [P1-PLANPAGE-HYDRATE-ON-ACK · 2026-07-25] Traer el plan ANTES de ackear: el ack
+            // CONSUME el `complete`, así que el recuperador (que sí hidrata) ya no puede
+            // hacerlo, y poll/wake usan el camino conservador que rechaza un id distinto.
+            // Medido en nginx: 12 src=poll + 22 src=wake, CERO src=recovery.
+            // Detalle y evidencia: src/__tests__/PlanPageHydrateOnAck.test.js
+            if (planIdFinal) {
+                try { await hydrateLatestPlan?.({ force: true, expectPlanId: planIdFinal, src: 'plan-page' }); } catch { /* noop */ }
             }
             fetchWithAuth(`/api/plans/pending-status/ack${qs}`, { method: 'POST' }).catch(() => {});
             try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
@@ -976,6 +986,13 @@ const Plan = () => {
                                             saveGeneratedPlan(_gb.plan);
                                         }
                                     }
+                                }
+                                // [P1-PLANPAGE-HYDRATE-ON-ACK · 2026-07-25] Segundo camino con el
+                                // MISMO agujero que `goDashboard`: ackear consume el `complete`,
+                                // así que el recuperador ya no puede hidratar después. Traer el
+                                // plan primero. (Contar los caminos, no blindar uno.)
+                                if (pendingData.plan_id_final) {
+                                    try { await hydrateLatestPlan?.({ force: true, expectPlanId: pendingData.plan_id_final, src: 'plan-page' }); } catch { /* noop */ }
                                 }
                                 // Ackear el KV (idempotente, fire-and-forget) para que no re-dispare recovery.
                                 const _aqs = _gsid ? `?session_id=${encodeURIComponent(_gsid)}` : '';
