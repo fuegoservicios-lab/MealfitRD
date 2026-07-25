@@ -113,7 +113,8 @@ describe('[P1-PLAN-HYDRATE-ON-COMPLETE] SSOT de hidratación', () => {
         expect(body).toMatch(/if \(prev\.id && plan\.id && prev\.id !== plan\.id\)/);
         // …pero con la salida para el caso "no hay días que proteger".
         expect(body).toMatch(/const prevHasDays = Array\.isArray\(prev\.days\) && prev\.days\.length > 0/);
-        expect(body).toMatch(/if \(prevHasDays\) return prev/);
+        // [P1-PLANWRITE-TRACE · 2026-07-25] El veto ahora deja rastro medible antes de salir.
+        expect(body).toMatch(/if \(prevHasDays\) \{ _tracePlanWrite\(`veto-\$\{src\}`, plan\.id\); return prev; \}/);
     });
 });
 

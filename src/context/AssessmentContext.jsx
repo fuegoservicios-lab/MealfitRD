@@ -953,6 +953,12 @@ export const AssessmentProvider = ({ children }) => {
                 if (_localStr === null || _localStr !== _latestStr) {
                     setPlanData(latestPlan);
                     safeLocalStorageSet('mealfit_plan', _latestStr);
+                    _tracePlanWrite('restore-session', planId);
+                } else {
+                    // [P1-PLANWRITE-TRACE · 2026-07-25] La rama que NO escribe también importa:
+                    // si el plan local y el del servidor son byte-iguales pero la pantalla muestra
+                    // uno viejo, el problema no está en quién escribe sino en quién renderiza.
+                    _tracePlanWrite('restore-session-noop', planId);
                 }
 
                 // Guardar la fecha en DB para persistencia cruzada (si se inyectó)
@@ -1883,7 +1889,28 @@ export const AssessmentProvider = ({ children }) => {
     // /plans-data/latest 39 veces y siguió pidiendo `chunk-status` de a060108b — el plan
     // VIEJO. Pedía los datos y los tiraba: el guard de plan-id devolvía `prev` porque los
     // ids difieren, y el escape que había añadido solo cubría el placeholder SIN días.
-    const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expectPlanId = null,
+    // [P1-PLANWRITE-TRACE · 2026-07-25] Instrumentación del ÚLTIMO ESCRITOR de `planData`.
+//
+// Quinta iteración del bug "tengo que refrescar el dashboard". La generación de las 18:33 dejó
+// esta secuencia, que descarta todas mis hipótesis anteriores:
+//   18:33:31  plan 3a26a569 persistido
+//   18:33:34  src=plan-page → hidrató con el id CORRECTO (sin marca de desajuste)
+//   18:33:53  /plans-data/latest ×3 SIN src → restoreSessionData, que hace su propio setPlanData
+// Hidratamos bien y la pantalla siguió mostrando el plan viejo Y los créditos viejos (6/15 vs
+// 5/15), así que el problema está DESPUÉS del fetch: o alguien re-escribe el estado, o el
+// render no reacciona.
+//
+// Dejar de adivinar: cada escritura de `planData` emite una petición marcada que se ve en el
+// access log de nginx (sin necesitar la consola del usuario). La próxima generación dice, en
+// orden y con id, quién escribió último y si hubo un no-op.
+const _tracePlanWrite = (who, planId) => {
+    try {
+        fetchWithAuth(`/api/plans-data/latest?src=planwrite-${who}&pid=${String(planId || 'none').slice(0, 8)}`)
+            .catch(() => {});
+    } catch { /* noop */ }
+};
+
+const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expectPlanId = null,
                                                src = 'poll' } = {}) => {
         // Pausar con la pestaña oculta (mismo patrón P2-DASH-POLL-VISIBILITY); `force`
         // lo salta para el camino "el pipeline acaba de terminar", que no puede esperar
@@ -1961,6 +1988,7 @@ export const AssessmentProvider = ({ children }) => {
                 // coincidiendo es el caso ideal; con el id desfasado sigue siendo el plan que el
                 // usuario acaba de generar, y perdérselo le costaba un refresco manual.
                 if (expectPlanId && plan.id && (plan.id === expectPlanId || plan.id !== prev.id)) {
+                    _tracePlanWrite(`adopt-${src}`, plan.id);
                     const adopted = { ...newPlanData, id: plan.id ?? newPlanData.id };
                     safeLocalStorageSet('mealfit_plan', adopted);
                     return adopted;
@@ -1972,7 +2000,7 @@ export const AssessmentProvider = ({ children }) => {
                     // incompleto" de forma PERMANENTE (solo un reload lo sacaba), que es
                     // justo el síntoma reportado. Adoptamos el plan del servidor entero.
                     const prevHasDays = Array.isArray(prev.days) && prev.days.length > 0;
-                    if (prevHasDays) return prev;
+                    if (prevHasDays) { _tracePlanWrite(`veto-${src}`, plan.id); return prev; }
                     const adopted = { ...newPlanData, id: plan.id ?? newPlanData.id };
                     safeLocalStorageSet('mealfit_plan', adopted);
                     return adopted;
@@ -1988,6 +2016,7 @@ export const AssessmentProvider = ({ children }) => {
                     id: prev.id ?? plan?.id,
                 };
                 safeLocalStorageSet('mealfit_plan', merged);
+                _tracePlanWrite(`merge-${src}`, plan?.id);
                 return merged;
             });
             return true;
