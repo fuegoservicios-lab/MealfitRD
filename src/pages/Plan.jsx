@@ -1652,6 +1652,9 @@ const Plan = () => {
         return (
             <RenewalCheckinModal
                 defaultWeight={formData?.weight}
+                /* [P1-CHECKIN-COHERENCE · 2026-07-26] La unidad viaja junto al valor. Sin esto el
+                   modal etiquetaba y enviaba 'lb' siempre, aunque el perfil estuviera en kg. */
+                defaultUnit={formData?.weightUnit}
                 onDone={() => setCheckinPending(false)}
             />
         );

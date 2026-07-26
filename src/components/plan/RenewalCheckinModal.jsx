@@ -9,7 +9,13 @@ import { fetchWithAuth } from '../../config/api';
 
 const SCALE = [1, 2, 3, 4, 5];
 
-const RenewalCheckinModal = ({ defaultWeight = '', onDone }) => {
+// [P1-CHECKIN-COHERENCE · 2026-07-26] `defaultUnit` viene del perfil. Antes la unidad estaba
+// HARDCODEADA a 'lb' (label y payload) mientras el valor se pre-rellenaba con el peso del perfil
+// sin mirar `weightUnit`. Hay perfiles con `weight=75` y `weightUnit=None` — 75 lb no es un adulto
+// plausible, casi seguro son kg: a esa persona se le pre-rellenaba 75 etiquetado en libras y se
+// guardaba como libras, con 2x de error en su metabolismo.
+const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone }) => {
+    const unit = String(defaultUnit || 'lb').toLowerCase() === 'kg' ? 'kg' : 'lb';
     const [weight, setWeight] = useState(defaultWeight ? String(defaultWeight) : '');
     const [hunger, setHunger] = useState(null);
     const [energy, setEnergy] = useState(null);
@@ -18,8 +24,11 @@ const RenewalCheckinModal = ({ defaultWeight = '', onDone }) => {
 
     const submit = async () => {
         const w = parseFloat(String(weight).replace(',', '.'));
-        if (!Number.isFinite(w) || w <= 0 || w > 2000) {
-            toast.info('Ingresa un peso válido (o pulsa Omitir).');
+        // Rango por unidad: 900 kg / 2000 lb es el techo duro del backend, pero un valor
+        // fuera de lo plausible casi siempre es un dedazo (o la unidad equivocada).
+        const max = unit === 'kg' ? 900 : 2000;
+        if (!Number.isFinite(w) || w <= 0 || w > max) {
+            toast.info(`Ingresa un peso válido en ${unit} (o pulsa Omitir).`);
             return;
         }
         setSending(true);
@@ -29,7 +38,7 @@ const RenewalCheckinModal = ({ defaultWeight = '', onDone }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     weight: w,
-                    unit: 'lb',
+                    unit,
                     hunger,
                     energy,
                     adherence_pct: adherence,
@@ -39,19 +48,33 @@ const RenewalCheckinModal = ({ defaultWeight = '', onDone }) => {
                 const body = await res.json();
                 if (body && body.engine_active) {
                     toast.success('Progreso registrado', {
-                        description: 'Tu progreso real calibrará las calorías de este ciclo.',
-                        duration: 4500,
+                        description: `Tu plan se calculará con ${w} ${unit} y tu progreso real calibrará las calorías.`,
+                        duration: 5000,
                     });
                 } else {
                     toast.success('Peso registrado', {
-                        description: 'Con registros de 2+ semanas, el sistema calibra tus calorías automáticamente.',
-                        duration: 4500,
+                        description: `Tu plan se calculará con ${w} ${unit}. Con 2 registros separados 14+ días, el sistema empezará a calibrar las calorías por tu progreso.`,
+                        duration: 5500,
                     });
                 }
+            } else {
+                // [P1-CHECKIN-COHERENCE · 2026-07-26] Antes esto era un `if (res.ok)` SIN else: un
+                // 403 o un 500 no mostraba nada y el usuario seguía creyendo que su peso se había
+                // guardado. Desde fuera, "omití" y "falló" eran indistinguibles — y de hecho un
+                // weight_history vacío no permitía saber cuál de las dos había pasado.
+                toast.warning('No se pudo guardar tu peso', {
+                    description: 'El plan se genera igual, con los datos que ya tenías.',
+                    duration: 5000,
+                });
+                console.error('renewal-checkin HTTP', res.status);
             }
         } catch (e) {
-            // Best-effort: el check-in jamás bloquea la generación.
+            // Best-effort: el check-in jamás bloquea la generación, pero SÍ se avisa.
             console.error('renewal-checkin failed:', e);
+            toast.warning('No se pudo guardar tu peso', {
+                description: 'El plan se genera igual, con los datos que ya tenías.',
+                duration: 5000,
+            });
         }
         onDone();
     };
@@ -89,20 +112,26 @@ const RenewalCheckinModal = ({ defaultWeight = '', onDone }) => {
                 boxShadow: '0 18px 60px rgba(0,0,0,0.45)',
             }}>
                 <h2 style={{ margin: 0, fontSize: 20 }}>Antes de tu nuevo ciclo</h2>
+                {/* [P1-CHECKIN-COHERENCE · 2026-07-26] El copy anterior afirmaba "no es la fórmula
+                    genérica — es TU metabolismo medido". Con 0 o 1 registro eso es FALSO: el motor
+                    evolutivo necesita 2 registros separados 14+ días y hasta entonces las calorías
+                    salen de la fórmula estándar. Ahora dice lo que sí es cierto hoy: tu peso entra
+                    en el cálculo, y la calibración por progreso llega cuando haya con qué medirla. */}
                 <p style={{ margin: '8px 0 18px', fontSize: 13, color: '#9aa6bc', lineHeight: 1.5 }}>
-                    30 segundos: con tu progreso real, el sistema calibra las calorías del
-                    próximo plan (no es la fórmula genérica — es TU metabolismo medido).
+                    30 segundos: tu peso de hoy se usa para calcular las calorías de este plan.
+                    Cuando tengas dos registros separados por 2+ semanas, el sistema además ajusta
+                    las calorías con tu progreso real.
                 </p>
 
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                    Peso actual (lb)
+                    Peso actual ({unit})
                 </label>
                 <input
                     type="number"
                     inputMode="decimal"
                     value={weight}
                     onChange={(e) => setWeight(e.target.value)}
-                    placeholder="Ej. 123"
+                    placeholder={unit === 'kg' ? 'Ej. 56' : 'Ej. 123'}
                     style={{
                         width: '100%', padding: '12px 14px', borderRadius: 12, fontSize: 16,
                         background: '#141c2e', border: '1px solid #2c3a52', color: '#e8edf6',
