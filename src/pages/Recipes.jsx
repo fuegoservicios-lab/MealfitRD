@@ -80,9 +80,16 @@ const fitRecipeBaseFontPx = (htmlString) => {
     const innerHmm = PDF_PAGE_MM.height - 2 * PDF_PAGE_MM.margin;
     const probe = document.createElement('div');
     probe.style.cssText = `position:absolute; left:-10000px; top:0; width:${innerWmm}mm; background:#ffffff;`;
-    // innerHTML seguro aquí: `htmlString` viene de generateRecipeHTML, donde
-    // TODO texto del LLM ya pasó por escapeHtml (contrato P2-AUDIT-2). Es el
-    // mismo string que html2pdf inyecta a su propio contenedor en el DOM.
+    // El razonamiento de seguridad estaba escrito desde P1-PDF-ONE-PAGE pero sin el marker que
+    // exige el test blanket, así que el callsite figuraba como NO auditado. Verificado
+    // 2026-07-26 antes de ponerlo: el invariante de escapado que lo justifica tenía su propio
+    // test en rojo (4 variables de maquetación del PDF sin declarar como seguras), y se cerró
+    // primero — bendecir esto sin comprobar la cadena habría sido firmar en blanco.
+    //
+    // [P1-PDF-XSS-AUDITED: `htmlString` sale de generateRecipeHTML, donde todo texto del LLM ya
+    // pasó por escapeHtml (contrato P2-AUDIT-2, anclado por test_p2_new_2_pdf_escape_invariant).
+    // Es el MISMO string que html2pdf inyecta en su propio contenedor del DOM; este probe solo
+    // lo mide offscreen para elegir el font-size. Cero superficie nueva.]
     probe.innerHTML = htmlString;
     document.body.appendChild(probe);
     try {
