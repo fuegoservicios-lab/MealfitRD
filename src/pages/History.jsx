@@ -2306,6 +2306,35 @@ const History = () => {
                                     const _adjustsCount = getCoherenceAdjustsCount(selectedPlan);
                                     const _hasLessons = _lessonsCount > 0;
                                     const _hasAdjusts = _adjustsCount > 0;
+                                    // [P1-4 · cableado 2026-07-26] Tooltip del chip "Ajustes (N)".
+                                    //
+                                    // El backend ya calculaba `coherence_last_hypotheses` en la
+                                    // proyección de `/history-list` (max 5) y NADIE lo consumía:
+                                    // trabajo pagado en un endpoint de polling que no llegaba al
+                                    // usuario. Las hipótesis solo se veían ABRIENDO la pestaña.
+                                    // Con esto, el usuario sabe al pasar el ratón *por qué* el
+                                    // sistema ajustó el plan, sin abrir nada.
+                                    //
+                                    // Fallback legacy: si el server va rezagado y no expone el
+                                    // campo, se reconstruye desde
+                                    // `plan_data._shopping_coherence_block_history` client-side —
+                                    // el mismo array del que sale el conteo.
+                                    const _hypsRaw = Array.isArray(selectedPlan?.coherence_last_hypotheses)
+                                        ? selectedPlan.coherence_last_hypotheses
+                                        : (Array.isArray(selectedPlan?.plan_data?._shopping_coherence_block_history)
+                                            ? [...new Set(
+                                                selectedPlan.plan_data._shopping_coherence_block_history
+                                                    .flatMap((e) => (Array.isArray(e?.divergences) ? e.divergences : []))
+                                                    .map((d) => d?.hypothesis)
+                                                    .filter((h) => typeof h === 'string' && h),
+                                            )].slice(0, 5)
+                                            : []);
+                                    const _hypLabels = _hypsRaw
+                                        .map((h) => getCoherenceHypothesisLabel(h) || h)
+                                        .filter(Boolean);
+                                    const _adjustsTitle = _hypLabels.length
+                                        ? `Causas: ${_hypLabels.join(' · ')}`
+                                        : 'Ajustes que el sistema hizo para que la lista de compras cuadre con las recetas';
                                     // [P2-HIST-AUDIT-10 · 2026-05-09] Tab
                                     // "Métricas" visible cuando el plan tiene
                                     // chunks con info útil. Nos basamos en
@@ -2404,6 +2433,7 @@ const History = () => {
                                                         _ensureCoherenceHistory(selectedPlan.id);
                                                     }}
                                                     className={`${styles.modalTab} ${activeModalTab === 'adjustments' ? styles.modalTabActive : ''}`}
+                                                    title={_adjustsTitle}
                                                 >
                                                     Ajustes ({_adjustsCount})
                                                 </button>
