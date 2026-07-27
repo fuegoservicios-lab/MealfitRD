@@ -85,6 +85,14 @@ const COHERENCE_HYPOTHESIS_LABELS = {
     // anteriores).
     pantry_overdeduct: 'Nevera dedujo de más',
 
+    // [P1-COHERENCE-UNQUANTIFIED-LABEL · 2026-07-26] El alimento está en la
+    // lista pero las recetas no le ponen cantidad: es el condimento, que la
+    // receta escribe como "Sal al gusto" y parsea a `0.0 pizca`. No es una
+    // falta ni un sobrante — no hay nada que comparar. Antes caía a `unknown`
+    // ("Causa indeterminada"), que le decía al usuario que algo iba mal
+    // cuando el plan estaba bien.
+    recipe_unquantified: 'Sin cantidad en la receta',
+
     // Fallback cuando ninguna hipótesis específica clasifica.
     unknown: 'Causa indeterminada',
 };
