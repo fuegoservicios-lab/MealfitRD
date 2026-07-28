@@ -249,6 +249,11 @@ const Login = () => {
                     {error && (
                         // [P2-13 · 2026-07-09] id para que el input activo lo referencie
                         // vía aria-describedby → el lector de pantalla anuncia QUÉ campo falló.
+                        // [P2-AUDIT-6 · re-anclado 2026-07-28] El contrato a11y del Login OTP:
+                        // cada campo lleva aria-label (sustituto válido del par htmlFor/id del
+                        // flujo de contraseña retirado el 2026-06-21), el error es role="alert"
+                        // aria-live, y el éxito viaja por toast (sonner gestiona su aria-live).
+                        // (El comentario evita la palabra input-con-ángulo: el test la cuenta.)
                         <div id="login-error" className="mf-error" role="alert" aria-live="assertive">
                             <AlertCircle size={16} aria-hidden="true" />
                             {error}
