@@ -41,16 +41,24 @@
 // detección fantasma sobre la foto). Los hallazgos llegan por el checklist de
 // confirmación de siempre.
 //
-// [P1-PANTRY-SCAN-MOBILE-ONLY · 2026-07-28] La entrada al escaneo NO se
-// renderiza fuera de móvil (feedback owner: "para PC, lo de escanear no tiene
-// sentido, solo déjalo para móviles" — nadie carga una nevera hasta el
-// escritorio, y desde que existe el visor en vivo tocar la tarjeta en desktop
-// abre la webcam apuntando a la cara del usuario). Gate por CAPACIDAD, no por
-// ancho de viewport: un desktop con ventana angosta no es un teléfono, y una
-// tablet (puntero coarse) conserva la función. Ver `canScan` más abajo.
+// [P1-PANTRY-SCAN-MOBILE-ONLY · 2026-07-28 · corregido por
+// P1-PANTRY-SCAN-PC-UPLOAD · 2026-07-28] Primera lectura del feedback del
+// owner ("para PC, lo de escanear no tiene sentido, solo déjalo para
+// móviles") fue OCULTAR la tarjeta entera fuera de móvil. Lectura correcta:
+// lo que no tiene sentido en desktop es el VISOR EN VIVO (nadie carga una
+// nevera hasta el escritorio) — subir una foto SÍ tiene sentido ahí. La
+// tarjeta ahora es visible en TODO dispositivo (sujeta solo al flag backend
+// `enabled`, ver `if (!enabled) return null;` más abajo); lo que cambia por
+// dispositivo es el MODO que dispara el tap:
+//   - puntero coarse + API de cámara real → visor en vivo (sin cambios).
+//   - cualquier otro caso (desktop, tablet sin cámara, `matchMedia` ausente
+//     en SSR/entorno raro) → el <input type="file"> directo — sin viewfinder
+//     ni prompt de permiso de cámara, nunca un callejón sin salida.
+// Ver `useLiveViewfinder` más abajo — misma detección de capacidad de antes,
+// ahora selecciona COMPORTAMIENTO en vez de ocultar el componente.
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { fetchWithAuth } from '../../config/api';
-import { Plus, Camera, Loader2, X } from 'lucide-react';
+import { Plus, Camera, ImageUp, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { invalidateInventoryCache } from '../../utils/pantryCache';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
@@ -129,7 +137,8 @@ const _VF_CORNERS = [
  * @param {Object}  [style] — [P1-PANTRY-SCAN-MOBILE-ONLY] merge opcional sobre el <div>
  *   raíz del componente (para que el caller pida separación — ej. margin — SIN envolver
  *   en su propio <div>). Un wrapper externo queda vacío-pero-presente en el DOM cuando el
- *   gate interno (`enabled` || `canScan`) oculta la tarjeta; el margen viajando CON la
+ *   gate interno (`enabled` — el ÚNICO que oculta la tarjeta desde P1-PANTRY-SCAN-PC-UPLOAD,
+ *   ver comentario de cabecera) oculta la tarjeta; el margen viajando CON la
  *   raíz del componente colapsa a cero junto con el resto del DOM. Ver callsites en
  *   `pages/Pantry.jsx` (antes envolvían en `<div style={{margin}}>`, ahora pasan `style`
  *   directo). `QPantryBuilder.jsx` no lo usa — su gap de layout es 100% del flex padre.
@@ -150,14 +159,17 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
     const streamRef = useRef(null);
     const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
 
-    // [P1-PANTRY-SCAN-MOBILE-ONLY] Capacidad, NO breakpoint: puntero primario
-    // coarse (dedo, no mouse/trackpad) Y una API de cámara real disponible.
-    // `useMediaQuery` ya degrada a `false` si `matchMedia` no existe (SSR/
-    // entorno raro) — preferimos NO mostrar una affordance opcional antes que
-    // mostrar una rota, así que ese `false` se propaga sin caso especial.
+    // [P1-PANTRY-SCAN-PC-UPLOAD · 2026-07-28] Capacidad, NO breakpoint — MISMA
+    // detección que P1-PANTRY-SCAN-MOBILE-ONLY, pero ahora selecciona MODO en
+    // vez de visibilidad (ver comentario de cabecera del archivo): puntero
+    // primario coarse (dedo, no mouse/trackpad) Y una API de cámara real
+    // disponible → el tap abre el visor en vivo. Cualquier otro caso
+    // (desktop, tablet sin cámara, `matchMedia` ausente en SSR/entorno raro)
+    // → el tap abre el <input type="file"> directo. Fail-secure hacia el
+    // modo MÁS simple (upload sin viewfinder), nunca hacia ocultar la tarjeta.
     const isCoarsePointer = useMediaQuery('(pointer: coarse)');
     const hasCameraApi = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
-    const canScan = isCoarsePointer && hasCameraApi;
+    const useLiveViewfinder = isCoarsePointer && hasCameraApi;
 
     // Para TODO track del stream — ver bloque de comentarios arriba (3 exit paths).
     const stopStream = useCallback(() => {
@@ -247,7 +259,10 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
         }
     }, [viewfinderOpen, capturedPreviewUrl, scanning, scanResults, closeViewfinder]);
 
-    if (!enabled || !canScan) return null;
+    // [P1-PANTRY-SCAN-PC-UPLOAD] Único gate de visibilidad: el flag backend.
+    // La capacidad de dispositivo (`useLiveViewfinder`) ya NO oculta la
+    // tarjeta — solo decide qué abre el tap. Ver comentario de cabecera.
+    if (!enabled) return null;
 
     const handlePhotoSelected = async (file) => {
         if (!file || scanning) return;
@@ -332,9 +347,18 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
         }
     };
 
-    // [P1-PANTRY-CAMERA-SCAN] Un solo tap → el buen camino: abre el visor en
-    // vivo directo (nada de menú intermedio).
-    const openViewfinder = () => setViewfinderOpen(true);
+    // [P1-PANTRY-SCAN-PC-UPLOAD] Un solo tap → selecciona modo por capacidad
+    // (`useLiveViewfinder`): con cámara real (móvil/tablet) abre el visor en
+    // vivo directo (nada de menú intermedio, comportamiento sin cambios);
+    // sin cámara (desktop) abre el <input type="file"> directo — nunca pide
+    // permiso de cámara ni muestra un visor que no puede funcionar ahí.
+    const handleCardTap = () => {
+        if (useLiveViewfinder) {
+            setViewfinderOpen(true);
+        } else {
+            fileInputRef.current?.click();
+        }
+    };
 
     const handleShutter = async () => {
         if (cameraPhase !== 'live' || !videoRef.current || capturedPreviewUrl) return;
@@ -441,7 +465,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                 (el dashed leía como placeholder/dropzone): badge circular con el
                 ícono, título + subtítulo, pill BETA y hover con acento. */}
             <button type="button" disabled={scanning}
-                onClick={openViewfinder}
+                onClick={handleCardTap}
                 onMouseEnter={(e) => { if (!scanning) { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.background = 'var(--bg-muted)'; } }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-card)'; }}
                 style={{
@@ -462,7 +486,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                 }}>
                     {scanning
                         ? <Loader2 size={17} style={{ animation: 'qpb-spin 1s linear infinite' }} />
-                        : <Camera size={17} />}
+                        : (useLiveViewfinder ? <Camera size={17} /> : <ImageUp size={17} />)}
                 </span>
                 <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
                     <span style={{
@@ -470,7 +494,9 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         animation: scanning ? 'qpb-pulse 1.8s ease-in-out infinite' : 'none',
                     }}>
-                        {scanning ? 'Analizando tu foto…' : 'Escanear mi nevera con una foto'}
+                        {scanning
+                            ? 'Analizando tu foto…'
+                            : (useLiveViewfinder ? 'Escanear mi nevera con una foto' : 'Sube una foto de tu nevera')}
                     </span>
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.76rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {scanning ? 'Esto toma 1-3 minutos — puedes seguir usando la app' : 'Detecta alimentos, cantidades y marcas automáticamente'}
