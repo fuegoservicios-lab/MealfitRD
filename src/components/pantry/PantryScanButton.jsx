@@ -126,8 +126,15 @@ const _VF_CORNERS = [
  * @param {boolean} enabled  — flag del provider de visión (photo_scan_enabled del backend).
  * @param {Array}   inventory — filas actuales (para el 409→increment del duplicado).
  * @param {Function} onInventoryChanged — callback post-add (refetch de la superficie).
+ * @param {Object}  [style] — [P1-PANTRY-SCAN-MOBILE-ONLY] merge opcional sobre el <div>
+ *   raíz del componente (para que el caller pida separación — ej. margin — SIN envolver
+ *   en su propio <div>). Un wrapper externo queda vacío-pero-presente en el DOM cuando el
+ *   gate interno (`enabled` || `canScan`) oculta la tarjeta; el margen viajando CON la
+ *   raíz del componente colapsa a cero junto con el resto del DOM. Ver callsites en
+ *   `pages/Pantry.jsx` (antes envolvían en `<div style={{margin}}>`, ahora pasan `style`
+ *   directo). `QPantryBuilder.jsx` no lo usa — su gap de layout es 100% del flex padre.
  */
-export const PantryScanButton = ({ enabled, inventory, onInventoryChanged }) => {
+export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style }) => {
     const fileInputRef = useRef(null);
     const [scanning, setScanning] = useState(false);
     const [scanResults, setScanResults] = useState(null);
@@ -403,7 +410,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged }) => 
     const showControls = !capturedPreviewUrl && cameraPhase !== 'denied';
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', ...style }}>
             <style>{`
                 @keyframes qpb-spin { to { transform: rotate(360deg); } }
                 @keyframes qpb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }

@@ -2371,16 +2371,20 @@ const Pantry = () => {
                         <Plus size={16} />Añadir alimento
                     </button>
                 </div>
-                {/* [P1-PANTRY-DASH-PARITY] Escaner por foto — integrado al topbar movil. */}
-                {pantryStatus?.photo_scan_enabled && (
-                    <div style={{ marginTop: '0.6rem' }}>
-                        <PantryScanButton
-                            enabled
-                            inventory={inventory}
-                            onInventoryChanged={() => { invalidateInventoryCache(); fetchData(false); }}
-                        />
-                    </div>
-                )}
+                {/* [P1-PANTRY-DASH-PARITY] Escaner por foto — integrado al topbar movil.
+                    [P1-PANTRY-SCAN-MOBILE-ONLY · 2026-07-28] SIN <div> wrapper: cuando el
+                    gate de capacidad interno de PantryScanButton oculta la tarjeta
+                    (desktop), un wrapper externo quedaría vacío-pero-presente con su
+                    propio margen — hueco fantasma. El margen viaja con el componente vía
+                    `style` (mismo <div> raíz que retorna null si está oculto). El flag
+                    backend (`photo_scan_enabled`) ahora vive en `enabled`, igual que en
+                    QPantryBuilder.jsx — un solo mecanismo de gate, no dos. */}
+                <PantryScanButton
+                    enabled={!!pantryStatus?.photo_scan_enabled}
+                    style={{ marginTop: '0.6rem' }}
+                    inventory={inventory}
+                    onInventoryChanged={() => { invalidateInventoryCache(); fetchData(false); }}
+                />
             </div>
 
             <div className={mstyles.bar}>
@@ -2597,16 +2601,17 @@ const Pantry = () => {
                         </div>
 
                         {/* [P1-PANTRY-DASH-PARITY] Escaner por foto (componente compartido
-                            con el paso 21) — integrado al card, bajo el toolbar. */}
-                        {pantryStatus?.photo_scan_enabled && (
-                            <div style={{ margin: '0.75rem 0' }}>
-                                <PantryScanButton
-                                    enabled
-                                    inventory={inventory}
-                                    onInventoryChanged={() => { invalidateInventoryCache(); fetchData(false); }}
-                                />
-                            </div>
-                        )}
+                            con el paso 21) — integrado al card, bajo el toolbar.
+                            [P1-PANTRY-SCAN-MOBILE-ONLY · 2026-07-28] SIN <div> wrapper —
+                            ver comentario gemelo en el topbar móvil arriba. `.main` no
+                            declara `gap`, así que el margen que antes llevaba el wrapper
+                            viaja ahora directo en la raíz del componente vía `style`. */}
+                        <PantryScanButton
+                            enabled={!!pantryStatus?.photo_scan_enabled}
+                            style={{ margin: '0.75rem 0' }}
+                            inventory={inventory}
+                            onInventoryChanged={() => { invalidateInventoryCache(); fetchData(false); }}
+                        />
 
                         {/* Chips de categoría (solo móvil) */}
                         <div className={fstyles.chips}>

@@ -124,4 +124,37 @@ describe('[P1-PANTRY-SCAN-MOBILE-ONLY] PantryScanButton — gate de capacidad (m
         expect(container.querySelector('video')).not.toBeInTheDocument();
         expect(container).toBeEmptyDOMElement();
     });
+
+    // [P1-PANTRY-SCAN-MOBILE-ONLY · closure follow-up] `Pantry.jsx` solía envolver
+    // <PantryScanButton> en su propio <div style={{margin}}>. Ese wrapper quedaba
+    // vacío-pero-presente (un hueco fantasma) en cuanto el gate de arriba ocultaba
+    // la tarjeta, porque el `<div>` de Pantry.jsx no sabía nada de capacidad de
+    // dispositivo — solo del flag `photo_scan_enabled`. El fix: el margen ahora
+    // viaja como prop `style`, mergeado en la MISMA raíz que retorna null cuando
+    // está oculta — cero wrapper adicional, cero hueco. Estos dos tests anclan el
+    // mecanismo que hace posible ese fix (no el JSX de Pantry.jsx en sí, que es
+    // un archivo grande sin precedente de montaje RTL — ver el test parser-based
+    // hermano `Pantry.p1_pantry_scan_mobile_only.test.js`).
+    describe('prop `style` — mecanismo que reemplaza el <div> wrapper externo', () => {
+        it('con `style`, el margen se aplica sobre la MISMA raíz — cero nodos extra', () => {
+            setMatchMedia((q) => q === '(pointer: coarse)');
+            setCameraApi(true);
+
+            const { container } = renderButton({ style: { marginTop: '0.6rem' } });
+
+            // Un solo hijo top-level: si hubiera un wrapper extra, container
+            // tendría 2 niveles (wrapper > raíz del componente) en vez de 1.
+            expect(container.children).toHaveLength(1);
+            expect(container.firstChild.style.marginTop).toBe('0.6rem');
+        });
+
+        it('sin `style` (uso del wizard, QPantryBuilder), la raíz no lleva margen extra', () => {
+            setMatchMedia((q) => q === '(pointer: coarse)');
+            setCameraApi(true);
+
+            const { container } = renderButton();
+
+            expect(container.firstChild.style.marginTop).toBe('');
+        });
+    });
 });
