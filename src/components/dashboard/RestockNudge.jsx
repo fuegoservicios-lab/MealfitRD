@@ -25,6 +25,7 @@ import {
 export default function RestockNudge({
     planData,
     hasPendingItems,
+    pendingItemsSettled,
     restocked,
     daysSinceGroceryStart,
     onConfirmRestock,
@@ -33,6 +34,16 @@ export default function RestockNudge({
     const nowMs = Date.now();
     const k = planNudgeKey(planData);
     const ctx = { planData, hasPendingItems, restocked, daysSinceGroceryStart, nowMs };
+    // [P1-RESTOCK-NUDGE-SETTLED · 2026-07-28] `hasPendingItems` puede ser el valor
+    // REAL (computado contra `liveInventory` ya cargado) o una SUPOSICIÓN cacheada
+    // de la sesión anterior mientras el Dashboard todavía no sabe la respuesta
+    // (`computedHasPendingShoppingItems === null` → fallback a localStorage,
+    // Dashboard.jsx:2151,2291). Esa suposición es aceptable para el botón/banner
+    // (persistente, barato de estar mal un instante) pero NUNCA para disparar
+    // algo intrusivo o one-shot: auto-abrir el modal, hacer el POST de auto-fill,
+    // o quemar el recordatorio de una sola vez. `pendingItemsSettled === true`
+    // es la única señal de que `hasPendingItems` es el dato real.
+    const isSettled = pendingItemsSettled === true;
 
     const [bannerHidden, setBannerHidden] = useState(false);
     const [promptOpen, setPromptOpen] = useState(false);
@@ -47,6 +58,13 @@ export default function RestockNudge({
     // #4 recordatorio (campana) + #3 auto-fill de respaldo. Ambos one-shot por plan.
     useEffect(() => {
         if (!planData || !k) return;
+        // [P1-RESTOCK-NUDGE-SETTLED] Sin dato asentado, NINGUNA de las dos capas
+        // dispara: #3 hace un POST silencioso que llena la despensa del usuario y
+        // #4 quema `markReminderSent` (persistente, una sola vez por plan) — el
+        // peor lugar posible para actuar sobre un guess. Simplemente no evaluamos
+        // nada hasta que `isSettled` sea true; en cuanto lo sea, este mismo efecto
+        // vuelve a correr (está en las deps) con el dato real.
+        if (!isSettled) return;
 
         // #4: deja una entrada re-leíble en el centro de notificaciones la primera
         // vez que llega la fecha de compra y el plan sigue sin llenar.
@@ -85,11 +103,22 @@ export default function RestockNudge({
                 });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [planData, restocked, hasPendingItems, daysSinceGroceryStart, k]);
+    }, [planData, restocked, hasPendingItems, daysSinceGroceryStart, k, isSettled]);
 
     // #2 prompt: abrir cuando corresponde. El auto-fill (día 3+) tiene precedencia
     // y el descarte en sesión evita re-abrir en cada render.
     useEffect(() => {
+        // [P1-RESTOCK-NUDGE-SETTLED · 2026-07-28] Sin dato asentado, este efecto NO
+        // HACE NADA — ni siquiera `setPromptOpen(false)`. Root cause del bug
+        // reportado ("a veces aparece y desaparece"): con el guess cacheado el
+        // prompt se auto-abría (consumiendo `promptAutoShownSession`, ver
+        // P2-RESTOCK-PROMPT-ONCE debajo) y luego se cerraba solo en cuanto
+        // `liveInventory` resolvía al valor real — perdiendo además el nudge
+        // legítimo el resto de la sesión. Un `return` temprano aquí evita las dos
+        // mitades del bug: no auto-abre sobre un guess, y si el prompt ya estaba
+        // abierto (p.ej. el usuario lo reabrió a mano) una re-evaluación sin
+        // datos confiables no lo cierra de un portazo.
+        if (!isSettled) return;
         if (promptDismissedSession.current) {
             setPromptOpen(false);
             return;
@@ -101,6 +130,8 @@ export default function RestockNudge({
         // [P2-RESTOCK-PROMPT-ONCE · 2026-06-29] Si el plan dejó de ser elegible (ya restocked / sin pendientes),
         // ciérralo. Si ES elegible, AUTO-ÁBRELO SOLO la primera vez de la sesión — NO en cada swap/recalc que
         // cambió las deps. El banner persistente (#1) sigue nudgeando; el usuario reabre el prompt cuando quiera.
+        // El gate `isSettled` arriba asegura que este "una vez por sesión" se
+        // gasta en la evaluación ASENTADA, no en el primer render con un guess.
         if (!shouldShowPrompt(ctx)) {
             setPromptOpen(false);
             return;
@@ -110,7 +141,7 @@ export default function RestockNudge({
             setPromptOpen(true);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [planData, restocked, hasPendingItems, daysSinceGroceryStart, k]);
+    }, [planData, restocked, hasPendingItems, daysSinceGroceryStart, k, isSettled]);
 
     if (!planData) return null;
 

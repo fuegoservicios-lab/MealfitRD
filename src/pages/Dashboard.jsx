@@ -6104,9 +6104,17 @@ const DashboardInner = () => {
                 tocar "Ya compré la lista"). Solo en planes válidos con compras
                 pendientes. La lógica de cuándo mostrar cada capa vive en
                 utils/restockNudge.js; el restock real reusa handleRestock (SSOT). */}
+            {/* [P1-RESTOCK-NUDGE-SETTLED · 2026-07-28] `pendingItemsSettled` le dice a
+                RestockNudge si `hasPendingItems` es el dato REAL (computed contra
+                liveInventory ya cargado) o el fallback cacheado de la sesión anterior
+                (computedHasPendingShoppingItems === null, ~línea 2151/2291 arriba). Sin
+                esto, el prompt #2 se auto-abría con el guess cacheado y se cerraba solo
+                en cuanto el dato real resolvía ("aparece y desaparece") — y de paso
+                quemaba el auto-open de una sola vez por sesión sobre un fantasma. */}
             <RestockNudge
                 planData={planData}
                 hasPendingItems={hasPendingShoppingItems && !isPlanExpired && !planFinished && !isPlanCorrupted}
+                pendingItemsSettled={computedHasPendingShoppingItems !== null}
                 restocked={!!planData?.is_restocked || sessionRestocked}
                 daysSinceGroceryStart={daysSinceCreation}
                 onConfirmRestock={() => handleRestock()}
