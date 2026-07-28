@@ -51,25 +51,46 @@ function _writeFlag(kind, key, val) {
 }
 
 // ── Estado persistido ──
-// [P1-DAILY-NOT-CYCLE · 2026-07-28] Dos granularidades conviven a propósito:
-//   - `banner_dismissed`/`autofilled` (abajo) son por-PLAN (`planNudgeKey`):
-//     una lista de compras nueva es, genuinamente, algo nuevo — correcto que
-//     un plan renovado recupere su banner y sea candidato a su propio
-//     auto-llenado, aunque el plan anterior ya haya pasado por ambos.
-//   - `snooze_until`/`reminder_sent` (justo debajo) son funciones GENÉRICAS
-//     sobre una `key` opaca; los callers de decisión (`shouldShowPrompt` /
-//     `shouldAutoFill` / `shouldSendReminder`, más abajo) las invocan con
-//     `ctx.userId`, NO con `planNudgeKey`. Antes usaban la key de plan y un
-//     "todavía no" (o un recordatorio ya entregado) se perdía en cuanto el
-//     usuario renovaba el plan el mismo día — el botón "Renovar" reescribe
-//     `cycle_start_date`, la primera prioridad de `planNudgeKey`. Estas
-//     funciones se mantienen puras y sin cambio de forma: el fix vive
-//     enteramente en QUÉ key les pasa el caller, no en su implementación.
+// [P1-DAILY-NOT-CYCLE · 2026-07-28 · corregido el mismo día tras code review]
+// La granularidad por flag es DELIBERADA y NO simétrica entre las cuatro. La
+// primera vuelta de este fix emparejó `snooze_until` y `reminder_sent` "por
+// analogía" (las dos hablan de restock, ¿no deberían moverse juntas?) sin
+// mirar que tienen naturalezas distintas — ese emparejamiento era el error.
+// No lo repitas.
+//
+//   - `banner_dismissed`/`autofilled` (justo debajo) y `reminder_sent` (más
+//     abajo) son por-PLAN (`planNudgeKey`): una lista de compras nueva es,
+//     genuinamente, algo nuevo — correcto que un plan renovado recupere su
+//     banner, sea candidato a su propio auto-llenado, Y vuelva a timbrar el
+//     recordatorio de restock. Que la campana suene otra vez tras una
+//     renovación REAL no es un bug: es una lista de compras nueva, avisar de
+//     nuevo es lo correcto. Además, `reminder_sent` NO tiene mecanismo de
+//     caducidad propio (booleano que solo se setea, nunca se limpia) — a
+//     diferencia del snooze de abajo, moverlo a nivel-usuario lo convertiría
+//     de "una vez por ciclo de compras" a "una vez en la vida del usuario":
+//     un plan genuinamente nuevo semanas después, que el usuario vuelve a
+//     olvidar llenar, JAMÁS volvería a notificar. Esa regresión es peor que
+//     el bug original (reportado y revertido el mismo día).
+//   - `snooze_until` (justo debajo) SÍ es por-USUARIO: los callers de
+//     decisión (`shouldShowPrompt`/`shouldAutoFill`, más abajo) lo invocan
+//     con `ctx.userId`, NO con `planNudgeKey`. Es la única de las dos que
+//     bloquea el auto-fill (#3) — el opt-out que puede escribir INVENTARIO
+//     FANTASMA en la Nevera si dispara sobre un "todavía no" que el usuario
+//     ya dijo minutos antes de renovar. Por eso es la única que DEBE
+//     sobrevivir una renovación same-day. Como es un timestamp absoluto
+//     (no un booleano sin caducidad como `reminder_sent`), moverlo a
+//     nivel-usuario no cambia CUÁNDO expira, solo QUÉ lo invalidaba
+//     prematuramente antes (cualquier renovación de plan; ahora, nada salvo
+//     el paso del tiempo).
+//
+// Las funciones de bajo nivel se mantienen puras y genéricas sobre una `key`
+// opaca — el fix vive enteramente en QUÉ key les pasa cada caller, no en su
+// implementación.
 export function isBannerDismissed(planKey) { return _readFlag('banner_dismissed', planKey) === '1'; }
 export function dismissBanner(planKey) { _writeFlag('banner_dismissed', planKey, '1'); }
 
 /** Epoch ms hasta el cual NO mostrar el prompt (0 = sin snooze). `key` es
- *  opaca — el caller pasa `userId` (ver nota arriba), no un plan. */
+ *  opaca — el caller pasa `userId` (ver nota arriba), NO un plan. */
 export function getSnoozeUntil(key) {
     const v = Number(_readFlag('snooze_until', key));
     return Number.isFinite(v) ? v : 0;
@@ -81,9 +102,11 @@ export function setSnooze(key, nowMs, days = SNOOZE_DAYS) {
 export function wasAutoFilled(planKey) { return _readFlag('autofilled', planKey) === '1'; }
 export function markAutoFilled(planKey) { _writeFlag('autofilled', planKey, '1'); }
 
-/** `key` opaca — el caller pasa `userId` (ver nota arriba), no un plan. */
-export function wasReminderSent(key) { return _readFlag('reminder_sent', key) === '1'; }
-export function markReminderSent(key) { _writeFlag('reminder_sent', key, '1'); }
+/** `key` opaca — el caller pasa `planNudgeKey(planData)` (por-plan, a
+ *  propósito — ver nota de "Estado persistido"; NO emparejar con el snooze
+ *  de arriba, que sí es por-usuario). */
+export function wasReminderSent(planKey) { return _readFlag('reminder_sent', planKey) === '1'; }
+export function markReminderSent(planKey) { _writeFlag('reminder_sent', planKey, '1'); }
 
 // ── Decisiones (puras: el caller inyecta `nowMs`, no hay Date.now() aquí) ──
 // ctx = { planData, hasPendingItems, restocked, daysSinceGroceryStart, nowMs, userId }
@@ -91,8 +114,9 @@ export function markReminderSent(key) { _writeFlag('reminder_sent', key, '1'); }
 //   daysSinceGroceryStart  = daysSinceCreation (>= 0 ⇒ la fecha de compra llegó)
 //   userId                 = [P1-DAILY-NOT-CYCLE · 2026-07-28] identidad estable
 //                            del usuario — a diferencia de `planNudgeKey(planData)`,
-//                            NO cambia al renovar el plan. Solo la leen el snooze
-//                            y el recordatorio (ver nota de "Estado persistido").
+//                            NO cambia al renovar el plan. Solo la lee el snooze
+//                            (#2/#3) — el recordatorio (#4) sigue siendo por-plan
+//                            a propósito (ver nota de "Estado persistido").
 
 /** Base común: hay un plan con cosas que comprar y que aún no se ha "restocked". */
 function _isUnstocked(ctx) {
@@ -133,12 +157,16 @@ export function shouldAutoFill(ctx) {
     return true;
 }
 
-/** #4 Recordatorio (campana): por usuario — [P1-DAILY-NOT-CYCLE · 2026-07-28]
- *  antes "una sola vez por plan", mismo bug que el snooze: una renovación el
- *  mismo día reseteaba `reminder_sent` y volvía a timbrar una campana que el
- *  usuario ya había visto minutos antes. */
+/** #4 Recordatorio (campana): una sola vez por PLAN, al llegar la fecha de
+ *  compra. [P1-DAILY-NOT-CYCLE · 2026-07-28] Deliberadamente por-plan, a
+ *  diferencia del snooze de arriba — ver nota de "Estado persistido" para
+ *  por qué NO deben emparejarse: que la campana vuelva a sonar tras una
+ *  renovación real (plan nuevo, lista de compras nueva) es el comportamiento
+ *  correcto, no el bug. `reminder_sent` tampoco tiene mecanismo de caducidad
+ *  propio (a diferencia de `snooze_until`), así que moverlo a nivel-usuario
+ *  lo volvería "una vez en la vida" en lugar de "una vez por ciclo". */
 export function shouldSendReminder(ctx) {
     if (!_isUnstocked(ctx)) return false;
     if (!(ctx.daysSinceGroceryStart >= PROMPT_AFTER_DAYS)) return false;
-    return !wasReminderSent(ctx.userId);
+    return !wasReminderSent(planNudgeKey(ctx.planData));
 }

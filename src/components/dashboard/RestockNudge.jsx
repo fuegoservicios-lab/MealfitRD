@@ -7,9 +7,9 @@
 // `onSilentRestock` (silencioso, para el auto-fill de fondo).
 //
 // [P1-DAILY-NOT-CYCLE · 2026-07-28] `userId` (nuevo prop) identifica al
-// usuario para el snooze (#2/#3) y el recordatorio (#4) — ver
-// utils/restockNudge.js para por qué esas dos capas dejaron de usar la key
-// de plan.
+// usuario para el snooze (#2/#3) ÚNICAMENTE — el recordatorio (#4) sigue
+// siendo por-plan a propósito. Ver utils/restockNudge.js ("Estado
+// persistido") para la distinción completa: no son simétricos.
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -40,9 +40,11 @@ export default function RestockNudge({
     const nowMs = Date.now();
     const k = planNudgeKey(planData);
     // [P1-DAILY-NOT-CYCLE · 2026-07-28] `userId` viaja en `ctx` para que
-    // `shouldShowPrompt`/`shouldAutoFill`/`shouldSendReminder` lean el snooze
-    // y el recordatorio por USUARIO, no por plan (utils/restockNudge.js) — un
-    // "todavía no" ya no se pierde si el usuario renueva el plan el mismo día.
+    // `shouldShowPrompt`/`shouldAutoFill` lean el SNOOZE por USUARIO, no por
+    // plan (utils/restockNudge.js) — un "todavía no" ya no se pierde si el
+    // usuario renueva el plan el mismo día. `shouldSendReminder` (#4) NO usa
+    // `ctx.userId` — sigue siendo por-plan, a propósito (ver el porqué en
+    // utils/restockNudge.js, sección "Estado persistido").
     const ctx = { planData, hasPendingItems, restocked, daysSinceGroceryStart, nowMs, userId };
     // [P1-RESTOCK-NUDGE-SETTLED · 2026-07-28] `hasPendingItems` puede ser el valor
     // REAL (computado contra `liveInventory` ya cargado) o una SUPOSICIÓN cacheada
@@ -78,14 +80,13 @@ export default function RestockNudge({
 
         // #4: deja una entrada re-leíble en el centro de notificaciones la primera
         // vez que llega la fecha de compra y el plan sigue sin llenar.
-        // [P1-DAILY-NOT-CYCLE · 2026-07-28] `markReminderSent` ahora persiste por
-        // `userId`, no por `k` (plan) — sobrevive una renovación same-day. El `id`
-        // de la notificación se mantiene con `k` (solo es una etiqueta de
-        // deduplicación del centro de notificaciones, no gobierna si esto vuelve
-        // a dispararse — eso ya lo decide `shouldSendReminder`/`wasReminderSent`).
+        // [P1-DAILY-NOT-CYCLE · 2026-07-28] `markReminderSent` sigue persistiendo
+        // por `k` (plan), a propósito — NO se movió a `userId` como el snooze. Si
+        // el usuario renueva y de verdad hay una lista de compras nueva, es
+        // correcto volver a timbrar la campana (ver utils/restockNudge.js).
         if (!reminderFired.current && shouldSendReminder(ctx)) {
             reminderFired.current = true;
-            markReminderSent(userId);
+            markReminderSent(k);
             addNotification({
                 id: `restock_reminder_${k}`,
                 kind: 'info',

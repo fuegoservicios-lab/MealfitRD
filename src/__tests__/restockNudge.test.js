@@ -30,8 +30,9 @@ const DAY = 86_400_000;
 function ctx(over = {}) {
     return {
         planData: { id: 'plan-A' },
-        // [P1-DAILY-NOT-CYCLE · 2026-07-28] userId por defecto — el snooze y el
-        // recordatorio ahora se leen/escriben por usuario, no por plan.
+        // [P1-DAILY-NOT-CYCLE · 2026-07-28] userId por defecto — SOLO el snooze
+        // (#2/#3) lo usa. El recordatorio (#4) sigue leyendo/escribiendo por
+        // `planNudgeKey`, a propósito (ver describe de renovación más abajo).
         userId: 'user-1',
         hasPendingItems: true,
         restocked: false,
@@ -117,8 +118,8 @@ describe('shouldSendReminder (#4)', () => {
     it('sí una vez al llegar la fecha de compra', () => {
         expect(shouldSendReminder(ctx())).toBe(true);
     });
-    it('NO una segunda vez (one-shot por userId — [P1-DAILY-NOT-CYCLE] antes era por plan)', () => {
-        markReminderSent('user-1');
+    it('NO una segunda vez (one-shot por plan)', () => {
+        markReminderSent('plan-A');
         expect(shouldSendReminder(ctx())).toBe(false);
     });
     it('NO antes de la fecha de compra', () => {
@@ -126,7 +127,13 @@ describe('shouldSendReminder (#4)', () => {
     });
 });
 
-describe('[P1-DAILY-NOT-CYCLE · 2026-07-28] snooze/recordatorio sobreviven una renovación de plan', () => {
+describe('[P1-DAILY-NOT-CYCLE · 2026-07-28] snooze sobrevive una renovación de plan; recordatorio NO, a propósito', () => {
+    // Corregido el mismo día tras code review: la primera vuelta de este fix
+    // emparejó snooze_until y reminder_sent "por analogía" y movió ambos a
+    // nivel-usuario. Es un error — tienen naturalezas distintas (ver
+    // utils/restockNudge.js, sección "Estado persistido"). Este describe
+    // ancla la distinción para que un futuro lector no los vuelva a emparejar.
+
     it('un snooze previo sigue bloqueando el prompt Y el auto-fill tras renovar (el plan key cambia, el userId no)', () => {
         setSnooze('user-1', NOW); // "Todavía no" ANTES de renovar.
 
@@ -140,10 +147,27 @@ describe('[P1-DAILY-NOT-CYCLE · 2026-07-28] snooze/recordatorio sobreviven una 
         expect(shouldAutoFill(afterRenewal)).toBe(false);
     });
 
-    it('un recordatorio ya entregado tampoco se re-envía tras renovar', () => {
-        markReminderSent('user-1');
-        const afterRenewal = ctx({ planData: { id: 'plan-B' } });
-        expect(shouldSendReminder(afterRenewal)).toBe(false);
+    it('un recordatorio ya entregado para el plan viejo SÍ se vuelve a enviar tras renovar — no es un bug, es una lista de compras nueva', () => {
+        markReminderSent(planNudgeKey({ id: 'plan-A' }));
+        const afterRenewal = ctx({ planData: { id: 'plan-B' } }); // renovación ⇒ nuevo plan key
+        expect(shouldSendReminder(afterRenewal)).toBe(true);
+    });
+
+    it('LA DISTINCIÓN: mismo userId + misma renovación (plan-A → plan-B) — el snooze sigue bloqueando, el recordatorio SÍ se re-arma', () => {
+        setSnooze('user-1', NOW); // "todavía no" en plan-A
+        markReminderSent(planNudgeKey({ id: 'plan-A' })); // campana ya sonó en plan-A
+
+        const afterRenewal = ctx({
+            planData: { id: 'plan-B' },
+            daysSinceGroceryStart: AUTOFILL_GRACE_DAYS,
+            nowMs: NOW + 1 * DAY, // dentro de la ventana de snooze
+        });
+
+        // snooze_until: por-usuario → sobrevive la renovación → sigue bloqueando.
+        expect(shouldShowPrompt(afterRenewal)).toBe(false);
+        expect(shouldAutoFill(afterRenewal)).toBe(false);
+        // reminder_sent: por-plan → NO sobrevive la renovación → se re-arma.
+        expect(shouldSendReminder(afterRenewal)).toBe(true);
     });
 
     it('banner_dismissed SÍ sigue siendo por-plan: descartar el banner del plan viejo no oculta el del plan nuevo', () => {
