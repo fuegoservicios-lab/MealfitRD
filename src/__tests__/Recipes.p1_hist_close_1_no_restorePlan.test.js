@@ -16,6 +16,13 @@
 //     Recipes.jsx no tiene NINGÚN write path (ni restorePlan, ni fetch
 //     mutante, ni localStorage del plan) y las vistas no reintroducen el
 //     botón "Cocinar".
+//   - [P1-EATEN-SLOT-RECIPES · 2026-07-28] `fetchWithAuth` REGRESÓ a este
+//     archivo — pero solo para el GET de solo lectura del diario de hoy
+//     (anotación "ya comiste esto", ver Recipes.eaten_slot.test.jsx). La
+//     invariante "cero write path" sigue intacta: se endureció el test de
+//     "NO importa fetchWithAuth" a "si lo usa, es EXCLUSIVAMENTE ese GET,
+//     nunca con method mutante" — sigue bloqueando cualquier POST/PUT/
+//     PATCH/DELETE nuevo desde esta página.
 //
 // Si un futuro cambio reintroduce el patrón, este test falla y bloquea el
 // merge — leer la memoria del cierre antes de relajarlo.
@@ -70,8 +77,25 @@ describe('[P1-HIST-CLOSE-1] Recipes.jsx no usa restorePlan (server-side SSOT)', 
 });
 
 describe('[P-RECIPES-COOK-REMOVED] Recipes.jsx es read-only sobre el plan', () => {
-    it('NO importa fetchWithAuth (cero requests mutantes desde esta página)', () => {
-        expect(codeOnly).not.toMatch(/\bfetchWithAuth\b/);
+    // [P1-EATEN-SLOT-RECIPES · 2026-07-28] `fetchWithAuth` fue REINTRODUCIDO —
+    // pero EXCLUSIVAMENTE para el GET de solo lectura `/api/diary/consumed/...`
+    // que alimenta la anotación "ya comiste esto hoy" (mismo endpoint que
+    // TrackingProgress.jsx usa en el Dashboard). La invariante real que este
+    // test protegía siempre fue "cero MUTACIONES desde esta página" (el
+    // título original decía "cero requests mutantes"), no "cero
+    // fetchWithAuth" a secas — un GET no escribe `plan_data` ni ninguna otra
+    // tabla (regla del brief: "Lock where an action mutates; annotate where
+    // the surface only reads"). Test actualizado para exigir la invariante
+    // PRECISA en vez de la aproximación previa (que hoy sería un falso
+    // positivo sobre un cambio legítimo).
+    it('SI usa fetchWithAuth, es EXCLUSIVAMENTE el GET de solo lectura /api/diary/consumed (jamás con method mutante)', () => {
+        expect(codeOnly).toMatch(/\bfetchWithAuth\b/);
+        expect(codeOnly).toMatch(/fetchWithAuth\(`\/api\/diary\/consumed\//);
+        // Ningún callsite de fetchWithAuth en este archivo declara un método mutante.
+        expect(codeOnly).not.toMatch(/fetchWithAuth\([^)]*method:\s*['"](POST|PUT|PATCH|DELETE)['"]/is);
+        // Y el endpoint de expansión (mutante, retirado con P-RECIPES-COOK-REMOVED)
+        // sigue sin invocarse en código (solo puede aparecer en comentarios/narrativa).
+        expect(codeOnly).not.toMatch(/\/api\/plans\/recipe\/expand/);
     });
 
     it('NO invoca el endpoint de expansión /api/plans/recipe/expand en código', () => {

@@ -38,6 +38,13 @@
 .mealType { font-size: .64rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--tone); }
 .mealKcal { font-size: .72rem; font-weight: 700; color: var(--text-muted); }
 
+/* [P1-EATEN-SLOT-RECIPES · 2026-07-28] Slot ya registrado en el diario de HOY
+   — anotación, NUNCA lock. Mismo lenguaje visual que RecipesView.module.css
+   (desktop) y que "Tu Menú" del Dashboard (P1-TODAY-REMAINING): tokens
+   --success* (P2-7), nunca hex fijo. */
+.meal.eaten { opacity: .55; }
+.eatenBadge { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-size: .62rem; font-weight: 700; color: var(--success-text); background: var(--success-bg); border: 1px solid var(--success-border); padding: 2px 7px; border-radius: 99px; width: fit-content; }
+
 /* Detalle */
 .detail { padding: 16px; }
 .head { position: relative; overflow: hidden; border-radius: 18px; border: 1px solid color-mix(in srgb, var(--tone) 34%, var(--border)); padding: 16px;
@@ -49,6 +56,9 @@
 .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 13px; }
 .chip { display: inline-flex; align-items: center; gap: 5px; font-size: .74rem; font-weight: 700; color: var(--text-main); white-space: nowrap; background: var(--bg-card); border: 1px solid var(--border); padding: 5px 11px; border-radius: 99px; }
 .kcal svg { color: #FB923C; }
+/* [P1-EATEN-SLOT-RECIPES · 2026-07-28] Marcador quieto del detalle — mismos
+   tokens --success* que .eatenBadge del riel (arriba). */
+.eatenChip { color: var(--success-text); background: var(--success-bg); border-color: var(--success-border); }
 
 /* Macros */
 .macros { margin-top: 14px; background: var(--bg-page); border: 1px solid var(--border); border-radius: 16px; padding: 15px; display: flex; flex-direction: column; align-items: center; gap: 14px; }

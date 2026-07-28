@@ -82,13 +82,23 @@ export function MobileRecipes({
       <div className={styles.rail} aria-label="Comidas del día">
         {meals.map((m, i) => {
           const mt = metaFor(m.meal);
+          // [P1-EATEN-SLOT-RECIPES · 2026-07-28] Anotación, NUNCA lock — ver
+          // misma nota en RecipesView.jsx (MealRail). Botón sigue 100%
+          // clickeable/navegable.
+          const eaten = !!m._isEatenToday;
           return (
-            <button key={i} className={styles.meal} aria-current={i === activeMealIndex}
-                    style={{ '--tone': mt.tone }} onClick={() => onSelectMeal(i)}>
+            <button key={i} className={eaten ? `${styles.meal} ${styles.eaten}` : styles.meal} aria-current={i === activeMealIndex}
+                    style={{ '--tone': mt.tone }} onClick={() => onSelectMeal(i)}
+                    title={eaten ? 'Registrado en tu diario de hoy — estimado, puede venir de una foto analizada' : undefined}>
               <span className={styles.mealIco}><Svg d={mt.icon} size={18} /></span>
               <span className={styles.mealBody}>
                 <span className={styles.mealType}>{m.meal}</span>
                 <span className={styles.mealKcal}>{m.cals} kcal</span>
+                {eaten && (
+                  <span className={styles.eatenBadge}>
+                    <Svg d={ICONS.check} size={10} /> Ya comiste esto{m._eatenKcal > 0 ? ` · ~${m._eatenKcal} kcal` : ''}
+                  </span>
+                )}
               </span>
             </button>
           );
@@ -103,6 +113,14 @@ export function MobileRecipes({
             <span className={`${styles.chip} ${styles.kcal}`}><Svg d={ICONS.flame} size={13} /> {meal.cals} kcal</span>
             {meal.prep_time && <span className={styles.chip}><Svg d={ICONS.clock} size={13} /> {meal.prep_time}</span>}
             {meal.difficulty && <span className={styles.chip}><Svg d={ICONS.chef} size={13} /> {meal.difficulty}</span>}
+            {/* [P1-EATEN-SLOT-RECIPES · 2026-07-28] Marcador quieto — ver
+                misma nota en RecipesView.jsx (RecipeDetail). */}
+            {meal._isEatenToday && (
+              <span className={`${styles.chip} ${styles.eatenChip}`}
+                    title="Registrado en tu diario de hoy — estimado, puede venir de una foto analizada">
+                <Svg d={ICONS.check} size={13} /> Ya comiste esto{meal._eatenKcal > 0 ? ` · ~${meal._eatenKcal} kcal` : ''}
+              </span>
+            )}
           </div>
         </div>
 

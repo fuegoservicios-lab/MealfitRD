@@ -84,14 +84,27 @@ function MealRail({ meals, active, onSelect }) {
       <div className={styles.railHead}>Comidas de hoy</div>
       {meals.map((m, i) => {
         const t = metaFor(m.meal);
+        // [P1-EATEN-SLOT-RECIPES · 2026-07-28] Anotación, NUNCA lock — Recetas
+        // es superficie de solo lectura (el único onClick de la página fuera
+        // de este riel/tabs/PDF es "Volver al plan" del EmptyState). El botón
+        // sigue 100% clickeable/navegable aunque el slot ya se haya comido;
+        // solo se atenúa visualmente + suma el chip, mismo lenguaje que "Tu
+        // Menú" del Dashboard (P1-TODAY-REMAINING).
+        const eaten = !!m._isEatenToday;
         return (
-          <button key={i} className={styles.meal} aria-current={i === active}
-                  style={{ '--tone': t.tone }} onClick={() => onSelect(i)}>
+          <button key={i} className={eaten ? `${styles.meal} ${styles.eaten}` : styles.meal} aria-current={i === active}
+                  style={{ '--tone': t.tone }} onClick={() => onSelect(i)}
+                  title={eaten ? 'Registrado en tu diario de hoy — estimado, puede venir de una foto analizada' : undefined}>
             <span className={styles.mealIco}><Svg d={t.icon} size={20} /></span>
             <span className={styles.mealBody}>
               <span className={styles.mealType}>{m.meal}</span>
               <span className={styles.mealTitle}>{m.name}</span>
               <span className={styles.mealKcal}><Svg d={ICONS.flame} size={12} /> {m.cals} kcal</span>
+              {eaten && (
+                <span className={styles.eatenBadge}>
+                  <Svg d={ICONS.check} size={11} /> Ya comiste esto{m._eatenKcal > 0 ? ` · ~${m._eatenKcal} kcal` : ''}
+                </span>
+              )}
             </span>
           </button>
         );
@@ -129,6 +142,17 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
             <span className={`${styles.chip} ${styles.kcal}`}><Svg d={ICONS.flame} size={13} /> {meal.cals} kcal</span>
             {meal.prep_time && <span className={styles.chip}><Svg d={ICONS.clock} size={13} /> {meal.prep_time}</span>}
             {meal.difficulty && <span className={styles.chip}><Svg d={ICONS.chef} size={13} /> {meal.difficulty}</span>}
+            {/* [P1-EATEN-SLOT-RECIPES · 2026-07-28] Marcador quieto — misma fila
+                de chips (kcal/tiempo/dificultad), mismo peso visual: NO es un
+                banner, NO bloquea nada, NO oculta la receta, NO toca el botón
+                de PDF. Framing de estimado preservado (~kcal, viene del diario
+                — buena parte del dato original nace de fotos analizadas). */}
+            {meal._isEatenToday && (
+              <span className={`${styles.chip} ${styles.eatenChip}`}
+                    title="Registrado en tu diario de hoy — estimado, puede venir de una foto analizada">
+                <Svg d={ICONS.check} size={13} /> Ya comiste esto{meal._eatenKcal > 0 ? ` · ~${meal._eatenKcal} kcal` : ''}
+              </span>
+            )}
           </div>
         </div>
       </div>

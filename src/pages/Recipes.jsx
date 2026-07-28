@@ -48,6 +48,24 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 // en el texto del ingrediente mostrado (conservador; no toca cubanela/pimienta/paprika).
 import { displayAjiMorron } from '../utils/ingredientDisplay';
 import { isRecipeAnnotation } from '../utils/recipeSteps';
+// [P1-EATEN-SLOT-RECIPES · 2026-07-28] SSOT del matcher "ya comiste esto hoy"
+// (utils/todayRemaining.js) — el MISMO módulo que usa Dashboard.jsx
+// (P1-TODAY-REMAINING), importado aquí en vez de reimplementado. Incluye la
+// regla de ambigüedad: si ≥2 slots de hoy canonicalizan a la misma key (2-3
+// meriendas) y el diario solo trae una fila de esa key, no se atenúa ninguna.
+import { getEatenSlotIndices, eatenKcalForSlot } from '../utils/todayRemaining';
+// [P1-EATEN-SLOT-RECIPES · 2026-07-28] Recetas gana su primer fetch:
+// `GET /api/diary/consumed/{userId}` de solo LECTURA (mismo endpoint que
+// TrackingProgress.jsx en el Dashboard) para alimentar la anotación de abajo.
+// Esto reintroduce `fetchWithAuth` tras P-RECIPES-COOK-REMOVED (que lo había
+// quitado junto con el flujo "Cocinar") — el test blanket
+// `Recipes.p1_hist_close_1_no_restorePlan.test.js` fue actualizado en el
+// mismo commit para permitir EXCLUSIVAMENTE este GET (nunca un método
+// mutante): la invariante real que protegía ese test es "cero MUTACIONES
+// desde esta página", no "cero fetchWithAuth" — un GET no escribe plan_data
+// ni ninguna otra tabla (regla del brief: "Lock where an action mutates;
+// annotate where the surface only reads").
+import { fetchWithAuth } from '../config/api';
 
 // [P2-RECIPE-DISCLAIMER-LIST · 2026-05-30] Coerción defensiva de `recipe` a
 // array de pasos. El contrato es `List[str]` (MealModel.recipe) y todo el
@@ -125,7 +143,9 @@ const Recipes = () => {
     // (expansión LLM vía /api/plans/recipe/expand + modo cocina + registro),
     // esta página ya no tiene NINGÚN write path de plan_data: es read-only
     // sobre el plan + generación local del PDF.
-    const { planData } = useAssessment();
+    // [P1-EATEN-SLOT-RECIPES · 2026-07-28] `userProfile` se necesita para el
+    // GET de solo lectura del diario de hoy (ver import de fetchWithAuth arriba).
+    const { planData, userProfile } = useAssessment();
     const navigate = useNavigate();
     const contentRef = useRef(null);
     const [activeDayIndex, setActiveDayIndex] = useState(0);
@@ -162,6 +182,53 @@ const Recipes = () => {
         ? findChunkContaining(_totalDays, todayPlanDayIndex)
         : { start: 0, size: 0 };
     const chunkDays = _planDaysAll.slice(chunkStart, chunkStart + chunkSize);
+
+    // [P1-EATEN-SLOT-RECIPES · 2026-07-28] "Ya comiste esto hoy", extendido de
+    // "Tu Menú" (Dashboard.jsx, P1-TODAY-REMAINING) a Recetas — el owner: "es
+    // inútil si solo existe en un lugar". "Hoy" reutiliza `todayPlanDayIndex`
+    // (arriba, ya calculado para el clamp del chunk-window) — NO se inventa
+    // una segunda noción de "hoy" en esta página.
+    //
+    // Diferencia con el Dashboard: ahí, TrackingProgress.jsx ("Progreso en
+    // Tiempo Real") ya es dueña del fetch a `GET /api/diary/consumed/{userId}`
+    // y emite `mealfit:today-consumed-updated` con cada cambio de su estado —
+    // el Menú solo ESCUCHA ese evento (cero fetch propio, cero segunda fuente
+    // de verdad). Esa card NO está montada en Recetas (página distinta), así
+    // que no hay evento del que colgarse. En vez de inventar un segundo canal
+    // (localStorage cross-página, context global nuevo), Recetas pega
+    // directamente al MISMO endpoint con el MISMO cálculo local de
+    // date/tzOffset — sigue siendo una sola fuente de verdad para el LEDGER
+    // (el backend), solo que cada página que lo necesita lo lee por su cuenta.
+    //
+    // Guardas:
+    //   - Solo si el tab activo es HOY (`isTodayTabActive`): un día pasado o
+    //     futuro nunca puede mostrar la anotación, así que no hay razón para
+    //     pegarle a la red por adelantado si el usuario nunca visita el tab
+    //     de hoy (p.ej. aterriza en el primer día de un chunk que no es hoy).
+    //   - `_consumedFetchedRef` asegura COMO MUCHO un fetch por mount, aunque
+    //     el usuario salga del tab de hoy y vuelva varias veces.
+    const [todaysConsumedMeals, setTodaysConsumedMeals] = useState([]);
+    const _consumedFetchedRef = useRef(false);
+    const isTodayTabActive = activeDayIndex === todayPlanDayIndex;
+    useEffect(() => {
+        if (!isTodayTabActive || _consumedFetchedRef.current) return;
+        const uid = userProfile?.id;
+        if (!uid || uid === 'guest') return;
+        _consumedFetchedRef.current = true;
+        (async () => {
+            try {
+                // Mismo cálculo local de date/tzOffset que TrackingProgress.jsx.
+                const now = new Date();
+                const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                const tzOffset = now.getTimezoneOffset();
+                const res = await fetchWithAuth(`/api/diary/consumed/${uid}?date=${dateStr}&tzOffset=${tzOffset}`);
+                const data = await res.json();
+                if (Array.isArray(data?.meals)) setTodaysConsumedMeals(data.meals);
+            } catch (err) {
+                console.error('[P1-EATEN-SLOT-RECIPES] Error al leer el diario de hoy:', err);
+            }
+        })();
+    }, [isTodayTabActive, userProfile?.id]);
 
     // [P-RECIPES-CHUNK-WINDOW] Clampa `activeDayIndex` (que es GLOBAL en
     // planData.days) al window del chunk activo. Si el usuario llegó a esta
@@ -518,8 +585,27 @@ const Recipes = () => {
                             );
                         }
 
-                        const currentMealIndex = Math.min(activeMealIndex, validMeals.length - 1);
-                        const activeMeal = validMeals[currentMealIndex];
+                        // [P1-EATEN-SLOT-RECIPES · 2026-07-28] Decora `validMeals` con
+                        // `_isEatenToday`/`_eatenKcal` SOLO cuando el día mostrado ES
+                        // hoy (`currentDayIndex === todayPlanDayIndex` — el día
+                        // REALMENTE en pantalla, post-clamp del chunk, no el
+                        // `activeDayIndex` crudo). `getEatenSlotIndices` es el SSOT
+                        // (utils/todayRemaining.js, mismo módulo que Dashboard.jsx) —
+                        // incluye la regla de ambigüedad. Estos campos son puramente
+                        // aditivos: no tocan `meal.recipe`/`meal.ingredients`/etc., así
+                        // que ni el PDF (generateRecipeHTML) ni nada más se entera.
+                        const _isTodayDisplayed = currentDayIndex === todayPlanDayIndex;
+                        const _eatenIndices = _isTodayDisplayed
+                            ? getEatenSlotIndices(validMeals, todaysConsumedMeals)
+                            : new Set();
+                        const mealsWithEatenState = validMeals.map((m, i) => (
+                            _eatenIndices.has(i)
+                                ? { ...m, _isEatenToday: true, _eatenKcal: Math.round(eatenKcalForSlot(todaysConsumedMeals, m.meal)) }
+                                : m
+                        ));
+
+                        const currentMealIndex = Math.min(activeMealIndex, mealsWithEatenState.length - 1);
+                        const activeMeal = mealsWithEatenState[currentMealIndex];
                         // [P2-RECIPE-DISCLAIMER-LIST] pasos coercidos a array (defensa).
                         const activeRecipeSteps = toRecipeSteps(activeMeal.recipe);
                         // [P3-RECIPES-DAY-GOAL · 2026-06-24] El header muestra la META
@@ -545,7 +631,7 @@ const Recipes = () => {
                             days,
                             activeDayGlobalIdx: activeDayIndex,
                             onSelectDay: (g) => { setActiveDayIndex(g); setActiveMealIndex(0); setCheckedIngredients({}); },
-                            meals: validMeals,
+                            meals: mealsWithEatenState,
                             activeMealIndex: currentMealIndex,
                             onSelectMeal: (i) => { setActiveMealIndex(i); setCheckedIngredients({}); },
                             meal: activeMeal,
