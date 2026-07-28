@@ -22,7 +22,15 @@
 //     invariante "cero write path" sigue intacta: se endureció el test de
 //     "NO importa fetchWithAuth" a "si lo usa, es EXCLUSIVAMENTE ese GET,
 //     nunca con method mutante" — sigue bloqueando cualquier POST/PUT/
-//     PATCH/DELETE nuevo desde esta página.
+//     PATCH/DELETE nuevo desde esta página. Revisión (mismo día): la primera
+//     versión de ese guard usaba `fetchWithAuth\([^)]*method:...` — `[^)]*`
+//     deja de mirar en el PRIMER `)`, así que `fetchWithAuth(construirUrl(id),
+//     { method: 'POST' })` se le escapaba (el paréntesis de `construirUrl`
+//     corta la búsqueda antes de llegar al `method`). Reemplazado por DOS
+//     aserciones que no dependen de balancear paréntesis: (a) conteo de
+//     TODOS los callsites de `fetchWithAuth(` vs los que apuntan literalmente
+//     a `/api/diary/consumed/` (deben coincidir), y (b) `method:` con verbo
+//     mutante buscado en el archivo COMPLETO, no acotado a un callsite.
 //
 // Si un futuro cambio reintroduce el patrón, este test falla y bloquea el
 // merge — leer la memoria del cierre antes de relajarlo.
@@ -89,10 +97,40 @@ describe('[P-RECIPES-COOK-REMOVED] Recipes.jsx es read-only sobre el plan', () =
     // PRECISA en vez de la aproximación previa (que hoy sería un falso
     // positivo sobre un cambio legítimo).
     it('SI usa fetchWithAuth, es EXCLUSIVAMENTE el GET de solo lectura /api/diary/consumed (jamás con method mutante)', () => {
+        // Deliberadamente EXIGE que el fetch exista hoy (no solo "si existe,
+        // que sea este"): P1-EATEN-SLOT-RECIPES depende de él. Si el día de
+        // mañana la anotación "ya comiste esto" se retira de Recetas como
+        // decisión de diseño consciente, este assert es el que se pone rojo
+        // primero — la corrección en ese caso es borrar/actualizar el test
+        // junto con el código, no es un bug a "arreglar" a ciegas.
         expect(codeOnly).toMatch(/\bfetchWithAuth\b/);
-        expect(codeOnly).toMatch(/fetchWithAuth\(`\/api\/diary\/consumed\//);
-        // Ningún callsite de fetchWithAuth en este archivo declara un método mutante.
-        expect(codeOnly).not.toMatch(/fetchWithAuth\([^)]*method:\s*['"](POST|PUT|PATCH|DELETE)['"]/is);
+
+        // (1) TODOS los callsites de fetchWithAuth apuntan al GET del diario.
+        // Contar ocurrencias en vez de `fetchWithAuth\([^)]*method:...` — ese
+        // patrón deja de mirar en el PRIMER `)`, así que una URL construida
+        // con su propio paréntesis (`fetchWithAuth(construirUrl(id), {
+        // method: 'POST' })`) corta la búsqueda antes de llegar al `method` y
+        // se escapa. Contar callsites totales vs callsites-al-diario no
+        // depende de balancear paréntesis: cualquier callsite a otra cosa
+        // (mutante o no) hace que los conteos diverjan y el test nombra la
+        // discrepancia.
+        const _allCallsites = codeOnly.match(/fetchWithAuth\(/g) || [];
+        const _diaryCallsites = codeOnly.match(/fetchWithAuth\(`\/api\/diary\/consumed\//g) || [];
+        expect(
+            _diaryCallsites.length,
+            `fetchWithAuth tiene ${_allCallsites.length} callsite(s) en Recipes.jsx pero solo ` +
+            `${_diaryCallsites.length} apunta(n) literalmente a /api/diary/consumed/ — hay un ` +
+            `callsite a otro endpoint sin auditar (revisa si es una mutación disfrazada, p.ej. ` +
+            `una URL construida con su propia función envolvente).`
+        ).toBe(_allCallsites.length);
+
+        // (2) En TODO el archivo (no acotado al paréntesis de un callsite
+        // concreto) no aparece `method:` con un verbo mutante. Una aserción
+        // de archivo completo no depende de dónde abre/cierra el paréntesis
+        // de la llamada — un `method: 'POST'` en cualquier objeto de opciones
+        // de este archivo la dispara, sin importar cómo esté anidada la URL.
+        expect(codeOnly).not.toMatch(/method:\s*['"](POST|PUT|PATCH|DELETE)['"]/i);
+
         // Y el endpoint de expansión (mutante, retirado con P-RECIPES-COOK-REMOVED)
         // sigue sin invocarse en código (solo puede aparecer en comentarios/narrativa).
         expect(codeOnly).not.toMatch(/\/api\/plans\/recipe\/expand/);
