@@ -293,6 +293,111 @@
     z-index: 1;
 }
 
+/* [P1-DIARY-EDITABLE · 2026-07-28] Lista de comidas registradas hoy. Antes
+   la card solo mostraba el CONTEO ("N comidas registradas hoy") — el
+   usuario no podía ver QUÉ registró ni borrar una fila mal tapeada
+   (consumed_meals era append-only). Reutiliza los tokens ya establecidos
+   por el resto de la card (#E2E8F0 borde, #64748B texto muted, #0F172A
+   texto principal) en vez de introducir una paleta nueva. */
+.mealsSection {
+    margin-top: 0.25rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #F1F5F9;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.mealsEmpty {
+    margin: 0;
+    color: #64748B;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.mealsList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.mealRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 10px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+}
+
+.mealInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.mealName {
+    font-weight: 700;
+    color: #334155;
+    font-size: 0.88rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mealMeta {
+    font-size: 0.76rem;
+    color: #94A3B8;
+    font-weight: 600;
+}
+
+.mealDeleteBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #94A3B8;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.mealDeleteBtn:hover:not(:disabled) {
+    color: #DC2626;
+    border-color: #FECACA;
+    background: rgba(220, 38, 38, 0.06);
+}
+
+.mealDeleteBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.mealsShowMore {
+    align-self: flex-start;
+    background: transparent;
+    border: none;
+    color: #4F46E5;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0.15rem 0;
+}
+
+.mealsShowMore:hover {
+    text-decoration: underline;
+}
+
 /* ====== MOBILE RESPONSIVE ====== */
 @media (max-width: 768px) {
     .card {
@@ -368,6 +473,16 @@
         width: 100%;
         justify-content: center;
         padding: 0.7rem 1rem;
+    }
+
+    /* [P1-DIARY-EDITABLE · 2026-07-28] Menos padding vertical en móvil,
+       consistente con el resto de la card en este breakpoint. */
+    .mealsSection {
+        padding-top: 1rem;
+    }
+
+    .mealRow {
+        padding: 0.5rem 0.6rem;
     }
 
     /* [P3-TRACKING-PERC-DESKTOP · 2026-05-20] Las reglas previas mobile
@@ -469,3 +584,40 @@
 }
 
 :global(html[data-theme="dark"]) .scanBtn:hover svg { color: #A5B4FC; }
+
+/* [P1-DIARY-EDITABLE · 2026-07-28] Oscuro: mismos pares de variables que el
+   resto de la card (border/bg-muted/text-*). */
+:global(html[data-theme="dark"]) .mealsSection {
+    border-top-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .mealsEmpty {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .mealRow {
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .mealName {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .mealMeta {
+    color: var(--text-light);
+}
+
+:global(html[data-theme="dark"]) .mealDeleteBtn {
+    color: var(--text-light);
+}
+
+:global(html[data-theme="dark"]) .mealDeleteBtn:hover:not(:disabled) {
+    color: #FCA5A5;
+    border-color: rgba(220, 38, 38, 0.4);
+    background: rgba(220, 38, 38, 0.14);
+}
+
+:global(html[data-theme="dark"]) .mealsShowMore {
+    color: #A5B4FC;
+}

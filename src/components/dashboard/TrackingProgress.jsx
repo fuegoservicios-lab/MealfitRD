@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Flame, Dumbbell, Wheat, Droplet, Activity, Camera, Flag } from 'lucide-react';
+import { Flame, Dumbbell, Wheat, Droplet, Activity, Camera, Flag, Trash2, Loader2 } from 'lucide-react';
 import PropTypes from 'prop-types';
+import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
+import { confirmToast } from '../../utils/confirmToast';
 import ProteinIcon from '../icons/ProteinIcon';
 import WheatFilledIcon from '../icons/WheatFilledIcon';
 import FlameMacroIcon from '../icons/FlameMacroIcon';
@@ -32,6 +34,30 @@ import styles from './TrackingProgress.module.css';
 // Tooltip-anchor: P1-TRACKING-CACHE-CONSUMED.
 const _CONSUMED_CACHE_KEY_PREFIX = 'mealfit_tracking_consumed_';
 const _CONSUMED_DEFAULT = { calories: 0, protein: 0, carbs: 0, fats: 0, meals: [] };
+
+// [P1-DIARY-EDITABLE · 2026-07-28] Lista de comidas registradas hoy dentro de
+// la card. Antes esta card solo exponía `consumed.meals.length` (el conteo);
+// el diario era de facto write-only — el usuario no podía ver QUÉ registró
+// ni deshacer un tap equivocado. `meal_type` viaja como uno de los 5 valores
+// que emite el backend (`tools.py::_normalize_meal_type` + `ScanMealModal`
+// `_MEAL_TYPES`) — fallback capitalizado defensivo por si un valor legacy
+// distinto se cuela.
+const _MEAL_TYPE_LABELS = {
+    desayuno: 'Desayuno',
+    almuerzo: 'Almuerzo',
+    cena: 'Cena',
+    merienda: 'Merienda',
+    snack: 'Snack',
+};
+
+const _mealTypeLabel = (mealType) => {
+    if (!mealType) return 'Comida';
+    return _MEAL_TYPE_LABELS[mealType] || (mealType.charAt(0).toUpperCase() + mealType.slice(1));
+};
+
+// Cap de filas visibles antes de requerir "Ver más" — evita que la card
+// crezca sin límite en un día con muchas comidas/snacks registrados.
+const _MEALS_VISIBLE_CAP = 4;
 
 const _parseDate = (value) => {
     if (!value) return null;
@@ -122,6 +148,13 @@ const TrackingProgress = ({ planData, userId }) => {
     // focusTimeout que hace containerRef.focus() → ROBABA el foco del input a media
     // escritura. Misma clase que P2-HIST-MODALS-A11Y (onClose memoizado con useCallback).
     const handleScanClose = useCallback(() => setScanOpen(false), []);
+
+    // [P1-DIARY-EDITABLE · 2026-07-28] Estado de la lista de comidas de hoy.
+    // `mealsExpanded` levanta el cap de `_MEALS_VISIBLE_CAP` filas visibles.
+    // `deletingMealId` deshabilita el botón de LA fila en vuelo (no todas)
+    // para que un doble-tap no dispare dos DELETE del mismo id.
+    const [mealsExpanded, setMealsExpanded] = useState(false);
+    const [deletingMealId, setDeletingMealId] = useState(null);
 
     const [consumed, setConsumed] = useState(() => {
         // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20]
@@ -259,6 +292,53 @@ const TrackingProgress = ({ planData, userId }) => {
         };
     }, [userId, planTrackingStartIso, consumedCacheKey]);
 
+    // [P1-DIARY-EDITABLE · 2026-07-28] "Deshacer registro" — borra una fila
+    // de `consumed_meals` mal tapeada. `consumed_meals` era append-only
+    // (ver docstring de `db_facts.delete_consumed_meal`); un 1.030 kcal
+    // logueado por error vivía para siempre.
+    //
+    // Contrato con el cache local (P1-TRACKING-CACHE-CONSUMED): actualizamos
+    // `consumed` vía `setConsumed` (no un state paralelo), así que el efecto
+    // que persiste a localStorage (arriba, "Persist consumed al change") se
+    // dispara solo y escribe la lista YA sin la fila borrada. Sin pasar por
+    // ahí, el próximo mount hidrataría del cache viejo y "resucitaría" la
+    // comida que el usuario acaba de borrar — el mismo bug que
+    // P1-TRACKING-CACHE-CONSUMED documenta para el flash de zeros, en
+    // reversa.
+    const handleDeleteMeal = useCallback(async (meal) => {
+        if (!meal?.id || deletingMealId) return;
+
+        const ok = await confirmToast(
+            `¿Eliminar "${meal.meal_name}" del diario? Esta acción no se puede deshacer.`,
+            { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar' }
+        );
+        if (!ok) return;
+
+        setDeletingMealId(meal.id);
+        try {
+            const res = await fetchWithAuth(`/api/diary/consumed/${meal.id}`, { method: 'DELETE' });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data?.success) {
+                throw new Error(data?.detail || data?.message || 'No se pudo eliminar la comida.');
+            }
+
+            // Recalcula totales/count con la fila ya fuera — mismo builder
+            // que usa el fetch inicial, así el resultado es idéntico al que
+            // devolvería un refetch (sin esperar el roundtrip).
+            setConsumed((prev) => _buildConsumedSnapshot({
+                meals: (prev?.meals || []).filter((m) => m.id !== meal.id),
+                planTrackingStartIso,
+                cacheKey: consumedCacheKey,
+            }));
+            toast.success(`"${meal.meal_name}" eliminada del diario.`);
+        } catch (err) {
+            console.error('Error eliminando comida del diario:', err);
+            toast.error('No se pudo eliminar la comida. Intenta de nuevo.');
+        } finally {
+            setDeletingMealId(null);
+        }
+    }, [deletingMealId, planTrackingStartIso, consumedCacheKey]);
+
     // Funciones Helper para calcular Progreso
     const goalCal = parseInt(planData?.calories) || 2000;
     const goalPro = parseInt(planData?.macros?.protein) || 150;
@@ -267,6 +347,12 @@ const TrackingProgress = ({ planData, userId }) => {
     const displayedConsumed = consumed?._cacheKey === consumedCacheKey
         ? consumed
         : { ..._CONSUMED_DEFAULT, _cacheKey: consumedCacheKey };
+
+    // [P1-DIARY-EDITABLE · 2026-07-28] Filas visibles de la lista de comidas
+    // — cap `_MEALS_VISIBLE_CAP` salvo que el usuario pulse "Ver más".
+    const _todaysMeals = displayedConsumed.meals || [];
+    const visibleMeals = mealsExpanded ? _todaysMeals : _todaysMeals.slice(0, _MEALS_VISIBLE_CAP);
+    const hiddenMealsCount = _todaysMeals.length - visibleMeals.length;
 
     // [P3-TRACKING-OVER-LIMIT · 2026-05-20] Pre-fix `calcPerc` capeaba al 100%
     // con `Math.min(..., 100)` — ocultaba visualmente cuando el usuario excedía
@@ -366,6 +452,72 @@ const TrackingProgress = ({ planData, userId }) => {
                     />
                 </div>
             </div>
+
+            {/* [P1-DIARY-EDITABLE · 2026-07-28] Lista de comidas registradas
+                hoy — antes esta card solo exponía el CONTEO (subtitle arriba);
+                el diario era write-only (registrabas pero nunca veías/corregías
+                qué quedó guardado). Solo para logueados: para invitados
+                `displayedConsumed.meals` siempre es [] (no hay fetch, ver el
+                guard `!userId || userId === 'guest'` en fetchConsumed) y el
+                guestBadge de arriba ya cubre el CTA de login. */}
+            {isLoggedIn && !loading && (
+                <div className={styles.mealsSection}>
+                    {_todaysMeals.length === 0 ? (
+                        <p className={styles.mealsEmpty}>
+                            Aún no registras comidas hoy. Usa "Escanear comida" o cuéntaselo a tu coach en el chat.
+                        </p>
+                    ) : (
+                        <>
+                            <ul className={styles.mealsList}>
+                                {visibleMeals.map((meal, idx) => (
+                                    <li
+                                        key={meal.id || `${meal.meal_name}-${meal.consumed_at || idx}`}
+                                        className={styles.mealRow}
+                                    >
+                                        <div className={styles.mealInfo}>
+                                            <span className={styles.mealName}>{meal.meal_name}</span>
+                                            <span className={styles.mealMeta}>
+                                                {_mealTypeLabel(meal.meal_type)} · {Math.round(meal.calories) || 0} kcal
+                                            </span>
+                                        </div>
+                                        {meal.id && (
+                                            <button
+                                                type="button"
+                                                className={styles.mealDeleteBtn}
+                                                aria-label={`Eliminar ${meal.meal_name} del diario`}
+                                                onClick={() => handleDeleteMeal(meal)}
+                                                disabled={deletingMealId === meal.id}
+                                            >
+                                                {deletingMealId === meal.id
+                                                    ? <Loader2 size={16} className="spin-animation" aria-hidden="true" />
+                                                    : <Trash2 size={16} strokeWidth={2.5} aria-hidden="true" />}
+                                            </button>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                            {hiddenMealsCount > 0 && (
+                                <button
+                                    type="button"
+                                    className={styles.mealsShowMore}
+                                    onClick={() => setMealsExpanded(true)}
+                                >
+                                    Ver {hiddenMealsCount} más
+                                </button>
+                            )}
+                            {mealsExpanded && _todaysMeals.length > _MEALS_VISIBLE_CAP && (
+                                <button
+                                    type="button"
+                                    className={styles.mealsShowMore}
+                                    onClick={() => setMealsExpanded(false)}
+                                >
+                                    Ver menos
+                                </button>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
 
             {/* [P2-DIARY-SCAN-MACROS · 2026-05-30] Modal de escaneo. Solo se
                 renderiza para usuarios logueados (el botón no aparece para
