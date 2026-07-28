@@ -59,24 +59,20 @@ const _mealTypeLabel = (mealType) => {
 // crezca sin límite en un día con muchas comidas/snacks registrados.
 const _MEALS_VISIBLE_CAP = 4;
 
-const _parseDate = (value) => {
-    if (!value) return null;
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const _getPlanTrackingStartIso = (planData) => {
-    const raw = planData?.cycle_start_date || planData?.created_at || planData?.plan_start_date || null;
-    const parsed = _parseDate(raw);
-    return parsed ? parsed.toISOString() : null;
-};
-
-const _getConsumedCacheKey = (userId, planTrackingStartIso) => {
+// [P1-DAILY-NOT-CYCLE · 2026-07-28] La key ya NO lleva un segmento de ciclo de
+// plan. `_getPlanTrackingStartIso` (el helper que lo producía) fue eliminado —
+// era el mismo error de fondo que el filtro de abajo: una frontera de CICLO
+// DE PLAN usada para acotar algo que es de DÍA. Restaura, en vez de debilita,
+// la protección anti-flash de P1-TRACKING-CACHE-CONSUMED: antes cada
+// renovación minteaba una key nunca antes vista (el segmento cambiaba) →
+// cache miss garantizado → el flash de macros en 0 que ese fix existía para
+// prevenir. Ver TrackingProgress.daily_not_cycle.test.jsx para el caso de
+// producción (17:44 UTC / renovación 18:41 UTC, mismo día local).
+const _getConsumedCacheKey = (userId) => {
     if (!userId) return null;
     const now = new Date();
     const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const planSegment = planTrackingStartIso ? encodeURIComponent(planTrackingStartIso) : 'no-plan-cycle';
-    return `${_CONSUMED_CACHE_KEY_PREFIX}${userId}_${dateStr}_${planSegment}`;
+    return `${_CONSUMED_CACHE_KEY_PREFIX}${userId}_${dateStr}`;
 };
 
 const _readConsumedCache = (key) => {
@@ -93,7 +89,18 @@ const _macroNumber = (value) => {
     return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const _buildConsumedSnapshot = ({ meals, totals, planTrackingStartIso, cacheKey }) => {
+// [P1-DAILY-NOT-CYCLE · 2026-07-28] Ya NO filtra por `cycle_start_date`. El
+// backend (`GET /api/diary/consumed/{user_id}` → `db_facts.get_consumed_meals_today`)
+// ya acota a `consumed_at >= <inicio del día local> AND < <fin del día local>`
+// (ver `db_facts.py`) — lo que llega en `meals` YA es "hoy", punto. Un filtro
+// adicional por ciclo de plan aquí solo podía RESTAR filas de un conjunto ya
+// correcto: nunca agrega nada que no debiera estar. Pre-fix, ese filtro extra
+// escondía comidas reales del día (una renovación de plan movía
+// `cycle_start_date` a un instante posterior al de una comida ya registrada
+// hoy → "0 comidas registradas hoy" con la fila viva en la DB, inalcanzable
+// desde el botón de borrar de P1-DIARY-EDITABLE porque éste solo puede
+// apuntar a filas que la card renderiza).
+const _buildConsumedSnapshot = ({ meals, totals, cacheKey }) => {
     if (!Array.isArray(meals)) {
         return {
             calories: _macroNumber(totals?.calories),
@@ -106,20 +113,12 @@ const _buildConsumedSnapshot = ({ meals, totals, planTrackingStartIso, cacheKey 
         };
     }
 
-    const cycleStart = _parseDate(planTrackingStartIso);
-    const cycleMeals = cycleStart
-        ? meals.filter((meal) => {
-            const consumedAt = _parseDate(meal?.consumed_at);
-            return !consumedAt || consumedAt >= cycleStart;
-        })
-        : meals;
-
     return {
-        calories: Math.round(cycleMeals.reduce((sum, meal) => sum + _macroNumber(meal?.calories), 0)),
-        protein: Math.round(cycleMeals.reduce((sum, meal) => sum + _macroNumber(meal?.protein), 0)),
-        carbs: Math.round(cycleMeals.reduce((sum, meal) => sum + _macroNumber(meal?.carbs), 0)),
-        fats: Math.round(cycleMeals.reduce((sum, meal) => sum + _macroNumber(meal?.healthy_fats ?? meal?.fats), 0)),
-        meals: cycleMeals,
+        calories: Math.round(meals.reduce((sum, meal) => sum + _macroNumber(meal?.calories), 0)),
+        protein: Math.round(meals.reduce((sum, meal) => sum + _macroNumber(meal?.protein), 0)),
+        carbs: Math.round(meals.reduce((sum, meal) => sum + _macroNumber(meal?.carbs), 0)),
+        fats: Math.round(meals.reduce((sum, meal) => sum + _macroNumber(meal?.healthy_fats ?? meal?.fats), 0)),
+        meals,
         _fetched: true,
         _cacheKey: cacheKey,
     };
@@ -132,11 +131,10 @@ const TrackingProgress = ({ planData, userId }) => {
     // el effect de abajo ya escucha → las barras se actualizan solas.
     const [scanOpen, setScanOpen] = useState(false);
     const isLoggedIn = !!userId && userId !== 'guest';
-    const planTrackingStartIso = useMemo(() => _getPlanTrackingStartIso(planData), [planData]);
-    const consumedCacheKey = useMemo(
-        () => _getConsumedCacheKey(userId, planTrackingStartIso),
-        [userId, planTrackingStartIso]
-    );
+    // [P1-DAILY-NOT-CYCLE · 2026-07-28] La key ya no depende de `planData` en
+    // absoluto (era el único consumidor de `_getPlanTrackingStartIso`, ahora
+    // eliminado) — solo de `userId` + fecha de hoy.
+    const consumedCacheKey = useMemo(() => _getConsumedCacheKey(userId), [userId]);
 
     // [P2-DASH-SCAN-ONCLOSE-MEMO · 2026-05-30] `onClose` memoizado. Pre-fix se
     // pasaba un arrow inline `() => setScanOpen(false)` a <ScanMealModal>, que
@@ -214,6 +212,29 @@ const TrackingProgress = ({ planData, userId }) => {
         } catch (_e) { /* ignore */ }
     }, [consumed, consumedCacheKey]);
 
+    // [P1-DAILY-NOT-CYCLE · 2026-07-28] Sweep one-shot de keys huérfanas.
+    // Antes de este fix la key llevaba un segmento de ciclo de plan — cada
+    // renovación minteaba una key nueva que nunca se borraba, acumulando
+    // contra la cuota de localStorage del origin indefinidamente. La key ya
+    // no varía con el plan, así que esto deja de crecer desde ahora, pero las
+    // keys viejas ya escritas siguen ahí — se barren una vez al montar.
+    // `safeLocalStorage.js` no expone un enumerador, así que leemos
+    // `window.localStorage` crudo, con try/catch defensivo (mismo patrón que
+    // el resto del módulo).
+    useEffect(() => {
+        if (!consumedCacheKey) return;
+        try {
+            const stale = [];
+            for (let i = 0; i < window.localStorage.length; i++) {
+                const k = window.localStorage.key(i);
+                if (k && k.startsWith(_CONSUMED_CACHE_KEY_PREFIX) && k !== consumedCacheKey) {
+                    stale.push(k);
+                }
+            }
+            stale.forEach((k) => window.localStorage.removeItem(k));
+        } catch (_e) { /* best-effort, storage puede no estar disponible */ }
+    }, [consumedCacheKey]);
+
     useEffect(() => {
         let isMounted = true;
         
@@ -235,15 +256,13 @@ const TrackingProgress = ({ planData, userId }) => {
                 const data = await res.json();
                 
                 if (isMounted && data.totals) {
-                    // [P1-TRACKING-NEW-PLAN-ZERO · 2026-07-12]
-                    // Un plan renovado es un ciclo nuevo: el endpoint devuelve
-                    // todas las comidas de "hoy", pero la card debe contar solo
-                    // lo registrado DESPUÉS del cycle_start_date/created_at del
-                    // plan actual. Así el medidor no hereda barras del plan previo.
+                    // [P1-TRACKING-NEW-PLAN-ZERO · 2026-07-12 · revertido
+                    // P1-DAILY-NOT-CYCLE · 2026-07-28] El endpoint YA acota a
+                    // "hoy" (ver docstring de `_buildConsumedSnapshot`) — no
+                    // hay nada adicional que filtrar por plan aquí.
                     setConsumed(_buildConsumedSnapshot({
                         meals: data.meals,
                         totals: data.totals,
-                        planTrackingStartIso,
                         cacheKey: consumedCacheKey,
                     }));
                 }
@@ -290,7 +309,7 @@ const TrackingProgress = ({ planData, userId }) => {
             window.removeEventListener('mealfit:refresh-inventory', onAgentRefreshInventory);
             document.removeEventListener('visibilitychange', onVisibilityChange);
         };
-    }, [userId, planTrackingStartIso, consumedCacheKey]);
+    }, [userId, consumedCacheKey]);
 
     // [P1-DIARY-EDITABLE · 2026-07-28] "Deshacer registro" — borra una fila
     // de `consumed_meals` mal tapeada. `consumed_meals` era append-only
@@ -327,7 +346,6 @@ const TrackingProgress = ({ planData, userId }) => {
             // devolvería un refetch (sin esperar el roundtrip).
             setConsumed((prev) => _buildConsumedSnapshot({
                 meals: (prev?.meals || []).filter((m) => m.id !== meal.id),
-                planTrackingStartIso,
                 cacheKey: consumedCacheKey,
             }));
             toast.success(`"${meal.meal_name}" eliminada del diario.`);
@@ -337,7 +355,7 @@ const TrackingProgress = ({ planData, userId }) => {
         } finally {
             setDeletingMealId(null);
         }
-    }, [deletingMealId, planTrackingStartIso, consumedCacheKey]);
+    }, [deletingMealId, consumedCacheKey]);
 
     // Funciones Helper para calcular Progreso
     const goalCal = parseInt(planData?.calories) || 2000;
