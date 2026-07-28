@@ -13,7 +13,7 @@
 // simulan ese evento directamente — no re-testean el fetch de
 // TrackingProgress (ya cubierto por TrackingProgress.diary_editable.test.jsx).
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act, fireEvent, waitFor } from './utils/test-utils';
+import { render, screen, act, fireEvent, waitFor, within } from './utils/test-utils';
 import Dashboard from '../pages/Dashboard';
 import * as router from 'react-router-dom';
 import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
@@ -224,19 +224,16 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         expect(screen.getByText(/5 comidas del plan/)).toBeInTheDocument();
     });
 
-    it('does not disturb the meal index the swap handler receives when a card is dimmed', async () => {
+    it('does not disturb the meal index the swap handler receives when a card is locked (P2-SWAP-INDEX-COUPLING)', async () => {
         render(<Dashboard />, {
             customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
         });
 
         await screen.findByText('Mangú con los tres golpes');
         await _waitForTrackingProgressSettled();
-        // Dimm el primer slot (Desayuno, index 0).
+        // Bloquea el primer slot (Desayuno, index 0).
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
         await screen.findByText(/Ya comiste esto/);
-
-        const swapButtons = screen.getAllByTitle('Cambiar con IA');
-        expect(swapButtons.length).toBe(4);
 
         // El modal muestra `contextLabel` (= meal.name del swapModal state)
         // justo después de la etiqueta "Plato a cambiar"
@@ -249,19 +246,120 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
             return (after || '').trim();
         };
 
-        // Click en el swap del card DIMMED (index 0) — el modal debe abrir
-        // con el nombre de ESE plato, no otro (P2-SWAP-INDEX-COUPLING: el
-        // `index` del map no debe correrse por el filtro de dimming).
-        fireEvent.click(swapButtons[0]);
-        await waitFor(() => {
-            expect(_swapModalContextLabel().startsWith('Mangú con los tres golpes')).toBe(true);
-        });
+        // Orden fijo dentro de "BUTTONS GROUP": [Ver Receta, Cambiar Plato, Me gusta].
+        const desayunoCard = screen.getByText('Mangú con los tres golpes').closest('.meal-card');
+        const almuerzoCard = screen.getByText('Arroz con pollo guisado').closest('.meal-card');
+        const [, lockedSwapBtn] = within(desayunoCard).getAllByRole('button');
+        const [, unlockedSwapBtn] = within(almuerzoCard).getAllByRole('button');
 
-        // Click en el swap del SEGUNDO card (Almuerzo, index 1, NO atenuado)
-        // — el modal debe reflejar ESE nombre, no el del primero.
-        fireEvent.click(swapButtons[1]);
+        // El swap del card BLOQUEADO (index 0) es inert de verdad — P1-EATEN-SLOT-POLISH.
+        // El modal no debe abrir en absoluto.
+        fireEvent.click(lockedSwapBtn);
+        expect(screen.queryByText('Plato a cambiar')).not.toBeInTheDocument();
+
+        // El swap del card NO bloqueado (Almuerzo, index 1) sigue intacto — el
+        // `index` real que llega al handler no se corrió por la presencia de
+        // un slot bloqueado antes en el mismo `.map()` (P2-SWAP-INDEX-COUPLING).
+        fireEvent.click(unlockedSwapBtn);
         await waitFor(() => {
             expect(_swapModalContextLabel().startsWith('Arroz con pollo guisado')).toBe(true);
         });
+    });
+
+    // [P1-EATEN-SLOT-POLISH · 2026-07-28] La dimmed card pre-fix seguía
+    // siendo 100% interactiva — Cambiar Plato costaba un crédito real y Me
+    // gusta grababa una preferencia sobre un plato que el usuario NO comió
+    // (el owner reportó "me deja interactuar y no debería"). Ahora las
+    // acciones mutantes se bloquean de verdad (atributo `disabled` nativo),
+    // Ver Receta se mantiene activo (solo lectura, responde una pregunta
+    // legítima), y cada control bloqueado explica por qué + cómo
+    // deshacerlo (borrar la fila en "Progreso en Tiempo Real").
+    it('an eaten slot genuinely disables Cambiar Plato and Me gusta — no click, no keyboard activation reaches their handlers', async () => {
+        const toggleMealLike = vi.fn();
+        render(<Dashboard />, {
+            customContext: { ..._baseContext, toggleMealLike, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
+        });
+
+        await screen.findByText('Mangú con los tres golpes');
+        await _waitForTrackingProgressSettled();
+        _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
+        await screen.findByText(/Ya comiste esto/);
+
+        const eatenCard = screen.getByText('Mangú con los tres golpes').closest('.meal-card');
+        const [, swapBtn, likeBtn] = within(eatenCard).getAllByRole('button');
+
+        // Atributo `disabled` real (no solo opacidad/pointer-events) — así
+        // teclado y lectores de pantalla coinciden con lo visual.
+        expect(swapBtn).toBeDisabled();
+        expect(likeBtn).toBeDisabled();
+
+        // Cada uno explica el POR QUÉ y el CÓMO deshacerlo (accesible vía
+        // title/aria-label, es-DO, corto).
+        expect(swapBtn).toHaveAttribute('title', expect.stringContaining('Progreso en Tiempo Real'));
+        expect(likeBtn).toHaveAttribute('title', expect.stringContaining('Progreso en Tiempo Real'));
+        expect(swapBtn.getAttribute('aria-label') || swapBtn.getAttribute('title')).toMatch(/Progreso en Tiempo Real/);
+        expect(likeBtn.getAttribute('aria-label') || likeBtn.getAttribute('title')).toMatch(/Progreso en Tiempo Real/);
+
+        // Ni click...
+        fireEvent.click(swapBtn);
+        fireEvent.click(likeBtn);
+        expect(toggleMealLike).not.toHaveBeenCalled();
+        expect(screen.queryByText('Plato a cambiar')).not.toBeInTheDocument();
+
+        // ...ni teclado: un botón `disabled` de verdad ni siquiera puede
+        // recibir foco (por eso Enter/Espacio no llegan a activarlo).
+        swapBtn.focus();
+        likeBtn.focus();
+        expect(swapBtn).not.toHaveFocus();
+        expect(likeBtn).not.toHaveFocus();
+        // Defensa en profundidad: aunque algo despachara el evento igual
+        // (p.ej. un dispatchEvent sintético que ignore `disabled`), el
+        // handler interno también debe abstenerse.
+        fireEvent.keyDown(swapBtn, { key: 'Enter', code: 'Enter' });
+        fireEvent.keyDown(likeBtn, { key: 'Enter', code: 'Enter' });
+        expect(toggleMealLike).not.toHaveBeenCalled();
+        expect(screen.queryByText('Plato a cambiar')).not.toBeInTheDocument();
+    });
+
+    it('Ver Receta stays enabled on an eaten slot — read-only, answers "qué me tocaba comer"', async () => {
+        const navigateMock = vi.fn();
+        vi.mocked(router.useNavigate).mockReturnValue(navigateMock);
+        render(<Dashboard />, {
+            customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
+        });
+
+        await screen.findByText('Mangú con los tres golpes');
+        await _waitForTrackingProgressSettled();
+        _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
+        await screen.findByText(/Ya comiste esto/);
+
+        const eatenCard = screen.getByText('Mangú con los tres golpes').closest('.meal-card');
+        const [recipeBtn] = within(eatenCard).getAllByRole('button');
+
+        expect(recipeBtn).not.toBeDisabled();
+        fireEvent.click(recipeBtn);
+        expect(navigateMock).toHaveBeenCalledWith('/dashboard/recipes');
+    });
+
+    it('a non-eaten slot on the same day stays fully interactive — the lock is per-slot, not per-day', async () => {
+        const toggleMealLike = vi.fn();
+        render(<Dashboard />, {
+            customContext: { ..._baseContext, toggleMealLike, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
+        });
+
+        await screen.findByText('Mangú con los tres golpes');
+        await _waitForTrackingProgressSettled();
+        _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
+        await screen.findByText(/Ya comiste esto/);
+
+        const almuerzoCard = screen.getByText('Arroz con pollo guisado').closest('.meal-card');
+        const [recipeBtn, swapBtn, likeBtn] = within(almuerzoCard).getAllByRole('button');
+
+        expect(recipeBtn).not.toBeDisabled();
+        expect(swapBtn).not.toBeDisabled();
+        expect(likeBtn).not.toBeDisabled();
+
+        fireEvent.click(likeBtn);
+        expect(toggleMealLike).toHaveBeenCalledWith('Arroz con pollo guisado', 'Almuerzo');
     });
 });

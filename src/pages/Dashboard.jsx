@@ -115,6 +115,17 @@ import { getMealAdvisories } from '../utils/mealAdvisories';
 // módulo para la regla de match + la regla de ambigüedad (mismas que
 // backend/agent.py::_build_today_remaining_context).
 import { getEatenSlotIndices, sumConsumedCalories, eatenKcalForSlot } from '../utils/todayRemaining';
+// [P1-EATEN-SLOT-POLISH · 2026-07-28] La card ya-comida se atenuaba (P1-TODAY-REMAINING)
+// pero seguía siendo 100% interactiva — "Cambiar Plato" costaba un crédito real y
+// "Me gusta" grababa una preferencia sobre un plato que el usuario NO comió (owner:
+// "me deja interactuar y no debería"). Cambiar Plato y Me gusta ahora se deshabilitan
+// de VERDAD (atributo `disabled` nativo — coincide teclado + lectores de pantalla, no
+// solo opacidad). Ver Receta se mantiene activo a propósito: es de solo lectura y
+// responde una pregunta legítima ("¿qué me tocaba comer?"); no cuesta crédito ni graba
+// nada. El match de slot es una heurística (P1-TODAY-REMAINING) y puede fallar, así
+// que cada control bloqueado explica el escape hatch real: borrar la fila en
+// "Progreso en Tiempo Real" (P1-DIARY-EDITABLE, TrackingProgress.jsx).
+const _EATEN_SLOT_LOCK_REASON = 'Ya comiste esto — bloqueado. Bórralo en "Progreso en Tiempo Real" para desbloquear.';
 // [P1-FORM-9] Helper que filtra flags internos `_*` y bloquea cuando la
 // hidratación cifrada del formData (post-login) parece estar en curso —
 // evita que el spread `{...formData}` envíe campos sensibles vacíos a DB,
@@ -7436,9 +7447,16 @@ const DashboardInner = () => {
                                                 </button>
 
                                                 {/* REGENERATE BUTTON (AI SWAP) — Abre modal de razón */}
+                                                {/* [P1-EATEN-SLOT-POLISH · 2026-07-28] `isEatenToday` entra al MISMO
+                                                    `disabled` real que ya protegía créditos durante regen/day-update
+                                                    (arriba) — cambiar un plato ya comido gastaría un crédito real por
+                                                    nada. Guard interno duplicado por defensa-en-profundidad (mismo
+                                                    patrón que el resto de este botón: el `disabled` nativo ya bloquea
+                                                    click+teclado, el early-return cubre cualquier dispatch sintético). */}
                                                 <button
                                                     className="meal-act-btn"
                                                     onClick={() => {
+                                                        if (isEatenToday) return;
                                                         // [P3-GUEST-GATE-MEAL-ACTIONS · 2026-06-21] Invitado: cambiar plato (IA) requiere cuenta.
                                                         if (isGuest) { toast('Crea tu cuenta para cambiar platos con IA'); return; }
                                                         if (regeneratingId === index || isDayUpdating) return;
@@ -7451,7 +7469,8 @@ const DashboardInner = () => {
                                                             if (!hasCredits) setSwapModal(null);
                                                         });
                                                     }}
-                                                    disabled={regeneratingId === index || isDayUpdating}
+                                                    disabled={isEatenToday || regeneratingId === index || isDayUpdating}
+                                                    aria-label={isEatenToday ? _EATEN_SLOT_LOCK_REASON : undefined}
                                                     style={{
                                                         background: isDark ? 'linear-gradient(135deg, #EA580C 0%, #C2410C 100%)' : '#FFF7ED',
                                                         border: isDark ? '1.5px solid transparent' : '1.5px solid #FED7AA',
@@ -7459,7 +7478,7 @@ const DashboardInner = () => {
                                                         padding: '0 0.85rem',
                                                         height: 44,
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-                                                        cursor: (regeneratingId === index || isDayUpdating) ? 'wait' : 'pointer',
+                                                        cursor: isEatenToday ? 'not-allowed' : (regeneratingId === index || isDayUpdating) ? 'wait' : 'pointer',
                                                         transition: 'all 0.2s',
                                                         opacity: 1,
                                                         fontWeight: isDark ? 750 : 650,
@@ -7467,7 +7486,7 @@ const DashboardInner = () => {
                                                         color: isDark ? '#FFFFFF' : '#EA580C',
                                                         boxShadow: isDark ? '0 2px 8px -3px rgba(234, 88, 12, 0.3)' : 'none'
                                                     }}
-                                                    title="Cambiar con IA"
+                                                    title={isEatenToday ? _EATEN_SLOT_LOCK_REASON : 'Cambiar con IA'}
                                                 >
                                                     <RefreshCw
                                                         size={18}
@@ -7482,9 +7501,14 @@ const DashboardInner = () => {
                                                 </button>
 
                                                 {/* LIKE BUTTON */}
+                                                {/* [P1-EATEN-SLOT-POLISH · 2026-07-28] "Me gusta" en un plato ya
+                                                    comido grabaría una preferencia sobre algo que el usuario NO
+                                                    comió realmente (registró otra cosa en su diario) — bloqueado de
+                                                    verdad, mismo patrón que Cambiar Plato arriba. */}
                                                 <button
                                                     className="meal-act-btn"
                                                     onClick={() => {
+                                                        if (isEatenToday) return;
                                                         // [P3-GUEST-GATE-MEAL-ACTIONS · 2026-06-21] Invitado: guardar favoritos requiere cuenta.
                                                         if (isGuest) { toast('Crea tu cuenta para guardar tus favoritos'); return; }
                                                         const currentlyLiked = !!likedMeals[meal.name];
@@ -7495,6 +7519,8 @@ const DashboardInner = () => {
                                                             toast('Like removido');
                                                         }
                                                     }}
+                                                    disabled={isEatenToday}
+                                                    aria-label={isEatenToday ? _EATEN_SLOT_LOCK_REASON : undefined}
                                                     style={{
                                                         // [LIKE-FILL · 2026-05-29] Estado "liked" = botón RELLENO
                                                         // con gradiente rosa sólido + corazón blanco + glow + leve
@@ -7512,12 +7538,12 @@ const DashboardInner = () => {
                                                         borderRadius: '50%',
                                                         width: 44, height: 44,
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        cursor: 'pointer',
+                                                        cursor: isEatenToday ? 'not-allowed' : 'pointer',
                                                         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                                         boxShadow: isLiked ? '0 4px 12px -2px rgba(244, 63, 94, 0.5)' : 'none',
                                                         transform: isLiked ? 'scale(1.06)' : 'scale(1)'
                                                     }}
-                                                    title={isLiked ? 'Te gusta — toca para quitar' : 'Me gusta'}
+                                                    title={isEatenToday ? _EATEN_SLOT_LOCK_REASON : (isLiked ? 'Te gusta — toca para quitar' : 'Me gusta')}
                                                 >
                                                     <Heart size={20} color={isLiked ? '#FFFFFF' : (isDark ? '#F472B6' : '#EC4899')} fill={isLiked ? '#FFFFFF' : 'none'} strokeWidth={2.25} />
                                                 </button>
