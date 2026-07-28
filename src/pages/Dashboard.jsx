@@ -110,6 +110,11 @@ import { getFreshPlanCount } from '../utils/quotaCache';
 import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getMealAdvisories } from '../utils/mealAdvisories';
+// [P1-TODAY-REMAINING · 2026-07-28] "Ya comiste esto hoy" — derivado del
+// diario en cada render (nunca escrito a plan_data). Ver docstring del
+// módulo para la regla de match + la regla de ambigüedad (mismas que
+// backend/agent.py::_build_today_remaining_context).
+import { getEatenSlotIndices, sumConsumedCalories, eatenKcalForSlot } from '../utils/todayRemaining';
 // [P1-FORM-9] Helper que filtra flags internos `_*` y bloquea cuando la
 // hidratación cifrada del formData (post-login) parece estar en curso —
 // evita que el spread `{...formData}` envíe campos sensibles vacíos a DB,
@@ -1041,6 +1046,23 @@ const DashboardInner = () => {
     // Estado local para la navegación por pestañas (Días)
     const [activeDayIndex, setActiveDayIndex] = useState(0);
     const [isRecalculating, setIsRecalculating] = useState(false);
+    // [P1-TODAY-REMAINING · 2026-07-28] Comidas del diario de HOY, para
+    // atenuar en "Tu Menú" el card cuyo slot ya se comió (derivado, NUNCA
+    // escrito a plan_data — invariante I6). NO se re-fetchea aquí: la card
+    // "Progreso en Tiempo Real" (TrackingProgress.jsx) ya es dueña del
+    // fetch/cache/delete de `consumed_meals` y emite este evento con CADA
+    // cambio de su estado — un segundo `GET /api/diary/consumed/{userId}`
+    // aquí crearía una segunda fuente de verdad que puede divergir de la
+    // primera tras un delete.
+    const [todaysConsumedMeals, setTodaysConsumedMeals] = useState([]);
+    useEffect(() => {
+        const onTodaysConsumedUpdated = (event) => {
+            const meals = event?.detail?.meals;
+            if (Array.isArray(meals)) setTodaysConsumedMeals(meals);
+        };
+        window.addEventListener('mealfit:today-consumed-updated', onTodaysConsumedUpdated);
+        return () => window.removeEventListener('mealfit:today-consumed-updated', onTodaysConsumedUpdated);
+    }, []);
     // [P2-NEVERA-COMPLETION-REMOVED · 2026-07-06] eliminado el estado
     // `pantryCompletionList` junto con el panel "Para completar tu Nevera"
     // (decisión del owner: redundante con la lista de compras + ocupaba espacio).
@@ -3767,6 +3789,39 @@ const DashboardInner = () => {
 
     const currentDayMeals = planDays[activeDayIndex]?.meals || [];
     const currentDaySupplements = planDays[activeDayIndex]?.supplements || [];
+
+    // [P1-TODAY-REMAINING · 2026-07-28] Solo aplica al tab de HOY — un día
+    // pasado o futuro no tiene "ya comido hoy" que atenuar. `currentDayMeals`
+    // SIN filtrar (mismos índices que usa el swap, ver P2-SWAP-INDEX-COUPLING
+    // más abajo) para que `todaysEatenIndices` sea directamente comparable
+    // contra el `index` del map de comidas.
+    const isTodayTabActive = activeDayIndex === todayPlanDayIndex;
+    const todaysEatenIndices = useMemo(
+        () => (isTodayTabActive ? getEatenSlotIndices(currentDayMeals, todaysConsumedMeals) : new Set()),
+        [isTodayTabActive, currentDayMeals, todaysConsumedMeals]
+    );
+    // "Te quedan ~X kcal en N comidas" — mismo cálculo que el backend
+    // (agent.py::_build_today_remaining_context): kcal restante = meta -
+    // SUMA CRUDA de lo comido hoy (nunca depende de la atribución, que
+    // puede quedar ambigua — ver regla de ambigüedad); comidas restantes =
+    // slots de hoy que NO se pudieron remover por match inequívoco. Solo
+    // se muestra si ya hay algo registrado hoy (paridad con el gate
+    // `if consumed_today:` del backend).
+    const todaysRemainingSummary = useMemo(() => {
+        if (!isTodayTabActive || currentDayMeals.length === 0) return null;
+        if (!Array.isArray(todaysConsumedMeals) || todaysConsumedMeals.length === 0) return null;
+        const targetCalories = parseInt(planData?.calories) || null;
+        const consumedTotal = sumConsumedCalories(todaysConsumedMeals);
+        let remainingCount = 0;
+        currentDayMeals.forEach((meal, index) => {
+            if (meal?.meal?.toLowerCase().includes('suplemento')) return;
+            if (!todaysEatenIndices.has(index)) remainingCount += 1;
+        });
+        return {
+            remainingCount,
+            remainingKcal: targetCalories != null ? Math.max(0, Math.round(targetCalories - consumedTotal)) : null,
+        };
+    }, [isTodayTabActive, currentDayMeals, todaysConsumedMeals, todaysEatenIndices, planData?.calories]);
 
     return (
         <>
@@ -7127,6 +7182,35 @@ const DashboardInner = () => {
                         </div>
                     )}
 
+                    {/* [P1-TODAY-REMAINING · 2026-07-28] "Te quedan ~X kcal en N comidas" —
+                        solo en el tab de HOY y solo si ya hay algo registrado en el diario
+                        (paridad con el gate del coach, agent.py::_build_today_remaining_context).
+                        Derivado del diario en cada render — nunca escrito a plan_data. */}
+                    {todaysRemainingSummary && (
+                        <div style={{
+                            background: isDark ? 'rgba(37, 99, 235, 0.14)' : 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
+                            border: isDark ? '1px solid rgba(96, 165, 250, 0.35)' : '1px solid #BFDBFE',
+                            borderRadius: '12px',
+                            padding: '10px 14px',
+                            marginBottom: '12px',
+                            fontSize: '0.85rem',
+                            fontWeight: 600,
+                            color: isDark ? '#93C5FD' : '#1D4ED8',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                        }}>
+                            <Utensils size={16} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+                            <span>
+                                Te quedan{' '}
+                                {todaysRemainingSummary.remainingKcal != null && (
+                                    <>~{todaysRemainingSummary.remainingKcal.toLocaleString('es-DO')} kcal estimadas en{' '}</>
+                                )}
+                                {todaysRemainingSummary.remainingCount} comida{todaysRemainingSummary.remainingCount === 1 ? '' : 's'} del plan.
+                            </span>
+                        </div>
+                    )}
+
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                         {(() => {
                             // Copia segura de platos usando el día activo (filtrar suplementos que tienen su propia sección)
@@ -7161,6 +7245,12 @@ const DashboardInner = () => {
                             return currentDayMeals.map((meal, index) => {
                                 if (_isSupplementEntry(meal)) return null;
                                 const isLiked = meal.name ? !!likedMeals[meal.name] : false;
+                                // [P1-TODAY-REMAINING · 2026-07-28] `index` aquí es el
+                                // MISMO índice real que P2-SWAP-INDEX-COUPLING protege
+                                // arriba — comparamos directo contra `todaysEatenIndices`
+                                // (calculado sobre `currentDayMeals` sin filtrar) sin
+                                // introducir un segundo esquema de indexación.
+                                const isEatenToday = todaysEatenIndices.has(index);
 
                                 // [P1-MEAL-CARD-KEY · 2026-05-31] key por identidad
                                 // natural (meal.name) en vez de index: evita que React
@@ -7168,7 +7258,18 @@ const DashboardInner = () => {
                                 // cambia (swap/regeneración), preservando estado de
                                 // like/foco/receta. Fallback a index si falta name.
                                 return (
-                                    <div key={meal.name || `meal-${index}`} className="meal-card">
+                                    <div
+                                        key={meal.name || `meal-${index}`}
+                                        className="meal-card"
+                                        // [P1-TODAY-REMAINING · 2026-07-28] DIM, nunca hide —
+                                        // ocultar la card le quita al usuario la única forma
+                                        // de notar que el sistema adivinó mal (ver runbook del
+                                        // lifecycle de plan_id, invariante "derivar, nunca
+                                        // persistir"). Mismo opacity 0.55 que los tabs de días
+                                        // pasados (línea ~6753) — mismo lenguaje visual.
+                                        style={isEatenToday ? { opacity: 0.55 } : undefined}
+                                        title={isEatenToday ? 'Ya registraste esto en tu diario de hoy' : undefined}
+                                    >
 
                                         {/* [P1-SWAP-LOADING-UX · 2026-07-10] Overlay "cocinando": cubre ESTA
                                             card durante su swap individual, o TODAS durante el update del día
@@ -7192,7 +7293,12 @@ const DashboardInner = () => {
                                             {/* [DASH-MEAL-TITLE-GAP · 2026-06-01] marginBottom
                                                 0.25rem → 0.5rem: el chip de tiempo ("10 min")
                                                 quedaba pegado al título. */}
-                                            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+                                            <h3 style={{
+                                                fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem',
+                                                // [P1-TODAY-REMAINING · 2026-07-28] line-through, mismo
+                                                // lenguaje visual que el tab de un día pasado (~línea 6789).
+                                                textDecoration: isEatenToday ? 'line-through' : 'none',
+                                            }}>
                                                 {meal.name}
                                             </h3>
 
@@ -7224,12 +7330,38 @@ const DashboardInner = () => {
                                                 sigue informando sin bloquear. */}
                                             {(() => {
                                                 const _advisories = getMealAdvisories(meal);
-                                                if (!meal.prep_time && !_advisories.length) return null;
+                                                // [P1-TODAY-REMAINING · 2026-07-28] Chip "ya comiste esto" —
+                                                // reusa la MISMA fila de chips que las advisories (mecanismo
+                                                // existente) en vez de inventar un bloque nuevo. Verde
+                                                // (≠ ámbar de las advisories, ≠ rojo del pantry-urgent): esto
+                                                // no es una advertencia, es un estado informativo positivo.
+                                                // kcal SIEMPRE enmarcada como estimado (viene del diario,
+                                                // buena parte por foto + modelo de visión).
+                                                const _eatenKcal = isEatenToday
+                                                    ? Math.round(eatenKcalForSlot(todaysConsumedMeals, meal.meal))
+                                                    : 0;
+                                                if (!meal.prep_time && !_advisories.length && !isEatenToday) return null;
                                                 return (
                                                     <div style={{
                                                         display: 'flex', alignItems: 'center', flexWrap: 'wrap',
                                                         gap: '0.4rem', marginBottom: '0.75rem',
                                                     }}>
+                                                        {isEatenToday && (
+                                                            <div
+                                                                title="Registrado en tu diario de hoy — estimado, puede venir de una foto analizada"
+                                                                style={{
+                                                                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                                                    fontSize: '0.7rem', fontWeight: 700,
+                                                                    color: isDark ? '#6EE7B7' : '#047857',
+                                                                    background: isDark ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.1)',
+                                                                    padding: '4px 10px', borderRadius: '6px',
+                                                                    border: isDark ? '1px solid rgba(110, 231, 183, 0.35)' : '1px solid rgba(16, 185, 129, 0.25)',
+                                                                }}
+                                                            >
+                                                                <CheckCircle size={12} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+                                                                <span>Ya comiste esto{_eatenKcal > 0 ? ` · ~${_eatenKcal} kcal` : ''}</span>
+                                                            </div>
+                                                        )}
                                                         {meal.prep_time && (
                                                             <div style={{
                                                                 display: 'inline-flex', alignItems: 'center', gap: '6px',

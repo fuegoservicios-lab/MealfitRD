@@ -212,6 +212,25 @@ const TrackingProgress = ({ planData, userId }) => {
         } catch (_e) { /* ignore */ }
     }, [consumed, consumedCacheKey]);
 
+    // [P1-TODAY-REMAINING · 2026-07-28] Notifica el snapshot de HOY vía
+    // CustomEvent — "Tu Menú" (Dashboard.jsx) necesita la MISMA lista de
+    // comidas registradas hoy para atenuar la card cuyo slot ya se comió,
+    // pero esta card ya es dueña del fetch + cache + delete de
+    // `consumed_meals`. En vez de que el Menú pegue una SEGUNDA vez a
+    // `GET /api/diary/consumed/{userId}` (fetch duplicado, dos fuentes de
+    // verdad que pueden divergir tras un delete), el Menú escucha este
+    // evento. Se dispara con CADA cambio de `consumed` — fetch inicial,
+    // refetch por `mealfit:refresh-inventory`/visibilitychange, Y delete
+    // optimista — así el Menú siempre ve la misma verdad que esta card.
+    useEffect(() => {
+        if (!consumed?._fetched) return;
+        try {
+            window.dispatchEvent(new CustomEvent('mealfit:today-consumed-updated', {
+                detail: { meals: consumed.meals || [] },
+            }));
+        } catch (_e) { /* best-effort */ }
+    }, [consumed]);
+
     // [P1-DAILY-NOT-CYCLE · 2026-07-28] Sweep one-shot de keys huérfanas.
     // Antes de este fix la key llevaba un segmento de ciclo de plan — cada
     // renovación minteaba una key nueva que nunca se borraba, acumulando
