@@ -27,8 +27,14 @@ import { fetchWithAuth } from '../config/api';
 // setupTests.js define window.matchMedia con matches:false; algunos tests lo
 // reemplazan por asignación directa para simular prefers-reduced-motion true
 // — mismo patrón que Hero.p1_orb_autoplay_mobile.test.jsx.
+//
+// [P1-PANTRY-SCAN-MOBILE-ONLY · 2026-07-28] Este archivo cubre el flujo de
+// cámara EN VIVO — que solo existe en móvil tras el gate de capacidad nuevo
+// (ver PantryScanButton.p1_pantry_scan_mobile_only.test.jsx para el gate en
+// sí). Por eso `(pointer: coarse)` matchea `true` por default acá — estos
+// tests asumen contexto móvil siempre; NO son el lugar para variar pointer.
 const defaultMatchMedia = (matchesQuery) => vi.fn().mockImplementation((query) => ({
-    matches: matchesQuery ? query === matchesQuery : false,
+    matches: query === '(pointer: coarse)' ? true : (matchesQuery ? query === matchesQuery : false),
     media: query,
     onchange: null,
     addListener: vi.fn(),

@@ -40,6 +40,14 @@
 // eso el barrido es movimiento ambiental honesto (nunca se dibujan cajas de
 // detección fantasma sobre la foto). Los hallazgos llegan por el checklist de
 // confirmación de siempre.
+//
+// [P1-PANTRY-SCAN-MOBILE-ONLY · 2026-07-28] La entrada al escaneo NO se
+// renderiza fuera de móvil (feedback owner: "para PC, lo de escanear no tiene
+// sentido, solo déjalo para móviles" — nadie carga una nevera hasta el
+// escritorio, y desde que existe el visor en vivo tocar la tarjeta en desktop
+// abre la webcam apuntando a la cara del usuario). Gate por CAPACIDAD, no por
+// ancho de viewport: un desktop con ventana angosta no es un teléfono, y una
+// tablet (puntero coarse) conserva la función. Ver `canScan` más abajo.
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { fetchWithAuth } from '../../config/api';
 import { Plus, Camera, Loader2, X } from 'lucide-react';
@@ -135,6 +143,15 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged }) => 
     const streamRef = useRef(null);
     const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
 
+    // [P1-PANTRY-SCAN-MOBILE-ONLY] Capacidad, NO breakpoint: puntero primario
+    // coarse (dedo, no mouse/trackpad) Y una API de cámara real disponible.
+    // `useMediaQuery` ya degrada a `false` si `matchMedia` no existe (SSR/
+    // entorno raro) — preferimos NO mostrar una affordance opcional antes que
+    // mostrar una rota, así que ese `false` se propaga sin caso especial.
+    const isCoarsePointer = useMediaQuery('(pointer: coarse)');
+    const hasCameraApi = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+    const canScan = isCoarsePointer && hasCameraApi;
+
     // Para TODO track del stream — ver bloque de comentarios arriba (3 exit paths).
     const stopStream = useCallback(() => {
         if (streamRef.current) {
@@ -223,7 +240,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged }) => 
         }
     }, [viewfinderOpen, capturedPreviewUrl, scanning, scanResults, closeViewfinder]);
 
-    if (!enabled) return null;
+    if (!enabled || !canScan) return null;
 
     const handlePhotoSelected = async (file) => {
         if (!file || scanning) return;
