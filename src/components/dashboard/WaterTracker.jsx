@@ -100,6 +100,10 @@ const WaterTracker = ({ userId }) => {
     }, [glasses, goal, goalBasis, streak, currentDate, userId]);
 
     // Cargar conteo + goal + streak + enabled del backend (1 reintento en 5xx/net).
+    // [P3-SUPABASE-TRANSIENT-RETRY · 2026-05-16] El patrón attemptOnce + retry ante
+    // 5xx/network cubre las conexiones idle muertas al volver del background
+    // (visibilitychange). Vive aquí y en flushPersist — si renombras alguna,
+    // reapuntar test_p3_supabase_transient_retry.py.
     const loadIntake = useCallback(async (dateStr) => {
         const url = `/api/plans/water-intake?date=${encodeURIComponent(dateStr)}`;
         const attemptOnce = async () => {
