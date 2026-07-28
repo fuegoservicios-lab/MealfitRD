@@ -1145,6 +1145,15 @@ const Plan = () => {
                 // swap ("Cambiar Plato") NO pasa por aquí, así que no reinicia el ciclo. La lectura local
                 // de `oldPlan` se eliminó: su único uso era heredar cycle_start_date (ahora innecesario);
                 // el `oldPlan` del state (useState) es independiente y sigue intacto para el PreviewScreen.
+                //
+                // [P1-DAILY-NOT-CYCLE · 2026-07-28] Asimetría sin documentar (comentario únicamente,
+                // NINGÚN cambio de comportamiento): este es el ÚNICO sitio que mueve `cycle_start_date`.
+                // `/shift-plan` (`routers/plans.py::api_shift_plan`) y su equivalente en cron
+                // (`cron_tasks.py::_background_shift_plan_for_user`) avanzan la ventana rolling de un plan
+                // YA generado — grep confirma que ninguno de los dos toca `cycle_start_date` en absoluto,
+                // solo `grocery_start_date`/el corte de `days`. Consecuencia: cualquier bug o test anclado
+                // a "cycle_start_date cambió" es intermitente según CUÁL de los tres caminos tocó el plan
+                // por última vez — una renovación por botón lo mueve, un shift (manual o cron) no.
                 const now = new Date().toISOString();
                 generatedPlan.grocery_start_date = now;
                 generatedPlan.cycle_start_date = now;

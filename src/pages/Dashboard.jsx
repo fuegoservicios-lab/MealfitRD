@@ -6113,6 +6113,10 @@ const DashboardInner = () => {
                 quemaba el auto-open de una sola vez por sesión sobre un fantasma. */}
             <RestockNudge
                 planData={planData}
+                // [P1-DAILY-NOT-CYCLE · 2026-07-28] Mismo fallback que WaterTracker
+                // más abajo — el snooze/recordatorio de RestockNudge ahora se
+                // guardan por userId, no por plan (ver utils/restockNudge.js).
+                userId={session?.user?.id || userProfile?.id || 'guest'}
                 hasPendingItems={hasPendingShoppingItems && !isPlanExpired && !planFinished && !isPlanCorrupted}
                 pendingItemsSettled={computedHasPendingShoppingItems !== null}
                 restocked={!!planData?.is_restocked || sessionRestocked}

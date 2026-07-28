@@ -30,6 +30,9 @@ const DAY = 86_400_000;
 function ctx(over = {}) {
     return {
         planData: { id: 'plan-A' },
+        // [P1-DAILY-NOT-CYCLE · 2026-07-28] userId por defecto — el snooze y el
+        // recordatorio ahora se leen/escriben por usuario, no por plan.
+        userId: 'user-1',
         hasPendingItems: true,
         restocked: false,
         daysSinceGroceryStart: 0,
@@ -81,8 +84,9 @@ describe('shouldShowPrompt (#2)', () => {
         expect(shouldShowPrompt(ctx({ daysSinceGroceryStart: PROMPT_AFTER_DAYS }))).toBe(true);
     });
     it('NO durante el snooze, sí después', () => {
-        setSnooze('plan-A', NOW); // pospone SNOOZE_DAYS
-        expect(getSnoozeUntil('plan-A')).toBe(NOW + SNOOZE_DAYS * DAY);
+        // [P1-DAILY-NOT-CYCLE] el snooze se guarda por userId, no por plan key.
+        setSnooze('user-1', NOW); // pospone SNOOZE_DAYS
+        expect(getSnoozeUntil('user-1')).toBe(NOW + SNOOZE_DAYS * DAY);
         expect(shouldShowPrompt(ctx({ daysSinceGroceryStart: 1 }))).toBe(false);
         // tras vencer el snooze vuelve
         expect(shouldShowPrompt(ctx({ daysSinceGroceryStart: 3, nowMs: NOW + (SNOOZE_DAYS + 1) * DAY }))).toBe(true);
@@ -96,11 +100,11 @@ describe('shouldAutoFill (#3 — opt-out de último recurso)', () => {
     it('sí pasado el periodo de gracia, sin snooze ni auto-fill previo', () => {
         expect(shouldAutoFill(ctx({ daysSinceGroceryStart: AUTOFILL_GRACE_DAYS }))).toBe(true);
     });
-    it('NO si el usuario dijo "todavía no" (snooze vigente bloquea el opt-out)', () => {
-        setSnooze('plan-A', NOW + AUTOFILL_GRACE_DAYS * DAY); // snooze que aún no vence
+    it('NO si el usuario dijo "todavía no" (snooze vigente bloquea el opt-out, por userId)', () => {
+        setSnooze('user-1', NOW + AUTOFILL_GRACE_DAYS * DAY); // snooze que aún no vence
         expect(shouldAutoFill(ctx({ daysSinceGroceryStart: AUTOFILL_GRACE_DAYS, nowMs: NOW + AUTOFILL_GRACE_DAYS * DAY }))).toBe(false);
     });
-    it('NO si ya se auto-llenó (one-shot)', () => {
+    it('NO si ya se auto-llenó (one-shot, por plan)', () => {
         markAutoFilled('plan-A');
         expect(shouldAutoFill(ctx({ daysSinceGroceryStart: AUTOFILL_GRACE_DAYS + 5 }))).toBe(false);
     });
@@ -113,11 +117,38 @@ describe('shouldSendReminder (#4)', () => {
     it('sí una vez al llegar la fecha de compra', () => {
         expect(shouldSendReminder(ctx())).toBe(true);
     });
-    it('NO una segunda vez (one-shot por plan)', () => {
-        markReminderSent('plan-A');
+    it('NO una segunda vez (one-shot por userId — [P1-DAILY-NOT-CYCLE] antes era por plan)', () => {
+        markReminderSent('user-1');
         expect(shouldSendReminder(ctx())).toBe(false);
     });
     it('NO antes de la fecha de compra', () => {
         expect(shouldSendReminder(ctx({ daysSinceGroceryStart: -1 }))).toBe(false);
+    });
+});
+
+describe('[P1-DAILY-NOT-CYCLE · 2026-07-28] snooze/recordatorio sobreviven una renovación de plan', () => {
+    it('un snooze previo sigue bloqueando el prompt Y el auto-fill tras renovar (el plan key cambia, el userId no)', () => {
+        setSnooze('user-1', NOW); // "Todavía no" ANTES de renovar.
+
+        const afterRenewal = ctx({
+            planData: { id: 'plan-B' }, // renovación ⇒ nuevo plan key
+            daysSinceGroceryStart: AUTOFILL_GRACE_DAYS,
+            nowMs: NOW + 1 * DAY, // dentro de la ventana de SNOOZE_DAYS=2
+        });
+        expect(planNudgeKey(afterRenewal.planData)).not.toBe(planNudgeKey(ctx().planData));
+        expect(shouldShowPrompt(afterRenewal)).toBe(false);
+        expect(shouldAutoFill(afterRenewal)).toBe(false);
+    });
+
+    it('un recordatorio ya entregado tampoco se re-envía tras renovar', () => {
+        markReminderSent('user-1');
+        const afterRenewal = ctx({ planData: { id: 'plan-B' } });
+        expect(shouldSendReminder(afterRenewal)).toBe(false);
+    });
+
+    it('banner_dismissed SÍ sigue siendo por-plan: descartar el banner del plan viejo no oculta el del plan nuevo', () => {
+        dismissBanner(planNudgeKey({ id: 'plan-A' }));
+        expect(shouldShowBanner(ctx({ planData: { id: 'plan-A' } }))).toBe(false);
+        expect(shouldShowBanner(ctx({ planData: { id: 'plan-B' } }))).toBe(true);
     });
 });
