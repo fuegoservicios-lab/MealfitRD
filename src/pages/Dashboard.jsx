@@ -7196,29 +7196,38 @@ const DashboardInner = () => {
                     {/* [P1-TODAY-REMAINING · 2026-07-28] "Te quedan ~X kcal en N comidas" —
                         solo en el tab de HOY y solo si ya hay algo registrado en el diario
                         (paridad con el gate del coach, agent.py::_build_today_remaining_context).
-                        Derivado del diario en cada render — nunca escrito a plan_data. */}
+                        Derivado del diario en cada render — nunca escrito a plan_data.
+                        [P1-EATEN-SLOT-POLISH · 2026-07-28] Pre-fix esto era un info-alert
+                        genérico (fondo degradado, borde 1px, radius 12px, ícono Utensils) que
+                        chocaba con el cuaderno de "Tu Menú" (owner: "choca con el diseño").
+                        Ahora es una ANOTACIÓN escrita en la página, no una caja flotando
+                        encima: sin fill/borde/radius, alineada a la MISMA columna de texto que
+                        cada `.meal-card` (`padding-left: 4.5rem`), separada del primer plato
+                        con la línea rayada del cuaderno (`2px rgba(147, 197, 253, 0.3)`, la
+                        misma que usa `.meal-card:not(:last-of-type)::after` entre comidas) en
+                        vez de whitespace de margen. Sin ícono — la frase ya lo dice sola.
+                        Color = `var(--text-muted)` (token, no hex fijo) para que funcione en
+                        ambos temas sin rama `isDark` — es una anotación, no una alerta.
+                        DOM: hermano del wrapper de comidas (el <div flexDirection:'column'>
+                        de abajo), NUNCA dentro — así queda estructuralmente inmune al trap
+                        P3-DASH-LAST-SEPARATOR-FIX (`.meal-card:not(:last-of-type)`, que solo
+                        cuenta DIVs hermanos DENTRO de ese wrapper): esta línea no participa en
+                        ese conteo sin importar cómo cambie el map. */}
                     {todaysRemainingSummary && (
                         <div style={{
-                            background: isDark ? 'rgba(37, 99, 235, 0.14)' : 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
-                            border: isDark ? '1px solid rgba(96, 165, 250, 0.35)' : '1px solid #BFDBFE',
-                            borderRadius: '12px',
-                            padding: '10px 14px',
-                            marginBottom: '12px',
+                            marginLeft: '2.5rem',
+                            padding: '0.85rem 2.5rem 0.85rem 2rem',
+                            borderBottom: '2px solid rgba(147, 197, 253, 0.3)',
                             fontSize: '0.85rem',
-                            fontWeight: 600,
-                            color: isDark ? '#93C5FD' : '#1D4ED8',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
+                            fontWeight: 500,
+                            lineHeight: 1.5,
+                            color: 'var(--text-muted)',
                         }}>
-                            <Utensils size={16} strokeWidth={2.5} style={{ flexShrink: 0 }} />
-                            <span>
-                                Te quedan{' '}
-                                {todaysRemainingSummary.remainingKcal != null && (
-                                    <>~{todaysRemainingSummary.remainingKcal.toLocaleString('es-DO')} kcal estimadas en{' '}</>
-                                )}
-                                {todaysRemainingSummary.remainingCount} comida{todaysRemainingSummary.remainingCount === 1 ? '' : 's'} del plan.
-                            </span>
+                            Te quedan{' '}
+                            {todaysRemainingSummary.remainingKcal != null && (
+                                <>~{todaysRemainingSummary.remainingKcal.toLocaleString('es-DO')} kcal estimadas en{' '}</>
+                            )}
+                            {todaysRemainingSummary.remainingCount} comida{todaysRemainingSummary.remainingCount === 1 ? '' : 's'} del plan.
                         </div>
                     )}
 

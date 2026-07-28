@@ -341,6 +341,48 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         expect(navigateMock).toHaveBeenCalledWith('/dashboard/recipes');
     });
 
+    // [P1-EATEN-SLOT-POLISH · 2026-07-28] Pre-fix la línea era un componente
+    // de info-alert genérico (fondo degradado azul, borde 1px, radius 12px,
+    // ícono) — chocaba con el cuaderno de "Tu Menú" (owner: "choca con el
+    // diseño del cuaderno"). Ahora debe leerse como algo ESCRITO en la
+    // página: sin caja, alineada a la columna de texto de las comidas,
+    // separada del primer plato con la MISMA línea rayada que usa el
+    // cuaderno entre comidas (2px rgba(147, 197, 253, 0.3)), no con
+    // whitespace de margen. Assertion NEGATIVA a propósito — si alguien
+    // vuelve a ponerle una caja azul "para que resalte", este test debe
+    // volverse rojo.
+    it('the remaining-budget line reads as part of the notebook — no box, ruled-line separator, no icon', async () => {
+        render(<Dashboard />, {
+            customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
+        });
+
+        await screen.findByText('Mangú con los tres golpes');
+        await _waitForTrackingProgressSettled();
+        _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
+
+        const line = await screen.findByText(/Te quedan/);
+
+        // No fill, no border(-radius) — no es un chip/alert flotante.
+        expect(line.style.background).toBe('');
+        expect(line.style.backgroundColor).toBe('');
+        expect(line.style.border).toBe('');
+        expect(line.style.borderRadius).toBe('');
+        // El ícono era "el accesorio a quitar" — la frase ya lo dice sola.
+        expect(line.querySelector('svg')).toBeNull();
+
+        // La separación del primer plato es la línea rayada del cuaderno
+        // (misma regla que `.meal-card:not(:last-of-type)::after`), no
+        // whitespace de margen.
+        expect(line.style.borderBottom).toContain('rgba(147, 197, 253, 0.3)');
+
+        // A prueba del trap P3-DASH-LAST-SEPARATOR-FIX: `.meal-card:not(:last-of-type)::after`
+        // solo cuenta DIVs hermanos DENTRO del wrapper de comidas. Esta
+        // línea no es descendiente de ese wrapper → nunca puede convertirse
+        // en un phantom last-of-type sibling sin importar cómo cambie el map.
+        const mealsWrapper = screen.getByText('Mangú con los tres golpes').closest('.meal-card').parentElement;
+        expect(mealsWrapper.contains(line)).toBe(false);
+    });
+
     it('a non-eaten slot on the same day stays fully interactive — the lock is per-slot, not per-day', async () => {
         const toggleMealLike = vi.fn();
         render(<Dashboard />, {
