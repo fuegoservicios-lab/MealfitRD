@@ -47,12 +47,16 @@
 
 /* Detalle */
 .detail { padding: 16px; }
-/* [P1-EATEN-RECIPE-DONE · 2026-07-28] Espejo de RecipesView.module.css — ver
-   el comentario largo ahí para el razonamiento completo (por qué `filter`
-   grayscale y no opacity/`--tone`, y por qué el PDF sale limpio). Único
-   detalle mobile: no hay glow `::before` en `.head` (a diferencia de
-   `.head2::before` en desktop), así que ese selector se omite acá. */
-.detail.eaten { filter: grayscale(.92); }
+/* [P1-EATEN-RECIPE-DONE · 2026-07-28 · corregido P1-EATEN-DONUT-CONTRAST · 2026-07-28]
+   Espejo de RecipesView.module.css — ver el comentario largo ahí para el
+   razonamiento completo (por qué `filter` grayscale y no opacity/`--tone`,
+   por qué se aplica por HIJO DIRECTO excluyendo `.macros` (ancestro no
+   puede desaturar sin arrastrar la dona/leyenda de macros al mismo buffer
+   rasterizado, colapsando Carbos/Grasas al mismo gris), y por qué el PDF
+   sale limpio). Único detalle mobile: no hay glow `::before` en `.head` (a
+   diferencia de `.head2::before` en desktop), así que ese selector se omite
+   acá. */
+.detail.eaten > *:not(.macros) { filter: grayscale(.92); }
 .detail.eaten .secHead::before {
   opacity: .7;
 }

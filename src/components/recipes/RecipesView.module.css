@@ -42,20 +42,31 @@
 
 /* Detalle */
 .detail { padding: 20px; min-width: 0; }
-/* [P1-EATEN-RECIPE-DONE · 2026-07-28] Slot ya registrado en el diario de HOY
-   (mismo `meal._isEatenToday` que ya arma el chip .eatenChip y el .meal.eaten
-   del riel — Recipes.jsx ya lo gatea a "día mostrado === hoy", así que esta
-   sola clase cubre las dos condiciones a la vez). El pane entero se "archiva":
-   SOLO `filter: grayscale`, NUNCA `opacity` en el nodo raíz — el texto de
-   lectura (título, descripción, ingredientes, pasos) tiene que quedar a
-   opacity 1 o tanquea contraste en tema oscuro (la alternativa `opacity:.4`
-   fue descartada a propósito). `filter` es además el ÚNICO mecanismo que
-   alcanza uniformemente TODOS los orígenes de color de este pane: custom
-   properties con color-mix (--tone/--border), conic-gradient calculado en JS
-   (.donut), color inline por macro (.dot), y hex hardcoded (#FB923C del
-   ícono de llama) — un `.detail.eaten{ --tone:... }` NO serviría porque
-   `--tone`/`--accent` llegan como color YA RESUELTO en el inline style
-   (`t.tone`, RecipesView.jsx), no como referencia a la custom property.
+/* [P1-EATEN-RECIPE-DONE · 2026-07-28 · corregido P1-EATEN-DONUT-CONTRAST · 2026-07-28]
+   Slot ya registrado en el diario de HOY (mismo `meal._isEatenToday` que ya
+   arma el chip .eatenChip y el .meal.eaten del riel — Recipes.jsx ya lo
+   gatea a "día mostrado === hoy", así que esta sola clase cubre las dos
+   condiciones a la vez). El pane se "archiva": SOLO `filter: grayscale`,
+   NUNCA `opacity` en el nodo raíz — el texto de lectura (título,
+   descripción, ingredientes, pasos) tiene que quedar a opacity 1 o tanquea
+   contraste en tema oscuro (la alternativa `opacity:.4` fue descartada a
+   propósito).
+   [P1-EATEN-DONUT-CONTRAST] El filtro se aplica por HIJO DIRECTO
+   (`> *:not(.macros)`), NO en `.detail.eaten` mismo: `filter` en un
+   ancestro rasteriza TODO el subárbol a un buffer y lo desatura como una
+   sola imagen — un descendiente no puede "optar por salir" con su propio
+   `filter:none` (ver CSS Filter Effects). Aplicado sobre `.detail.eaten`
+   directo, a=.92 sobre los 3 colores de MACROS (recipesData.js) colapsaba
+   Carbos (#818CF8, luma 145.5) y Grasas (#FB7185, luma 143.8) al MISMO gris
+   neutro (distancia RGB ~14/441 tras el filtro) — la dona de 3 segmentos y
+   la leyenda .dot dejaban de distinguir Carbos de Grasas por color, pese a
+   que el comentario original afirmaba que su "identidad" sobrevivía.
+   `.macros` (dona conic-gradient + leyenda .dot) es la ÚNICA pieza del pane
+   cuya función es transmitir identidad MULTI-color — se excluye entera del
+   filtro y queda a color completo incluso archivada. El resto (`.head2`,
+   `.desc`, `.actions`, `.cols` con checkboxes/timeline de un solo tono) se
+   desatura igual que antes, filtrado por elemento en vez de por ancestro
+   común — mismo resultado visual, sin arrastrar `.macros` al mismo buffer.
    Nada se deshabilita bajo el filtro: checkboxes de ingredientes, toggle de
    pasos y el botón de PDF siguen 100% funcionales — Recetas es de solo
    lectura y el slot puede estar MAL emparejado (match por meal_type, nunca
@@ -65,7 +76,7 @@
    Recipes.jsx) que jamás referencia `styles.detail` — el filter no tiene a
    qué adherirse dentro del contenedor sintético que arma html2pdf.js, así
    que el PDF sale a color aunque el pane en pantalla esté gris. */
-.detail.eaten { filter: grayscale(.92); }
+.detail.eaten > *:not(.macros) { filter: grayscale(.92); }
 /* Dim restringido a las DOS piezas 100% decorativas de este pane: `content:
    ""`, cero texto/glyph, cero estado que leer (la barra de acento de
    sección y el glow ambiental del header). Deliberadamente NO se toca
