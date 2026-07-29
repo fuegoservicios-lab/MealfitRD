@@ -3,7 +3,11 @@
  *
  * Surfacing user-facing de los flags ADVISORY per-comida que el backend setea en el finalizer
  * (`finalize_single_meal_recipe_coherence`) y en swap/chat-modify, y persiste en `plan_data.days[].meals[]`:
- *   - `_dish_quality_degraded`      → la receta quedó placeholder/básica (backstop de 3 pilares).
+ *   - `_dish_quality_degraded`      → la receta quedó placeholder/básica (backstop de 3 pilares) —
+ *                                     [P1-SWAP-PROSE-HONEST · 2026-07-29] O una CANTIDAD se estimó
+ *                                     (`_dish_quality_reason === 'portion_estimate'`), que no es lo
+ *                                     mismo: la receta puede estar completa. El label/aviso difiere
+ *                                     según `_dish_quality_reason` (ver abajo).
  *   - `_slot_advisory`              → el plato quedó fuera de su horario (arroz de noche, etc.).
  *   - `_appetibility_combo_warning` → combinación inusual (fruta dulce + base salada).
  *   - `_macro_band_low`             → el plato editado quedó fuera de la banda del macro objetivo (>15%).
@@ -24,7 +28,20 @@ export function getMealAdvisories(meal) {
   if (!meal || typeof meal !== 'object') return [];
   const out = [];
   if (meal._dish_quality_degraded) {
-    out.push({ key: 'dish_quality', label: 'Receta básica — regenera para más detalle' });
+    // [P1-SWAP-PROSE-HONEST · 2026-07-29] `_dish_quality_degraded` lo setean 5 backstops
+    // distintos del backend; solo ALGUNOS significan "receta básica" (evidencia viva
+    // deefa5f0-51c6-40ba-9579-c9fc660cb4c4: el flag venía de una CANTIDAD estimada por el
+    // solver, no de falta de detalle — el plato tenía 3 pasos completos). Mostrar el mismo
+    // "regenera para más detalle" ahí es doblemente falso: describe mal el problema Y empuja
+    // a gastar un crédito mensual (verify_api_quota en /regenerate-day) para "arreglar" algo
+    // que regenerar no cambia (el detalle ya está completo). `_dish_quality_reason` (backend,
+    // mismo P-fix) distingue las causas; sin el campo (planes viejos persistidos antes de este
+    // fix) se conserva el label histórico como fallback seguro.
+    if (meal._dish_quality_reason === 'portion_estimate') {
+      out.push({ key: 'dish_quality', label: 'Cantidad de un ingrediente estimada — puede variar' });
+    } else {
+      out.push({ key: 'dish_quality', label: 'Receta básica — regenera para más detalle' });
+    }
   }
   if (meal._slot_advisory) {
     out.push({ key: 'slot', label: 'Horario inusual para este plato' });
