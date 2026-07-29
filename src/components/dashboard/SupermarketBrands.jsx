@@ -159,6 +159,21 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
         return out;
     }, [shoppingList]);
 
+    // [P1-BRAND-BUDGET-COHERENCE · 2026-07-29] conteo de paquetes que el costeo
+    // YA compra por ítem (leading integer de `display_qty`, ej. "2 malla (…)").
+    // Necesario para que `selectionTotal` (abajo) multiplique precio×conteo en
+    // vez de sumar el precio unitario una sola vez — ver `_rebuildItemFromVariant`
+    // en Dashboard.jsx, misma fórmula (ceil(curCount×package_grams / size_g)).
+    const qtyByKey = useMemo(() => {
+        const out = {};
+        (shoppingList || []).forEach((item) => {
+            const name = itemDisplayName(item);
+            const n = parseInt(String(item?.display_qty || ''), 10);
+            if (name && Number.isFinite(n) && n > 0) out[norm(name)] = n;
+        });
+        return out;
+    }, [shoppingList]);
+
     // [P1-BRAND-STABLE-ALL-SIZES] ítems DURADEROS (flag SSOT is_perishable === false):
     // sin filtro de tamaño — catálogo completo, tu tamaño primero.
     const stableByKey = useMemo(() => {
@@ -368,12 +383,26 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                 const variant = g.variants.find((v) => v.id === chosenId);
                 if (variant) {
                     seenKeys.add(foodKey);
-                    selection.push({ foodKey, foodName: g.food_name, variant });
+                    selection.push({ foodKey, foodName: g.food_name, variant, itemName: name });
                 }
             });
         });
     }
-    const selectionTotal = selection.reduce((acc, s) => acc + (s.variant.price_rd || 0), 0);
+    // [P1-BRAND-BUDGET-COHERENCE · 2026-07-29] Antes sumaba `price_rd` una sola
+    // vez por ítem elegido — para ítems que el costeo compra en MÁS de un
+    // paquete (ej. "2 malla (Petite 1 Lb) c/u") el badge mostraba la mitad de lo
+    // que la lista/PDF realmente cobra. Mismo cálculo que `_rebuildItemFromVariant`
+    // (Dashboard.jsx): conteo = ceil(curCount × package_grams / size_g del variant).
+    const selectionTotal = selection.reduce((acc, s) => {
+        const price = Number(s.variant.price_rd) || 0;
+        if (price <= 0) return acc;
+        const pg = sizeByKey[norm(s.itemName)] || 0;
+        const sg = Number(s.variant.size_g) || 0;
+        const curCount = qtyByKey[norm(s.itemName)] || 1;
+        let count = curCount;
+        if (pg > 0 && sg > 0) count = Math.max(1, Math.ceil((curCount * pg) / sg));
+        return acc + count * price;
+    }, 0);
 
     return (
         <div ref={rootRef} style={{
