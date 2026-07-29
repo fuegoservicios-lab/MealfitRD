@@ -1974,6 +1974,28 @@ const AgentPage = () => {
 
                                     if (dataObj.type === 'progress') {
                                         setStreamingStatus(dataObj.message);
+                                        // [P1-CHAT-NARRATION-KEPT-REVIEW-1 · 2026-07-28]
+                                        // El backend une pasadas narrate-then-act con
+                                        // '\n\n' en `done.response`
+                                        // (`_build_final_content_from_messages`,
+                                        // agent.py `"\n\n".join(parts)`), pero el stream
+                                        // de chunks crudo NUNCA insertaba ese separador
+                                        // — cada `progress` (post-narración, pre-tool_call)
+                                        // es la única señal de que una NUEVA pasada está
+                                        // por comenzar (ver el fallback genérico en
+                                        // agent.py que garantiza un `progress` por CADA
+                                        // tool_call, no solo las 5-6 nombradas). Insertar
+                                        // el mismo separador acá hace que `fullText`
+                                        // acumulado en vivo coincida con `done.response`
+                                        // byte a byte → `reconcileFinalChatText` detecta
+                                        // el caso 'extend' real (sin esto, SIEMPRE caía a
+                                        // 'replace' — reflow visible al final del turno).
+                                        // El primer `progress` ('analizando', antes de
+                                        // cualquier chunk) es un no-op acá porque
+                                        // `fullText` todavía está vacío.
+                                        if (fullText && !fullText.endsWith('\n\n')) {
+                                            fullText += '\n\n';
+                                        }
                                     } else if (dataObj.type === 'chunk') {
                                         // [P3-CHAT-FOCUS-TELEM · 2026-05-19]
                                         // Marcar TTFB la primera vez que

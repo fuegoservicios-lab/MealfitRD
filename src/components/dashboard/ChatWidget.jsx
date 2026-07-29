@@ -85,9 +85,20 @@ const ChatWidgetBubble = memo(function ChatWidgetBubble({ msg }) {
 // QuotaExceededError silente (iOS Private Mode, cuota llena) interrumpía
 // flujo de sesión guest y dejaba state inconsistente entre React y storage.
 import { safeLocalStorageSet } from '../../utils/safeLocalStorage';
+// [P1-CHAT-NARRATION-KEPT-REVIEW-2 · 2026-07-28] ChatWidget es un segundo
+// consumidor SSE independiente de `/api/chat/stream` (el otro es
+// AgentPage.jsx) y hacía el mismo blind-replace `fullText = dataObj.response`
+// en `done` que P1-CHAT-NARRATION-KEPT cerró en AgentPage — la narración de
+// un pase narrate-then-act (ej. "Lo anoto..." + tool_call) desaparecía al
+// llegar el evento final. Migrado a la SSOT compartida `chatStreamReconcile.js`.
+import { stripUiActionTags, reconcileFinalChatText } from '../../utils/chatStreamReconcile';
 
 const ChatWidget = () => {
-    const { session, planData, formData, userProfile, updateData, saveGeneratedPlan, checkPlanLimit } = useAssessment();
+    // [P1-CHAT-NARRATION-KEPT-REVIEW-2 · 2026-07-28] `restoreSessionData`
+    // agregado para el handler `onRefreshPlan` de `stripUiActionTags` —
+    // paridad con AgentPage.jsx (único otro consumidor SSE de
+    // `/api/chat/stream`).
+    const { session, planData, formData, userProfile, updateData, saveGeneratedPlan, checkPlanLimit, restoreSessionData } = useAssessment();
     // Fallback ID si no hay sesión activa aún
     const [localSessionId, setLocalSessionId] = useState(() => {
         const saved = localStorage.getItem('mealfit_guest_session');
@@ -367,18 +378,51 @@ const ChatWidget = () => {
                                 const dataObj = JSON.parse(line.trim().substring(6));
                                 if (dataObj.type === 'progress') {
                                     setStreamingStatus(dataObj.message);
+                                    // [P1-CHAT-NARRATION-KEPT-REVIEW-1/2 · 2026-07-28]
+                                    // Espejo de AgentPage.jsx: insertar el mismo
+                                    // separador '\n\n' que el backend usa para unir
+                                    // pasadas narrate-then-act
+                                    // (`_build_final_content_from_messages`,
+                                    // agent.py `"\n\n".join(parts)`) en el momento en
+                                    // que un `progress` señala que una NUEVA pasada
+                                    // está por comenzar. El primer `progress`
+                                    // ('analizando', antes de cualquier chunk) es
+                                    // no-op acá porque `fullText` todavía está vacío.
+                                    if (fullText && !fullText.endsWith('\n\n')) {
+                                        fullText += '\n\n';
+                                    }
                                 } else if (dataObj.type === 'chunk') {
                                     fullText += dataObj.text;
+                                    // [P1-CHAT-NARRATION-KEPT-REVIEW-2 · 2026-07-28]
+                                    // Strip de los tags silenciosos UI_ACTION — misma
+                                    // SSOT que AgentPage.jsx. Sin esto los tags se
+                                    // renderizaban literalmente al usuario y ningún
+                                    // handler (refresh de plan/hidratación/inventario)
+                                    // se disparaba desde este widget.
+                                    fullText = stripUiActionTags(fullText, {
+                                        onRefreshPlan: () => {
+                                            if (session?.user?.id) {
+                                                restoreSessionData?.(session.user.id);
+                                            }
+                                        },
+                                        onRefreshHydration: () => {
+                                            window.dispatchEvent(new CustomEvent('mealfit:refresh-hydration'));
+                                        },
+                                        onRefreshInventory: () => {
+                                            window.dispatchEvent(new CustomEvent('mealfit:refresh-inventory'));
+                                        },
+                                    });
+                                    const displayContent = fullText.replace(/\[UI_ACT[^\]]*$/g, '');
                                     if (!isMessageCreated) {
                                         isMessageCreated = true;
                                         setIsLoading(false);
                                         setStreamingStatus(null);
-                                        setMessages(prev => [...prev, { role: 'model', content: fullText, isStreaming: true }]);
+                                        setMessages(prev => [...prev, { role: 'model', content: displayContent, isStreaming: true }]);
                                     } else {
                                         setMessages(prev => {
                                             const updated = [...prev];
                                             if (updated.length > 0 && updated[updated.length - 1].isStreaming) {
-                                                updated[updated.length - 1] = { ...updated[updated.length - 1], content: fullText };
+                                                updated[updated.length - 1] = { ...updated[updated.length - 1], content: displayContent };
                                             }
                                             return updated;
                                         });
@@ -386,8 +430,31 @@ const ChatWidget = () => {
                                 } else if (dataObj.type === 'done') {
                                     setIsLoading(false);
                                     setStreamingStatus(null);
-                                    fullText = dataObj.response;
-                                    
+                                    // [P1-CHAT-NARRATION-KEPT-REVIEW-2 · 2026-07-28]
+                                    // Reconciliar en vez de reemplazo ciego
+                                    // (`fullText = dataObj.response`) — mismo bug que
+                                    // P1-CHAT-NARRATION-KEPT cerró en AgentPage.jsx,
+                                    // sin migrar acá hasta ahora. `_displayedBeforeDone`
+                                    // es lo que el usuario YA está leyendo (acumulado
+                                    // de chunks, tags ya limpios); si el payload final
+                                    // lo extiende, solo se anexa el delta — nunca un
+                                    // reemplazo que borre narración ya vista.
+                                    const _displayedBeforeDone = fullText;
+                                    const _finalResponse = stripUiActionTags(dataObj.response, {
+                                        onRefreshPlan: () => {
+                                            if (session?.user?.id) {
+                                                restoreSessionData?.(session.user.id);
+                                            }
+                                        },
+                                        onRefreshHydration: () => {
+                                            window.dispatchEvent(new CustomEvent('mealfit:refresh-hydration'));
+                                        },
+                                        onRefreshInventory: () => {
+                                            window.dispatchEvent(new CustomEvent('mealfit:refresh-inventory'));
+                                        },
+                                    });
+                                    fullText = reconcileFinalChatText(_displayedBeforeDone, _finalResponse);
+
                                     if (!isMessageCreated) {
                                         isMessageCreated = true;
                                         setMessages(prev => [...prev, { role: 'model', content: fullText }]);

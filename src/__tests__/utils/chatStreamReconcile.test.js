@@ -63,6 +63,69 @@ describe('reconcileFinalChatText', () => {
     });
 });
 
+describe('reconcileFinalChatText · fixture realista de acumulación SSE en vivo', () => {
+    // [P1-CHAT-NARRATION-KEPT-REVIEW-1 · 2026-07-28] La fixture original de
+    // 'caso sano' usaba `displayed = 'Lo anoto...'` — SOLO la primera pasada,
+    // como si el evento `done` llegara antes de que el cliente terminara de
+    // acumular los chunks de la SEGUNDA pasada. Eso NUNCA pasa en runtime: por
+    // definición `done` es el ÚLTIMO evento del stream, así que para cuando
+    // llega, AgentPage.jsx/ChatWidget.jsx ya acumularon TODOS los chunks de
+    // AMBAS pasadas via `fullText += dataObj.text` — sin separador entre
+    // ellas (agent.py solo emite `type:'chunk'` para contenido crudo). El
+    // backend en cambio arma `done.response` con
+    // `_build_final_content_from_messages` (`"\n\n".join(parts)`, agent.py
+    // ~4117), que SÍ inserta '\n\n' entre pasadas. Por eso el `startsWith`
+    // crudo divergía SIEMPRE en runtime, aunque el test unitario (fixture
+    // irreal) pasaba.
+    //
+    // Fix (P1-CHAT-NARRATION-KEPT-REVIEW-1): AgentPage.jsx/ChatWidget.jsx
+    // ahora insertan el MISMO separador '\n\n' en `fullText` al recibir un
+    // evento `progress` que señala el inicio de una nueva pasada (tool_call)
+    // — backend con fallback genérico (agent.py) garantiza un `progress` por
+    // CADA tool_call, no solo las 5-6 nombradas. Esta fixture reproduce esa
+    // acumulación real: chunks pass 1 → progress (separador insertado) →
+    // chunks pass 2 → done.
+    it('reproduce la acumulación real: chunks pass1 + separador de progress + chunks pass2 == displayed EXTIENDE final', () => {
+        // Simula exactamente lo que el loop de streaming hace:
+        let displayed = '';
+        // Pasada 1: chunks de narración cruda.
+        for (const tok of ['Lo ', 'anoto', '...']) displayed += tok;
+        // Evento `progress` (tool_call boundary) → separador insertado.
+        if (displayed && !displayed.endsWith('\n\n')) displayed += '\n\n';
+        // Pasada 2: chunks de confirmación cruda.
+        for (const tok of ['Listo, ', 'quedó anotado.']) displayed += tok;
+
+        // Lo que el backend persiste vía _build_final_content_from_messages:
+        // mismas dos pasadas unidas con '\n\n' — AHORA coincide byte a byte.
+        const final = 'Lo anoto...\n\nListo, quedó anotado.';
+
+        expect(displayed).toBe(final);
+
+        const result = reconcileFinalChatText(displayed, final);
+        expect(result).toBe(final);
+        // La propiedad que el docstring reclama para el 'caso sano' ahora
+        // SÍ se cumple con una fixture que refleja la acumulación real.
+        expect(final.startsWith(displayed)).toBe(true);
+    });
+
+    it('sin el fix del separador (regresión hipotética): chunks pegados sin separador → cae a replace, contenido igual pero sin match de prefijo', () => {
+        // Reproduce el comportamiento PRE-fix (P1-CHAT-NARRATION-KEPT-REVIEW-1
+        // aún no aplicado): las dos pasadas se pegan directo, sin separador.
+        const displayedPreFix = 'Lo anoto...' + 'Listo, quedó anotado.';
+        const final = 'Lo anoto...\n\nListo, quedó anotado.';
+
+        // El prefijo crudo NO matchea — la rama 'replace' se activa.
+        expect(final.startsWith(displayedPreFix)).toBe(false);
+
+        // El resultado sigue siendo CORRECTO (sin pérdida de datos) — el
+        // defense-in-depth de `reconcileFinalChatText` ya cubría esto — pero
+        // documenta por qué el hallazgo de review es válido: displayed
+        // "des-sincronizado" del separador real SIEMPRE cae a replace.
+        const result = reconcileFinalChatText(displayedPreFix, final);
+        expect(result).toBe(final);
+    });
+});
+
 describe('stripUiActionTags', () => {
     it('sin tags → retorna el texto intacto, sin invocar handlers', () => {
         const onRefreshPlan = vi.fn();
