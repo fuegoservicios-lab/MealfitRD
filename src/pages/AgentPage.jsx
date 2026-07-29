@@ -39,6 +39,10 @@ import { CHAT_MESSAGES_CACHE_KEY, CHAT_SESSIONS_CACHE_KEY } from '../utils/chatC
 const _CHAT_SESSIONS_CACHE_KEY = CHAT_SESSIONS_CACHE_KEY;
 const _CHAT_CACHE_KEY = CHAT_MESSAGES_CACHE_KEY;
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
+// [P1-CHAT-NARRATION-KEPT · 2026-07-28] Strip de tags UI_ACTION (SSOT
+// compartida chunk/done) + reconciliación del payload `done` contra lo ya
+// mostrado, en vez de blind-replace. Ver el módulo para el rationale completo.
+import { stripUiActionTags, reconcileFinalChatText } from '../utils/chatStreamReconcile';
 // [P3-AGENT-PREFILL · 2026-06-15] Pregunta pre-cargada desde el dashboard
 // (p.ej. tocar un micronutriente → "¿cómo subo mi fibra?").
 import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill';
@@ -1984,32 +1988,37 @@ const AgentPage = () => {
                                         fullText += dataObj.text;
 
                                         let displayContent = fullText;
-                                        // Detectar y procesar evento silencioso REFRESH_PLAN
-                                        if (fullText.includes('[UI_ACTION: REFRESH_PLAN]')) {
-                                            fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_PLAN\]/g, '');
-                                            if (session?.user?.id) {
-                                                restoreSessionData(session.user.id);
-                                            }
-                                        }
-                                        // [P3-WATER-TRACKER · 2026-05-16] REFRESH_HYDRATION: el agente
-                                        // mutó el conteo de vasos via log_water_glass → notificar al
-                                        // WaterTracker para que refetchee. Custom event en lugar de
-                                        // restoreSessionData (el card vive independiente del session).
-                                        if (fullText.includes('[UI_ACTION: REFRESH_HYDRATION]')) {
-                                            fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_HYDRATION\]/g, '');
-                                            window.dispatchEvent(new CustomEvent('mealfit:refresh-hydration'));
-                                        }
-                                        // [P1-CHAT-UI-ACTION-INVENTORY · 2026-05-20] REFRESH_INVENTORY:
-                                        // el agente mutó consumed_meals (log_consumed_meal) o user_inventory
-                                        // (modify_pantry_inventory / mark_shopping_list_purchased) → notificar
-                                        // al card de Progreso (TrackingProgress, lee consumed_meals) y al
-                                        // refresh de inventory del Dashboard. Sin esto, el tag se renderiza
-                                        // tal cual al user (bug visible reportado 2026-05-20) + nadie refetchea
-                                        // hasta el próximo polling de 15s. Custom event análogo a refresh-hydration.
-                                        if (fullText.includes('[UI_ACTION: REFRESH_INVENTORY]')) {
-                                            fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_INVENTORY\]/g, '');
-                                            window.dispatchEvent(new CustomEvent('mealfit:refresh-inventory'));
-                                        }
+                                        // Detectar y procesar los tags silenciosos UI_ACTION.
+                                        // [P1-CHAT-NARRATION-KEPT · 2026-07-28] SSOT compartida con
+                                        // el path `done` vía `stripUiActionTags` — antes eran 3
+                                        // bloques if duplicados que podían divergir entre paths.
+                                        fullText = stripUiActionTags(fullText, {
+                                            onRefreshPlan: () => {
+                                                if (session?.user?.id) {
+                                                    restoreSessionData(session.user.id);
+                                                }
+                                            },
+                                            // [P3-WATER-TRACKER · 2026-05-16] REFRESH_HYDRATION: el
+                                            // agente mutó el conteo de vasos via log_water_glass →
+                                            // notificar al WaterTracker para que refetchee. Custom
+                                            // event en lugar de restoreSessionData (el card vive
+                                            // independiente del session).
+                                            onRefreshHydration: () => {
+                                                window.dispatchEvent(new CustomEvent('mealfit:refresh-hydration'));
+                                            },
+                                            // [P1-CHAT-UI-ACTION-INVENTORY · 2026-05-20] REFRESH_INVENTORY:
+                                            // el agente mutó consumed_meals (log_consumed_meal) o
+                                            // user_inventory (modify_pantry_inventory /
+                                            // mark_shopping_list_purchased) → notificar al card de
+                                            // Progreso (TrackingProgress, lee consumed_meals) y al
+                                            // refresh de inventory del Dashboard. Sin esto, el tag se
+                                            // renderiza tal cual al user (bug visible reportado
+                                            // 2026-05-20) + nadie refetchea hasta el próximo polling
+                                            // de 15s. Custom event análogo a refresh-hydration.
+                                            onRefreshInventory: () => {
+                                                window.dispatchEvent(new CustomEvent('mealfit:refresh-inventory'));
+                                            },
+                                        });
                                         // Ocultar fragmento incompleto del token temporalmente en la UI
                                         // (idempotente — si ya fue procesado arriba, no queda nada que ocultar).
                                         displayContent = fullText.replace(/\[UI_ACT[^\]]*$/g, '');
@@ -2058,28 +2067,40 @@ const AgentPage = () => {
                                         });
                                         setIsLoading(false);
                                         setStreamingStatus(null);
-                                        fullText = dataObj.response;
 
+                                        // [P1-CHAT-NARRATION-KEPT · 2026-07-28] Reconciliar en vez de
+                                        // reemplazo ciego. `fullText` en este punto es lo que el usuario
+                                        // YA está leyendo (acumulado de eventos `chunk`, tags UI_ACTION
+                                        // ya limpios). El backend arma `done.response` uniendo TODAS las
+                                        // AIMessage del turno (ver agent.py `_build_final_content_from_messages`),
+                                        // así que en el caso sano `done.response` EXTIENDE lo ya mostrado
+                                        // — antes un blind-replace lo sustituía por una versión más corta,
+                                        // el usuario veía el texto que leía "desaparecer".
+                                        // Defense-in-depth: si por lo que sea el payload final NO extiende
+                                        // lo mostrado, reemplaza por completo (nunca concatena texto no
+                                        // relacionado).
+                                        const _displayedBeforeDone = fullText;
                                         // Limpieza de seguridad al final por si el chunk llegó mal cortado
-                                        if (fullText.includes('[UI_ACTION: REFRESH_PLAN]')) {
-                                            fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_PLAN\]/g, '');
-                                            if (session?.user?.id) {
-                                                restoreSessionData(session.user.id);
-                                            }
-                                        }
-                                        // [P3-WATER-TRACKER · 2026-05-16] Misma limpieza para REFRESH_HYDRATION.
-                                        if (fullText.includes('[UI_ACTION: REFRESH_HYDRATION]')) {
-                                            fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_HYDRATION\]/g, '');
-                                            window.dispatchEvent(new CustomEvent('mealfit:refresh-hydration'));
-                                        }
-                                        // [P1-CHAT-UI-ACTION-INVENTORY · 2026-05-20] Misma limpieza
-                                        // final para REFRESH_INVENTORY. Defense-in-depth: si el chunk
-                                        // streaming no contenía el tag completo (race), el evento `done`
-                                        // trae el response completo donde sí está.
-                                        if (fullText.includes('[UI_ACTION: REFRESH_INVENTORY]')) {
-                                            fullText = fullText.replace(/\[UI_ACTION:\s*REFRESH_INVENTORY\]/g, '');
-                                            window.dispatchEvent(new CustomEvent('mealfit:refresh-inventory'));
-                                        }
+                                        // (misma SSOT `stripUiActionTags` que el path de chunk streaming).
+                                        const _finalResponse = stripUiActionTags(dataObj.response, {
+                                            onRefreshPlan: () => {
+                                                if (session?.user?.id) {
+                                                    restoreSessionData(session.user.id);
+                                                }
+                                            },
+                                            // [P3-WATER-TRACKER · 2026-05-16] Misma limpieza para REFRESH_HYDRATION.
+                                            onRefreshHydration: () => {
+                                                window.dispatchEvent(new CustomEvent('mealfit:refresh-hydration'));
+                                            },
+                                            // [P1-CHAT-UI-ACTION-INVENTORY · 2026-05-20] Misma limpieza
+                                            // final para REFRESH_INVENTORY. Defense-in-depth: si el chunk
+                                            // streaming no contenía el tag completo (race), el evento `done`
+                                            // trae el response completo donde sí está.
+                                            onRefreshInventory: () => {
+                                                window.dispatchEvent(new CustomEvent('mealfit:refresh-inventory'));
+                                            },
+                                        });
+                                        fullText = reconcileFinalChatText(_displayedBeforeDone, _finalResponse);
 
                                         if (callModeRef.current) {
                                             const remainingText = fullText.substring(lastSpokenIndex).trim();
