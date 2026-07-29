@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { BadgeCheck, Check, ChevronDown, Store } from 'lucide-react';
+import { toast } from 'sonner';
 import { api, fetchWithAuth } from '../../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 
@@ -270,6 +271,19 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                 });
                 setPrefs(flat);
                 setPrefsSource('server');
+                // [P1-SUPERMARKET-PREFS-DISCONTINUED · 2026-07-29] El backend ya excluyó
+                // de `preferences` (y auto-borró) los pins cuyo producto fue dado de baja
+                // — antes esto revertía en silencio al default/más barato sin que el
+                // usuario supiera por qué su marca "desapareció". Avisar una vez por carga.
+                const discontinued = Array.isArray(data?.discontinued) ? data.discontinued : [];
+                if (discontinued.length > 0) {
+                    const names_ = discontinued.map((d) => d.food_name || d.food_key).filter(Boolean);
+                    toast('Algunas marcas elegidas ya no están disponibles', {
+                        description: names_.length
+                            ? `${names_.join(', ')} — volvimos a la opción disponible más económica.`
+                            : 'El producto que habías elegido fue descontinuado — volvimos a la opción disponible más económica.',
+                    });
+                }
             } else {
                 setPrefs(readLocalPrefs());
                 setPrefsSource('local');
