@@ -144,6 +144,36 @@ export function eatenNamesForSlot(consumedTodayMeals, slotMealType) {
     .filter(Boolean);
 }
 
+/**
+ * [P1-REMAINING-LINE-HONEST · 2026-07-28] Suma cruda de `meal.cals` de los
+ * slots del plan de HOY que TODAVÍA no se registraron en el diario — la
+ * TERCERA cantidad que la línea "Te quedan…" necesitaba y no tenía. Antes
+ * la línea leía `remainingKcal` (presupuesto: meta - consumido) y
+ * `remainingCount` (conteo de slots) como si fueran la MISMA cifra ("~460
+ * kcal estimadas EN 2 comidas"), cuando esas 2 comidas en realidad suman
+ * 1.284 kcal. Reusa el MISMO `eatenIndices` que ya produce
+ * `getEatenSlotIndices` sobre el mismo `dayMeals` — nunca una segunda regla
+ * de match — y la MISMA exclusión de suplementos que el conteo vecino en
+ * Dashboard.jsx (`meal.meal` conteniendo "suplemento" se salta). kcal
+ * ausente/NaN cuenta como 0 (mismo patrón defensivo que
+ * `sumConsumedCalories`) — nunca envenena la suma total.
+ *
+ * @param {Array} dayMeals - `planData.days[i].meals` del día activo, SIN filtrar.
+ * @param {Set<number>} eatenIndices - de `getEatenSlotIndices` sobre el MISMO `dayMeals`.
+ * @returns {number} kcal planificadas de los slots aún no comidos.
+ */
+export function sumPlannedRemainingCalories(dayMeals, eatenIndices) {
+  if (!Array.isArray(dayMeals) || dayMeals.length === 0) return 0;
+  const eaten = eatenIndices instanceof Set ? eatenIndices : new Set();
+  let total = 0;
+  dayMeals.forEach((meal, index) => {
+    if (meal?.meal?.toLowerCase().includes('suplemento')) return;
+    if (eaten.has(index)) return;
+    total += Number(meal && meal.cals) || 0;
+  });
+  return total;
+}
+
 /** Junta nombres al estilo es-DO: "A", "A y B", "A, B y C". */
 export function joinNamesEsDo(names) {
   const clean = (Array.isArray(names) ? names : []).filter(Boolean);
@@ -196,4 +226,52 @@ export function eatenClaimForSlot(consumedTodayMeals, slotMealType, cta = 'unloc
     ? ' Corrígelo en «Progreso en Tiempo Real» si no es lo que comiste.'
     : ' Bórralo en «Progreso en Tiempo Real» para desbloquear.';
   return `${base}${suffix}`;
+}
+
+/**
+ * [P1-REMAINING-LINE-HONEST · 2026-07-28] Texto de la línea "Te quedan…" de
+ * "Tu Menú". Pre-fix la frase leía `remainingKcal` (presupuesto: meta del
+ * día - consumido) y `remainingCount` (slots del plan sin comer) como una
+ * sola cantidad — "~460 kcal estimadas EN 2 comidas del plan" cuando esas 2
+ * comidas suman en realidad 1.284 kcal (`plannedKcal`,
+ * `sumPlannedRemainingCalories`). El owner lo detectó a simple vista: "creo
+ * que el texto donde dice 460 kcal es incorrecto ya que faltan más no?".
+ * Ahora las 3 cifras se comparan explícitamente en 3 estados:
+ *
+ *  1. Lo planificado CABE en el presupuesto (`plannedKcal <= remainingKcal`)
+ *     → ambos datos, sin alarma.
+ *  2. Lo planificado EXCEDE el presupuesto pero el presupuesto sigue en
+ *     positivo (`0 <= remainingKcal < plannedKcal`) → dice el exceso —
+ *     este es el caso del screenshot real: 460 de presupuesto, 1.284
+ *     planificado, ~824 de exceso. Decirlo es la razón de ser de la línea.
+ *  3. El presupuesto YA se superó (`remainingKcal < 0`, sin el
+ *     `Math.max(0, …)` que antes lo aplastaba a "0 kcal" justo cuando el
+ *     dato importaba más) → lo dice explícitamente y qué queda del plan.
+ *
+ * `remainingKcal == null` (plan sin `calories` numérico, caso pre-existente
+ * del backend) reporta solo lo planificado, sin comparación posible.
+ *
+ * El "~" se mantiene en las 3 cifras (presupuesto, planificado, exceso) —
+ * el consumido de hoy suele nacer de una foto analizada por un modelo de
+ * visión, y lo planificado es una estimación de receta; ninguna de las dos
+ * es un dato exacto.
+ *
+ * @param {{remainingKcal: number|null, plannedKcal: number, remainingCount: number}} args
+ * @returns {string}
+ */
+export function todayRemainingLine({ remainingKcal, plannedKcal, remainingCount }) {
+  const fmt = (n) => Math.round(n).toLocaleString('es-DO');
+  const comidas = `${remainingCount} comida${remainingCount === 1 ? '' : 's'}`;
+  const sumar = remainingCount === 1 ? 'suma' : 'suman';
+
+  if (remainingKcal == null) {
+    return `Te quedan ${comidas} del plan, que ${sumar} ~${fmt(plannedKcal)} kcal estimadas.`;
+  }
+  if (remainingKcal < 0) {
+    return `Ya superaste tu meta de hoy por ~${fmt(-remainingKcal)} kcal estimadas, y aún te quedan ${comidas} del plan por comer (~${fmt(plannedKcal)} kcal).`;
+  }
+  if (plannedKcal > remainingKcal) {
+    return `Te quedan ~${fmt(remainingKcal)} kcal estimadas de presupuesto, pero ${comidas} del plan ${sumar} ~${fmt(plannedKcal)} kcal — unas ~${fmt(plannedKcal - remainingKcal)} kcal por encima de tu meta de hoy.`;
+  }
+  return `Te quedan ~${fmt(remainingKcal)} kcal estimadas de presupuesto para ${comidas} del plan, que ${sumar} ~${fmt(plannedKcal)} kcal.`;
 }

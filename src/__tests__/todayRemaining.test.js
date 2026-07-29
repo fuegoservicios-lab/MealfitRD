@@ -8,11 +8,13 @@ import {
     canonicalSlotKey,
     getEatenSlotIndices,
     sumConsumedCalories,
+    sumPlannedRemainingCalories,
     eatenKcalForSlot,
     eatenNamesForSlot,
     joinNamesEsDo,
     eatenChipLabel,
     eatenClaimForSlot,
+    todayRemainingLine,
 } from '../utils/todayRemaining';
 
 describe('canonicalSlotKey', () => {
@@ -117,6 +119,132 @@ describe('sumConsumedCalories — nunca depende de la atribución', () => {
         expect(sumConsumedCalories([{ calories: null }, { calories: 'x' }, {}])).toBe(0);
         expect(sumConsumedCalories(null)).toBe(0);
         expect(sumConsumedCalories(undefined)).toBe(0);
+    });
+});
+
+// [P1-REMAINING-LINE-HONEST · 2026-07-28] La tercera cantidad que la línea
+// "Te quedan…" necesitaba: cuánto suman en kcal los slots del plan de HOY
+// que TODAVÍA no se registraron. Antes de este fix la línea solo tenía el
+// presupuesto (`remainingKcal`) y el CONTEO de comidas (`remainingCount`) —
+// leyendo la frase como si el conteo llevara las kcal del presupuesto.
+describe('sumPlannedRemainingCalories', () => {
+    const FOUR_MEALS = [
+        { meal: 'Desayuno', cals: 500 },
+        { meal: 'Almuerzo', cals: 813 },
+        { meal: 'Merienda', cals: 471 },
+        { meal: 'Cena', cals: 500 },
+    ];
+
+    it('sums only the meals whose index is NOT in eatenIndices (production case: 813+471=1284)', () => {
+        const eaten = new Set([0, 3]); // Desayuno y Cena ya registrados.
+        expect(sumPlannedRemainingCalories(FOUR_MEALS, eaten)).toBe(1284);
+    });
+
+    it('sums everything when nothing was eaten (empty Set)', () => {
+        expect(sumPlannedRemainingCalories(FOUR_MEALS, new Set())).toBe(500 + 813 + 471 + 500);
+    });
+
+    it('excludes supplement entries from the sum, same rule as the neighboring remainingCount', () => {
+        const withSupplement = [
+            ...FOUR_MEALS,
+            { meal: 'Suplemento', cals: 9999 },
+        ];
+        expect(sumPlannedRemainingCalories(withSupplement, new Set())).toBe(500 + 813 + 471 + 500);
+        // Sabotage check (documented, not executed): dropping the
+        // `.toLowerCase().includes('suplemento')` guard would make this sum
+        // 9999 kcal higher — this assertion is the one that would fire.
+    });
+
+    it('AMBIGUITY RULE parity: when getEatenSlotIndices attributes nothing, the planned sum still makes sense (= full sum)', () => {
+        const twoMeriendas = [
+            { meal: 'Desayuno', cals: 400 },
+            { meal: 'Almuerzo', cals: 700 },
+            { meal: 'Merienda AM', cals: 150 },
+            { meal: 'Merienda PM', cals: 200 },
+            { meal: 'Cena', cals: 550 },
+        ];
+        // Una sola fila 'merienda' con 2 slots candidatos → ambigua, nada se atribuye.
+        const eaten = getEatenSlotIndices(twoMeriendas, [{ meal_type: 'merienda', calories: 150 }]);
+        expect(eaten.size).toBe(0);
+        expect(sumPlannedRemainingCalories(twoMeriendas, eaten)).toBe(400 + 700 + 150 + 200 + 550);
+    });
+
+    it('a meal with missing/NaN cals contributes 0, never poisons the sum with NaN', () => {
+        const dirty = [
+            { meal: 'Desayuno', cals: 500 },
+            { meal: 'Almuerzo', cals: undefined },
+            { meal: 'Merienda' /* sin cals */ },
+            { meal: 'Cena', cals: 'no-es-un-numero' },
+        ];
+        const total = sumPlannedRemainingCalories(dirty, new Set());
+        expect(total).toBe(500);
+        expect(Number.isNaN(total)).toBe(false);
+    });
+
+    it('fail-open on garbage inputs', () => {
+        expect(sumPlannedRemainingCalories([], new Set())).toBe(0);
+        expect(sumPlannedRemainingCalories(null, new Set())).toBe(0);
+        expect(sumPlannedRemainingCalories(FOUR_MEALS, null)).toBe(500 + 813 + 471 + 500);
+    });
+});
+
+// Misma llamada que usa `todayRemainingLine` internamente — así la
+// aserción no depende de qué locale ICU tenga el runtime que corre el test
+// (Node small-icu formatea "1,284" en vez de "1.284"; un browser con
+// full-icu sí da "1.284" — mismo gotcha documentado en
+// Dashboard.today_remaining.test.jsx::_fmtKcal).
+const _fmt = (n) => Math.round(n).toLocaleString('es-DO');
+
+// [P1-REMAINING-LINE-HONEST · 2026-07-28] La copia de la línea "Te
+// quedan…" — pinea la ARITMÉTICA además del texto, así una regresión que
+// vuelva a fundir presupuesto y planificado en una sola cifra se detecta
+// aquí, no solo en el DOM del Dashboard.
+describe('todayRemainingLine', () => {
+    it('EXACT PRODUCTION CASE: 460 budget, 1.284 planned → reports both AND the ~824 overshoot', () => {
+        const line = todayRemainingLine({ remainingKcal: 460, plannedKcal: 1284, remainingCount: 2 });
+        expect(line).toContain(_fmt(460));
+        expect(line).toContain(_fmt(1284));
+        expect(line).toContain(_fmt(824)); // 1284 - 460
+        expect(line).toContain('2 comidas del plan');
+        // La frase vieja fundía las dos cifras con "en" — no debe reaparecer.
+        expect(line).not.toMatch(new RegExp(`${_fmt(460)} kcal estimadas en 2 comidas`));
+    });
+
+    it('fitting case (planned <= budget) reads without alarm — no "por encima"/"superaste"', () => {
+        const line = todayRemainingLine({ remainingKcal: 2500, plannedKcal: 1500, remainingCount: 3 });
+        expect(line).toContain(_fmt(2500));
+        expect(line).toContain(_fmt(1500));
+        expect(line).toContain('3 comidas del plan');
+        expect(line).not.toMatch(/por encima|superaste/);
+    });
+
+    it('exact-fit boundary (planned === budget) counts as "fits", not "exceeds"', () => {
+        const line = todayRemainingLine({ remainingKcal: 1500, plannedKcal: 1500, remainingCount: 3 });
+        expect(line).not.toMatch(/por encima|superaste/);
+        expect(line).toContain(_fmt(1500));
+    });
+
+    it('already-over case (negative remainingKcal) reports the overshoot, never "0 kcal"', () => {
+        const line = todayRemainingLine({ remainingKcal: -200, plannedKcal: 1500, remainingCount: 3 });
+        expect(line).toMatch(/superaste/i);
+        expect(line).toContain(_fmt(200)); // -(-200)
+        // El clamp `Math.max(0, …)` pre-fix habría dejado `remainingKcal=0`
+        // aquí — este es el string literal que produciría, no debe aparecer.
+        expect(line).not.toMatch(/~0 kcal estimadas de presupuesto/);
+        expect(line).toContain('3 comidas del plan');
+    });
+
+    it('remainingKcal null (plan sin calories numérico) reports only what is planned, no comparison', () => {
+        const line = todayRemainingLine({ remainingKcal: null, plannedKcal: 1284, remainingCount: 2 });
+        expect(line).toContain(_fmt(1284));
+        expect(line).toContain('2 comidas del plan');
+        expect(line).not.toMatch(/por encima|superaste/);
+    });
+
+    it('singular "1 comida" / "suma" agreement (not "1 comidas" / "suman")', () => {
+        const line = todayRemainingLine({ remainingKcal: 500, plannedKcal: 300, remainingCount: 1 });
+        expect(line).toContain('1 comida del plan');
+        expect(line).not.toContain('1 comidas');
     });
 });
 

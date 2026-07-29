@@ -173,13 +173,15 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
             expect(card).not.toHaveAttribute('title');
         }
 
-        // "Te quedan ~1.500 kcal estimadas en 3 comidas del plan." — target
-        // 2000, consumido 500 (solo lo registrado, SIN depender de la
-        // atribución) → restante 1500; comidas restantes = 4 - 1 (desayuno,
-        // match inequívoco) = 3.
+        // [P1-REMAINING-LINE-HONEST · 2026-07-28] target 2000, consumido 500
+        // (solo lo registrado, SIN depender de la atribución) → presupuesto
+        // restante 1500; comidas restantes = 4 - 1 (desayuno, match
+        // inequívoco) = Almuerzo(700) + Merienda(250) + Cena(550) = 1500
+        // planificadas. Presupuesto == planificado (caso límite "cabe") →
+        // frase sin alarma, las 2 cifras EXPLÍCITAS (no una sola fundida).
         const expectedKcal = _fmtKcal(1500);
         expect(screen.getByText(
-            new RegExp(`Te quedan.*${expectedKcal.replace('.', '\\.')} kcal estimadas en.*3 comidas del plan`)
+            new RegExp(`Te quedan.*${expectedKcal.replace('.', '\\.')} kcal estimadas de presupuesto para.*3 comidas del plan.*${expectedKcal.replace('.', '\\.')} kcal`)
         )).toBeInTheDocument();
     });
 
@@ -443,5 +445,107 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
 
         fireEvent.click(likeBtn);
         expect(toggleMealLike).toHaveBeenCalledWith('Arroz con pollo guisado', 'Almuerzo');
+    });
+});
+
+// [P1-REMAINING-LINE-HONEST · 2026-07-28] La línea "Te quedan…" fundía DOS
+// cantidades independientes en una sola frase — "~460 kcal estimadas EN 2
+// comidas del plan" leía como si esas 2 comidas SUMARAN 460 kcal, cuando en
+// realidad suman 1.284. El owner: "creo que el texto donde dice 460 kcal es
+// incorrecto ya que faltan más no?". Estos tests pinean la ARITMÉTICA de las
+// 3 cifras (presupuesto, planificado, exceso), no solo la presencia de un
+// string.
+describe('P1-REMAINING-LINE-HONEST — "Te quedan" reporta presupuesto Y planificado por separado', () => {
+    beforeEach(() => {
+        vi.mocked(router.useNavigate).mockReturnValue(vi.fn());
+        vi.mocked(useRegeneratePlan).mockReturnValue({ regeneratePlan: vi.fn() });
+        vi.mocked(fetchWithAuth).mockResolvedValue(_emptyDiaryResponse());
+        window.scrollTo = vi.fn();
+    });
+
+    it('EXACT PRODUCTION CASE: target 2050, logged 1590 (750+840), remaining meals 813+471 → reports 460 budget, 1.284 planned, ~824 over', async () => {
+        const meals = [
+            { meal: 'Desayuno', name: 'Tostadas Francesas', cals: 500, desc: 'x' },
+            { meal: 'Almuerzo', name: 'Arroz con pollo', cals: 813, desc: 'x' },
+            { meal: 'Merienda', name: 'Batido', cals: 471, desc: 'x' },
+            { meal: 'Cena', name: 'Pescado', cals: 500, desc: 'x' },
+        ];
+        render(<Dashboard />, {
+            customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals }], 2050) },
+        });
+
+        await screen.findByText('Tostadas Francesas');
+        await _waitForTrackingProgressSettled();
+
+        // Desayuno y Cena registrados (matches inequívocos) → 1.590 kcal
+        // consumidas. Almuerzo (813) y Merienda (471) quedan sin registrar.
+        _dispatchTodaysConsumed([
+            { meal_type: 'desayuno', meal_name: 'Mangú con los tres golpes', calories: 750 },
+            { meal_type: 'cena', meal_name: 'Tres Golpes Nocturno', calories: 840 },
+        ]);
+
+        const line = await screen.findByText(/Te quedan/);
+        // Presupuesto: 2050 - 1590 = 460.
+        expect(line.textContent).toContain(`~${_fmtKcal(460)} kcal`);
+        // Planificado: 813 + 471 = 1.284 (NO 460 — el bug original).
+        expect(line.textContent).toContain(`~${_fmtKcal(1284)} kcal`);
+        expect(line.textContent).not.toContain(`~${_fmtKcal(460)} kcal estimadas en 2 comidas`);
+        // Exceso: 1.284 - 460 = 824.
+        expect(line.textContent).toContain(`~${_fmtKcal(824)} kcal`);
+        expect(line.textContent).toContain('2 comidas del plan');
+
+        // El caso "excede el presupuesto" lleva algo MÁS de énfasis
+        // tipográfico que la anotación base — pero sigue sin caja/fill/
+        // borde/radius/ícono (mismo test negativo que el design test de
+        // arriba, no repetido aquí por brevedad).
+        expect(line.style.background).toBe('');
+        expect(line.style.border).toBe('');
+        expect(line.style.borderRadius).toBe('');
+    });
+
+    it('fitting case (planned clearly under budget) reads without alarm — no bold, no warning color', async () => {
+        render(<Dashboard />, {
+            // target 3000, muy por encima de lo que puede sumar el plan de 4 comidas.
+            customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }], 3000) },
+        });
+
+        await screen.findByText('Mangú con los tres golpes');
+        await _waitForTrackingProgressSettled();
+        // Desayuno (500) registrado → presupuesto restante 3000-500=2500;
+        // planificado restante = Almuerzo(700)+Merienda(250)+Cena(550)=1500.
+        _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
+
+        const line = await screen.findByText(/Te quedan/);
+        expect(line.textContent).toContain(`~${_fmtKcal(2500)} kcal`);
+        expect(line.textContent).toContain(`~${_fmtKcal(1500)} kcal`);
+        expect(line.textContent).not.toMatch(/por encima|superaste/);
+        // Sin realce — la anotación por defecto (peso 500, color muted).
+        expect(line).toHaveStyle({ fontWeight: '500' });
+        expect(line.style.color).toBe('var(--text-muted)');
+    });
+
+    it('already-over case (consumed > target) reports the overshoot instead of clamping to "0"', async () => {
+        render(<Dashboard />, {
+            customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }], 2000) },
+        });
+
+        await screen.findByText('Mangú con los tres golpes');
+        await _waitForTrackingProgressSettled();
+        // 2.200 registradas en desayuno solo (foto sobreestimada, plausible)
+        // contra meta 2000 → presupuesto -200, NUNCA "0 kcal".
+        _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 2200 }]);
+
+        const line = await screen.findByText(/Te quedan|superaste/);
+        expect(line.textContent).toMatch(/superaste/i);
+        expect(line.textContent).toContain(`~${_fmtKcal(200)} kcal`);
+        expect(line.textContent).not.toContain('~0 kcal');
+        // Las 3 comidas restantes (Almuerzo+Merienda+Cena) siguen mencionadas.
+        expect(line.textContent).toContain('3 comidas del plan');
+
+        // Realce tipográfico: negrita + color de warning (sigue sin caja).
+        expect(line).toHaveStyle({ fontWeight: '700' });
+        expect(line.style.color).toBe('var(--warning-text)');
+        expect(line.style.background).toBe('');
+        expect(line.style.border).toBe('');
     });
 });

@@ -114,7 +114,7 @@ import { getMealAdvisories } from '../utils/mealAdvisories';
 // diario en cada render (nunca escrito a plan_data). Ver docstring del
 // módulo para la regla de match + la regla de ambigüedad (mismas que
 // backend/agent.py::_build_today_remaining_context).
-import { getEatenSlotIndices, sumConsumedCalories, eatenChipLabel, eatenClaimForSlot } from '../utils/todayRemaining';
+import { getEatenSlotIndices, sumConsumedCalories, sumPlannedRemainingCalories, todayRemainingLine, eatenChipLabel, eatenClaimForSlot } from '../utils/todayRemaining';
 // [P1-EATEN-SLOT-POLISH · 2026-07-28] La card ya-comida se atenuaba (P1-TODAY-REMAINING)
 // pero seguía siendo 100% interactiva — "Cambiar Plato" costaba un crédito real y
 // "Me gusta" grababa una preferencia sobre un plato que el usuario NO comió (owner:
@@ -3823,13 +3823,25 @@ const DashboardInner = () => {
         () => (isTodayTabActive ? getEatenSlotIndices(currentDayMeals, todaysConsumedMeals) : new Set()),
         [isTodayTabActive, currentDayMeals, todaysConsumedMeals]
     );
-    // "Te quedan ~X kcal en N comidas" — mismo cálculo que el backend
-    // (agent.py::_build_today_remaining_context): kcal restante = meta -
-    // SUMA CRUDA de lo comido hoy (nunca depende de la atribución, que
-    // puede quedar ambigua — ver regla de ambigüedad); comidas restantes =
-    // slots de hoy que NO se pudieron remover por match inequívoco. Solo
-    // se muestra si ya hay algo registrado hoy (paridad con el gate
-    // `if consumed_today:` del backend).
+    // [P1-REMAINING-LINE-HONEST · 2026-07-28] "Te quedan ~X kcal de
+    // presupuesto para N comidas del plan (~Y kcal)" — 3 cantidades
+    // INDEPENDIENTES, ya NO una sola frase que las confunde (bug real: "Te
+    // quedan ~460 kcal estimadas en 2 comidas del plan" cuando esas 2
+    // comidas suman 1.284 kcal, no 460 — el owner lo detectó a simple
+    // vista). `remainingKcal` = meta - SUMA CRUDA de lo comido hoy (nunca
+    // depende de la atribución, que puede quedar ambigua — ver regla de
+    // ambigüedad) — SIN el `Math.max(0, …)` que antes aplastaba el exceso a
+    // "0 kcal" justo cuando el dato importaba más; ahora queda con signo y
+    // `todayRemainingLine` decide qué decir con él. `plannedKcal` = suma de
+    // `meal.cals` de los slots restantes (`sumPlannedRemainingCalories`,
+    // MISMO `todaysEatenIndices` que atenúa las cards — nunca una segunda
+    // regla de match). `remainingCount` = slots de hoy que NO se pudieron
+    // remover por match inequívoco. Solo se muestra si ya hay algo
+    // registrado hoy (paridad con el gate `if consumed_today:` del
+    // backend, agent.py::_build_today_remaining_context — nota: esa
+    // función backend tiene la MISMA conflación kcal-presupuesto vs
+    // kcal-planificado sin corregir todavía; hasta que se corrija, el
+    // coach y esta tarjeta pueden narrar el mismo día distinto).
     const todaysRemainingSummary = useMemo(() => {
         if (!isTodayTabActive || currentDayMeals.length === 0) return null;
         if (!Array.isArray(todaysConsumedMeals) || todaysConsumedMeals.length === 0) return null;
@@ -3840,9 +3852,15 @@ const DashboardInner = () => {
             if (meal?.meal?.toLowerCase().includes('suplemento')) return;
             if (!todaysEatenIndices.has(index)) remainingCount += 1;
         });
+        const remainingKcal = targetCalories != null ? Math.round(targetCalories - consumedTotal) : null;
+        const plannedKcal = sumPlannedRemainingCalories(currentDayMeals, todaysEatenIndices);
         return {
             remainingCount,
-            remainingKcal: targetCalories != null ? Math.max(0, Math.round(targetCalories - consumedTotal)) : null,
+            remainingKcal,
+            plannedKcal,
+            isOverBudget: remainingKcal != null && remainingKcal < 0,
+            exceedsBudget: remainingKcal != null && remainingKcal >= 0 && plannedKcal > remainingKcal,
+            message: todayRemainingLine({ remainingKcal, plannedKcal, remainingCount }),
         };
     }, [isTodayTabActive, currentDayMeals, todaysConsumedMeals, todaysEatenIndices, planData?.calories]);
 
@@ -7205,10 +7223,14 @@ const DashboardInner = () => {
                         </div>
                     )}
 
-                    {/* [P1-TODAY-REMAINING · 2026-07-28] "Te quedan ~X kcal en N comidas" —
-                        solo en el tab de HOY y solo si ya hay algo registrado en el diario
-                        (paridad con el gate del coach, agent.py::_build_today_remaining_context).
-                        Derivado del diario en cada render — nunca escrito a plan_data.
+                    {/* [P1-TODAY-REMAINING · 2026-07-28, copy reescrita P1-REMAINING-LINE-HONEST
+                        · 2026-07-28] "Te quedan ~X kcal de presupuesto para N comidas del plan
+                        (~Y kcal)" — solo en el tab de HOY y solo si ya hay algo registrado en
+                        el diario (paridad con el gate del coach,
+                        agent.py::_build_today_remaining_context). Derivado del diario en cada
+                        render — nunca escrito a plan_data. Texto armado por
+                        `todayRemainingLine` (utils/todayRemaining.js) — ver ese docstring para
+                        los 3 estados (cabe / excede / ya se superó).
                         [P1-EATEN-SLOT-POLISH · 2026-07-28] Pre-fix esto era un info-alert
                         genérico (fondo degradado, borde 1px, radius 12px, ícono Utensils) que
                         chocaba con el cuaderno de "Tu Menú" (owner: "choca con el diseño").
@@ -7218,8 +7240,13 @@ const DashboardInner = () => {
                         con la línea rayada del cuaderno (`2px rgba(147, 197, 253, 0.3)`, la
                         misma que usa `.meal-card:not(:last-of-type)::after` entre comidas) en
                         vez de whitespace de margen. Sin ícono — la frase ya lo dice sola.
-                        Color = `var(--text-muted)` (token, no hex fijo) para que funcione en
-                        ambos temas sin rama `isDark` — es una anotación, no una alerta.
+                        Color = `var(--text-muted)` (token, no hex fijo) por default para que
+                        funcione en ambos temas sin rama `isDark` — sigue siendo una anotación,
+                        no una alerta. [P1-REMAINING-LINE-HONEST] Cuando lo planificado choca
+                        con el presupuesto (excedido o ya superado) el color pasa a
+                        `var(--warning-text)` + `font-weight` más alto — SIGUE sin fill/borde/
+                        radius/ícono/caja flotante, solo un énfasis tipográfico dentro de la
+                        misma anotación (el owner pidió explícitamente NO reintroducir la caja).
                         DOM: hermano del wrapper de comidas (el <div flexDirection:'column'>
                         de abajo), NUNCA dentro — así queda estructuralmente inmune al trap
                         P3-DASH-LAST-SEPARATOR-FIX (`.meal-card:not(:last-of-type)`, que solo
@@ -7231,15 +7258,13 @@ const DashboardInner = () => {
                             padding: '0.85rem 2.5rem 0.85rem 2rem',
                             borderBottom: '2px solid rgba(147, 197, 253, 0.3)',
                             fontSize: '0.85rem',
-                            fontWeight: 500,
+                            fontWeight: (todaysRemainingSummary.isOverBudget || todaysRemainingSummary.exceedsBudget) ? 700 : 500,
                             lineHeight: 1.5,
-                            color: 'var(--text-muted)',
+                            color: (todaysRemainingSummary.isOverBudget || todaysRemainingSummary.exceedsBudget)
+                                ? 'var(--warning-text)'
+                                : 'var(--text-muted)',
                         }}>
-                            Te quedan{' '}
-                            {todaysRemainingSummary.remainingKcal != null && (
-                                <>~{todaysRemainingSummary.remainingKcal.toLocaleString('es-DO')} kcal estimadas en{' '}</>
-                            )}
-                            {todaysRemainingSummary.remainingCount} comida{todaysRemainingSummary.remainingCount === 1 ? '' : 's'} del plan.
+                            {todaysRemainingSummary.message}
                         </div>
                     )}
 
