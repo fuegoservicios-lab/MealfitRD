@@ -111,7 +111,10 @@ export function MobileRecipes({
       </div>
 
       {/* Detalle */}
-      <div className={styles.detail}>
+      {/* [P1-EATEN-RECIPE-DONE · 2026-07-28] Espejo de RecipesView.jsx (ver
+          comentario largo ahí) — misma condición `meal._isEatenToday`, ya
+          gateada a "día mostrado === hoy" en Recipes.jsx. */}
+      <div className={meal._isEatenToday ? `${styles.detail} ${styles.eaten}` : styles.detail}>
         <div className={styles.head}>
           <h2 className={styles.title}>{meal.name}</h2>
           <div className={styles.chips}>

@@ -47,6 +47,15 @@
 
 /* Detalle */
 .detail { padding: 16px; }
+/* [P1-EATEN-RECIPE-DONE · 2026-07-28] Espejo de RecipesView.module.css — ver
+   el comentario largo ahí para el razonamiento completo (por qué `filter`
+   grayscale y no opacity/`--tone`, y por qué el PDF sale limpio). Único
+   detalle mobile: no hay glow `::before` en `.head` (a diferencia de
+   `.head2::before` en desktop), así que ese selector se omite acá. */
+.detail.eaten { filter: grayscale(.92); }
+.detail.eaten .secHead::before {
+  opacity: .7;
+}
 .head { position: relative; overflow: hidden; border-radius: 18px; border: 1px solid color-mix(in srgb, var(--tone) 34%, var(--border)); padding: 16px;
   background: radial-gradient(120% 130% at 100% -10%, color-mix(in srgb, var(--tone) 24%, transparent), transparent 60%), linear-gradient(135deg, color-mix(in srgb, var(--tone) 13%, var(--bg-page)), var(--bg-page)); }
 .headTop { display: flex; align-items: center; gap: 11px; }

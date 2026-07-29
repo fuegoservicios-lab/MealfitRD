@@ -137,8 +137,17 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
 
   const ingredients = meal.ingredients || [];
 
+  // [P1-EATEN-RECIPE-DONE · 2026-07-28] El owner: "se bloquea visualmente
+  // solo una PARTE (el riel) — la receta completa de al lado se ve como
+  // cualquier otra". `meal._isEatenToday` ya llega gateado a "el día
+  // mostrado ES hoy" (Recipes.jsx:594-618, `_eatenIndices` es un Set VACÍO
+  // cuando el día activo no es hoy) — una sola condición cubre ambos
+  // requisitos (slot comido Y día=hoy), ver CSS module para el mecanismo
+  // (filter grayscale, nunca opacity/hide/disable).
+  const detailCls = meal._isEatenToday ? `${styles.detail} ${styles.eaten}` : styles.detail;
+
   return (
-    <div className={styles.detail} style={{ '--tone': t.tone }}>
+    <div className={detailCls} style={{ '--tone': t.tone }}>
       {/* Encabezado tipográfico (sin imagen) */}
       <div className={styles.head2}>
         <div className={styles.h2body}>
