@@ -4010,6 +4010,24 @@ const DashboardInner = () => {
                     position: relative;
                     z-index: 1;
                 }
+                /* [P1-EATEN-SLOT-POLISH-ALIGN-FIX · 2026-07-28] La anotación "Te
+                   quedan..." reproduce el indent de .meal-card (margin-left 2.5rem +
+                   padding-left 2rem = 4.5rem, el mismo valor que .meal-card
+                   padding-left arriba) via CLASE en vez de inline style — así puede
+                   seguir el mismo override responsive que .meal-card recibe en
+                   móvil (ver @media max-width:768px, bloque DASH-MOBILE-CLEAN-CARD)
+                   en vez de quedar fija en desktop. Pre-fix el inline style no tenía
+                   media query: en <=768px .meal-card cae a padding-left 1.25rem
+                   pero la anotación se quedaba en 4.5rem, ~3.25rem más adentro que
+                   las cards que anota — leía como un indent suelto flotando sobre
+                   el cuaderno, justo el defecto visual que este mismo fix intentaba
+                   cerrar. */
+                .today-remaining-note {
+                    margin-left: 2.5rem;
+                    padding: 0.85rem 2.5rem 0.85rem 2rem;
+                    font-size: 0.85rem;
+                    line-height: 1.5;
+                }
                 /* [P3-DASH-LAST-SEPARATOR-FIX · 2026-07-12] :last-child → :last-of-type.
                    El wrapper de comidas termina con un nodo <style> inline (hover de
                    .meal-act-btn): con :last-child la ÚLTIMA comida nunca era "última"
@@ -5050,6 +5068,15 @@ const DashboardInner = () => {
                     .skipped-lunch:not(:last-of-type)::after {
                         left: 1.25rem !important;
                         right: 1.25rem !important;
+                    }
+                    /* [P1-EATEN-SLOT-POLISH-ALIGN-FIX · 2026-07-28] Misma pin de
+                       1.25rem que .meal-card arriba, para que la anotación quede
+                       en la MISMA columna de texto que las cards en <=768px (antes
+                       fija en 4.5rem via inline style, sin media query). */
+                    .today-remaining-note {
+                        margin-left: 0 !important;
+                        padding-left: 1.25rem !important;
+                        padding-right: 1.25rem !important;
                     }
                 }
 
@@ -7240,6 +7267,12 @@ const DashboardInner = () => {
                         con la línea rayada del cuaderno (`2px rgba(147, 197, 253, 0.3)`, la
                         misma que usa `.meal-card:not(:last-of-type)::after` entre comidas) en
                         vez de whitespace de margen. Sin ícono — la frase ya lo dice sola.
+                        [P1-EATEN-SLOT-POLISH-ALIGN-FIX · 2026-07-28] El indent vive en la
+                        clase `.today-remaining-note` (no inline style) para que el mismo
+                        pin responsive de `.meal-card` a `padding-left: 1.25rem` en
+                        <=768px (bloque DASH-MOBILE-CLEAN-CARD) también alcance a esta
+                        anotación — pre-fix el inline style no tenía media query y se
+                        quedaba en 4.5rem en móvil mientras las cards caían a 1.25rem.
                         Color = `var(--text-muted)` (token, no hex fijo) por default para que
                         funcione en ambos temas sin rama `isDark` — sigue siendo una anotación,
                         no una alerta. [P1-REMAINING-LINE-HONEST] Cuando lo planificado choca
@@ -7253,17 +7286,24 @@ const DashboardInner = () => {
                         cuenta DIVs hermanos DENTRO de ese wrapper): esta línea no participa en
                         ese conteo sin importar cómo cambie el map. */}
                     {todaysRemainingSummary && (
-                        <div style={{
-                            marginLeft: '2.5rem',
-                            padding: '0.85rem 2.5rem 0.85rem 2rem',
-                            borderBottom: '2px solid rgba(147, 197, 253, 0.3)',
-                            fontSize: '0.85rem',
-                            fontWeight: (todaysRemainingSummary.isOverBudget || todaysRemainingSummary.exceedsBudget) ? 700 : 500,
-                            lineHeight: 1.5,
-                            color: (todaysRemainingSummary.isOverBudget || todaysRemainingSummary.exceedsBudget)
-                                ? 'var(--warning-text)'
-                                : 'var(--text-muted)',
-                        }}>
+                        <div
+                            className="today-remaining-note"
+                            style={{
+                                // [P1-EATEN-SLOT-POLISH-ALIGN-FIX · 2026-07-28] borderBottom
+                                // se queda INLINE (no en la clase CSS): la separación "línea
+                                // rayada del cuaderno" (P1-EATEN-SLOT-POLISH) es la única
+                                // señal de caja/borde que existe en esta anotación y un test
+                                // de regresión la lee via `line.style.borderBottom` — moverla
+                                // a la clase la haría invisible a ese test sin razón real
+                                // (el indent responsive, que SÍ necesita ser clase para tener
+                                // media query, vive aparte en `.today-remaining-note`).
+                                borderBottom: '2px solid rgba(147, 197, 253, 0.3)',
+                                fontWeight: (todaysRemainingSummary.isOverBudget || todaysRemainingSummary.exceedsBudget) ? 700 : 500,
+                                color: (todaysRemainingSummary.isOverBudget || todaysRemainingSummary.exceedsBudget)
+                                    ? 'var(--warning-text)'
+                                    : 'var(--text-muted)',
+                            }}
+                        >
                             {todaysRemainingSummary.message}
                         </div>
                     )}
