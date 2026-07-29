@@ -104,9 +104,38 @@ export function isPlanActiveForFastPoll(chunkStatus, nowMs, nearTermMs = PLAN_PO
 }
 
 /**
+ * [P1-PLAN-POLL-INFLIGHT-NO-BACKOFF · 2026-07-29] ¿Hay un chunk REALMENTE
+ * cocinándose ahora mismo (`in_flight_count>0`)? Sub-señal de `isPlanActiveForFastPoll`
+ * — esa función también cuenta "nada corriendo todavía pero `next_chunk_eta` cae
+ * pronto" como "activo" (razón correcta para NO detener el loop), pero ese
+ * sub-caso SÍ puede pagar backoff geométrico (nada está corriendo aún). El
+ * sub-caso `in_flight_count>0` no debe pagarlo nunca: el trabajo ya se
+ * disparó server-side y puede terminar en cualquier tick — cadencia rápida
+ * (`fastMs`) todo el tiempo que dure, sin importar si `daysCount` ya se movió
+ * (el chunk completo solo se materializa como días al final, no a mitad de
+ * camino).
+ *
+ * Fail-closed (false) cuando `chunkStatus` es null/undefined: el fail-open de
+ * "seguir pollenado en vez de detenerse" ya lo cubre `isPlanActiveForFastPoll`;
+ * aquí solo se decide si el backoff puede CRECER, y un `chunkStatus`
+ * desconocido no autoriza asumir "cocinando ahora mismo" (congelaría el
+ * backoff en `fastMs` indefinidamente para el caso benigno "el fetch de
+ * `/chunk-status` falló pero el plan real está dormido").
+ *
+ * @param {{in_flight_count?: number}|null|undefined} chunkStatus
+ * @returns {boolean}
+ */
+export function isPlanInFlight(chunkStatus) {
+    if (!chunkStatus || typeof chunkStatus !== 'object') return false;
+    const inFlight = Number(chunkStatus.in_flight_count);
+    return Number.isFinite(inFlight) && inFlight > 0;
+}
+
+/**
  * Backoff puro: siguiente delay dado el actual. El caller decide CUÁNDO
- * llamarla (solo en ticks sin progreso — ver `hasContentProgressed`) y cuándo
- * resetear a `fastMs` en su lugar.
+ * llamarla (solo en ticks sin progreso Y sin chunk en vuelo — ver
+ * `hasContentProgressed` / `isPlanInFlight`) y cuándo resetear a `fastMs` en
+ * su lugar.
  */
 export function growPollDelay(currentDelayMs, {
     fastMs = PLAN_POLL_FAST_MS,

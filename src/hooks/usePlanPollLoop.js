@@ -25,6 +25,7 @@ import {
     PLAN_POLL_NEAR_TERM_ETA_MS,
     PLAN_POLL_GIVEUP_MS,
     isPlanActiveForFastPoll,
+    isPlanInFlight,
     growPollDelay,
     hasContentProgressed,
     hasPollGivenUp,
@@ -117,17 +118,32 @@ export function usePlanPollLoop({
 
             const active = isPlanActiveForFastPoll(snapshot.chunkStatus, now, nearTermMs);
             if (!active) {
-                // Dormante: chunk-status dice que no hay nada por venir pronto
+                // [P1-PLAN-POLL-DORMANT-GIVEUP-SIGNAL · 2026-07-29] Dormante:
+                // chunk-status dice que no hay nada por venir pronto
                 // (in_flight_count===0 y next_chunk_eta lejos o ausente). Se
                 // detiene el loop — SIN re-armarse — confiando en el trigger
                 // de wake/focus para el refresh oportunista (recomendación de
                 // la medición: "no hay nada que ver pronto", stopping no
                 // arriesga la constraint de "generación real no debe tardar
-                // más en aparecer").
+                // más en aparecer"). PERO detenerse sin avisar es exactamente
+                // la "pantalla muda" que el give-up wall-clock (arriba) fue
+                // escrito para evitar — el consumidor (banner "Dejamos de
+                // revisar…") no distingue POR QUÉ se detuvo, solo que debe
+                // ofrecer un botón manual. Notificar aquí también, no solo en
+                // el timeout de `giveUpMs`.
+                onGiveUpChangeRef.current?.(true);
                 return;
             }
 
-            if (!progressed) {
+            if (isPlanInFlight(snapshot.chunkStatus)) {
+                // [P1-PLAN-POLL-INFLIGHT-NO-BACKOFF · 2026-07-29] Un chunk
+                // REALMENTE cocinándose ahora mismo no debe pagar backoff solo
+                // porque `daysCount` todavía no se movió — el chunk se
+                // materializa como días recién al terminar, no a mitad de
+                // camino. Cadencia rápida mientras dure, cualquiera sea
+                // `progressed`.
+                delayMs = fastMs;
+            } else if (!progressed) {
                 delayMs = growPollDelay(delayMs, { fastMs });
             }
             scheduleNext(delayMs);

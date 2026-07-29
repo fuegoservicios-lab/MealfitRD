@@ -12,6 +12,7 @@ import {
     PLAN_POLL_BACKOFF_MAX_MS,
     PLAN_POLL_GIVEUP_MS,
     isPlanActiveForFastPoll,
+    isPlanInFlight,
     growPollDelay,
     hasContentProgressed,
     hasPollGivenUp,
@@ -84,6 +85,36 @@ describe('[P1-PLAN-POLL-BOUNDED] isPlanActiveForFastPoll · discriminador', () =
             const eta = new Date(now + d * 24 * 60 * 60 * 1000).toISOString();
             expect(isPlanActiveForFastPoll({ in_flight_count: 0, next_chunk_eta: eta }, now)).toBe(false);
         }
+    });
+});
+
+describe('[P1-PLAN-POLL-INFLIGHT-NO-BACKOFF · 2026-07-29] isPlanInFlight · sub-señal "cocinando ahora mismo"', () => {
+    it('in_flight_count > 0 → true', () => {
+        expect(isPlanInFlight({ in_flight_count: 1, next_chunk_eta: null })).toBe(true);
+        expect(isPlanInFlight({ in_flight_count: 3, next_chunk_eta: null })).toBe(true);
+    });
+
+    it('in_flight_count === 0 → false, aunque next_chunk_eta esté DENTRO de la ventana near-term', () => {
+        // Distingue de `isPlanActiveForFastPoll`: ese discriminador dice "activo" (seguir
+        // pollenado) para el caso "nada corriendo aún, pero se espera pronto" — pero ESE
+        // sub-caso sí debe poder pagar backoff (no hay trabajo real en curso todavía).
+        const soonEta = new Date(Date.now() + 60 * 1000).toISOString();
+        expect(isPlanInFlight({ in_flight_count: 0, next_chunk_eta: soonEta })).toBe(false);
+    });
+
+    it('in_flight_count ausente/no numérico → false', () => {
+        expect(isPlanInFlight({ next_chunk_eta: null })).toBe(false);
+        expect(isPlanInFlight({ in_flight_count: 'nope', next_chunk_eta: null })).toBe(false);
+    });
+
+    it('fail-CLOSED (false) cuando chunkStatus es null/undefined — a diferencia de isPlanActiveForFastPoll', () => {
+        // No autoriza asumir "cocinando ahora mismo" solo porque el dato falta — eso
+        // congelaría el backoff en fastMs indefinidamente para el caso benigno "el fetch
+        // de /chunk-status falló pero el plan real está dormido". El fail-OPEN de "seguir
+        // pollenado en vez de detenerse" ya lo cubre isPlanActiveForFastPoll por separado.
+        expect(isPlanInFlight(null)).toBe(false);
+        expect(isPlanInFlight(undefined)).toBe(false);
+        expect(isPlanActiveForFastPoll(null, Date.now())).toBe(true); // contraste explícito
     });
 });
 
