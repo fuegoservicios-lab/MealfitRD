@@ -162,11 +162,17 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
   //
   // Por qué bloquear es seguro acá: el usuario se desbloquea A SÍ MISMO en
   // un solo paso — borrar la comida registrada en "Progreso en Tiempo Real"
-  // limpia `_isEatenToday` y los 3 controles se re-habilitan EN VIVO, sin
-  // reload (el round-trip ya existe: el fetch del diario de Recipes.jsx +
-  // `mealfit:today-consumed-updated` que Dashboard.jsx/TrackingProgress.jsx
-  // emiten en cada cambio de su propio estado). Un lock con escape hatch
-  // visible es distinto de un callejón sin salida.
+  // limpia `_isEatenToday` y los 3 controles se re-habilitan.
+  // ⚠️ El mecanismo EXACTO importa: Recipes.jsx NO escucha
+  // `mealfit:today-consumed-updated` (ese evento es solo Dashboard ↔
+  // TrackingProgress). Acá el diario se pide UNA vez por montaje
+  // (`_consumedFetchedRef`), así que el desbloqueo llega al volver a la
+  // página (navegación SPA fuera y de vuelta = remonta = refetch), NO en
+  // vivo mientras la página está montada — lo cual basta, porque borrar la
+  // fila solo se puede hacer FUERA de esta página. Si algún día se le pone
+  // keep-alive a esta ruta (como AgentPage), este escape hatch se rompe en
+  // silencio: habría que suscribirse al evento antes de hacerlo.
+  // Un lock con escape hatch visible es distinto de un callejón sin salida.
   const isLocked = !!meal._isEatenToday;
   const detailCls = isLocked ? `${styles.detail} ${styles.eaten}` : styles.detail;
   // [P1-EATEN-RECIPE-LOCK · 2026-07-28] Un `title` NO es accesible (no llega

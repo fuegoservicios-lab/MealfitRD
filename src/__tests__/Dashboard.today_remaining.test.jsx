@@ -296,8 +296,10 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
     // gusta grababa una preferencia sobre un plato que el usuario NO comió
     // (el owner reportó "me deja interactuar y no debería"). Ahora las
     // acciones mutantes se bloquean de verdad (atributo `disabled` nativo),
-    // Ver Receta se mantiene activo (solo lectura, responde una pregunta
-    // legítima), y cada control bloqueado explica por qué + cómo
+    // Ver Receta se mantiene activo porque abre la LECTURA de la receta, que
+    // nunca se gatea (ojo: desde P1-EATEN-RECIPE-LOCK, Recetas sí bloquea su
+    // PDF y sus checkboxes — ya no es una página "de solo lectura"), y cada
+    // control bloqueado explica por qué + cómo
     // deshacerlo (borrar la fila en "Progreso en Tiempo Real").
     it('an eaten slot genuinely disables Cambiar Plato and Me gusta — no click, no keyboard activation reaches their handlers', async () => {
         const toggleMealLike = vi.fn();

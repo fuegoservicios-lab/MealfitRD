@@ -120,9 +120,12 @@ import { getEatenSlotIndices, sumConsumedCalories, eatenChipLabel, eatenClaimFor
 // "Me gusta" grababa una preferencia sobre un plato que el usuario NO comió (owner:
 // "me deja interactuar y no debería"). Cambiar Plato y Me gusta ahora se deshabilitan
 // de VERDAD (atributo `disabled` nativo — coincide teclado + lectores de pantalla, no
-// solo opacidad). Ver Receta se mantiene activo a propósito: es de solo lectura y
-// responde una pregunta legítima ("¿qué me tocaba comer?"); no cuesta crédito ni graba
-// nada. El match de slot es una heurística (P1-TODAY-REMAINING) y puede fallar, así
+// solo opacidad). Ver Receta se mantiene activo a propósito: responde una pregunta
+// legítima ("¿qué me tocaba comer?"); no cuesta crédito ni graba nada.
+// [P1-EATEN-RECIPE-LOCK · 2026-07-28] OJO: Recetas ya NO es "solo lectura" — ahí el
+// PDF y los checkboxes de ingredientes/pasos SÍ se bloquean para un slot ya
+// registrado. Lo que nunca se gatea es LEER la receta, y eso es exactamente lo que
+// Ver Receta abre, así que sigue activo. El match de slot es una heurística (P1-TODAY-REMAINING) y puede fallar, así
 // que cada control bloqueado explica el escape hatch real: borrar la fila en
 // "Progreso en Tiempo Real" (P1-DIARY-EDITABLE, TrackingProgress.jsx).
 //
