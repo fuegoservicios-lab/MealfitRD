@@ -96,6 +96,13 @@ const _FOUR_MEALS_TODAY = [
     { meal: 'Cena', name: 'Pescado a la plancha', cals: 550, desc: 'x' },
 ];
 
+// [P1-EATEN-SLOT-COPY · 2026-07-28] Texto honesto esperado — nombra lo que
+// el DIARIO registró (`_DIARY_MEAL_TODAY.meal_name`), NUNCA el plato del
+// plan (`_FOUR_MEALS_TODAY[0].name` = "Mangú con los tres golpes"). Mismo
+// string en la card, el chip y los 2 botones bloqueados (SSOT real —
+// `eatenClaimForSlot(consumedTodayMeals, meal.meal, 'unlock')`).
+const _EATEN_CLAIM = 'Registraste «Mangú (registrado hoy)» (~500 kcal) como tu desayuno de hoy. Bórralo en «Progreso en Tiempo Real» para desbloquear.';
+
 const _todayIso = () => new Date().toISOString();
 
 function _plan(days, calories = 2000) {
@@ -183,12 +190,28 @@ describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en "Progreso en Tiemp
         // slot "Desayuno" hoy).
         const menuName = await screen.findByText('Mangú con los tres golpes');
         const menuCard = menuName.closest('.meal-card');
-        expect(menuCard).toHaveAttribute('title', 'Ya registraste esto en tu diario de hoy');
+        expect(menuCard).toHaveAttribute('title', _EATEN_CLAIM);
         const [, swapBtn, likeBtn] = within(menuCard).getAllByRole('button');
         expect(swapBtn).toBeDisabled();
         expect(likeBtn).toBeDisabled();
-        expect(screen.getByText(/Ya comiste esto/)).toBeInTheDocument();
+
+        // [P1-EATEN-SLOT-COPY · 2026-07-28] El chip SOLO nombra el slot
+        // ("Ya registraste tu desayuno") — nunca dice "esto" (la copia
+        // vieja apuntaba al plato MOSTRADO, "Mangú con los tres golpes",
+        // que el usuario NO comió — comió "Mangú (registrado hoy)").
+        expect(screen.getByText('Ya registraste tu desayuno')).toBeInTheDocument();
+        expect(within(menuCard).queryByText(/esto/i)).not.toBeInTheDocument();
         expect(screen.getByText(/Te quedan/)).toBeInTheDocument();
+
+        // Los 2 botones bloqueados llevan la MISMA frase honesta — nombra lo
+        // que el diario registró, jamás "Mangú con los tres golpes" (el
+        // plato del PLAN que decora esta card).
+        expect(swapBtn).toHaveAttribute('title', _EATEN_CLAIM);
+        expect(likeBtn).toHaveAttribute('title', _EATEN_CLAIM);
+        expect(swapBtn).toHaveAttribute('aria-label', _EATEN_CLAIM);
+        expect(likeBtn).toHaveAttribute('aria-label', _EATEN_CLAIM);
+        expect(_EATEN_CLAIM).toContain('Mangú (registrado hoy)');
+        expect(_EATEN_CLAIM).not.toContain('con los tres golpes');
 
         // El control de borrado vive en "Progreso en Tiempo Real" — su
         // accessible name usa el nombre del RENGLÓN DEL DIARIO, nunca el del
@@ -210,7 +233,7 @@ describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en "Progreso en Tiemp
         });
         expect(swapBtn).not.toBeDisabled();
         expect(likeBtn).not.toBeDisabled();
-        expect(screen.queryByText(/Ya comiste esto/)).not.toBeInTheDocument();
+        expect(screen.queryByText('Ya registraste tu desayuno')).not.toBeInTheDocument();
         expect(screen.queryByText(/Te quedan/)).not.toBeInTheDocument();
 
         // El renglón también desapareció de "Progreso en Tiempo Real" — la
@@ -229,7 +252,7 @@ describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en "Progreso en Tiemp
         await _waitForTrackingProgressSettledWithMeal();
         const menuName = await screen.findByText('Mangú con los tres golpes');
         const menuCard = menuName.closest('.meal-card');
-        expect(menuCard).toHaveAttribute('title', 'Ya registraste esto en tu diario de hoy');
+        expect(menuCard).toHaveAttribute('title', _EATEN_CLAIM);
 
         const deleteBtn = screen.getByRole('button', { name: 'Eliminar Mangú (registrado hoy) del diario' });
         fireEvent.click(deleteBtn);
@@ -241,11 +264,12 @@ describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en "Progreso en Tiemp
         // Sigue bloqueado: title, botones deshabilitados, chip, renglón del
         // diario y "Te quedan" intactos — el fallo del DELETE no debe
         // parecer un éxito.
-        expect(menuCard).toHaveAttribute('title', 'Ya registraste esto en tu diario de hoy');
+        expect(menuCard).toHaveAttribute('title', _EATEN_CLAIM);
         const [, swapBtn, likeBtn] = within(menuCard).getAllByRole('button');
         expect(swapBtn).toBeDisabled();
         expect(likeBtn).toBeDisabled();
-        expect(screen.getByText(/Ya comiste esto/)).toBeInTheDocument();
+        expect(screen.getByText('Ya registraste tu desayuno')).toBeInTheDocument();
+        expect(within(menuCard).queryByText(/esto/i)).not.toBeInTheDocument();
         expect(screen.getByText(/Te quedan/)).toBeInTheDocument();
         expect(screen.getByText('Mangú (registrado hoy)')).toBeInTheDocument();
         expect(screen.getByText('1 comida registrada hoy')).toBeInTheDocument();

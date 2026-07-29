@@ -122,7 +122,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         window.scrollTo = vi.fn();
     });
 
-    it('dims the eaten slot with its chip, leaves other slots untouched, and shows the remaining-kcal line', async () => {
+    it('dims the eaten slot with its chip, names the LOGGED item (not the planned dish) in the tooltip, leaves other slots untouched, and shows the remaining-kcal line', async () => {
         render(<Dashboard />, {
             customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
         });
@@ -131,25 +131,46 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         await _waitForTrackingProgressSettled();
 
         // Antes de cualquier registro: nada atenuado, ninguna línea "Te quedan".
-        expect(screen.queryByText(/Ya comiste esto/)).not.toBeInTheDocument();
+        expect(screen.queryByText('Ya registraste tu desayuno')).not.toBeInTheDocument();
         expect(screen.queryByText(/Te quedan/)).not.toBeInTheDocument();
 
-        _dispatchTodaysConsumed([{ meal_type: 'desayuno', meal_name: 'Mangú', calories: 500 }]);
+        // [P1-EATEN-SLOT-COPY · 2026-07-28] Nombre logueado DELIBERADAMENTE
+        // distinto del plato del plan ("Mangú con los tres golpes") — mismo
+        // caso real que reportó el owner (plan: "Tostadas Francesas...",
+        // diario: "Mangú con Los Tres Golpes"). Si el tooltip regresa a leer
+        // `meal.name` del plan en vez del diario, las aserciones de abajo
+        // sobre `cardTitle` se ponen rojas.
+        _dispatchTodaysConsumed([{ meal_type: 'desayuno', meal_name: 'Huevos revueltos con salami', calories: 500 }]);
 
         // Match inequívoco (un solo slot 'Desayuno' hoy) → esa card se atenúa.
         const desayunoName = await screen.findByText('Mangú con los tres golpes');
         const desayunoCard = desayunoName.closest('.meal-card');
-        expect(desayunoCard).toHaveAttribute('title', 'Ya registraste esto en tu diario de hoy');
         expect(desayunoCard).toHaveStyle({ opacity: '0.55' });
         // Dim, NUNCA hide — el nombre sigue en el DOM, solo tachado.
         expect(desayunoName).toHaveStyle({ textDecoration: 'line-through' });
-        expect(screen.getByText(/Ya comiste esto/)).toBeInTheDocument();
-        expect(screen.getByText(/~500 kcal/)).toBeInTheDocument();
+
+        // El chip SOLO nombra el slot — nunca "esto", nunca un plato.
+        expect(screen.getByText('Ya registraste tu desayuno')).toBeInTheDocument();
+        expect(within(desayunoCard).queryByText(/esto/i)).not.toBeInTheDocument();
+
+        // El detalle (nombre REAL logueado + kcal + slot) vive en el
+        // `title` — nunca el nombre del plato del plan.
+        const cardTitle = desayunoCard.getAttribute('title');
+        expect(cardTitle).toContain('Huevos revueltos con salami');
+        expect(cardTitle).not.toContain('Mangú con los tres golpes');
+        expect(cardTitle).toContain('~500 kcal');
+        expect(cardTitle).toContain('desayuno');
+
+        // [P1-EATEN-SLOT-COPY · 2026-07-28] kcal removido del chip VISIBLE —
+        // vivía al lado del propio "500 kcal" de la card (dos números
+        // discutiendo en el mismo lugar). El agregado real sigue viviendo en
+        // la línea "Te quedan" (chequeada abajo).
+        expect(screen.queryByText(/~500 kcal/)).not.toBeInTheDocument();
 
         // Los otros 3 slots de hoy NO se tocan.
         for (const otherName of ['Arroz con pollo guisado', 'Yogur con fruta', 'Pescado a la plancha']) {
             const card = screen.getByText(otherName).closest('.meal-card');
-            expect(card).not.toHaveAttribute('title', 'Ya registraste esto en tu diario de hoy');
+            expect(card).not.toHaveAttribute('title');
         }
 
         // "Te quedan ~1.500 kcal estimadas en 3 comidas del plan." — target
@@ -187,15 +208,19 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
 
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
         const hoyCard = await screen.findByText('Mangú de hoy');
-        expect(hoyCard.closest('.meal-card')).toHaveAttribute('title', 'Ya registraste esto en tu diario de hoy');
+        // El fallback sin `meal_name` ("algo") sigue nombrando el slot y NO
+        // dice "esto" — ver todayRemaining.test.js para el caso con nombre.
+        expect(hoyCard.closest('.meal-card')).toHaveAttribute('title', expect.stringContaining('desayuno'));
 
         // Cambiar al tab "Mañana" — el mismo evento sigue en memoria, pero
         // `isTodayTabActive` debe ser false ahí: cero atenuación.
         fireEvent.click(screen.getByText('Mañana'));
         const mananaName = await screen.findByText('Mangú de mañana');
         const mananaCard = mananaName.closest('.meal-card');
-        expect(mananaCard).not.toHaveAttribute('title', 'Ya registraste esto en tu diario de hoy');
-        expect(screen.queryByText(/Ya comiste esto/)).not.toBeInTheDocument();
+        // Card no-hoy: SIN title en absoluto (solo los slots `isEatenToday`
+        // reciben `eatenClaim`; los demás pasan `undefined` explícito).
+        expect(mananaCard).not.toHaveAttribute('title');
+        expect(screen.queryByText(/^Ya registraste tu/)).not.toBeInTheDocument();
         expect(screen.queryByText(/Te quedan/)).not.toBeInTheDocument();
     });
 
@@ -216,9 +241,9 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
 
         for (const name of ['Yogur', 'Batido de proteína']) {
             const card = screen.getByText(name).closest('.meal-card');
-            expect(card).not.toHaveAttribute('title', 'Ya registraste esto en tu diario de hoy');
+            expect(card).not.toHaveAttribute('title');
         }
-        expect(screen.queryByText(/Ya comiste esto/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/^Ya registraste tu/)).not.toBeInTheDocument();
 
         // Ninguna de las 5 comidas se remueve — "5 comidas" restantes.
         expect(screen.getByText(/5 comidas del plan/)).toBeInTheDocument();
@@ -233,7 +258,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         await _waitForTrackingProgressSettled();
         // Bloquea el primer slot (Desayuno, index 0).
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
-        await screen.findByText(/Ya comiste esto/);
+        await screen.findByText('Ya registraste tu desayuno');
 
         // El modal muestra `contextLabel` (= meal.name del swapModal state)
         // justo después de la etiqueta "Plato a cambiar"
@@ -283,7 +308,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         await screen.findByText('Mangú con los tres golpes');
         await _waitForTrackingProgressSettled();
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
-        await screen.findByText(/Ya comiste esto/);
+        await screen.findByText('Ya registraste tu desayuno');
 
         const eatenCard = screen.getByText('Mangú con los tres golpes').closest('.meal-card');
         const [, swapBtn, likeBtn] = within(eatenCard).getAllByRole('button');
@@ -299,6 +324,19 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         expect(likeBtn).toHaveAttribute('title', expect.stringContaining('Progreso en Tiempo Real'));
         expect(swapBtn.getAttribute('aria-label') || swapBtn.getAttribute('title')).toMatch(/Progreso en Tiempo Real/);
         expect(likeBtn.getAttribute('aria-label') || likeBtn.getAttribute('title')).toMatch(/Progreso en Tiempo Real/);
+
+        // [P1-EATEN-SLOT-COPY · 2026-07-28] El "por qué" NUNCA puede ser
+        // "comiste esto" (el plato mostrado, "Mangú con los tres golpes",
+        // es el del PLAN — el matcher es por slot, no por nombre) — debe
+        // nombrar el SLOT en su lugar.
+        expect(swapBtn.getAttribute('title')).not.toMatch(/esto/i);
+        expect(likeBtn.getAttribute('title')).not.toMatch(/esto/i);
+        expect(swapBtn.getAttribute('title')).toContain('desayuno');
+        expect(likeBtn.getAttribute('title')).toContain('desayuno');
+        // Los 2 botones y el chip comparten EXACTAMENTE la misma frase
+        // (SSOT — `eatenClaim` calculado una vez por comida en Dashboard.jsx).
+        expect(swapBtn.getAttribute('title')).toBe(likeBtn.getAttribute('title'));
+        expect(swapBtn.getAttribute('title')).toBe(eatenCard.getAttribute('title'));
 
         // Ni click...
         fireEvent.click(swapBtn);
@@ -331,7 +369,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         await screen.findByText('Mangú con los tres golpes');
         await _waitForTrackingProgressSettled();
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
-        await screen.findByText(/Ya comiste esto/);
+        await screen.findByText('Ya registraste tu desayuno');
 
         const eatenCard = screen.getByText('Mangú con los tres golpes').closest('.meal-card');
         const [recipeBtn] = within(eatenCard).getAllByRole('button');
@@ -392,7 +430,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         await screen.findByText('Mangú con los tres golpes');
         await _waitForTrackingProgressSettled();
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
-        await screen.findByText(/Ya comiste esto/);
+        await screen.findByText('Ya registraste tu desayuno');
 
         const almuerzoCard = screen.getByText('Arroz con pollo guisado').closest('.meal-card');
         const [recipeBtn, swapBtn, likeBtn] = within(almuerzoCard).getAllByRole('button');

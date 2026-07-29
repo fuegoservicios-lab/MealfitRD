@@ -25,6 +25,20 @@
  * meal de esa key se atenúa (las kcal siguen contando en el total vía
  * `sumConsumedCalories`, que nunca depende de la atribución).
  *
+ * [P1-EATEN-SLOT-COPY · 2026-07-28] El match de arriba es por SLOT
+ * (`meal_type`), NUNCA por nombre de plato — así que el chip NO puede
+ * afirmar "ya comiste esto" (esto = `meal.name` del PLAN, la card que el
+ * chip decora). Caso real del owner: plan prescribía "Tostadas Francesas
+ * con Mantequilla de Maní y Lechosa", el diario registró "Mangú con Los
+ * Tres Golpes" en el slot Desayuno — el chip viejo apuntaba al toast
+ * francés y decía que el usuario se lo comió. Falso. Lo único cierto es
+ * que el SLOT de hoy ya tiene un registro. `eatenChipLabel` dice eso y
+ * solo eso; `eatenClaimForSlot` (para el tooltip/aria-label, donde SÍ cabe
+ * el detalle) nombra lo que el diario realmente registró — nunca
+ * `meal.name` del plan. Kcal se removió del chip visible: quedaba al lado
+ * del propio `meal.cals` de la card, dos números distintos discutiendo en
+ * el mismo lugar (el agregado real vive en la línea "Te quedan ~X kcal").
+ *
  * tooltip-anchor: P1-TODAY-REMAINING
  */
 
@@ -111,4 +125,70 @@ export function eatenKcalForSlot(consumedTodayMeals, slotMealType) {
   return (Array.isArray(consumedTodayMeals) ? consumedTodayMeals : [])
     .filter((row) => canonicalSlotKey(row && row.meal_type) === targetKey)
     .reduce((sum, row) => sum + (Number(row && row.calories) || 0), 0);
+}
+
+/**
+ * [P1-EATEN-SLOT-COPY · 2026-07-28] Nombres (`meal_name`) de las filas del
+ * diario de hoy atribuidas a un slot — mismo match que `eatenKcalForSlot`.
+ * El nombre real de lo comido vive en el DIARIO, nunca en `meal.name` del
+ * plan (ver docstring del módulo). Si ≥2 filas matchean el mismo slot
+ * (corrección/doble registro), se devuelven TODAS — nombrar solo la
+ * primera escondería la segunda comida real.
+ */
+export function eatenNamesForSlot(consumedTodayMeals, slotMealType) {
+  const targetKey = canonicalSlotKey(slotMealType);
+  if (!targetKey) return [];
+  return (Array.isArray(consumedTodayMeals) ? consumedTodayMeals : [])
+    .filter((row) => canonicalSlotKey(row && row.meal_type) === targetKey)
+    .map((row) => String((row && row.meal_name) || '').trim())
+    .filter(Boolean);
+}
+
+/** Junta nombres al estilo es-DO: "A", "A y B", "A, B y C". */
+export function joinNamesEsDo(names) {
+  const clean = (Array.isArray(names) ? names : []).filter(Boolean);
+  if (clean.length === 0) return '';
+  if (clean.length === 1) return clean[0];
+  return `${clean.slice(0, -1).join(', ')} y ${clean[clean.length - 1]}`;
+}
+
+/**
+ * [P1-EATEN-SLOT-COPY · 2026-07-28] Texto del chip — SOLO afirma lo que el
+ * sistema sabe con certeza: el SLOT de hoy ya tiene un registro. Nunca
+ * nombra un plato (ni el del plan, ni el del diario) y nunca dice "esto".
+ */
+export function eatenChipLabel(slotMealType) {
+  return `Ya registraste tu ${canonicalSlotKey(slotMealType) || 'comida'}`;
+}
+
+/**
+ * [P1-EATEN-SLOT-COPY · 2026-07-28] Frase honesta para tooltip/aria-label —
+ * el detalle que el chip ya no lleva (nombre real + kcal estimada), para
+ * que el usuario detecte a simple vista un match de slot equivocado. SIEMPRE
+ * usa el/los nombre(s) del DIARIO (`eatenNamesForSlot`), nunca `meal.name`
+ * del plan. kcal enmarcada como estimado (`~`) porque buena parte del dato
+ * nace de una foto analizada por un modelo de visión.
+ *
+ * `cta`:
+ *  - 'unlock' (default) — superficie con controles REALMENTE deshabilitados
+ *    (Dashboard: Cambiar Plato/Me gusta están `disabled` de verdad). Mismo
+ *    string en el chip Y en los dos botones bloqueados — una sola fuente
+ *    para las 3 apariciones de esta página, cero drift entre ellas.
+ *  - 'info' — superficie de solo lectura (Recetas: nada que desbloquear),
+ *    pero el usuario igual necesita el mismo escape hatch si el match de
+ *    slot fue incorrecto.
+ *  - 'none' — la frase sola, sin CTA.
+ */
+export function eatenClaimForSlot(consumedTodayMeals, slotMealType, cta = 'unlock') {
+  const slotNoun = canonicalSlotKey(slotMealType) || 'comida';
+  const names = eatenNamesForSlot(consumedTodayMeals, slotMealType);
+  const kcal = Math.round(eatenKcalForSlot(consumedTodayMeals, slotMealType));
+  const namesLabel = names.length > 0 ? `«${joinNamesEsDo(names)}»` : 'algo';
+  const kcalPart = kcal > 0 ? ` (~${kcal} kcal)` : '';
+  const base = `Registraste ${namesLabel}${kcalPart} como tu ${slotNoun} de hoy.`;
+  if (cta === 'none') return base;
+  const suffix = cta === 'info'
+    ? ' Corrígelo en «Progreso en Tiempo Real» si no es lo que comiste.'
+    : ' Bórralo en «Progreso en Tiempo Real» para desbloquear.';
+  return `${base}${suffix}`;
 }

@@ -114,7 +114,7 @@ import { getMealAdvisories } from '../utils/mealAdvisories';
 // diario en cada render (nunca escrito a plan_data). Ver docstring del
 // módulo para la regla de match + la regla de ambigüedad (mismas que
 // backend/agent.py::_build_today_remaining_context).
-import { getEatenSlotIndices, sumConsumedCalories, eatenKcalForSlot } from '../utils/todayRemaining';
+import { getEatenSlotIndices, sumConsumedCalories, eatenChipLabel, eatenClaimForSlot } from '../utils/todayRemaining';
 // [P1-EATEN-SLOT-POLISH · 2026-07-28] La card ya-comida se atenuaba (P1-TODAY-REMAINING)
 // pero seguía siendo 100% interactiva — "Cambiar Plato" costaba un crédito real y
 // "Me gusta" grababa una preferencia sobre un plato que el usuario NO comió (owner:
@@ -125,7 +125,16 @@ import { getEatenSlotIndices, sumConsumedCalories, eatenKcalForSlot } from '../u
 // nada. El match de slot es una heurística (P1-TODAY-REMAINING) y puede fallar, así
 // que cada control bloqueado explica el escape hatch real: borrar la fila en
 // "Progreso en Tiempo Real" (P1-DIARY-EDITABLE, TrackingProgress.jsx).
-const _EATEN_SLOT_LOCK_REASON = 'Ya comiste esto — bloqueado. Bórralo en "Progreso en Tiempo Real" para desbloquear.';
+//
+// [P1-EATEN-SLOT-COPY · 2026-07-28] `_EATEN_SLOT_LOCK_REASON` ERA un string
+// module-level fijo ("Ya comiste esto — bloqueado...") — afirmaba que el
+// usuario comió `meal.name` DEL PLAN, cuando el matcher empareja por SLOT
+// (`meal_type`), nunca por nombre (owner: "en realidad comí otra cosa").
+// Reemplazado por `eatenClaimForSlot(todaysConsumedMeals, meal.meal,
+// 'unlock')` computado POR COMIDA dentro del `.map` de abajo — nombra lo que
+// el DIARIO realmente registró, nunca el plato del plan. Mismo string
+// reutilizado en la card, el chip y los dos botones bloqueados (SSOT, cero
+// drift entre las 4 apariciones).
 // [P1-FORM-9] Helper que filtra flags internos `_*` y bloquea cuando la
 // hidratación cifrada del formData (post-login) parece estar en curso —
 // evita que el spread `{...formData}` envíe campos sensibles vacíos a DB,
@@ -7271,6 +7280,15 @@ const DashboardInner = () => {
                                 // (calculado sobre `currentDayMeals` sin filtrar) sin
                                 // introducir un segundo esquema de indexación.
                                 const isEatenToday = todaysEatenIndices.has(index);
+                                // [P1-EATEN-SLOT-COPY · 2026-07-28] Computado UNA vez por
+                                // comida y reutilizado en la card + el chip + los 2 botones
+                                // bloqueados de abajo — SSOT real (antes 4 apariciones
+                                // independientes del mismo string estático mal-atribuido).
+                                // `null` cuando no está comido: cada callsite decide su
+                                // propio fallback (texto del control activo).
+                                const eatenClaim = isEatenToday
+                                    ? eatenClaimForSlot(todaysConsumedMeals, meal.meal, 'unlock')
+                                    : null;
 
                                 // [P1-MEAL-CARD-KEY · 2026-05-31] key por identidad
                                 // natural (meal.name) en vez de index: evita que React
@@ -7288,7 +7306,7 @@ const DashboardInner = () => {
                                         // persistir"). Mismo opacity 0.55 que los tabs de días
                                         // pasados (línea ~6753) — mismo lenguaje visual.
                                         style={isEatenToday ? { opacity: 0.55 } : undefined}
-                                        title={isEatenToday ? 'Ya registraste esto en tu diario de hoy' : undefined}
+                                        title={eatenClaim || undefined}
                                     >
 
                                         {/* [P1-SWAP-LOADING-UX · 2026-07-10] Overlay "cocinando": cubre ESTA
@@ -7350,16 +7368,16 @@ const DashboardInner = () => {
                                                 sigue informando sin bloquear. */}
                                             {(() => {
                                                 const _advisories = getMealAdvisories(meal);
-                                                // [P1-TODAY-REMAINING · 2026-07-28] Chip "ya comiste esto" —
-                                                // reusa la MISMA fila de chips que las advisories (mecanismo
-                                                // existente) en vez de inventar un bloque nuevo. Verde
-                                                // (≠ ámbar de las advisories, ≠ rojo del pantry-urgent): esto
+                                                // [P1-TODAY-REMAINING · 2026-07-28] Chip "ya registraste tu
+                                                // <slot>" — reusa la MISMA fila de chips que las advisories
+                                                // (mecanismo existente) en vez de inventar un bloque nuevo.
+                                                // Verde (≠ ámbar de las advisories, ≠ rojo del pantry-urgent):
                                                 // no es una advertencia, es un estado informativo positivo.
-                                                // kcal SIEMPRE enmarcada como estimado (viene del diario,
-                                                // buena parte por foto + modelo de visión).
-                                                const _eatenKcal = isEatenToday
-                                                    ? Math.round(eatenKcalForSlot(todaysConsumedMeals, meal.meal))
-                                                    : 0;
+                                                // [P1-EATEN-SLOT-COPY · 2026-07-28] El chip SOLO nombra el
+                                                // SLOT (nunca un plato — el match es por `meal_type`, no por
+                                                // nombre); el detalle (qué se registró + kcal estimada) vive
+                                                // en `eatenClaim` (calculado arriba, mismo string que la card
+                                                // y los 2 botones bloqueados) usado como `title` aquí abajo.
                                                 if (!meal.prep_time && !_advisories.length && !isEatenToday) return null;
                                                 return (
                                                     <div style={{
@@ -7368,7 +7386,7 @@ const DashboardInner = () => {
                                                     }}>
                                                         {isEatenToday && (
                                                             <div
-                                                                title="Registrado en tu diario de hoy — estimado, puede venir de una foto analizada"
+                                                                title={eatenClaim}
                                                                 style={{
                                                                     display: 'inline-flex', alignItems: 'center', gap: '5px',
                                                                     fontSize: '0.7rem', fontWeight: 700,
@@ -7379,7 +7397,7 @@ const DashboardInner = () => {
                                                                 }}
                                                             >
                                                                 <CheckCircle size={12} strokeWidth={2.5} style={{ flexShrink: 0 }} />
-                                                                <span>Ya comiste esto{_eatenKcal > 0 ? ` · ~${_eatenKcal} kcal` : ''}</span>
+                                                                <span>{eatenChipLabel(meal.meal)}</span>
                                                             </div>
                                                         )}
                                                         {meal.prep_time && (
@@ -7479,7 +7497,7 @@ const DashboardInner = () => {
                                                         });
                                                     }}
                                                     disabled={isEatenToday || regeneratingId === index || isDayUpdating}
-                                                    aria-label={isEatenToday ? _EATEN_SLOT_LOCK_REASON : undefined}
+                                                    aria-label={isEatenToday ? eatenClaim : undefined}
                                                     style={{
                                                         background: isDark ? 'linear-gradient(135deg, #EA580C 0%, #C2410C 100%)' : '#FFF7ED',
                                                         border: isDark ? '1.5px solid transparent' : '1.5px solid #FED7AA',
@@ -7495,7 +7513,7 @@ const DashboardInner = () => {
                                                         color: isDark ? '#FFFFFF' : '#EA580C',
                                                         boxShadow: isDark ? '0 2px 8px -3px rgba(234, 88, 12, 0.3)' : 'none'
                                                     }}
-                                                    title={isEatenToday ? _EATEN_SLOT_LOCK_REASON : 'Cambiar con IA'}
+                                                    title={isEatenToday ? eatenClaim : 'Cambiar con IA'}
                                                 >
                                                     <RefreshCw
                                                         size={18}
@@ -7529,7 +7547,7 @@ const DashboardInner = () => {
                                                         }
                                                     }}
                                                     disabled={isEatenToday}
-                                                    aria-label={isEatenToday ? _EATEN_SLOT_LOCK_REASON : undefined}
+                                                    aria-label={isEatenToday ? eatenClaim : undefined}
                                                     style={{
                                                         // [LIKE-FILL · 2026-05-29] Estado "liked" = botón RELLENO
                                                         // con gradiente rosa sólido + corazón blanco + glow + leve
@@ -7552,7 +7570,7 @@ const DashboardInner = () => {
                                                         boxShadow: isLiked ? '0 4px 12px -2px rgba(244, 63, 94, 0.5)' : 'none',
                                                         transform: isLiked ? 'scale(1.06)' : 'scale(1)'
                                                     }}
-                                                    title={isEatenToday ? _EATEN_SLOT_LOCK_REASON : (isLiked ? 'Te gusta — toca para quitar' : 'Me gusta')}
+                                                    title={isEatenToday ? eatenClaim : (isLiked ? 'Te gusta — toca para quitar' : 'Me gusta')}
                                                 >
                                                     <Heart size={20} color={isLiked ? '#FFFFFF' : (isDark ? '#F472B6' : '#EC4899')} fill={isLiked ? '#FFFFFF' : 'none'} strokeWidth={2.25} />
                                                 </button>

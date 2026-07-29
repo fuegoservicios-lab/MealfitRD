@@ -9,6 +9,11 @@ import { displayAjiMorron } from '../../utils/ingredientDisplay';
 import styles from './MobileRecipes.module.css';
 // [P2-RECIPE-NOTES-NOT-STEPS · 2026-07-24] anotaciones sin número (ver util).
 import { numberRecipeSteps } from '../../utils/recipeSteps';
+// [P1-EATEN-SLOT-COPY · 2026-07-28] Texto del chip "ya registraste tu
+// <slot>" — SSOT compartido con Dashboard.jsx/RecipesView.jsx. El detalle
+// (qué se registró + kcal) llega precomputado en `meal._eatenClaim`
+// (Recipes.jsx) — esta vista no re-decide esa frase, solo la pinta.
+import { eatenChipLabel } from '../../utils/todayRemaining';
 
 const Svg = ({ d, size = 18 }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
@@ -89,14 +94,14 @@ export function MobileRecipes({
           return (
             <button key={i} className={eaten ? `${styles.meal} ${styles.eaten}` : styles.meal} aria-current={i === activeMealIndex}
                     style={{ '--tone': mt.tone }} onClick={() => onSelectMeal(i)}
-                    title={eaten ? 'Registrado en tu diario de hoy — estimado, puede venir de una foto analizada' : undefined}>
+                    title={eaten ? m._eatenClaim : undefined}>
               <span className={styles.mealIco}><Svg d={mt.icon} size={18} /></span>
               <span className={styles.mealBody}>
                 <span className={styles.mealType}>{m.meal}</span>
                 <span className={styles.mealKcal}>{m.cals} kcal</span>
                 {eaten && (
                   <span className={styles.eatenBadge}>
-                    <Svg d={ICONS.check} size={10} /> Ya comiste esto{m._eatenKcal > 0 ? ` · ~${m._eatenKcal} kcal` : ''}
+                    <Svg d={ICONS.check} size={10} /> {eatenChipLabel(m.meal)}
                   </span>
                 )}
               </span>
@@ -114,11 +119,14 @@ export function MobileRecipes({
             {meal.prep_time && <span className={styles.chip}><Svg d={ICONS.clock} size={13} /> {meal.prep_time}</span>}
             {meal.difficulty && <span className={styles.chip}><Svg d={ICONS.chef} size={13} /> {meal.difficulty}</span>}
             {/* [P1-EATEN-SLOT-RECIPES · 2026-07-28] Marcador quieto — ver
-                misma nota en RecipesView.jsx (RecipeDetail). */}
+                misma nota en RecipesView.jsx (RecipeDetail).
+                [P1-EATEN-SLOT-COPY · 2026-07-28] Sin kcal visible (discutía
+                con el chip `{meal.cals} kcal` vecino) — detalle en el
+                `title` (`meal._eatenClaim`, precomputado en Recipes.jsx). */}
             {meal._isEatenToday && (
               <span className={`${styles.chip} ${styles.eatenChip}`}
-                    title="Registrado en tu diario de hoy — estimado, puede venir de una foto analizada">
-                <Svg d={ICONS.check} size={13} /> Ya comiste esto{meal._eatenKcal > 0 ? ` · ~${meal._eatenKcal} kcal` : ''}
+                    title={meal._eatenClaim}>
+                <Svg d={ICONS.check} size={13} /> {eatenChipLabel(meal.meal)}
               </span>
             )}
           </div>

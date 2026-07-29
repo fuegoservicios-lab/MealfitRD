@@ -53,7 +53,13 @@ import { isRecipeAnnotation } from '../utils/recipeSteps';
 // (P1-TODAY-REMAINING), importado aquí en vez de reimplementado. Incluye la
 // regla de ambigüedad: si ≥2 slots de hoy canonicalizan a la misma key (2-3
 // meriendas) y el diario solo trae una fila de esa key, no se atenúa ninguna.
-import { getEatenSlotIndices, eatenKcalForSlot } from '../utils/todayRemaining';
+// [P1-EATEN-SLOT-COPY · 2026-07-28] `eatenClaimForSlot` reemplaza el uso
+// directo de `eatenKcalForSlot` acá — el detalle (nombre real registrado +
+// kcal) se precomputa una sola vez por comida abajo (`_eatenClaim`) y las
+// vistas (RecipesView/MobileRecipes) lo usan como `title`, en vez de que
+// cada vista arme su propio texto "Registrado en tu diario de hoy" (que no
+// nombraba nada y no era honesto sobre qué slot decoraba).
+import { getEatenSlotIndices, eatenClaimForSlot } from '../utils/todayRemaining';
 // [P1-EATEN-SLOT-RECIPES · 2026-07-28] Recetas gana su primer fetch:
 // `GET /api/diary/consumed/{userId}` de solo LECTURA (mismo endpoint que
 // TrackingProgress.jsx en el Dashboard) para alimentar la anotación de abajo.
@@ -594,13 +600,20 @@ const Recipes = () => {
                         // incluye la regla de ambigüedad. Estos campos son puramente
                         // aditivos: no tocan `meal.recipe`/`meal.ingredients`/etc., así
                         // que ni el PDF (generateRecipeHTML) ni nada más se entera.
+                        //
+                        // [P1-EATEN-SLOT-COPY · 2026-07-28] `_eatenClaim` reemplaza
+                        // `_eatenKcal` — nombra lo que el DIARIO realmente registró
+                        // (nunca `m.name`, el plato del plan) + su kcal estimada.
+                        // `cta:'info'` (≠ 'unlock' del Dashboard) porque esta página es
+                        // de solo lectura — no hay nada que "desbloquear" acá, así que
+                        // el escape hatch se redacta distinto (ver todayRemaining.js).
                         const _isTodayDisplayed = currentDayIndex === todayPlanDayIndex;
                         const _eatenIndices = _isTodayDisplayed
                             ? getEatenSlotIndices(validMeals, todaysConsumedMeals)
                             : new Set();
                         const mealsWithEatenState = validMeals.map((m, i) => (
                             _eatenIndices.has(i)
-                                ? { ...m, _isEatenToday: true, _eatenKcal: Math.round(eatenKcalForSlot(todaysConsumedMeals, m.meal)) }
+                                ? { ...m, _isEatenToday: true, _eatenClaim: eatenClaimForSlot(todaysConsumedMeals, m.meal, 'info') }
                                 : m
                         ));
 

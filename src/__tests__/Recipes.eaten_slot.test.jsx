@@ -95,9 +95,14 @@ describe('P1-EATEN-SLOT-RECIPES — Recetas anota (nunca bloquea) el slot ya com
         vi.mocked(fetchWithAuth).mockReset();
     });
 
-    it('anota (dim + chip, riel Y detalle) el slot ya comido hoy, y deja los demás intactos', async () => {
+    it('anota (dim + chip, riel Y detalle) el slot ya comido hoy, nombra lo REGISTRADO (no el plato del plan) en el tooltip, y deja los demás intactos', async () => {
+        // [P1-EATEN-SLOT-COPY · 2026-07-28] `meal_name` DELIBERADAMENTE
+        // distinto del plato del plan ("Mangú con los tres golpes") — mismo
+        // caso real que reportó el owner (plan: "Tostadas Francesas...",
+        // diario: "Mangú con Los Tres Golpes"): el matcher es por SLOT
+        // (`meal_type`), nunca por nombre.
         vi.mocked(fetchWithAuth).mockResolvedValue(
-            _diaryResponse([{ meal_type: 'desayuno', calories: 500 }])
+            _diaryResponse([{ meal_type: 'desayuno', meal_name: 'Avena con canela', calories: 500 }])
         );
         render(<Recipes />, {
             customContext: { ..._baseContext, planData: _plan([{ day: 1, meals: _FOUR_MEALS_TODAY }]) },
@@ -105,22 +110,39 @@ describe('P1-EATEN-SLOT-RECIPES — Recetas anota (nunca bloquea) el slot ya com
 
         // El slot comido (Desayuno, activeMealIndex=0 por default) es a la vez
         // el nombre del riel Y el título del detalle → 2 anotaciones cuando
-        // asienta el fetch.
-        await waitFor(() => {
-            expect(screen.getAllByText(/Ya comiste esto/)).toHaveLength(2);
-        });
-        // Estimado, no exacto — mismo framing que el Menú.
-        expect(screen.getAllByText(/~500 kcal/).length).toBeGreaterThanOrEqual(1);
+        // asienta el fetch. El chip SOLO nombra el slot — nunca "esto", nunca
+        // un plato.
+        const chipEls = await screen.findAllByText('Ya registraste tu desayuno');
+        expect(chipEls).toHaveLength(2);
+        expect(screen.queryByText(/esto/i)).not.toBeInTheDocument();
+
+        // [P1-EATEN-SLOT-COPY · 2026-07-28] kcal removido del chip VISIBLE —
+        // discutía con el chip `{meal.cals} kcal` vecino en el detalle (dos
+        // números en la misma fila). El detalle real (nombre logueado + kcal
+        // estimada, nunca el plato del plan) vive en el `title`.
+        expect(screen.queryByText(/~500 kcal/)).not.toBeInTheDocument();
+        const titleOf = (el) => el.getAttribute('title') || el.closest('[title]')?.getAttribute('title');
+        for (const el of chipEls) {
+            const t = titleOf(el);
+            expect(t).toBeTruthy();
+            expect(t).toContain('Avena con canela');
+            expect(t).not.toContain('Mangú con los tres golpes'); // el plato del PLAN — nunca afirmado
+            expect(t).toContain('~500 kcal');
+            // Recetas es de solo lectura: el escape hatch NO afirma que algo
+            // está "bloqueado" — nada lo está acá (≠ Dashboard).
+            expect(t).not.toMatch(/desbloquear/i);
+            expect(t).toContain('Corrígelo en «Progreso en Tiempo Real»');
+        }
 
         const railTitle = screen.getAllByText('Mangú con los tres golpes').find((el) => el.closest('button'));
         expect(railTitle).toBeTruthy();
         const railBtn = railTitle.closest('button');
-        expect(within(railBtn).getByText(/Ya comiste esto/)).toBeInTheDocument();
+        expect(within(railBtn).getByText('Ya registraste tu desayuno')).toBeInTheDocument();
 
         // Los otros 3 slots del riel NO llevan la anotación.
         for (const otherName of ['Arroz con pollo guisado', 'Yogur con fruta', 'Pescado a la plancha']) {
             const otherBtn = screen.getByText(otherName).closest('button');
-            expect(within(otherBtn).queryByText(/Ya comiste esto/)).not.toBeInTheDocument();
+            expect(within(otherBtn).queryByText('Ya registraste tu desayuno')).not.toBeInTheDocument();
         }
     });
 
@@ -135,7 +157,7 @@ describe('P1-EATEN-SLOT-RECIPES — Recetas anota (nunca bloquea) el slot ya com
         render(<Recipes />, { customContext: { ..._baseContext, planData: plan } });
 
         // Tab "hoy" (auto-seleccionado, day index 0): riel + detalle anotados.
-        await waitFor(() => expect(screen.getAllByText(/Ya comiste esto/)).toHaveLength(2));
+        await waitFor(() => expect(screen.getAllByText('Ya registraste tu desayuno')).toHaveLength(2));
         expect(fetchWithAuth).toHaveBeenCalledTimes(1);
 
         const tabs = screen.getAllByRole('tab');
@@ -145,11 +167,11 @@ describe('P1-EATEN-SLOT-RECIPES — Recetas anota (nunca bloquea) el slot ya com
         // (`todaysConsumedMeals`) siga en memoria.
         fireEvent.click(tabs[1]);
         await waitFor(() => expect(screen.getAllByText('Mangú de mañana').length).toBeGreaterThan(0));
-        expect(screen.queryByText(/Ya comiste esto/)).not.toBeInTheDocument();
+        expect(screen.queryByText('Ya registraste tu desayuno')).not.toBeInTheDocument();
 
         // Volver al tab de hoy no dispara un SEGUNDO fetch (una sola vez por mount).
         fireEvent.click(tabs[0]);
-        await waitFor(() => expect(screen.getAllByText(/Ya comiste esto/)).toHaveLength(2));
+        await waitFor(() => expect(screen.getAllByText('Ya registraste tu desayuno')).toHaveLength(2));
         expect(fetchWithAuth).toHaveBeenCalledTimes(1);
     });
 
@@ -165,14 +187,14 @@ describe('P1-EATEN-SLOT-RECIPES — Recetas anota (nunca bloquea) el slot ya com
         // y NO es la comida activa por default (Desayuno/Avena lo es) → 1 sola
         // anotación (riel). Prueba que el fetch + setState ya asentaron sin
         // recurrir a un `setTimeout` ciego.
-        await waitFor(() => expect(screen.getAllByText(/Ya comiste esto/)).toHaveLength(1));
+        await waitFor(() => expect(screen.getAllByText('Ya registraste tu cena')).toHaveLength(1));
         const cenaBtn = screen.getByText('Pescado con vegetales').closest('button');
-        expect(within(cenaBtn).getByText(/Ya comiste esto/)).toBeInTheDocument();
+        expect(within(cenaBtn).getByText('Ya registraste tu cena')).toBeInTheDocument();
 
         // Las DOS meriendas (AM y PM) — la key ambigua — no llevan nada.
         for (const name of ['Yogur solo', 'Batido de proteína']) {
             const btn = screen.getByText(name).closest('button');
-            expect(within(btn).queryByText(/Ya comiste esto/)).not.toBeInTheDocument();
+            expect(within(btn).queryByText(/^Ya registraste tu/)).not.toBeInTheDocument();
         }
     });
 
@@ -184,7 +206,7 @@ describe('P1-EATEN-SLOT-RECIPES — Recetas anota (nunca bloquea) el slot ya com
             customContext: { ..._baseContext, planData: _plan([{ day: 1, meals: _FOUR_MEALS_TODAY }]) },
         });
 
-        await waitFor(() => expect(screen.getAllByText(/Ya comiste esto/)).toHaveLength(2));
+        await waitFor(() => expect(screen.getAllByText('Ya registraste tu desayuno')).toHaveLength(2));
 
         // Todos los botones del riel de comidas siguen habilitados (incluido el comido).
         const rail = screen.getByLabelText('Comidas del día');
@@ -218,6 +240,6 @@ describe('P1-EATEN-SLOT-RECIPES — Recetas anota (nunca bloquea) el slot ya com
             await diaryPromise.then((r) => r.json());
         });
 
-        expect(screen.queryByText(/Ya comiste esto/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/^Ya registraste tu/)).not.toBeInTheDocument();
     });
 });
