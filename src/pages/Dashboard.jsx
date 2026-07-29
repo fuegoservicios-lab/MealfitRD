@@ -105,6 +105,12 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 // [P2-15 · 2026-07-09] Store single-source de la Nevera Virtual (antes 3 copias
 // sincronizadas a mano: localStorage + useState local aquí + useState en Pantry).
 import { useDisabledIngredients } from '../hooks/useDisabledIngredients';
+// [P1-PLAN-POLL-BOUNDED · 2026-07-29] Mismo loop acotado (discriminador +
+// backoff + give-up) que AssessmentContext usa para /plans-data/latest,
+// aplicado aquí al hermano que pollea /api/profile + /chunk-status cada 30s
+// bajo el mismo gate sin cota — ver hooks/usePlanPollLoop.js.
+import { usePlanPollLoop } from '../hooks/usePlanPollLoop';
+import { useLatestRef } from '../hooks/useLatestRef';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
 import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
@@ -652,7 +658,10 @@ const DashboardInner = () => {
         // [P1-GUEST-MODE · 2026-06-15] Invitado del funnel del plan gratuito.
         isGuest,
         // [P1-DASHBOARD-PLAN-SELFHEAL · 2026-07-25] Ver el efecto de auto-sanación abajo.
-        hydrateLatestPlan
+        hydrateLatestPlan,
+        // [P1-PLAN-POLL-BOUNDED · 2026-07-29] El poll de AssessmentContext se rindió tras
+        // el tope de give-up — anotación mínima más abajo, ver render de isPlanCorrupted.
+        planPollGaveUp,
     } = useAssessment();
 
     const { regeneratePlan } = useRegeneratePlan();
@@ -1603,7 +1612,6 @@ const DashboardInner = () => {
     //   'failed'           → generacion abortada permanentemente
     useEffect(() => {
         const status = planData?.generation_status;
-        let pollInterval;
 
         // [P0-DASH-CHIP-HONESTY · 2026-05-09] Estados activos en los
         // que la queue puede tener chunks moviéndose o pausados.
@@ -1649,27 +1657,11 @@ const DashboardInner = () => {
         }
 
         if (status === 'partial') {
+            // [P1-PLAN-POLL-BOUNDED · 2026-07-29] El `setInterval(...,30000)` que vivía
+            // aquí (idéntico problema que el poll de 25s de AssessmentContext: sin cota,
+            // gateado solo por `generation_status`) se reemplazó por `usePlanPollLoop`
+            // — ver el hook aparte más abajo. Este bloque solo prende el banner ahora.
             setShowChunkBanner(true);
-            pollInterval = setInterval(() => {
-                if (signal.aborted) return;
-                // [P2-DASH-POLL-VISIBILITY · 2026-05-31] Pausar el poll de 30s
-                // cuando la pestaña está oculta (ahorra red/batería en sesiones
-                // background largas). El listener de visibilitychange ya refresca
-                // al volver a la pestaña, así que no se pierde frescura.
-                if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-                refreshProfileAndPlan();
-                if (planData?.id) {
-                    getPlanChunkStatus(planData.id, { signal })
-                        .then(async (r) => {
-                            if (signal.aborted) return;
-                            if (!r || !r.ok) return;
-                            const body = await r.json().catch(() => null);
-                            if (signal.aborted) return;
-                            if (body && typeof body === 'object') setChunkStatusInfo(body);
-                        })
-                        .catch(() => { /* incluye AbortError post-unmount */ });
-                }
-            }, 30000);
         } else if (status === 'complete' && showChunkBanner) {
             setShowChunkBanner(false);
             const totalDays = planData?.total_days_requested || planData?.days?.length || 0;
@@ -1697,7 +1689,6 @@ const DashboardInner = () => {
         }
 
         return () => {
-            if (pollInterval) clearInterval(pollInterval);
             // [P1-DASHBOARD-POLLING-ABORT · 2026-05-23] Cancela fetches
             // in-flight para evitar setState-on-unmounted. Si el browser
             // ya cerró el request (AbortError) el .catch silencioso lo
@@ -1706,6 +1697,56 @@ const DashboardInner = () => {
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planData?.generation_status, refreshProfileAndPlan]);
+
+    // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Lectura fresca de `planData` dentro del `tick`
+    // de abajo sin listarlo como dep del effect (mismo motivo que en AssessmentContext).
+    const _dashPlanDataRef = useLatestRef(planData);
+
+    // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Bucle ACOTADO que reemplaza el
+    // `setInterval(...,30000)` de arriba: refresca perfil+plan y `/chunk-status` con
+    // discriminador (in_flight_count / next_chunk_eta) + backoff + give-up en vez de
+    // pollear cada 30s para siempre mientras `generation_status==='partial'`. Medido en
+    // vivo (2026-07-29): 6 planes 'partial' reales llevan DÍAS sin avanzar — este loop
+    // Y el de AssessmentContext los pollearían por igual sin este fix. Ver
+    // hooks/usePlanPollLoop.js + utils/planPollBackoff.js para el razonamiento completo.
+    const _dashPollTick = useCallback(async (shouldAbort) => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return null;
+        // Fire-and-forget, paridad con el `refreshProfileAndPlan();` sin await de arriba.
+        refreshProfileAndPlan();
+        const _planId = _dashPlanDataRef.current?.id;
+        let chunkStatus = null;
+        if (_planId) {
+            try {
+                const r = await getPlanChunkStatus(_planId);
+                if (shouldAbort?.()) return null;
+                if (r?.ok) {
+                    const body = await r.json().catch(() => null);
+                    if (shouldAbort?.()) return null;
+                    if (body && typeof body === 'object') {
+                        chunkStatus = body;
+                        setChunkStatusInfo(body);
+                    }
+                }
+            } catch {
+                // fail-open: chunkStatus queda null → el discriminador asume "activo".
+            }
+        }
+        if (shouldAbort?.()) return null;
+        const latest = _dashPlanDataRef.current;
+        return {
+            daysCount: Array.isArray(latest?.days) ? latest.days.length : 0,
+            generationStatus: latest?.generation_status ?? null,
+            chunkStatus,
+        };
+    }, [refreshProfileAndPlan]);
+
+    usePlanPollLoop({
+        // Paridad exacta con el gate del `setInterval` reemplazado: SOLO 'partial'
+        // (los otros 3 estados "activos" ya tienen su fetch inicial one-shot arriba).
+        enabled: planData?.generation_status === 'partial' && !!planData?.id,
+        resetKey: planData?.id,
+        tick: _dashPollTick,
+    });
 
     // [P1-DASH-HOOKS-ORDER · 2026-05-31] Los guards `loadingData` / `!planData`
     // se movieron al wrapper `Dashboard` (final del archivo). Aquí ya NO hay
@@ -6220,6 +6261,59 @@ const DashboardInner = () => {
                         Generar Nuevo Plan
                     </button>
                 </motion.div>
+            )}
+
+            {/* [P1-PLAN-POLL-BOUNDED · 2026-07-29] El poll de nuevas semanas
+                (AssessmentContext, `/plans-data/latest`) se rindió tras ~30min
+                "activo, sin progreso" — ver hooks/usePlanPollLoop.js. Sin esto, dejar
+                de pollear era invisible: la pantalla seguía mostrando el plan
+                'partial' sin ninguna señal de que ya no se refresca solo (el modo de
+                fallo que el brief pidió evitar explícitamente: "stopping must not
+                leave a silent dead screen"). Anotación de cuaderno, NO alert box —
+                mismo lenguaje visual que `.today-remaining-note` (P1-EATEN-SLOT-
+                POLISH) pero sin acoplarse a esa clase (esta vive fuera del layout de
+                "Tu Menú" — el indent de esa clase asume alineación con `.meal-card`,
+                que no aplica aquí). Gate `!isPlanCorrupted`: el banner rojo de arriba
+                (days=0) ya es la señal más fuerte — esta anotación cubre el caso que
+                ESE banner no cubre (semanas ya materializadas, o `days=0` con
+                `hasPendingPipelineInFlight()` suprimiendo el banner localmente). */}
+            {planPollGaveUp && !isPlanCorrupted && planData?.generation_status === 'partial' && (
+                <div
+                    style={{
+                        borderBottom: '2px solid rgba(147, 197, 253, 0.3)',
+                        paddingBottom: '0.75rem',
+                        marginBottom: '1.5rem',
+                        fontSize: '0.85rem',
+                        color: 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'baseline',
+                        gap: '0.6rem',
+                        flexWrap: 'wrap',
+                    }}
+                >
+                    <span>
+                        Dejamos de revisar si llegaron tus próximas semanas — puede que
+                        estén programadas para más adelante. Vuelve a esta pestaña más
+                        tarde y las buscamos de nuevo.
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => { hydrateLatestPlan?.({ force: true, src: 'give-up-retry' }); }}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            color: 'var(--accent)',
+                            fontWeight: 600,
+                            fontSize: '0.85rem',
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
+                        Revisar ahora
+                    </button>
+                </div>
             )}
 
             {/* [P3-RESTOCK-NUDGE · 2026-06-23] Banner + prompt + auto-fill de respaldo

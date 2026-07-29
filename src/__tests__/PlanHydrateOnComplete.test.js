@@ -60,14 +60,34 @@ describe('[P1-PLAN-HYDRATE-ON-COMPLETE] SSOT de hidratación', () => {
         expect(body).toMatch(/incomingStatus !== 'partial' && incomingStatus !== 'complete'/);
     });
 
-    it('el poll de 25s reusa la MISMA función (cero cuerpo inline duplicado)', () => {
-        expect(CTX).toMatch(/const pollLatestPlan = \(\) => hydrateLatestPlan\(/);
-        // Dentro del effect del poll no puede quedar un fetch propio: si el merge vive
-        // en dos sitios, el fix del guard de plan-id se aplica solo en uno.
-        const start = CTX.indexOf('const pollLatestPlan = () => hydrateLatestPlan(');
-        const end = CTX.indexOf('}, [session?.user?.id, planData?.generation_status', start);
+    it('[P1-PLAN-POLL-BOUNDED · 2026-07-29] el poll acotado reusa la MISMA función (cero cuerpo inline duplicado)', () => {
+        // El `setInterval(pollLatestPlan, 25000)` plano se reemplazó por
+        // `usePlanPollLoop` (discriminador + backoff + give-up, ver
+        // hooks/usePlanPollLoop.js) — el `tick` sigue llamando a la MISMA
+        // `hydrateLatestPlan` (vía la variante deduplicada), no un fetch inline propio.
+        expect(CTX).toMatch(/\[P1-PLAN-POLL-BOUNDED/);
+        expect(CTX).toMatch(/import \{ usePlanPollLoop \} from '\.\.\/hooks\/usePlanPollLoop'/);
+        expect(CTX).toMatch(/usePlanPollLoop\(\{/);
+        const start = CTX.indexOf('const _pollTick = useCallback(');
+        const end = CTX.indexOf('usePlanPollLoop({', start);
         expect(end).toBeGreaterThan(start);
-        expect(CTX.slice(start, end)).not.toMatch(/fetchWithAuth/);
+        const body = CTX.slice(start, end);
+        expect(body).toMatch(/_passiveHydrateLatestPlan\(\{ shouldAbort, src: 'poll' \}\)/);
+        // NO un fetch propio inline — un solo camino real hacia el servidor.
+        expect(body).not.toMatch(/fetchWithAuth\(/);
+    });
+
+    it('[P1-PLAN-POLL-BOUNDED] wake y poll comparten el guard de dedupe (no apilan requests)', () => {
+        expect(CTX).toMatch(/import \{ createInFlightDedupe \} from '\.\.\/utils\/dedupeInFlight'/);
+        expect(CTX).toMatch(/createInFlightDedupe\(hydrateLatestPlan\)/);
+        // El wake (`hydrateLatestPlanRef`) apunta a la variante deduplicada, NO a la cruda.
+        expect(CTX).toMatch(/hydrateLatestPlanRef\.current = _passiveHydrateLatestPlan;/);
+    });
+
+    it('[P1-PLAN-POLL-BOUNDED] el give-up del poll se expone por el contexto (para la UI de Dashboard)', () => {
+        expect(CTX).toMatch(/const \[planPollGaveUp, setPlanPollGaveUp\] = useState\(false\);/);
+        const i = CTX.indexOf('const contextValue');
+        expect(CTX.slice(i)).toMatch(/^\s*planPollGaveUp,\s*$/m);
     });
 
     it('con `expectPlanId` adopta el plan aunque el local TENGA días', () => {

@@ -99,7 +99,7 @@ const getAlternativeMeal = (mealType, currentMealName, targetCalories, userDietT
 };
 import { toast } from 'sonner';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
-import { fetchWithAuth, restorePlanFromHistory as restorePlanFromHistoryApi } from '../config/api';
+import { fetchWithAuth, restorePlanFromHistory as restorePlanFromHistoryApi, getPlanChunkStatus } from '../config/api';
 // [P1-3 · 2026-07-09] clear() del estado de servidor de TanStack Query en el
 // teardown SSOT — fix estructural de la clase de fuga PII cross-user.
 import { clearUserQueryCache } from '../queryClient';
@@ -117,6 +117,10 @@ import { invalidateHistoryListCache, clearAllModalCaches } from '../utils/histor
 import { clearDisabledIngredientsStore } from '../hooks/useDisabledIngredients';
 // [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes 2 effects manuales).
 import { useLatestRef } from '../hooks/useLatestRef';
+// [P1-PLAN-POLL-BOUNDED · 2026-07-29] Loop de polling acotado (discriminador +
+// backoff + give-up) — reemplaza el `setInterval` plano de 25s.
+import { usePlanPollLoop } from '../hooks/usePlanPollLoop';
+import { createInFlightDedupe } from '../utils/dedupeInFlight';
 // [P1-B7] Storage seguro para datos sensibles del formulario.
 import {
     saveFormData as secureSaveFormData,
@@ -1261,6 +1265,11 @@ export const AssessmentProvider = ({ children }) => {
     const checkPlanLimitRef = useLatestRef(checkPlanLimit);
     // [P1-HYDRATE-ON-WAKE · 2026-07-24] Mismo patrón para la hidratación del plan.
     const hydrateLatestPlanRef = useRef(null);
+    // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Lectura fresca de `planData` dentro del
+    // `tick` del poll acotado (usePlanPollLoop) sin listarlo como dep del effect
+    // — mismo motivo que los refs de arriba (evita re-armar el loop en cada
+    // merge de `days`, que es justo lo que el tick necesita leer post-fetch).
+    const planDataRef = useLatestRef(planData);
 
     // [P2-NEW-13 · 2026-05-11] Sync multi-tab del `mealfit_plan` via
     // storage event.
@@ -2033,43 +2042,80 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             return false;
         }
     }, []);
+    // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Dedupe entre el poll acotado (abajo) y el
+    // wake/focus: ambos pasan por esta variante en vez de `hydrateLatestPlan` directo.
+    // Si UNO de los dos ya tiene un fetch en vuelo, el otro reusa esa MISMA promesa en
+    // vez de apilar un fetch encima — cierra "alt-tabbing repetido multiplica requests"
+    // y "el wake pisa un poll en curso" (ambos parte del incidente: el reporte medía
+    // decenas de hits/min, más de los que un solo intervalo de 25s explica). Recovery
+    // (PendingPipelineRecovery.jsx) y Plan.jsx llaman a `hydrateLatestPlan` DIRECTO desde
+    // el contexto — su `expectPlanId`/adopción es un evento ÚNICO post-pipeline, no un
+    // loop, así que no hay nada que apilar y no pasan por este wrapper.
+    const _passiveHydrateLatestPlan = useMemo(
+        () => createInFlightDedupe(hydrateLatestPlan),
+        [hydrateLatestPlan],
+    );
     // [P1-HYDRATE-ON-WAKE · 2026-07-24] El listener de visibilidad se declara ANTES que esta
     // función (vive más arriba en el provider); la ref las conecta sin re-armar el listener.
-    hydrateLatestPlanRef.current = hydrateLatestPlan;
+    // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Apunta a la variante DEDUPLICADA (antes: la cruda) —
+    // el wake ahora comparte el guard de "no apilar" con el poll de abajo.
+    hydrateLatestPlanRef.current = _passiveHydrateLatestPlan;
 
-    useEffect(() => {
-        const userId = session?.user?.id;
-        if (!userId) return;
+    // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Estado give-up: se rinde cuando el loop de abajo
+    // lleva `PLAN_POLL_GIVEUP_MS` "activo sin progreso" (ver utils/planPollBackoff.js para
+    // la medición que justifica el tope). Expuesto por el contexto para que Dashboard pueda
+    // mostrar una anotación mínima — el usuario no debe quedarse con una pantalla muda que
+    // parece seguir "trabajando" cuando el poll ya se detuvo.
+    const [planPollGaveUp, setPlanPollGaveUp] = useState(false);
 
-        const localStatus = planData?.generation_status;
-        const isGenerating = (
-            localStatus === 'partial'
-            || localStatus === 'generating'
-            || localStatus === 'generating_next'
-            || localStatus === 'rolling'
-        );
-        if (!isGenerating) return;
+    const localGenerationStatus = planData?.generation_status;
+    const isGeneratingForPoll = (
+        localGenerationStatus === 'partial'
+        || localGenerationStatus === 'generating'
+        || localGenerationStatus === 'generating_next'
+        || localGenerationStatus === 'rolling'
+    );
 
-        // Flag de teardown: descarta respuestas in-flight que resuelvan
-        // después de que el effect se re-armó (e.g. el merge anterior ya
-        // marcó 'complete') — evita re-injertar un snapshot viejo.
-        let cancelled = false;
-
-        const pollLatestPlan = () => hydrateLatestPlan({ shouldAbort: () => cancelled, src: 'poll' });
-
-        const intervalId = setInterval(pollLatestPlan, 25000);
-        // Primer tick inmediato: el canal push entregaba el chunk sin espera;
-        // arrancar con un fetch evita perder hasta 25s de frescura.
-        pollLatestPlan();
-
-        return () => {
-            cancelled = true;
-            clearInterval(intervalId);
+    // [P1-PLAN-POLL-BOUNDED · 2026-07-29] `tick` hace el trabajo real de un ciclo: trae el
+    // discriminador (`/chunk-status`, ya lo pide un loop hermano en Dashboard — cero
+    // dependencia nueva) y luego hidrata el plan. El snapshot que devuelve es lo que
+    // `usePlanPollLoop` usa para decidir backoff/reset/give-up — NUNCA decide por sí solo si
+    // seguir pollenado, eso vive en el hook (SSOT del discriminador/backoff/give-up,
+    // compartido con el loop hermano de Dashboard.jsx).
+    const _pollTick = useCallback(async (shouldAbort) => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return null;
+        if (recalcLockRef.current) return null;
+        const _planId = planDataRef.current?.id;
+        let chunkStatus = null;
+        if (_planId) {
+            try {
+                const r = await getPlanChunkStatus(_planId);
+                if (shouldAbort?.()) return null;
+                if (r?.ok) chunkStatus = await r.json().catch(() => null);
+            } catch {
+                // fail-open: chunkStatus queda null → el discriminador asume "activo"
+                // (nunca demorar una generación real por falta de datos del gate).
+            }
+        }
+        if (shouldAbort?.()) return null;
+        await _passiveHydrateLatestPlan({ shouldAbort, src: 'poll' });
+        if (shouldAbort?.()) return null;
+        const latest = planDataRef.current;
+        return {
+            daysCount: Array.isArray(latest?.days) ? latest.days.length : 0,
+            generationStatus: latest?.generation_status ?? null,
+            chunkStatus,
         };
-        // Deps: uid + status del plan en memoria (gate del polling) + id del
-        // plan activo (re-armar al cambiar de plan). El handler usa la forma
-        // funcional de setPlanData + refs → sin closures stale sobre planData.
-    }, [session?.user?.id, planData?.generation_status, planData?.id, hydrateLatestPlan]);
+    }, [_passiveHydrateLatestPlan]);
+
+    usePlanPollLoop({
+        enabled: !!session?.user?.id && isGeneratingForPoll,
+        // Re-armar al cambiar de plan (paridad con la dep `planData?.id` del effect
+        // pre-fix): un plan nuevo empieza su propio reloj de backoff/give-up desde cero.
+        resetKey: planData?.id,
+        tick: _pollTick,
+        onGiveUpChange: setPlanPollGaveUp,
+    });
 
     // --- FUNCIÓN PARA ACTUALIZAR PERFIL EN DB ---
     // [P1-NEON-DB-MIGRATION · 2026-06-12] UN SOLO `PATCH /api/profile`
@@ -3925,6 +3971,11 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] Ojo con el nombre de arriba:
             // `refreshProfileAndPlan` refresca SOLO el perfil. Esta es la que trae el plan.
             hydrateLatestPlan,
+            // [P1-PLAN-POLL-BOUNDED · 2026-07-29] El poll acotado se rindió tras el tope de
+            // give-up (~30min activo sin progreso) — Dashboard usa esto para una anotación
+            // mínima, NUNCA para bloquear nada (el plan sigue usable, solo dejó de
+            // refrescarse solo).
+            planPollGaveUp,
             restoreSessionData,
             setRecalcLock,
             withRecalcLock,
@@ -3936,7 +3987,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         dislikedMeals, _regenerateSingleMeal, _regenerateDay, dayRegenInFlight, dayRegenIndex, mealRegenInFlight, _resetApp, _resetForNewAssessment,
         effectivePlanCount, effectivePlanLimit, checkPlanLimit, isPremium, effectiveRemaining,
         isGuest, activateGuestMode, consumeGuestCredit, exitGuestSession, _upgradeUserPlan,
-        _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, hydrateLatestPlan, restoreSessionData,
+        _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, hydrateLatestPlan, planPollGaveUp, restoreSessionData,
         setRecalcLock, withRecalcLock,
     ]);
 
