@@ -171,12 +171,17 @@ export function eatenChipLabel(slotMealType) {
  *
  * `cta`:
  *  - 'unlock' (default) — superficie con controles REALMENTE deshabilitados
- *    (Dashboard: Cambiar Plato/Me gusta están `disabled` de verdad). Mismo
- *    string en el chip Y en los dos botones bloqueados — una sola fuente
- *    para las 3 apariciones de esta página, cero drift entre ellas.
- *  - 'info' — superficie de solo lectura (Recetas: nada que desbloquear),
- *    pero el usuario igual necesita el mismo escape hatch si el match de
- *    slot fue incorrecto.
+ *    (Dashboard: Cambiar Plato/Me gusta están `disabled` de verdad; Recetas,
+ *    desde [P1-EATEN-RECIPE-LOCK · 2026-07-28]: "Descargar PDF" + checkboxes
+ *    de ingredientes + toggle de pasos). Mismo string en el chip Y en cada
+ *    control bloqueado — una sola fuente, cero drift entre apariciones.
+ *  - 'info' — superficie de solo lectura sin NINGÚN control bloqueado (el
+ *    usuario igual necesita el mismo escape hatch si el match de slot fue
+ *    incorrecto). Sin callsites en el código de producción al día de hoy
+ *    (Recetas usaba 'info' hasta P1-EATEN-RECIPE-LOCK, cuando el owner pidió
+ *    revertir "Recetas es solo lectura" a un bloqueo real) — se conserva
+ *    como opción soportada y testeada (`todayRemaining.test.js`) para
+ *    cualquier superficie futura que anote sin bloquear.
  *  - 'none' — la frase sola, sin CTA.
  */
 export function eatenClaimForSlot(consumedTodayMeals, slotMealType, cta = 'unlock') {

@@ -604,16 +604,22 @@ const Recipes = () => {
                         // [P1-EATEN-SLOT-COPY · 2026-07-28] `_eatenClaim` reemplaza
                         // `_eatenKcal` — nombra lo que el DIARIO realmente registró
                         // (nunca `m.name`, el plato del plan) + su kcal estimada.
-                        // `cta:'info'` (≠ 'unlock' del Dashboard) porque esta página es
-                        // de solo lectura — no hay nada que "desbloquear" acá, así que
-                        // el escape hatch se redacta distinto (ver todayRemaining.js).
+                        // [P1-EATEN-RECIPE-LOCK · 2026-07-28] `cta:'unlock'` (antes
+                        // 'info') — el owner pidió, DOS veces, un bloqueo REAL (no solo
+                        // visual) de "Descargar PDF" + checkboxes de ingredientes +
+                        // pasos. La decisión previa ("Recetas es solo lectura, NUNCA
+                        // lock") queda SUPERSEDIDA para esos 3 controles — 'unlock' (el
+                        // mismo CTA que ya usa Dashboard.jsx para sus controles
+                        // REALMENTE `disabled`) es ahora el texto honesto acá también.
+                        // Mecanismo + por qué es seguro bloquear en esta página: ver
+                        // RecipeDetail en RecipesView.jsx/MobileRecipes.jsx.
                         const _isTodayDisplayed = currentDayIndex === todayPlanDayIndex;
                         const _eatenIndices = _isTodayDisplayed
                             ? getEatenSlotIndices(validMeals, todaysConsumedMeals)
                             : new Set();
                         const mealsWithEatenState = validMeals.map((m, i) => (
                             _eatenIndices.has(i)
-                                ? { ...m, _isEatenToday: true, _eatenClaim: eatenClaimForSlot(todaysConsumedMeals, m.meal, 'info') }
+                                ? { ...m, _isEatenToday: true, _eatenClaim: eatenClaimForSlot(todaysConsumedMeals, m.meal, 'unlock') }
                                 : m
                         ));
 

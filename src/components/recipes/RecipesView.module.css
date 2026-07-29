@@ -32,8 +32,11 @@
 .mealKcal { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 700; color: var(--text-muted); }
 .mealKcal svg { color: #FB923C; }
 
-/* [P1-EATEN-SLOT-RECIPES · 2026-07-28] Slot ya registrado en el diario de HOY
-   — anotación, NUNCA lock (Recetas es superficie de solo lectura). Mismo
+/* [P1-EATEN-SLOT-RECIPES · 2026-07-28 · reversado parcialmente por
+   P1-EATEN-RECIPE-LOCK · 2026-07-28] Slot ya registrado en el diario de HOY —
+   el RIEL (este selector) se queda en pura anotación, nunca lock: sigue
+   siendo navegación. El bloqueo REAL que el owner pidió (PDF, checkboxes,
+   pasos) vive en `.detail`/`.actions`/`.ingItem`/`.step` más abajo. Mismo
    lenguaje visual que "Tu Menú" del Dashboard (P1-TODAY-REMAINING): opacity
    atenuada + chip verde con la familia de tokens --success* (P2-7) — nunca
    hex fijo, funciona en ambos temas sin rama isDark. */
@@ -79,11 +82,17 @@
    de un solo tono) se desatura a a=.92 filtrado por hijo directo en vez de
    por ancestro común — mismo resultado visual que un filtro único en
    `.detail.eaten`, sin arrastrar `.macros` al mismo buffer rasterizado.
-   Nada se deshabilita bajo el filtro: checkboxes de ingredientes, toggle de
-   pasos y el botón de PDF siguen 100% funcionales — Recetas es de solo
-   lectura y el slot puede estar MAL emparejado (match por meal_type, nunca
-   por plato), así que ocultar/bloquear la receta le quitaría al usuario la
-   única forma de notar un mal emparejamiento.
+   [P1-EATEN-RECIPE-LOCK · 2026-07-28] El filtro sigue siendo SOLO visual —
+   pero, a diferencia de la nota original de este bloque, ya NO es cierto que
+   "nada se deshabilita": el owner pidió (dos veces) un bloqueo real de
+   descargar PDF y de anotar/confirmar ingredientes, así que `.actions .btn`,
+   `.ingItem` y `.step` SÍ quedan inertes cuando `.detail.eaten` (ver
+   `disabled`/`aria-disabled` + handlers guardados en RecipesView.jsx). Lo
+   que NO cambió: la receta como TEXTO (título, descripción, ingredientes,
+   pasos) sigue 100% legible sin gate — el slot puede estar MAL emparejado
+   (match por `meal_type`, nunca por plato), así que ocultar/bloquear la
+   LECTURA le quitaría al usuario la única forma de notar un mal
+   emparejamiento; solo se bloquean las 3 ACCIONES que mutan/confirman algo.
    PDF: `handleDownloadPDF` arma un string HTML aparte (generateRecipeHTML,
    Recipes.jsx) que jamás referencia `styles.detail` — el filter no tiene a
    qué adherirse dentro del contenedor sintético que arma html2pdf.js, así
@@ -143,6 +152,13 @@
 .btn { appearance: none; cursor: pointer; font: inherit; font-size: .84rem; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 20px; border-radius: 14px; border: 1px solid transparent; transition: transform .15s ease-out, box-shadow .15s ease-out; }
 .btn:active { transform: scale(.97); }
 .btn:disabled { opacity: .7; cursor: wait; }
+/* [P1-EATEN-RECIPE-LOCK · 2026-07-28] Afordancia visible del lock MÁS ALLÁ
+   de la desaturación del pane (que ya cubre TODO el subárbol vía `filter` en
+   el ancestro) — un usuario vidente necesita una señal en el propio control,
+   ANTES de intentar el click, no solo "algo se ve gris". `:disabled` normal
+   usa `cursor:wait` (estado "generando PDF", transitorio); `.locked` gana
+   por especificidad (2 clases > 1) y señala "no disponible", nunca "espera". */
+.btn:disabled.locked { cursor: not-allowed; opacity: .55; }
 .primary { color: #0B1120; background: linear-gradient(120deg, var(--primary-light), var(--primary)); box-shadow: 0 6px 14px -10px var(--primary); }
 
 /* Columnas */
@@ -152,6 +168,11 @@
 .ing { display: flex; flex-direction: column; gap: 2px; }
 .ingItem { display: flex; align-items: center; gap: 11px; padding: 9px 8px; border-radius: 11px; cursor: pointer; transition: background .14s; }
 .ingItem:hover { background: var(--bg-muted); }
+/* [P1-EATEN-RECIPE-LOCK · 2026-07-28] Mismo razonamiento que `.btn.locked`
+   arriba, aplicado a los `role="checkbox"` divs (no hay `:disabled` nativo
+   en un div — el selector cuelga del estado ARIA que ya escribe el JSX). */
+.ingItem[aria-disabled="true"] { cursor: not-allowed; }
+.ingItem[aria-disabled="true"]:hover { background: transparent; }
 .check { flex: none; width: 21px; height: 21px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--text-light) 45%, transparent); display: grid; place-items: center; color: transparent; transition: .15s; }
 .ingItem.done .check { background: var(--secondary); border-color: var(--secondary); color: #04221d; }
 .ingText { font-size: .86rem; font-weight: 500; color: var(--text-main); transition: .15s; }
@@ -160,6 +181,8 @@
 /* Pasos: línea de tiempo */
 .steps { display: flex; flex-direction: column; }
 .step { position: relative; display: grid; grid-template-columns: 38px 1fr; gap: 14px; padding-bottom: 18px; cursor: pointer; }
+/* [P1-EATEN-RECIPE-LOCK · 2026-07-28] Ídem `.ingItem[aria-disabled]` arriba. */
+.step[aria-disabled="true"] { cursor: not-allowed; }
 .step:last-child { padding-bottom: 0; }
 .step::before { content: ""; position: absolute; left: 18px; top: 38px; bottom: 0; width: 2px; background: var(--border); }
 .step:last-child::before { display: none; }
@@ -179,6 +202,12 @@
 .finishText { font-family: var(--font-heading); font-size: .92rem; font-weight: 800; letter-spacing: -.01em; color: var(--secondary); }
 
 .empty { text-align: center; padding: 3rem 1.5rem; background: var(--bg-page); border: 1px dashed var(--border); border-radius: 16px; color: var(--text-muted); font-size: .9rem; }
+
+/* [P1-EATEN-RECIPE-LOCK · 2026-07-28] Patrón "visually hidden" estándar: el
+   nodo existe en el árbol de accesibilidad (por eso `aria-describedby` puede
+   apuntarle) pero ocupa 0 espacio visual — un `title` NO es equivalente, no
+   llega al mismo árbol de forma confiable. */
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 /* [P3-RECIPES-POLISH · 2026-07-12] Focos visibles de teclado en los controles
    interactivos (antes ninguno los tenía). */

@@ -3,7 +3,7 @@
 // Recipes.jsx renderiza `isMobile ? <MobileRecipes/> : <RecipesView/>` con los
 // MISMOS datos reales + handlers (PDF, días; el modo cocina se retiró —
 // P-RECIPES-COOK-REMOVED 2026-07-12).
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { metaFor, STEP_ICONS, MACROS, ICONS, conicStops as _conicStops } from './recipesData';
 import { displayAjiMorron } from '../../utils/ingredientDisplay';
 import styles from './MobileRecipes.module.css';
@@ -64,6 +64,20 @@ export function MobileRecipes({
 
   const ingredients = meal.ingredients || [];
 
+  // [P1-EATEN-RECIPE-DONE · 2026-07-28 · reversado por P1-EATEN-RECIPE-LOCK
+  // · 2026-07-28] Espejo EXACTO de RecipesView.jsx (RecipeDetail) — ver el
+  // comentario largo ahí para el razonamiento completo (qué se archiva solo
+  // visualmente vs qué se bloquea de verdad, y por qué bloquear es seguro en
+  // esta página: escape hatch de un solo paso en "Progreso en Tiempo Real",
+  // sin reload). `meal._isEatenToday` ya llega gateado a "día mostrado ===
+  // hoy" desde Recipes.jsx.
+  const isLocked = !!meal._isEatenToday;
+  // [P1-EATEN-RECIPE-LOCK · 2026-07-28] Un solo nodo `.srOnly` por pane basta
+  // — los 3 controles bloqueados comparten la MISMA razón (`meal._eatenClaim`,
+  // cta='unlock'). `useId()` es estable por instancia; desktop/mobile nunca
+  // están montados a la vez, así que no hay colisión posible.
+  const lockReasonId = useId();
+
   return (
     <section className={styles.app} style={{ '--tone': t.tone }} aria-label="Recetas">
       {/* Barra superior fija */}
@@ -87,9 +101,11 @@ export function MobileRecipes({
       <div className={styles.rail} aria-label="Comidas del día">
         {meals.map((m, i) => {
           const mt = metaFor(m.meal);
-          // [P1-EATEN-SLOT-RECIPES · 2026-07-28] Anotación, NUNCA lock — ver
-          // misma nota en RecipesView.jsx (MealRail). Botón sigue 100%
-          // clickeable/navegable.
+          // [P1-EATEN-SLOT-RECIPES · 2026-07-28 · reversado parcialmente por
+          // P1-EATEN-RECIPE-LOCK · 2026-07-28] Este riel sigue sin lock — ver
+          // misma nota (completa) en RecipesView.jsx (MealRail). Botón sigue
+          // 100% clickeable/navegable; el bloqueo real vive en el pane de
+          // detalle, abajo.
           const eaten = !!m._isEatenToday;
           return (
             <button key={i} className={eaten ? `${styles.meal} ${styles.eaten}` : styles.meal} aria-current={i === activeMealIndex}
@@ -111,10 +127,12 @@ export function MobileRecipes({
       </div>
 
       {/* Detalle */}
-      {/* [P1-EATEN-RECIPE-DONE · 2026-07-28] Espejo de RecipesView.jsx (ver
-          comentario largo ahí) — misma condición `meal._isEatenToday`, ya
-          gateada a "día mostrado === hoy" en Recipes.jsx. */}
-      <div className={meal._isEatenToday ? `${styles.detail} ${styles.eaten}` : styles.detail}>
+      <div className={isLocked ? `${styles.detail} ${styles.eaten}` : styles.detail}>
+        {/* [P1-EATEN-RECIPE-LOCK · 2026-07-28] Ver `.srOnly` en RecipesView.jsx
+            (mismo mecanismo, ver comentario largo ahí). */}
+        {isLocked && (
+          <p id={lockReasonId} className={styles.srOnly}>{meal._eatenClaim}</p>
+        )}
         <div className={styles.head}>
           <h2 className={styles.title}>{meal.name}</h2>
           <div className={styles.chips}>
@@ -156,9 +174,18 @@ export function MobileRecipes({
         {meal.desc && <p className={styles.desc}>“{meal.desc}”</p>}
 
         {/* [P-RECIPES-COOK-REMOVED · 2026-07-12] Botón "Cocinar" retirado —
-            única acción: descargar PDF (estilo primary). */}
+            única acción: descargar PDF (estilo primary).
+            [P1-EATEN-RECIPE-LOCK · 2026-07-28] Ver comentario largo en
+            RecipesView.jsx (mismo `<button>` real → `disabled` nativo +
+            early-return de defensa-en-profundidad + `aria-describedby`,
+            nunca `aria-label`). */}
         <div className={styles.actions} data-html2canvas-ignore="true">
-          <button className={`${styles.btn} ${styles.primary}`} onClick={onPDF}>
+          <button
+            className={`${styles.btn} ${styles.primary}${isLocked ? ` ${styles.locked}` : ''}`}
+            onClick={() => { if (isLocked) return; onPDF(); }}
+            disabled={isLocked}
+            aria-describedby={isLocked ? lockReasonId : undefined}
+          >
             <Svg d={ICONS.pdf} size={17} /> Descargar PDF
           </button>
         </div>
@@ -177,10 +204,23 @@ export function MobileRecipes({
                 return (
                   // [P1-6 · 2026-07-09] a11y: role=checkbox + aria-checked + teclado
                   // (antes <div onClick> sin acceso por teclado ni estado para lectores).
+                  // [P1-EATEN-RECIPE-LOCK · 2026-07-28] Ver comentario largo en
+                  // RecipesView.jsx (mismo patrón: `aria-disabled` + click Y
+                  // Enter/Space inertes; se MANTIENE `tabIndex` — quitarlo sacaría
+                  // el control del tab order sin dar ninguna señal; `aria-label`
+                  // NUNCA, reemplazaría el nombre accesible por la razón).
                   <div key={i} className={`${styles.ingItem} ${done ? styles.done : ''}`}
                        role="checkbox" aria-checked={done} tabIndex={0}
-                       onClick={() => onToggleIngredient(i)}
-                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleIngredient(i); } }}>
+                       aria-disabled={isLocked || undefined}
+                       aria-describedby={isLocked ? lockReasonId : undefined}
+                       onClick={() => { if (isLocked) return; onToggleIngredient(i); }}
+                       onKeyDown={(e) => {
+                         if (e.key === 'Enter' || e.key === ' ') {
+                           e.preventDefault();
+                           if (isLocked) return;
+                           onToggleIngredient(i);
+                         }
+                       }}>
                     <span className={styles.check}><Svg d={ICONS.check} size={12} /></span>
                     <span className={styles.ingText}>{displayAjiMorron(s)}</span>
                   </div>
@@ -198,8 +238,14 @@ export function MobileRecipes({
               const done = doneSteps.has(i);
               const { title, body } = parseStep(raw);
               return (
+                // [P1-EATEN-RECIPE-LOCK · 2026-07-28] Ver comentario largo en
+                // RecipesView.jsx — este `<div>` nunca tuvo `tabIndex`/`onKeyDown`,
+                // no se le suma ahora; solo se cierra el `onClick`.
                 <div key={i} className={`${styles.step} ${done ? styles.done : ''}`}
-                     style={{ '--stone': si.c }} onClick={() => toggleStep(i)}>
+                     style={{ '--stone': si.c }}
+                     aria-disabled={isLocked || undefined}
+                     aria-describedby={isLocked ? lockReasonId : undefined}
+                     onClick={() => { if (isLocked) return; toggleStep(i); }}>
                   <span className={styles.node}>{done ? <Svg d={ICONS.check} size={18} /> : (annotation ? '•' : number)}</span>
                   <div className={styles.stepCard}>
                     {title && <div className={styles.stepTitle}>{title}</div>}

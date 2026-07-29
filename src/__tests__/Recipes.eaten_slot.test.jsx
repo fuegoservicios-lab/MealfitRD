@@ -1,12 +1,13 @@
-// [P1-EATEN-SLOT-RECIPES · 2026-07-28] Extiende a /dashboard/recipes la misma
+// [P1-EATEN-SLOT-RECIPES · 2026-07-28 · reversado parcialmente por
+// P1-EATEN-RECIPE-LOCK · 2026-07-28] Extiende a /dashboard/recipes la misma
 // anotación "ya comiste esto hoy" que P1-TODAY-REMAINING trajo a "Tu Menú"
 // del Dashboard — el owner: "es inútil si solo existe en un lugar, y tiene
-// razón". Recetas es superficie de SOLO LECTURA (el único onClick de la
-// página, fuera del riel/tabs/PDF, es "Volver al plan" del EmptyState) — regla
-// del brief: "Lock where an action mutates; annotate where the surface only
-// reads". Por eso acá SOLO se anota (dim + chip), nunca se deshabilita nada —
-// a diferencia del Menú, donde Cambiar Plato/Me Gusta SÍ mutan y por eso ahí
-// SÍ se bloquean (P1-EATEN-SLOT-POLISH).
+// razón". Este archivo sigue cubriendo la ANOTACIÓN (dim + chip, riel Y
+// detalle) — el riel de comidas NUNCA bloquea, sigue siendo navegación pura.
+// La decisión original de este comentario ("Recetas es solo lectura, nunca
+// se deshabilita nada") quedó SUPERSEDIDA: el owner pidió, dos veces, un
+// bloqueo REAL de "Descargar PDF" + checkboxes de ingredientes + pasos — ver
+// `Recipes.eaten_recipe_lock.test.jsx` para esa cobertura (no duplicada acá).
 //
 // SSOT del matcher: utils/todayRemaining.js (getEatenSlotIndices/
 // eatenKcalForSlot) — el MISMO módulo que usa Dashboard.jsx, importado (NO
@@ -88,7 +89,7 @@ const _FIVE_MEALS_TWO_MERIENDAS = [
     { meal: 'Cena', name: 'Pescado con vegetales', cals: 550, desc: 'x', ingredients: ['Vegetales'], recipe: ['Paso uno'] },
 ];
 
-describe('P1-EATEN-SLOT-RECIPES — Recetas anota (nunca bloquea) el slot ya comido hoy', () => {
+describe('P1-EATEN-SLOT-RECIPES — Recetas anota el slot ya comido hoy (el riel nunca bloquea; ver Recipes.eaten_recipe_lock.test.jsx para lo que SÍ bloquea)', () => {
     beforeEach(() => {
         vi.mocked(router.useNavigate).mockReturnValue(vi.fn());
         window.scrollTo = vi.fn();
@@ -119,8 +120,14 @@ describe('P1-EATEN-SLOT-RECIPES — Recetas anota (nunca bloquea) el slot ya com
         // [P1-EATEN-SLOT-COPY · 2026-07-28] kcal removido del chip VISIBLE —
         // discutía con el chip `{meal.cals} kcal` vecino en el detalle (dos
         // números en la misma fila). El detalle real (nombre logueado + kcal
-        // estimada, nunca el plato del plan) vive en el `title`.
-        expect(screen.queryByText(/~500 kcal/)).not.toBeInTheDocument();
+        // estimada, nunca el plato del plan) vive en el `title` (y, desde
+        // [P1-EATEN-RECIPE-LOCK · 2026-07-28], TAMBIÉN en un nodo `.srOnly`
+        // para el bloqueo real — por eso esta aserción se restringe al propio
+        // chip en vez de buscar en TODA la página: el `.srOnly` sí lleva el
+        // kcal, a propósito, para el lector de pantalla).
+        for (const el of chipEls) {
+            expect(el.textContent).not.toMatch(/~500 kcal/);
+        }
         const titleOf = (el) => el.getAttribute('title') || el.closest('[title]')?.getAttribute('title');
         for (const el of chipEls) {
             const t = titleOf(el);
@@ -128,10 +135,12 @@ describe('P1-EATEN-SLOT-RECIPES — Recetas anota (nunca bloquea) el slot ya com
             expect(t).toContain('Avena con canela');
             expect(t).not.toContain('Mangú con los tres golpes'); // el plato del PLAN — nunca afirmado
             expect(t).toContain('~500 kcal');
-            // Recetas es de solo lectura: el escape hatch NO afirma que algo
-            // está "bloqueado" — nada lo está acá (≠ Dashboard).
-            expect(t).not.toMatch(/desbloquear/i);
-            expect(t).toContain('Corrígelo en «Progreso en Tiempo Real»');
+            // [P1-EATEN-RECIPE-LOCK · 2026-07-28] Antes 'info' ("Corrígelo…",
+            // sin "desbloquear" — Recetas era solo lectura). Ahora 'unlock':
+            // el PDF/checkboxes/pasos SÍ están bloqueados de verdad, así que
+            // el mismo texto que usa Dashboard.jsx es el honesto acá también.
+            expect(t).toMatch(/desbloquear/i);
+            expect(t).toContain('Bórralo en «Progreso en Tiempo Real»');
         }
 
         const railTitle = screen.getAllByText('Mangú con los tres golpes').find((el) => el.closest('button'));
@@ -198,7 +207,7 @@ describe('P1-EATEN-SLOT-RECIPES — Recetas anota (nunca bloquea) el slot ya com
         }
     });
 
-    it('nada de la página queda deshabilitado — sigue totalmente navegable y la receta comida sigue legible', async () => {
+    it('el RIEL de comidas nunca se deshabilita — sigue totalmente navegable y la receta comida sigue legible (el bloqueo de PDF/checkboxes/pasos vive en Recipes.eaten_recipe_lock.test.jsx)', async () => {
         vi.mocked(fetchWithAuth).mockResolvedValue(
             _diaryResponse([{ meal_type: 'desayuno', calories: 500 }])
         );
@@ -220,9 +229,13 @@ describe('P1-EATEN-SLOT-RECIPES — Recetas anota (nunca bloquea) el slot ya com
         fireEvent.click(screen.getByText('Mangú con los tres golpes').closest('button'));
         expect(await screen.findByText('Plátano')).toBeInTheDocument();
 
-        // El botón de descargar PDF sigue habilitado sobre un slot ya comido.
+        // [P1-EATEN-RECIPE-LOCK · 2026-07-28] El botón de descargar PDF SÍ
+        // queda deshabilitado sobre un slot ya comido — decisión revertida
+        // (antes esta misma línea afirmaba lo contrario). Cobertura completa
+        // del bloqueo (click/teclado/checkboxes/pasos/a11y/unlock) vive en
+        // Recipes.eaten_recipe_lock.test.jsx.
         const pdfBtn = screen.getByText(/Descargar PDF/).closest('button');
-        expect(pdfBtn).not.toBeDisabled();
+        expect(pdfBtn).toBeDisabled();
     });
 
     it('sin registros en el diario de hoy, no aparece ninguna anotación', async () => {

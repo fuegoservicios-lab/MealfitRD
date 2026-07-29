@@ -3,7 +3,7 @@
 // handlers desde Recipes.jsx (que conserva: PDF y ventana de días del chunk;
 // el modo cocina/expandir con IA se retiró — P-RECIPES-COOK-REMOVED
 // 2026-07-12). Esta capa solo pinta.
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { metaFor, STEP_ICONS, MACROS, ICONS, conicStops as _conicStops } from './recipesData';
 import { displayAjiMorron } from '../../utils/ingredientDisplay';
 import styles from './RecipesView.module.css';
@@ -89,12 +89,16 @@ function MealRail({ meals, active, onSelect }) {
       <div className={styles.railHead}>Comidas de hoy</div>
       {meals.map((m, i) => {
         const t = metaFor(m.meal);
-        // [P1-EATEN-SLOT-RECIPES · 2026-07-28] Anotación, NUNCA lock — Recetas
-        // es superficie de solo lectura (el único onClick de la página fuera
-        // de este riel/tabs/PDF es "Volver al plan" del EmptyState). El botón
-        // sigue 100% clickeable/navegable aunque el slot ya se haya comido;
-        // solo se atenúa visualmente + suma el chip, mismo lenguaje que "Tu
-        // Menú" del Dashboard (P1-TODAY-REMAINING).
+        // [P1-EATEN-SLOT-RECIPES · 2026-07-28 · reversado parcialmente por
+        // P1-EATEN-RECIPE-LOCK · 2026-07-28] Este RIEL sigue sin lock — sigue
+        // siendo navegación pura, nunca la acción que el owner pidió
+        // bloquear. El botón sigue 100% clickeable/navegable aunque el slot
+        // ya se haya comido; solo se atenúa visualmente + suma el chip,
+        // mismo lenguaje que "Tu Menú" del Dashboard (P1-TODAY-REMAINING).
+        // Lo que SÍ se bloquea de verdad ahora — "Descargar PDF", los
+        // checkboxes de ingredientes, el toggle de pasos — vive en el PANE
+        // de detalle (RecipeDetail, abajo); ver el comentario largo ahí para
+        // el mecanismo y por qué bloquear es seguro en esta página.
         const eaten = !!m._isEatenToday;
         return (
           <button key={i} className={eaten ? `${styles.meal} ${styles.eaten}` : styles.meal} aria-current={i === active}
@@ -143,11 +147,47 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
   // mostrado ES hoy" (Recipes.jsx:594-618, `_eatenIndices` es un Set VACÍO
   // cuando el día activo no es hoy) — una sola condición cubre ambos
   // requisitos (slot comido Y día=hoy), ver CSS module para el mecanismo
-  // (filter grayscale, nunca opacity/hide/disable).
-  const detailCls = meal._isEatenToday ? `${styles.detail} ${styles.eaten}` : styles.detail;
+  // (filter grayscale, nunca opacity/hide/disable en el NODO RAÍZ).
+  //
+  // [P1-EATEN-RECIPE-LOCK · 2026-07-28] El owner, dos veces: "quiero un
+  // bloqueo ABSOLUTO y no simplemente visual" sobre descargar el PDF y sobre
+  // anotar/confirmar los alimentos — SUPERSEDE la decisión previa ("Recetas
+  // es solo lectura, NUNCA lock"; ver CLAUDE.md, sección revertida). Mismo
+  // flag (`isLocked`) alimenta los 3 controles que de verdad se inertizan
+  // abajo: "Descargar PDF", los checkboxes de ingredientes y el toggle de
+  // pasos. La RECETA (título/desc/ingredientes/pasos como TEXTO) sigue
+  // legible sin gate — el match es por `meal_type`, nunca por nombre de
+  // plato, así que puede estar mal emparejado, y leer es la única forma de
+  // notarlo. El riel de navegación (arriba) tampoco se toca.
+  //
+  // Por qué bloquear es seguro acá: el usuario se desbloquea A SÍ MISMO en
+  // un solo paso — borrar la comida registrada en "Progreso en Tiempo Real"
+  // limpia `_isEatenToday` y los 3 controles se re-habilitan EN VIVO, sin
+  // reload (el round-trip ya existe: el fetch del diario de Recipes.jsx +
+  // `mealfit:today-consumed-updated` que Dashboard.jsx/TrackingProgress.jsx
+  // emiten en cada cambio de su propio estado). Un lock con escape hatch
+  // visible es distinto de un callejón sin salida.
+  const isLocked = !!meal._isEatenToday;
+  const detailCls = isLocked ? `${styles.detail} ${styles.eaten}` : styles.detail;
+  // [P1-EATEN-RECIPE-LOCK · 2026-07-28] Un `title` NO es accesible (no llega
+  // al árbol de accesibilidad de forma confiable) — la razón del bloqueo
+  // necesita `aria-describedby` apuntando a un nodo real. Un solo nodo
+  // visualmente oculto por pane basta: los 3 controles comparten EXACTAMENTE
+  // la misma razón (`meal._eatenClaim`, cta='unlock', SSOT en
+  // todayRemaining.js). `useId()` da un id estable por instancia del
+  // componente — no colisiona si React re-renderiza ni entre desktop/mobile
+  // (nunca están montados a la vez).
+  const lockReasonId = useId();
 
   return (
     <div className={detailCls} style={{ '--tone': t.tone }}>
+      {/* [P1-EATEN-RECIPE-LOCK · 2026-07-28] Texto SOLO para lectores de
+          pantalla (ver `.srOnly` en el CSS module) — la razón + el escape
+          hatch, referenciada por `aria-describedby` desde los 3 controles
+          bloqueados abajo. */}
+      {isLocked && (
+        <p id={lockReasonId} className={styles.srOnly}>{meal._eatenClaim}</p>
+      )}
       {/* Encabezado tipográfico (sin imagen) */}
       <div className={styles.head2}>
         <div className={styles.h2body}>
@@ -199,9 +239,25 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
 
       {/* [P-RECIPES-COOK-REMOVED · 2026-07-12] Botón "Cocinar" (modo cocina +
           expansión LLM) retirado del producto — la única acción es descargar
-          el PDF, que ahora lleva el estilo primary. */}
+          el PDF, que ahora lleva el estilo primary.
+          [P1-EATEN-RECIPE-LOCK · 2026-07-28] `disabled` NATIVO (elemento es
+          un `<button>` real) — bloquea click Y teclado de una sola vez, sin
+          necesitar `aria-disabled`. El early-return dentro del handler es
+          defensa-en-profundidad (mismo patrón que el resto del repo, ej.
+          Dashboard.jsx "Cambiar Plato"): cubre cualquier dispatch sintético
+          que se saltara el atributo DOM. Texto visible "Descargar PDF" NO se
+          toca — solo se suma `aria-describedby`, nunca `aria-label` (eso
+          REEMPLAZARÍA el nombre accesible por la razón del bloqueo, perdiendo
+          la acción — nos mordió antes en el botón del riel de Recetas). La
+          clase `.locked` es la afordancia visible extra (cursor:not-allowed)
+          más allá de la desaturación del pane. */}
       <div className={styles.actions} data-html2canvas-ignore="true">
-        <button className={`${styles.btn} ${styles.primary}`} onClick={onPDF}>
+        <button
+          className={`${styles.btn} ${styles.primary}${isLocked ? ` ${styles.locked}` : ''}`}
+          onClick={() => { if (isLocked) return; onPDF(); }}
+          disabled={isLocked}
+          aria-describedby={isLocked ? lockReasonId : undefined}
+        >
           <Svg d={ICONS.pdf} size={17} /> Descargar PDF
         </button>
       </div>
@@ -223,10 +279,34 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
                 return (
                   // [P1-6 · 2026-07-09] a11y: role=checkbox + aria-checked + teclado
                   // (antes <div onClick> sin acceso por teclado ni estado para lectores).
+                  // [P1-EATEN-RECIPE-LOCK · 2026-07-28] `role="checkbox"` es un DIV, no
+                  // hay `disabled` nativo — `aria-disabled` + handlers inertes (click Y
+                  // el camino Enter/Space del `onKeyDown`, ambos vivos hoy). Se
+                  // MANTIENE `tabIndex={0}` (focusable) a propósito: quitarlo sacaría el
+                  // control del tab order sin dar ninguna señal — un usuario de teclado
+                  // notaría que "desapareció", no que está bloqueado. Con
+                  // `aria-disabled` + `aria-describedby` el control sigue siendo
+                  // alcanzable y el lector de pantalla anuncia la razón + el escape
+                  // hatch (mismo criterio que WAI-ARIA recomienda para "deshabilitado
+                  // pero descubrible", a diferencia del `disabled` nativo del botón de
+                  // PDF arriba, que si saca el foco — ahí es apropiado porque es un
+                  // `<button>` real con affordance de disabled ya conocida).
+                  // Nunca `aria-label`: el nombre accesible de este checkbox viene del
+                  // texto del ingrediente (name-from-content) — un aria-label lo
+                  // reemplazaría por la razón del bloqueo y el usuario dejaría de saber
+                  // QUÉ ingrediente es.
                   <div key={i} className={`${styles.ingItem} ${done ? styles.done : ''}`}
                        role="checkbox" aria-checked={done} tabIndex={0}
-                       onClick={() => onToggleIngredient(i)}
-                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleIngredient(i); } }}>
+                       aria-disabled={isLocked || undefined}
+                       aria-describedby={isLocked ? lockReasonId : undefined}
+                       onClick={() => { if (isLocked) return; onToggleIngredient(i); }}
+                       onKeyDown={(e) => {
+                         if (e.key === 'Enter' || e.key === ' ') {
+                           e.preventDefault();
+                           if (isLocked) return;
+                           onToggleIngredient(i);
+                         }
+                       }}>
                     <span className={styles.check}><Svg d={ICONS.check} size={12} /></span>
                     <span className={styles.ingText}>{displayAjiMorron(s)}</span>
                   </div>
@@ -245,8 +325,16 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
                 const done = doneSteps.has(i);
                 const { title, body } = parseStep(raw);
                 return (
+                  // [P1-EATEN-RECIPE-LOCK · 2026-07-28] Mismo tratamiento que los
+                  // checkboxes de ingredientes: `aria-disabled` + click inerte
+                  // (este `<div>` nunca tuvo `tabIndex`/`onKeyDown` — no se le suma
+                  // ahora, solo se cierra el `onClick`). `aria-disabled` es un
+                  // atributo global válido sin `role` explícito.
                   <div key={i} className={`${styles.step} ${done ? styles.done : ''}`}
-                       style={{ '--stone': si.c }} onClick={() => toggleStep(i)}>
+                       style={{ '--stone': si.c }}
+                       aria-disabled={isLocked || undefined}
+                       aria-describedby={isLocked ? lockReasonId : undefined}
+                       onClick={() => { if (isLocked) return; toggleStep(i); }}>
                     <span className={styles.node}>{done ? <Svg d={ICONS.check} size={18} /> : (annotation ? '•' : number)}</span>
                     <div className={styles.stepCard}>
                       {title && <div className={styles.stepTitle}>{title}</div>}

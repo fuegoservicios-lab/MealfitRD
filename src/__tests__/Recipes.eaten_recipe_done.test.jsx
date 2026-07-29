@@ -7,6 +7,15 @@
 // completo se archiva visualmente) — Recipes.eaten_slot.test.jsx sigue
 // cubriendo el chip/riel preexistentes, sin duplicar.
 //
+// [P1-EATEN-RECIPE-LOCK · 2026-07-28] El owner volvió, dos veces, y pidió que
+// el archivado dejara de ser SOLO visual: "quiero un bloqueo absoluto" sobre
+// descargar el PDF y sobre anotar/confirmar los alimentos. El último test de
+// este archivo ("nada se deshabilita…") afirmaba justo lo contrario de lo
+// que el owner pidió — se INVIRTIÓ (no se borró) para guardar el contrato
+// nuevo; la cobertura EXHAUSTIVA (teclado, mobile, a11y, unlock round-trip)
+// vive en el sibling `Recipes.eaten_recipe_lock.test.jsx` para no inflar
+// este archivo, que sigue centrado en el archivado VISUAL del pane completo.
+//
 // Reglas duras que estos tests protegen:
 //   - El modificador SOLO aparece cuando el slot mostrado está comido Y el
 //     día mostrado es HOY (`meal._isEatenToday` ya llega gateado a ambas
@@ -214,7 +223,7 @@ describe('P1-EATEN-RECIPE-DONE — el pane de detalle completo se "archiva" (des
         }
     });
 
-    it('nada se deshabilita bajo el modificador: checkboxes de ingredientes, toggle de pasos y el botón de PDF siguen funcionales', async () => {
+    it('[INVERTIDO por P1-EATEN-RECIPE-LOCK · 2026-07-28] el modificador SÍ bloquea de verdad: el checkbox de ingredientes y el botón de PDF quedan inertes (antes esta prueba afirmaba lo contrario)', async () => {
         vi.mocked(fetchWithAuth).mockResolvedValue(
             _diaryResponse([{ meal_type: 'desayuno', calories: 500 }])
         );
@@ -226,19 +235,21 @@ describe('P1-EATEN-RECIPE-DONE — el pane de detalle completo se "archiva" (des
         const detailRoot = _detailRootFor('Mangú con los tres golpes');
         expect(detailRoot.className).toMatch(/eaten/);
 
-        // El checkbox de ingrediente sigue siendo un role=checkbox clickeable
-        // (P1-6 a11y) — no `aria-disabled`, no listener removido.
+        // El checkbox de ingrediente queda inerte: `aria-disabled="true"` y el
+        // click NO cambia `aria-checked` (antes de P1-EATEN-RECIPE-LOCK, este
+        // mismo checkbox SÍ toggleaba). Cobertura completa (teclado, mobile,
+        // a11y describedby, unlock round-trip) en Recipes.eaten_recipe_lock.test.jsx.
         const ingCheckbox = screen.getByText('Plátano').closest('[role="checkbox"]');
-        expect(ingCheckbox).not.toHaveAttribute('aria-disabled', 'true');
+        expect(ingCheckbox).toHaveAttribute('aria-disabled', 'true');
         expect(ingCheckbox.getAttribute('aria-checked')).toBe('false');
         fireEvent.click(ingCheckbox);
-        expect(ingCheckbox.getAttribute('aria-checked')).toBe('true');
+        expect(ingCheckbox.getAttribute('aria-checked')).toBe('false');
 
         const pdfBtn = screen.getByText(/Descargar PDF/).closest('button');
-        expect(pdfBtn).not.toBeDisabled();
+        expect(pdfBtn).toBeDisabled();
     });
 
-    it('PDF: el string capturado por html2pdf.js NO lleva filter/grayscale ni referencia a la clase del modificador — el pane gris en pantalla no filtra al documento', async () => {
+    it('PDF: el string capturado por html2pdf.js NO lleva filter/grayscale ni class alguna — la desaturación en pantalla no filtra al documento', async () => {
         vi.mocked(fetchWithAuth).mockResolvedValue(
             _diaryResponse([{ meal_type: 'desayuno', calories: 500 }])
         );
@@ -247,14 +258,22 @@ describe('P1-EATEN-RECIPE-DONE — el pane de detalle completo se "archiva" (des
         });
         await waitFor(() => expect(screen.getAllByText('Ya registraste tu desayuno')).toHaveLength(2));
 
-        // Confirma la premisa antes de descargar: el pane EN PANTALLA sí
-        // lleva el modificador para este slot (si no, la aserción de abajo
-        // sería trivialmente cierta por no ejercitar el caso real).
-        const detailRoot = _detailRootFor('Mangú con los tres golpes');
-        expect(detailRoot.className).toMatch(/eaten/);
+        // Confirma la premisa: el Desayuno (activo por default) SÍ lleva el
+        // modificador en pantalla. [P1-EATEN-RECIPE-LOCK · 2026-07-28] Su
+        // botón de PDF ahora está REALMENTE bloqueado (cobertura dedicada en
+        // Recipes.eaten_recipe_lock.test.jsx) — este test descarga desde OTRA
+        // comida (Almuerzo, no comida) para seguir ejercitando
+        // `generateRecipeHTML`, que NUNCA referencia `meal._isEatenToday` ni
+        // `styles.detail`/`styles.eaten` — el invariante que prueba este test
+        // (nada de la desaturación en pantalla llega al string) no depende
+        // de qué comida se descargue.
+        const eatenDetailRoot = _detailRootFor('Mangú con los tres golpes');
+        expect(eatenDetailRoot.className).toMatch(/eaten/);
 
-        const pdfBtn = screen.getByText(/Descargar PDF/).closest('button');
-        fireEvent.click(pdfBtn);
+        fireEvent.click(screen.getByText('Arroz con pollo guisado').closest('button'));
+        const pdfBtn = await screen.findByText(/Descargar PDF/);
+        expect(pdfBtn.closest('button')).not.toBeDisabled();
+        fireEvent.click(pdfBtn.closest('button'));
 
         await waitFor(() => expect(_html2pdfInstance.from).toHaveBeenCalled());
         const [capturedHtml, capturedType] = _html2pdfInstance.from.mock.calls[0];
@@ -267,7 +286,7 @@ describe('P1-EATEN-RECIPE-DONE — el pane de detalle completo se "archiva" (des
         expect(capturedHtml).not.toMatch(/grayscale/i);
         expect(capturedHtml).not.toMatch(/class=/i); // generateRecipeHTML es 100% inline, sin className/class alguno.
         // El contenido real del plato SÍ llega (mismo string, receta completa).
-        expect(capturedHtml).toContain('Mangú con los tres golpes');
-        expect(capturedHtml).toContain('Plátano');
+        expect(capturedHtml).toContain('Arroz con pollo guisado');
+        expect(capturedHtml).toContain('Arroz');
     });
 });
