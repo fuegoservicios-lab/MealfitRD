@@ -49,14 +49,25 @@
 .detail { padding: 16px; }
 /* [P1-EATEN-RECIPE-DONE · 2026-07-28 · corregido P1-EATEN-DONUT-CONTRAST · 2026-07-28]
    Espejo de RecipesView.module.css — ver el comentario largo ahí para el
-   razonamiento completo (por qué `filter` grayscale y no opacity/`--tone`,
-   por qué se aplica por HIJO DIRECTO excluyendo `.macros` (ancestro no
-   puede desaturar sin arrastrar la dona/leyenda de macros al mismo buffer
-   rasterizado, colapsando Carbos/Grasas al mismo gris), y por qué el PDF
-   sale limpio). Único detalle mobile: no hay glow `::before` en `.head` (a
-   diferencia de `.head2::before` en desktop), así que ese selector se omite
-   acá. */
+   razonamiento completo (por qué `filter` grayscale y no opacity/`--tone`;
+   por qué se aplica por HIJO DIRECTO excluyendo `.macros` del ancestro —
+   `filter` en un ancestro rasteriza TODO el subárbol a un buffer, un
+   descendiente NUNCA puede "optar por salir" con `filter:none`, así que
+   `.macros` tiene que quedar fuera del selector del ancestro (a=.92
+   colapsaba Carbos/Grasas al mismo gris); por qué `.macros` NO se deja a
+   color 100% tras excluirlo — una dona a saturación completa dentro de un
+   pane archivado lee como highlight/glitch, no como "archivado" — sino con
+   su PROPIO filtro más suave (a=.55, separación post-filtro Carbos↔Grasas
+   ~77 = ~45% de la separación sin filtrar, muy por encima del colapso a ~14
+   que da a=.92 sobre esos mismos hex); y por qué el PDF sale limpio).
+   Único detalle mobile: no hay glow `::before` en `.head` (a diferencia de
+   `.head2::before` en desktop), así que ese selector se omite acá. */
 .detail.eaten > *:not(.macros) { filter: grayscale(.92); }
+/* [P1-EATEN-DONUT-CONTRAST] `.macros` excluido del selector de arriba — sin
+   esta regla quedaría a color 100%, la "isla brillante" que motivó este
+   fix. Filtro propio más suave: sigue leyendo como "archivado", nunca como
+   highlight, y mantiene los 3 colores de MACROS distinguibles. */
+.detail.eaten .macros { filter: grayscale(.55); }
 .detail.eaten .secHead::before {
   opacity: .7;
 }

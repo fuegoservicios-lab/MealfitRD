@@ -54,19 +54,31 @@
    [P1-EATEN-DONUT-CONTRAST] El filtro se aplica por HIJO DIRECTO
    (`> *:not(.macros)`), NO en `.detail.eaten` mismo: `filter` en un
    ancestro rasteriza TODO el subárbol a un buffer y lo desatura como una
-   sola imagen — un descendiente no puede "optar por salir" con su propio
-   `filter:none` (ver CSS Filter Effects). Aplicado sobre `.detail.eaten`
-   directo, a=.92 sobre los 3 colores de MACROS (recipesData.js) colapsaba
-   Carbos (#818CF8, luma 145.5) y Grasas (#FB7185, luma 143.8) al MISMO gris
-   neutro (distancia RGB ~14/441 tras el filtro) — la dona de 3 segmentos y
-   la leyenda .dot dejaban de distinguir Carbos de Grasas por color, pese a
-   que el comentario original afirmaba que su "identidad" sobrevivía.
-   `.macros` (dona conic-gradient + leyenda .dot) es la ÚNICA pieza del pane
-   cuya función es transmitir identidad MULTI-color — se excluye entera del
-   filtro y queda a color completo incluso archivada. El resto (`.head2`,
-   `.desc`, `.actions`, `.cols` con checkboxes/timeline de un solo tono) se
-   desatura igual que antes, filtrado por elemento en vez de por ancestro
-   común — mismo resultado visual, sin arrastrar `.macros` al mismo buffer.
+   sola imagen — un descendiente NUNCA puede "optar por salir" con su propio
+   `filter:none` (ver CSS Filter Effects), así que `.macros` tiene que
+   quedar fuera del selector del ancestro; no hay forma de excluirlo desde
+   dentro. Aplicado sobre `.detail.eaten` directo, a=.92 sobre los 3 colores
+   de MACROS (recipesData.js) colapsaba Carbos (#818CF8, luma 145.5) y
+   Grasas (#FB7185, luma 143.8) al MISMO gris neutro (separación RGB ~14 de
+   ~170 sin filtrar) — la dona de 3 segmentos y la leyenda .dot dejaban de
+   distinguir Carbos de Grasas por color.
+   Pero excluir `.macros` del todo (dejarlo a color 100%) fue OTRO defecto,
+   no la corrección final: dentro de un pane archivado y desaturado, una
+   dona a saturación completa lee como highlight o glitch de render, no como
+   "esto quedó archivado" — rompe la premisa entera del estado (nada debe
+   gritar). `.macros` recibe su PROPIO filtro, más suave: a=.55 en vez de
+   .92. La separación post-filtro escala como Δ = (1−a)·(RGB_Carbos −
+   RGB_Grasas) + a·(luma_Carbos − luma_Grasas); a a=.55 la norma queda en
+   ~77 (~45% de los ~170 sin filtrar, muy por encima del colapso a ~14 que
+   da a=.92 sobre estos mismos hex) — apagado, igual de mudado que el resto
+   del pane, pero los 3 segmentos y los 3 `.dot` de la leyenda se siguen
+   distinguiendo por color. .55 no es el único valor que cierra el hueco; se
+   eligió por dejar margen holgado sobre el piso mínimo (ver test P1-EATEN-
+   DONUT-CONTRAST) sin acercarse al punto de colapso.
+   El resto (`.head2`, `.desc`, `.actions`, `.cols` con checkboxes/timeline
+   de un solo tono) se desatura a a=.92 filtrado por hijo directo en vez de
+   por ancestro común — mismo resultado visual que un filtro único en
+   `.detail.eaten`, sin arrastrar `.macros` al mismo buffer rasterizado.
    Nada se deshabilita bajo el filtro: checkboxes de ingredientes, toggle de
    pasos y el botón de PDF siguen 100% funcionales — Recetas es de solo
    lectura y el slot puede estar MAL emparejado (match por meal_type, nunca
@@ -77,6 +89,12 @@
    qué adherirse dentro del contenedor sintético que arma html2pdf.js, así
    que el PDF sale a color aunque el pane en pantalla esté gris. */
 .detail.eaten > *:not(.macros) { filter: grayscale(.92); }
+/* [P1-EATEN-DONUT-CONTRAST] `.macros` está excluido del selector de arriba
+   (ver comentario largo) — sin esta regla quedaría a color 100%, la "isla
+   brillante" que motivó este fix. Filtro propio más suave: sigue leyendo
+   como "archivado", nunca como highlight, y mantiene los 3 colores de
+   MACROS distinguibles. */
+.detail.eaten .macros { filter: grayscale(.55); }
 /* Dim restringido a las DOS piezas 100% decorativas de este pane: `content:
    ""`, cero texto/glyph, cero estado que leer (la barra de acento de
    sección y el glow ambiental del header). Deliberadamente NO se toca
