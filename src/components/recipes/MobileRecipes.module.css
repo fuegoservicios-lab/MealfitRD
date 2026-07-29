@@ -105,10 +105,11 @@
 .actions { display: flex; flex-direction: column; gap: 14px; margin: 16px 0 0; }
 .btn { appearance: none; cursor: pointer; font: inherit; font-size: .85rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border-radius: 14px; border: 1px solid transparent; transition: transform .15s ease-out, box-shadow .15s ease-out; }
 .btn:active { transform: scale(.97); }
-.btn:disabled { opacity: .7; cursor: wait; }
-/* [P1-EATEN-RECIPE-LOCK · 2026-07-28] Ver comentario largo en
-   RecipesView.module.css (`.btn:disabled.locked`) — misma regla, misma razón. */
-.btn:disabled.locked { cursor: not-allowed; opacity: .55; }
+/* [P1-EATEN-RECIPE-LOCK · 2026-07-28 · corregido en revisión de código el
+   mismo día] Ver comentario largo en RecipesView.module.css (`.btn.locked`)
+   — misma regla, misma razón (el botón usa `aria-disabled`, no `disabled`
+   nativo, así que el selector cuelga de la clase, no de `:disabled`). */
+.btn.locked { cursor: not-allowed; opacity: .55; }
 .primary { color: #0B1120; background: linear-gradient(120deg, var(--primary-light), var(--primary)); box-shadow: 0 6px 14px -10px var(--primary); }
 
 .secHead { display: flex; align-items: center; gap: 9px; margin: 24px 0 13px; font-family: var(--font-heading); font-size: 1rem; font-weight: 800; color: var(--text-main); }

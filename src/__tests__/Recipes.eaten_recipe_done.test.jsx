@@ -245,8 +245,13 @@ describe('P1-EATEN-RECIPE-DONE — el pane de detalle completo se "archiva" (des
         fireEvent.click(ingCheckbox);
         expect(ingCheckbox.getAttribute('aria-checked')).toBe('false');
 
+        // [P1-EATEN-RECIPE-LOCK · 2026-07-28 · corregido en revisión de
+        // código el mismo día] `aria-disabled`, NUNCA `disabled` nativo — ver
+        // Recipes.eaten_recipe_lock.test.jsx para la prueba directa de que
+        // el botón sigue siendo alcanzable por foco de teclado.
         const pdfBtn = screen.getByText(/Descargar PDF/).closest('button');
-        expect(pdfBtn).toBeDisabled();
+        expect(pdfBtn).not.toBeDisabled();
+        expect(pdfBtn).toHaveAttribute('aria-disabled', 'true');
     });
 
     it('PDF: el string capturado por html2pdf.js NO lleva filter/grayscale ni class alguna — la desaturación en pantalla no filtra al documento', async () => {
@@ -272,7 +277,7 @@ describe('P1-EATEN-RECIPE-DONE — el pane de detalle completo se "archiva" (des
 
         fireEvent.click(screen.getByText('Arroz con pollo guisado').closest('button'));
         const pdfBtn = await screen.findByText(/Descargar PDF/);
-        expect(pdfBtn.closest('button')).not.toBeDisabled();
+        expect(pdfBtn.closest('button')).not.toHaveAttribute('aria-disabled');
         fireEvent.click(pdfBtn.closest('button'));
 
         await waitFor(() => expect(_html2pdfInstance.from).toHaveBeenCalled());

@@ -151,14 +151,15 @@
 .actions { display: flex; gap: 10px; margin: 16px 2px 0; }
 .btn { appearance: none; cursor: pointer; font: inherit; font-size: .84rem; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 20px; border-radius: 14px; border: 1px solid transparent; transition: transform .15s ease-out, box-shadow .15s ease-out; }
 .btn:active { transform: scale(.97); }
-.btn:disabled { opacity: .7; cursor: wait; }
-/* [P1-EATEN-RECIPE-LOCK · 2026-07-28] Afordancia visible del lock MÁS ALLÁ
-   de la desaturación del pane (que ya cubre TODO el subárbol vía `filter` en
-   el ancestro) — un usuario vidente necesita una señal en el propio control,
-   ANTES de intentar el click, no solo "algo se ve gris". `:disabled` normal
-   usa `cursor:wait` (estado "generando PDF", transitorio); `.locked` gana
-   por especificidad (2 clases > 1) y señala "no disponible", nunca "espera". */
-.btn:disabled.locked { cursor: not-allowed; opacity: .55; }
+/* [P1-EATEN-RECIPE-LOCK · 2026-07-28 · corregido en revisión de código el
+   mismo día] Afordancia visible del lock MÁS ALLÁ de la desaturación del
+   pane (que ya cubre TODO el subárbol vía `filter` en el ancestro) — un
+   usuario vidente necesita una señal en el propio control, ANTES de
+   intentar el click, no solo "algo se ve gris". Colgado de la clase
+   `.locked` (aplicada por JSX solo cuando `isLocked`), NO de `:disabled` —
+   el botón usa `aria-disabled`, no `disabled` nativo (ver comentario largo
+   en RecipesView.jsx), así que un selector `:disabled` nunca matchearía. */
+.btn.locked { cursor: not-allowed; opacity: .55; }
 .primary { color: #0B1120; background: linear-gradient(120deg, var(--primary-light), var(--primary)); box-shadow: 0 6px 14px -10px var(--primary); }
 
 /* Columnas */

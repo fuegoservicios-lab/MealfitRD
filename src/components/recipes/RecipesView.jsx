@@ -240,22 +240,35 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
       {/* [P-RECIPES-COOK-REMOVED · 2026-07-12] Botón "Cocinar" (modo cocina +
           expansión LLM) retirado del producto — la única acción es descargar
           el PDF, que ahora lleva el estilo primary.
-          [P1-EATEN-RECIPE-LOCK · 2026-07-28] `disabled` NATIVO (elemento es
-          un `<button>` real) — bloquea click Y teclado de una sola vez, sin
-          necesitar `aria-disabled`. El early-return dentro del handler es
-          defensa-en-profundidad (mismo patrón que el resto del repo, ej.
-          Dashboard.jsx "Cambiar Plato"): cubre cualquier dispatch sintético
-          que se saltara el atributo DOM. Texto visible "Descargar PDF" NO se
-          toca — solo se suma `aria-describedby`, nunca `aria-label` (eso
-          REEMPLAZARÍA el nombre accesible por la razón del bloqueo, perdiendo
-          la acción — nos mordió antes en el botón del riel de Recetas). La
-          clase `.locked` es la afordancia visible extra (cursor:not-allowed)
-          más allá de la desaturación del pane. */}
+          [P1-EATEN-RECIPE-LOCK · 2026-07-28 · corregido en revisión de código
+          el mismo día] Este `<button>` usaba `disabled` NATIVO al cerrar el
+          commit original — se revirtió a `aria-disabled` (mismo patrón que
+          los checkboxes de ingredientes y el toggle de pasos, abajo) porque
+          `disabled` nativo saca el elemento del tab order POR COMPLETO: un
+          usuario de teclado (vidente o con lector de pantalla) que navega con
+          Tab nunca enfoca el botón, así que el `aria-describedby` que apunta
+          a la razón del bloqueo jamás se dispara — el único texto que explica
+          el bloqueo (`meal._eatenClaim`, en el nodo `.srOnly` de arriba)
+          queda inalcanzable por CUALQUIER camino de teclado. Con
+          `aria-disabled` el botón sigue siendo focosable (foco nativo de
+          `<button>`, sin necesitar `tabIndex` explícito) y el bloqueo real
+          sigue siendo absoluto porque vive en JS: el early-return dentro del
+          handler (mismo patrón que el resto del repo, ej. Dashboard.jsx
+          "Cambiar Plato") cubre tanto el click de mouse como el Enter/Space
+          nativo de un `<button>` enfocado — `aria-disabled` NO desactiva la
+          activación por teclado por sí solo, por eso el guard en el handler
+          sigue siendo obligatorio, no solo defensa-en-profundidad. Texto
+          visible "Descargar PDF" NO se toca — solo se suma
+          `aria-describedby`, nunca `aria-label` (eso REEMPLAZARÍA el nombre
+          accesible por la razón del bloqueo, perdiendo la acción — nos
+          mordió antes en el botón del riel de Recetas). La clase `.locked`
+          es la afordancia visible extra (cursor:not-allowed) más allá de la
+          desaturación del pane. */}
       <div className={styles.actions} data-html2canvas-ignore="true">
         <button
           className={`${styles.btn} ${styles.primary}${isLocked ? ` ${styles.locked}` : ''}`}
           onClick={() => { if (isLocked) return; onPDF(); }}
-          disabled={isLocked}
+          aria-disabled={isLocked || undefined}
           aria-describedby={isLocked ? lockReasonId : undefined}
         >
           <Svg d={ICONS.pdf} size={17} /> Descargar PDF

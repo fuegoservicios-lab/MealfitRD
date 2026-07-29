@@ -229,13 +229,17 @@ describe('P1-EATEN-SLOT-RECIPES — Recetas anota el slot ya comido hoy (el riel
         fireEvent.click(screen.getByText('Mangú con los tres golpes').closest('button'));
         expect(await screen.findByText('Plátano')).toBeInTheDocument();
 
-        // [P1-EATEN-RECIPE-LOCK · 2026-07-28] El botón de descargar PDF SÍ
-        // queda deshabilitado sobre un slot ya comido — decisión revertida
-        // (antes esta misma línea afirmaba lo contrario). Cobertura completa
-        // del bloqueo (click/teclado/checkboxes/pasos/a11y/unlock) vive en
-        // Recipes.eaten_recipe_lock.test.jsx.
+        // [P1-EATEN-RECIPE-LOCK · 2026-07-28 · corregido en revisión de
+        // código el mismo día] El botón de descargar PDF SÍ queda inerte
+        // sobre un slot ya comido — decisión revertida (antes esta misma
+        // línea afirmaba lo contrario). `aria-disabled`, NUNCA `disabled`
+        // nativo (sacaría el botón del tab order — ver Recipes.eaten_
+        // recipe_lock.test.jsx para la prueba directa de foco). Cobertura
+        // completa del bloqueo (click/teclado/checkboxes/pasos/a11y/unlock)
+        // vive en Recipes.eaten_recipe_lock.test.jsx.
         const pdfBtn = screen.getByText(/Descargar PDF/).closest('button');
-        expect(pdfBtn).toBeDisabled();
+        expect(pdfBtn).not.toBeDisabled();
+        expect(pdfBtn).toHaveAttribute('aria-disabled', 'true');
     });
 
     it('sin registros en el diario de hoy, no aparece ninguna anotación', async () => {

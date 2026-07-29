@@ -7,7 +7,9 @@
 //
 // Sibling dedicado (en vez de seguir inflando `Recipes.eaten_recipe_done.
 // test.jsx`) para la cobertura EXHAUSTIVA del bloqueo real:
-//   - "Descargar PDF" — `disabled` nativo, click no dispara `onPDF`.
+//   - "Descargar PDF" — `aria-disabled` + early-return en el handler (NUNCA
+//     `disabled` nativo — sacaría el botón del tab order, ver corrección
+//     de revisión de código más abajo), click no dispara `onPDF`.
 //   - Checkboxes de ingredientes (`role="checkbox"`) — click Y el camino
 //     Enter/Space de `onKeyDown` quedan inertes.
 //   - Toggle de pasos — click no marca el paso como hecho.
@@ -16,7 +18,10 @@
 //     Recipes.eaten_recipe_done.test.jsx para el archivado visual).
 //   - Accesibilidad: la razón del bloqueo llega a un lector de pantalla vía
 //     `aria-describedby` (un `title` NO basta), y NINGÚN control gana
-//     `aria-label` que reemplace su nombre accesible existente.
+//     `aria-label` que reemplace su nombre accesible existente. El botón de
+//     PDF además prueba que `.focus()` SÍ aterriza en él (no `disabled`
+//     nativo) — sin eso, `aria-describedby` describe un nodo que ningún
+//     camino de teclado alcanza jamás.
 //   - El "unlock round-trip": Recipes.jsx NO escucha
 //     `mealfit:today-consumed-updated` (a diferencia de Dashboard.jsx/
 //     TrackingProgress.jsx) — ver su propio comentario ("Esa card NO está
@@ -122,8 +127,17 @@ describe('P1-EATEN-RECIPE-LOCK — bloqueo REAL (no solo visual) de PDF/checkbox
         await waitFor(() => expect(screen.getAllByText('Ya registraste tu desayuno')).toHaveLength(2));
 
         // Desayuno (activo por default) está comido.
+        // [P1-EATEN-RECIPE-LOCK · 2026-07-28 · corregido en revisión de
+        // código el mismo día] `aria-disabled`, NUNCA `disabled` nativo — un
+        // `disabled` nativo saca el botón del tab order y con él el
+        // `aria-describedby` que apunta a la razón del bloqueo deja de ser
+        // alcanzable por teclado (hallazgo de la revisión). El botón sigue
+        // siendo focosable (ver el test de a11y más abajo para la prueba
+        // directa de foco) — el bloqueo real vive en el early-return del
+        // handler, no en sacar el control del árbol de interacción.
         const pdfBtn = screen.getByText(/Descargar PDF/).closest('button');
-        expect(pdfBtn).toBeDisabled();
+        expect(pdfBtn).not.toBeDisabled();
+        expect(pdfBtn).toHaveAttribute('aria-disabled', 'true');
         fireEvent.click(pdfBtn);
         expect(_html2pdfInstance.from).not.toHaveBeenCalled();
 
@@ -131,7 +145,7 @@ describe('P1-EATEN-RECIPE-LOCK — bloqueo REAL (no solo visual) de PDF/checkbox
         // y el click SÍ dispara la descarga real.
         fireEvent.click(screen.getByText('Arroz con pollo guisado').closest('button'));
         const pdfBtn2 = await screen.findByText(/Descargar PDF/);
-        expect(pdfBtn2.closest('button')).not.toBeDisabled();
+        expect(pdfBtn2.closest('button')).not.toHaveAttribute('aria-disabled');
         fireEvent.click(pdfBtn2.closest('button'));
         await waitFor(() => expect(_html2pdfInstance.from).toHaveBeenCalledTimes(1));
     });
@@ -209,7 +223,7 @@ describe('P1-EATEN-RECIPE-LOCK — bloqueo REAL (no solo visual) de PDF/checkbox
         render(<Recipes />, { customContext: { ..._baseContext, planData: plan } });
 
         // Tab hoy: bloqueado.
-        await waitFor(() => expect(screen.getByText(/Descargar PDF/).closest('button')).toBeDisabled());
+        await waitFor(() => expect(screen.getByText(/Descargar PDF/).closest('button')).toHaveAttribute('aria-disabled', 'true'));
 
         // Tab de mañana: PDF/checkbox/paso 100% funcionales.
         const tabs = screen.getAllByRole('tab');
@@ -217,7 +231,7 @@ describe('P1-EATEN-RECIPE-LOCK — bloqueo REAL (no solo visual) de PDF/checkbox
         await waitFor(() => expect(screen.getByText('Mangú de mañana', { selector: 'h2' })).toBeInTheDocument());
 
         const pdfBtn = screen.getByText(/Descargar PDF/).closest('button');
-        expect(pdfBtn).not.toBeDisabled();
+        expect(pdfBtn).not.toHaveAttribute('aria-disabled');
         fireEvent.click(pdfBtn);
         await waitFor(() => expect(_html2pdfInstance.from).toHaveBeenCalledTimes(1));
 
@@ -239,7 +253,8 @@ describe('P1-EATEN-RECIPE-LOCK — bloqueo REAL (no solo visual) de PDF/checkbox
             await waitFor(() => expect(screen.getAllByText('Ya registraste tu desayuno').length).toBeGreaterThan(0));
 
             const pdfBtn = screen.getByText(/Descargar PDF/).closest('button');
-            expect(pdfBtn).toBeDisabled();
+            expect(pdfBtn).not.toBeDisabled();
+            expect(pdfBtn).toHaveAttribute('aria-disabled', 'true');
             fireEvent.click(pdfBtn);
             expect(_html2pdfInstance.from).not.toHaveBeenCalled();
 
@@ -258,7 +273,7 @@ describe('P1-EATEN-RECIPE-LOCK — bloqueo REAL (no solo visual) de PDF/checkbox
             // nombre de plato — ver Recipes.eaten_recipe_done.test.jsx).
             fireEvent.click(screen.getByText('Almuerzo').closest('button'));
             const pdfBtn2 = await screen.findByText(/Descargar PDF/);
-            expect(pdfBtn2.closest('button')).not.toBeDisabled();
+            expect(pdfBtn2.closest('button')).not.toHaveAttribute('aria-disabled');
             fireEvent.click(pdfBtn2.closest('button'));
             await waitFor(() => expect(_html2pdfInstance.from).toHaveBeenCalledTimes(1));
         } finally {
@@ -285,6 +300,18 @@ describe('P1-EATEN-RECIPE-LOCK — bloqueo REAL (no solo visual) de PDF/checkbox
         // "Descargar PDF" (name-from-content intacto, sin aria-label).
         expect(pdfBtn).not.toHaveAttribute('aria-label');
         expect(pdfBtn).toHaveTextContent('Descargar PDF');
+        // [P1-EATEN-RECIPE-LOCK · 2026-07-28 · corregido en revisión de
+        // código el mismo día] El hallazgo original: `disabled` nativo saca
+        // el botón del tab order, así que `aria-describedby` nunca se
+        // dispara para un usuario de teclado — el DOM podía tener el nodo de
+        // la razón sin que NINGÚN camino de interacción llegara a él. Esta
+        // aserción prueba el camino real, no solo la presencia del nodo:
+        // `disabled` nativo hace que `.focus()` sea un no-op (el elemento
+        // nunca se vuelve `document.activeElement`); con `aria-disabled` el
+        // foco programático (equivalente a Tab) SÍ aterriza en el botón.
+        expect(pdfBtn).not.toHaveAttribute('disabled');
+        pdfBtn.focus();
+        expect(document.activeElement).toBe(pdfBtn);
 
         const box = screen.getByText('Plátano').closest('[role="checkbox"]');
         expect(box).toHaveAttribute('aria-disabled', 'true');
@@ -315,7 +342,7 @@ describe('P1-EATEN-RECIPE-LOCK — bloqueo REAL (no solo visual) de PDF/checkbox
         const { unmount } = render(<Recipes />, {
             customContext: { ..._baseContext, planData: plan },
         });
-        await waitFor(() => expect(screen.getByText(/Descargar PDF/).closest('button')).toBeDisabled());
+        await waitFor(() => expect(screen.getByText(/Descargar PDF/).closest('button')).toHaveAttribute('aria-disabled', 'true'));
         const box = screen.getByText('Plátano').closest('[role="checkbox"]');
         expect(box).toHaveAttribute('aria-disabled', 'true');
 
@@ -330,7 +357,7 @@ describe('P1-EATEN-RECIPE-LOCK — bloqueo REAL (no solo visual) de PDF/checkbox
 
         await waitFor(() => expect(screen.queryByText('Ya registraste tu desayuno')).not.toBeInTheDocument());
         const pdfBtn = screen.getByText(/Descargar PDF/).closest('button');
-        expect(pdfBtn).not.toBeDisabled();
+        expect(pdfBtn).not.toHaveAttribute('aria-disabled');
         fireEvent.click(pdfBtn);
         await waitFor(() => expect(_html2pdfInstance.from).toHaveBeenCalledTimes(1));
 

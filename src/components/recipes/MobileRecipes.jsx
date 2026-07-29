@@ -175,15 +175,17 @@ export function MobileRecipes({
 
         {/* [P-RECIPES-COOK-REMOVED · 2026-07-12] Botón "Cocinar" retirado —
             única acción: descargar PDF (estilo primary).
-            [P1-EATEN-RECIPE-LOCK · 2026-07-28] Ver comentario largo en
-            RecipesView.jsx (mismo `<button>` real → `disabled` nativo +
-            early-return de defensa-en-profundidad + `aria-describedby`,
-            nunca `aria-label`). */}
+            [P1-EATEN-RECIPE-LOCK · 2026-07-28 · corregido en revisión de
+            código el mismo día] Ver comentario largo en RecipesView.jsx:
+            `aria-disabled` (NO `disabled` nativo — sacaría el botón del tab
+            order y el `aria-describedby` nunca se dispararía) + early-return
+            en el handler que cubre click Y el Enter/Space nativo del
+            `<button>` enfocado, nunca `aria-label`. */}
         <div className={styles.actions} data-html2canvas-ignore="true">
           <button
             className={`${styles.btn} ${styles.primary}${isLocked ? ` ${styles.locked}` : ''}`}
             onClick={() => { if (isLocked) return; onPDF(); }}
-            disabled={isLocked}
+            aria-disabled={isLocked || undefined}
             aria-describedby={isLocked ? lockReasonId : undefined}
           >
             <Svg d={ICONS.pdf} size={17} /> Descargar PDF
