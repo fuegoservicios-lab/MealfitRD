@@ -1185,11 +1185,21 @@ const Plan = () => {
                 // observaciones son AVISOS post-hoc, no bloqueos. El user
                 // tomará decisión informada desde el dashboard donde ya puede
                 // ver el plan completo.
+                // [P1-PARTIAL-REPAIR-SURFACE · 2026-07-29] `_partial_repair` (P1-FALLBACK-CAUSE-SPLIT,
+                // graph_orchestrator.py `_repair_partial_plan`) marca un plan donde el planificador
+                // devolvió MENOS días de los pedidos, el guardrail P0-2 rellenó el resto con
+                // `_build_fallback_day` (contenido matemático genérico), Y el revisor médico aprobó
+                // el resultado (`review_passed=True`) — por lo que NINGUNO de los otros 4 flags
+                // dispara (no hay rechazo crítico, no hay review_failed, la despensa no está
+                // degradada). Sin este flag en el check, un plan con 2/3 días genéricos llegaba al
+                // usuario sin ningún aviso — el `_review_disclaimer` honesto que el backend calcula
+                // ("N de M días... el resto matemático") nunca se leía en ningún surface.
                 const _hasObservations = !!(
                     generatedPlan?._critical_rejection
                     || generatedPlan?._review_failed_but_delivered
                     || generatedPlan?._pantry_degraded_summary?.degraded
                     || generatedPlan?._initial_chunk_pantry_degraded
+                    || generatedPlan?._partial_repair
                 );
 
                 // Guardar + redirigir SIEMPRE. Sin branching por _hasObservations.
@@ -1227,6 +1237,20 @@ const Plan = () => {
                             toast.info("Algunos ingredientes faltan en tu nevera", {
                                 description: "Revisa la lista de compras antes de cocinar — algunos meals usan alternativas.",
                                 duration: 8000,
+                            });
+                        } else if (generatedPlan?._partial_repair) {
+                            // [P1-PARTIAL-REPAIR-SURFACE · 2026-07-29] `_repair_stats.real_days` de
+                            // `M` pedidos fueron generados por IA y revisados; el resto se completó
+                            // con `_build_fallback_day` (menú matemático genérico). Usamos el
+                            // `_review_disclaimer` honesto que el backend ya calculó para este caso
+                            // exacto en vez de re-derivar el texto en el cliente.
+                            const _rstats = generatedPlan?._repair_stats || {};
+                            toast.warning("Plan completado parcialmente", {
+                                description: generatedPlan?._review_disclaimer
+                                    || (Number.isFinite(_rstats.real_days) && Number.isFinite(_rstats.requested_days)
+                                        ? `${_rstats.real_days} de ${_rstats.requested_days} días fueron generados por IA; el resto se completó con un menú matemático. Puedes regenerar si prefieres un plan 100% personalizado.`
+                                        : "Algunos días de tu plan se completaron con un menú matemático porque la IA no entregó todos los días esperados."),
+                                duration: 12000,
                             });
                         }
                     }).catch(() => { /* toast best-effort */ });
@@ -1702,6 +1726,17 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
     // intercepta en `generateAIPlanStream` con un toast de "IA saturada" + CTA
     // de retry (línea ~417). Aquí solo cubrimos planes que SÍ se entregaron al
     // cliente pero con disclaimers de calidad.
+    //
+    // [P1-PARTIAL-REPAIR-SURFACE · 2026-07-29] La premisa de arriba YA NO es cierta para
+    // `_partial_repair=true` (P1-FALLBACK-CAUSE-SPLIT): esos planes SÍ tienen `_is_fallback=true`
+    // pero NO pasan por el intercept de "IA saturada" (el pipeline SÍ terminó y el revisor SÍ
+    // aprobó) — bypasean el SSE error/503 path y llegan aquí. Este componente (`PreviewScreen`)
+    // además está en desuso en el flujo principal: `setStatus('preview')` no tiene ningún call
+    // site activo tras P3-PLAN-AUTO-APPLY-CLEAN/P3-PLAN-SKIP-PREVIEW-ALWAYS (grep confirma 0
+    // ocurrencias fuera de comentarios), así que `_partial_repair` se cubre en el path real
+    // (`generateAIPlanStream`, el toast tras `saveGeneratedPlan` tomando el `_hasObservations`
+    // extendido) en vez de aquí. Si este componente vuelve a montarse activamente, `_partial_repair`
+    // necesita su propio banner igual que los demás flags de esta sección.
     const pantrySummary = newPlan?._pantry_degraded_summary;
     const showPantryBanner = !!(
         pantrySummary?.degraded
