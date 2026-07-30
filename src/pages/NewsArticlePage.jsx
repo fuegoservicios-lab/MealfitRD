@@ -8,7 +8,7 @@ import { getNewsBySlug } from '../data/news';
    dinámica, RouteTitle la ignora (prefijo /novedades/) y aquí auto-gestionamos
    título + description + canonical por artículo. */
 
-const BRAND = 'BioBoros';
+const BRAND = 'Bioboros';
 const ORIGIN = 'https://mealfitrd.com';
 
 function setMetaByName(name, content) {
@@ -123,7 +123,7 @@ const NewsArticlePage = () => {
                 <div className={styles.cta}>
                     <h2 className={styles.ctaTitle}>Pruébalo tú mismo</h2>
                     <p className={styles.ctaText}>
-                        Crea tu plan personalizado con BioBoros — gratis para empezar, sin tarjeta.
+                        Crea tu plan personalizado con Bioboros — gratis para empezar, sin tarjeta.
                     </p>
                     <div className={styles.ctaRow}>
                         <Link to="/assessment" className={styles.ctaPrimary}>

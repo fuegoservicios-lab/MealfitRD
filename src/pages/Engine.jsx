@@ -5,7 +5,7 @@ import styles from './Engine.module.css';
 
 /**
  * [P3-ENGINE-INFO-PAGE · 2026-06-28 · imagen del modelo P3-ENGINE-MODEL-IMAGE 2026-07-01]
- * Página pública del motor de BioBoros (v1.0.0), estilo "anuncio del modelo": header mínimo
+ * Página pública del motor de Bioboros (v1.0.0), estilo "anuncio del modelo": header mínimo
  * + fecha + UNA imagen abstracta grande (emblema botánico model-v1) como hero. Contenido técnico
  * real y honesto: pipeline, capa clínica, precisión, comparativa vs un LLM solo (gráfico de
  * barras), aprendizaje a largo plazo (RAG), catálogo y disclaimer. Marketing (dark-only).
@@ -49,7 +49,7 @@ const DIFF = [
     { m: 'A prueba de fallos', llm: 'x', mf: 'Si el modelo falla, cae a un plan matemático — no se cuelga ni se cae.' },
 ];
 
-/* Gráfico comparativo (barras agrupadas): BioBoros vs LLM solo */
+/* Gráfico comparativo (barras agrupadas): Bioboros vs LLM solo */
 function ComparisonChart() {
     const W = 640;
     const H = 360;
@@ -70,7 +70,7 @@ function ComparisonChart() {
     const yOf = (v) => baseY - (v / MAX) * plotH;
     return (
         <svg viewBox={`0 0 ${W} ${H}`} className={styles.chartSvg} role="img"
-            aria-label="Comparación de precisión de macros: BioBoros frente a un LLM solo, en tres métricas.">
+            aria-label="Comparación de precisión de macros: Bioboros frente a un LLM solo, en tres métricas.">
             {[0, 25, 50, 75, 100].map((v) => (
                 <g key={v}>
                     <line x1={padL} y1={yOf(v)} x2={W - padR} y2={yOf(v)} className={styles.chartGrid} />
@@ -93,7 +93,7 @@ function ComparisonChart() {
             })}
             <g>
                 <rect x={padL} y={14} width={12} height={12} rx="2.5" className={styles.chartBarMf} />
-                <text x={padL + 18} y={24} className={styles.chartLegend}>BioBoros</text>
+                <text x={padL + 18} y={24} className={styles.chartLegend}>Bioboros</text>
                 <rect x={padL + 122} y={14} width={12} height={12} rx="2.5" className={styles.chartBarLlm} />
                 <text x={padL + 140} y={24} className={styles.chartLegend}>LLM solo</text>
             </g>
@@ -109,7 +109,7 @@ const Engine = () => {
 
     useEffect(() => {
         const prev = document.title;
-        document.title = 'Presentamos a Mealfit v1 — el motor de BioBoros';
+        document.title = 'Presentamos a Mealfit v1 — el motor de Bioboros';
         return () => { document.title = prev; };
     }, []);
 
@@ -134,7 +134,7 @@ const Engine = () => {
                             <source srcSet="/model-v1.webp" type="image/webp" />
                             <img
                                 src="/model-v1.jpeg"
-                                alt="Emblema del modelo BioBoros v1.0: un mandala de alimentos y botánicos dominicanos alrededor del logotipo «v1.0»."
+                                alt="Emblema del modelo Bioboros v1.0: un mandala de alimentos y botánicos dominicanos alrededor del logotipo «v1.0»."
                                 className={styles.modelImg}
                                 width="671"
                                 height="671"
@@ -158,7 +158,7 @@ const Engine = () => {
                 <h2 className={styles.sectionTitle}>Cómo funciona por dentro</h2>
                 <div className={styles.prose}>
                     <p>
-                        BioBoros v1.0 no es «un LLM y ya»: es un <strong>sistema híbrido</strong>.
+                        Bioboros v1.0 no es «un LLM y ya»: es un <strong>sistema híbrido</strong>.
                         Un modelo de lenguaje de última generación —su identidad es confidencial y
                         rota según rendimiento— propone los platos día por día, y una
                         <strong> capa determinista</strong> (un orquestador por grafos de estados)
@@ -273,7 +273,7 @@ const Engine = () => {
                             <tr>
                                 <th>Mecanismo determinista</th>
                                 <th>LLM solo</th>
-                                <th className={styles.cmpColHi}>BioBoros</th>
+                                <th className={styles.cmpColHi}>Bioboros</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -377,7 +377,7 @@ const Engine = () => {
                 <div className={styles.disclaimer}>
                     <Info size={22} strokeWidth={2.25} className={styles.disclaimerIcon} />
                     <div className={styles.disclaimerText}>
-                        <strong>Con los pies en la tierra.</strong> BioBoros es una herramienta
+                        <strong>Con los pies en la tierra.</strong> Bioboros es una herramienta
                         de apoyo nutricional, no un sustituto de un nutricionista o médico. El motor
                         aplica criterios fundamentados en evidencia, pero recomendamos revisión
                         profesional cuando tu condición lo amerita. Las cantidades y micronutrientes

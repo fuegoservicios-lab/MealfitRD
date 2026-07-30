@@ -11,7 +11,7 @@ import styles from './HelpChatWidget.module.css';
 
 /* [P2-HELP-CHATBOT · 2026-07-04] Chatbot de ayuda del ítem "Obtener ayuda"
    (menú de cuenta desktop + menú "más" móvil). Responde dudas de PRODUCTO
-   (qué es BioBoros, planes/precios, cómo usar cada sección) vía
+   (qué es Bioboros, planes/precios, cómo usar cada sección) vía
    POST /api/help/chat — un bot sin acceso a datos del usuario; para "mi plan"
    redirige al Agente. Escalación humana: correo de soporte en el pie.
 
@@ -27,7 +27,7 @@ const MAX_INPUT = 1500;  // espejo del knob MEALFIT_HELP_CHAT_MAX_CHARS
 
 const GREETING = {
     role: 'assistant',
-    content: '¡Hola! Soy el asistente de BioBoros. Pregúntame lo que quieras sobre la app: cómo funciona, planes y precios, la Nevera, las recetas, tu cuenta…',
+    content: '¡Hola! Soy el asistente de Bioboros. Pregúntame lo que quieras sobre la app: cómo funciona, planes y precios, la Nevera, las recetas, tu cuenta…',
 };
 
 const SUGGESTIONS = [
@@ -119,7 +119,7 @@ export default function HelpChatWidget({ onClose }) {
                 className={styles.panel}
                 role="dialog"
                 aria-modal="true"
-                aria-label="Asistente de ayuda de BioBoros"
+                aria-label="Asistente de ayuda de Bioboros"
                 ref={containerRef}
                 tabIndex={-1}
                 onClick={(e) => e.stopPropagation()}
@@ -130,7 +130,7 @@ export default function HelpChatWidget({ onClose }) {
                     </span>
                     <div className={styles.headerText}>
                         <span className={styles.headerTitle}>Obtener ayuda</span>
-                        <span className={styles.headerSub}>Asistente de BioBoros</span>
+                        <span className={styles.headerSub}>Asistente de Bioboros</span>
                     </div>
                     <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Cerrar ayuda">
                         <X size={17} strokeWidth={2.4} />

@@ -195,7 +195,7 @@ const BenchmarkShowcase = () => {
                     viewport={{ once: true, amount: 0.6 }}>
                     <motion.span className={styles.modelBadge} variants={M.rise}>
                         <span className={styles.modelDot} aria-hidden="true" />
-                        BioBoros {VERSION_SHORT}
+                        Bioboros {VERSION_SHORT}
                     </motion.span>
                     <motion.h2 className={styles.title} variants={M.rise}>
                         Precisión que <span className={styles.titleAccent}>puedes medir</span>
@@ -226,7 +226,7 @@ const BenchmarkShowcase = () => {
                         <div className={styles.consoleBody}>
                             {/* Radar (izquierda) */}
                             <div className={styles.radarCol}>
-                                <span className={styles.panelLabel}><Gauge size={12} strokeWidth={2.5} /> BioBoros vs LLM solo</span>
+                                <span className={styles.panelLabel}><Gauge size={12} strokeWidth={2.5} /> Bioboros vs LLM solo</span>
                                 <div className={styles.radarWrap}>
                                     <PrecisionRadar />
                                 </div>

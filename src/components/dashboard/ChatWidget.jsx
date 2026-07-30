@@ -577,7 +577,7 @@ const ChatWidget = () => {
                         )}
                         <div>
                             <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                {showHistory ? 'Historial de Chats' : 'BioBoros AI'}
+                                {showHistory ? 'Historial de Chats' : 'Bioboros AI'}
                             </h3>
                             {!showHistory && (
                                 <p style={{ margin: 0, fontSize: '0.75rem', color: '#94A3B8', fontWeight: 500 }}>
@@ -773,7 +773,7 @@ const ChatWidget = () => {
                 lectores de pantalla narran "botón" sin contexto. */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                aria-label={isOpen ? "Cerrar asistente BioBoros AI" : "Abrir asistente BioBoros AI"}
+                aria-label={isOpen ? "Cerrar asistente Bioboros AI" : "Abrir asistente Bioboros AI"}
                 aria-expanded={isOpen}
                 style={{
                     width: '3.5rem',

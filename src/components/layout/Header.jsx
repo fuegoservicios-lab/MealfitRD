@@ -132,8 +132,8 @@ const Header = () => {
         <header className={styles.header}>
             <div className={styles.container}>
                 {/* [P3-HEADER-LOGO-LINK · 2026-05-31] El logo es Link a "/" (lleva al inicio). */}
-                <Link to="/" className={styles.logo} aria-label="BioBoros — Inicio">
-                    Bio<span className={styles.highlight}>B</span><span style={{ color: 'var(--accent)' }}>oros</span>
+                <Link to="/" className={styles.logo} aria-label="Bioboros — Inicio">
+                    Bio<span className={styles.highlight}>b</span><span style={{ color: 'var(--accent)' }}>oros</span>
                 </Link>
 
                 {/* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28 · rutas P3-DETAIL-PAGES] Nav
@@ -290,7 +290,7 @@ const Header = () => {
                             el header, así que el toggle original queda tapado. */}
                         <div className={styles.navMobileTop}>
                             <span className={styles.navMobileLogo} aria-hidden="true">
-                                Bio<span className={styles.highlight}>B</span><span style={{ color: 'var(--accent)' }}>oros</span>
+                                Bio<span className={styles.highlight}>b</span><span style={{ color: 'var(--accent)' }}>oros</span>
                             </span>
                             <button
                                 type="button"

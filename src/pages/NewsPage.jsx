@@ -30,7 +30,7 @@ const NewsPage = () => {
                         Novedades
                     </span>
                     <h1 className={styles.pageTitle}>
-                        Novedades de <span className={styles.titleAccent}>BioBoros</span>
+                        Novedades de <span className={styles.titleAccent}>Bioboros</span>
                     </h1>
                     <p className={styles.lead}>
                         Anuncios, mejoras del motor y todo lo nuevo. Cada avance,

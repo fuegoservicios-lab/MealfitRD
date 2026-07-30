@@ -25,7 +25,7 @@ export const SUPPORT_EMAIL = 'fuego.servicios@gmail.com';
 // Grupos separados por divider (arriba: conocer el producto; abajo: legal).
 export const MORE_INFO_GROUPS = [
   [
-    { label: 'Acerca de BioBoros', path: '/about' },
+    { label: 'Acerca de Bioboros', path: '/about' },
     { label: 'Novedades', path: '/novedades' },
     { label: 'Cómo funciona', path: '/como-funciona' },
     { label: 'Supermercado RD', path: '/supermercado' },

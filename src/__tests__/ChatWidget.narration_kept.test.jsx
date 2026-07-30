@@ -114,7 +114,7 @@ describe('P1-CHAT-NARRATION-KEPT-REVIEW-2 · ChatWidget narración narrate-then-
         render(<ChatWidget />);
 
         // Abrir el widget.
-        fireEvent.click(screen.getByLabelText('Abrir asistente BioBoros AI'));
+        fireEvent.click(screen.getByLabelText('Abrir asistente Bioboros AI'));
 
         const input = await screen.findByPlaceholderText('Pregúntale a tu asistente...');
         fireEvent.change(input, { target: { value: 'me comí pollo con arroz' } });

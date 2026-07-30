@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import styles from './AboutPage.module.css';
 
-/* [P3-ABOUT-PAGE-ABSTRACT · 2026-06-30] "Acerca de BioBoros" con un lenguaje visual propio,
+/* [P3-ABOUT-PAGE-ABSTRACT · 2026-06-30] "Acerca de Bioboros" con un lenguaje visual propio,
    intencionalmente distinto de las políticas (LegalLayout) y del marketing científico
    (papel milimetrado + figuras SVG). La atmósfera es 100% CSS —una aurora de gradientes en
    deriva, SIN imágenes— sobre tipografía editorial, numerales fantasma y layout asimétrico.
@@ -89,7 +89,7 @@ const ROWS = [
         title: 'Hecho en República Dominicana',
         body: (
             <p className={styles.rowText}>
-                BioBoros es una plataforma operada desde República Dominicana, construida por un
+                Bioboros es una plataforma operada desde República Dominicana, construida por un
                 equipo que cree en la tecnología al servicio de la salud y la cultura local.
                 Empezamos por la mesa dominicana, con la mira puesta en llevar esta misma precisión
                 al resto de Latinoamérica.
@@ -110,7 +110,7 @@ const AboutPage = () => {
             <div className={styles.inner}>
                 {/* ───────────── hero ───────────── */}
                 <header className={styles.hero}>
-                    <span className={`${styles.eyebrow} ${styles.reveal}`}>Acerca de BioBoros</span>
+                    <span className={`${styles.eyebrow} ${styles.reveal}`}>Acerca de Bioboros</span>
                     <h1 className={`${styles.headline} ${styles.reveal}`} style={{ animationDelay: '0.06s' }}>
                         Precisión nutricional para la <span className={styles.grad}>mesa dominicana</span>.
                     </h1>

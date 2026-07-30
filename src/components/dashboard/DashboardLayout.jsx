@@ -183,7 +183,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div className={styles.brandStack}>
                         <div className={styles.logo}>
-                            Bio<span style={{ color: 'var(--primary)' }}>B</span><span style={{ color: 'var(--accent)' }}>oros</span>
+                            Bio<span style={{ color: 'var(--primary)' }}>b</span><span style={{ color: 'var(--accent)' }}>oros</span>
                         </div>
                         {/* [P1-APP-VERSION · 2026-06-19] Versión minimalista (estilo Anthropic) bajo el wordmark. */}
                         <span className={styles.version}>v{APP_VERSION}</span>
@@ -332,7 +332,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 {!noPaddingMobile && (
                 <header className={styles.mobileHeader}>
                     <div className={styles.mobileLogo}>
-                        Bio<span style={{ color: 'var(--primary)' }}>B</span><span style={{ color: 'var(--accent)' }}>oros</span>
+                        Bio<span style={{ color: 'var(--primary)' }}>b</span><span style={{ color: 'var(--accent)' }}>oros</span>
                     </div>
                     <button
                         className={styles.menuBtn}

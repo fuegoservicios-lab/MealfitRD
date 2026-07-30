@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 /* [P3-ROUTE-TITLE · 2026-06-29] Título de pestaña por ruta, minimalista y coherente.
    Fuente única: antes solo index.html (estático) + 4 páginas de marketing seteaban
    título; el resto (login, dashboard, etc.) heredaba un título stale/incoherente.
-   Esquema: "<Sección> · BioBoros" para la app; el home conserva el título de marca.
+   Esquema: "<Sección> · Bioboros" para la app; el home conserva el título de marca.
 
    Las 4 páginas de marketing con SEO descriptivo propio (/motor, /como-funciona,
    /funciones, /precision) se auto-gestionan vía su useEffect → se listan en
@@ -23,13 +23,13 @@ import { useLocation } from 'react-router-dom';
    leyendo el index.html estático. Este fix es para Google/buscadores. Un fix que también
    cubra unfurlers requeriría prerender/SSR por ruta (cambio de infra mayor, no hecho aquí). */
 
-const BRAND = 'BioBoros';
+const BRAND = 'Bioboros';
 const ORIGIN = 'https://mealfitrd.com';
 
 const HOME_DESC = 'Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis.';
 
 const TITLES = {
-    '/': 'BioBoros | Nutrición Personalizada con IA',
+    '/': 'Bioboros | Nutrición Personalizada con IA',
     '/login': `Iniciar sesión · ${BRAND}`,
     '/reset-password': `Restablecer contraseña · ${BRAND}`,
     '/assessment': `Crear mi plan · ${BRAND}`,
@@ -62,28 +62,28 @@ const TITLES = {
 // es-DO, adaptada al contenido real de cada página. Rutas sin entry → HOME_DESC.
 const DESCRIPTIONS = {
     '/': HOME_DESC,
-    '/login': 'Inicia sesión en BioBoros para acceder a tu plan nutricional personalizado con IA, tu lista de compras y tu coach.',
+    '/login': 'Inicia sesión en Bioboros para acceder a tu plan nutricional personalizado con IA, tu lista de compras y tu coach.',
     '/assessment': 'Crea tu plan nutricional personalizado con IA en minutos. Adaptado a tus gustos, presupuesto y condición. Gratis para empezar, sin tarjeta.',
-    '/precios': 'Planes y precios de BioBoros: empieza gratis o sube a Básico, Plus o Ultra. Precios reales en RD$, sin tarjeta para comenzar.',
+    '/precios': 'Planes y precios de Bioboros: empieza gratis o sube a Básico, Plus o Ultra. Precios reales en RD$, sin tarjeta para comenzar.',
     // Marketing (title self-managed; description gestionada aquí)
-    '/funciones': 'Todo lo que hace BioBoros: plan diario calibrado, recetas paso a paso, lista de compras costeada en RD$, coach IA 24/7 y nevera inteligente.',
-    '/como-funciona': 'El método de BioBoros paso a paso: de tu perfil clínico-metabólico al plato, con validación nutricional determinista en cada etapa.',
-    '/precision': 'La precisión que medimos en BioBoros: banda de macros, piso de proteína, 17 micronutrientes vs DRI y guardas clínicas por condición.',
-    '/motor': 'El motor de BioBoros por dentro: orquestación por grafos, validación nutricional y un catálogo verificado de alimentos dominicanos.',
+    '/funciones': 'Todo lo que hace Bioboros: plan diario calibrado, recetas paso a paso, lista de compras costeada en RD$, coach IA 24/7 y nevera inteligente.',
+    '/como-funciona': 'El método de Bioboros paso a paso: de tu perfil clínico-metabólico al plato, con validación nutricional determinista en cada etapa.',
+    '/precision': 'La precisión que medimos en Bioboros: banda de macros, piso de proteína, 17 micronutrientes vs DRI y guardas clínicas por condición.',
+    '/motor': 'El motor de Bioboros por dentro: orquestación por grafos, validación nutricional y un catálogo verificado de alimentos dominicanos.',
     // Legales
-    '/privacy': 'Política de Privacidad de BioBoros: qué datos recopilamos, cómo los ciframos y protegemos, qué cookies usamos, con quién los compartimos y tus derechos.',
-    '/terms': 'Términos de Servicio de BioBoros: planes, suscripciones y pagos, uso aceptable, propiedad intelectual y limitación de responsabilidad.',
-    '/medical': 'Aviso Médico de BioBoros: nuestras recomendaciones nutricionales son informativas y no sustituyen el consejo de un profesional de la salud.',
-    '/data-protection': 'Protección de datos en BioBoros bajo la Ley 172-13: tus derechos de acceso, rectificación, cancelación y oposición, y cómo ejercerlos.',
-    '/ai-policy': 'Cómo usa BioBoros la inteligencia artificial: qué datos viajan al proveedor, límites del modelo, supervisión humana y que no entrenamos con tus datos.',
-    '/research': 'Política de Investigación de BioBoros: cómo usamos datos anonimizados para mejorar el producto, con exención de datos sensibles de salud y opt-out.',
-    '/refunds': 'Reembolsos y cancelaciones de BioBoros: prueba gratis y cancela cuando quieras; las suscripciones no son reembolsables salvo donde la ley lo exija. Conforme a la Ley 358-05.',
-    '/acceptable-use': 'Política de Uso de BioBoros: reglas para un uso responsable, conductas prohibidas, uso justo de la IA y consecuencias del incumplimiento.',
-    '/about': 'Acerca de BioBoros: nutrición de precisión con IA para la mesa dominicana. Nuestra misión, cómo funciona el motor y los principios que nos guían.',
-    '/responsible-disclosure': 'Política de Divulgación Responsable de BioBoros: cómo reportar vulnerabilidades de seguridad, nuestro compromiso de puerto seguro y el alcance del programa.',
-    '/novedades': 'Novedades de BioBoros: anuncios, mejoras del motor y todo lo nuevo, a medida que sucede.',
+    '/privacy': 'Política de Privacidad de Bioboros: qué datos recopilamos, cómo los ciframos y protegemos, qué cookies usamos, con quién los compartimos y tus derechos.',
+    '/terms': 'Términos de Servicio de Bioboros: planes, suscripciones y pagos, uso aceptable, propiedad intelectual y limitación de responsabilidad.',
+    '/medical': 'Aviso Médico de Bioboros: nuestras recomendaciones nutricionales son informativas y no sustituyen el consejo de un profesional de la salud.',
+    '/data-protection': 'Protección de datos en Bioboros bajo la Ley 172-13: tus derechos de acceso, rectificación, cancelación y oposición, y cómo ejercerlos.',
+    '/ai-policy': 'Cómo usa Bioboros la inteligencia artificial: qué datos viajan al proveedor, límites del modelo, supervisión humana y que no entrenamos con tus datos.',
+    '/research': 'Política de Investigación de Bioboros: cómo usamos datos anonimizados para mejorar el producto, con exención de datos sensibles de salud y opt-out.',
+    '/refunds': 'Reembolsos y cancelaciones de Bioboros: prueba gratis y cancela cuando quieras; las suscripciones no son reembolsables salvo donde la ley lo exija. Conforme a la Ley 358-05.',
+    '/acceptable-use': 'Política de Uso de Bioboros: reglas para un uso responsable, conductas prohibidas, uso justo de la IA y consecuencias del incumplimiento.',
+    '/about': 'Acerca de Bioboros: nutrición de precisión con IA para la mesa dominicana. Nuestra misión, cómo funciona el motor y los principios que nos guían.',
+    '/responsible-disclosure': 'Política de Divulgación Responsable de Bioboros: cómo reportar vulnerabilidades de seguridad, nuestro compromiso de puerto seguro y el alcance del programa.',
+    '/novedades': 'Novedades de Bioboros: anuncios, mejoras del motor y todo lo nuevo, a medida que sucede.',
     // [P1-SUPERMARKET-DB · 2026-07-02]
-    '/supermercado': 'El supermercado dominicano de BioBoros: +200 alimentos verificados con presentaciones, marcas y precios reales en RD$ que alimentan tu lista de compras.',
+    '/supermercado': 'El supermercado dominicano de Bioboros: +200 alimentos verificados con presentaciones, marcas y precios reales en RD$ que alimentan tu lista de compras.',
 };
 
 // [P3-RESEARCH-PAGE-SCIENTIFIC · 2026-06-30] /research ahora es página propia (estilo científico)

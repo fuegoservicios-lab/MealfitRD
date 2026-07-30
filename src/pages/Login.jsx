@@ -45,7 +45,7 @@ function GoogleIcon() {
 }
 
 /* ---- Ilustración hero (solo móvil) — bol con brote + constelación de macros en la
-   paleta BioBoros. Estilo line-art tipo el login de Claude, pero temática nutrición. ---- */
+   paleta Bioboros. Estilo line-art tipo el login de Claude, pero temática nutrición. ---- */
 function HeroIllustration() {
     return (
         <svg viewBox="0 0 260 196" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -234,7 +234,7 @@ const Login = () => {
 
             {/* Formulario (auth real) */}
             <section className="mf-form">
-                <div className="mf-brandmark">Bio<span className="mf-r">B</span><span className="mf-d">oros</span></div>
+                <div className="mf-brandmark">Bio<span className="mf-r">b</span><span className="mf-d">oros</span></div>
 
                 <div className="mf-form__inner">
                     <div className="mf-hero-illu" aria-hidden="true"><HeroIllustration /></div>

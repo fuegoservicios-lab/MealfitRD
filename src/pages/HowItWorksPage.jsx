@@ -237,7 +237,7 @@ const HowItWorksPage = () => {
     useLayoutEffect(() => { window.scrollTo(0, 0); }, []);
     useEffect(() => {
         const prev = document.title;
-        document.title = 'Cómo funciona BioBoros — el método, paso a paso';
+        document.title = 'Cómo funciona Bioboros — el método, paso a paso';
         return () => { document.title = prev; };
     }, []);
 
@@ -443,7 +443,7 @@ const HowItWorksPage = () => {
                     <div className={styles.disclaimerText}>
                         <strong>¿Quieres más?</strong> Mira <Link to="/funciones">todas las funciones</Link> de la
                         app, la <Link to="/precision">precisión que medimos</Link> o <Link to="/motor">el motor por
-                        dentro</Link>. BioBoros es una herramienta de apoyo nutricional, no un sustituto de un
+                        dentro</Link>. Bioboros es una herramienta de apoyo nutricional, no un sustituto de un
                         profesional de la salud.
                     </div>
                 </Reveal>

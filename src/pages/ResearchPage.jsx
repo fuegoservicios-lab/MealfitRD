@@ -101,7 +101,7 @@ const STAGES = [
         kicker: '01 — Qué estudiamos',
         title: 'Medimos el sistema, no a las personas',
         sub: 'Del uso real a un mejor plan',
-        text: 'Analizamos cómo se comporta BioBoros sobre datos reales para hacerlo más preciso y seguro. El foco es el sistema y sus resultados, nunca perfilarte a ti.',
+        text: 'Analizamos cómo se comporta Bioboros sobre datos reales para hacerlo más preciso y seguro. El foco es el sistema y sus resultados, nunca perfilarte a ti.',
         bullets: [
             ['Precisión del motor', 'medimos qué tan cerca quedan los planes de sus objetivos de macronutrientes, la tasa de éxito y los errores, para calibrar el sistema.'],
             ['Patrones nutricionales agregados', 'entendemos tendencias generales —p. ej. la cobertura de micronutrientes en una población de planes— para mejorar reglas y catálogos.'],
@@ -139,7 +139,7 @@ const CONTROL = [
 const FAQ = [
     { q: '¿Usan mis datos de salud para investigar?', a: 'No de forma identificable sin tu permiso. Tu perfil de salud es dato sensible (Ley 172-13); por defecto solo trabajamos con datos disociados de tu identidad. Un estudio con datos identificables requeriría tu consentimiento expreso y separado, y podrías negarte sin afectar tu servicio.' },
     { q: '¿Entrenan la IA con lo que escribo o con mi plan?', a: 'No. No usamos tus datos para entrenar modelos de IA, ni propios ni de terceros. El modelo generativo base es de un proveedor externo y tampoco le cedemos tus datos para entrenamiento.' },
-    { q: '¿Cómo me opongo a que usen mis datos para mejorar el producto?', a: 'Escríbenos a fuego.servicios@gmail.com y lo aplicamos. Oponerte no afecta tu capacidad de usar BioBoros. También puedes ejercer el resto de tus derechos según la Política de Protección de Datos.' },
+    { q: '¿Cómo me opongo a que usen mis datos para mejorar el producto?', a: 'Escríbenos a fuego.servicios@gmail.com y lo aplicamos. Oponerte no afecta tu capacidad de usar Bioboros. También puedes ejercer el resto de tus derechos según la Política de Protección de Datos.' },
 ];
 
 /* ─────────────────────────── helpers de animación ─────────────────────────── */
@@ -169,7 +169,7 @@ const ResearchPage = () => {
     useLayoutEffect(() => { window.scrollTo(0, 0); }, []);
     useEffect(() => {
         const prev = document.title;
-        document.title = 'Investigación en BioBoros — mejoramos sin exponerte';
+        document.title = 'Investigación en Bioboros — mejoramos sin exponerte';
         return () => { document.title = prev; };
     }, []);
 

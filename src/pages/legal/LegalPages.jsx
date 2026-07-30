@@ -91,7 +91,7 @@ const LegalLayout = ({ title, lastUpdated, children }) => {
                 <header className={styles.header}>
                     <h1 className={styles.title}>{title}</h1>
                     {/* [P3-ABOUT-PAGE · 2026-06-30] lastUpdated opcional: la página
-                        "Acerca de BioBoros" no es una política con fecha → sin meta. */}
+                        "Acerca de Bioboros" no es una política con fecha → sin meta. */}
                     {lastUpdated && (
                         <p className={styles.meta}>
                             <CalendarDays size={14} strokeWidth={2.5} className={styles.metaIcon} />
@@ -113,10 +113,10 @@ const LegalLayout = ({ title, lastUpdated, children }) => {
    ============================================================================ */
 export const Privacy = () => (
     <LegalLayout title="Política de Privacidad" lastUpdated="12 de Julio, 2026">
-        <p>En BioBoros nos tomamos en serio la protección de sus datos. Esta Política describe con precisión técnica qué información recopilamos, cómo la procesamos, dónde la almacenamos, con quién la compartimos, qué cookies y almacenamiento local usamos, y qué derechos tiene usted sobre ella. La transparencia es nuestro principio fundamental.</p>
+        <p>En Bioboros nos tomamos en serio la protección de sus datos. Esta Política describe con precisión técnica qué información recopilamos, cómo la procesamos, dónde la almacenamos, con quién la compartimos, qué cookies y almacenamiento local usamos, y qué derechos tiene usted sobre ella. La transparencia es nuestro principio fundamental.</p>
 
         <h3>1. Identidad del Responsable del Tratamiento</h3>
-        <p>El responsable del tratamiento de sus datos es <strong>BioBoros</strong>, plataforma operada desde República Dominicana. Para cualquier consulta sobre privacidad puede contactarnos en <strong>fuego.servicios@gmail.com</strong>.</p>
+        <p>El responsable del tratamiento de sus datos es <strong>Bioboros</strong>, plataforma operada desde República Dominicana. Para cualquier consulta sobre privacidad puede contactarnos en <strong>fuego.servicios@gmail.com</strong>.</p>
 
         <h3>2. Información que Recopilamos</h3>
         <p>Recopilamos únicamente la información necesaria para personalizar su plan nutricional y operar la plataforma. Las categorías exactas son:</p>
@@ -140,11 +140,11 @@ export const Privacy = () => (
         <p>No utilizamos sus datos para publicidad dirigida, ni los vendemos a terceros, ni los compartimos con anunciantes.</p>
 
         <h3>4. Cómo Funciona Nuestra Inteligencia Artificial</h3>
-        <p>BioBoros <strong>no es un simple "wrapper" sobre un modelo de IA</strong>. Nuestro sistema combina varios componentes propietarios: un orquestador basado en grafos de estados (LangGraph) que coordina la generación de planes en múltiples pasos validados, un motor propio de coherencia nutricional que verifica que la lista de compras concuerde con las recetas generadas, un sistema de memoria a largo plazo con embeddings vectoriales que aprende de sus interacciones, un agente conversacional con herramientas seguras (no permitimos que la IA acceda a datos de otros usuarios — defensa <code>P0-AGENT-1</code>), un módulo de visión multimodal para analizar fotos de comida, y un circuit breaker que protege contra fallos del proveedor del modelo.</p>
+        <p>Bioboros <strong>no es un simple "wrapper" sobre un modelo de IA</strong>. Nuestro sistema combina varios componentes propietarios: un orquestador basado en grafos de estados (LangGraph) que coordina la generación de planes en múltiples pasos validados, un motor propio de coherencia nutricional que verifica que la lista de compras concuerde con las recetas generadas, un sistema de memoria a largo plazo con embeddings vectoriales que aprende de sus interacciones, un agente conversacional con herramientas seguras (no permitimos que la IA acceda a datos de otros usuarios — defensa <code>P0-AGENT-1</code>), un módulo de visión multimodal para analizar fotos de comida, y un circuit breaker que protege contra fallos del proveedor del modelo.</p>
         {/* [P1-AI-CONFIDENTIAL · 2026-07-11] Las identidades/versiones de los modelos
             son secreto comercial y rotan; el PROVEEDOR (receptor de datos) sí se
             divulga — es la parte legalmente relevante bajo la Ley 172-13. */}
-        <p>Como motor generativo utilizamos <strong>modelos de IA de última generación de proveedores externos</strong> — actualmente el proveedor es <strong>DeepSeek</strong>. La identidad, versión y combinación específica de los modelos que orquestamos constituye información confidencial de BioBoros (secreto comercial) y <strong>puede cambiar sin previo aviso</strong> a medida que evaluamos y adoptamos mejores modelos, siempre manteniendo los mismos estándares de calidad y validación. Si cambiara el <em>proveedor</em> que recibe sus datos, actualizaremos esta política. El uso de un proveedor externo significa que ciertos datos suyos viajan a su API para ejecutar la inferencia. Específicamente enviamos al proveedor:</p>
+        <p>Como motor generativo utilizamos <strong>modelos de IA de última generación de proveedores externos</strong> — actualmente el proveedor es <strong>DeepSeek</strong>. La identidad, versión y combinación específica de los modelos que orquestamos constituye información confidencial de Bioboros (secreto comercial) y <strong>puede cambiar sin previo aviso</strong> a medida que evaluamos y adoptamos mejores modelos, siempre manteniendo los mismos estándares de calidad y validación. Si cambiara el <em>proveedor</em> que recibe sus datos, actualizaremos esta política. El uso de un proveedor externo significa que ciertos datos suyos viajan a su API para ejecutar la inferencia. Específicamente enviamos al proveedor:</p>
         <ul>
             <li>Su perfil de salud completo (peso, altura, edad, género, restricciones).</li>
             <li>Sus preferencias y comidas que le gustan/no le gustan.</li>
@@ -165,7 +165,7 @@ export const Privacy = () => (
         </ul>
 
         <h3>6. Procesamiento de Pagos</h3>
-        <p>Los pagos se procesan exclusivamente a través de <strong>PayPal</strong> (PayPal Holdings, Inc., certificada PCI-DSS Level 1). BioBoros nunca recibe ni almacena su número de tarjeta, fecha de vencimiento ni CVV. Cuando usted hace upgrade a un plan pago, PayPal nos devuelve únicamente un identificador de suscripción que asociamos a su cuenta. Validamos del lado del servidor que el plan reportado por PayPal coincida exactamente con el que usted seleccionó (defensa contra manipulación cliente-side).</p>
+        <p>Los pagos se procesan exclusivamente a través de <strong>PayPal</strong> (PayPal Holdings, Inc., certificada PCI-DSS Level 1). Bioboros nunca recibe ni almacena su número de tarjeta, fecha de vencimiento ni CVV. Cuando usted hace upgrade a un plan pago, PayPal nos devuelve únicamente un identificador de suscripción que asociamos a su cuenta. Validamos del lado del servidor que el plan reportado por PayPal coincida exactamente con el que usted seleccionó (defensa contra manipulación cliente-side).</p>
 
         <h3>7. Monitoreo de Errores y Telemetría</h3>
         <p>Usamos <strong>Sentry</strong> (Functional Software, Inc.) para detectar errores técnicos en frontend y backend. Tenemos filtros automáticos (PII scrubbing) que eliminan de los reportes de error: <code>user_id</code>, contraseñas, tokens, perfil de salud, contenido de mensajes con el agente y números de pago. El sampling rate por defecto es 10% (configurable). Sentry conserva los reportes según su política propia de retención.</p>
@@ -197,7 +197,7 @@ export const Privacy = () => (
         </ul>
 
         <h3>11. Menores de Edad</h3>
-        <p>BioBoros está destinada a personas mayores de 18 años. Aunque actualmente solicitamos la edad como dato declarativo del usuario, no realizamos verificación de identidad. Si descubrimos que un menor ha creado una cuenta sin consentimiento parental, eliminaremos la cuenta y sus datos asociados de inmediato. Padres o tutores pueden notificarnos en fuego.servicios@gmail.com.</p>
+        <p>Bioboros está destinada a personas mayores de 18 años. Aunque actualmente solicitamos la edad como dato declarativo del usuario, no realizamos verificación de identidad. Si descubrimos que un menor ha creado una cuenta sin consentimiento parental, eliminaremos la cuenta y sus datos asociados de inmediato. Padres o tutores pueden notificarnos en fuego.servicios@gmail.com.</p>
 
         <h3>12. Transferencias Internacionales</h3>
         <p>Dado que algunos de nuestros proveedores (Neon, DeepSeek, PayPal, Sentry, Oracle Cloud y Cohere) operan globalmente, sus datos pueden procesarse fuera de República Dominicana — principalmente en Estados Unidos y, en el caso de <strong>DeepSeek</strong>, en la <strong>República Popular China</strong> (ver Sección 4). Exigimos a estos proveedores marcos de protección reconocidos (Cláusulas Contractuales Estándar y/o equivalentes). Nunca enviamos a estos proveedores su nombre completo, correo electrónico ni datos de pago.</p>
@@ -223,14 +223,14 @@ export const Privacy = () => (
    ============================================================================ */
 export const Terms = () => (
     <LegalLayout title="Términos de Servicio" lastUpdated="11 de Julio, 2026">
-        <p>Bienvenido a BioBoros. Al acceder o utilizar nuestra plataforma usted acepta los presentes Términos de Servicio, que constituyen un acuerdo legalmente vinculante entre usted y BioBoros. Por favor léalos con atención.</p>
+        <p>Bienvenido a Bioboros. Al acceder o utilizar nuestra plataforma usted acepta los presentes Términos de Servicio, que constituyen un acuerdo legalmente vinculante entre usted y Bioboros. Por favor léalos con atención.</p>
 
         <h3>1. Naturaleza del Servicio</h3>
-        <p>BioBoros es una plataforma propietaria de nutrición personalizada que integra varias capas tecnológicas desarrolladas internamente: un orquestador determinístico basado en grafos de estados que coordina la generación de planes en múltiples pasos validados, un motor de coherencia nutricional que verifica matemáticamente la consistencia entre recetas y listas de compras, un agente conversacional con herramientas seguras de modificación de datos del usuario, un módulo de visión multimodal para análisis de fotografías de comida, un sistema de memoria a largo plazo con embeddings vectoriales para personalización continua, un programador de tareas (chunks rolling) que regenera porciones de su plan sin interrumpir su uso, y un sistema de auditoría con detección de derivas operativas.</p>
-        <p>Como motor generativo utilizamos modelos de IA de terceros de última generación. La identidad, versión y combinación específica de dichos modelos es <strong>información confidencial de BioBoros (secreto comercial)</strong> y puede cambiar sin previo aviso a medida que evaluamos y adoptamos mejores modelos, manteniendo siempre los estándares de calidad y validación descritos en estos Términos. <strong>BioBoros no es un wrapper ni un envoltorio simple sobre un modelo de IA</strong>: el valor diferencial reside en nuestros sistemas de orquestación, validación, persistencia y aprendizaje continuo, todos propietarios. Los modelos generativos funcionan como piezas dentro de un sistema mucho mayor. Los proveedores externos que reciben datos para inferencia se identifican en la <strong>Política de Privacidad</strong> y en la <strong>Política de Uso de Inteligencia Artificial</strong>.</p>
+        <p>Bioboros es una plataforma propietaria de nutrición personalizada que integra varias capas tecnológicas desarrolladas internamente: un orquestador determinístico basado en grafos de estados que coordina la generación de planes en múltiples pasos validados, un motor de coherencia nutricional que verifica matemáticamente la consistencia entre recetas y listas de compras, un agente conversacional con herramientas seguras de modificación de datos del usuario, un módulo de visión multimodal para análisis de fotografías de comida, un sistema de memoria a largo plazo con embeddings vectoriales para personalización continua, un programador de tareas (chunks rolling) que regenera porciones de su plan sin interrumpir su uso, y un sistema de auditoría con detección de derivas operativas.</p>
+        <p>Como motor generativo utilizamos modelos de IA de terceros de última generación. La identidad, versión y combinación específica de dichos modelos es <strong>información confidencial de Bioboros (secreto comercial)</strong> y puede cambiar sin previo aviso a medida que evaluamos y adoptamos mejores modelos, manteniendo siempre los estándares de calidad y validación descritos en estos Términos. <strong>Bioboros no es un wrapper ni un envoltorio simple sobre un modelo de IA</strong>: el valor diferencial reside en nuestros sistemas de orquestación, validación, persistencia y aprendizaje continuo, todos propietarios. Los modelos generativos funcionan como piezas dentro de un sistema mucho mayor. Los proveedores externos que reciben datos para inferencia se identifican en la <strong>Política de Privacidad</strong> y en la <strong>Política de Uso de Inteligencia Artificial</strong>.</p>
 
         <h3>2. Elegibilidad y Registro</h3>
-        <p>Para utilizar BioBoros usted debe:</p>
+        <p>Para utilizar Bioboros usted debe:</p>
         <ul>
             <li>Tener al menos 18 años cumplidos (o contar con consentimiento expreso de un padre o tutor legal).</li>
             <li>Proporcionar información veraz y mantenerla actualizada.</li>
@@ -265,25 +265,25 @@ export const Terms = () => (
         <p>El incumplimiento podrá resultar en suspensión inmediata sin reembolso.</p>
 
         <h3>5. Propiedad Intelectual</h3>
-        <p>Todo el software, el código fuente, los modelos propietarios, los prompts diseñados para el agente, los algoritmos de validación nutricional, los esquemas de datos, los diseños de interfaz, el sistema de tipografía, los íconos personalizados, las marcas <em>BioBoros</em>, los logos y demás contenidos generados por la plataforma son propiedad exclusiva de BioBoros y están protegidos por las leyes de derechos de autor y propiedad industrial de República Dominicana e internacionales.</p>
+        <p>Todo el software, el código fuente, los modelos propietarios, los prompts diseñados para el agente, los algoritmos de validación nutricional, los esquemas de datos, los diseños de interfaz, el sistema de tipografía, los íconos personalizados, las marcas <em>Bioboros</em>, los logos y demás contenidos generados por la plataforma son propiedad exclusiva de Bioboros y están protegidos por las leyes de derechos de autor y propiedad industrial de República Dominicana e internacionales.</p>
         <p>Los planes nutricionales generados específicamente para usted son para su uso personal y no comercial. Puede compartir capturas o resúmenes para uso personal pero NO puede revenderlos, redistribuirlos masivamente, ni utilizarlos para entrenar modelos competidores.</p>
 
         <h3>6. Limitación de Responsabilidad</h3>
-        <p>El servicio se entrega <em>"tal cual" y "según disponibilidad"</em>. Aunque hacemos esfuerzos razonables para mantener disponibilidad y precisión, <strong>BioBoros no garantiza</strong>:</p>
+        <p>El servicio se entrega <em>"tal cual" y "según disponibilidad"</em>. Aunque hacemos esfuerzos razonables para mantener disponibilidad y precisión, <strong>Bioboros no garantiza</strong>:</p>
         <ul>
             <li>Que el servicio funcione sin interrupciones, sin errores, o sin retrasos.</li>
             <li>Que los planes generados produzcan resultados específicos de pérdida de peso, ganancia muscular u otros objetivos.</li>
             <li>La exactitud absoluta de cálculos nutricionales o macronutrientes, dado que la composición real de los alimentos puede variar.</li>
             <li>La disponibilidad de los modelos de IA de terceros ni la de otros proveedores subcontratados.</li>
         </ul>
-        <p>En la máxima medida permitida por la ley, BioBoros no será responsable de daños indirectos, incidentales, especiales, consecuenciales o punitivos, ni de pérdidas de datos, ganancias o oportunidad. Nuestra responsabilidad total agregada por cualquier reclamación no excederá el monto pagado por usted en los últimos doce (12) meses.</p>
+        <p>En la máxima medida permitida por la ley, Bioboros no será responsable de daños indirectos, incidentales, especiales, consecuenciales o punitivos, ni de pérdidas de datos, ganancias o oportunidad. Nuestra responsabilidad total agregada por cualquier reclamación no excederá el monto pagado por usted en los últimos doce (12) meses.</p>
         <p><strong>Las recomendaciones nutricionales no constituyen consejo médico.</strong> Consulte el Aviso Médico para detalle.</p>
 
         <h3>7. Modificaciones del Servicio y de Estos Términos</h3>
         <p>Podremos modificar funcionalidades de la plataforma, añadir nuevas características, deprecar otras o ajustar la capacidad de modelos de IA disponibles, con previo aviso razonable cuando los cambios sean materiales. Estos Términos pueden actualizarse periódicamente; la versión vigente se publica siempre en esta página con su fecha. Para cambios materiales, le notificaremos por correo electrónico antes de su entrada en vigor.</p>
 
         <h3>8. Terminación</h3>
-        <p>Usted puede cancelar su suscripción en cualquier momento desde Ajustes. BioBoros podrá terminar o suspender cuentas que violen estos Términos, incurran en fraude, o representen riesgo para otros usuarios o para la infraestructura. Tras la terminación, sus datos personales se eliminarán según se describe en la Política de Privacidad. Los registros de facturación necesarios para cumplimiento legal se conservarán por el plazo aplicable.</p>
+        <p>Usted puede cancelar su suscripción en cualquier momento desde Ajustes. Bioboros podrá terminar o suspender cuentas que violen estos Términos, incurran en fraude, o representen riesgo para otros usuarios o para la infraestructura. Tras la terminación, sus datos personales se eliminarán según se describe en la Política de Privacidad. Los registros de facturación necesarios para cumplimiento legal se conservarán por el plazo aplicable.</p>
 
         <h3>9. Ley Aplicable y Resolución de Disputas</h3>
         <p>Estos Términos se rigen por las leyes de la República Dominicana, incluyendo en lo pertinente la Ley 358-05 de Protección al Consumidor. Cualquier controversia que no pueda resolverse amistosamente será sometida a los tribunales competentes de la ciudad de Santo Domingo, Distrito Nacional.</p>
@@ -307,17 +307,17 @@ export const MedicalDisclaimer = () => (
                 <AlertTriangle size={20} /> IMPORTANTE
             </p>
             <p className={styles.alertText}>
-                BioBoros es una herramienta de apoyo nutricional generada por Inteligencia Artificial. <strong>No es un dispositivo médico, no diagnostica enfermedades, y no sustituye la atención de un profesional de la salud.</strong>
+                Bioboros es una herramienta de apoyo nutricional generada por Inteligencia Artificial. <strong>No es un dispositivo médico, no diagnostica enfermedades, y no sustituye la atención de un profesional de la salud.</strong>
             </p>
         </div>
 
-        <p>Esta sección explica con claridad qué es BioBoros desde el punto de vista médico, qué NO es, y cuándo debe usted necesariamente consultar a un profesional. Léala completa antes de seguir cualquier recomendación generada por nuestra plataforma.</p>
+        <p>Esta sección explica con claridad qué es Bioboros desde el punto de vista médico, qué NO es, y cuándo debe usted necesariamente consultar a un profesional. Léala completa antes de seguir cualquier recomendación generada por nuestra plataforma.</p>
 
         <h3>1. Naturaleza de las Recomendaciones</h3>
         <p>Los planes de comidas, recetas, listas de compras, cálculos de macronutrientes y consejos del asistente conversacional son <strong>recomendaciones generales de carácter informativo y educativo</strong>, generadas algorítmicamente a partir de la información que usted nos proporciona (peso, altura, edad, género, objetivos, alergias declaradas y preferencias). Su precisión depende de la veracidad de esos datos.</p>
         <p>Nuestros cálculos siguen fórmulas nutricionales estándar (Mifflin-St Jeor para metabolismo basal, factor de actividad, balance de macronutrientes). Sin embargo, la composición real de los alimentos en cada caso particular puede variar según marca, preparación, frescura y origen, y los requerimientos individuales pueden divergir significativamente de los promedios poblacionales.</p>
 
-        <h3>2. Lo que BioBoros NO Hace</h3>
+        <h3>2. Lo que Bioboros NO Hace</h3>
         <ul>
             <li>NO diagnostica enfermedades, deficiencias nutricionales, intolerancias, alergias ni trastornos alimentarios.</li>
             <li>NO prescribe tratamientos médicos, suplementos, medicamentos ni terapias.</li>
@@ -328,7 +328,7 @@ export const MedicalDisclaimer = () => (
         </ul>
 
         <h3>3. Consulta Profesional Obligatoria</h3>
-        <p>Antes de seguir cualquier plan generado por BioBoros, <strong>debe consultar a un profesional de la salud calificado</strong> si:</p>
+        <p>Antes de seguir cualquier plan generado por Bioboros, <strong>debe consultar a un profesional de la salud calificado</strong> si:</p>
         <ul>
             <li>Tiene <strong>diabetes</strong> (tipo 1, tipo 2 o gestacional), prediabetes, o resistencia a la insulina.</li>
             <li>Tiene <strong>enfermedad renal</strong> crónica o aguda, o restricciones de proteína prescritas.</li>
@@ -356,13 +356,13 @@ export const MedicalDisclaimer = () => (
         </ul>
 
         <h3>5. No Establecimiento de Relación Médico-Paciente</h3>
-        <p>El uso de BioBoros <strong>no establece una relación médico-paciente, terapéutica, ni profesional</strong> entre usted y BioBoros, sus empleados, contratistas, accionistas o desarrolladores. No somos su nutricionista, su médico, ni su psicólogo.</p>
+        <p>El uso de Bioboros <strong>no establece una relación médico-paciente, terapéutica, ni profesional</strong> entre usted y Bioboros, sus empleados, contratistas, accionistas o desarrolladores. No somos su nutricionista, su médico, ni su psicólogo.</p>
 
         <h3>6. Emergencias Médicas</h3>
-        <p>Si experimenta <strong>una emergencia médica</strong> — incluyendo, sin limitación: reacción alérgica severa, dolor de pecho, dificultad para respirar, hipoglucemia, deshidratación severa, pensamientos suicidas o ideación de autolesión, vómito persistente, signos de shock anafiláctico, o cualquier signo de gravedad — <strong>no use BioBoros para resolverla</strong>. Llame de inmediato al <strong>9-1-1</strong> (República Dominicana), acuda a la sala de emergencia más cercana, o contacte a su médico tratante. Si está en otro país, use el número de emergencias local.</p>
+        <p>Si experimenta <strong>una emergencia médica</strong> — incluyendo, sin limitación: reacción alérgica severa, dolor de pecho, dificultad para respirar, hipoglucemia, deshidratación severa, pensamientos suicidas o ideación de autolesión, vómito persistente, signos de shock anafiláctico, o cualquier signo de gravedad — <strong>no use Bioboros para resolverla</strong>. Llame de inmediato al <strong>9-1-1</strong> (República Dominicana), acuda a la sala de emergencia más cercana, o contacte a su médico tratante. Si está en otro país, use el número de emergencias local.</p>
 
         <h3>7. Exención de Responsabilidad</h3>
-        <p>Usted reconoce y acepta que la decisión de seguir cualquier plan, recomendación o sugerencia provista por BioBoros es <strong>exclusivamente suya</strong>. En la máxima medida permitida por la ley, BioBoros no asume responsabilidad alguna por consecuencias adversas para la salud, alteraciones nutricionales, reacciones alérgicas o cualquier otro perjuicio que pudiera resultar del uso de la plataforma sin consulta profesional previa.</p>
+        <p>Usted reconoce y acepta que la decisión de seguir cualquier plan, recomendación o sugerencia provista por Bioboros es <strong>exclusivamente suya</strong>. En la máxima medida permitida por la ley, Bioboros no asume responsabilidad alguna por consecuencias adversas para la salud, alteraciones nutricionales, reacciones alérgicas o cualquier otro perjuicio que pudiera resultar del uso de la plataforma sin consulta profesional previa.</p>
 
         <h3>8. Comunicación de Errores Nutricionales</h3>
         <p>Si detecta un error específico en un cálculo, una combinación de alimentos potencialmente peligrosa, o cualquier recomendación que considere inadecuada, le pedimos reportarla a <strong>fuego.servicios@gmail.com</strong>. Tomamos en serio cada reporte y los usamos para mejorar la calibración de nuestros sistemas de validación.</p>
@@ -374,14 +374,14 @@ export const MedicalDisclaimer = () => (
    ============================================================================ */
 export const DataProtection = () => (
     <LegalLayout title="Política de Protección de Datos" lastUpdated="11 de Julio, 2026">
-        <p>Esta Política desarrolla los derechos que la legislación de protección de datos le reconoce sobre su información personal y le explica, paso a paso, cómo ejercerlos en BioBoros. Complementa nuestra <strong>Política de Privacidad</strong> (qué datos tratamos) centrándose en <strong>sus derechos como titular</strong> de esos datos.</p>
+        <p>Esta Política desarrolla los derechos que la legislación de protección de datos le reconoce sobre su información personal y le explica, paso a paso, cómo ejercerlos en Bioboros. Complementa nuestra <strong>Política de Privacidad</strong> (qué datos tratamos) centrándose en <strong>sus derechos como titular</strong> de esos datos.</p>
 
         <h3>1. Marco Legal Aplicable</h3>
-        <p>BioBoros opera desde República Dominicana y trata sus datos conforme a la <strong>Ley No. 172-13 sobre Protección Integral de los Datos Personales</strong>, así como, en lo pertinente, la Ley No. 358-05 de Protección al Consumidor y la Ley No. 126-02 sobre Comercio Electrónico, Documentos y Firmas Digitales.</p>
+        <p>Bioboros opera desde República Dominicana y trata sus datos conforme a la <strong>Ley No. 172-13 sobre Protección Integral de los Datos Personales</strong>, así como, en lo pertinente, la Ley No. 358-05 de Protección al Consumidor y la Ley No. 126-02 sobre Comercio Electrónico, Documentos y Firmas Digitales.</p>
         <p>A medida que ampliemos el servicio a otros países de Latinoamérica, respetaremos adicionalmente la normativa local de protección de datos que resulte aplicable a los residentes de cada jurisdicción (por ejemplo, la LFPDPPP en México, la Ley 1581 en Colombia, la LGPD en Brasil o la Ley 25.326 en Argentina), reconociéndole en cada caso los derechos equivalentes a los descritos aquí.</p>
 
         <h3>2. Responsable del Tratamiento</h3>
-        <p>El responsable es <strong>BioBoros</strong>, plataforma operada desde República Dominicana. Punto de contacto para cualquier asunto de datos personales: <strong>fuego.servicios@gmail.com</strong>.</p>
+        <p>El responsable es <strong>Bioboros</strong>, plataforma operada desde República Dominicana. Punto de contacto para cualquier asunto de datos personales: <strong>fuego.servicios@gmail.com</strong>.</p>
 
         <h3>3. Sus Derechos como Titular</h3>
         <p>Usted, como titular de los datos, tiene en todo momento derecho a:</p>
@@ -426,7 +426,7 @@ export const DataProtection = () => (
    ============================================================================ */
 export const AIUse = () => (
     <LegalLayout title="Política de Uso de Inteligencia Artificial" lastUpdated="11 de Julio, 2026">
-        <p>BioBoros usa inteligencia artificial de forma central en su producto. Creemos que debe saber, con transparencia, dónde interviene la IA, qué datos suyos utiliza, cuáles son sus límites y qué control conserva usted sobre las decisiones. Esta política lo explica.</p>
+        <p>Bioboros usa inteligencia artificial de forma central en su producto. Creemos que debe saber, con transparencia, dónde interviene la IA, qué datos suyos utiliza, cuáles son sus límites y qué control conserva usted sobre las decisiones. Esta política lo explica.</p>
 
         <h3>1. Dónde Usamos IA</h3>
         <ul>
@@ -436,7 +436,7 @@ export const AIUse = () => (
         </ul>
 
         <h3>2. Modelos Confidenciales y en Evolución — y Qué Datos Viajan</h3>
-        <p>Orquestamos <strong>varios modelos de IA de última generación</strong> de proveedores externos. La identidad, versión y combinación exacta de esos modelos es <strong>información confidencial de BioBoros</strong> (secreto comercial): los evaluamos y rotamos constantemente para darte el mejor resultado, por lo que <strong>pueden cambiar sin previo aviso</strong>. Todo cambio de modelo pasa por la misma barra de calidad, validación determinista y guardas clínicas descritas en esta política.</p>
+        <p>Orquestamos <strong>varios modelos de IA de última generación</strong> de proveedores externos. La identidad, versión y combinación exacta de esos modelos es <strong>información confidencial de Bioboros</strong> (secreto comercial): los evaluamos y rotamos constantemente para darte el mejor resultado, por lo que <strong>pueden cambiar sin previo aviso</strong>. Todo cambio de modelo pasa por la misma barra de calidad, validación determinista y guardas clínicas descritas en esta política.</p>
         <p>Lo que sí divulgamos siempre es <strong>quién recibe tus datos</strong>: actualmente el proveedor de inferencia es <strong>DeepSeek</strong>. Si el proveedor cambiara, actualizaremos esta política y la Política de Protección de Datos. Para producir tu plan enviamos al proveedor únicamente lo necesario:</p>
         <ul>
             <li>Tu perfil de salud (peso, estatura, edad, género, nivel de actividad, condiciones y restricciones declaradas).</li>
@@ -476,7 +476,7 @@ export const AIUse = () => (
    ============================================================================ */
 export const Research = () => (
     <LegalLayout title="Investigación" lastUpdated="30 de Junio, 2026">
-        <p>Para que BioBoros sea cada vez más preciso y útil, analizamos cómo funciona el sistema sobre el uso real. Esta Política explica qué entendemos por «investigación», qué datos usamos para ello, cómo los protegemos, y —sobre todo— qué control conservas tú. Nuestro principio es claro: <strong>mejorar el producto sin comprometer tu privacidad ni tus datos sensibles de salud.</strong></p>
+        <p>Para que Bioboros sea cada vez más preciso y útil, analizamos cómo funciona el sistema sobre el uso real. Esta Política explica qué entendemos por «investigación», qué datos usamos para ello, cómo los protegemos, y —sobre todo— qué control conservas tú. Nuestro principio es claro: <strong>mejorar el producto sin comprometer tu privacidad ni tus datos sensibles de salud.</strong></p>
 
         <h3>1. Qué Entendemos por Investigación</h3>
         <p>Bajo «investigación» incluimos:</p>
@@ -518,7 +518,7 @@ export const Research = () => (
    ============================================================================ */
 export const Refunds = () => (
     <LegalLayout title="Política de Reembolsos y Cancelaciones" lastUpdated="12 de Julio, 2026">
-        <p>Esta Política detalla cómo funcionan las cancelaciones y los reembolsos de tu suscripción a BioBoros. Queremos que sea clara y justa, conforme a la Ley No. 358-05 de Protección al Consumidor de República Dominicana. En resumen: puedes <strong>probar gratis</strong> antes de pagar y <strong>cancelar cuando quieras</strong>; las suscripciones <strong>no son reembolsables</strong>, salvo donde la ley lo exija.</p>
+        <p>Esta Política detalla cómo funcionan las cancelaciones y los reembolsos de tu suscripción a Bioboros. Queremos que sea clara y justa, conforme a la Ley No. 358-05 de Protección al Consumidor de República Dominicana. En resumen: puedes <strong>probar gratis</strong> antes de pagar y <strong>cancelar cuando quieras</strong>; las suscripciones <strong>no son reembolsables</strong>, salvo donde la ley lo exija.</p>
 
         <h3>1. Plan Gratis</h3>
         <p>El Plan Gratis no tiene costo ni requiere tarjeta. Puedes dejar de usarlo cuando quieras, sin cargos ni compromisos.</p>
@@ -532,7 +532,7 @@ export const Refunds = () => (
         </ul>
 
         <h3>3. Reembolsos</h3>
-        <p>Las suscripciones de BioBoros (Básico, Plus y Max) <strong>no son reembolsables</strong>, salvo donde la ley aplicable lo exija. Esto aplica tanto a la compra inicial como a las renovaciones. En lugar de reembolsos ofrecemos:</p>
+        <p>Las suscripciones de Bioboros (Básico, Plus y Max) <strong>no son reembolsables</strong>, salvo donde la ley aplicable lo exija. Esto aplica tanto a la compra inicial como a las renovaciones. En lugar de reembolsos ofrecemos:</p>
         <ul>
             <li>Un <strong>Plan Gratis</strong> para que evalúes la plataforma sin costo ni tarjeta antes de suscribirte.</li>
             <li><strong>Cancelar cuando quieras</strong> para detener cobros futuros: conservas el acceso hasta el final del período ya pagado y no cobramos renovaciones posteriores.</li>
@@ -546,7 +546,7 @@ export const Refunds = () => (
         <p>Las suscripciones se renuevan automáticamente al final de cada período hasta que las canceles. Te recomendamos revisar tu fecha de renovación en Ajustes o en PayPal. Si modificamos los precios, te avisaremos con al menos <strong>treinta (30) días</strong> de anticipación antes de que el nuevo precio aplique a tu renovación.</p>
 
         <h3>6. Pagos por PayPal</h3>
-        <p>Todos los pagos se procesan a través de PayPal. BioBoros no almacena tu número de tarjeta ni datos financieros. Validamos del lado del servidor que el plan reportado por PayPal coincida con el que seleccionaste.</p>
+        <p>Todos los pagos se procesan a través de PayPal. Bioboros no almacena tu número de tarjeta ni datos financieros. Validamos del lado del servidor que el plan reportado por PayPal coincida con el que seleccionaste.</p>
 
         <h3>7. Disputas</h3>
         <p>Si tienes un problema con un cobro, contáctanos primero a <strong>fuego.servicios@gmail.com</strong> — la mayoría se resuelve rápido. Conservas tus derechos como consumidor bajo la Ley 358-05 y la posibilidad de acudir a las instancias de protección al consumidor que correspondan.</p>
@@ -561,13 +561,13 @@ export const Refunds = () => (
    ============================================================================ */
 export const AcceptableUse = () => (
     <LegalLayout title="Política de Uso" lastUpdated="30 de Junio, 2026">
-        <p>Esta Política de Uso establece las reglas para utilizar BioBoros de forma responsable, segura y justa para todos. Complementa nuestros <strong>Términos de Servicio</strong> (donde se detalla la relación contractual completa) y se aplica a cualquier persona que acceda a la plataforma, ya sea con plan gratuito, de pago o en modo invitado. Al usar BioBoros, usted acepta cumplir estas reglas.</p>
+        <p>Esta Política de Uso establece las reglas para utilizar Bioboros de forma responsable, segura y justa para todos. Complementa nuestros <strong>Términos de Servicio</strong> (donde se detalla la relación contractual completa) y se aplica a cualquier persona que acceda a la plataforma, ya sea con plan gratuito, de pago o en modo invitado. Al usar Bioboros, usted acepta cumplir estas reglas.</p>
 
         <h3>1. Quién Puede Usar la Plataforma</h3>
-        <p>BioBoros está destinada a personas <strong>mayores de 18 años</strong>, para su uso personal y no comercial. Usted es responsable de la confidencialidad de sus credenciales y de toda la actividad realizada bajo su cuenta. Si detecta un acceso no autorizado, notifíquenos de inmediato a <strong>fuego.servicios@gmail.com</strong>.</p>
+        <p>Bioboros está destinada a personas <strong>mayores de 18 años</strong>, para su uso personal y no comercial. Usted es responsable de la confidencialidad de sus credenciales y de toda la actividad realizada bajo su cuenta. Si detecta un acceso no autorizado, notifíquenos de inmediato a <strong>fuego.servicios@gmail.com</strong>.</p>
 
         <h3>2. Uso Permitido</h3>
-        <p>Puede usar BioBoros para:</p>
+        <p>Puede usar Bioboros para:</p>
         <ul>
             <li>Generar y ajustar planes de comidas personalizados para usted.</li>
             <li>Consultar al asistente conversacional sobre su nutrición, cambiar comidas y registrar su consumo.</li>
@@ -624,7 +624,7 @@ export const AcceptableUse = () => (
    ============================================================================ */
 export const ResponsibleDisclosure = () => (
     <LegalLayout title="Política de Divulgación Responsable" lastUpdated="30 de Junio, 2026">
-        <p>En BioBoros la seguridad de tus datos —especialmente tu información de salud— es una prioridad. Agradecemos a la comunidad de investigadores de seguridad que nos ayuda a proteger a nuestros usuarios. Esta Política explica cómo reportarnos una vulnerabilidad de forma responsable y qué puedes esperar de nosotros a cambio.</p>
+        <p>En Bioboros la seguridad de tus datos —especialmente tu información de salud— es una prioridad. Agradecemos a la comunidad de investigadores de seguridad que nos ayuda a proteger a nuestros usuarios. Esta Política explica cómo reportarnos una vulnerabilidad de forma responsable y qué puedes esperar de nosotros a cambio.</p>
 
         <h3>1. Cómo Reportar una Vulnerabilidad</h3>
         <p>Si descubres una vulnerabilidad de seguridad, escríbenos a <strong>fuego.servicios@gmail.com</strong> con el asunto <em>«Reporte de seguridad»</em>. Para ayudarnos a reproducir y corregir el problema rápido, incluye en lo posible:</p>

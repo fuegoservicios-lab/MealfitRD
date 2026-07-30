@@ -6,7 +6,7 @@ import { useMediaQuery } from "../../hooks/useMediaQuery";
 
 /**
  * MotivoActualizarModal — "¿Por qué quieres actualizar?"
- * Selector de motivo para regenerar los platos del día completo (BioBoros).
+ * Selector de motivo para regenerar los platos del día completo (Bioboros).
  *
  * [P3-MOTIVO-MODAL-REDESIGN · 2026-06-24] Diseño aportado por el owner; injertado
  * sobre el flujo real de Dashboard (regenerateDay / cuota / dislike). Self-contained:

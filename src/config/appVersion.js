@@ -1,5 +1,5 @@
 // [P1-APP-VERSION · 2026-06-19] SSOT de la versión visible de la app.
-// Se renderiza bajo el wordmark "BioBoros" en el sidebar (DashboardLayout).
+// Se renderiza bajo el wordmark "Bioboros" en el sidebar (DashboardLayout).
 // Al publicar una release: bump aquí Y en `package.json` (deben coincidir).
 // Estética: minimalista estilo Anthropic — `v{APP_VERSION}` en mono, muted,
 // discreto bajo la marca.

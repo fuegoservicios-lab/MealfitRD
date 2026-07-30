@@ -68,7 +68,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                     )}
 
                     <div className={styles.logo}>
-                        Bio<span className={styles.highlight}>B</span><span style={{ color: 'var(--accent)' }}>oros</span>
+                        Bio<span className={styles.highlight}>b</span><span style={{ color: 'var(--accent)' }}>oros</span>
                     </div>
 
                     {/* [P3-ASSESSMENT-NO-CANCEL · 2026-07-01] Botón «Cancelar» eliminado a pedido.

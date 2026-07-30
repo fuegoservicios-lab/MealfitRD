@@ -87,7 +87,7 @@ const Research = lazy(() => import('./pages/ResearchPage'));
 const Refunds = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Refunds })));
 // [P3-ACCEPTABLE-USE-PAGE · 2026-06-30] Política de Uso Aceptable (reglas de uso responsable).
 const AcceptableUse = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.AcceptableUse })));
-// [P3-ABOUT-PAGE-ABSTRACT · 2026-06-30] "Acerca de BioBoros" — página propia con estética
+// [P3-ABOUT-PAGE-ABSTRACT · 2026-06-30] "Acerca de Bioboros" — página propia con estética
 // abstracta (aurora CSS + tipografía editorial), distinta de las políticas y del marketing.
 const About = lazy(() => import('./pages/AboutPage'));
 // [P3-NEWS-1 · 2026-07-01] Novedades: índice (/novedades) + artículo (/novedades/:slug).
@@ -453,7 +453,7 @@ function App() {
             <Route path="/refunds" element={<Layout><Refunds /></Layout>} />
             {/* [P3-ACCEPTABLE-USE-PAGE · 2026-06-30] Política de Uso Aceptable. */}
             <Route path="/acceptable-use" element={<Layout><AcceptableUse /></Layout>} />
-            {/* [P3-ABOUT-PAGE · 2026-06-30] Acerca de BioBoros (categoría Empresas). */}
+            {/* [P3-ABOUT-PAGE · 2026-06-30] Acerca de Bioboros (categoría Empresas). */}
             <Route path="/about" element={<Layout><About /></Layout>} />
             {/* [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] Política de divulgación responsable (seguridad). */}
             <Route path="/responsible-disclosure" element={<Layout><ResponsibleDisclosure /></Layout>} />

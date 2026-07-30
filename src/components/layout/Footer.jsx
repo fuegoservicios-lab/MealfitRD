@@ -24,7 +24,7 @@ const Footer = () => {
             <div className={styles.container}>
                 <div className={styles.col}>
                     <h3 className={styles.logo}>
-                        Bio<span className={styles.highlight}>B</span><span style={{ color: 'var(--accent)' }}>oros</span>
+                        Bio<span className={styles.highlight}>b</span><span style={{ color: 'var(--accent)' }}>oros</span>
                     </h3>
                     <p className={styles.desc}>
                         Nutrición de precisión potenciada por Inteligencia Artificial.
@@ -99,10 +99,10 @@ const Footer = () => {
                 </div>
 
                 {/* [P3-ABOUT-PAGE · 2026-06-30] Columna "Empresas": página corporativa
-                    (Acerca de BioBoros) + Investigación (movida desde "Privacidad y datos"). */}
+                    (Acerca de Bioboros) + Investigación (movida desde "Privacidad y datos"). */}
                 <div className={styles.col}>
                     <h4>Empresas</h4>
-                    <Link to="/about" state={{ from: fromPath }}>BioBoros</Link>
+                    <Link to="/about" state={{ from: fromPath }}>Bioboros</Link>
                     <Link to="/novedades" state={{ from: fromPath }}>Novedades</Link>
                     {/* [P1-SUPERMARKET-DB · 2026-07-02] Base de datos pública del
                         Supermercado RD (alimentos verificados + precios RD$). */}
@@ -129,7 +129,7 @@ const Footer = () => {
                 </div>
 
                 <div className={styles.bottom}>
-                    &copy; {new Date().getFullYear()} BioBoros. Todos los derechos reservados.
+                    &copy; {new Date().getFullYear()} Bioboros. Todos los derechos reservados.
                 </div>
             </div>
         </footer>

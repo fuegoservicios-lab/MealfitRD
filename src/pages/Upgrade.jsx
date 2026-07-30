@@ -756,7 +756,7 @@ const Upgrade = () => {
                 <a href="mailto:fuego.servicios@gmail.com">Soporte</a>
                 <br />
                 <span style={{ marginTop: '0.5rem', display: 'inline-block' }}>
-                    © 2026 BioBoros · Hecho en República Dominicana 🇩🇴
+                    © 2026 Bioboros · Hecho en República Dominicana 🇩🇴
                 </span>
             </footer>
         </div>
