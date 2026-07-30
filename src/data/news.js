@@ -63,7 +63,7 @@ export const NEWS = [
             {
                 h: 'Explórala hoy',
                 body: [
-                    'La base completa ya es navegable en la sección Supermercados RD, disponible desde el pie de página de mealfitrd.com. Búscala por familia de alimento y mira las presentaciones disponibles.',
+                    'La base completa ya es navegable en la sección Supermercados RD, disponible desde el pie de página de bioboros.com. Búscala por familia de alimento y mira las presentaciones disponibles.',
                     'Seguiremos ampliándola: más productos, más supermercados y, pronto, su conexión directa con tu lista de compras.',
                 ],
             },

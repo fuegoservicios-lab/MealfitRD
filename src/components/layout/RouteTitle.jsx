@@ -24,7 +24,7 @@ import { useLocation } from 'react-router-dom';
    cubra unfurlers requeriría prerender/SSR por ruta (cambio de infra mayor, no hecho aquí). */
 
 const BRAND = 'Bioboros';
-const ORIGIN = 'https://mealfitrd.com';
+import { APEX_ORIGIN as ORIGIN } from '../../config/site';
 
 const HOME_DESC = 'Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis.';
 

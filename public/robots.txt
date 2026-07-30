@@ -11,4 +11,4 @@ Disallow: /reset-password
 Disallow: /history
 Disallow: /configuracion
 
-Sitemap: https://mealfitrd.com/sitemap.xml
+Sitemap: https://bioboros.com/sitemap.xml

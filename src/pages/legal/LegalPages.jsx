@@ -656,7 +656,7 @@ export const ResponsibleDisclosure = () => (
         </ul>
 
         <h3>4. Alcance</h3>
-        <p><strong>Dentro de alcance:</strong> el sitio y la aplicación web en <code>mealfitrd.com</code> (incluido el subdominio de la app) y nuestra API pública.</p>
+        <p><strong>Dentro de alcance:</strong> el sitio y la aplicación web en <code>bioboros.com</code> (incluido el subdominio de la app) y nuestra API pública.</p>
         <p><strong>Fuera de alcance:</strong> los sistemas de nuestros proveedores subcontratados (PayPal, DeepSeek, Neon, Sentry, Oracle Cloud, entre otros) — repórtales directamente a ellos según sus propios programas. También quedan fuera los hallazgos sin impacto demostrable de seguridad, como:</p>
         <ul>
             <li>Reportes de escáneres automáticos sin una prueba de explotación real.</li>
@@ -670,7 +670,7 @@ export const ResponsibleDisclosure = () => (
         <p>Actualmente <strong>no contamos con un programa de recompensas económicas (bug bounty)</strong>. Reconocemos y agradecemos públicamente —con tu permiso— a quienes nos ayudan a mejorar la seguridad de la plataforma. Si en el futuro habilitamos recompensas, lo anunciaremos aquí.</p>
 
         <h3>6. Cómo nos Encuentras</h3>
-        <p>Mantenemos un archivo <code>security.txt</code> conforme al estándar <a href="https://www.rfc-editor.org/rfc/rfc9116" target="_blank" rel="noopener noreferrer" className={styles.link}>RFC 9116</a> en <code>https://mealfitrd.com/.well-known/security.txt</code> con nuestro contacto de seguridad y el enlace a esta Política.</p>
+        <p>Mantenemos un archivo <code>security.txt</code> conforme al estándar <a href="https://www.rfc-editor.org/rfc/rfc9116" target="_blank" rel="noopener noreferrer" className={styles.link}>RFC 9116</a> en <code>https://bioboros.com/.well-known/security.txt</code> con nuestro contacto de seguridad y el enlace a esta Política.</p>
 
         <h3>7. Cambios en esta Política</h3>
         <p>Podremos actualizar esta Política para reflejar cambios en nuestros sistemas o procesos. La versión vigente siempre se publica aquí con su fecha de «Última actualización».</p>

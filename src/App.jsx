@@ -39,6 +39,7 @@ import ScrollRestoration from './components/ScrollRestoration';
 import { initTheme, applyThemePref, getStoredThemePref } from './utils/theme';
 // [P3-LANDING-DARK-ONLY · 2026-06-29] Rutas de marketing → tema oscuro forzado.
 import { isMarketingRoute } from './utils/marketingRoutes';
+import { APP_ORIGIN } from './config/site';
 
 // --- Lazy-loaded pages (code-split into separate chunks) ---
 // [P1-PERF-LAZY-HOME · 2026-05-31] Home (landing) era el ÚNICO import estático
@@ -138,7 +139,7 @@ const ApexAppRedirect = () => {
     const p = location.pathname;
     const isAppRoute = APP_ROUTE_PREFIXES.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
     if (isAppRoute) {
-      window.location.replace(`https://app.mealfitrd.com${p}${location.search}`);
+      window.location.replace(`${APP_ORIGIN}${p}${location.search}`);
     }
   }, [location]);
   return null;

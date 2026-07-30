@@ -9,7 +9,7 @@ import { getNewsBySlug } from '../data/news';
    título + description + canonical por artículo. */
 
 const BRAND = 'Bioboros';
-const ORIGIN = 'https://mealfitrd.com';
+import { APEX_ORIGIN as ORIGIN } from '../config/site';
 
 function setMetaByName(name, content) {
     let el = document.head.querySelector(`meta[name="${name}"]`);

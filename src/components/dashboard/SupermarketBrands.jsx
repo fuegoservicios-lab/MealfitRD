@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { BadgeCheck, Check, ChevronDown, Store } from 'lucide-react';
 import { toast } from 'sonner';
+import { APEX_ORIGIN } from '../../config/site';
 import { api, fetchWithAuth } from '../../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 
@@ -721,7 +722,7 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                                                 })}
                                                                 {g.variants.length > g.shownVariants.length && (
                                                                     <a
-                                                                        href={`https://mealfitrd.com/supermercado?q=${encodeURIComponent(g.food_name)}`}
+                                                                        href={`${APEX_ORIGIN}/supermercado?q=${encodeURIComponent(g.food_name)}`}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
                                                                         style={{ display: 'inline-block', padding: '0.15rem 0.45rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textDecoration: 'underline' }}
