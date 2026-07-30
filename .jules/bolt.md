@@ -1,0 +1,3 @@
+## 2025-02-23 - Aggregating replace functions for O(N) performance
+**Learning:** For hot-path text manipulation (like HTML escaping during PDF generation), sequential `.replace()` operations result in O(M*N) passes (M replacements over string length N).
+**Action:** Aggregate multiple static dictionary string replacements into a single pre-compiled `RegExp` object (using character classes like `/[&<>"']/g` for single characters or `|` OR operator for multi-character) mapped to a replacement dictionary to reduce the time complexity to O(N).
