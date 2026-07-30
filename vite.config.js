@@ -107,6 +107,21 @@ export default defineConfig(({ mode }) => ({
     pure: ['console.log', 'console.warn', 'console.debug', 'console.info'],
   } : {},
   build: {
+    // [P2-SOURCEMAPS-HIDDEN · 2026-07-30] Sin sourcemaps, TODO error de frontend
+    // llega a Sentry como `t.default` dentro de una función llamada `Ln` — no es
+    // que un bug concreto sea difícil, es que ninguno se puede leer. Caso real:
+    // un `TypeError: Cannot read properties of undefined (reading 'default')` en
+    // /login que costó una hora de inferencia estática y quedó SIN cerrar por
+    // falta de stack trace legible.
+    //
+    // `'hidden'` y no `true`: genera los `.map` pero NO añade el comentario
+    // `//# sourceMappingURL=` al bundle, así que ningún navegador los pide.
+    // Aun así el fichero existiría en `dist/`, y `dist/` lo sirve nginx —
+    // publicarlos expondría el código con nombres y comentarios originales, que
+    // en este repo incluyen razonamiento de negocio (umbrales, incidentes).
+    // Por eso el deploy los SUBE a Sentry y luego los BORRA de `dist/`, y nginx
+    // además deniega `*.map` como segunda barrera. Ver deploy-mealfit.ps1.
+    sourcemap: 'hidden',
     // Target modern browsers for smaller output
     target: 'es2020',
     // Enable CSS code splitting
