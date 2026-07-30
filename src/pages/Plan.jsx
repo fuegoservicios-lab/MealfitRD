@@ -2402,7 +2402,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
         }}>
             {/* [P3-LOADING-PREMIUM-REDESIGN · 2026-05-15] Minimalist premium loading:
                 Solo un pulse sutil + fade-in. Sin orbs, sin shimmer, sin 2 rings.
-                Acorde a la identidad MealfitRD (rojo + azul + blanco). */}
+                Acorde a la identidad BioBoros (rojo + azul + blanco). */}
             <style>{`
                 @keyframes mfPulse { 0%, 100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 1; transform: scale(1.04); } }
                 @keyframes mfSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -2426,7 +2426,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 }
             `}</style>
 
-            {/* [P3-PLAN-LOADING-LOGO · 2026-06-29] Logo MealfitRD pequeño y centrado
+            {/* [P3-PLAN-LOADING-LOGO · 2026-06-29] Logo BioBoros pequeño y centrado
                 arriba (sin la barra completa). El loading es oscuro en ambos temas, así
                 que los colores van fijos (light/indigo/coral). Solo decorativo. */}
             <div style={{

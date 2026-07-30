@@ -379,7 +379,7 @@ const Recipes = () => {
                 <!-- HEADER -->
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 0.18em solid #4F46E5; padding-bottom: 0.55em; margin-bottom: 0.9em;">
                     <div style="font-size: 1.15em; font-weight: 900; letter-spacing: -0.02em; color: #0F172A;">
-                        Mealfit<span style="color: #4F46E5;">R</span><span style="color: #F43F5E;">D</span>
+                        Bio<span style="color: #4F46E5;">B</span><span style="color: #F43F5E;">oros</span>
                         <span style="font-size: 0.6em; font-weight: 600; color: #64748B;">&nbsp;·&nbsp;Receta&nbsp;·&nbsp;${escapeHtml(meal.meal)}</span>
                     </div>
                     <div style="display: flex; gap: 0.4em; align-items: center;">${metaChips}</div>
@@ -407,7 +407,7 @@ const Recipes = () => {
 
                 <!-- FOOTER -->
                 <div style="margin-top: 1.2em; padding-top: 0.6em; border-top: 1px solid #E2E8F0; text-align: center; color: #94A3B8; font-size: 0.62em;">
-                    Disfruta de tu comida. Generado automáticamente por MealfitRD.
+                    Disfruta de tu comida. Generado automáticamente por BioBoros.
                 </div>
             </div>
         `;

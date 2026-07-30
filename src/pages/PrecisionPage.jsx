@@ -81,7 +81,7 @@ const PrecisionPage = () => {
     useLayoutEffect(() => { window.scrollTo(0, 0); }, []);
     useEffect(() => {
         const prev = document.title;
-        document.title = 'Precisión de MealfitRD — la metodología que medimos';
+        document.title = 'Precisión de BioBoros — la metodología que medimos';
         return () => { document.title = prev; };
     }, []);
 
@@ -95,7 +95,7 @@ const PrecisionPage = () => {
                 </h1>
                 <p className={styles.lead}>
                     No prometemos números — los medimos, y te enseñamos cómo. Esta es la metodología
-                    detrás de la precisión de macros de MealfitRD, contada con honestidad.
+                    detrás de la precisión de macros de BioBoros, contada con honestidad.
                 </p>
                 <div className={styles.stats}>
                     {HERO_STATS.map((s) => (

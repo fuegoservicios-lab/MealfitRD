@@ -5,7 +5,7 @@ import { Check, Loader2, Dumbbell, RefreshCw } from 'lucide-react';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 /* [P3-LOGIN-SHOWCASE-DEMO · 2026-06-29] Demo de producto del login: loop narrativo de
-   4 escenas que enseña qué hace MealfitRD (objetivo → la IA genera → tu plan → ajustas).
+   4 escenas que enseña qué hace BioBoros (objetivo → la IA genera → tu plan → ajustas).
    Una sola "pantalla" cuyo contenido evoluciona (header + dots estables, cuerpo que cambia
    vía AnimatePresence). Orquestado con framer-motion. Respeta prefers-reduced-motion. */
 

@@ -549,7 +549,7 @@ export default function NotificationCenter({ hidden = false }) {
 
                         <footer className={styles.foot} aria-hidden="true">
                             <span className={styles.footBrand}>
-                                Mealfit<span className={styles.footR}>R</span><span className={styles.footD}>D</span>
+                                Bio<span className={styles.footR}>B</span><span className={styles.footD}>oros</span>
                             </span>
                         </footer>
                     </motion.aside>

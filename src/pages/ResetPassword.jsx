@@ -118,7 +118,7 @@ const ResetPassword = () => {
             <div className={styles.authCard}>
                 <div className={styles.logoWrapper}>
                     <div className={styles.logo}>
-                        Mealfit<span className={styles.highlight}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
+                        Bio<span className={styles.highlight}>B</span><span style={{ color: 'var(--accent)' }}>oros</span>
                     </div>
                 </div>
 

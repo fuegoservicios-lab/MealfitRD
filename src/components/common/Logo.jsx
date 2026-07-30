@@ -1,5 +1,5 @@
 // [BRAND-LOGO-MARK · 2026-07-11] Logo reutilizable: isotipo (símbolo) + wordmark
-// "MealfitRD". El símbolo es un PNG transparente servido desde /public.
+// "BioBoros". El símbolo es un PNG transparente servido desde /public.
 //
 // Por ahora usa SOLO la variante `dark` (símbolo indigo claro): se lee muy bien
 // sobre fondo oscuro —el default de la app— y de forma aceptable sobre claro.
@@ -30,7 +30,7 @@ export const Logo = ({
     >
         <img
             src="/mealfit-mark-dark.png?v=1"
-            alt={showText ? '' : 'MealfitRD'}
+            alt={showText ? '' : 'BioBoros'}
             aria-hidden={showText ? 'true' : undefined}
             draggable="false"
             style={{ height: markHeight, width: 'auto', display: 'block', flex: 'none' }}

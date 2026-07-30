@@ -71,7 +71,7 @@ const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel, userEmail, isGuest = 
                         <>Perderás el plan y el progreso de tu sesión de invitado.{' '}
                         <span className={styles.email}>Crea una cuenta gratis</span> antes de salir para guardarlo.</>
                     ) : (
-                        <>¿Cerrar sesión de MealfitRD como{' '}
+                        <>¿Cerrar sesión de BioBoros como{' '}
                         <span className={styles.email}>{userEmail || 'tu cuenta'}</span>?</>
                     )}
                 </p>

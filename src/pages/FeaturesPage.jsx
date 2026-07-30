@@ -234,7 +234,7 @@ const FeaturesPage = () => {
     useLayoutEffect(() => { window.scrollTo(0, 0); }, []);
     useEffect(() => {
         const prev = document.title;
-        document.title = 'Funciones de MealfitRD — todo lo que hace la app';
+        document.title = 'Funciones de BioBoros — todo lo que hace la app';
         return () => { document.title = prev; };
     }, []);
 
@@ -248,7 +248,7 @@ const FeaturesPage = () => {
                 </h1>
                 <p className={styles.lead}>
                     Plan, recetas, lista de compras, coach y nevera — conectados por el mismo motor.
-                    Esto es todo lo que MealfitRD hace por ti.
+                    Esto es todo lo que BioBoros hace por ti.
                 </p>
 
                 <Reveal className={styles.heroFigure} delay={0.1}>

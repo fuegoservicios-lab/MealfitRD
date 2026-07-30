@@ -7,7 +7,7 @@ import { addBreadcrumb } from '@sentry/react';
 import { safeLocalStorageGet } from './safeLocalStorage';
 
 // [P2-PRIVACY-SETTINGS · 2026-07-04] Opt-out de analytics (Configuración →
-// Privacidad → toggle "Ayuda a mejorar MealfitRD"). Flag por dispositivo:
+// Privacidad → toggle "Ayuda a mejorar BioBoros"). Flag por dispositivo:
 // '1' = no emitir NINGÚN evento de uso (Sentry breadcrumbs, PostHog, GA, GTM).
 // Los errores (Sentry captureException) NO se gatean — son operacionales,
 // no analítica de producto.

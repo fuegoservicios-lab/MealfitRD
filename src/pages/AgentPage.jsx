@@ -2572,7 +2572,7 @@ const AgentPage = () => {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
-                            placeholder={micErrorMsg || "Pregúntale a MealfitRD"}
+                            placeholder={micErrorMsg || "Pregúntale a BioBoros"}
                             onFocus={() => setTimeout(scrollToBottom, 300)}
                             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El
                             // auto-resize NO vive aquí: `onInput` solo se
@@ -2946,11 +2946,11 @@ const AgentPage = () => {
 
                         {/* Center: Title */}
                         {/* [P3-AGENT-HEADER-TITLE · 2026-05-19] Título del header
-                            del chat. Cambio de marca interna "MealfitRD" → "Mealfit V1.0"
+                            del chat. Cambio de marca interna "BioBoros" → "Mealfit V1.0"
                             (versioning visible al usuario; pre-fix solo el marketing
                             site lo nombraba así). Mantenido independiente del sidebar logo
                             del DashboardLayout que conserva el branding completo
-                            "MealfitRD" con gradient en el "RD". */}
+                            "BioBoros" con gradient en el "RD". */}
                         <span className="agent-header-title" style={{
                             fontSize: '1.25rem',
                             fontWeight: 400,

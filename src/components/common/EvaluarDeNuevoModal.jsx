@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 
 /**
  * EvaluarDeNuevoModal — "Evaluar de Nuevo"
- * Modal de selección + confirmación para regenerar el plan (MealfitRD).
+ * Modal de selección + confirmación para regenerar el plan (BioBoros).
  * Diseño del owner, tokens del DS (tema claro/oscuro automático), SIN emoji ✨.
  *
  * Patrón "elige y confirma": el usuario elige una de dos vías (radio) y pulsa el

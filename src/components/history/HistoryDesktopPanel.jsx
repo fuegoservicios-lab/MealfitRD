@@ -9,7 +9,7 @@ import { mealEmojiFor } from "../../utils/mealEmoji";
 import { firstDayMeals } from "../../utils/normalizePlanDays";
 
 /**
- * HistoryDesktopPanel — vista "Historial" de escritorio (MealfitRD).
+ * HistoryDesktopPanel — vista "Historial" de escritorio (BioBoros).
  *
  * [P3-HIST-DESKTOP-REDESIGN · 2026-06-24] Diseño aportado por el owner
  * (HistorialPanel) injertado sobre el Historial real: SOLO el panel (el sidebar

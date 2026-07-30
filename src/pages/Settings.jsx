@@ -696,7 +696,7 @@ const Settings = () => {
 
     const activeSectionMeta = sectionsConfig.find(s => s.id === activeSection) || null;
 
-    // [P2-PRIVACY-SETTINGS · 2026-07-04] Toggle "Ayuda a mejorar MealfitRD":
+    // [P2-PRIVACY-SETTINGS · 2026-07-04] Toggle "Ayuda a mejorar BioBoros":
     // opt-out REAL de analytics (trackEvent gatea en isAnalyticsOptedOut).
     // Flag por dispositivo en localStorage — la analítica es per-device por
     // naturaleza (PostHog/GA/GTM viven en el browser).
@@ -706,7 +706,7 @@ const Settings = () => {
             const next = !prev;
             safeLocalStorageSet(ANALYTICS_OPT_OUT_KEY, next ? '0' : '1');
             toast.success(next
-                ? 'Gracias por ayudar a mejorar MealfitRD.'
+                ? 'Gracias por ayudar a mejorar BioBoros.'
                 : 'Eventos de uso desactivados en este dispositivo.');
             return next;
         });
@@ -2474,7 +2474,7 @@ const Settings = () => {
                     )}
 
                     {/* [P2-PRIVACY-SETTINGS · 2026-07-04] SECCIÓN PRIVACIDAD —
-                        adaptación MealfitRD del panel de privacidad de Claude.ai:
+                        adaptación BioBoros del panel de privacidad de Claude.ai:
                         políticas (enlaces al apex), preferencia de memoria (deep-link
                         a Capacidades, SIN duplicar el toggle) y "Tus datos"
                         (export JSON self-service + acceso a eliminar cuenta). */}
@@ -2482,7 +2482,7 @@ const Settings = () => {
                         <section className={styles.section}>
                             <h2 className={styles.sectionTitle}>Privacidad</h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.55 }}>
-                                En MealfitRD creemos en prácticas transparentes de datos: tu información se usa
+                                En BioBoros creemos en prácticas transparentes de datos: tu información se usa
                                 para generar y mejorar TU plan, nunca se vende. Conoce el detalle en nuestra{' '}
                                 <a href={landingUrl('/privacy')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>Política de Privacidad</a>.
                             </p>
@@ -2514,7 +2514,7 @@ const Settings = () => {
 
                             {/* Toggle REAL de analytics: trackEvent (Sentry breadcrumbs /
                                 PostHog / GA / GTM) gatea en isAnalyticsOptedOut. Equivalente
-                                MealfitRD del "Ayuda a mejorar" de Claude.ai — acá NO entrena
+                                BioBoros del "Ayuda a mejorar" de Claude.ai — acá NO entrena
                                 modelos: son eventos de uso del producto. */}
                             <div style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
@@ -2522,7 +2522,7 @@ const Settings = () => {
                                 border: '1px solid var(--border)', borderRadius: '0.875rem', background: 'var(--bg-card)',
                             }}>
                                 <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>Ayuda a mejorar MealfitRD</div>
+                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>Ayuda a mejorar BioBoros</div>
                                     <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
                                         Permitir eventos de uso anónimos (qué pantallas y funciones se usan) para mejorar
                                         el producto. Nunca incluye tus datos de salud ni tus conversaciones. Se guarda por dispositivo.
@@ -2552,9 +2552,9 @@ const Settings = () => {
                                 <div style={{ minWidth: 0 }}>
                                     <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>Entrenamiento de modelos de IA</div>
                                     <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
-                                        Hoy MealfitRD <strong>no entrena</strong> modelos con tus datos. Si lo permites, tus
+                                        Hoy BioBoros <strong>no entrena</strong> modelos con tus datos. Si lo permites, tus
                                         planes y conversaciones podrán usarse <strong>de forma anónima</strong> para entrenar
-                                        los modelos propios de MealfitRD en el futuro.{' '}
+                                        los modelos propios de BioBoros en el futuro.{' '}
                                         <a href={landingUrl('/ai-policy')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>Más información</a>.
                                     </div>
                                 </div>
@@ -2564,7 +2564,7 @@ const Settings = () => {
                                         checked={aiTrainingConsent}
                                         onChange={handleToggleAiTraining}
                                         disabled={isAiConsentLoading}
-                                        aria-label="Permitir uso futuro anónimo de mis datos para entrenar modelos de MealfitRD"
+                                        aria-label="Permitir uso futuro anónimo de mis datos para entrenar modelos de BioBoros"
                                     />
                                     <span className={styles.toggleSlider} style={{ opacity: isAiConsentLoading ? 0.6 : 1 }}></span>
                                 </label>

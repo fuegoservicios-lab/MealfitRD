@@ -748,7 +748,7 @@ const SupermarketPage = () => {
                                         <div className={styles.cardPriceRow}>
                                             <span className={styles.price}>{priceRangeLabel(g)}</span>
                                             {g.verified && (
-                                                <span className={styles.verified} title="Verificado por MealfitRD">
+                                                <span className={styles.verified} title="Verificado por BioBoros">
                                                     <BadgeCheck size={14} strokeWidth={2.25} aria-hidden="true" />
                                                 </span>
                                             )}

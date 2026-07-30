@@ -363,7 +363,7 @@ export const AssessmentProvider = ({ children }) => {
     // tipear "70" pensando en kg pero almacenando como lb daba un cálculo
     // nutricional ~32% menor (70 lb = 31.7 kg) sin disparar el chequeo de
     // rango (31.7 > 30 kg mínimo). Países con sistema imperial para peso
-    // corporal: US, Liberia, Myanmar. Resto → kg. Para MealfitRD (DR, locale
+    // corporal: US, Liberia, Myanmar. Resto → kg. Para BioBoros (DR, locale
     // típico es-DO), esto cambia el default de "lb (incorrecto para 99% de
     // usuarios)" a "kg (correcto para 99% de usuarios)". El touched-tracking
     // (`_weightUnitTouched`, ver abajo) cubre los edge cases.

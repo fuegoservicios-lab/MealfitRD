@@ -40,7 +40,7 @@ export default function PlanObjetivo({
             {topBar && (
                 <header className={styles.topBar}>
                     <div className={styles.logo}>
-                        Mealfit<span style={{ color: 'var(--primary)' }}>R</span><span style={{ color: 'var(--accent)' }}>D</span>
+                        Bio<span style={{ color: 'var(--primary)' }}>B</span><span style={{ color: 'var(--accent)' }}>oros</span>
                     </div>
                     <button
                         type="button"

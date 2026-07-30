@@ -1,4 +1,4 @@
-// [P3-NEWS-1 · 2026-07-01] SSOT de Novedades/anuncios de MealfitRD (estilo Anthropic/OpenAI).
+// [P3-NEWS-1 · 2026-07-01] SSOT de Novedades/anuncios de BioBoros (estilo Anthropic/OpenAI).
 //
 // CÓMO AÑADIR UNA NOVEDAD: agrega un objeto NUEVO al PRINCIPIO del array `NEWS`
 // (más reciente primero — el orden del array es el orden de publicación). Con eso se
@@ -41,7 +41,7 @@ export const NEWS = [
         content: [
             {
                 body: [
-                    'Acabamos de encender una pieza clave de MealfitRD: una base de datos propia con casi 2,000 productos reales de supermercados dominicanos, conectada a los más de 200 alimentos verificados que usa el motor para generar tus planes.',
+                    'Acabamos de encender una pieza clave de BioBoros: una base de datos propia con casi 2,000 productos reales de supermercados dominicanos, conectada a los más de 200 alimentos verificados que usa el motor para generar tus planes.',
                 ],
             },
             {
@@ -56,7 +56,7 @@ export const NEWS = [
             {
                 h: 'Por qué importa',
                 body: [
-                    'Un plan solo sirve si la compra existe. Con esta base, MealfitRD deja de hablar de "pollo" en abstracto y empieza a conocer las presentaciones reales que encuentras en el supermercado: qué marcas hay, en qué tamaños vienen y cómo se llaman de verdad.',
+                    'Un plan solo sirve si la compra existe. Con esta base, BioBoros deja de hablar de "pollo" en abstracto y empieza a conocer las presentaciones reales que encuentras en el supermercado: qué marcas hay, en qué tamaños vienen y cómo se llaman de verdad.',
                     'Es también el primer paso para que tu lista de compras te deje elegir marca y presentación — el yogurt, el arroz o la carne exacta que prefieres — con el plan ajustándose a tu elección.',
                 ],
             },
@@ -87,7 +87,7 @@ export const NEWS = [
         content: [
             {
                 body: [
-                    'Hoy lanzamos oficialmente el Motor Mealfit v1, el corazón que genera cada plan de MealfitRD. No es un simple modelo de inteligencia artificial: es un sistema completo que piensa, calcula y valida cada comida antes de mostrártela.',
+                    'Hoy lanzamos oficialmente el Motor Mealfit v1, el corazón que genera cada plan de BioBoros. No es un simple modelo de inteligencia artificial: es un sistema completo que piensa, calcula y valida cada comida antes de mostrártela.',
                 ],
             },
             {

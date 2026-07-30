@@ -60,7 +60,7 @@ const IOSInstallPrompt = () => {
             <img src="/favicon.png" alt="Mealfit" style={{ width: 34, height: 34, borderRadius: '9px', flexShrink: 0 }} />
             <div style={{ minWidth: 0, flex: 1 }}>
                 <p style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.25 }}>
-                    Instala MealfitRD
+                    Instala BioBoros
                 </p>
                 <p style={{ margin: '2px 0 0', fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.3, display: 'flex', alignItems: 'center', gap: '0.28rem', flexWrap: 'wrap' }}>
                     Toca <Share size={14} color="#007aff" style={{ flexShrink: 0 }} /> y

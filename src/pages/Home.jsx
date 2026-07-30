@@ -5,7 +5,7 @@ import DashboardShowcase from '../components/home/DashboardShowcase';
 // de macros real) debajo del showcase del dashboard.
 import BenchmarkShowcase from '../components/home/BenchmarkShowcase';
 // [P3-NEWS-1 · 2026-07-01] La banda de precios del landing se reemplazó por la banda de
-// "Novedades" (anuncios de MealfitRD, estilo Anthropic/OpenAI). El detalle de planes sigue
+// "Novedades" (anuncios de BioBoros, estilo Anthropic/OpenAI). El detalle de planes sigue
 // en /precios (link en la nav).
 import NewsHighlight from '../components/home/NewsHighlight';
 
