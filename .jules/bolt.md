@@ -1,0 +1,3 @@
+## 2024-05-18 - Single RegExp Pass for HTML Escaping
+**Learning:** Sequential `.replace()` operations (e.g., escaping '&', '<', '>', etc. one by one) traverse the string multiple times, resulting in O(M*N) time complexity where M is the number of replacements and N is string length. In hot-paths like PDF generation traversing the entire HTML template, this is inefficient.
+**Action:** Aggregate multiple static dictionary string replacements into a single pre-compiled `RegExp` object mapped to a replacement dictionary. This reduces the time complexity to O(N) since the string is traversed only once. Apply this pattern consistently across `escapeHtml` implementations.
