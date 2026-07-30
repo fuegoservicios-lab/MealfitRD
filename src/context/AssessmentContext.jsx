@@ -34,6 +34,7 @@ import {
 // [P2-CHAT-CACHE-XUSER · 2026-05-31] Keys del chat del Agente para limpiar en
 // logout/user-switch (SSOT en módulo liviano — no arrastra AgentPage al bundle).
 import { CHAT_MESSAGES_CACHE_KEY, CHAT_SESSIONS_CACHE_KEY, CHAT_CURRENT_SESSION_KEY } from '../utils/chatCacheKeys';
+import { isApexHost } from '../config/site';
 // --- BASE DE DATOS LOCAL DE RECETAS (FALLBACK) ---
 const DOMINICAN_MEALS = {
     breakfast: [
@@ -1658,7 +1659,7 @@ export const AssessmentProvider = ({ children }) => {
         // estado deslogueado SIN tocar el token del adapter — localStorage es per-origen, así
         // que app.* conserva su sesión intacta y no revocamos nada server-side (no signOut).
         // Tampoco consultamos getSession ni suscribimos onAuthStateChange aquí.
-        if (typeof window !== 'undefined' && /^(www\.)?mealfitrd\.com$/i.test(window.location.hostname)) {
+        if (typeof window !== 'undefined' && isApexHost()) {
             handleAuthChange(null);
             return undefined;
         }

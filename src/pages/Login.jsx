@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { isSiteHost } from '../config/site';
 import { authClient, sendEmailOtp } from '../authClient';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
@@ -27,7 +28,7 @@ const RESEND_COOLDOWN_S = 30;
 const landingLegalUrl = (path) => {
     if (typeof window === 'undefined') return path;
     const { protocol, hostname } = window.location;
-    if (/(^|\.)mealfitrd\.com$/i.test(hostname)) {
+    if (isSiteHost(hostname)) {
         return `${protocol}//${hostname.replace(/^app\./i, '')}${path}`;
     }
     return path; // dev / preview → ruta in-app

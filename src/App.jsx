@@ -39,7 +39,7 @@ import ScrollRestoration from './components/ScrollRestoration';
 import { initTheme, applyThemePref, getStoredThemePref } from './utils/theme';
 // [P3-LANDING-DARK-ONLY · 2026-06-29] Rutas de marketing → tema oscuro forzado.
 import { isMarketingRoute } from './utils/marketingRoutes';
-import { APP_ORIGIN } from './config/site';
+import { APP_ORIGIN, isApexHost } from './config/site';
 
 // --- Lazy-loaded pages (code-split into separate chunks) ---
 // [P1-PERF-LAZY-HOME · 2026-05-31] Home (landing) era el ÚNICO import estático
@@ -128,8 +128,7 @@ const IS_APP_HOST = typeof window !== 'undefined' && /^app\./i.test(window.locat
 // tener que tocar cada CTA. El subdominio app.* NO redirige (sirve la app). La
 // sesión es per-origen (localStorage): un usuario logueado en el apex re-loguea en
 // app.* — fricción mínima y aceptada para cerrar el split.
-const IS_APEX_HOST = typeof window !== 'undefined'
-  && /^(www\.)?mealfitrd\.com$/i.test(window.location.hostname);
+const IS_APEX_HOST = typeof window !== 'undefined' && isApexHost();
 const APP_ROUTE_PREFIXES = ['/login', '/register', '/reset-password', '/assessment', '/plan', '/configuracion', '/dashboard', '/history'];
 
 const ApexAppRedirect = () => {

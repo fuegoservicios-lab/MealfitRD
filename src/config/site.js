@@ -25,3 +25,30 @@ export const APEX_ORIGIN = `https://${SITE_DOMAIN}`;
 
 /** Origen de la aplicación (login, dashboard). Ver P3-APP-SUBDOMAIN-ROUTING. */
 export const APP_ORIGIN = `https://app.${SITE_DOMAIN}`;
+
+/**
+ * [P1-HOSTNAME-PREDICATES · 2026-07-30] Predicados de host, sin regex.
+ *
+ * POR QUÉ EXISTEN. El dominio estaba escrito en CUATRO regex con el punto
+ * ESCAPADO (`/^(www\.)?mealfitrd\.com$/`). Al migrar a bioboros.com, la
+ * búsqueda del literal `mealfitrd.com` NO los encontró — el backslash rompe la
+ * coincidencia — así que la verificación dio VERDE EN FALSO y los cuatro
+ * siguieron comparando contra el dominio viejo. En producción eso significaba
+ * que `IS_APEX_HOST` era `false` en bioboros.com y el redirect apex→app nunca
+ * disparaba.
+ *
+ * Se sustituye la regex por comparación de strings: no hay nada que escapar,
+ * así que la clase de fallo desaparece en vez de quedar arreglada una vez.
+ */
+
+/** ¿Es el sitio público (apex o www), NO el subdominio de la app? */
+export function isApexHost(hostname) {
+    const h = String(hostname ?? (typeof window !== 'undefined' ? window.location.hostname : '')).toLowerCase();
+    return h === SITE_DOMAIN || h === `www.${SITE_DOMAIN}`;
+}
+
+/** ¿Es CUALQUIER host nuestro — apex, www o un subdominio como `app.`? */
+export function isSiteHost(hostname) {
+    const h = String(hostname ?? (typeof window !== 'undefined' ? window.location.hostname : '')).toLowerCase();
+    return h === SITE_DOMAIN || h.endsWith(`.${SITE_DOMAIN}`);
+}

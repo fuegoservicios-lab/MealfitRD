@@ -8,10 +8,12 @@
 // Reusa el patrón P3-LOGIN-LEGAL-LANDING (Login.jsx): en *.mealfitrd.com el
 // enlace apunta al apex (sin el prefijo app.); en dev/preview devuelve la ruta
 // in-app para que siga funcionando localmente.
+import { isSiteHost } from '../../config/site';
+
 export const landingUrl = (path) => {
   if (typeof window === 'undefined') return path;
   const { protocol, hostname } = window.location;
-  if (/(^|\.)mealfitrd\.com$/i.test(hostname)) {
+  if (isSiteHost(hostname)) {
     return `${protocol}//${hostname.replace(/^app\./i, '')}${path}`;
   }
   return path; // dev / preview → ruta in-app
