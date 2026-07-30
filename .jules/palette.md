@@ -1,0 +1,3 @@
+## 2025-02-23 - Accessibility linking for toggle menus
+**Learning:** For menus implemented using React state where the popover content is only conditionally mounted (like in Header.jsx's `isAccountMenuOpen` or `isMenuOpen`), it is essential to ensure that when it *is* rendered, it is explicitly targeted with an `id` that matches the trigger's `aria-controls` attribute, ensuring programmatic relationships for screen readers.
+**Action:** When adding accessibility properties to app-specific toggle buttons, always define an explicit `id` on the target element and an `aria-controls="<id>"` on the toggle button so the accessibility tree correctly relates the two.
