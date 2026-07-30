@@ -197,15 +197,52 @@ function RecommendedBadge({ c, size = "md", isDark = true }) {
 }
 
 /* --------------------------------------------------------------- tile / hero (bento, escritorio) */
+/* --------------------------------------------------------- candado por opción
+ * [P1-SWAP-PANTRY-GATE · 2026-07-30] Hasta ahora el único motivo bloqueable era
+ * el de fin de semana, y su candado vivía hardcodeado dentro de `ComingBanner`.
+ * El gate de Nevera necesita bloquear motivos normales (`options`/`extraRows`),
+ * así que la píldora se extrae aquí y se reutiliza el MISMO lenguaje visual —
+ * inventar un segundo estilo de "bloqueado" enseñaría al usuario dos gramáticas
+ * para la misma idea.
+ */
+function LockPill({ label }) {
+  return (
+    <span
+      style={{
+        flex: "none",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "5px 9px",
+        borderRadius: 99,
+        fontSize: ".66rem",
+        fontWeight: 800,
+        whiteSpace: "nowrap",
+        color: "var(--text-muted)",
+        background: "var(--surface-2, rgba(148,163,184,.14))",
+        border: "1px solid var(--border-soft, rgba(148,163,184,.30))",
+      }}
+    >
+      <Icon name="lock" size={11} /> {label}
+    </span>
+  );
+}
+
 function OptionTile({ option, hero, faded, loading, onPick, isDark = true }) {
   const [hover, setHover] = useState(false);
   const c = option.color;
   const tk = accentTokens(c, isDark);
+  // [P1-SWAP-PANTRY-GATE] `disabled` bloquea la ACCIÓN, no solo el estilo: sin
+  // el guard en onClick el candado sería decorativo y el usuario igual gastaría
+  // un crédito en un swap que el backend no puede cumplir.
+  const locked = !!option.disabled;
 
   return (
     <button
       type="button"
-      onClick={() => onPick(option.id)}
+      disabled={locked}
+      aria-disabled={locked || undefined}
+      onClick={() => { if (locked) return; onPick(option.id); }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onFocus={() => setHover(true)}
@@ -216,7 +253,7 @@ function OptionTile({ option, hero, faded, loading, onPick, isDark = true }) {
         appearance: "none",
         font: "inherit",
         textAlign: "left",
-        cursor: "pointer",
+        cursor: locked ? "not-allowed" : "pointer",
         color: "inherit",
         display: "flex",
         flexDirection: "column",
@@ -224,15 +261,15 @@ function OptionTile({ option, hero, faded, loading, onPick, isDark = true }) {
         padding: hero ? 16 : 14,
         borderRadius: 18,
         background: tk.cardBg,
-        border: `1.5px solid ${hover ? tk.cardBorderHover : tk.cardBorder}`,
-        opacity: faded ? 0.42 : 1,
-        filter: faded ? "saturate(.6)" : "none",
-        transform: hover && !faded ? "translateY(-2px)" : "none",
-        boxShadow: hover && !faded ? `0 14px 30px -16px ${c}D9` : "none",
+        border: `1.5px solid ${locked ? "var(--border-soft, rgba(148,163,184,.30))" : (hover ? tk.cardBorderHover : tk.cardBorder)}`,
+        opacity: locked ? 0.5 : (faded ? 0.42 : 1),
+        filter: locked || faded ? "saturate(.6)" : "none",
+        transform: hover && !faded && !locked ? "translateY(-2px)" : "none",
+        boxShadow: hover && !faded && !locked ? `0 14px 30px -16px ${c}D9` : "none",
         transition: "transform .14s, border-color .14s, box-shadow .14s, opacity .15s",
       }}
     >
-      {option.recommended && <RecommendedBadge c={c} isDark={isDark} />}
+      {option.recommended && !locked && <RecommendedBadge c={c} isDark={isDark} />}
 
       <span
         style={{
@@ -273,10 +310,18 @@ function OptionTile({ option, hero, faded, loading, onPick, isDark = true }) {
           marginTop: hero ? 6 : 4,
         }}
       >
-        {option.desc}
+        {locked && option.disabledDesc ? option.disabledDesc : option.desc}
       </span>
 
-      {hero && (
+      {/* [P1-SWAP-PANTRY-GATE] El porqué del bloqueo va VISIBLE en la tarjeta.
+          Un candado sin motivo se lee como que la app está rota. */}
+      {locked && option.disabledLabel && (
+        <span style={{ marginTop: 10, alignSelf: "flex-start" }}>
+          <LockPill label={option.disabledLabel} />
+        </span>
+      )}
+
+      {hero && !locked && (
         <span
           style={{
             alignSelf: "flex-start",
@@ -306,13 +351,20 @@ function OptionTile({ option, hero, faded, loading, onPick, isDark = true }) {
 function OptionRow({ option, faded, loading, onPick, isDark = true }) {
   const [hover, setHover] = useState(false);
   const c = option.color;
-  const rec = !!option.recommended;
+  // [P1-SWAP-PANTRY-GATE] Misma semántica que en `OptionTile`. Las DOS variantes
+  // renderizan los mismos motivos (tiles en desktop, rows en móvil): gatear solo
+  // una dejaría el candado inerte en la mitad de los dispositivos — la clase de
+  // fallo "el fix aterrizó en una superficie y no en su hermana".
+  const locked = !!option.disabled;
+  const rec = !!option.recommended && !locked;
   const tk = accentTokens(c, isDark);
 
   return (
     <button
       type="button"
-      onClick={() => onPick(option.id)}
+      disabled={locked}
+      aria-disabled={locked || undefined}
+      onClick={() => { if (locked) return; onPick(option.id); }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onFocus={() => setHover(true)}
@@ -323,7 +375,7 @@ function OptionRow({ option, faded, loading, onPick, isDark = true }) {
         appearance: "none",
         font: "inherit",
         textAlign: "left",
-        cursor: "pointer",
+        cursor: locked ? "not-allowed" : "pointer",
         color: "inherit",
         display: "flex",
         alignItems: "center",
@@ -332,10 +384,11 @@ function OptionRow({ option, faded, loading, onPick, isDark = true }) {
         padding: "13px 14px",
         borderRadius: 16,
         background: tk.cardBg,
-        border: `1.5px solid ${hover ? tk.cardBorderHover : tk.cardBorder}`,
-        opacity: faded ? 0.42 : 1,
-        transform: hover && !faded ? "translateY(-2px)" : "none",
-        boxShadow: hover && !faded ? `0 14px 30px -16px ${c}D9` : "none",
+        border: `1.5px solid ${locked ? "var(--border-soft, rgba(148,163,184,.30))" : (hover ? tk.cardBorderHover : tk.cardBorder)}`,
+        opacity: locked ? 0.5 : (faded ? 0.42 : 1),
+        filter: locked ? "saturate(.6)" : "none",
+        transform: hover && !faded && !locked ? "translateY(-2px)" : "none",
+        boxShadow: hover && !faded && !locked ? `0 14px 30px -16px ${c}D9` : "none",
         transition: "transform .14s, border-color .14s, box-shadow .14s, opacity .15s",
       }}
     >
@@ -361,13 +414,19 @@ function OptionRow({ option, faded, loading, onPick, isDark = true }) {
           {option.label}
         </span>
         <span style={{ fontSize: ".8rem", fontWeight: 500, lineHeight: 1.3, color: "var(--text-muted)" }}>
-          {option.desc}
+          {locked && option.disabledDesc ? option.disabledDesc : option.desc}
         </span>
       </span>
 
-      <span style={{ flex: "none", display: "grid", color: hover ? tk.accentText : tk.chevBaseColor }}>
-        <Icon name="chevron" size={18} />
-      </span>
+      {/* [P1-SWAP-PANTRY-GATE] Bloqueada → píldora con el motivo en lugar del
+          chevron: el chevron promete navegación que ya no va a ocurrir. */}
+      {locked ? (
+        option.disabledLabel ? <LockPill label={option.disabledLabel} /> : null
+      ) : (
+        <span style={{ flex: "none", display: "grid", color: hover ? tk.accentText : tk.chevBaseColor }}>
+          <Icon name="chevron" size={18} />
+        </span>
+      )}
 
       {loading && <LoadingOverlay />}
     </button>

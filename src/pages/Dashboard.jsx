@@ -71,6 +71,15 @@ import { trackEvent } from '../utils/analytics';
 // fetch dup. Pre-fix Pantry hacía su propio fetch al mount (~300-800ms)
 // pese a que Dashboard ya había hecho refetch para `setLiveInventory`.
 import { getCachedInventory, setCachedInventory, invalidateInventoryCache } from '../utils/pantryCache';
+// [P1-SWAP-PANTRY-GATE · 2026-07-30] Umbrales + gate de Nevera. La lógica pura
+// vive en su propio módulo para poder testearla EJECUTÁNDOLA (los tests de este
+// archivo son parser-based y no ejecutan nada). Ver utils/pantryGate.js.
+import {
+    PANTRY_MIN_ITEMS_FOR_UPDATE,
+    PANTRY_MIN_ITEMS_FOR_SWAP,
+    SWAP_REASONS_REQUIRING_PANTRY,
+    computePantryGate,
+} from '../utils/pantryGate';
 import { safeJSONParse } from '../utils/safeJSONParse';
 // [P3-DASH-WINDOW-TEST · 2026-05-29] Lógica pura de la ventana rolling +
 // estado de ciclo, extraída de este componente para poder testearla con
@@ -267,13 +276,11 @@ const applyBrandToPlanOptimistic = (plan, foodKey, variant) => {
     return touched ? next : null;
 };
 
-// [P3-UPDATE-PLATOS-REQUIRES-PANTRY · 2026-05-17] Mínimo de alimentos en la
-// Nevera para desbloquear "Actualizar platos". Con menos ítems el LLM no
-// puede regenerar platos significativos (regeneración usa el inventory real
-// como ingredient pool). UX decision: usuario reportó que el botón se podía
-// clickear con nevera vacía → modal abría → flujo sin sentido. Threshold de
-// 3 permite construir 1-2 platos variados sin ser restrictivo.
-const PANTRY_MIN_ITEMS_FOR_UPDATE = 3;
+// [P3-UPDATE-PLATOS-REQUIRES-PANTRY · 2026-05-17 → P1-SWAP-PANTRY-GATE · 2026-07-30]
+// `PANTRY_MIN_ITEMS_FOR_UPDATE` (y su hermano nuevo `PANTRY_MIN_ITEMS_FOR_SWAP`)
+// se movieron a `utils/pantryGate.js` — ver el import de arriba. Vivían aquí como
+// constante local, pero entonces el swap individual no podía compartirlas sin
+// duplicarlas, y dos fuentes del mismo umbral divergen en el primer cambio.
 
 // [P5-SPEED-DELTA-CONSTS-HOIST · 2026-06-01] Constantes estáticas de
 // `buildDeltaShoppingList` izadas a module-scope. Antes vivían DENTRO del
@@ -1772,8 +1779,34 @@ const DashboardInner = () => {
     // (fail-open preservado para usuarios sin historial cacheado).
     const _liveCount = Array.isArray(liveInventory) ? liveInventory.length : null;
     const pantryItemCount = _liveCount !== null ? _liveCount : cachedPantryCount;
-    const isPantryTooEmpty = pantryItemCount !== null
-        && pantryItemCount < PANTRY_MIN_ITEMS_FOR_UPDATE;
+    const isPantryTooEmpty = computePantryGate(pantryItemCount, PANTRY_MIN_ITEMS_FOR_UPDATE);
+
+    // [P1-SWAP-PANTRY-GATE · 2026-07-30] Gate del swap INDIVIDUAL ("Cambiar
+    // Plato"), que hasta ahora no miraba la Nevera: el modal abría con la
+    // nevera vacía, el usuario elegía motivo, se gastaba un crédito y el
+    // backend hacía soft-fail por strict-pantry sin inventario.
+    //
+    // Umbral PROPIO (6 vs 10): el día completo regenera 4 platos que además
+    // reservan inventario entre sí; esto regenera 1. Mismo `pantryItemCount` y
+    // por tanto el mismo fail-open — con el inventario sin cargar no se bloquea
+    // nada.
+    const isPantryTooEmptyForSwap = computePantryGate(pantryItemCount, PANTRY_MIN_ITEMS_FOR_SWAP);
+
+    // Se deshabilitan SOLO los motivos que consumen la Nevera como fuente
+    // exclusiva (`SWAP_REASONS_REQUIRING_PANTRY`). `cravings` y `weekend` están
+    // exentos por decisión de producto (P3-SWAP-PANTRY-DEFAULT · 2026-05-22) y
+    // `dislike` no genera nada — registra una preferencia que sigue siendo
+    // válida con la nevera vacía. Bloquear el botón entero los mataría a los
+    // tres y revertiría esa decisión en silencio.
+    const swapPantryLockLabel = `Necesitas ${PANTRY_MIN_ITEMS_FOR_SWAP} alimentos`;
+    const isSwapReasonPantryLocked = (reasonId) =>
+        isPantryTooEmptyForSwap && SWAP_REASONS_REQUIRING_PANTRY.includes(reasonId);
+    const decorateSwapOption = (o) => (
+        isSwapReasonPantryLocked(o.id)
+            ? { ...o, disabled: true, disabledLabel: swapPantryLockLabel,
+                disabledDesc: 'Llena tu Nevera para poder cambiarlo por algo que sí tengas' }
+            : o
+    );
 
     // Calcular si el periodo de compras expiró para sugerir "Actualizar Plan" en lugar de "Platos"
     const groceryDuration = formData?.groceryDuration || 'weekly';
@@ -8321,11 +8354,14 @@ const DashboardInner = () => {
                     left: typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : 0,
                     total: typeof userPlanLimit === 'number' ? userPlanLimit : 0,
                 }}
+                // [P1-SWAP-PANTRY-GATE · 2026-07-30] `decorateSwapOption` marca
+                // disabled SOLO los motivos que consumen la Nevera. 'cravings'
+                // pasa intacto por diseño (exento, P3-SWAP-PANTRY-DEFAULT).
                 options={[
                     { id: 'variety',  label: 'Quiero variedad',     desc: 'Me gusta, pero quiero algo diferente', color: '#818CF8', icon: 'shuffle' },
                     { id: 'time',     label: 'No tengo tiempo hoy',  desc: 'Busco algo más rápido de preparar',    color: '#A78BFA', icon: 'clock' },
                     { id: 'cravings', label: 'Tengo un antojo',      desc: 'Un capricho que encaja en tu plan',    color: '#FB7185', icon: 'heart' },
-                ]}
+                ].map(decorateSwapOption)}
                 coming={(() => {
                     const todayDow = new Date().getDay(); // 0=Dom … 6=Sáb
                     const isWeekend = todayDow === 0 || todayDow === 6;
@@ -8344,10 +8380,16 @@ const DashboardInner = () => {
                 })()}
                 extraRows={[
                     { id: 'similar', label: 'Ya comí algo similar', desc: 'Hoy ya tuve un plato parecido', color: '#FB923C', icon: 'copy' },
-                ]}
+                ].map(decorateSwapOption)}
                 dislike={{ label: 'No me gusta este plato', desc: 'La IA evitará sugerirlo en el futuro' }}
                 onPick={async (optionId) => {
                     if (!swapModal) return;
+                    // [P1-SWAP-PANTRY-GATE · 2026-07-30] Segunda barrera: el
+                    // modal ya no deja pulsar un motivo bloqueado, pero el gate
+                    // se re-evalúa aquí porque la Nevera puede vaciarse (otra
+                    // pestaña, un consume) entre que el modal se abre y el
+                    // usuario elige. Sin esto, el candado es solo visual.
+                    if (isSwapReasonPantryLocked(optionId)) return;
                     const { dayIndex, mealIndex, mealType, mealName } = swapModal;
                     setSwapModal(null);
                     if (optionId === 'dislike') {
