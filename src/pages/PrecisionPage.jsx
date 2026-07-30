@@ -55,7 +55,7 @@ const HOW = [
     { Icon: ScanSearch, title: 'Solo ingredientes verificados', text: 'El motor usa únicamente alimentos del catálogo con datos nutricionales reales — base de que los números sean confiables.' },
 ];
 
-/* marca de capacidad para «LLM solo» (Mealfit siempre cumple) */
+/* marca de capacidad para «LLM solo» (Bioboros siempre cumple) */
 const Mark = ({ v }) => {
     if (v === 'x') return <X size={16} strokeWidth={2.5} className={t.capNo} aria-label="No" />;
     return <Minus size={16} strokeWidth={3} className={t.capPartial} aria-label="Parcial" />;
@@ -145,7 +145,7 @@ const PrecisionPage = () => {
                     <section className={styles.block}>
                         <Reveal>
                             <span className={styles.secKicker}>02 — A/B del pipeline</span>
-                            <h2 className={styles.secTitle}>Mealfit vs un LLM solo</h2>
+                            <h2 className={styles.secTitle}>Bioboros vs un LLM solo</h2>
                             <p className={styles.secLead}>
                                 El mismo plan, con y sin nuestro motor determinista. Es una prueba A/B del mismo
                                 pipeline — comparamos enfoques, no productos con nombre.
@@ -156,7 +156,7 @@ const PrecisionPage = () => {
                                 <thead>
                                     <tr>
                                         <th className={t.headCell}>Métrica</th>
-                                        <th className={`${t.headCell} ${t.headHi} ${t.colHi}`}>Mealfit V1</th>
+                                        <th className={`${t.headCell} ${t.headHi} ${t.colHi}`}>Bioboros V1</th>
                                         <th className={t.headCell}>LLM solo</th>
                                     </tr>
                                 </thead>

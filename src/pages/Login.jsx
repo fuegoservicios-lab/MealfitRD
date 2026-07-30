@@ -10,6 +10,7 @@ import { logoutFirstPartySession, verifyEmailOtpFirstParty } from '../utils/firs
 import { humanizeAuthError } from '../utils/authErrors';
 import PlanShowcase from '../components/auth/PlanShowcase';
 import './Login.css';
+import Wordmark from '../components/common/Wordmark';
 
 // [P1-EMAIL-OTP · 2026-06-21] Login SIN contraseña: un solo flujo correo → código.
 // [P3-LOGIN-EDITORIAL · 2026-06-29] Rediseño editorial oscuro de dos paneles (form +
@@ -234,7 +235,7 @@ const Login = () => {
 
             {/* Formulario (auth real) */}
             <section className="mf-form">
-                <div className="mf-brandmark">Bio<span className="mf-r">b</span><span className="mf-d">oros</span></div>
+                <div className="mf-brandmark"><Wordmark /></div>
 
                 <div className="mf-form__inner">
                     <div className="mf-hero-illu" aria-hidden="true"><HeroIllustration /></div>

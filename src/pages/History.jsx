@@ -2470,7 +2470,7 @@ const History = () => {
                                     Antes solo la telemetría (chunk_lesson_telemetry)
                                     aparecía en el tab — eso es señal mecánica SOBRE
                                     el aprendizaje, no el aprendizaje en sí. Esta
-                                    sección comunica al usuario QUÉ aprendió Mealfit
+                                    sección comunica al usuario QUÉ aprendió Bioboros
                                     de él en este plan (rechazos, alergias, repeticiones).
 
                                     Render condicional: solo si el endpoint devuelve
@@ -2906,7 +2906,7 @@ const History = () => {
                                                         {_renderList(
                                                             _summary.permanent_meal_blocklist,
                                                             'Blocklist permanente',
-                                                            'Meals que aparecieron en ≥2 chunks del plan — Mealfit los evita en regeneraciones futuras.'
+                                                            'Meals que aparecieron en ≥2 chunks del plan — Bioboros los evita en regeneraciones futuras.'
                                                         )}
                                                         {_renderList(
                                                             _summary.top_rejection_hits,
@@ -4697,7 +4697,7 @@ const History = () => {
                                     // Split del in_flight_count para mostrar
                                     // copy preciso. Pre-fix: cualquier chunk
                                     // pending/processing/stale (in_flight > 0)
-                                    // → copy "Mealfit los está generando AHORA
+                                    // → copy "Bioboros los está generando AHORA
                                     // en segundo plano". Pero el worker filtra
                                     // por `execute_after <= NOW()`; un chunk
                                     // pending con execute_after en 3 días NO
@@ -4759,7 +4759,7 @@ const History = () => {
                                         _tone = 'bad';
                                         _icon = '⚠️';
                                     } else if (_puac > 0) {
-                                        _reason = `Mealfit está esperando que actualices algo (tu nevera, tu registro de comidas, o la fecha del plan). ${_ctaText}`;
+                                        _reason = `Bioboros está esperando que actualices algo (tu nevera, tu registro de comidas, o la fecha del plan). ${_ctaText}`;
                                         _tone = 'warn';
                                         _icon = '⏸️';
                                     } else if (_failedC > 0) {
@@ -4776,9 +4776,9 @@ const History = () => {
                                         // > 0 también, mencionar que hay más
                                         // dormidos para no engañar.
                                         if (_scheduled > 0) {
-                                            _reason = `Mealfit está generando algunos ahora en segundo plano. El resto (${_scheduled} ${_scheduled === 1 ? 'chunk' : 'chunks'}) se generará automáticamente cuando llegue su momento — no tienes que hacer nada.`;
+                                            _reason = `Bioboros está generando algunos ahora en segundo plano. El resto (${_scheduled} ${_scheduled === 1 ? 'chunk' : 'chunks'}) se generará automáticamente cuando llegue su momento — no tienes que hacer nada.`;
                                         } else {
-                                            _reason = 'Mealfit los está generando ahora en segundo plano. Cierra el modal y vuelve a abrirlo en 2 a 5 minutos para verlos listos.';
+                                            _reason = 'Bioboros los está generando ahora en segundo plano. Cierra el modal y vuelve a abrirlo en 2 a 5 minutos para verlos listos.';
                                         }
                                         _tone = 'info';
                                         _icon = '🔄';
@@ -4799,7 +4799,7 @@ const History = () => {
                                         // sin el split nuevo. Copy neutro
                                         // (NO "generando ahora") para no
                                         // mentir.
-                                        _reason = 'Mealfit los generará automáticamente cuando llegue su momento. No necesitas hacer nada.';
+                                        _reason = 'Bioboros los generará automáticamente cuando llegue su momento. No necesitas hacer nada.';
                                         _tone = 'info';
                                         _icon = '⏳';
                                     } else {

@@ -7,7 +7,7 @@ import { makeSectionMotion } from './sectionMotion';
 import styles from './BenchmarkShowcase.module.css';
 
 /* [P3-BENCHMARK-RADAR · 2026-06-30] Rediseño RADICAL: RADAR DE PRECISIÓN. El corazón es
-   un radar/telaraña donde el polígono de Mealfit casi llena el gráfico y el de «LLM solo»
+   un radar/telaraña donde el polígono de Bioboros casi llena el gráfico y el de «LLM solo»
    colapsa (sobre todo el 24% de planes-en-banda) — la brecha se ve de un vistazo. Ejes =
    las 3 métricas del A/B (con dato real de AMBOS lados, honesto). Alrededor: los números
    exactos + precisión por macro + capacidades + highlights. Mantiene el shell "instrumento"
@@ -23,7 +23,7 @@ const MACROS = [
     { key: 'protein', label: 'Proteína', mape: 1.5 },
 ];
 
-// Ejes del radar = métricas Mealfit vs «LLM solo» (A/B con el motor apagado). Cada eje
+// Ejes del radar = métricas Bioboros vs «LLM solo» (A/B con el motor apagado). Cada eje
 // tiene dato REAL de ambos lados. `axis` = etiqueta corta para el vértice.
 const VERSUS = [
     { label: 'Precisión de proteína', axis: 'Proteína', mealfit: 98.5, llm: 84 },
@@ -107,9 +107,9 @@ function PrecisionRadar() {
 
     return (
         <svg viewBox="0 0 420 285" className={styles.radarSvg} role="img"
-            aria-label="Radar de precisión: el polígono de Mealfit casi llena el gráfico; el de un LLM solo colapsa.">
+            aria-label="Radar de precisión: el polígono de Bioboros casi llena el gráfico; el de un LLM solo colapsa.">
             {/* grid concéntrico + ejes (sin escala numérica — los números chocaban con el
-                polígono lleno de Mealfit; los valores exactos viven en la columna derecha) */}
+                polígono lleno de Bioboros; los valores exactos viven en la columna derecha) */}
             {rings.map((g) => <polygon key={g} points={poly([g, g, g])} className={styles.radarGrid} />)}
             {[0, 1, 2].map((i) => {
                 const [x, y] = pt(i, 1);
@@ -119,7 +119,7 @@ function PrecisionRadar() {
             {/* LLM (atrás, colapsado) */}
             <motion.polygon points={poly(llm)} className={styles.radarLlm}
                 {...grow} transition={reduce ? undefined : { duration: 0.9, delay: 0.45, ease: 'easeOut' }} />
-            {/* Mealfit (adelante, casi lleno) */}
+            {/* Bioboros (adelante, casi lleno) */}
             <motion.polygon points={poly(mealfit)} className={styles.radarMealfit}
                 {...grow} transition={reduce ? undefined : { duration: 0.9, delay: 0.15, ease: [0.16, 1, 0.3, 1] }} />
 
@@ -231,7 +231,7 @@ const BenchmarkShowcase = () => {
                                     <PrecisionRadar />
                                 </div>
                                 <div className={styles.legend}>
-                                    <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.legendMealfit}`} /> Mealfit</span>
+                                    <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.legendMealfit}`} /> Bioboros</span>
                                     <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.legendLlm}`} /> LLM solo</span>
                                 </div>
                             </div>

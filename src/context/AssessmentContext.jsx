@@ -3839,8 +3839,8 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // [P5-SPEED-UPGRADE-PARALLEL · 2026-06-01] checkPlanLimit ya se ejecutó en
             // paralelo con refreshProfileAndPlan dentro de la rama de verify (arriba).
 
-            const planNames = { basic: 'Mealfit Básico', plus: 'Mealfit Plus', ultra: 'Mealfit Max' };
-            const planName = planNames[tier] || 'Mealfit Plus';
+            const planNames = { basic: 'Bioboros Básico', plus: 'Bioboros Plus', ultra: 'Bioboros Max' };
+            const planName = planNames[tier] || 'Bioboros Plus';
             
             toast.success(`¡Bienvenido a ${planName}!`, {
                 description: 'Has desbloqueado acceso premium.',

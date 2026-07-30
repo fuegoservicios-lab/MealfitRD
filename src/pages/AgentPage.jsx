@@ -56,6 +56,7 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // AgentPage solo usa `captureException` + `addBreadcrumb`; el star-import
 // bloqueaba tree-shaking de los ~12 símbolos restantes del SDK.
 import { captureException, addBreadcrumb } from '@sentry/react';
+import Wordmark from '../components/common/Wordmark';
 
 const _captureAgentPageException = (err, tags) => {
     try {
@@ -2945,12 +2946,16 @@ const AgentPage = () => {
                         </button>
 
                         {/* Center: Title */}
-                        {/* [P3-AGENT-HEADER-TITLE · 2026-05-19] Título del header
-                            del chat. Cambio de marca interna "Bioboros" → "Mealfit V1.0"
-                            (versioning visible al usuario; pre-fix solo el marketing
-                            site lo nombraba así). Mantenido independiente del sidebar logo
-                            del DashboardLayout que conserva el branding completo
-                            "Bioboros" con gradient en el "RD". */}
+                        {/* [P3-AGENT-HEADER-TITLE · 2026-05-19 · P2-WORDMARK-BIOBOROS 2026-07-30]
+                            Título del header del chat: wordmark + versión visible al
+                            usuario. Antes decía "Mealfit V1.0" HARDCODEADO — sobrevivió
+                            al rebrand porque no era "MealfitRD" sino "Mealfit" suelto,
+                            que no se podía reemplazar en bloque (también es nombre de
+                            clase CSS y de variable en otros archivos). Ahora usa
+                            `<Wordmark/>`, así que ninguna renombrada futura puede
+                            dejarlo atrás.
+                            La versión va en cifra desnuda ("1", no "V1.0"): el usuario
+                            no necesita el patch, y el prefijo "V" es jerga de release. */}
                         <span className="agent-header-title" style={{
                             fontSize: '1.25rem',
                             fontWeight: 400,
@@ -2960,7 +2965,7 @@ const AgentPage = () => {
                             transform: 'translateX(-50%)',
                             letterSpacing: '-0.02em'
                         }}>
-                            Mealfit <span style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', letterSpacing: 'normal' }}>V1.0</span>
+                            <Wordmark /> <span style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', letterSpacing: 'normal', color: 'var(--text-muted)', fontSize: '0.8em' }}>1</span>
                         </span>
 
                         {/* Right: 3-dot nav menu (mobile) */}

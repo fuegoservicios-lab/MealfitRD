@@ -5,6 +5,7 @@ import { Lock, ArrowRight, AlertCircle, CheckCircle2, Loader2, Eye, EyeOff } fro
 import { checkLeakedPassword } from '../utils/checkLeakedPassword';
 import { humanizeAuthError } from '../utils/authErrors';
 import styles from './Auth.module.css';
+import Wordmark from '../components/common/Wordmark';
 
 // [P1-RESET-PASSWORD-FIX · 2026-06-18] El flujo "crear nueva contraseña" estaba ROTO:
 // llamaba authClient.auth.updateUser({password}), y el adapter de Neon Auth lo RECHAZA
@@ -118,7 +119,7 @@ const ResetPassword = () => {
             <div className={styles.authCard}>
                 <div className={styles.logoWrapper}>
                     <div className={styles.logo}>
-                        Bio<span className={styles.highlight}>b</span><span style={{ color: 'var(--accent)' }}>oros</span>
+                        <Wordmark />
                     </div>
                 </div>
 

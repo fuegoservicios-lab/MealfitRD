@@ -2441,7 +2441,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                     fontWeight: 800, fontSize: '1.3rem', letterSpacing: '-0.03em',
                     color: '#F1F5F9', display: 'inline-flex', alignItems: 'baseline',
                 }}>
-                    Mealfit
+                    Bioboros
                     <span style={{ color: '#818CF8', position: 'relative', display: 'inline-block' }}>
                         R
                         <span style={{ position: 'absolute', bottom: '4px', right: '-5px', width: '4px', height: '4px', borderRadius: '50%', background: '#FB7185' }} />

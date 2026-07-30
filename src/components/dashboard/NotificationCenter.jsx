@@ -28,6 +28,7 @@ import { classify, restoreMicrosPanel } from './MicronutrientPanel';
 // [P1-REASONING-DISMISS · 2026-06-26] "Volver a mostrar" el panel de Razonamiento.
 import { restoreInsightsPanel } from '../../utils/insightsPanel';
 import styles from './NotificationCenter.module.css';
+import Wordmark from '../common/Wordmark';
 
 /* [P3-NOTIF-CENTER · 2026-06-16] Centro de notificaciones del dashboard.
 
@@ -549,7 +550,7 @@ export default function NotificationCenter({ hidden = false }) {
 
                         <footer className={styles.foot} aria-hidden="true">
                             <span className={styles.footBrand}>
-                                Bio<span className={styles.footR}>b</span><span className={styles.footD}>oros</span>
+                                <Wordmark />
                             </span>
                         </footer>
                     </motion.aside>

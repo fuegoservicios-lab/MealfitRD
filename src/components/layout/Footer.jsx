@@ -3,6 +3,7 @@ import { Instagram, Youtube, Facebook, Mail, Clock } from 'lucide-react';
 import styles from './Footer.module.css';
 // [P3-LEGAL-HEADER-PARITY · 2026-06-30] LEGAL_PATHS desde SSOT compartido con Header.
 import { LEGAL_PATHS } from '../../utils/legalRoutes';
+import Wordmark from '../common/Wordmark';
 
 // [P3-LEGAL-BACK-LINK · 2026-05-26 · 4ª iter] Si el path actual es una página legal,
 // NO usar ese path como `from` del próximo Link (eso haría que "Volver" regrese de
@@ -24,7 +25,7 @@ const Footer = () => {
             <div className={styles.container}>
                 <div className={styles.col}>
                     <h3 className={styles.logo}>
-                        Bio<span className={styles.highlight}>b</span><span style={{ color: 'var(--accent)' }}>oros</span>
+                        <Wordmark />
                     </h3>
                     <p className={styles.desc}>
                         Nutrición de precisión potenciada por Inteligencia Artificial.

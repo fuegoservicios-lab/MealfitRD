@@ -1,7 +1,7 @@
 import Hero from '../components/home/Hero';
 import HowItWorks from '../components/home/HowItWorks';
 import DashboardShowcase from '../components/home/DashboardShowcase';
-// [P3-BENCHMARK-SHOWCASE · 2026-06-19] Benchmarks del "modelo Mealfit vX" (precisión
+// [P3-BENCHMARK-SHOWCASE · 2026-06-19] Benchmarks del "modelo Bioboros vX" (precisión
 // de macros real) debajo del showcase del dashboard.
 import BenchmarkShowcase from '../components/home/BenchmarkShowcase';
 // [P3-NEWS-1 · 2026-07-01] La banda de precios del landing se reemplazó por la banda de

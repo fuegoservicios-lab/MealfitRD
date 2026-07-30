@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
 import { ChevronLeft, LogIn } from 'lucide-react';
 import styles from './InteractiveAssessmentLayout.module.css';
+import Wordmark from '../common/Wordmark';
 
 const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle }) => {
     const { currentStep, prevStep, resetApp, isGuest, exitGuestSession } = useAssessment();
@@ -68,7 +69,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                     )}
 
                     <div className={styles.logo}>
-                        Bio<span className={styles.highlight}>b</span><span style={{ color: 'var(--accent)' }}>oros</span>
+                        <Wordmark />
                     </div>
 
                     {/* [P3-ASSESSMENT-NO-CANCEL · 2026-07-01] Botón «Cancelar» eliminado a pedido.

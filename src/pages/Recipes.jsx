@@ -48,6 +48,7 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 // en el texto del ingrediente mostrado (conservador; no toca cubanela/pimienta/paprika).
 import { displayAjiMorron } from '../utils/ingredientDisplay';
 import { isRecipeAnnotation } from '../utils/recipeSteps';
+import Wordmark from '../components/common/Wordmark';
 // [P1-EATEN-SLOT-RECIPES · 2026-07-28] SSOT del matcher "ya comiste esto hoy"
 // (utils/todayRemaining.js) — el MISMO módulo que usa Dashboard.jsx
 // (P1-TODAY-REMAINING), importado aquí en vez de reimplementado. Incluye la
@@ -379,7 +380,7 @@ const Recipes = () => {
                 <!-- HEADER -->
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 0.18em solid #4F46E5; padding-bottom: 0.55em; margin-bottom: 0.9em;">
                     <div style="font-size: 1.15em; font-weight: 900; letter-spacing: -0.02em; color: #0F172A;">
-                        Bio<span style="color: #4F46E5;">b</span><span style="color: #F43F5E;">oros</span>
+                        <Wordmark />
                         <span style="font-size: 0.6em; font-weight: 600; color: #64748B;">&nbsp;·&nbsp;Receta&nbsp;·&nbsp;${escapeHtml(meal.meal)}</span>
                     </div>
                     <div style="display: flex; gap: 0.4em; align-items: center;">${metaChips}</div>

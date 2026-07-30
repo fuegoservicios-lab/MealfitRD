@@ -74,7 +74,7 @@ export const NEWS = [
         date: '2026-07-01',
         dateLabel: '1 de julio, 2026',
         tag: 'Producto',
-        title: 'Presentamos el Motor Mealfit',
+        title: 'Presentamos el Motor Bioboros',
         excerpt: 'Nuestro motor de nutrición de precisión llega a su versión 1.0: generación validada paso a paso, macros que cuadran de verdad y un catálogo dominicano verificado.',
         readTime: '3 min de lectura',
         // badge → texto grande del "cover" de la tarjeta destacada (opcional).
@@ -87,13 +87,13 @@ export const NEWS = [
         content: [
             {
                 body: [
-                    'Hoy lanzamos oficialmente el Motor Mealfit v1, el corazón que genera cada plan de Bioboros. No es un simple modelo de inteligencia artificial: es un sistema completo que piensa, calcula y valida cada comida antes de mostrártela.',
+                    'Hoy lanzamos oficialmente el Motor Bioboros v1, el corazón que genera cada plan de Bioboros. No es un simple modelo de inteligencia artificial: es un sistema completo que piensa, calcula y valida cada comida antes de mostrártela.',
                 ],
             },
             {
-                h: 'Qué es el Motor Mealfit',
+                h: 'Qué es el Motor Bioboros',
                 body: [
-                    'El Motor Mealfit es la tecnología propietaria detrás de tus planes. Coordina varios pasos —generación, cálculo de macronutrientes, validación y guardas clínicas— para producir tu plan diario, sus recetas y la lista de compras, todo coherente entre sí.',
+                    'El Motor Bioboros es la tecnología propietaria detrás de tus planes. Coordina varios pasos —generación, cálculo de macronutrientes, validación y guardas clínicas— para producir tu plan diario, sus recetas y la lista de compras, todo coherente entre sí.',
                     'Usa modelos de IA de última generación como base, pero la inteligencia real está en cómo los orquestamos, los validamos y los personalizamos para la mesa dominicana.',
                 ],
             },

@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { ArrowLeft, ArrowRight, Menu } from 'lucide-react';
 import styles from './PlanObjetivo.module.css';
+import Wordmark from '../common/Wordmark';
 
 /* [P3-PLANOBJETIVO-MOBILE · 2026-06-29] Pantalla móvil inmersiva de "Plan & Objetivo".
    Presentacional puro: recibe objetivo + kcal + macros + handlers. La barra superior
@@ -40,7 +41,7 @@ export default function PlanObjetivo({
             {topBar && (
                 <header className={styles.topBar}>
                     <div className={styles.logo}>
-                        Bio<span style={{ color: 'var(--primary)' }}>b</span><span style={{ color: 'var(--accent)' }}>oros</span>
+                        <Wordmark />
                     </div>
                     <button
                         type="button"

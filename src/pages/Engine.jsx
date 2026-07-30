@@ -109,7 +109,7 @@ const Engine = () => {
 
     useEffect(() => {
         const prev = document.title;
-        document.title = 'Presentamos a Mealfit v1 — el motor de Bioboros';
+        document.title = 'Presentamos a Bioboros v1 — el motor de Bioboros';
         return () => { document.title = prev; };
     }, []);
 
@@ -121,7 +121,7 @@ const Engine = () => {
                     <Cpu size={14} strokeWidth={2.5} /> Motor
                 </span>
                 <h1 className={styles.title}>
-                    Presentamos a <span className={styles.accent}>Mealfit v1</span>
+                    Presentamos a <span className={styles.accent}>Bioboros v1</span>
                 </h1>
                 <div className={styles.releaseMeta}>
                     <span className={styles.releaseDate}>{RELEASE_DATE}</span>

@@ -6,10 +6,15 @@
 // Cuando exista `mealfit-mark-light.png` se añade aquí el toggle por tema
 // (CSS driven por html[data-theme]) sin tocar los ~10 callsites.
 //
-// El texto hereda `color` del contenedor (que ya resuelve claro/oscuro); solo la
-// R (var(--primary)) y la D (var(--accent)) llevan color de marca propio — igual
-// que el wordmark de texto que reemplaza.
+// [P2-WORDMARK-BIOBOROS · 2026-07-30] El texto ya NO se escribe aquí: delega en
+// `<Wordmark/>`. Este archivo era el ÚNICO de los 12 que renderizaban el
+// wordmark cuyo markup estaba en líneas separadas, así que el rebrand
+// automático (que buscaba los tres fragmentos adyacentes) no lo alcanzó — y
+// como es el componente COMPARTIDO, el usuario siguió viendo "Mealfit" en el
+// sidebar y el header de una app ya rebrandeada. Delegar en un solo sitio hace
+// que ese fallo no pueda repetirse.
 import PropTypes from 'prop-types';
+import Wordmark from './Wordmark';
 
 export const Logo = ({
     showText = true,
@@ -35,13 +40,7 @@ export const Logo = ({
             draggable="false"
             style={{ height: markHeight, width: 'auto', display: 'block', flex: 'none' }}
         />
-        {showText && (
-            <span>
-                Mealfit
-                <span style={{ color: 'var(--primary)' }}>R</span>
-                <span style={{ color: 'var(--accent)' }}>D</span>
-            </span>
-        )}
+        {showText && <Wordmark />}
     </span>
 );
 

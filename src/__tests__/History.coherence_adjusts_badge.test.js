@@ -6,7 +6,7 @@
 //   append-only, cap 20) era invisible en el Historial. La telemetría
 //   solo se consumía operacionalmente por el cron P3-B
 //   (`_aggregate_coherence_block_history_metrics`); el usuario premium
-//   no veía el diferenciador de calidad ("Mealfit corrigió X drift
+//   no veía el diferenciador de calidad ("Bioboros corrigió X drift
 //   en este plan").
 //
 // Fix:

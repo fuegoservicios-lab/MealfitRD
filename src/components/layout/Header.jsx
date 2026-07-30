@@ -18,6 +18,7 @@ import { isMarketingRoute } from '../../utils/marketingRoutes';
 import { isLegalRoute } from '../../utils/legalRoutes';
 // [P3-NEWS-1 · 2026-07-01] Rutas de Novedades → header completo del landing (nav + CTA).
 import { isNewsRoute } from '../../utils/newsRoutes';
+import Wordmark from '../common/Wordmark';
 
 // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Secciones del landing para la nav segmentada.
 // El `id` debe coincidir con el id de cada <section> del Home (how-it-works, dashboard,
@@ -133,7 +134,7 @@ const Header = () => {
             <div className={styles.container}>
                 {/* [P3-HEADER-LOGO-LINK · 2026-05-31] El logo es Link a "/" (lleva al inicio). */}
                 <Link to="/" className={styles.logo} aria-label="Bioboros — Inicio">
-                    Bio<span className={styles.highlight}>b</span><span style={{ color: 'var(--accent)' }}>oros</span>
+                    <Wordmark />
                 </Link>
 
                 {/* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28 · rutas P3-DETAIL-PAGES] Nav
@@ -290,7 +291,7 @@ const Header = () => {
                             el header, así que el toggle original queda tapado. */}
                         <div className={styles.navMobileTop}>
                             <span className={styles.navMobileLogo} aria-hidden="true">
-                                Bio<span className={styles.highlight}>b</span><span style={{ color: 'var(--accent)' }}>oros</span>
+                                <Wordmark />
                             </span>
                             <button
                                 type="button"
