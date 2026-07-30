@@ -129,15 +129,20 @@ export const resolveShopQty = (item) => {
  * @param {string|number|null|undefined} value
  * @returns {string} Texto seguro para interpolar dentro de innerHTML.
  */
+const matchHtmlRegExp = /["'&<>]/;
+const entityMap = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+};
+
 export const escapeHtml = (value) => {
     if (value === null || value === undefined) return '';
     const str = typeof value === 'string' ? value : String(value);
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    if (!matchHtmlRegExp.test(str)) return str;
+    return str.replace(/["'&<>]/g, (match) => entityMap[match]);
 };
 
 export const getActiveShoppingList = (planData, duration) => {
