@@ -1,0 +1,3 @@
+## 2024-05-24 - Optimize multiple string replacements
+**Learning:** For hot-path text manipulation (like HTML escaping during PDF generation), sequential `.replace()` operations pass over the string multiple times, resulting in O(M*N) passes where M is the number of replaces. Aggregating multiple static dictionary string replacements into a single pre-compiled `RegExp` object mapped to a replacement dictionary reduces the time complexity from O(5N) to a single O(N) pass over the string.
+**Action:** Use a single pre-compiled `RegExp` object (using the `|` OR operator for multi-character, or character classes like `/[&<>"']/g` for single characters) mapped to a replacement dictionary rather than running sequential `.replace()` operations inside a loop.
