@@ -4,6 +4,8 @@ import { Camera, Image as ImageIcon, Loader2, Check, X, AlertTriangle, ChevronRi
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
+// [P2-SCAN-NO-WEBCAM-ON-DESKTOP · 2026-07-30] Hook SSOT de media queries (P2-14).
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import styles from './ScanMealModal.module.css';
 
 // [P2-DIARY-SCAN-MACROS · 2026-05-30] Modal "Escanear comida → registrar macros".
@@ -85,6 +87,20 @@ const _downscaleToJpegFile = (file, maxSide = 1024) => new Promise((resolve, rej
 });
 
 const ScanMealModal = ({ isOpen, onClose, userId }) => {
+    // [P2-SCAN-NO-WEBCAM-ON-DESKTOP · 2026-07-30] "Tomar foto" solo donde es el gesto natural.
+    //
+    // En escritorio, `<input capture="environment">` abre la WEBCAM: apuntar un portátil al plato
+    // para fotografiarlo no es algo que la gente haga, y la opción ocupaba la tarjeta primaria (la
+    // "recomendada"), empujando a la acción rara y dejando la útil de segunda. En móvil es lo
+    // contrario: la cámara ES el camino principal.
+    //
+    // `(pointer: coarse)` en vez de sniffing de user-agent: describe el dispositivo de entrada, que
+    // es justo lo que decide si "hacer una foto" tiene sentido. Un portátil con pantalla táctil
+    // sigue reportando el ratón como puntero PRIMARIO, así que se le trata como escritorio; una
+    // tablet en modo táctil reporta coarse y conserva la cámara — que es lo correcto en ambos.
+    // Se reusa el hook SSOT (P2-14) en vez de un matchMedia propio; ya lo usa PantryScanButton
+    // para decidir su visor en vivo, o sea es la misma pregunta ya contestada en el repo.
+    const isCoarsePointer = useMediaQuery('(pointer: coarse)');
     // phase: 'select' (elegir foto) | 'scanning' | 'review' | 'saving'
     const [phase, setPhase] = useState('select');
     const [error, setError] = useState(null);
@@ -360,50 +376,62 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                 {phase === 'select' && (
                     <>
                         <p className={styles.hint}>
-                            Toma una foto de tu plato y la IA estimará las macros. Podrás
-                            revisarlas antes de registrar.
+                            {isCoarsePointer
+                                ? 'Toma una foto de tu plato y la IA estimará las macros. Podrás revisarlas antes de registrar.'
+                                : 'Sube una foto de tu plato y la IA estimará las macros. Podrás revisarlas antes de registrar.'}
                         </p>
                         {/* [P3-SCAN-MODAL-POLISH · 2026-07-12] De dos botones apilados a
                             OPTION-CARDS estilo action-sheet: icono en tile + label +
                             sublabel + chevron. La cámara lleva el tile primary (acción
                             recomendada); galería en tile neutro. */}
                         <div className={styles.pickRow}>
-                            <button
-                                className={styles.optionCard}
-                                onClick={() => cameraInputRef.current?.click()}
-                            >
-                                <span className={`${styles.optionIco} ${styles.optionIcoPrimary}`}>
-                                    <Camera size={20} strokeWidth={2.1} />
-                                </span>
-                                <span className={styles.optionTxt}>
-                                    <span className={styles.optionLabel}>Tomar foto</span>
-                                    <span className={styles.optionSub}>Usa la cámara de tu dispositivo</span>
-                                </span>
-                                <ChevronRight size={18} className={styles.optionChev} aria-hidden="true" />
-                            </button>
+                            {isCoarsePointer && (
+                                <button
+                                    className={styles.optionCard}
+                                    onClick={() => cameraInputRef.current?.click()}
+                                >
+                                    <span className={`${styles.optionIco} ${styles.optionIcoPrimary}`}>
+                                        <Camera size={20} strokeWidth={2.1} />
+                                    </span>
+                                    <span className={styles.optionTxt}>
+                                        <span className={styles.optionLabel}>Tomar foto</span>
+                                        <span className={styles.optionSub}>Usa la cámara de tu dispositivo</span>
+                                    </span>
+                                    <ChevronRight size={18} className={styles.optionChev} aria-hidden="true" />
+                                </button>
+                            )}
                             <button
                                 className={styles.optionCard}
                                 onClick={() => galleryInputRef.current?.click()}
                             >
-                                <span className={styles.optionIco}>
+                                {/* En escritorio la galería es la ÚNICA acción, así que se queda el
+                                    tile primario que antes llevaba la cámara — no puede quedar una
+                                    pantalla cuya única opción se ve como la secundaria. */}
+                                <span className={`${styles.optionIco}${isCoarsePointer ? '' : ` ${styles.optionIcoPrimary}`}`}>
                                     <ImageIcon size={20} strokeWidth={2.1} />
                                 </span>
                                 <span className={styles.optionTxt}>
                                     <span className={styles.optionLabel}>Elegir de galería</span>
-                                    <span className={styles.optionSub}>Sube una foto que ya tengas</span>
+                                    <span className={styles.optionSub}>
+                                        {isCoarsePointer
+                                            ? 'Sube una foto que ya tengas'
+                                            : 'Sube una foto desde tu computadora'}
+                                    </span>
                                 </span>
                                 <ChevronRight size={18} className={styles.optionChev} aria-hidden="true" />
                             </button>
                         </div>
-                        <input
-                            ref={cameraInputRef}
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            onChange={onCameraChange}
-                            className={styles.hiddenInput}
-                            tabIndex={-1}
-                        />
+                        {isCoarsePointer && (
+                            <input
+                                ref={cameraInputRef}
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                onChange={onCameraChange}
+                                className={styles.hiddenInput}
+                                tabIndex={-1}
+                            />
+                        )}
                         <input
                             ref={galleryInputRef}
                             type="file"

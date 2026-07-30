@@ -44,6 +44,24 @@ const apiSrc = readFileSync(_API_PATH, 'utf8');
 const cssSrc = readFileSync(_CSS_PATH, 'utf8');
 
 
+// [P2-SCAN-NO-WEBCAM-ON-DESKTOP · 2026-07-30 · reanclado] Antes cada test recortaba
+// `src.slice(tabsIdx, tabsIdx + 3000)`: una VENTANA DE BYTES FIJA. El botón "Ajustes" cae a ~2917
+// bytes del ancla leyendo con LF y a ~2982 leyendo con CRLF, y su `</button>` de cierre se sale de
+// los 3000 solo en el segundo caso => el test PASABA en CI (checkout LF) y FALLABA en Windows
+// (CRLF). Un rojo que existe solo en la maquina del owner es peor que un rojo normal: nadie mas lo
+// ve, asi que nadie lo arregla.
+//
+// Se recorta por ORDEN RELATIVO: del ancla de los tabs al cierre del contenedor, que es justo el
+// bloque sobre el que estos tests afirman. El tamano del bloque deja de ser el contrato.
+const tabsBlock = (src) => {
+    const i = src.indexOf('styles.modalTabs');
+    if (i < 0) throw new Error('styles.modalTabs ya no existe en History.jsx');
+    const fin = src.indexOf('_metricsTabCount', i);   // ultimo tab del grupo
+    if (fin < 0) throw new Error('el grupo de tabs ya no llega hasta _metricsTabCount');
+    const cierre = src.indexOf('</div>', fin);
+    return src.slice(i, cierre > 0 ? cierre : undefined);
+};
+
 describe('[P2-HIST-AUDIT-2] anchor + helpers api.js', () => {
     it('marker presente en History.jsx', () => {
         expect(src).toMatch(/\[P2-HIST-AUDIT-2\s*·\s*2026-05-09\]/);
@@ -144,23 +162,20 @@ describe('[P2-HIST-AUDIT-2] tabs nav JSX', () => {
     });
 
     it('botón "Menú" siempre visible cuando los tabs aparecen', () => {
-        const tabsIdx = src.indexOf('styles.modalTabs');
-        const around = src.slice(tabsIdx, tabsIdx + 3000);
+        const around = tabsBlock(src);
         expect(around).toMatch(/onClick=\{\(\)\s*=>\s*setActiveModalTab\(['"]menu['"]\)\}/);
         expect(around).toMatch(/>\s*Menú\s*</);
     });
 
     it('botón "Lecciones" condicional + dispara _ensureLessonsDetail', () => {
-        const tabsIdx = src.indexOf('styles.modalTabs');
-        const around = src.slice(tabsIdx, tabsIdx + 3000);
+        const around = tabsBlock(src);
         expect(around).toMatch(/_hasLessons\s*&&/);
         expect(around).toMatch(/_ensureLessonsDetail\(selectedPlan\.id\)/);
         expect(around).toMatch(/>\s*Lecciones\s*\(\{_lessonsCount\}\)\s*</);
     });
 
     it('botón "Ajustes" condicional + dispara _ensureCoherenceHistory', () => {
-        const tabsIdx = src.indexOf('styles.modalTabs');
-        const around = src.slice(tabsIdx, tabsIdx + 3000);
+        const around = tabsBlock(src);
         expect(around).toMatch(/_hasAdjusts\s*&&/);
         expect(around).toMatch(/_ensureCoherenceHistory\(selectedPlan\.id\)/);
         expect(around).toMatch(/>\s*Ajustes\s*\(\{_adjustsCount\}\)\s*</);
