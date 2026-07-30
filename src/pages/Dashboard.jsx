@@ -1792,12 +1792,22 @@ const DashboardInner = () => {
     // nada.
     const isPantryTooEmptyForSwap = computePantryGate(pantryItemCount, PANTRY_MIN_ITEMS_FOR_SWAP);
 
-    // Se deshabilitan SOLO los motivos que consumen la Nevera como fuente
-    // exclusiva (`SWAP_REASONS_REQUIRING_PANTRY`). `cravings` y `weekend` están
-    // exentos por decisión de producto (P3-SWAP-PANTRY-DEFAULT · 2026-05-22) y
-    // `dislike` no genera nada — registra una preferencia que sigue siendo
-    // válida con la nevera vacía. Bloquear el botón entero los mataría a los
-    // tres y revertiría esa decisión en silencio.
+    // Copy del bloqueo, compartido por el `title` y el `aria-label` del botón.
+    const swapPantryClaim = `Tu Nevera tiene muy pocos alimentos para cambiar un plato. `
+        + `Necesitas al menos ${PANTRY_MIN_ITEMS_FOR_SWAP} — añádelos en "Nevera".`;
+
+    // [P1-SWAP-PANTRY-GATE-FULL-BUTTON · 2026-07-30] Decisión del owner: el
+    // BOTÓN ENTERO se bloquea, en vez de deshabilitar motivo por motivo dentro
+    // del modal. Consecuencia asumida y explícita: con la Nevera baja tampoco
+    // se puede pedir 'cravings' ni 'weekend', que P3-SWAP-PANTRY-DEFAULT
+    // (2026-05-22) había eximido de strict-pantry. Se prefiere la simetría con
+    // "Actualizar platos" y no abrir un modal donde media lista está muerta.
+    //
+    // El gate POR MOTIVO se conserva como SEGUNDA barrera, y no es código
+    // muerto: cubre la ventana en que la Nevera se vacía MIENTRAS el modal está
+    // abierto (otra pestaña, un consume, un restock deshecho). El botón ya no
+    // deja entrar por debajo del mínimo, pero nada impide que el inventario
+    // caiga entre la apertura y el click.
     const swapPantryLockLabel = `Necesitas ${PANTRY_MIN_ITEMS_FOR_SWAP} alimentos`;
     const isSwapReasonPantryLocked = (reasonId) =>
         isPantryTooEmptyForSwap && SWAP_REASONS_REQUIRING_PANTRY.includes(reasonId);
@@ -7679,6 +7689,11 @@ const DashboardInner = () => {
                                                     className="meal-act-btn"
                                                     onClick={() => {
                                                         if (isEatenToday) return;
+                                                        // [P1-SWAP-PANTRY-GATE · 2026-07-30] Nevera bajo el mínimo → ni
+                                                        // se abre el modal. Guard interno duplicado igual que el de
+                                                        // `isEatenToday`: el `disabled` nativo ya bloquea click+teclado,
+                                                        // el early-return cubre cualquier dispatch sintético.
+                                                        if (isPantryTooEmptyForSwap) return;
                                                         // [P3-GUEST-GATE-MEAL-ACTIONS · 2026-06-21] Invitado: cambiar plato (IA) requiere cuenta.
                                                         if (isGuest) { toast('Crea tu cuenta para cambiar platos con IA'); return; }
                                                         if (regeneratingId === index || isDayUpdating) return;
@@ -7691,8 +7706,8 @@ const DashboardInner = () => {
                                                             if (!hasCredits) setSwapModal(null);
                                                         });
                                                     }}
-                                                    disabled={isEatenToday || regeneratingId === index || isDayUpdating}
-                                                    aria-label={isEatenToday ? eatenClaim : undefined}
+                                                    disabled={isEatenToday || isPantryTooEmptyForSwap || regeneratingId === index || isDayUpdating}
+                                                    aria-label={isEatenToday ? eatenClaim : (isPantryTooEmptyForSwap ? swapPantryClaim : undefined)}
                                                     style={{
                                                         background: isDark ? 'linear-gradient(135deg, #EA580C 0%, #C2410C 100%)' : '#FFF7ED',
                                                         border: isDark ? '1.5px solid transparent' : '1.5px solid #FED7AA',
@@ -7700,15 +7715,19 @@ const DashboardInner = () => {
                                                         padding: '0 0.85rem',
                                                         height: 44,
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-                                                        cursor: isEatenToday ? 'not-allowed' : (regeneratingId === index || isDayUpdating) ? 'wait' : 'pointer',
+                                                        cursor: (isEatenToday || isPantryTooEmptyForSwap) ? 'not-allowed' : (regeneratingId === index || isDayUpdating) ? 'wait' : 'pointer',
                                                         transition: 'all 0.2s',
-                                                        opacity: 1,
+                                                        // [P1-SWAP-PANTRY-GATE] Atenuado cuando la Nevera no da: sin
+                                                        // esto el botón se ve idéntico a uno vivo y el usuario lo lee
+                                                        // como que la app no responde, no como un bloqueo.
+                                                        opacity: isPantryTooEmptyForSwap ? 0.45 : 1,
+                                                        filter: isPantryTooEmptyForSwap ? 'saturate(.55)' : 'none',
                                                         fontWeight: isDark ? 750 : 650,
                                                         fontSize: '0.8rem',
                                                         color: isDark ? '#FFFFFF' : '#EA580C',
                                                         boxShadow: isDark ? '0 2px 8px -3px rgba(234, 88, 12, 0.3)' : 'none'
                                                     }}
-                                                    title={isEatenToday ? eatenClaim : 'Cambiar con IA'}
+                                                    title={isEatenToday ? eatenClaim : (isPantryTooEmptyForSwap ? swapPantryClaim : 'Cambiar con IA')}
                                                 >
                                                     <RefreshCw
                                                         size={18}

@@ -6,16 +6,25 @@
 // nunca leyó esa constante. Clase dominante del repo: un fix que aterrizó en
 // una superficie y no en su hermana.
 //
-// Dos decisiones que este test ancla y que NO son obvias:
+// Tres decisiones que este test ancla y que NO son obvias:
 //
-// 1. El gate es POR MOTIVO, no del botón entero. `P3-SWAP-PANTRY-DEFAULT`
-//    (2026-05-22) fijó que la Nevera es la fuente ÚNICA para todos los motivos
-//    EXCEPTO `cravings` y `weekend`. Bloquear el botón entero revertiría de
-//    facto esa decisión de producto. `dislike` tampoco se bloquea: no genera
-//    nada, registra una preferencia — y esa señal sigue siendo válida con la
-//    nevera vacía.
+// 1. [P1-SWAP-PANTRY-GATE-FULL-BUTTON · 2026-07-30] El BOTÓN ENTERO se bloquea.
+//    La primera versión gateaba motivo por motivo dentro del modal, para
+//    preservar la exención de `P3-SWAP-PANTRY-DEFAULT` (2026-05-22: la Nevera es
+//    la fuente ÚNICA para todos los motivos EXCEPTO `cravings` y `weekend`).
+//    El owner lo revisó y eligió el bloqueo completo: prefiere la simetría con
+//    "Actualizar platos" antes que abrir un modal donde media lista está muerta.
+//    **Consecuencia asumida y explícita**: con la Nevera baja tampoco se puede
+//    pedir un antojo ni un plato de fin de semana, aunque no necesiten
+//    ingredientes propios. Decisión de producto, no descuido — si alguien la
+//    revierte citando P3-SWAP-PANTRY-DEFAULT sin hablarlo, este bloque falla.
 //
-// 2. Dos umbrales, no uno. El día completo regenera 4 platos con reserva de
+// 2. El gate por motivo SOBREVIVE como segunda barrera, y no es código muerto:
+//    cubre la ventana en que la Nevera se vacía MIENTRAS el modal está abierto
+//    (otra pestaña, un consume). El botón ya no deja entrar por debajo del
+//    mínimo, pero nada impide que el inventario caiga entre abrir y elegir.
+//
+// 3. Dos umbrales, no uno. El día completo regenera 4 platos con reserva de
 //    inventario ENTRE ellos; el swap individual regenera 1. Una sola constante
 //    obliga a que una de las dos esté mal calibrada.
 //
@@ -103,10 +112,13 @@ describe('P1-SWAP-PANTRY-GATE · qué motivos consumen la Nevera', () => {
         expect([...SWAP_REASONS_REQUIRING_PANTRY].sort()).toEqual([...REQUIRE].sort());
     });
 
-    it('cravings y weekend siguen exentos — P3-SWAP-PANTRY-DEFAULT', () => {
-        // Regresión de PRODUCTO, no de código: si alguien "simplifica" el gate
-        // bloqueando el botón entero, estos dos caen con él y se revierte en
-        // silencio la decisión del 2026-05-22.
+    it('cravings y weekend siguen fuera de la lista — segunda barrera', () => {
+        // OJO al alcance tras P1-SWAP-PANTRY-GATE-FULL-BUTTON: el botón entero
+        // ya bloquea la entrada, así que en la práctica estos dos TAMPOCO son
+        // alcanzables con la Nevera baja (consecuencia asumida por el owner).
+        // Esta lista sigue importando solo para la segunda barrera — la ventana
+        // en que la Nevera se vacía con el modal ya abierto: ahí sí se
+        // deshabilitan los 3 que consumen nevera y estos 2 siguen pulsables.
         expect(SWAP_REASONS_REQUIRING_PANTRY).not.toContain('cravings');
         expect(SWAP_REASONS_REQUIRING_PANTRY).not.toContain('weekend');
     });
@@ -127,6 +139,59 @@ describe('P1-SWAP-PANTRY-GATE · umbrales', () => {
     it('el mínimo del día ya no es 3', () => {
         // El valor viejo. 4 platos desde 3 ingredientes no es un día.
         expect(PANTRY_MIN_ITEMS_FOR_UPDATE).toBeGreaterThan(3);
+    });
+});
+
+/**
+ * El JSX del botón de swap, del comentario-marker a SU cierre `</button>`.
+ *
+ * Anclado a la estructura y no a una ventana de N bytes: la primera versión de
+ * este test cortaba a 2.600 chars y el botón mide ~6.400, así que los asserts
+ * de `disabled` (offset 2.929) y `title` (5.184) miraban texto que no era el
+ * suyo y fallaban por el motivo equivocado. Una ventana fija caduca sola en
+ * cuanto el elemento crece un atributo.
+ */
+function swapButtonJsx(src) {
+    const i = src.indexOf('REGENERATE BUTTON (AI SWAP)');
+    if (i === -1) throw new Error('marker del botón de swap no encontrado');
+    const end = src.indexOf('</button>', i);
+    if (end === -1) throw new Error('cierre </button> no encontrado tras el marker');
+    return src.slice(i, end);
+}
+
+describe('P1-SWAP-PANTRY-GATE-FULL-BUTTON · el botón entero se bloquea', () => {
+    // [2026-07-30] Decisión del owner tras ver la versión por-motivo: se prefiere
+    // simetría con "Actualizar platos" antes que abrir un modal donde media lista
+    // está muerta. Consecuencia asumida: con la Nevera baja tampoco se puede pedir
+    // 'cravings'/'weekend'. Este bloque ancla ESA decisión — si alguien la revierte
+    // por "restaurar la exención de P3-SWAP-PANTRY-DEFAULT" sin hablarlo, falla.
+    it('el botón entra en el disabled real, no solo en el estilo', () => {
+        const block = swapButtonJsx(_dashSrc);
+        // Sanity del vehículo antes de los asserts que importan.
+        expect(block).toContain('Cambiar Plato');
+        expect(block).toMatch(/disabled=\{[^}]*isPantryTooEmptyForSwap/);
+    });
+
+    it('hay early-return en onClick — el disabled nativo no es la única barrera', () => {
+        const block = swapButtonJsx(_dashSrc);
+        expect(block).toMatch(/if\s*\(isPantryTooEmptyForSwap\)\s*return/);
+    });
+
+    it('el bloqueo dice POR QUÉ (title + aria-label), no solo se apaga', () => {
+        const block = swapButtonJsx(_dashSrc);
+        expect(block).toMatch(/title=\{[^}]*swapPantryClaim/);
+        expect(block).toMatch(/aria-label=\{[^}]*swapPantryClaim/);
+        // El copy nombra el número y adónde ir. Un "no disponible" pelado deja
+        // al usuario sin acción posible.
+        expect(_dashSrc).toMatch(/swapPantryClaim\s*=[\s\S]{0,240}Nevera/);
+    });
+
+    it('el gate por motivo SOBREVIVE como segunda barrera', () => {
+        // No es redundante ni código muerto: cubre que la Nevera se vacíe
+        // MIENTRAS el modal está abierto. Si alguien lo borra por "ya lo cubre
+        // el botón", esa ventana queda descubierta.
+        expect(_dashSrc).toContain('isSwapReasonPantryLocked');
+        expect(_dashSrc).toContain('decorateSwapOption');
     });
 });
 
