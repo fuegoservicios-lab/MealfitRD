@@ -74,18 +74,28 @@
        Slack, Telegram, Facebook, X) que hace GET a cualquier ruta recibe este
        index.html estático. Sin OG la preview cae a URL cruda sin imagen, lo que
        reduce el CTR de un producto cuyo crecimiento depende de compartir el
-       enlace. La imagen física vive en /public/og-image-v3.jpg (1200×1200, cuadrada;
+       enlace. La imagen física vive en /public/og-image-v4.jpg (1200×1200, cuadrada;
        coincide con og:image:width/height). [BRAND-OG-B · 2026-07-11] Diseño limpio:
-       solo el wordmark "Bioboros" (Outfit real, R indigo / D rose) + tagline sobre
-       navy, SIN isotipo. El sufijo se bumpea (-v2 → -v3) en cada cambio para romper
-       el cache de LinkPresentation de iOS (share sheet) y de WhatsApp/Facebook, que
-       ignoran el `?v=`. JPEG q90 = 68KB < límite ~300KB de WhatsApp. CSP de nginx OK. -->
+       solo el wordmark + tagline sobre navy, SIN isotipo. El sufijo se bumpea en
+       cada cambio para romper el cache de LinkPresentation de iOS (share sheet) y
+       de WhatsApp/Facebook, que ignoran el `?v=`. JPEG q92 < límite ~300KB de
+       WhatsApp. CSP de nginx OK.
+
+       ⚠️ [P2-WORDMARK-BIOBOROS · 2026-07-31 · v3 → v4] La v3 seguía diciendo
+       "MealfitRD" con la R indigo y la D rosa. Este mismo comentario ya decía
+       «wordmark "Bioboros"»: alguien rebrandeó la DESCRIPCIÓN del asset y no el
+       asset — un raster no lo alcanza ningún grep ni ningún guard de copy, así que
+       se descubrió cuando el owner compartió el enlace desde el móvil y lo vio.
+       Por eso ahora la imagen se GENERA: `node scripts/generate-og-image.mjs`
+       lleva el diseño en código y renderiza con la Outfit real de la app. Si
+       cambias la marca, edita ese script y vuelve a correrlo — no retoques el
+       .jpg a mano ni te fíes de lo que diga este párrafo. -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Bioboros" />
   <meta property="og:title" content="Bioboros | Nutrición Personalizada con IA" />
   <meta property="og:description" content="Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis." />
   <meta property="og:url" content="https://bioboros.com/" />
-  <meta property="og:image" content="https://bioboros.com/og-image-v3.jpg" />
+  <meta property="og:image" content="https://bioboros.com/og-image-v4.jpg" />
   <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="1200" />
@@ -94,7 +104,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Bioboros | Nutrición Personalizada con IA" />
   <meta name="twitter:description" content="Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis." />
-  <meta name="twitter:image" content="https://bioboros.com/og-image-v3.jpg" />
+  <meta name="twitter:image" content="https://bioboros.com/og-image-v4.jpg" />
 
   <!-- [P3-SEO-JSONLD · 2026-05-31] Structured data Organization (bajo riesgo,
        alto retorno: elegibilidad para knowledge panel). NO se declara
