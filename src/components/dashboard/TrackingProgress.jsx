@@ -575,6 +575,7 @@ const TrackingProgress = ({ planData, userId }) => {
                     onClose={() => setHistoryOpen(false)}
                     userId={userId}
                     targetCalories={goalCal}
+                    targetMacros={{ protein: goalPro, carbs: goalCarb, fats: goalFat }}
                 />
             )}
 

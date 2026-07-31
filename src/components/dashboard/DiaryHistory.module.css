@@ -1,19 +1,20 @@
-/* [P1-DIARY-HISTORY · 2026-07-31] El diario, día por día.
+/* [P1-DIARY-HISTORY · 2026-07-31 · rediseño P2-DIARY-SLOTS] El día como FORMULARIO
+ * A MEDIO LLENAR, no como lista de lo que hubo.
  *
- * IDEA: un diario de comidas es CRONOLÓGICO, y la card de hoy tira esa
- * información — lista las comidas sin decir cuándo se comieron. Aquí el día es
- * una LÍNEA y cada comida cuelga de su hora. Eso es lo que hace legible de un
- * vistazo "cené a las 18:51" frente a "hay una cena", que es justo la
- * ambigüedad que originó todo esto.
+ * La v1 dibujaba una línea horaria. Estaba mal por los datos: el backend sella
+ * `consumed_at = now() - N días` al retrodatar, así que una cena registrada a
+ * las 10:51 de la mañana salía como "10:51 · CENA". La hora era el momento del
+ * REGISTRO, no el de la comida — la señal descansaba sobre un dato inventado.
  *
- * La tira de días de arriba no es solo un selector: la altura de cada barra son
- * las kcal de ese día contra el objetivo, así que navegar y ver la adherencia
- * son el mismo gesto. Un día sin registro se dibuja hueco, no vacío — la
- * ausencia de dato es un dato.
+ * Lo que sí es real es la FRANJA: la nombró el usuario. Y en cuanto el día se
+ * dibuja por sus franjas, el enorme vacío bajo una sola comida deja de ser un
+ * problema de espaciado y pasa a ser la respuesta a "¿qué me falta?": desayuno,
+ * almuerzo y merienda están AHÍ, sin registro. El hueco era información que la
+ * v1 se negaba a mostrar.
  *
- * Paleta heredada de la app (tokens --bg-card/--border/--text-*) + los cuatro
- * acentos de macro que ya usa `TrackingProgress`. NO se inventa un lenguaje
- * cromático nuevo: esto es la misma pantalla vista en otro día.
+ * Una sola gramática en toda la pantalla: PUNTEADO = sin dato. Lo usa el riel
+ * de un día sin registro y lo usa una franja vacía. Las dos mitades del cajón
+ * dicen lo mismo de la misma forma.
  */
 
 .overlay {
@@ -36,7 +37,6 @@
     background: var(--bg-card, #0f172a);
     border-left: 1px solid var(--border, rgba(148, 163, 184, 0.14));
     box-shadow: -24px 0 60px -30px rgba(0, 0, 0, 0.9);
-    /* Safe-area: el drawer llega al borde físico en iOS standalone. */
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -48,31 +48,28 @@
     justify-content: space-between;
     gap: 1rem;
     padding: 1.15rem 1.15rem 0.9rem;
-    border-bottom: 1px solid var(--border, rgba(148, 163, 184, 0.12));
 }
 
 .eyebrow {
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     font-weight: 700;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--text-muted, #64748B);
 }
 
 .dateTitle {
-    margin-top: 0.2rem;
-    font-size: 1.22rem;
+    margin-top: 0.22rem;
+    font-size: 1.28rem;
     font-weight: 800;
-    /* Mismo tracking cerrado que el wordmark: la fecha es el título de esta
-       pantalla y debe leerse como parte de la marca, no como un dato suelto. */
-    letter-spacing: -0.03em;
-    line-height: 1.15;
+    letter-spacing: -0.03em;   /* mismo tracking que el wordmark */
+    line-height: 1.12;
     color: var(--text-main, #F8FAFC);
 }
 
 .dateRelative {
-    margin-top: 0.15rem;
-    font-size: 0.82rem;
+    margin-top: 0.12rem;
+    font-size: 0.8rem;
     color: var(--text-light, #94A3B8);
 }
 
@@ -97,7 +94,7 @@
 
 .closeBtn:focus-visible,
 .dayBtn:focus-visible,
-.navBtn:focus-visible {
+.trigger:focus-visible {
     outline: 2px solid #818CF8;
     outline-offset: 2px;
 }
@@ -107,52 +104,41 @@
 .strip {
     display: flex;
     align-items: flex-end;
-    gap: 0.32rem;
-    padding: 0.95rem 1.15rem 1rem;
+    gap: 0.3rem;
+    padding: 0.5rem 1.15rem 1rem;
     overflow-x: auto;
     scrollbar-width: none;
-    border-bottom: 1px solid var(--border, rgba(148, 163, 184, 0.12));
-    /* [P1-DIARY-STRIP-SCROLL · 2026-07-31] Los 14 días no caben en el cajón y
-       la barra de scroll está oculta, así que el corte era SECO: se leía como
-       "aquí se acaban los días", no como "hay más, desliza". El desvanecido en
-       los bordes es la única pista de que la cinta continúa — sin él, el owner
-       abrió el diario y no encontró ayer. */
-    mask-image: linear-gradient(90deg, transparent 0, #000 18px,
-                #000 calc(100% - 18px), transparent 100%);
-    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18px,
-                #000 calc(100% - 18px), transparent 100%);
+    /* Sin barra de scroll, un corte seco se lee como "aquí se acaban los días".
+       El desvanecido es la única pista de que la cinta sigue. */
+    mask-image: linear-gradient(90deg, transparent 0, #000 16px,
+                #000 calc(100% - 16px), transparent 100%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px,
+                #000 calc(100% - 16px), transparent 100%);
     scroll-behavior: smooth;
 }
 
-.strip::-webkit-scrollbar {
-    display: none;
-}
+.strip::-webkit-scrollbar { display: none; }
 
 .dayBtn {
     flex: 0 0 auto;
-    width: 38px;
+    width: 36px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0 0.3rem;
+    gap: 0.36rem;
+    padding: 0.3rem 0 0.28rem;
     border: 0;
-    border-radius: 10px;
+    border-radius: 9px;
     background: transparent;
     cursor: pointer;
     transition: background 0.16s ease;
 }
 
-.dayBtn:hover {
-    background: rgba(148, 163, 184, 0.07);
-}
-
-.dayBtnActive {
-    background: rgba(129, 140, 248, 0.13);
-}
+.dayBtn:hover { background: rgba(148, 163, 184, 0.07); }
+.dayBtnActive { background: rgba(129, 140, 248, 0.14); }
 
 .dayLetter {
-    font-size: 0.62rem;
+    font-size: 0.6rem;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -160,17 +146,14 @@
 }
 
 .dayBtnActive .dayLetter,
-.dayBtnActive .dayNum {
-    color: #C7D2FE;
-}
+.dayBtnActive .dayNum { color: #C7D2FE; }
 
 /* El riel es la ESCALA: sin él, dos barras cortas parecerían iguales aunque
-   una sea 200 kcal y otra 900. La barra se lee contra el objetivo, no contra
-   sus vecinas. */
+   una sea 200 kcal y otra 900. */
 .rail {
     position: relative;
-    width: 6px;
-    height: 42px;
+    width: 5px;
+    height: 40px;
     border-radius: 999px;
     background: rgba(148, 163, 184, 0.1);
     overflow: hidden;
@@ -185,15 +168,13 @@
     background: linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%);
 }
 
-/* Día sin registro: hueco y punteado. La ausencia de dato se ve distinta de
-   "un día flojo", que con una barra a 0 serían indistinguibles. */
 .railEmpty {
     background: transparent;
-    border: 1px dashed rgba(148, 163, 184, 0.28);
+    border: 1px dashed rgba(148, 163, 184, 0.26);
 }
 
 .dayNum {
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     color: var(--text-light, #94A3B8);
@@ -206,179 +187,188 @@
     background: #818CF8;
 }
 
-.todayDotHidden {
-    width: 3px;
-    height: 3px;
+.todayDotHidden { width: 3px; height: 3px; }
+
+/* ------------------------------------------------- cuota del día */
+
+.quota {
+    padding: 1.1rem 1.15rem 0;
+    border-top: 1px solid var(--border, rgba(148, 163, 184, 0.1));
 }
 
-/* ------------------------------------------------------------ resumen */
-
-.totals {
-    display: grid;
-    grid-template-columns: auto 1fr;
+.quotaTop {
+    display: flex;
     align-items: baseline;
-    gap: 0 0.9rem;
-    padding: 1.05rem 1.15rem 0.85rem;
+    gap: 0.45rem;
 }
 
-.kcal {
-    font-size: 1.9rem;
+.quotaNum {
+    font-size: 2.05rem;
     font-weight: 800;
-    letter-spacing: -0.035em;
+    letter-spacing: -0.04em;
     font-variant-numeric: tabular-nums;
-    color: var(--text-main, #F8FAFC);
     line-height: 1;
+    color: var(--text-main, #F8FAFC);
 }
 
-.kcalUnit {
+/* El total suelto no dice nada: 420 kcal es mucho o poco según el objetivo.
+   La v1 lo mostraba sin denominador y obligaba a recordar el de la card. */
+.quotaOf {
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--text-muted, #64748B);
-    margin-left: 0.3rem;
-    letter-spacing: 0;
-}
-
-.macros {
-    display: flex;
-    gap: 1.1rem;
-    padding: 0 1.15rem 1.05rem;
-}
-
-.macro {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.78rem;
-    color: var(--text-light, #94A3B8);
     font-variant-numeric: tabular-nums;
 }
 
-.macroDot {
-    width: 7px;
-    height: 7px;
-    border-radius: 2px;
+.quotaBar {
+    margin-top: 0.6rem;
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.12);
+    overflow: hidden;
 }
 
-.macroValue {
+.quotaFill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #FBBF24, #F59E0B);
+}
+
+.macroRow {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.85rem;
+    padding: 0.95rem 1.15rem 1.15rem;
+}
+
+.macroCell { min-width: 0; }
+
+.macroTop {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.3rem;
+    font-size: 0.7rem;
+    color: var(--text-muted, #64748B);
+}
+
+.macroName {
     font-weight: 700;
-    color: var(--text-main, #F8FAFC);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 0.6rem;
 }
 
-/* ------------------------------------------------- la línea del día */
+.macroVal {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-light, #94A3B8);
+}
 
-.timeline {
+.macroBar {
+    margin-top: 0.3rem;
+    height: 2px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.12);
+    overflow: hidden;
+}
+
+.macroFill { height: 100%; border-radius: 999px; }
+
+/* ------------------------------------------ el día por sus franjas */
+
+.slots {
     flex: 1;
     overflow-y: auto;
-    padding: 0.35rem 1.15rem 1.4rem;
-}
-
-.entry {
-    position: relative;
-    display: grid;
-    grid-template-columns: 46px 1fr;
-    gap: 0.9rem;
-    padding: 0.75rem 0;
-}
-
-/* La línea vertical que une las entradas: es el DÍA. Se dibuja en el
-   pseudo-elemento para que la primera y la última queden recortadas y la
-   línea no sobresalga por arriba ni por abajo. */
-.entry::before {
-    content: '';
-    position: absolute;
-    left: 52px;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: rgba(148, 163, 184, 0.16);
-}
-
-.entry:first-child::before {
-    top: 1.15rem;
-}
-
-.entry:last-child::before {
-    bottom: calc(100% - 1.35rem);
-}
-
-.hour {
-    text-align: right;
-    font-size: 0.75rem;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
-    color: var(--text-muted, #64748B);
-    padding-top: 0.1rem;
-}
-
-.node {
-    position: absolute;
-    left: 49px;
-    top: 1.05rem;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--bg-card, #0f172a);
-    box-shadow: 0 0 0 2px currentColor;
-}
-
-.body {
-    min-width: 0;
-    padding-left: 0.55rem;
+    padding: 0.15rem 1.15rem 1.5rem;
 }
 
 .slot {
-    font-size: 0.64rem;
+    display: grid;
+    grid-template-columns: 3px 1fr;
+    gap: 0 0.85rem;
+    padding: 0.72rem 0;
+}
+
+/* La regla vertical ES el estado: sólida y con color si la franja tiene
+   registro, punteada y apagada si no. Misma gramática que el riel de la tira. */
+.slotRule {
+    border-radius: 999px;
+    background: currentColor;
+}
+
+.slotEmpty .slotRule {
+    background: transparent;
+    border-left: 1px dashed rgba(148, 163, 184, 0.3);
+}
+
+.slotHead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+
+.slotLabel {
+    font-size: 0.62rem;
     font-weight: 800;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.13em;
     text-transform: uppercase;
 }
 
+.slotEmpty .slotLabel { color: var(--text-muted, #64748B); }
+
+.slotNote {
+    font-size: 0.68rem;
+    color: var(--text-muted, #64748B);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
 .mealName {
-    margin-top: 0.12rem;
-    font-size: 0.92rem;
+    margin-top: 0.2rem;
+    font-size: 0.93rem;
     font-weight: 600;
-    line-height: 1.32;
+    line-height: 1.34;
     color: var(--text-main, #F8FAFC);
     overflow-wrap: anywhere;
 }
 
 .mealMacros {
-    margin-top: 0.32rem;
-    font-size: 0.74rem;
+    margin-top: 0.28rem;
+    font-size: 0.73rem;
     color: var(--text-light, #94A3B8);
     font-variant-numeric: tabular-nums;
 }
 
-.mealKcal {
-    font-weight: 700;
-    color: #FBBF24;
+.mealKcal { font-weight: 700; color: #FBBF24; }
+
+.slotEmptyText {
+    margin-top: 0.16rem;
+    font-size: 0.78rem;
+    color: rgba(100, 116, 139, 0.85);
 }
 
-/* ------------------------------------------------------ estados vacíos */
-
-.empty {
-    padding: 2.6rem 1.4rem;
-    text-align: center;
+/* Nota de retrodatado: la hora del registro no es la hora de la comida, así
+   que en vez de una hora falsa se dice la verdad — cuándo se anotó. */
+.loggedOn {
+    margin-top: 0.28rem;
+    font-size: 0.68rem;
+    color: var(--text-muted, #64748B);
 }
 
-.emptyTitle {
-    font-size: 0.95rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--text-light, #94A3B8);
-}
+/* ------------------------------------------------------ estados */
 
-.emptyHint {
-    margin-top: 0.4rem;
+.dayEmpty {
+    padding: 1.6rem 0.2rem 0;
     font-size: 0.82rem;
-    line-height: 1.5;
+    line-height: 1.55;
     color: var(--text-muted, #64748B);
 }
 
 .skeleton {
-    height: 58px;
-    margin: 0.7rem 0;
+    height: 52px;
+    margin: 0.65rem 0;
     border-radius: 10px;
     background: linear-gradient(90deg,
         rgba(148, 163, 184, 0.06) 25%,
@@ -394,12 +384,12 @@
 }
 
 .error {
-    margin: 1.1rem 1.15rem;
-    padding: 0.8rem 0.9rem;
+    margin: 0 1.15rem 1rem;
+    padding: 0.78rem 0.9rem;
     border-radius: 10px;
     border: 1px solid rgba(248, 113, 113, 0.28);
     background: rgba(248, 113, 113, 0.07);
-    font-size: 0.82rem;
+    font-size: 0.81rem;
     line-height: 1.45;
     color: #FCA5A5;
 }
@@ -428,17 +418,13 @@
     background: rgba(148, 163, 184, 0.06);
 }
 
-.trigger:focus-visible {
-    outline: 2px solid #818CF8;
-    outline-offset: 2px;
-}
-
 @media (max-width: 520px) {
     .drawer { width: 100vw; }
-    .kcal { font-size: 1.7rem; }
-    .macros { gap: 0.85rem; }
+    .quotaNum { font-size: 1.85rem; }
+    .macroRow { gap: 0.6rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .skeleton { animation: none; }
+    .strip { scroll-behavior: auto; }
 }

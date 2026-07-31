@@ -1,25 +1,28 @@
-// [P1-DIARY-HISTORY · 2026-07-31] Ver el diario de días pasados.
+// [P1-DIARY-HISTORY · 2026-07-31 · rediseño P2-DIARY-SLOTS] El diario, día por día.
 //
 // POR QUÉ EXISTE
 // El coach registra hacia atrás (`days_ago`): "cené dos panes" dicho por la
-// mañana va al diario de AYER. Pero la única superficie que mostraba el diario
-// era la card "Progreso en Tiempo Real", que es SOLO hoy. Resultado medido: el
-// owner registró correctamente su cena de anoche, miró el panel en cero y
-// reportó "no se registró" — la fila estaba en `consumed_meals`, fechada el día
-// anterior. Un registro correcto que el usuario no puede ver es indistinguible
-// de uno que falló.
+// mañana va al diario de AYER. La única superficie que mostraba el diario era
+// la card "Progreso en Tiempo Real", que es SOLO hoy. El owner registró bien su
+// cena de anoche, miró el panel en cero y reportó "no se registró" — la fila
+// estaba, fechada el día anterior. Un registro correcto que no se puede ver es
+// indistinguible de uno que falló.
 //
-// DECISIONES DE DISEÑO
-// 1. El día es una LÍNEA, no una lista. Un diario de comidas es cronológico y
-//    la card de hoy tira esa información. Aquí cada comida cuelga de su hora:
-//    "18:51 · Cena" responde de un vistazo la pregunta que originó todo esto.
-// 2. La tira de días es a la vez navegación y gráfico: la altura de cada barra
-//    son las kcal de ese día contra el objetivo. Elegir día y ver la adherencia
-//    son el mismo gesto, sin añadir un segundo componente.
-// 3. Un día sin registro se dibuja HUECO, no a cero: la ausencia de dato tiene
-//    que verse distinta de "un día flojo".
-// 4. Drawer lateral, como `NotificationCenter` — la app ya tiene ese vocabulario
-//    y una modal centrada abriría un tercer patrón para lo mismo.
+// POR QUÉ SE REDISEÑÓ A LOS 20 MINUTOS
+// La v1 dibujaba una LÍNEA HORARIA. Estaba mal por los datos, no por el gusto:
+// `tools.log_consumed_meal` sella `consumed_at = now() - N días`, así que una
+// cena registrada a las 10:51 de la mañana salía como "10:51 · CENA". Medido en
+// la fila real: `consumed=30 jul 14:51:04` / `created=31 jul 14:51:04` — el
+// mismo minuto, 24 h de diferencia. La hora era el instante del REGISTRO.
+//   ⇒ La señal de la v1 descansaba sobre un dato inventado.
+//
+// Lo que SÍ es real es la FRANJA: la nombró el usuario. Y en cuanto el día se
+// dibuja por sus franjas, el enorme vacío bajo una sola comida deja de ser un
+// problema de espaciado y pasa a ser la respuesta a "¿qué me falta?".
+//
+// UNA SOLA GRAMÁTICA: punteado = sin dato. Lo usa el riel de un día sin
+// registro en la tira y lo usa una franja vacía. Las dos mitades del cajón
+// dicen lo mismo de la misma forma.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
@@ -30,28 +33,22 @@ import styles from './DiaryHistory.module.css';
 
 const DIAS_TIRA = 14;
 
-// Mismos 5 valores que emite el backend (`tools.py::_normalize_meal_type`).
-const SLOT_LABEL = {
-    desayuno: 'Desayuno',
-    almuerzo: 'Almuerzo',
-    cena: 'Cena',
-    merienda: 'Merienda',
-    snack: 'Snack',
-};
-
-// Un color por franja para que la línea del día se lea sin depender del texto.
-const SLOT_COLOR = {
-    desayuno: '#FBBF24',
-    almuerzo: '#34D399',
-    cena: '#818CF8',
-    merienda: '#F472B6',
-    snack: '#94A3B8',
-};
+// El orden es el del DÍA, no el del enum del backend: así la pantalla se lee
+// de la mañana a la noche aunque no haya ni una hora fiable.
+const FRANJAS = [
+    { key: 'desayuno', label: 'Desayuno', color: '#FBBF24' },
+    { key: 'almuerzo', label: 'Almuerzo', color: '#34D399' },
+    { key: 'merienda', label: 'Merienda', color: '#F472B6' },
+    { key: 'cena', label: 'Cena', color: '#818CF8' },
+];
+// `snack` no tiene fila propia: no es una franja del día sino algo suelto entre
+// medias. Se agrupa al final y solo aparece si existe.
+const SNACK = { key: 'snack', label: 'Snacks', color: '#94A3B8' };
 
 const MACROS = [
-    { key: 'protein', label: 'P', color: '#60A5FA' },
-    { key: 'carbs', label: 'C', color: '#34D399' },
-    { key: 'healthy_fats', label: 'G', color: '#F472B6' },
+    { key: 'protein', label: 'Proteína', color: '#60A5FA', goal: 'protein' },
+    { key: 'carbs', label: 'Carbos', color: '#34D399', goal: 'carbs' },
+    { key: 'healthy_fats', label: 'Grasas', color: '#F472B6', goal: 'fats' },
 ];
 
 const DIA_LETRA = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
@@ -65,27 +62,16 @@ const aISO = (d) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /** Parseo explícito a fecha LOCAL. `new Date('2026-07-30')` la interpreta como
- *  medianoche UTC, que en RD es el día 29 a las 20:00 — el mismo desfase por el
- *  que esta pantalla existe. */
+ *  medianoche UTC, que en RD es el día 29 a las 20:00. */
 const desdeISO = (iso) => {
     const [a, m, d] = String(iso).split('-').map(Number);
     return new Date(a, (m || 1) - 1, d || 1);
 };
 
-const etiquetaRelativa = (iso, hoyISO) => {
-    if (iso === hoyISO) return 'Hoy';
-    const ayer = new Date();
-    ayer.setDate(ayer.getDate() - 1);
-    if (iso === aISO(ayer)) return 'Ayer';
-    return '';
-};
-
-const horaDe = (meal) => {
-    const raw = meal?.consumed_at || meal?.created_at;
+const aFecha = (raw) => {
     if (!raw) return null;
     const d = new Date(raw);
-    if (Number.isNaN(d.getTime())) return null;
-    return d;
+    return Number.isNaN(d.getTime()) ? null : d;
 };
 
 const num = (v) => {
@@ -93,11 +79,33 @@ const num = (v) => {
     return Number.isFinite(n) ? Math.round(n) : 0;
 };
 
-const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
+const pct = (v, meta) => (meta > 0 ? Math.min(100, Math.round((num(v) / meta) * 100)) : 0);
+
+/**
+ * ¿Se puede confiar en la hora de esta comida?
+ *
+ * `log_consumed_meal` retrodata con `consumed_at = now() - N días`, así que en
+ * un registro de otro día la hora es la del REGISTRO y no la de la comida.
+ * Se detecta comparando los DÍAS de ambas marcas: si difieren, fue retrodatado.
+ * No hace falta epsilon — la pregunta es "¿lo anotaste otro día?", no "¿cuánto
+ * se parecen los relojes?".
+ */
+const horaFiable = (meal) => {
+    const consumido = aFecha(meal?.consumed_at);
+    const creado = aFecha(meal?.created_at);
+    if (!consumido) return null;
+    if (creado && aISO(creado) !== aISO(consumido)) return null;
+    return consumido;
+};
+
+const hhmm = (d) =>
+    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacros = {} }) => {
     const hoyISO = useMemo(() => aISO(new Date()), []);
     const [selected, setSelected] = useState(hoyISO);
-    const [resumen, setResumen] = useState([]);          // [{date, calories, meals_count}]
-    const [dia, setDia] = useState(null);                // {meals, totals}
+    const [resumen, setResumen] = useState([]);
+    const [dia, setDia] = useState(null);
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState('');
     const cierreRef = useRef(null);
@@ -106,8 +114,6 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
 
     const tzOffset = useMemo(() => new Date().getTimezoneOffset(), []);
 
-    // Los 14 días de la tira, del más antiguo al más reciente (izq → der), que
-    // es como se lee una línea de tiempo en es-DO.
     const dias = useMemo(() => {
         const out = [];
         for (let i = DIAS_TIRA - 1; i >= 0; i -= 1) {
@@ -124,7 +130,6 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
         return m;
     }, [resumen]);
 
-    // --- resumen del rango (una sola llamada) --------------------------------
     useEffect(() => {
         if (!open || !userId) return undefined;
         let vivo = true;
@@ -136,15 +141,12 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
                 const data = await res.json();
                 if (vivo && Array.isArray(data?.days)) setResumen(data.days);
             } catch {
-                // La tira degrada a "sin datos": es un adorno informativo, no
-                // debe tumbar la pantalla. El día seleccionado tiene su propio
-                // fetch y su propio error visible.
+                // La tira degrada a "sin datos": es contexto, no el contenido.
             }
         })();
         return () => { vivo = false; };
     }, [open, userId, tzOffset]);
 
-    // --- el día seleccionado -------------------------------------------------
     useEffect(() => {
         if (!open || !userId) return undefined;
         let vivo = true;
@@ -170,31 +172,19 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
         return () => { vivo = false; };
     }, [open, userId, selected, tzOffset]);
 
-    // [P1-DIARY-STRIP-SCROLL · 2026-07-31] La tira arranca mostrando los días
-    // MÁS VIEJOS y eso es exactamente lo contrario de lo que hace falta.
-    //
-    // Reportado: el owner abrió el diario buscando su cena de ayer y vio
-    // "18 … 27" con todos los rieles vacíos. Hoy era 31. Los 14 días miden
-    // ~597px y en el cajón caben ~423, así que los 4 más recientes —hoy, ayer,
-    // y los dos anteriores: los ÚNICOS que alguien mira— quedaban fuera de
-    // pantalla a la derecha, en un contenedor cuya barra de scroll está oculta.
-    // Un overflow silencioso se lee como "no hay más días", no como "desliza".
-    //
-    // Se ancla al día ACTIVO y no a `scrollWidth` a secas: así también sigue al
-    // usuario cuando cambia de día con las flechas y sale del área visible.
+    // [P1-DIARY-STRIP-SCROLL] Los 14 días no caben y la barra está oculta: sin
+    // esto la tira abría por los días MÁS VIEJOS y hoy/ayer quedaban fuera de
+    // pantalla. Se ancla al día ACTIVO para que también siga a las flechas.
     useEffect(() => {
         if (!open) return;
         const nodo = activoRef.current;
         const cinta = stripRef.current;
         if (!nodo || !cinta) return;
-        // `scrollIntoView` con `block` movería TAMBIÉN el scroll vertical del
-        // drawer; aquí solo interesa el eje horizontal de la tira.
         const izq = nodo.offsetLeft - (cinta.clientWidth - nodo.offsetWidth) / 2;
         cinta.scrollTo({
             left: Math.max(0, izq),
             behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-                ? 'auto'
-                : 'smooth',
+                ? 'auto' : 'smooth',
         });
     }, [open, selected, dias]);
 
@@ -206,8 +196,6 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
         });
     }, [dias]);
 
-    // Esc cierra; flechas cambian de día. Un drawer sin teclado obliga a apuntar
-    // con el ratón a botones de 38px.
     useEffect(() => {
         if (!open) return undefined;
         const onKey = (e) => {
@@ -221,43 +209,61 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
     }, [open, onClose, moverDia]);
 
     const fecha = desdeISO(selected);
-    const relativa = etiquetaRelativa(selected, hoyISO);
+    const esHoy = selected === hoyISO;
+    const esAyer = useMemo(() => {
+        const a = new Date(); a.setDate(a.getDate() - 1);
+        return selected === aISO(a);
+    }, [selected]);
     const totales = dia?.totals || {};
-    const comidas = useMemo(() => {
-        const lista = [...(dia?.meals || [])];
-        // Orden cronológico ASCENDENTE: la línea del día se lee de la mañana a
-        // la noche. El endpoint devuelve por `created_at` desc, que es el orden
-        // de REGISTRO — no el de consumo, y son distintos justo en el caso que
-        // motivó esta pantalla (una cena registrada al día siguiente).
-        lista.sort((a, b) => {
-            const ha = horaDe(a); const hb = horaDe(b);
-            if (!ha || !hb) return 0;
-            return ha - hb;
+
+    // Las comidas agrupadas por franja, en el orden del día.
+    const porFranja = useMemo(() => {
+        const m = new Map();
+        (dia?.meals || []).forEach((meal) => {
+            const k = (meal.meal_type || 'snack').toLowerCase();
+            if (!m.has(k)) m.set(k, []);
+            m.get(k).push(meal);
         });
-        return lista;
+        return m;
     }, [dia]);
 
+    const sinNada = !cargando && !error && (dia?.meals || []).length === 0;
+
     if (!open) return null;
+
+    const renderComida = (meal) => {
+        const h = horaFiable(meal);
+        const creado = aFecha(meal?.created_at);
+        return (
+            <div key={meal.id || meal.meal_name}>
+                <div className={styles.mealName}>{meal.meal_name || 'Sin nombre'}</div>
+                <div className={styles.mealMacros}>
+                    <span className={styles.mealKcal}>{num(meal.calories)} kcal</span>
+                    {' · '}P {num(meal.protein)} · C {num(meal.carbs)} · G {num(meal.healthy_fats)}
+                </div>
+                {/* La hora solo si es de fiar. Si se anotó otro día, se dice ESO
+                    — que es verdad y además útil — en vez de una hora inventada. */}
+                {!h && creado && (
+                    <div className={styles.loggedOn}>
+                        Lo anotaste el {DIAS_LARGO[creado.getDay()].toLowerCase()} {creado.getDate()}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     const cuerpo = (
         <>
             <motion.div
                 className={styles.overlay}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 transition={{ duration: 0.18 }}
-                onClick={onClose}
-                aria-hidden="true"
+                onClick={onClose} aria-hidden="true"
             />
             <motion.aside
                 className={styles.drawer}
-                role="dialog"
-                aria-modal="true"
-                aria-label="Diario de días anteriores"
-                initial={{ x: '100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '100%' }}
+                role="dialog" aria-modal="true" aria-label="Diario de días anteriores"
+                initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
                 transition={{ type: 'spring', stiffness: 340, damping: 34 }}
             >
                 <header className={styles.head}>
@@ -266,14 +272,13 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
                         <h2 className={styles.dateTitle}>
                             {DIAS_LARGO[fecha.getDay()]} {fecha.getDate()} de {MESES[fecha.getMonth()]}
                         </h2>
-                        {relativa && <div className={styles.dateRelative}>{relativa}</div>}
+                        {(esHoy || esAyer) && (
+                            <div className={styles.dateRelative}>{esHoy ? 'Hoy' : 'Ayer'}</div>
+                        )}
                     </div>
                     <button
-                        ref={cierreRef}
-                        type="button"
-                        className={styles.closeBtn}
-                        onClick={onClose}
-                        aria-label="Cerrar"
+                        ref={cierreRef} type="button" className={styles.closeBtn}
+                        onClick={onClose} aria-label="Cerrar"
                     >
                         <X size={17} />
                     </button>
@@ -285,24 +290,16 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
                         const r = porFecha.get(iso);
                         const kcal = r?.calories || 0;
                         const conDatos = (r?.meals_count || 0) > 0;
-                        // Techo al 100%: un día por encima del objetivo llena la
-                        // barra, no la desborda ni re-escala a los vecinos.
-                        const pct = targetCalories > 0
-                            ? Math.min(100, Math.round((kcal / targetCalories) * 100))
-                            : 0;
+                        const alto = pct(kcal, targetCalories);
                         const activo = iso === selected;
                         return (
                             <button
                                 key={iso}
                                 ref={activo ? activoRef : null}
-                                type="button"
-                                role="tab"
-                                aria-selected={activo}
+                                type="button" role="tab" aria-selected={activo}
                                 className={`${styles.dayBtn} ${activo ? styles.dayBtnActive : ''}`}
                                 onClick={() => setSelected(iso)}
-                                title={conDatos
-                                    ? `${kcal} kcal · ${r.meals_count} comida(s)`
-                                    : 'Sin registro'}
+                                title={conDatos ? `${kcal} kcal · ${r.meals_count} comida(s)` : 'Sin registro'}
                             >
                                 <span className={styles.dayLetter}>{DIA_LETRA[d.getDay()]}</span>
                                 <span className={`${styles.rail} ${conDatos ? '' : styles.railEmpty}`}>
@@ -310,7 +307,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
                                         <motion.span
                                             className={styles.railFill}
                                             initial={{ height: 0 }}
-                                            animate={{ height: `${Math.max(pct, 6)}%` }}
+                                            animate={{ height: `${Math.max(alto, 8)}%` }}
                                             transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
                                         />
                                     )}
@@ -322,75 +319,102 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
                     })}
                 </div>
 
-                <div className={styles.totals}>
-                    <div className={styles.kcal}>
-                        {num(totales.calories)}
-                        <span className={styles.kcalUnit}>kcal</span>
+                <div className={styles.quota}>
+                    <div className={styles.quotaTop}>
+                        <span className={styles.quotaNum}>{num(totales.calories)}</span>
+                        <span className={styles.quotaOf}>de {targetCalories} kcal</span>
                     </div>
-                    <div />
+                    <div className={styles.quotaBar}>
+                        <motion.div
+                            className={styles.quotaFill}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct(totales.calories, targetCalories)}%` }}
+                            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                        />
+                    </div>
                 </div>
-                <div className={styles.macros}>
-                    {MACROS.map((m) => (
-                        <span key={m.key} className={styles.macro}>
-                            <span className={styles.macroDot} style={{ background: m.color }} />
-                            {m.label}<span className={styles.macroValue}>&nbsp;{num(totales[m.key])} g</span>
-                        </span>
-                    ))}
+
+                <div className={styles.macroRow}>
+                    {MACROS.map((m) => {
+                        const meta = num(targetMacros?.[m.goal]) || 0;
+                        return (
+                            <div key={m.key} className={styles.macroCell}>
+                                <div className={styles.macroTop}>
+                                    <span className={styles.macroName}>{m.label}</span>
+                                    <span className={styles.macroVal}>
+                                        {num(totales[m.key])}{meta ? `/${meta}` : ''} g
+                                    </span>
+                                </div>
+                                <div className={styles.macroBar}>
+                                    <motion.div
+                                        className={styles.macroFill}
+                                        style={{ background: m.color }}
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${pct(totales[m.key], meta)}%` }}
+                                        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                                    />
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {error && <div className={styles.error}>{error}</div>}
 
-                <div className={styles.timeline}>
-                    {cargando && (
-                        <>
-                            <div className={styles.skeleton} />
-                            <div className={styles.skeleton} />
-                        </>
-                    )}
+                <div className={styles.slots}>
+                    {cargando && (<><div className={styles.skeleton} /><div className={styles.skeleton} /></>)}
 
-                    {!cargando && !error && comidas.length === 0 && (
-                        <div className={styles.empty}>
-                            <div className={styles.emptyTitle}>
-                                {relativa === 'Hoy'
-                                    ? 'Todavía no registras nada hoy'
-                                    : `No registraste nada el ${DIAS_LARGO[fecha.getDay()].toLowerCase()}`}
-                            </div>
-                            <p className={styles.emptyHint}>
-                                Puedes contárselo al coach en el chat aunque haya pasado —
-                                él lo anota en el día que corresponda.
-                            </p>
-                        </div>
-                    )}
-
-                    {!cargando && comidas.map((meal, i) => {
-                        const h = horaDe(meal);
-                        const slot = (meal.meal_type || '').toLowerCase();
-                        const color = SLOT_COLOR[slot] || '#94A3B8';
+                    {!cargando && !error && FRANJAS.map((f, i) => {
+                        const items = porFranja.get(f.key) || [];
+                        const lleno = items.length > 0;
                         return (
                             <motion.div
-                                key={meal.id || `${meal.meal_name}-${i}`}
-                                className={styles.entry}
-                                initial={{ opacity: 0, y: 6 }}
+                                key={f.key}
+                                className={`${styles.slot} ${lleno ? '' : styles.slotEmpty}`}
+                                style={{ color: f.color }}
+                                initial={{ opacity: 0, y: 5 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.24, delay: Math.min(i, 6) * 0.035 }}
+                                transition={{ duration: 0.22, delay: i * 0.04 }}
                             >
-                                <span className={styles.hour}>
-                                    {h ? `${String(h.getHours()).padStart(2, '0')}:${String(h.getMinutes()).padStart(2, '0')}` : '--:--'}
-                                </span>
-                                <span className={styles.node} style={{ color }} />
-                                <div className={styles.body}>
-                                    <div className={styles.slot} style={{ color }}>
-                                        {SLOT_LABEL[slot] || 'Comida'}
+                                <span className={styles.slotRule} />
+                                <div>
+                                    <div className={styles.slotHead}>
+                                        <span className={styles.slotLabel} style={lleno ? { color: f.color } : undefined}>
+                                            {f.label}
+                                        </span>
+                                        {lleno && items.length === 1 && horaFiable(items[0]) && (
+                                            <span className={styles.slotNote}>{hhmm(horaFiable(items[0]))}</span>
+                                        )}
                                     </div>
-                                    <div className={styles.mealName}>{meal.meal_name || 'Sin nombre'}</div>
-                                    <div className={styles.mealMacros}>
-                                        <span className={styles.mealKcal}>{num(meal.calories)} kcal</span>
-                                        {' · '}P {num(meal.protein)} g · C {num(meal.carbs)} g · G {num(meal.healthy_fats)} g
-                                    </div>
+                                    {lleno
+                                        ? items.map((meal) => renderComida(meal))
+                                        : <div className={styles.slotEmptyText}>Sin registro</div>}
                                 </div>
                             </motion.div>
                         );
                     })}
+
+                    {!cargando && !error && (porFranja.get(SNACK.key) || []).length > 0 && (
+                        <div className={styles.slot} style={{ color: SNACK.color }}>
+                            <span className={styles.slotRule} />
+                            <div>
+                                <div className={styles.slotHead}>
+                                    <span className={styles.slotLabel} style={{ color: SNACK.color }}>
+                                        {SNACK.label}
+                                    </span>
+                                </div>
+                                {porFranja.get(SNACK.key).map((meal) => renderComida(meal))}
+                            </div>
+                        </div>
+                    )}
+
+                    {sinNada && (
+                        <p className={styles.dayEmpty}>
+                            {esHoy
+                                ? 'El día está en blanco. Cuéntale al coach lo que comas y lo va anotando aquí.'
+                                : 'Ese día quedó sin registrar. Puedes contárselo al coach aunque haya pasado — él lo anota en la fecha que corresponda.'}
+                        </p>
+                    )}
                 </div>
             </motion.aside>
         </>
@@ -404,9 +428,10 @@ DiaryHistory.propTypes = {
     open: PropTypes.bool,
     onClose: PropTypes.func,
     targetCalories: PropTypes.number,
+    targetMacros: PropTypes.object,
 };
 
-/** Botón que abre el drawer. Vive junto al componente para que añadirlo a una
+/** Botón que abre el cajón. Vive junto al componente para que añadirlo a una
  *  card sea una línea y no haya dos sitios que mantener sincronizados. */
 export const DiaryHistoryTrigger = ({ onClick }) => (
     <button type="button" className={styles.trigger} onClick={onClick}>
