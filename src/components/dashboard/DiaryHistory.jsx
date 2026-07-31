@@ -27,7 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarDays } from 'lucide-react';
+import { X, CalendarDays, ChevronRight } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
 import styles from './DiaryHistory.module.css';
 
@@ -437,6 +437,7 @@ export const DiaryHistoryTrigger = ({ onClick }) => (
     <button type="button" className={styles.trigger} onClick={onClick}>
         <CalendarDays size={14} />
         Ver días anteriores
+        <ChevronRight size={14} className={styles.triggerChevron} />
     </button>
 );
 
