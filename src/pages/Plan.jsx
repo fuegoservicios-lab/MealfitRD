@@ -389,8 +389,17 @@ export const generateAIPlanStream = async (formData, onProgress) => {
 
             if (finalResult) return finalResult;
 
-            // Si no recibió complete event, error
-            throw new Error('Stream cerrado sin resultado completo');
+            // Si no recibió complete event, error.
+            // [P1-SSE-EOF-RECONCILE · 2026-07-31] Lleva `code` para que el catch pueda
+            // enrutarlo. Sin él caía al `else` genérico → fallback al endpoint síncrono
+            // → OTRO pipeline completo. Ese coste ya está medido en este mismo archivo
+            // para la causa vecina (ver P6-CANCEL-SIGNAL-CHECK: "1.5 min de cuota LLM
+            // gastada"), que se cerró chequeando `signal.aborted` — pero solo cubre el
+            // cancel del usuario. Un generador que MUERE cierra el stream igual, y el
+            // stream cerrado no se distingue del cancelado sin preguntar al servidor.
+            const eofErr = new Error('Stream cerrado sin resultado completo');
+            eofErr.code = 'sse_eof_no_result';
+            throw eofErr;
 
         } catch (error) {
             clearTimeout(timeoutId);
@@ -1399,6 +1408,46 @@ const Plan = () => {
                     // toast + redirect al formulario para que el user vea el
                     // contexto completo y pueda reintentar (incluyendo refrescar
                     // su perfil si suspendió la PC y la sesión expiró).
+                    if (error.code === 'sse_eof_no_result') {
+                        // [P1-SSE-EOF-RECONCILE · 2026-07-31] El stream se CERRÓ sin
+                        // entregar resultado (típico: el generador SSE muere post-pipeline
+                        // — el backend lo registra como
+                        // `[P2-PIPELINE-TASK-DONE-COMPLETE] SSE generator murió
+                        // pre-postprocess` y persiste el plan por su cuenta).
+                        //
+                        // No es simétrico con `sse_idle`: ahí el silencio implica que el
+                        // backend probablemente sigue vivo, así que reconciliar a ciegas
+                        // acierta. Aquí el stream cerrado NO dice nada sobre el backend —
+                        // pudo terminar, seguir, o morirse de verdad. Preguntamos:
+                        //
+                        //   complete   → el plan ya está guardado; reconciliar lo rescata.
+                        //   generating → sigue vivo; el fallback síncrono duplicaría el
+                        //                pipeline (justo el coste que documenta
+                        //                P6-CANCEL-SIGNAL-CHECK). Dejamos el spinner y el
+                        //                poll de 3s navega al completar.
+                        //   none/error → no hay nada que rescatar: el fallback síncrono
+                        //                SIGUE siendo lo correcto, así que caemos a él.
+                        //
+                        // Preguntar es lo que separa "rescatar" de "pagar dos veces".
+                        let fasePorServidor = null;
+                        try {
+                            const sidEof = safeLocalStorageGet('mealfit_guest_session_id', null);
+                            const qsEof = sidEof ? `?session_id=${encodeURIComponent(sidEof)}` : '';
+                            const resEof = await fetchWithAuth(`/api/plans/pending-status${qsEof}`);
+                            if (resEof.ok) fasePorServidor = (await resEof.json())?.status ?? null;
+                        } catch { /* red caída → desconocido → cae al fallback, como antes */ }
+
+                        if (fasePorServidor === 'complete' || fasePorServidor === 'generating') {
+                            console.warn(`🔌 SSE cerrado sin resultado; el servidor dice '${fasePorServidor}' — reconciliando en vez de regenerar.`);
+                            setStreamPhase('recovery_mode');
+                            try {
+                                await reconcileRef.current?.('watchdog');
+                            } catch { /* el reconciliador maneja su red; el poll de 3s reintenta */ }
+                            return;
+                        }
+                        console.warn("🔌 SSE cerrado sin resultado y el servidor no tiene pipeline vivo — cae al fallback síncrono.");
+                        // sin `return`: sigue al fallback de abajo.
+                    }
                     if (error.code === 'sse_idle') {
                         // [P1-SSE-IDLE-WATCHDOG · 2026-07-12] El SSE murió en SILENCIO
                         // (watchdog de inactividad; típico en desktop: proxy idle-timeout,
