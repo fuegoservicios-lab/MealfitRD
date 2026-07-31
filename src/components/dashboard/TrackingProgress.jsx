@@ -3,6 +3,10 @@ import { Flame, Dumbbell, Wheat, Droplet, Activity, Camera, Flag, Trash2, Loader
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
+// [P1-DIARY-HISTORY · 2026-07-31] Esta card es SOLO hoy; el coach registra
+// hacia atras con `days_ago`. Sin esta puerta, una comida bien registrada
+// en otro dia no tiene NINGUNA superficie donde verse.
+import DiaryHistory, { DiaryHistoryTrigger } from './DiaryHistory';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import { confirmToast } from '../../utils/confirmToast';
 import ProteinIcon from '../icons/ProteinIcon';
@@ -377,6 +381,9 @@ const TrackingProgress = ({ planData, userId }) => {
     }, [deletingMealId, consumedCacheKey]);
 
     // Funciones Helper para calcular Progreso
+    // [P1-DIARY-HISTORY · 2026-07-31]
+    const [historyOpen, setHistoryOpen] = useState(false);
+
     const goalCal = parseInt(planData?.calories) || 2000;
     const goalPro = parseInt(planData?.macros?.protein) || 150;
     const goalCarb = parseInt(planData?.macros?.carbs) || 200;
@@ -553,7 +560,22 @@ const TrackingProgress = ({ planData, userId }) => {
                             )}
                         </>
                     )}
+                    {/* [P1-DIARY-HISTORY · 2026-07-31] FUERA del ternario a
+                        proposito: el dia vacio es precisamente cuando hace falta
+                        poder mirar atras (el caso reportado fue un panel en cero
+                        con la comida registrada en ayer). */}
+                    <DiaryHistoryTrigger onClick={() => setHistoryOpen(true)} />
                 </div>
+            )}
+
+            {/* [P1-DIARY-HISTORY · 2026-07-31] */}
+            {isLoggedIn && (
+                <DiaryHistory
+                    open={historyOpen}
+                    onClose={() => setHistoryOpen(false)}
+                    userId={userId}
+                    targetCalories={goalCal}
+                />
             )}
 
             {/* [P2-DIARY-SCAN-MACROS · 2026-05-30] Modal de escaneo. Solo se
